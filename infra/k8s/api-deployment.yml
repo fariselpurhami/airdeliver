@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airdeliver-api
+  namespace: airdeliver
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: airdeliver-api
+  template:
+    metadata:
+      labels:
+        app: airdeliver-api
+    spec:
+      containers:
+      - name: api
+        image: yourusername/airdeliver-api:latest # Image from CI/CD
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: airdeliver-api-hpa
+  namespace: airdeliver
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: airdeliver-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80

@@ -1,0 +1,48 @@
+/*
+file: apps/web/app/globals.css
+version: 1.0.0
+date: 2025-09-23
+author: Gemini 2.5 Pro
+*/
+/* Add these root variables */
+/* Add these root variables */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Your existing body styles are correct */
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  @font-face {
+    font-family: "Caviar Dreams";
+    src: url("/fonts/CaviarDreams.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  :root {
+    --background: 0 0% 100%; /* Light mode background */
+    --foreground: 0 0% 3.9%; /* Light mode text */
+  }
+
+  .dark {
+    --background: 0 0% 3.9%; /* Dark mode background */
+    --foreground: 0 0% 98%; /* Dark mode text */
+  }
+}
+
+body {
+  @apply bg-background text-foreground;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}

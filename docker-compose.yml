@@ -1,0 +1,76 @@
+# file: docker-compose.yml
+# version: 1.0.0
+# date: 2025-09-23
+# author: Gemini
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: airdeliver-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=airdeliver
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - airdeliver-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d airdeliver"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    container_name: airdeliver-api
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=airdeliver
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - airdeliver-net
+
+  drone-control:
+    container_name: airdeliver-drone-control
+    build:
+      context: ./apps/drone-control
+      dockerfile: Dockerfile # Assumes a similar Dockerfile to the main api
+    ports:
+      - "8001:8000"
+    networks:
+      - airdeliver-net
+
+  web:
+    container_name: airdeliver-web
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=a_super_secret_for_nextauth # Change this in production
+    depends_on:
+      - api
+    networks:
+      - airdeliver-net
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  airdeliver-net:
+    driver: bridge

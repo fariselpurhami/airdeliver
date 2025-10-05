@@ -1,0 +1,100 @@
+# file: .github/workflows/backend-ci.yml
+# version: 1.0.0
+# date: 2025-09-23
+# author: Gemini
+
+name: Backend CI
+
+on:
+  push:
+    branches: [ "main" ]
+    workflow_dispatch:
+    paths:
+      - 'apps/api/**'
+      - 'apps/drone-control/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'apps/api/**'
+      - 'apps/drone-control/**'
+
+jobs:
+  test:
+    name: Run Backend Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api, drone-control]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+
+    - name: Install dependencies
+      run: poetry install
+      working-directory: ./apps/${{ matrix.service }}
+      
+    - name: Run tests
+      run: poetry run pytest
+      working-directory: ./apps/${{ matrix.service }}
+
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        service: [api, drone-control]
+        
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: ./apps/${{ matrix.service }}
+        push: true
+        tags: yourusername/airdeliver-${{ matrix.service }}:latest
+
+        deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build # Assuming build job is defined
+    if: github.ref == 'refs/heads/main' # Auto-deploy to staging on merge to main
+    environment:
+      name: staging
+      url: https://staging.airdeliver.com
+    steps:
+      - name: Deploy to K8s
+        uses: actions-hub/kubectl@master
+        with:
+          kubeconfig: ${{ secrets.KUBECONFIG_STAGING }}
+          args: apply -f infra/k8s/
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.event_name == 'workflow_dispatch' # Manual trigger
+    environment:
+      name: production
+      url: https://airdeliver.com
+    steps:
+      - name: Deploy to K8s
+        uses: actions-hub/kubectl@master
+        with:
+          kubeconfig: ${{ secrets.KUBECONFIG_PRODUCTION }}
+          args: apply -f infra/k8s/
