@@ -1,4 +1,5 @@
-import { AIOrderingOverlay } from '@/components/ai/AIOrderingOverlay';
+
+import AIOrderingOverlay from '@/components/ai/AIOrderingOverlay';
 import Chatbot from '@/components/ai/Chatbot';
 import type { Metadata } from "next";
 import { Providers } from "../lib/providers";

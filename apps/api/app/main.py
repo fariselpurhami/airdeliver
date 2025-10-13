@@ -1,7 +1,10 @@
-# This line MUST be the first import to ensure all models are loaded correctly.
+# file: apps/api/app/main.py
+
+# This line MUST be the first import
 from app.db import base  # noqa: F401
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from sqlmodel import SQLModel
 from app.db.session import engine
 from starlette.middleware.cors import CORSMiddleware
@@ -21,6 +24,17 @@ app = FastAPI(
 def on_startup():
     create_db_and_tables()
 
+# --- THIS IS THE NEW MIDDLEWARE YOU DESIGNED ---
+@app.middleware("http")
+async def ensure_utf8_encoding(request: Request, call_next):
+    """This middleware ensures all responses have the correct UTF-8 charset."""
+    response = await call_next(request)
+    if "charset" not in response.headers.get("content-type", ""):
+        response.headers["Content-Type"] = "application/json; charset=utf-8"
+    return response
+# -----------------------------------------------
+
+# CORS Middleware should come after your custom middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],

@@ -1,22 +1,39 @@
-from fastapi import APIRouter
-from app.schemas.ai_ordering import ChatRequest, ChatResponse # Re-using the same schema for simplicity
-from app.services.ai_support_service import ai_support_service
+# file: apps/api/app/api/v1/endpoints/ai_support.py
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+from app.services.neural_core_service import neural_core_service
+from app.schemas.ai_actions import NeuralCoreResponse
+from app.schemas.ai_ordering import ChatRequest
+from app.api import deps
+from app import models
 
 router = APIRouter()
 
-@router.post("/chat", response_model=ChatResponse)
-def handle_chat_message(request: ChatRequest):
+@router.post("/chat", response_model=NeuralCoreResponse)
+def handle_neural_core_chat(
+    request: ChatRequest,
+    db: Session = Depends(deps.get_session),
+    # The strict login dependency below is commented out for easier development.
+    # current_user: models.User = Depends(deps.get_current_active_user),
+):
     """
-    Main endpoint for the AI Support Assistant.
+    The new, intelligent endpoint for the airdeliver Neural Core.
     """
-    responses = ai_support_service.handle_message(request.message)
-    return {"responses": responses}
-```
+    
+    # TEMPORARY BLOCK FOR DEVELOPMENT: Automatically use the first user
+    first_user = db.exec(select(models.User)).first()
+    if not first_user:
+        raise HTTPException(
+            status_code=404, 
+            detail="No users found in database. Please run seed.py."
+        )
+    current_user = first_user
+    # END OF TEMPORARY BLOCK
 
-### **3. تحديث `api.py` لإضافة القسم الجديد**
-```python
-# ... (existing imports)
-from .endpoints import ..., ai_support # Add ai_support
-
-# ... (existing router includes)
-api_router.include_router(ai_support.router, prefix="/ai-support", tags=["AI Support"]) # Add this line
+    response_envelope = neural_core_service.handle_message(
+        db=db,
+        message=request.message,
+        user=current_user
+    )
+    return response_envelope

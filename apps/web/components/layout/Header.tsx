@@ -1,48 +1,200 @@
-// file: apps/web/components/layout/Header.tsx
-// version: 1.0.0
-// date: 2025-09-23
-// author: Gemini 2.5 Pro
-
 'use client';
 
-import Link from "next/link";
-import Image from "next/image";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { useCartStore } from "@/hooks/useCartStore";
-import { FiShoppingCart } from "react-icons/fi";
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from 'next-themes';
+import { Home, Package, Info, User, ShoppingCart, Sun, Moon, Menu, X as CloseIcon } from 'lucide-react';
+import { useCartStore } from '@/hooks/useCartStore'; // 1. Import the cart store
 
-const Header = () => {
-  const { items } = useCartStore();
-  const cartItemCount = items.reduce((acc, item) => acc + item.quantity, 0);
+// --- Navigation Items Data ---
+const navItems = [
+    { href: '/', label: 'Home', icon: Home },
+    { href: '/products', label: 'Products', icon: Package },
+    { href: '/about', label: 'About', icon: Info },
+    { href: '/profile', label: 'Profile', icon: User },
+];
 
-  return (
-    <header className="py-4 px-6 border-b sticky top-0 bg-background/80 backdrop-blur-sm z-50">
-      <div className="container mx-auto flex justify-between items-center">
-        <Link href="/" className="flex items-center gap-2">
-       
-          <span className="text-2xl font-bold tracking-wider">airdeliver</span>
-        </Link>
-        <nav className="hidden md:flex gap-6 items-center">
-	  <Link href="/" className="hover:text-foreground/70 transition-colors">Home</Link>
-          <Link href="/products" className="hover:text-foreground/70 transition-colors">Products</Link>
-          <Link href="/about" className="hover:text-foreground/70 transition-colors">About</Link>
-          <Link href="/profile" className="hover:text-foreground/70 transition-colors">Profile</Link>
-        </nav>
-        <div className="flex items-center gap-4">
-          <Link href="/cart" className="relative">
-            <FiShoppingCart size={24} />
-            {cartItemCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce">
-                {cartItemCount}
-              </span>
-            )}
-          </Link>
-          <ThemeToggle />
-        </div>
-      </div>
-    </header>
-  );
+// --- Theme Toggle Component ---
+const ThemeToggle = () => {
+    const [mounted, setMounted] = useState(false);
+    const { theme, setTheme } = useTheme();
+
+    useEffect(() => setMounted(true), []);
+
+    if (!mounted) {
+        return <div className="w-10 h-10" />; // Placeholder to prevent layout shift
+    }
+
+    const isDark = theme === 'dark';
+
+    return (
+        <button
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            className="relative w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+            aria-label="Toggle theme"
+        >
+            <AnimatePresence initial={false} mode="wait">
+                <motion.div
+                    key={isDark ? 'moon' : 'sun'}
+                    initial={{ y: -20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 20, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+		   
+                >
+                    {isDark ? (
+                      <Moon size={20} className="text-white" /> // القمر يفضل أبيض زي ما هو
+                    ) : (
+                      <Sun size={20} className="text-white" /> // الشمس تبقى غامقة وتبان فوق الخلفية الفاتحة
+		  )}
+                </motion.div>
+            </AnimatePresence>
+        </button>
+    );
 };
 
-export default Header;
 
+// --- Main Header Component ---
+export default function Header() {
+    const pathname = usePathname();
+    const [scrolled, setScrolled] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    // 2. Get items from the cart and calculate the total
+    const cartItems = useCartStore((state) => state.items);
+    const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
+
+    // This handles hydration to prevent errors with localStorage
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 50);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Prevent hydration mismatch by rendering an empty header on the server
+    if (!isMounted) {
+        return <header className="fixed top-0 left-0 right-0 z-50 h-20" />;
+    }
+
+    return (
+        <>
+            <motion.header
+                initial={false}
+                animate={{
+                    backgroundColor: scrolled ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0)',
+                    backdropFilter: scrolled ? 'blur(16px)' : 'blur(0px)',
+                    borderColor: scrolled ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0)',
+                }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="fixed top-0 left-0 right-0 z-50 border-b"
+            >
+                <div className="container mx-auto px-4 flex justify-between items-center h-20">
+                    {/* Logo */}
+                    <Link href="/" className="text-2xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                        airdeliver
+                    </Link>
+
+                    {/* Desktop Navigation */}
+                    <nav className="hidden md:flex items-center gap-2 bg-white/5 p-1 rounded-full">
+                        {navItems.map((item) => (
+                            <Link key={item.href} href={item.href} className={`relative px-4 py-2 rounded-full text-sm font-medium transition-colors ${pathname === item.href ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+                                {item.label}
+                                {pathname === item.href && (
+                                    <motion.div
+                                        layoutId="active-pill"
+                                        className="absolute inset-0 bg-gradient-to-r from-cyan-500/30 to-violet-500/30 rounded-full"
+                                        style={{ borderRadius: 9999 }}
+                                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                    />
+                                )}
+                            </Link>
+                        ))}
+                    </nav>
+
+                    {/* Right Side Icons */}
+                    <div className="hidden md:flex items-center gap-4">
+                        {/* 3. Updated Cart Link with Badge */}
+                        <Link href="/cart" className="relative p-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10">
+                            <ShoppingCart size={22} />
+                            {totalItems > 0 && (
+                                <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                                    className="absolute -top-1 -right-1 w-5 h-5 bg-cyan-400 text-black text-xs font-bold flex items-center justify-center rounded-full"
+                                >
+                                    {totalItems}
+                                </motion.div>
+                            )}
+                        </Link>
+                        <ThemeToggle />
+                    </div>
+                    
+                    {/* Mobile Menu Button */}
+                    <div className="md:hidden">
+                        <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-white">
+                            <Menu size={24} />
+                        </button>
+                    </div>
+                </div>
+            </motion.header>
+
+            {/* Mobile Menu */}
+            <AnimatePresence>
+                {mobileMenuOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg md:hidden"
+                    >
+                        <motion.div
+                            initial={{ y: "-100%" }}
+                            animate={{ y: "0%" }}
+                            exit={{ y: "-100%" }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                            className="bg-ultra-black p-4 border-b border-white/10"
+                        >
+                            <div className="flex justify-between items-center mb-8">
+                                <Link href="/" className="text-2xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                                    airdeliver
+                                </Link>
+                                <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-white">
+                                    <CloseIcon size={24} />
+                                </button>
+                            </div>
+                            <nav className="flex flex-col gap-4">
+                                {navItems.map((item) => (
+                                    <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 p-3 rounded-lg text-lg ${pathname === item.href ? 'bg-white/10 text-white' : 'text-gray-400'}`}>
+                                        <item.icon size={22} /> {item.label}
+                                    </Link>
+                                ))}
+                                <Link href="/cart" onClick={() => setMobileMenuOpen(false)} className="relative flex items-center gap-3 p-3 rounded-lg text-lg text-gray-400">
+                                    <ShoppingCart size={22} />
+                                    <span>Cart</span>
+                                    {totalItems > 0 && (
+                                        <div className="absolute left-10 top-2 w-5 h-5 bg-cyan-400 text-black text-xs font-bold flex items-center justify-center rounded-full">
+                                            {totalItems}
+                                        </div>
+                                    )}
+                                </Link>
+                                <div className="mt-4 flex justify-center">
+                                    <ThemeToggle />
+                                </div>
+                            </nav>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
+    );
+}

@@ -3,6 +3,7 @@
 # date: 2025-09-23
 # author: Gemini 2.5 Pro
 
+from app.db.session import SessionLocal
 from typing import Generator
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -18,6 +19,18 @@ from app.crud import crud_user
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/token"
 )
+
+def get_db():
+    """
+    Dependency function that yields a new database session.
+    Ensures the session is closed after the request is complete.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 
 def get_current_user(
     session: Session = Depends(get_session), token: str = Depends(reusable_oauth2)

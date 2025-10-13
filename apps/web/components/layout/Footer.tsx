@@ -1,88 +1,142 @@
-// file: apps/web/components/layout/Footer.tsx
-// version: 1.1.0 (Social Media Icons)
-// date: 2025-09-28
-// author: Gemini
+'use client';
 
+import React, { useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-//import { Chatbot } from '../ai/Chatbot';
-import {
-  FiInstagram,
-  FiFacebook,
-  FiYoutube,
-} from 'react-icons/fi';
-import { FaTiktok } from 'react-icons/fa';
-import { RiTwitterXFill } from 'react-icons/ri';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { Linkedin, Youtube, X, Facebook, Instagram } from 'lucide-react'; // Added Facebook & Instagram
+import Chatbot from '@/components/ai/Chatbot'; // Keep the chatbot import
 
-// Define our social media links in an array for easy management
+// --- New TikTok Icon Component (as SVG) ---
+const Tiktok = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-2.43.03-4.83-.95-6.43-2.88-1.59-1.92-2.3-4.45-2.2-6.87.02-1.11.23-2.21.62-3.25.39-1.04.9-2 1.52-2.81 1.1-1.45 2.7-2.45 4.5-2.87.03-.01.06-.02.09-.03z" />
+  </svg>
+);
+
+// Social media links array (updated)
 const socialLinks = [
-  { name: 'Facebook', href: '#', icon: FiFacebook },
-  { name: 'Instagram', href: '#', icon: FiInstagram },
-  { name: 'X (Twitter)', href: '#', icon: RiTwitterXFill },
-  { name: 'YouTube', href: '#', icon: FiYoutube },
-  { name: 'TikTok', href: '#', icon: FaTiktok },
+  { name: 'LinkedIn', href: '#', icon: Linkedin, hoverColor: '#00c6ff' },
+  { name: 'X (Twitter)', href: '#', icon: X, hoverColor: '#ffffff' },
+  { name: 'YouTube', href: '#', icon: Youtube, hoverColor: '#ff0000' },
+  { name: 'Facebook', href: '#', icon: Facebook, hoverColor: '#1877F2' },
+  { name: 'Instagram', href: '#', icon: Instagram, hoverColor: '#E4405F' },
+  { name: 'TikTok', href: '#', icon: Tiktok, hoverColor: '#00f2ea' },
 ];
 
 const Footer = () => {
+    const footerRef = useRef<HTMLElement>(null);
+
+    // --- Cursor-reactive light effect ---
+    const mouseX = useMotionValue(Infinity);
+    const mouseY = useMotionValue(Infinity);
+
+    const maskImage = useTransform(
+        [mouseX, mouseY],
+        ([newX, newY]) => {
+            const rect = footerRef.current?.getBoundingClientRect();
+            if (!rect) return "radial-gradient(circle at 50% 50%, white 0%, black 100%)"; // Default
+            
+            const x = newX - rect.left;
+            const y = newY - rect.top;
+            
+            return `radial-gradient(300px circle at ${x}px ${y}px, white 20%, transparent 100%)`;
+        }
+    );
+
   return (
     <>
-      <footer className="border-t mt-12 py-8 bg-background">
-        <div className="container mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
+      <motion.footer
+        ref={footerRef}
+        onMouseMove={(e) => {
+            mouseX.set(e.clientX);
+            mouseY.set(e.clientY);
+        }}
+        onMouseLeave={() => {
+            mouseX.set(Infinity);
+            mouseY.set(Infinity);
+        }}
+        className="relative py-20 px-4 text-white overflow-hidden bg-ultra-black"
+      >
+        {/* Animated Background Layers */}
+        <div className="absolute inset-0 -z-20 bg-grid-white/[0.05]" />
+        <motion.div
+            className="absolute inset-0 -z-10 bg-gradient-to-t from-cyan-900/50 via-violet-900/30 to-ultra-black"
+            style={{
+                maskImage: maskImage,
+                WebkitMaskImage: maskImage,
+            }}
+        />
+
+        {/* Animated Top Border */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
+
+        {/* Preserved Grid Structure */}
+        <div className="container mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
+          
           {/* Company Info */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl font-bold">airdeliver</span>
-            </div>
-            <p className="text-sm text-foreground/60 italic">
+          <div className="lg:col-span-2 col-span-2 md:col-span-4">
+            <h2 className="text-2xl font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+              airdeliver
+            </h2>
+            <p className="mt-2 text-sm text-gray-400 max-w-xs italic">
               We Soar In The Sky By Delivering Your Orders.
             </p>
           </div>
-          
+
           {/* Shop Links */}
           <div>
-            <h3 className="font-semibold mb-2">Shop</h3>
-            <ul className="space-y-1 text-sm text-foreground/80">
-              <li><Link href="/products" className="hover:underline">All Products</Link></li>
-              <li><Link href="/products?category=drones" className="hover:underline">Drones</Link></li>
-              <li><Link href="/products?category=accessories" className="hover:underline">Accessories</Link></li>
+            <h3 className="font-bold mb-4 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Shop</h3>
+            <ul className="space-y-2 text-sm">
+              <li><Link href="/products" className="text-gray-400 hover:text-white transition-colors">All Products</Link></li>
+              <li><Link href="/products?category=accessories" className="text-gray-400 hover:text-white transition-colors">Accessories</Link></li>
             </ul>
           </div>
 
           {/* Company Links */}
           <div>
-            <h3 className="font-semibold mb-2">Company</h3>
-            <ul className="space-y-1 text-sm text-foreground/80">
-              <li><Link href="/about" className="hover:underline">About Us</Link></li>
-              <li><Link href="/legal/terms-of-service" className="hover:underline">Terms of Service</Link></li>
-              <li><Link href="/legal/privacy-policy" className="hover:underline">Privacy Policy</Link></li>
+            <h3 className="font-bold mb-4 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Company</h3>
+            <ul className="space-y-2 text-sm">
+              <li><Link href="/about" className="text-gray-400 hover:text-white transition-colors">About Us</Link></li>
+              <li><Link href="/legal/terms-of-service" className="text-gray-400 hover:text-white transition-colors">Terms of Service</Link></li>
+              <li><Link href="/legal/privacy-policy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</Link></li>
             </ul>
           </div>
 
-          {/* Follow Us Section */}
+          {/* Follow Us Section (Transformed into Support) */}
           <div>
-            <h3 className="font-semibold mb-4">Follow Us</h3>
-            <div className="flex items-center gap-4">
-              {socialLinks.map((social) => (
-                <Link
-                  key={social.name}
-                  href={social.href}
-                  aria-label={social.name}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-foreground/70 hover:text-foreground transition-colors"
-                >
-                  <social.icon size={22} />
-                </Link>
-              ))}
-            </div>
+            <h3 className="font-bold mb-4 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Support</h3>
+            <ul className="space-y-2 text-sm">
+                <li><Link href="/help" className="text-gray-400 hover:text-white transition-colors">Help Center</Link></li>
+                <li><Link href="/contact" className="text-gray-400 hover:text-white transition-colors">Contact Us</Link></li>
+            </ul>
           </div>
         </div>
-        <div className="text-center mt-8 text-xs text-foreground/50">
-          © {new Date().getFullYear()} airdeliver Inc. All rights reserved.
+
+        {/* Bottom Bar with Copyright & Social Icons */}
+        <div className="container mx-auto mt-16 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-sm">
+          <p className="text-gray-500 mb-4 md:mb-0">
+            © {new Date().getFullYear()} airdeliver Inc. All rights reserved.
+          </p>
+          <div className="flex gap-4">
+            {socialLinks.map((social) => (
+              <motion.a
+                key={social.name}
+                href={social.href}
+                aria-label={social.name}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.2, color: social.hoverColor }}
+                className="text-gray-400"
+              >
+                <social.icon size={18} />
+              </motion.a>
+            ))}
+          </div>
         </div>
-      </footer>
-      {/* The chatbot is kept here to float above everything */}
+      </motion.footer>
       
+      {/* The chatbot is kept here to float above everything */}
+      <Chatbot />
     </>
   );
 };

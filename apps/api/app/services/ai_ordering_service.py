@@ -1,117 +1,141 @@
 import re
 from sqlmodel import Session, select
 from app.models.product import Product
+from app.models.user import User
+from app import models # Import models to use the User type hint
 import random
 
-# A simple in-memory store to simulate a user's session cart.
 SESSION_CARTS = {}
 
 class AIOrderingService:
+    def __init__(self):
+        self.conversation_state = {"stage": "IDLE"}
+
+    def _clear_state_and_cart(self, session_id: str = "default_user"):
+        self.conversation_state = {"stage": "IDLE"}
+        SESSION_CARTS.pop(session_id, None)
+
     def _get_user_cart(self, session_id: str = "default_user"):
-        """Gets or creates a cart for the current user session."""
         if session_id not in SESSION_CARTS:
             SESSION_CARTS[session_id] = {"items": [], "total": 0.0}
         return SESSION_CARTS[session_id]
 
     def _parse_intent(self, message: str) -> dict:
-        """Simulated NLU with expanded intents."""
-        message = message.lower()
+        message_lower = message.lower()
+        add_keywords = ['buy', 'add', 'get', 'want', 'need', 'order']
+        modify_keywords = ['modify cart']
+        view_cart_keywords = ['show my cart', 'view cart']
+        confirm_keywords = ['confirm', 'checkout', 'pay', 'proceed', 'confirm order']
+        clear_keywords = ["clear cart", "cancel", "cancel order"]
+        remove_keywords = ['remove', 'delete']
+
+        if any(keyword in message_lower for keyword in confirm_keywords): return {"intent": "CONFIRM_ORDER"}
+        if any(keyword in message_lower for keyword in clear_keywords): return {"intent": "CLEAR_CART"}
+        if any(keyword in message_lower for keyword in modify_keywords): return {"intent": "MODIFY_CART"}
+
+        for keyword in remove_keywords:
+            if keyword in message_lower:
+                parts = message_lower.split(keyword, 1)
+                if len(parts) > 1 and parts[1].strip():
+                    product_name = parts[1].strip()
+                    return {"intent": "REMOVE_FROM_CART", "product_name": product_name}
         
-        # Intent: Greeting
-        if any(keyword in message for keyword in ["hello", "hi", "hey", "مرحباً", "أهلاً"]):
-            return {"intent": "GREETING"}
-
-        # Intent: Add to cart
-        add_match = re.search(r'(buy|add|get|want|i need)\s*(\d*)\s*(.*)', message)
-        if add_match:
-            quantity = int(add_match.group(2)) if add_match.group(2) else 1
-            product_name = add_match.group(3).strip().rstrip('s')
-            return {"intent": "ADD_TO_CART", "quantity": quantity, "product_name": product_name}
-
-        # Intent: Remove from cart
-        remove_match = re.search(r'(remove|delete)\s*(\d*)\s*(.*)', message)
-        if remove_match:
-            quantity = int(remove_match.group(2)) if remove_match.group(2) else None # Optional quantity
-            product_name = remove_match.group(3).strip().rstrip('s')
-            return {"intent": "REMOVE_FROM_CART", "quantity": quantity, "product_name": product_name}
-
-        # Intent: View cart
-        if any(keyword in message for keyword in ["show my cart", "what's in the cart", "view cart"]):
-            return {"intent": "VIEW_CART"}
-            
-        # Intent: Confirm order
-        if any(keyword in message for keyword in ["confirm order", "checkout", "i'm ready to pay"]):
-            return {"intent": "CONFIRM_ORDER"}
+        for keyword in add_keywords:
+            if keyword in message_lower:
+                parts = message_lower.split(keyword, 1)
+                if len(parts) > 1 and parts[1].strip():
+                    product_name = parts[1].strip().replace('a ', '').replace('an ', '').replace('some ', '').strip().rstrip('s')
+                    return {"intent": "ADD_TO_CART", "quantity": 1, "product_name": product_name}
         
-        # Intent: Clear cart
-        if "clear cart" in message or "start over" in message:
-            return {"intent": "CLEAR_CART"}
-
+        if any(keyword in message_lower for keyword in view_cart_keywords): return {"intent": "VIEW_CART"}
         return {"intent": "UNKNOWN"}
 
     def _recalculate_cart_total(self, cart: dict):
-        cart["total"] = sum(item['price'] * item['quantity'] for item in cart['items'])
+        cart['total'] = sum(item['price'] * item['quantity'] for item in cart['items'])
 
-    def handle_message(self, db: Session, message: str) -> list[dict]:
-        """Orchestrates a more human-like response to a user's message."""
+    def handle_message(self, db: Session, message: str, user: models.User) -> list[dict]:
         cart = self._get_user_cart()
-        parsed_data = self._parse_intent(message)
-        intent = parsed_data.get("intent")
+        current_stage = self.conversation_state.get("stage")
 
-        if intent == "GREETING":
-            greetings = ["Hello! What can I get for you today?", "Hi there! How can I help you shop?", "Welcome! Let me know what you're looking for."]
-            return [{"contentType": "text", "content": random.choice(greetings)}]
+        def format_product_data(p):
+            product_data = p.model_dump()
+            image_filename = product_data.get("image")
+            if image_filename:
+                product_data["image"] = f"/images/{image_filename}"
+            else:
+                # If the image field is null or empty, provide a default
+                product_data["image"] = "/images/default.jpeg" 
+            return product_data
+
+        if current_stage == "AWAITING_CLARIFICATION":
+            parsed_data = {"intent": "ADD_TO_CART", "product_name": message}
+        elif current_stage == "AWAITING_CONFIRMATION":
+            parsed_data = self._parse_intent(message)
+            allowed_intents = ["CONFIRM_ORDER", "MODIFY_CART", "CLEAR_CART", "ADD_TO_CART", "REMOVE_FROM_CART"]
+            if parsed_data['intent'] not in allowed_intents:
+                 return [{"contentType": "text", "content": "Please choose an option by clicking one of the buttons."}]
+        else:
+            parsed_data = self._parse_intent(message)
+        
+        intent = parsed_data.get("intent")
+        self.conversation_state["stage"] = "IDLE"
 
         if intent == "ADD_TO_CART":
             product_name = parsed_data["product_name"]
-            # Search for multiple products to handle ambiguity
             products = db.exec(select(Product).where(Product.name.ilike(f"%{product_name}%"))).all()
-            
-            if not products:
-                return [{"contentType": "text", "content": f"I'm sorry, I couldn't find anything matching '{product_name}'. Could you be more specific?"}]
-            
-            # NEW: Clarification question if multiple products are found
-            if len(products) > 1:
-                product_names = ", ".join([f"'{p.name}'" for p in products])
-                return [{"contentType": "text", "content": f"I found a few items matching that: {product_names}. Which one did you mean?"}]
-            
-            product = products[0]
-            existing_item = next((item for item in cart["items"] if item["product_id"] == product.id), None)
-            if existing_item:
-                existing_item["quantity"] += parsed_data["quantity"]
-            else:
-                cart["items"].append({"product_id": product.id, "name": product.name, "quantity": parsed_data["quantity"], "price": product.price})
-            
-            self._recalculate_cart_total(cart)
-            responses = [
-                f"Alright, I've added {parsed_data['quantity']} of '{product.name}' to your cart.",
-                "Here's how your cart looks now. Ready for anything else?",
-                "Got it! Your cart is updated."
-            ]
-            return [
-                {"contentType": "text", "content": random.choice(responses)},
-                {"contentType": "cart_preview", "content": cart}
-            ]
 
-        if intent == "VIEW_CART":
-            if not cart["items"]:
-                return [{"contentType": "text", "content": "Your cart is currently empty. What can I help you find?"}]
-            return [
-                {"contentType": "text", "content": "Of course, here is what's in your cart right now:"},
-                {"contentType": "cart_preview", "content": cart}
-            ]
+            if not products:
+                return [{"contentType": "text", "content": f"I couldn't find a product matching '{product_name}'. Please try another."}]
+            
+            if len(products) > 1:
+                self.conversation_state["stage"] = "AWAITING_CLARIFICATION"
+                product_list = [format_product_data(p) for p in products]
+                return [{"contentType": "text", "content": "I found a few items. Which one did you mean?"}, {"contentType": "product_carousel", "products": product_list}]
+
+            product = products[0]
+            cart['items'].append({"product_id": product.id, "name": product.name, "quantity": 1, "price": product.price})
+            self._recalculate_cart_total(cart)
+            
+            suggestions = db.exec(select(Product).where(Product.id != product.id).limit(2)).all()
+            suggestion_list = [format_product_data(p) for p in suggestions]
+
+            self.conversation_state["stage"] = "AWAITING_CONFIRMATION"
+            responses = [{"contentType": "text", "content": f"Great choice! I've added {product.name} to your cart."}, {"contentType": "cart_preview", "content": cart}]
+
+            if suggestion_list:
+                responses.append({"contentType": "proactive_suggestion", "content": "Customers who bought this also love:", "products": suggestion_list, "reason": "I selected these based on top-seller data and immediate availability."})
+            
+            responses.append({"contentType": "confirmation_prompt", "content": "Ready to go, or would you like to add anything else?", "options": ["Confirm Order", "Modify Cart", "Cancel Order"]})
+            return responses
+            
+        if intent == "REMOVE_FROM_CART":
+            product_name_to_remove = parsed_data["product_name"]
+            item_to_remove = next((item for item in cart['items'] if product_name_to_remove in item['name'].lower()), None)
+            
+            if not item_to_remove:
+                return [{"contentType": "text", "content": f"I couldn't find '{product_name_to_remove}' in your cart."}]
+
+            cart['items'].remove(item_to_remove)
+            self._recalculate_cart_total(cart)
+            self.conversation_state["stage"] = "AWAITING_CONFIRMATION"
+            return [{"contentType": "text", "content": f"Okay, I've removed {item_to_remove['name']} from your cart."}, {"contentType": "cart_preview", "content": cart}, {"contentType": "confirmation_prompt", "content": "Your cart is updated. What's next?", "options": ["Confirm Order", "Modify Cart", "Cancel Order"]}]
 
         if intent == "CONFIRM_ORDER":
-            if not cart["items"]:
-                return [{"contentType": "text", "content": "Your cart is empty, so there's nothing to confirm yet. Shall we add some items?"}]
+            if not cart["items"]: return [{"contentType": "text", "content": "Your cart is empty."}]
             total = cart['total']
-            SESSION_CARTS.pop("default_user", None) # Clear cart
-            return [{"contentType": "text", "content": f"Perfect! Your order for ${total:.2f} is confirmed. We're now processing the payment and will schedule your delivery shortly. Thank you for shopping with us!"}]
+            self._clear_state_and_cart()
+            empty_cart = self._get_user_cart()
+            return [{"contentType": "text", "content": f"Confirmed! Your order for ${total:.2f} is being processed. Thank you!"}, {"contentType": "cart_preview", "content": empty_cart}]
         
-        if intent == "CLEAR_CART":
-            SESSION_CARTS.pop("default_user", None)
-            return [{"contentType": "text", "content": "No problem, I've cleared your cart. Let's start over! What are you looking for?"}]
+        if intent == "MODIFY_CART":
+            self.conversation_state["stage"] = "IDLE"
+            return [{"contentType": "text", "content": "Okay, what would you like to change? You can ask me to add or remove another item."}]
 
-        return [{"contentType": "text", "content": "I'm sorry, I didn't quite understand that. You can ask me to 'add an item', 'show my cart', or 'confirm order'."}]
+        if intent == "CLEAR_CART":
+            self._clear_state_and_cart()
+            empty_cart = self._get_user_cart()
+            return [{"contentType": "text", "content": "No problem, your cart has been cleared."}, {"contentType": "cart_preview", "content": empty_cart}]
+        
+        return [{"contentType": "text", "content": "I'm sorry, I didn't quite understand. To start, you can ask me to 'buy' an item."}]
 
 ai_ordering_service = AIOrderingService()

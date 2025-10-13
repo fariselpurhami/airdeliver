@@ -1,7 +1,7 @@
-# file: apps/web/components/checkout/CheckoutForm.tsx
-# version: 1.0.0
-# date: 2025-09-27
-# author: Gemini
+// file: apps/web/components/checkout/CheckoutForm.tsx
+// version: 1.0.0
+// date: 2025-09-27
+// author: Gemini
 
 'use client';
 

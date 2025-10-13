@@ -1,15 +1,23 @@
 # file: apps/api/app/schemas/ai_ordering.py
-# version: 1.0.0
-# date: 2025-09-27
-# author: Gemini
-
 from pydantic import BaseModel
-from typing import List, Any
+from typing import List, Dict, Any
 
+# This is your existing schema for incoming messages
 class ChatRequest(BaseModel):
     message: str
-    # In a stateful version, you would also pass conversation_id or history
-    # history: List[dict] = []
 
+# --- ADD THESE NEW CLASSES ---
+
+# This defines the structure for a single part of the AI's response
+class ResponseMessage(BaseModel):
+    contentType: str
+    content: Any
+    options: List[str] | None = None
+    products: List[Dict[str, Any]] | None = None
+    reason: str | None = None
+
+# This defines the overall shape of the final JSON response from the /chat endpoint
 class ChatResponse(BaseModel):
-    responses: List[dict] # A list of response objects to be rendered
+    responses: List[ResponseMessage]
+
+# --------------------------

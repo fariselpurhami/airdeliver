@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, List, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SAEnum
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 from enum import Enum
 from pydantic import field_validator
 
@@ -28,7 +28,7 @@ class Drone(SQLModel, table=True):
         sa_column=Column(SAEnum(DroneStatus, name="dronestatus", native_enum=False), nullable=False)
     )
 
-    assigned_orders: Mapped[List["Order"]] = Relationship(back_populates="drone")
+    assigned_orders: Mapped[List["Order"]] = Relationship(sa_relationship=relationship("Order", back_populates="drone"))
 
     @field_validator('battery_level')
     @classmethod

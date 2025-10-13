@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "airdeliver"
 
+    # --- ADD THESE TWO LINES ---
+    FIRST_SUPERUSER: str = "admin@example.com"
+    FIRST_SUPERUSER_PASSWORD: str = "password"
+
     # VAPID Keys for Push Notifications
     VAPID_PUBLIC_KEY: str = "BNBj-Nzwlx0K_ha5dEkN_9My5ed9WI0fRCH2G9P_KKy-0ZlAeyhZlcYwzP1oweDmZegXjlztlKSyccohIUegDsI"
     VAPID_PRIVATE_KEY: str = "sJ1FMVe46sWve2RdoegNupBnenaEtt3jPPu1bl66ik4"
@@ -35,7 +39,8 @@ class Settings(BaseSettings):
     # Pydantic v2 model configuration
     model_config = {
         "case_sensitive": True,
-        "env_file": ".env"
+        "env_file": ".env",
+        "extra": "ignore"
     }
 
 # Create a single instance of the settings to be used throughout the app

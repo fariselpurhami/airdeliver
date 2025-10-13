@@ -1,5 +1,5 @@
 # In your schemas/__init__.py or models/__init__.py file
-
+from .ai_ordering import ChatRequest, ChatResponse, ResponseMessage
 # Base schemas/models that don't have complex relationships
 from .msg import Msg
 from .token import Token, TokenData

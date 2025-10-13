@@ -1,15 +1,28 @@
 from __future__ import annotations
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING, Dict, Any
 from enum import Enum
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Field, JSON, Column
 from sqlalchemy import Column, Enum as SAEnum
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
+from datetime import datetime
 
 if TYPE_CHECKING:
     from .order import Order
     from .gamification import UserBadge
     from .audit_trail import AuditTrail
     from .notification_subscription import NotificationSubscription
+
+
+class AIMemory(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", unique=True)
+
+    context_data: Dict[str, Any] = Field(sa_column=Column(JSON))
+    last_updated: datetime = Field(
+        default_factory=datetime.utcnow, 
+        nullable=False,
+        sa_column_kwargs={"onupdate": datetime.utcnow}
+    )
 
 class UserRole(str, Enum):
     ADMIN = "admin"
@@ -27,9 +40,9 @@ class User(SQLModel, table=True):
         sa_column=Column(SAEnum(UserRole, name="userrole", native_enum=False), nullable=False)
     )
 
-    orders: Mapped[List["Order"]] = Relationship(back_populates="user")
-    badges: Mapped[List["UserBadge"]] = Relationship(back_populates="user")
-    audit_changes: Mapped[List["AuditTrail"]] = Relationship(back_populates="user")
-    notification_subscription: Mapped[Optional["NotificationSubscription"]] = Relationship(back_populates="user")
+    orders: Mapped[List["Order"]] = Relationship(sa_relationship=relationship("Order", back_populates="user"))
+    badges: Mapped[List["UserBadge"]] = Relationship(sa_relationship=relationship("UserBadge", back_populates="user"))
+    audit_changes: Mapped[List["AuditTrail"]] = Relationship(sa_relationship=relationship("AuditTrail", back_populates="user"))
+    notification_subscription: Mapped[Optional["NotificationSubscription"]] = Relationship(sa_relationship=relationship("NotificationSubscription", back_populates="user"))
 
     model_config = { "from_attributes": True }

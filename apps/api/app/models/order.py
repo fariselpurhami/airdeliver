@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SAEnum
-from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import Mapped, relationship
 from enum import Enum
 from datetime import datetime, timezone
 
@@ -34,10 +34,10 @@ class Order(SQLModel, table=True):
         default=OrderStatus.PENDING
     )
 
-    user: Mapped["User"] = Relationship(back_populates="orders")
-    items: Mapped[List["OrderItem"]] = Relationship(back_populates="order")
-    drone: Mapped[Optional["Drone"]] = Relationship(back_populates="assigned_orders")
-    audit_trails: Mapped[List["AuditTrail"]] = Relationship(back_populates="order")
+    user: Mapped["User"] = Relationship(sa_relationship=relationship("User", back_populates="orders"))
+    items: Mapped[List["OrderItem"]] = Relationship(sa_relationship=relationship("OrderItem", back_populates="order"))
+    drone: Mapped[Optional["Drone"]] = Relationship(sa_relationship=relationship("Drone", back_populates="assigned_orders"))
+    audit_trails: Mapped[List["AuditTrail"]] = Relationship(sa_relationship=relationship("AuditTrail", back_populates="order"))
 
     model_config = { "from_attributes": True }
 
@@ -49,7 +49,7 @@ class OrderItem(SQLModel, table=True):
     quantity: int
     price_per_unit: float
 
-    order: Mapped["Order"] = Relationship(back_populates="items")
-    product: Mapped["Product"] = Relationship(back_populates="order_items")
+    order: Mapped["Order"] = Relationship(sa_relationship=relationship("Order", back_populates="items"))
+    product: Mapped["Product"] = Relationship(sa_relationship=relationship("Product", back_populates="order_items"))
 
     model_config = { "from_attributes": True }

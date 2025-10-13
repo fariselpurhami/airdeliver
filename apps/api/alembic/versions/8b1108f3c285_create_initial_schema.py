@@ -1,8 +1,8 @@
-"""create final database schema
+"""create initial schema
 
-Revision ID: 0b207d53b791
+Revision ID: 8b1108f3c285
 Revises: 
-Create Date: 2025-09-30 20:46:00.825716
+Create Date: 2025-10-06 14:12:13.758872
 
 """
 from alembic import op
@@ -11,7 +11,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision = '0b207d53b791'
+revision = '8b1108f3c285'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -56,14 +56,14 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
-    op.create_table('notification_subscription',
+    op.create_table('notification_subscriptions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('subscription_info_json', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('subscription_info_json', sa.JSON(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_notification_subscription_user_id'), 'notification_subscription', ['user_id'], unique=False)
+    op.create_index(op.f('ix_notification_subscriptions_user_id'), 'notification_subscriptions', ['user_id'], unique=True)
     op.create_table('orders',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -113,8 +113,8 @@ def downgrade() -> None:
     op.drop_table('audit_trails')
     op.drop_table('user_badges')
     op.drop_table('orders')
-    op.drop_index(op.f('ix_notification_subscription_user_id'), table_name='notification_subscription')
-    op.drop_table('notification_subscription')
+    op.drop_index(op.f('ix_notification_subscriptions_user_id'), table_name='notification_subscriptions')
+    op.drop_table('notification_subscriptions')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
     op.drop_index(op.f('ix_products_name'), table_name='products')

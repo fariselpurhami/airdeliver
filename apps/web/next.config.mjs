@@ -1,14 +1,29 @@
 // file: apps/web/next.config.mjs
-// version: 1.1.0
-// date: 2025-09-23
-// author: Gemini 2.5 Pro
-
 import withPWA from 'next-pwa';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Add any other Next.js configurations here
+
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: 'http://127.0.0.1:8000/api/v1/:path*',
+      },
+    ];
+  },
+
+  // --- ADD THIS NEW BLOCK ---
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+    ],
+  },
+  // -------------------------
 };
 
 const pwaConfig = withPWA({

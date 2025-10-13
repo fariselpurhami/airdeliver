@@ -1,119 +1,134 @@
-// In apps/web/app/(main)/cart/page.tsx
+'use client';
 
-"use client";
+import React, { useState, useEffect, Suspense } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Canvas } from '@react-three/fiber';
+import { Stars } from '@react-three/drei';
+import { Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useCartStore, type CartItem } from '@/hooks/useCartStore';
 
-import { useCartStore } from "@/hooks/useCartStore";
-import Image from "next/image";
-import Link from "next/link";
-import { CreditCard, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+// A simple loading spinner to be used as a fallback
+const LoadingSpinner = () => (
+    <div className="flex justify-center items-center h-screen w-full bg-black">
+        <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+    </div>
+);
 
+// --- Cart Item Card Component (with corrected Image component) ---
+const CartItemCard = ({ item }: { item: CartItem }) => {
+    const { removeFromCart } = useCartStore();
+    return (
+        <motion.div
+            layout
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 50, transition: { duration: 0.3 } }}
+            className="flex items-center gap-6 p-4 bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl"
+        >
+            <div className="relative flex-shrink-0 w-24 h-24">
+                {item.image && (
+                    <Image 
+                        src={item.image} 
+                        alt={item.name}
+                        width={96}
+                        height={96}
+                        priority
+                        sizes="96px"
+                        className="object-contain"
+                    />
+                )}
+            </div>
+            <div className="flex-grow">
+                <h3 className="text-lg font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>{item.name}</h3>
+                <p className="text-sm text-gray-400">Quantity: {item.quantity}</p>
+            </div>
+            <div className="flex-shrink-0 text-right">
+                <p className="text-xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>${(item.price * item.quantity).toFixed(2)}</p>
+                <button onClick={() => removeFromCart(item.id)} className="text-red-500/50 hover:text-red-500 transition-colors mt-2 text-xs flex items-center gap-1 ml-auto">
+                    <Trash2 size={14} /> Remove
+                </button>
+            </div>
+        </motion.div>
+    );
+};
+
+// --- Main Cart Page ---
 export default function CartPage() {
-  const { items, removeItem, updateItemQuantity, clearCart } = useCartStore();
+    const { items } = useCartStore();
+    const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
-  const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const shippingFee = subtotal > 0 ? 15.00 : 0; // Example shipping fee
-  const total = subtotal + shippingFee;
+    if (!isMounted) {
+        return <LoadingSpinner />;
+    }
 
-  return (
-    <>
-      {/* 1️⃣ Hero Section */}
-      <section className="py-20 px-4 text-center text-white bg-gradient-to-r from-gray-900 via-gray-800 to-blue-900 dark:from-black dark:to-blue-950">
-        <ShoppingCart size={48} className="mx-auto mb-4" />
-        <h1 className="text-5xl font-extrabold tracking-tight md:text-6xl">Your Cart</h1>
-        <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
-          Review your items and proceed to checkout.
-        </p>
-      </section>
+    return (
+        <div className="min-h-screen w-full bg-black text-gray-100">
+             <div className="fixed inset-0 -z-10">
+                <Canvas><Stars radius={50} depth={50} count={5000} factor={4} saturation={0} fade speed={1} /></Canvas>
+            </div>
 
-      {/* 2️⃣ Cart Content Section */}
-      <section className="px-4 py-16 md:py-24 bg-white dark:bg-gray-900">
-        <div className="container mx-auto max-w-6xl">
-          <AnimatePresence>
-            {items.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-16"
-              >
-                <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-300">Your cart is empty.</h2>
-                <Link
-                  href="/products"
-                  className="inline-flex items-center justify-center px-6 py-3 mt-6 text-lg font-bold text-white bg-black rounded-full shadow-lg hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-transform duration-300 hover:scale-105"
+            <main className="container mx-auto px-4 py-24">
+                <motion.section 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    className="text-center mb-16"
                 >
-                  Start Shopping
-                </Link>
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="grid grid-cols-1 lg:grid-cols-3 gap-12"
-              >
-                {/* Cart Items List (Left Column) */}
-                <div className="lg:col-span-2 space-y-6">
-                  {items.map(item => (
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0, x: -50 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -50, transition: { duration: 0.3 } }}
-                      key={item.id}
-                      className="flex items-center gap-6 p-4 border border-gray-200 dark:border-gray-800 rounded-lg"
-                    >
-                      <Image src={item.image_url} alt={item.name} width={100} height={100} className="rounded-md object-cover aspect-square" />
-                      <div className="flex-grow">
-                        <h3 className="font-bold text-lg">{item.name}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">${item.price.toFixed(2)}</p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => updateItemQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">
-                          <Minus size={16} />
-                        </button>
-                        <span className="font-semibold w-8 text-center">{item.quantity}</span>
-                        <button onClick={() => updateItemQuantity(item.id, item.quantity + 1)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-                          <Plus size={16} />
-                        </button>
-                      </div>
-                      <p className="font-bold w-24 text-right">${(item.price * item.quantity).toFixed(2)}</p>
-                      <button onClick={() => removeItem(item.id)} className="p-2 text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors">
-                        <Trash2 size={20} />
-                      </button>
-                    </motion.div>
-                  ))}
-                </div>
+                    <h1 className="text-5xl md:text-7xl font-black uppercase text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                        Your Cart
+                    </h1>
+                    <p className="mt-4 text-gray-400">Precision Engineered by AI</p>
+                </motion.section>
 
-                {/* Order Summary (Right Column) */}
-                <div className="lg:col-span-1">
-                  <div className="sticky top-28 p-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-800">
-                    <h2 className="text-2xl font-bold mb-6 border-b pb-4 dark:border-gray-700">Order Summary</h2>
-                    <div className="space-y-4">
-                      <div className="flex justify-between">
-                        <span>Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Shipping Fee</span>
-                        <span>${shippingFee.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-xl font-bold mt-4 pt-4 border-t dark:border-gray-700">
-                        <span>Total</span>
-                        <span>${total.toFixed(2)}</span>
-                      </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-4">
+                        <Suspense fallback={<LoadingSpinner />}>
+                            <AnimatePresence>
+                                {items.length > 0 ? (
+                                    items.map(item => <CartItemCard key={item.id} item={item} />)
+                                ) : (
+                                    <div className="text-center py-16 text-gray-500">
+                                        <h2 className="text-2xl font-bold mb-2">Your Cart is Empty</h2>
+                                        <Link href="/products" className="text-cyan-400 hover:underline">Start Shopping</Link>
+                                    </div>
+                                )}
+                            </AnimatePresence>
+                        </Suspense>
                     </div>
-                    <Link
-                      href="/checkout"
-                      className="mt-8 group w-full inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-black rounded-full shadow-lg hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-transform duration-300 hover:scale-105"
-                    >
-                      Proceed to Checkout <CreditCard className="ml-3 h-6 w-6" />
-                    </Link>
-                  </div>
+
+                    <div className="relative">
+                         <div className="sticky top-24">
+                            {/* The corrected summary card with flexbox for layout */}
+                            <motion.div className="p-6 bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col min-h-[300px]">
+                                <h2 className="text-2xl font-bold text-white mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>AI Summary</h2>
+                                
+                                {/* This div now grows to push the button to the bottom */}
+                                <div className="flex-grow space-y-3 text-sm text-gray-300 border-b border-white/10 pb-4 mb-4">
+                                    <div className="flex justify-between"><span>Subtotal</span> <span>${total.toFixed(2)}</span></div>
+                                    <div className="flex justify-between"><span>Drone Allocation</span> <span>{items.length > 0 ? '1 Medium Fleet' : 'N/A'}</span></div>
+                                    <div className="flex justify-between"><span>Estimated ETA</span> <span>{items.length > 0 ? '14 Minutes' : 'N/A'}</span></div>
+                                </div>
+                                
+                                <Link href="/checkout" passHref>
+                                    <motion.button
+                                        disabled={items.length === 0}
+                                        className="w-full glowing-button rounded-full py-3 text-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Proceed to Checkout
+                                    </motion.button>
+                                </Link>
+                            </motion.div>
+                        </div>
+                    </div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            </main>
         </div>
-      </section>
-    </>
-  );
+    );
 }

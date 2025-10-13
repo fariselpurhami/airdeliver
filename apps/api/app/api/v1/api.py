@@ -11,7 +11,9 @@ from .endpoints import (
     orders,
     notifications,
     webhooks,
-    ai_ordering
+    ai_ordering,
+    ai_support,
+    tools
 )
 
 api_router = APIRouter()
@@ -24,7 +26,8 @@ api_router.include_router(products.router, prefix="/products", tags=["Products"]
 
 # الرواترز التي تعتمد على غيرها (مثل الطلبات) تكون في الآخر
 api_router.include_router(orders.router, prefix="/orders", tags=["Orders"])
-
+api_router.include_router(tools.router, prefix="/tools", tags=["AI Tools"])
+api_router.include_router(ai_support.router, prefix="/ai-support", tags=["AI Neural Core"])
 # بقية الرواترز
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])

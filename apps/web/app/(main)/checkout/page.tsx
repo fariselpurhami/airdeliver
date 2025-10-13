@@ -1,65 +1,64 @@
-# file: apps/web/app/(main)/checkout/page.tsx
-# version: 1.0.0
-# date: 2025-09-27
-# author: Gemini
-
 'use client';
 
-import { useState, useEffect } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
-import { useCartStore } from '@/hooks/useCartStore';
-import { api } from '@/lib/api';
-import CheckoutForm from '@/components/checkout/CheckoutForm';
+import { CalendarDays } from 'lucide-react';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Lock, CreditCard, User, MapPin } from 'lucide-react';
+import { Button } from '@/components/ui/button'; // Assuming shadcn
+import { Input } from '@/components/ui/input'; // Assuming shadcn
 
-// Load your Stripe public key from environment variables
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-
-export default function CheckoutPage() {
-  const { items } = useCartStore();
-  const [clientSecret, setClientSecret] = useState('');
-
-  useEffect(() => {
-    // Create PaymentIntent as soon as the page loads
-    const createPaymentIntent = async () => {
-      try {
-        const orderPayload = items.map(item => ({
-          product_id: item.id,
-          quantity: item.quantity,
-        }));
-
-        const res = await api.post('/orders/create-payment-intent', orderPayload);
-        setClientSecret(res.data.client_secret);
-      } catch (error) {
-        console.error("Failed to create payment intent:", error);
-        // Handle error, e.g., show a message to the user
-      }
-    };
-    
-    if (items.length > 0) {
-      createPaymentIntent();
-    }
-  }, [items]);
-
-  const appearance = {
-    theme: 'stripe', // Can also be 'night' or 'flat'
-  };
-  const options = {
-    clientSecret,
-    appearance,
-  };
-
-  return (
-    <div className="py-12 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold text-center mb-8">Checkout</h1>
-      {clientSecret && (
-        <Elements options={options} stripe={stripePromise}>
-          <CheckoutForm />
-        </Elements>
-      )}
-      {!clientSecret && (
-        <p className="text-center">Loading payment options...</p>
-      )}
+// --- Futuristic Input Component ---
+const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>) => (
+    <div className="relative">
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">{icon}</div>
+        <Input {...props} className="w-full bg-white/5 border-white/10 rounded-lg py-6 pl-12 pr-4 text-white placeholder-gray-500 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-0 focus-visible:ring-offset-transparent" />
     </div>
-  );
+);
+
+// --- Main Checkout Page ---
+export default function CheckoutPage() {
+    return (
+        <main className="min-h-screen w-full bg-black text-gray-100 flex items-center justify-center p-4">
+            <div className="absolute inset-0 -z-10 bg-grid-white/[0.05]" />
+
+            <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+                className="w-full max-w-lg"
+            >
+                <div className="relative p-8 bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50">
+                    <div className="text-center mb-8">
+                        <h1 className="text-4xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Launch Sequence</h1>
+                        <p className="text-gray-400 mt-2">Authorize payment to deploy your autonomous fleet.</p>
+                    </div>
+
+                    <form className="space-y-4">
+                        <h2 className="text-lg font-semibold text-gray-300 border-b border-white/10 pb-2">Contact Information</h2>
+                        <FuturisticInput icon={<User size={18} />} type="text" placeholder="Full Name" />
+                        <FuturisticInput icon={<MapPin size={18} />} type="text" placeholder="Delivery Address" />
+                        
+                        <h2 className="text-lg font-semibold text-gray-300 border-b border-white/10 pb-2 pt-4">Payment Details</h2>
+                        <FuturisticInput icon={<CreditCard size={18} />} type="text" placeholder="Card Number" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FuturisticInput icon={<CalendarDays size={18} />} type="text" placeholder="MM / YY" />
+                            <FuturisticInput icon={<Lock size={18} />} type="text" placeholder="CVC" />
+                        </div>
+
+                        <div className="pt-6">
+                            <motion.button
+                                type="submit"
+                                whileHover={{ scale: 1.02, boxShadow: "0 0 25px 5px rgba(0, 198, 255, 0.4)" }}
+                                whileTap={{ scale: 0.98 }}
+                                className="w-full glowing-button rounded-full py-3 text-lg font-bold"
+                            >
+                                Authorize & Launch Fleet
+                            </motion.button>
+                        </div>
+                    </form>
+                </div>
+            </motion.div>
+        </main>
+    );
 }
+
