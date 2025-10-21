@@ -67,3 +67,4 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     }
   },
 }));
+

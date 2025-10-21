@@ -10,6 +10,8 @@ import random
 
 router = APIRouter()
 
+#@router.get("/", response_model=List[Dict[str, Any]])
+@router.get("", response_model=List[Dict[str, Any]], include_in_schema=False) 
 @router.get("/", response_model=List[Dict[str, Any]])
 def read_products(
     db: Session = Depends(get_session),
@@ -25,14 +27,8 @@ def read_products(
     for p in products_from_db:
         data = p.model_dump()
         
-        # --- THE FIX IS HERE ---
-        # We now correctly get the filename from the "image_url" field
-        image_filename = data.get("image_url")
-        if image_filename:
-            # We still create a final "image" field for the frontend
-            data["image"] = image_filename
-        else:
-            data["image"] = "/images/default.jpeg"
+        if not data.get("image_url"):
+            data["image_url"] = "/images/default.jpeg"
         
         data["predicted_delivery"] = f"{random.randint(8, 25)} mins near your zone."
         data["trending_status"] = "Trending in your region 🚀" if p.inventory < 80 and random.choice([True, False]) else None
@@ -71,12 +67,8 @@ def get_product_suggestions(
     for p in suggestions:
         data = p.model_dump()
         
-        # --- THE FIX IS ALSO HERE ---
-        image_filename = data.get("image_url")
-        if image_filename:
-            data["image"] = image_filename
-        else:
-            data["image"] = "/images/default.jpeg"
+        if not data.get("image_url"):
+            data["image_url"] = "/images/default.jpeg"
             
         data["rating"] = round(random.uniform(4.5, 5.0), 1)
         data["reviews"] = random.randint(500, 2000)

@@ -11,7 +11,7 @@ const config: Config = {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'Neue Montreal"',
+  				'Neue Montreal',
   				'sans-serif'
   			],
   			orbitron: [

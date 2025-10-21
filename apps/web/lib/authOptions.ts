@@ -1,16 +1,12 @@
-// file: apps/web/lib/authOptions.ts
-// version: 1.0.0
-// date: 2025-09-23
-// author: Gemini 2.5 Pro
+// file: apps/web/lib/authOptions.ts (النسخة النهائية بالعنوان الصحيح 100%)
 
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { api } from './api';
 import { jwtDecode } from 'jwt-decode';
 
 interface DecodedToken {
   sub: string;
-  role: string;
+  role: string; // Assuming role is directly on the token
   exp: number;
 }
 
@@ -19,25 +15,47 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        username: { label: 'Email', type: 'email' },
+        email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials) return null;
         try {
-          const { data } = await api.post('/auth/token', new URLSearchParams(credentials));
+          // --- العنوان الصحيح للـ API بناءً على auth.py الأصلي ---
+          const apiUrl = 'http://api:8000/api/v1'; // العنوان الأساسي للـ API
+          const loginUrl = `${apiUrl}/auth/token`; // المسار الصحيح لتسجيل الدخول
+
+          console.log(`Authorize attempting to fetch from: ${loginUrl}`);
+
+          const res = await fetch(loginUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            // FastAPI's OAuth2 expects the email field to be named 'username'
+            body: new URLSearchParams({ username: credentials.email, password: credentials.password }),
+          });
+
+          console.log(`Authorize response status: ${res.status}`);
+
+          if (!res.ok) {
+            console.error('Failed to authorize with API', res.status, await res.text());
+            return null; // فشل تسجيل الدخول
+          }
+
+          const data = await res.json();
           if (data && data.access_token) {
             const decoded: DecodedToken = jwtDecode(data.access_token);
+            // إرجاع كائن المستخدم لـ NextAuth
             return {
-              id: decoded.sub,
+              id: decoded.sub, // استخدام الإيميل كـ id مؤقتًا
               email: decoded.sub,
-              role: decoded.role,
+              name: decoded.sub, // يمكنك تحسين الاسم لاحقًا
+              role: decoded.role, // جلب الصلاحية من التوكن
               accessToken: data.access_token,
             };
           }
           return null;
         } catch (error) {
-          console.error('Auth Error', error);
+          console.error('Authorize Error during fetch:', error);
           return null;
         }
       },
@@ -45,23 +63,28 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
+      // عند تسجيل الدخول، أضف الخصائص المخصصة للـ JWT
       if (user) {
-        token.accessToken = user.accessToken;
-        token.role = user.role;
+        token.accessToken = (user as any).accessToken;
+        token.role = (user as any).role;
       }
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
-      session.user.role = token.role;
+      // أضف الخصائص المخصصة لكائن الجلسة
+      if (session.user) {
+        (session.user as any).accessToken = token.accessToken;
+        (session.user as any).role = token.role;
+      }
       return session;
     },
   },
   pages: {
-    signIn: '/profile', // Redirect to profile page for login
+    signIn: '/login', // صفحة تسجيل الدخول المخصصة
+    error: '/login', // إعادة التوجيه لصفحة الدخول عند الخطأ
   },
   session: {
-    strategy: 'jwt',
+    strategy: 'jwt', // استخدام JWT للجلسات
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET, // المفتاح السري لـ NextAuth
 };

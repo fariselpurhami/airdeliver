@@ -11,7 +11,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (productName: string) => void }) => (
     <div className="embla__slide flex-[0_0_50%] md:flex-[0_0_40%]">
         <div className="flex flex-col p-4 bg-white/5 rounded-lg border border-white/10 h-full text-left">
-            <Image src={product.image || '/images/default.png'} alt={product.name} width={120} height={120} className="w-full h-24 object-contain mb-3 rounded-md"/>
+            <Image src={product.image || '/images/default.jpeg'} alt={product.name} width={120} height={120} className="w-full h-24 object-contain mb-3 rounded-md"/>
             <h4 className="text-sm font-bold text-white">{product.name}</h4>
             <p className="text-lg font-bold text-white mb-2">${product.price}</p>
             <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">
@@ -29,7 +29,6 @@ const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (p
         </div>
     </div>
 );
-
 
 // --- Subcomponent: The Product Carousel UI ---
 const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (productName: string) => void }) => {
@@ -111,10 +110,10 @@ const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend:
 });
 ChatMessage.displayName = 'ChatMessage';
 
+// --- All Other Subcomponents ---
 const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
-
     return (
         <div className="hidden lg:block w-1/3 bg-black/20 border-l border-white/10 p-6 rounded-r-2xl overflow-y-auto">
             <div className="sticky top-0 flex flex-col h-full">
@@ -129,8 +128,6 @@ const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
                         ))}
                     </AnimatePresence>
                 </div>
-
-                {/* This is the container that pushes the Total to the bottom */}
                 <div className="mt-auto">
                     <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Clock size={18} /> Details</h3>
                     <div className="text-sm space-y-2 text-gray-400">
@@ -140,14 +137,11 @@ const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
                     <div className="w-full h-[1px] bg-white/10 my-6" />
                     <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Cpu size={18} /> AI Notes</h3>
                     <p className="text-sm text-gray-400 italic">"AI reasoning will appear here."</p>
-
-                    {/* --- THIS IS THE MISSING TOTAL SECTION --- */}
                     <div className="w-full h-[1px] bg-white/10 my-6" />
                     <div className="flex justify-between items-center font-bold">
                         <span className="text-gray-300 text-lg">Total</span>
                         <span className="text-3xl text-white">${cart.total.toFixed(2)}</span>
                     </div>
-                    {/* ----------------------------------------- */}
                 </div>
             </div>
         </div>
@@ -179,11 +173,12 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const { messages, isLoading, sendMessage } = useAIOrderingStore();
     const chatEndRef = useRef<HTMLDivElement>(null);
     useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages, isLoading]);
-
+    
     return (
         <AnimatePresence>
             {isOpen && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
+                    {/* THIS IS THE LINE THAT CREATES THE TRANSPARENT EFFECT */}
                     <motion.div onClick={(e) => e.stopPropagation()} className="w-full max-w-6xl h-[90vh] max-h-[800px] flex bg-black/50 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
                         <div className="w-full lg:w-2/3 flex flex-col">
                             <header className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0">

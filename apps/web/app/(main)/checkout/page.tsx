@@ -4,7 +4,7 @@ import { CalendarDays } from 'lucide-react';
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Lock, CreditCard, User, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button'; // Assuming shadcn
+import { Button } from '@/components/ui/Button'; // Assuming shadcn
 import { Input } from '@/components/ui/input'; // Assuming shadcn
 
 // --- Futuristic Input Component ---

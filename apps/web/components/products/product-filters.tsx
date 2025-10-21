@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Search, SlidersHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button'; // Assuming shadcn Button
+import { Button } from '@/components/ui/Button'; // Assuming shadcn Button
 import { Input } from '@/components/ui/input'; // Assuming shadcn Input
 
 const categories = ["All", "Drones", "Pods", "Power Cells", "Accessories"];

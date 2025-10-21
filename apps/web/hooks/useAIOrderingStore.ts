@@ -1,3 +1,4 @@
+
 'use client';
 
 import { create } from 'zustand';
@@ -18,7 +19,9 @@ interface AIOrderingState {
   isLoading: boolean;
   isProcessing: boolean; // For the "cinematic" loading animation
   isOverlayVisible: boolean;
+  suggestedProductIds: number[] | null;
   setOverlayVisible: (isVisible: boolean) => void;
+  setSuggestedProductIds: (ids: number[] | null) => void;
   sendMessage: (text: string) => void;
 }
 
@@ -29,7 +32,10 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   isLoading: false,
   isProcessing: false,
   isOverlayVisible: false,
+  suggestedProductIds: null,
   setOverlayVisible: (isVisible) => set({ isOverlayVisible: isVisible }),
+  setSuggestedProductIds: (ids) => set({ suggestedProductIds: ids }),
+
   sendMessage: async (text) => {
     if (!text || get().isLoading) return;
 
@@ -40,6 +46,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
       messages: [...state.messages, userMessage, typingIndicator],
       isLoading: true,
       isProcessing: true, // Trigger the cinematic loader
+      suggestedProductIds: null,
     }));
 
     try {
@@ -64,10 +71,16 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
           reason: res.reason,
       }));
 
+
+      const suggestions = aiData.responses
+        .filter((res: any) => res.contentType === 'product_carousel' && res.products)
+        .flatMap((res: any) => res.products.map((p: any) => p.id));
+
       set((state) => ({
         messages: [...state.messages.filter(m => m.contentType !== 'typing'), ...aiMessages],
         isLoading: false,
         isProcessing: false, // Turn off the cinematic loader
+	suggestedProductIds: suggestions.length > 0 ? suggestions : null,
       }));
 
     } catch (error) {
@@ -85,3 +98,4 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     }
   },
 }));
+

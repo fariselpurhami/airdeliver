@@ -1,7 +1,5 @@
 # file: apps/web/Dockerfile
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini 2.5 Pro
+
 
 # Stage 1: Install dependencies
 FROM node:20-alpine AS deps
@@ -21,6 +19,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV production
 
+RUN npm install -g pnpm
 # You can set this to a different value on your host machine
 # for a non-root user for security reasons.
 # USER node
@@ -32,3 +31,4 @@ COPY --from=builder /app/package.json ./package.json
 EXPOSE 3000
 
 CMD ["pnpm", "start"]
+

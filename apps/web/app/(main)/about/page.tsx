@@ -108,7 +108,7 @@ const AnimatedCounter = ({ value, label }: { value: number; label: string; }) =>
         }, { threshold: 0.5 });
         if (ref.current) observer.observe(ref.current);
         const unsubscribe = springValue.on("change", (latest) => {
-            if (ref.current) ref.current.textContent = Intl.NumberFormat('en-US').format(latest.toFixed(0));
+            if (ref.current) ref.current.textContent = Intl.NumberFormat('en-US').format(Math.round(latest));
         });
         return () => {
             if (ref.current) observer.unobserve(ref.current);

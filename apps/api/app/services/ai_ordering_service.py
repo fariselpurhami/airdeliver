@@ -1,3 +1,5 @@
+# apps/api/app/services/ai_ordering_service.py
+
 import re
 from sqlmodel import Session, select
 from app.models.product import Product

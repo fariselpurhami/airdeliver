@@ -11,7 +11,7 @@ class ChatRequest(BaseModel):
 # This defines the structure for a single part of the AI's response
 class ResponseMessage(BaseModel):
     contentType: str
-    content: Any
+    content: Any | None = None
     options: List[str] | None = None
     products: List[Dict[str, Any]] | None = None
     reason: str | None = None

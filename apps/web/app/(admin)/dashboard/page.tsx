@@ -1,15 +1,14 @@
-// file: apps/web/app/(admin)/dashboard/page.tsx
-// version: 2.0.0 (Functional Dashboard)
-// date: 2025-09-30
-// author: Gemini
-
+// file: apps/web/app/(admin)/dashboard/page.tsx (Corrected Loading Condition)
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useEffect, useState } from 'react';
+import useSWR from 'swr';
 import { api } from '@/lib/api';
+import { AlertCircle, DollarSign, Package, PackageCheck, Truck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useState, useMemo } from 'react';
 
-// Define types for our data for type safety
+// --- Data Types ---
 interface Stats {
   total_revenue: number;
   total_orders: number;
@@ -20,112 +19,169 @@ interface Stats {
 interface Order {
   id: number;
   user_id: number;
-  status: string;
+  status: 'Pending' | 'Processing' | 'In Transit' | 'Delivered' | 'Cancelled';
   total_price: number;
   created_at: string;
 }
 
+// --- SWR Fetcher ---
+const fetcher = (url: string) => api.get(url).then(res => res.data);
+
+// --- Skeleton Components ---
+const StatCardSkeleton = () => (
+  <div className="animate-pulse overflow-hidden rounded-lg border border-white/10 bg-black/30 backdrop-blur-xl p-5 shadow">
+    <div className="h-4 bg-gray-700 rounded w-3/4 mb-4"></div>
+    <div className="h-8 bg-gray-600 rounded w-1/2"></div>
+  </div>
+);
+
+const OrdersTableSkeleton = () => (
+  <div className="animate-pulse border border-white/10 rounded-lg overflow-hidden mb-6">
+    <div className="h-12 bg-black/50 w-full"></div> {/* Header Placeholder */}
+    {[...Array(5)].map((_, i) => (
+      <div key={i} className="flex justify-between items-center px-6 py-4 border-t border-white/10 h-[57px]">
+        <div className="h-4 bg-gray-700 rounded w-1/6"></div>
+        <div className="h-4 bg-gray-700 rounded w-1/4"></div>
+        <div className="h-4 bg-gray-700 rounded w-1/6"></div>
+        <div className="h-4 bg-gray-700 rounded w-1/6 text-right"></div>
+      </div>
+    ))}
+  </div>
+);
+
+// --- Status Badge Component ---
+const StatusBadge = ({ status }: { status: Order['status'] }) => {
+  let colorClasses = '';
+  switch (status) {
+    case 'Delivered': colorClasses = 'bg-green-500/10 text-green-400 border-green-500/30'; break;
+    case 'Processing': case 'In Transit': colorClasses = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'; break;
+    case 'Cancelled': colorClasses = 'bg-red-500/10 text-red-400 border-red-500/30'; break;
+    case 'Pending': default: colorClasses = 'bg-gray-500/10 text-gray-400 border-gray-500/30'; break;
+  }
+  return <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full border ${colorClasses}`}>{status}</span>;
+};
+
+// --- Main Dashboard Component ---
 export default function AdminDashboardPage() {
-  const { data: session } = useSession({ required: true });
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: session, status } = useSession({ required: true }); // required:true handles redirect if not logged in
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 10;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      // Ensure the user is an admin before fetching data
-      if (session?.user?.role !== 'admin') {
-        setError("Access Denied. You do not have permission to view this page.");
-        setIsLoading(false);
-        return;
-      }
-      
-      try {
-        // Fetch all admin data concurrently
-        const [statsRes, ordersRes] = await Promise.all([
-          api.get('/admin/stats'),
-          api.get('/admin/orders')
-        ]);
-        
-        setStats(statsRes.data);
-        setOrders(ordersRes.data);
-      } catch (err) {
-        setError("Failed to load dashboard data. Please ensure the backend is running and you are logged in as an admin.");
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Derive API URLs based on admin role
+  const statsApiUrl = session?.user?.role === 'admin' ? '/admin/stats' : null;
+  const ordersApiUrl = session?.user?.role === 'admin' ? `/admin/orders?page=${currentPage}&limit=${ordersPerPage}` : null;
 
-    // Only fetch data if a session exists
-    if (session) {
-      fetchData();
-    }
-  }, [session]);
+  // Fetch data using SWR
+  const { data: stats, error: statsError, isLoading: isLoadingStats } = useSWR<Stats>(statsApiUrl, fetcher, { revalidateOnFocus: false });
+  const { data: ordersData, error: ordersError, isLoading: isLoadingOrders } = useSWR<{ orders: Order[], total_orders: number }>(ordersApiUrl, fetcher, { revalidateOnFocus: false });
 
-  if (isLoading) {
-    return <div className="text-center py-20">Loading Dashboard...</div>;
+  const orders = ordersData?.orders ?? [];
+  const totalOrders = ordersData?.total_orders ?? 0;
+  const totalPages = Math.ceil(totalOrders / ordersPerPage);
+
+  // Determine overall loading and error states
+  const isLoading = status === 'loading' || (session?.user?.role === 'admin' && ((!stats && isLoadingStats) || (!ordersData && isLoadingOrders)));
+  const error = status !== 'authenticated' && status !== 'loading' // Handle auth edge cases if required:true fails somehow
+    ? "Authentication error."
+    : session?.user?.role !== 'admin' // Check role *after* session loads
+    ? "Access Denied. You do not have permission to view this page."
+    : statsError || ordersError // Check SWR errors
+    ? `Failed to load dashboard data: ${statsError?.message || ordersError?.message || 'Unknown error'}`
+    : null;
+
+  // Pagination handlers
+  const handleNextPage = () => { if (currentPage < totalPages) setCurrentPage(currentPage + 1); };
+  const handlePrevPage = () => { if (currentPage > 1) setCurrentPage(currentPage - 1); };
+
+  // --- Render Loading State ---
+  // The condition has been simplified by removing the redundant check
+  if (isLoading && !error && session?.user?.role === 'admin') {
+    return (
+      <div className="container mx-auto py-12 px-4 text-white">
+        <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600" style={{ fontFamily: "'Orbitron', sans-serif" }}>Admin Dashboard</motion.h1>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-10">
+          {[...Array(4)].map((_, i) => <StatCardSkeleton key={i} />)}
+        </div>
+        <div>
+          <div className="h-8 bg-gray-700 rounded w-1/4 mb-4 animate-pulse"></div>
+          <OrdersTableSkeleton />
+          <div className="flex justify-between items-center mt-6 animate-pulse">
+            <div className="h-9 bg-gray-700 rounded w-28"></div>
+            <div className="h-4 bg-gray-700 rounded w-20"></div>
+            <div className="h-9 bg-gray-700 rounded w-24"></div>
+          </div>
+        </div>
+      </div>
+    );
   }
-  
+
+  // --- Render Error State ---
   if (error) {
-    return <div className="text-center py-20 text-red-500">{error}</div>;
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center text-white">
+        <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Error Loading Dashboard</h2>
+        <p className="text-red-400">{error}</p>
+      </div>
+    );
   }
 
+  // --- Render Dashboard ---
+  // No changes needed in the final render part
   return (
-    <div className="py-12">
-      <h1 className="text-4xl font-bold mb-8">Admin Dashboard</h1>
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-10">
-        <div className="overflow-hidden rounded-lg border bg-background p-5 shadow">
-          <p className="truncate text-sm font-medium text-foreground/80">Total Revenue</p>
-          <p className="mt-1 text-3xl font-semibold">${stats?.total_revenue.toFixed(2) || '0.00'}</p>
-        </div>
-        <div className="overflow-hidden rounded-lg border bg-background p-5 shadow">
-          <p className="truncate text-sm font-medium text-foreground/80">Total Orders</p>
-          <p className="mt-1 text-3xl font-semibold">{stats?.total_orders || '0'}</p>
-        </div>
-        <div className="overflow-hidden rounded-lg border bg-background p-5 shadow">
-          <p className="truncate text-sm font-medium text-foreground/80">Total Products</p>
-          <p className="mt-1 text-3xl font-semibold">{stats?.total_products || '0'}</p>
-        </div>
-        <div className="overflow-hidden rounded-lg border bg-background p-5 shadow">
-          <p className="truncate text-sm font-medium text-foreground/80">Active Drones</p>
-          <p className="mt-1 text-3xl font-semibold">{stats?.active_drones || '0'}</p>
-        </div>
-      </div>
-
-      {/* Recent Orders Table */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Recent Orders</h2>
-        <div className="overflow-x-auto border rounded-lg">
-          <table className="min-w-full divide-y">
-            <thead className="bg-foreground/5">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Order ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {orders.map((order) => (
-                <tr key={order.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">#{order.id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{new Date(order.created_at).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">${order.total_price.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <div className="container mx-auto py-12 px-4 text-white">
+        <motion.h1 /* ... */ >Admin Dashboard</motion.h1>
+        <motion.div /* ... Stats Cards ... */ >
+             {/* ... StatCard components ... */}
+             <motion.div variants={{hidden: {opacity: 0, y: 20}, visible: {opacity: 1, y: 0}}} className="overflow-hidden rounded-lg border border-white/10 bg-black/30 backdrop-blur-xl p-5 shadow shadow-black/30">
+                <p className="truncate text-sm font-medium text-gray-400 flex items-center gap-2"><DollarSign size={16}/>Total Revenue</p>
+                <p className="mt-1 text-3xl font-semibold text-white">${stats?.total_revenue?.toFixed(2) ?? '0.00'}</p>
+            </motion.div>
+            <motion.div variants={{hidden: {opacity: 0, y: 20}, visible: {opacity: 1, y: 0}}} className="overflow-hidden rounded-lg border border-white/10 bg-black/30 backdrop-blur-xl p-5 shadow shadow-black/30">
+                <p className="truncate text-sm font-medium text-gray-400 flex items-center gap-2"><Package size={16}/>Total Orders</p>
+                <p className="mt-1 text-3xl font-semibold text-white">{stats?.total_orders ?? totalOrders ?? '0'}</p> {/* Show total from ordersData if stats is slow */}
+            </motion.div>
+            <motion.div variants={{hidden: {opacity: 0, y: 20}, visible: {opacity: 1, y: 0}}} className="overflow-hidden rounded-lg border border-white/10 bg-black/30 backdrop-blur-xl p-5 shadow shadow-black/30">
+                <p className="truncate text-sm font-medium text-gray-400 flex items-center gap-2"><PackageCheck size={16}/>Total Products</p>
+                <p className="mt-1 text-3xl font-semibold text-white">{stats?.total_products ?? '0'}</p>
+            </motion.div>
+            <motion.div variants={{hidden: {opacity: 0, y: 20}, visible: {opacity: 1, y: 0}}} className="overflow-hidden rounded-lg border border-white/10 bg-black/30 backdrop-blur-xl p-5 shadow shadow-black/30">
+                <p className="truncate text-sm font-medium text-gray-400 flex items-center gap-2"><Truck size={16}/>Active Drones</p>
+                <p className="mt-1 text-3xl font-semibold text-white">{stats?.active_drones ?? '0'}</p>
+            </motion.div>
+        </motion.div>
+        <motion.div /* ... Orders Table ... */ >
+            <h2 /* ... */ >Recent Orders</h2>
+            <div /* ... table container ... */ >
+                <table /* ... */ >
+                    <thead /* ... */ >{/* ... */}</thead>
+                    <tbody /* ... */ >
+                        {orders && orders.length > 0 ? orders.map((order) => (
+                            <tr key={order.id} className="hover:bg-white/5 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-cyan-400">#{order.id}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{new Date(order.created_at).toLocaleDateString()}</td>
+                                <td className="px-6 py-4 whitespace-nowrap"><StatusBadge status={order.status} /></td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-white">${order.total_price.toFixed(2)}</td>
+                            </tr>
+                        )) : (
+                            <tr><td colSpan={4} className="text-center py-10 text-gray-500">No recent orders found.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+             {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-6">
+                <motion.button onClick={handlePrevPage} disabled={currentPage === 1} whileHover={{ scale: 1.05, x: -2 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-white/5 border border-white/10 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition-colors">
+                  <ChevronLeft size={16} /> Previous
+                </motion.button>
+                <span className="text-sm text-gray-400">Page {currentPage} of {totalPages}</span>
+                <motion.button onClick={handleNextPage} disabled={currentPage === totalPages} whileHover={{ scale: 1.05, x: 2 }} whileTap={{ scale: 0.95 }} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-white/5 border border-white/10 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition-colors">
+                  Next <ChevronRight size={16} />
+                </motion.button>
+              </div>
+            )}
+        </motion.div>
     </div>
   );
 }

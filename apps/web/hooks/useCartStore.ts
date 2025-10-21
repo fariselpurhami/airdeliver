@@ -1,6 +1,7 @@
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { type Product } from '@/components/products/product-card';
+import { type Product } from '@/types';
 
 // Define the shape of an item in the cart, adding a 'quantity' property
 export interface CartItem extends Product {

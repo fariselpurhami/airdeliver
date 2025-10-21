@@ -1,18 +1,20 @@
 "use client";
 
-import { MessageSquare } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { useAISupportStore } from '@/hooks/useAISupportStore';
 
 export const AISupportButton = () => {
-  const { openSupport } = useAISupportStore();
+  
+  const { setIsOpen } = useAISupportStore();
 
   return (
     <button
-      onClick={openSupport}
-      className="fixed bottom-8 right-8 z-40 p-4 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-110 transition-transform duration-300"
-      aria-label="Open AI Support"
+      
+      onClick={() => setIsOpen(true)}
+      className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-400 to-violet-500 text-white shadow-lg transition-transform duration-300 hover:scale-110"
+      aria-label="Open AI Support Chat"
     >
-      <MessageSquare size={28} />
+      <Bot size={32} />
     </button>
   );
 };

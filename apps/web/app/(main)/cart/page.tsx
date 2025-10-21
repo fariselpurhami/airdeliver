@@ -28,9 +28,9 @@ const CartItemCard = ({ item }: { item: CartItem }) => {
             className="flex items-center gap-6 p-4 bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl"
         >
             <div className="relative flex-shrink-0 w-24 h-24">
-                {item.image && (
+                {item.image_url && (
                     <Image 
-                        src={item.image} 
+                        src={item.image_url} 
                         alt={item.name}
                         width={96}
                         height={96}

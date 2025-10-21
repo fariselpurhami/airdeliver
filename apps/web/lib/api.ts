@@ -1,13 +1,12 @@
 // file: apps/web/lib/api.ts
-// version: 1.0.0
-// date: 2025-09-23
-// author: Gemini 2.5 Pro
+// CORRECTED VERSION
 
 import axios from 'axios';
 import { getSession } from 'next-auth/react';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
+  // Use a relative path to make requests go through the Next.js proxy.
+  baseURL: '/api/v1',
 });
 
 api.interceptors.request.use(async (config) => {
