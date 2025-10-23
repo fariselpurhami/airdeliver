@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
 
 from app import models
-from app.schemas.user import UserRead, UserCreate
+from app.schemas.user import UserRead, UserCreate, UserUpdate
 from app.schemas.msg import Msg
 from app.api import deps
 from app.crud import crud_user
@@ -72,3 +72,30 @@ def delete_account(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     return {"msg": "Account deletion process has been initiated."}
+
+@router.put("/me", response_model= UserRead)
+def update_user_me(
+    *,
+    session: Session = Depends(get_session),
+    user_in: UserUpdate,
+    current_user: models.User = Depends(deps.get_current_active_user),
+):
+    """
+    Update own user details.
+    """
+    update_data = user_in.model_dump(exclude_unset=True)
+
+    if "password" in update_data and update_data["password"]:
+        hashed_password = get_password_hash(update_data["password"])
+        del update_data["password"] 
+        update_data["hashed_password"] = hashed_password 
+    elif "password" in update_data:
+        
+         del update_data["password"]
+
+    current_user.sqlmodel_update(update_data)
+
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+    return current_user

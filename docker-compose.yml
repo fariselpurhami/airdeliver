@@ -60,7 +60,8 @@ services:
       - NEXTAUTH_URL=http://localhost:3000
       - NEXTAUTH_SECRET=a_super_secret_for_nextauth # Change this in production
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - airdeliver-net
 

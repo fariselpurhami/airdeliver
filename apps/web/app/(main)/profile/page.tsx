@@ -1,3 +1,4 @@
+// file: apps/web/app/(main)/profile/page.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -5,18 +6,11 @@ import { useSession, signOut } from "next-auth/react";
 import { motion } from "framer-motion";
 import Image from 'next/image';
 import { 
-    User, 
-    Mail, 
-    ShieldCheck, 
-    MapPin, 
-    Phone, 
-    Edit3, 
-    LogOut, 
-    Camera, 
-    Loader2 
+    User, Mail, ShieldCheck, MapPin, Phone, Edit3, LogOut, Camera, Loader2 
 } from 'lucide-react';
-import useSWR from 'swr';
+import useSWR, { mutate } from 'swr'; // <-- 1. Import mutate from SWR
 import { fetcher } from '@/lib/fetcher';
+import EditProfileModal from '@/components/profile/EditProfileModal'; // <-- 2. Import the new Modal
 
 interface UserProfileData {
     id: number;
@@ -34,11 +28,12 @@ const LoadingSpinner = () => (
     </div>
 );
 
-const ProfileField = ({ icon, label, value, onEdit }: { 
+const ProfileField = ({ icon, label, value, fieldName, onEdit }: { 
     icon: React.ReactNode; 
     label: string; 
     value: string | undefined | null; 
-    onEdit?: () => void;
+    fieldName: string; // Add fieldName to identify which field to edit
+    onEdit?: (fieldName: string, label: string, currentValue: string | null | undefined) => void; 
 }) => (
     <motion.div 
         variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
@@ -51,8 +46,9 @@ const ProfileField = ({ icon, label, value, onEdit }: {
                 <p className="text-white font-medium">{value || 'Not set'}</p>
             </div>
         </div>
+        {/* Pass necessary info to onEdit */}
         {onEdit && (
-            <button onClick={onEdit} className="text-gray-500 hover:text-cyan-400 transition-colors">
+            <button onClick={() => onEdit(fieldName, label, value)} className="text-gray-500 hover:text-cyan-400 transition-colors">
                 <Edit3 size={18} />
             </button>
         )}
@@ -60,15 +56,70 @@ const ProfileField = ({ icon, label, value, onEdit }: {
 );
 
 export default function ProfilePage() {
-    const { data: session, status: sessionStatus } = useSession(); 
+    const { data: session, status: sessionStatus, update: updateSession } = useSession(); // <-- 3. Get update function
     
+    const profileApiUrl = '/api/v1/users/me'; // Define API URL once
     const { data: userData, error: userError, isLoading: isLoadingUser } = useSWR<UserProfileData>(
-        sessionStatus === 'authenticated' ? '/api/v1/users/me' : null, 
+        sessionStatus === 'authenticated' ? profileApiUrl : null, 
         fetcher 
     );
 
-    const [isEditing, setIsEditing] = useState<string | null>(null); 
-    const handleEdit = (fieldName: string) => setIsEditing(fieldName);
+    // --- State for the Modal ---
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingField, setEditingField] = useState<{ name: string; label: string; value: string | null | undefined } | null>(null);
+
+    const handleEdit = (fieldName: string, label: string, currentValue: string | null | undefined) => {
+        setEditingField({ name: fieldName, label: label, value: currentValue });
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingField(null); // Clear editing state on close
+    };
+
+    // --- 4. Function to handle saving data ---
+    const handleSave = async (fieldName: string, newValue: string) => {
+        // @ts-ignore (Get token from session - assumes accessToken exists)
+        const token = session?.accessToken;
+        if (!token) {
+            throw new Error("Authentication token not found.");
+        }
+
+        try {
+            const response = await fetch(profileApiUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                // Send only the field being updated
+                body: JSON.stringify({ [fieldName]: newValue }), 
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to update profile.');
+            }
+
+            const updatedUser: UserProfileData = await response.json();
+
+            // --- 5. Update SWR cache immediately ---
+            mutate(profileApiUrl, updatedUser, false); // Update local data without re-fetching
+
+            // --- 6. Update NextAuth session if name changed (optional but good UX) ---
+            if (fieldName === 'full_name') {
+                 await updateSession({ user: { ...session?.user, name: newValue } });
+            }
+             // You might need to update session image if avatar_url changes
+
+        } catch (error: any) {
+            console.error("Save error:", error);
+            // Re-throw the error so the modal can display it
+            throw error; 
+        }
+    };
+
     const containerVariants = {
         hidden: { opacity: 0 },
         visible: { 
@@ -77,7 +128,7 @@ export default function ProfilePage() {
         }
     };
 
-    if (sessionStatus === 'loading' || (sessionStatus === 'authenticated' && isLoadingUser)) {
+    if (sessionStatus === 'loading' || (sessionStatus === 'authenticated' && isLoadingUser && !userData)) { // Show loading if userData isn't there yet
         return <LoadingSpinner />;
     }
 
@@ -92,95 +143,110 @@ export default function ProfilePage() {
          </div>;
     }
 
-    const user = session?.user;
-    const profileData = userData;
-
-    const userImage = profileData?.avatar_url || user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || user?.email || 'A')}&background=0D1117&color=00c6ff&bold=true`;
+    // Use profileData from SWR primarily, fallback to session only if needed
+    const profileData = userData; 
+    const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'A')}&background=0D1117&color=00c6ff&bold=true`;
 
     return (
-        <main className="relative min-h-screen w-full bg-black text-gray-100 py-16 overflow-hidden">
-            <div className="absolute inset-0 bg-grid-white/[0.05] -z-10" />
-            <motion.div 
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="w-full max-w-4xl mx-auto px-4 md:px-8"
-            >
+        <>
+            <main className="relative min-h-screen w-full bg-black text-gray-100 py-16 overflow-hidden">
+                <div className="absolute inset-0 bg-grid-white/[0.05] -z-10" />
                 <motion.div 
-                    variants={{ hidden: { opacity: 0, y: -30 }, visible: { opacity: 1, y: 0 } }}
-                    className="flex flex-col md:flex-row items-center gap-6 md:gap-8 mb-12"
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="w-full max-w-4xl mx-auto px-4 md:px-8"
                 >
-                    <div className="relative group">
-                        <Image 
-                            src={userImage} 
-                            alt={profileData?.full_name || 'User Avatar'} 
-                            width={120} 
-                            height={120} 
-                            className="rounded-full border-4 border-white/10 shadow-lg"
-                            priority
-                        />
-                        <button 
-                            className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                            onClick={() => alert('Avatar upload functionality to be implemented!')}
+                    <motion.div 
+                        variants={{ hidden: { opacity: 0, y: -30 }, visible: { opacity: 1, y: 0 } }}
+                        className="flex flex-col md:flex-row items-center gap-6 md:gap-8 mb-12"
+                    >
+                        <div className="relative group">
+                            <Image 
+                                src={userImage} 
+                                alt={profileData?.full_name || 'User Avatar'} 
+                                width={120} 
+                                height={120} 
+                                className="rounded-full border-4 border-white/10 shadow-lg"
+                                priority
+                                key={userImage} // Add key to force re-render if URL changes
+                            />
+                            <button 
+                                className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                onClick={() => alert('Avatar upload functionality to be implemented!')}
+                            >
+                                <Camera size={32} className="text-cyan-400" />
+                            </button>
+                        </div>
+                        
+                        <div className="text-center md:text-left">
+                            <h1 
+                                className="text-4xl font-black text-white" 
+                                style={{ fontFamily: "'Orbitron', sans-serif" }}
+                            >
+                                {profileData?.full_name || session?.user?.email?.split('@')[0]}
+                            </h1>
+                            <p className="text-gray-400 mt-1">{profileData?.email}</p>
+                            {profileData?.role && (
+                                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-medium text-yellow-300 border border-yellow-500/30">
+                                    <ShieldCheck size={14} />
+                                    {profileData.role.charAt(0).toUpperCase() + profileData.role.slice(1)}
+                                </span>
+                            )}
+                        </div>
+                        <motion.button 
+                            onClick={() => signOut({ callbackUrl: '/' })} 
+                            whileHover={{ scale: 1.05 }} 
+                            whileTap={{ scale: 0.95 }}
+                            className="ml-auto flex items-center gap-2 rounded-lg bg-red-600/20 px-4 py-2 text-sm font-medium text-red-400 border border-red-600/50 hover:bg-red-600/30 transition-colors"
                         >
-                            <Camera size={32} className="text-cyan-400" />
-                        </button>
-                    </div>
-                    
-                    <div className="text-center md:text-left">
-                        <h1 
-                            className="text-4xl font-black text-white" 
+                            <LogOut size={16} />
+                            Sign Out
+                        </motion.button>
+                    </motion.div>
+
+                    <motion.div 
+                        variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }}
+                        className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-6 md:p-8"
+                    >
+                        <h2 
+                            className="text-2xl font-bold text-white mb-6 pb-4 border-b border-white/10" 
                             style={{ fontFamily: "'Orbitron', sans-serif" }}
                         >
-                            {profileData?.full_name || user?.email?.split('@')[0]}
-                        </h1>
-                        <p className="text-gray-400 mt-1">{profileData?.email}</p>
-                        {profileData?.role && (
-                            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-medium text-yellow-300 border border-yellow-500/30">
-                                <ShieldCheck size={14} />
-                                {profileData.role.charAt(0).toUpperCase() + profileData.role.slice(1)}
-                            </span>
-                        )}
-                    </div>
-                    <motion.button 
-                        onClick={() => signOut({ callbackUrl: '/' })} 
-                        whileHover={{ scale: 1.05 }} 
-                        whileTap={{ scale: 0.95 }}
-                        className="ml-auto flex items-center gap-2 rounded-lg bg-red-600/20 px-4 py-2 text-sm font-medium text-red-400 border border-red-600/50 hover:bg-red-600/30 transition-colors"
-                    >
-                        <LogOut size={16} />
-                        Sign Out
-                    </motion.button>
-                </motion.div>
-
-                <motion.div 
-                    variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }}
-                    className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-6 md:p-8"
-                >
-                    <h2 
-                        className="text-2xl font-bold text-white mb-6 pb-4 border-b border-white/10" 
-                        style={{ fontFamily: "'Orbitron', sans-serif" }}
-                    >
-                        Account Details
-                    </h2>
-                    <motion.div variants={containerVariants}>
-                        <ProfileField icon={<User size={20} />} label="Full Name" value={profileData?.full_name} onEdit={() => handleEdit('name')} />
-                        <ProfileField icon={<Mail size={20} />} label="Email Address" value={profileData?.email} /> 
-                        <ProfileField 
-                            icon={<Phone size={20} />} 
-                            label="Phone Number" 
-                            value={profileData?.phone_number} 
-                            onEdit={() => handleEdit('phone')} 
-                        />
-                        <ProfileField 
-                            icon={<MapPin size={20} />} 
-                            label="Primary Address" 
-                            value={profileData?.address} 
-                            onEdit={() => handleEdit('address')} 
-                        />
+                            Account Details
+                        </h2>
+                        <motion.div variants={containerVariants}>
+                            {/* Pass fieldName and the handleEdit function */}
+                            <ProfileField icon={<User size={20} />} label="Full Name" fieldName="full_name" value={profileData?.full_name} onEdit={handleEdit} />
+                            <ProfileField icon={<Mail size={20} />} label="Email Address" fieldName="email" value={profileData?.email} /> 
+                            <ProfileField 
+                                icon={<Phone size={20} />} 
+                                label="Phone Number" 
+                                fieldName="phone_number" // <-- Add fieldName
+                                value={profileData?.phone_number} 
+                                onEdit={handleEdit} // <-- Enable editing
+                            />
+                            <ProfileField 
+                                icon={<MapPin size={20} />} 
+                                label="Primary Address" 
+                                fieldName="address" // <-- Add fieldName
+                                value={profileData?.address} 
+                                onEdit={handleEdit} // <-- Enable editing
+                            />
+                        </motion.div>
                     </motion.div>
                 </motion.div>
-            </motion.div>
-        </main>
+            </main>
+
+            {/* --- 7. Render the Modal --- */}
+            <EditProfileModal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                fieldName={editingField?.name || ''}
+                label={editingField?.label || ''}
+                currentValue={editingField?.value}
+                onSave={handleSave} // Pass the save handler
+            />
+        </>
     );
 }
