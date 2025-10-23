@@ -100,47 +100,47 @@ class NeuralCoreService:
         social_responses = {
             "i'm good", "im good", "fine", "doing well", "great", "not bad", 
             "i'm fine", "feeling good", "i feel good", "yeah good", 
-            "pretty good", "so good", "feeling so good", "all good"
+            "pretty good", "so good", "feeling so good", "all good",
+            "thanks", "thank you" # Added thanks as a social response
         }
 
-        # We clean the user's message from punctuation and extra spaces before checking
         cleaned_message = re.sub(r'[^\w\s]', '', message_lower).strip()
 
-        # We check for an EXACT match against our list, which is more accurate
-        if cleaned_message in social_responses:
+        # --- FIX 1: Check if ANY keyword is IN the message (Partial Match) ---
+        if any(keyword in cleaned_message for keyword in social_responses):
             return {"intent": "SOCIAL_RESPONSE"}
+
+        # --- FIX 2: Understand Negative Social Responses ---
+        social_responses_negative = {
+            "not good", "bad", "sad", "terrible", "awful", "not great",
+            "feeling bad", "i'm sad", "i feel bad", "تعبان", "متضايق", "زهقان"
+        }
+        if any(keyword in cleaned_message for keyword in social_responses_negative):
+            return {"intent": "SOCIAL_RESPONSE_NEGATIVE"}
 
         # 3. Operational & Functional Intents
         
-        # --- NEW & FULLY UPGRADED: Product Inquiry Intent (Bilingual Support) ---
         inquiry_keywords = [
-            # English
             "price", "cost", "available", "availability", "in stock", "do you have", 
             "do you sell", "how much", "what’s the price of", "is there", "how much is",
             "do you got", "can i get", "any", "sell me", "find me",
-            # Arabic
             "سعر", "متاح", "موجود", "عندك", "في المخزون", "بكم"
         ]
         if any(kw in user_message for kw in inquiry_keywords):
             product_name = ""
-            # English Patterns (Product name after keyword)
             after_match_en = re.search(r'(?:price of|cost of|availability of|do you have|do you sell|what’s the price of|how much is|can i get|find me|sell me)\s+(.*)', message_lower)
             if after_match_en:
                 product_name = after_match_en.group(1)
             else:
-                # English Patterns (Product name before keyword)
                 before_match_en = re.search(r'(?:is|are)\s+(?:the\s+)?(.*?)\s+(?:in stock|available|any)\??', message_lower)
                 if before_match_en:
                     product_name = before_match_en.group(1)
             
-            # Arabic Patterns (if no English match found)
             if not product_name:
-                # e.g., "سعر ايفون", "عندك ايفون"
                 after_match_ar = re.search(r'(?:هل\s+)?(سعر|عندك|بكم)\s+(.*)', user_message)
                 if after_match_ar:
                     product_name = after_match_ar.group(2)
                 else:
-                    # e.g., "ايفون متاح؟"
                     before_match_ar = re.search(r'(.*)\s+(متاح|موجود|في المخزون)\??', user_message)
                     if before_match_ar:
                         product_name = before_match_ar.group(1)
@@ -164,7 +164,6 @@ class NeuralCoreService:
 
         return {"intent": "UNKNOWN"}
     
-    # ... (handle_message and other methods remain the same as the previous update) ...
     def handle_message(self, db: Session, message: str, user: models.User) -> NeuralCoreResponse:
         memory_record = self._get_or_create_memory(db, user)
         session_data = memory_record.context_data
@@ -188,6 +187,15 @@ class NeuralCoreService:
         elif intent in self.SIMPLE_RESPONSE_MAP:
             text_response = random.choice(self.SIMPLE_RESPONSE_MAP[intent])
         
+        # --- FIX 2: Handle Negative Responses Empathetically ---
+        elif intent == "SOCIAL_RESPONSE_NEGATIVE":
+            text_response = random.choice([
+                "Oh no, I'm sorry to hear that. 😔 Is there anything I can help with?",
+                "That doesn't sound good. I'm here to help if you need to find anything.",
+                "I'm sorry things aren't great. Let me know if I can assist with anything."
+            ])
+            explain_text = "User expressed a negative sentiment; responded with empathy."
+        
         if text_response:
             session_data["lastIntent"] = intent
             memory_record.context_data = session_data
@@ -198,7 +206,7 @@ class NeuralCoreService:
                 action=action_payload,
                 explain=explain_text,
                 confidence=confidence_score,
-                telemetry={"intent": intent, "entities": entities_list} # Use the new list here
+                telemetry={"intent": intent, "entities": entities_list}
             )
 
         try:
@@ -206,17 +214,17 @@ class NeuralCoreService:
                 if intent == "PRODUCT_INQUIRY":
                     product_name = plan.get("entities", {}).get("product_name")
                     if not product_name:
-                        text_response = "Sure �� Which product would you like me to check for you?"
+                        text_response = "Sure  Which product would you like me to check for you?"
                         explain_text = "User asked about price/availability without specifying a product."
+                        intent = "PRODUCT_INQUIRY_CLARIFY"
                     else:
                         explain_text = "User asked about product availability or price."
-                        logger.info(f"Querying PRODUCT_SEARCH for: {product_name}") # التحسين رقم 2: إضافة تسجيل
+                        logger.info(f"Querying PRODUCT_SEARCH for: {product_name}")
                         api_response = client.get(f"{self.api_base_url}/PRODUCT_SEARCH", params={"query": product_name})
                         api_response.raise_for_status()
                         search_results = api_response.json()
-                        logger.info(f"PRODUCT_SEARCH returned: {len(search_results)} results") # التحسين رقم 2: إضافة تسجيل
+                        logger.info(f"PRODUCT_SEARCH returned: {len(search_results)} results")
 
-                        # التحسين رقم 3: منطق الترجمة الاحتياطي
                         if not search_results and re.search(r'[\u0600-\u06FF]', product_name):
                             try:
                                 from googletrans import Translator
@@ -232,6 +240,7 @@ class NeuralCoreService:
 
                         if not search_results:
                             text_response = f"Sorry 😔 I couldn’t find '{product_name.title()}' in our catalog right now."
+                            intent = "PRODUCT_INQUIRY_FAILED"
                         else:
                             product = search_results[0]
                             availability = "in stock ✅" if product.get("stock", 0) > 0 else "out of stock ❌"
@@ -242,6 +251,8 @@ class NeuralCoreService:
                                 f"You got it! The **{title}** is currently {availability} and goes for ${price}. Want to grab it? 🛒",
                                 f"Currently, the **{title}** is priced at ${price} and it's {availability}."
                             ])
+                            # --- FIX 3: Override intent to set context for next turn ---
+                            intent = "present_product"
                 
                 elif intent == "SUPPORT_HANDOFF":
                     text_response = "Of course 👍 I’ll connect you with a specialist right away."
@@ -255,7 +266,6 @@ class NeuralCoreService:
             intent = "SYSTEM_ERROR"
 
         if not text_response and not action_payload:
-            # التحسين رقم 5: ردود متنوعة للنوايا غير المعروفة
             text_response = random.choice([
                 "I'm not quite sure what you mean by that. Could you rephrase?",
                 "Hmm, I didn’t quite catch that — can you clarify?",

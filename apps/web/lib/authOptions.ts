@@ -1,4 +1,4 @@
-// file: apps/web/lib/authOptions.ts (النسخة النهائية بالعنوان الصحيح 100%)
+// file: apps/web/lib/authOptions.ts 
 
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -6,7 +6,7 @@ import { jwtDecode } from 'jwt-decode';
 
 interface DecodedToken {
   sub: string;
-  role: string; // Assuming role is directly on the token
+  role: string; 
   exp: number;
 }
 
@@ -21,9 +21,9 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials) return null;
         try {
-          // --- العنوان الصحيح للـ API بناءً على auth.py الأصلي ---
-          const apiUrl = 'http://api:8000/api/v1'; // العنوان الأساسي للـ API
-          const loginUrl = `${apiUrl}/auth/token`; // المسار الصحيح لتسجيل الدخول
+          
+          const apiUrl = 'http://api:8000/api/v1'; 
+          const loginUrl = `${apiUrl}/auth/token`; 
 
           console.log(`Authorize attempting to fetch from: ${loginUrl}`);
 
@@ -38,18 +38,18 @@ export const authOptions: NextAuthOptions = {
 
           if (!res.ok) {
             console.error('Failed to authorize with API', res.status, await res.text());
-            return null; // فشل تسجيل الدخول
+            return null; 
           }
 
           const data = await res.json();
           if (data && data.access_token) {
             const decoded: DecodedToken = jwtDecode(data.access_token);
-            // إرجاع كائن المستخدم لـ NextAuth
+            
             return {
-              id: decoded.sub, // استخدام الإيميل كـ id مؤقتًا
+              id: decoded.sub, 
               email: decoded.sub,
-              name: decoded.sub, // يمكنك تحسين الاسم لاحقًا
-              role: decoded.role, // جلب الصلاحية من التوكن
+              name: decoded.sub, 
+              role: decoded.role, 
               accessToken: data.access_token,
             };
           }
@@ -63,28 +63,37 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // عند تسجيل الدخول، أضف الخصائص المخصصة للـ JWT
+      
       if (user) {
         token.accessToken = (user as any).accessToken;
         token.role = (user as any).role;
       }
       return token;
     },
+
     async session({ session, token }) {
-      // أضف الخصائص المخصصة لكائن الجلسة
+      
+      session.accessToken = token.accessToken as string;
+
+     
       if (session.user) {
-        (session.user as any).accessToken = token.accessToken;
-        (session.user as any).role = token.role;
+        
+        if (token.role) {
+            session.user.role = (token.role as string).toLowerCase();
+        }
+        
+        session.user.id = token.sub as string;
       }
+      
       return session;
     },
   },
   pages: {
-    signIn: '/login', // صفحة تسجيل الدخول المخصصة
-    error: '/login', // إعادة التوجيه لصفحة الدخول عند الخطأ
+    signIn: '/login', 
+    error: '/login', 
   },
   session: {
-    strategy: 'jwt', // استخدام JWT للجلسات
+    strategy: 'jwt', 
   },
-  secret: process.env.NEXTAUTH_SECRET, // المفتاح السري لـ NextAuth
+  secret: process.env.NEXTAUTH_SECRET, 
 };

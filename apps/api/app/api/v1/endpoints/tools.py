@@ -46,7 +46,7 @@ def product_search(query: str = Query(..., description="Product name to search f
             "stock": p.inventory or 0,
             "eta_estimate_mins": random.randint(10, 20),
             "rating": round(random.uniform(4.5, 5.0), 1),
-            "image_url": p.image_url if p.image_url else "/images/default.jpeg"
+            "image_url": f"/images/{p.image_url}" if p.image_url else "/images/default.jpeg"
         }
         for p in products
     ]

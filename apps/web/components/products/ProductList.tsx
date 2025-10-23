@@ -3,9 +3,9 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ProductCard, type Product } from './ProductCard'; // استيراد الكارت الأساسي
+import { ProductCard } from './ProductCard'; // استيراد الكارت الأساسي
 import { ProductDetailsCard } from './ProductDetailsCard'; // <-- سننشئ هذا المكون الجديد
-
+import { type Product } from '@/types';
 const listVariants = {
   hidden: { opacity: 0 },
   visible: {

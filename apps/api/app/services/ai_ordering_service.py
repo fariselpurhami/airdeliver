@@ -1,10 +1,11 @@
 # apps/api/app/services/ai_ordering_service.py
+# --- FINAL FIX VERSION ---
 
 import re
 from sqlmodel import Session, select
 from app.models.product import Product
 from app.models.user import User
-from app import models # Import models to use the User type hint
+from app import models
 import random
 
 SESSION_CARTS = {}
@@ -55,19 +56,29 @@ class AIOrderingService:
     def _recalculate_cart_total(self, cart: dict):
         cart['total'] = sum(item['price'] * item['quantity'] for item in cart['items'])
 
+    # --- THIS FUNCTION IS NOW FIXED ---
+    def _format_product_for_frontend(self, p: Product) -> dict:
+        """
+        Takes a Product SQLModel object and formats its dictionary
+        with the correct image_url path for the frontend.
+        """
+        product_data = p.model_dump()
+        image_filename = product_data.get("image_url") # Read from "image_url"
+        
+        if image_filename:
+            # Overwrite "image_url" with the full path
+            product_data["image_url"] = image_filename
+        else:
+            # Provide a default if it's missing
+            product_data["image_url"] = "default.jpeg"
+        
+        # Also write to "image" just in case frontend uses it
+        product_data["image"] = product_data["image_url"]
+        return product_data
+
     def handle_message(self, db: Session, message: str, user: models.User) -> list[dict]:
         cart = self._get_user_cart()
         current_stage = self.conversation_state.get("stage")
-
-        def format_product_data(p):
-            product_data = p.model_dump()
-            image_filename = product_data.get("image")
-            if image_filename:
-                product_data["image"] = f"/images/{image_filename}"
-            else:
-                # If the image field is null or empty, provide a default
-                product_data["image"] = "/images/default.jpeg" 
-            return product_data
 
         if current_stage == "AWAITING_CLARIFICATION":
             parsed_data = {"intent": "ADD_TO_CART", "product_name": message}
@@ -91,15 +102,27 @@ class AIOrderingService:
             
             if len(products) > 1:
                 self.conversation_state["stage"] = "AWAITING_CLARIFICATION"
-                product_list = [format_product_data(p) for p in products]
+                # Use the fixed function here
+                product_list = [self._format_product_for_frontend(p) for p in products]
                 return [{"contentType": "text", "content": "I found a few items. Which one did you mean?"}, {"contentType": "product_carousel", "products": product_list}]
 
             product = products[0]
-            cart['items'].append({"product_id": product.id, "name": product.name, "quantity": 1, "price": product.price})
+            
+            # --- FIX: Use the formatting function BEFORE adding to cart ---
+            formatted_product = self._format_product_for_frontend(product)
+            
+            cart['items'].append({
+                "product_id": product.id, 
+                "name": product.name, 
+                "quantity": 1, 
+                "price": product.price,
+                "image_url": formatted_product["image_url"] # <-- Add the correct image path
+            })
             self._recalculate_cart_total(cart)
             
             suggestions = db.exec(select(Product).where(Product.id != product.id).limit(2)).all()
-            suggestion_list = [format_product_data(p) for p in suggestions]
+            # And use the fixed function here for suggestions
+            suggestion_list = [self._format_product_for_frontend(p) for p in suggestions]
 
             self.conversation_state["stage"] = "AWAITING_CONFIRMATION"
             responses = [{"contentType": "text", "content": f"Great choice! I've added {product.name} to your cart."}, {"contentType": "cart_preview", "content": cart}]

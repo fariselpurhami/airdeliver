@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import ProductList from '@/components/products/Productlist'; 
+import ProductList from './ProductList'; 
 import { type Product } from '@/types'; 
 
 

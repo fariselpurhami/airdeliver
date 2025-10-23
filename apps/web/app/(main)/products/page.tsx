@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react'; /
 import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import ProductList from '@/components/products/Productlist';
+import ProductList from '@/components/products/ProductList';
 import { type Product } from '@/types';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';

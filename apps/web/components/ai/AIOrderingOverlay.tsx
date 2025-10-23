@@ -11,7 +11,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (productName: string) => void }) => (
     <div className="embla__slide flex-[0_0_50%] md:flex-[0_0_40%]">
         <div className="flex flex-col p-4 bg-white/5 rounded-lg border border-white/10 h-full text-left">
-            <Image src={product.image || '/images/default.png'} alt={product.name} width={120} height={120} className="w-full h-24 object-contain mb-3 rounded-md"/>
+            <img src={product.image_url || '/images/default.png'} alt={product.name} width={120} height={120} className="w-full h-24 object-contain mb-3 rounded-md"/>
             <h4 className="text-sm font-bold text-white">{product.name}</h4>
             <p className="text-lg font-bold text-white mb-2">${product.price}</p>
             <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">

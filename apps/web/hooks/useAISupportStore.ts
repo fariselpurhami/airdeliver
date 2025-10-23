@@ -2,8 +2,8 @@
 'use client';
 
 import { create } from 'zustand';
+import { useSession } from 'next-auth/react';
 
-// Defines the shape of the rich response from the Neural Core
 export interface NeuralCoreResponse {
   text: string;
   action: any;
@@ -12,7 +12,6 @@ export interface NeuralCoreResponse {
   telemetry: any;
 }
 
-// We will also track who the sender of the message is for UI purposes
 export type ChatMessage = {
     sender: 'user' | 'ai';
     data: NeuralCoreResponse;
@@ -23,10 +22,9 @@ interface AISupportState {
   messages: ChatMessage[];
   isLoading: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  sendMessage: (text: string) => void;
 }
 
-export const useAISupportStore = create<AISupportState>((set, get) => ({
+const useAISupportStoreBase = create<AISupportState>((set) => ({
   isOpen: false,
   messages: [{
     sender: 'ai',
@@ -40,53 +38,71 @@ export const useAISupportStore = create<AISupportState>((set, get) => ({
   }],
   isLoading: false,
   setIsOpen: (isOpen) => set({ isOpen }),
-  sendMessage: async (text) => {
-    if (!text.trim() || get().isLoading) return;
-
-    const userMessage: ChatMessage = {
-        sender: 'user',
-        data: { text, action: null, explain: "User input.", confidence: 1.0, telemetry: { intent: 'user_message' } }
-    };
-    
-    set(state => ({ 
-        messages: [...state.messages, userMessage],
-        isLoading: true 
-    }));
-
-    try {
-        const response = await fetch('/api/v1/ai-support/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`Network response was not ok: ${response.statusText}`);
-        }
-
-        const aiResponseData: NeuralCoreResponse = await response.json();
-        const aiMessage: ChatMessage = { sender: 'ai', data: aiResponseData };
-        
-        set(state => ({
-            messages: [...state.messages, aiMessage],
-            isLoading: false,
-        }));
-
-    } catch (error) {
-        const errorResponse: ChatMessage = {
-            sender: 'ai',
-            data: {
-                text: 'I am having trouble connecting to the Neural Core. Please try again in a moment.',
-                action: null,
-                explain: `An API or network error occurred: ${error}`,
-                confidence: 1.0,
-                telemetry: { intent: "error" }
-            }
-        };
-        set(state => ({
-            messages: [...state.messages, errorResponse],
-            isLoading: false,
-        }));
-    }
-  },
 }));
+
+export const useAISupportStore = () => {
+    const state = useAISupportStoreBase();
+    const { data: session } = useSession();
+
+    const sendMessage = async (text: string) => {
+        if (!text.trim() || state.isLoading) return;
+
+        const userMessage: ChatMessage = {
+            sender: 'user',
+            data: { text, action: null, explain: "User input.", confidence: 1.0, telemetry: { intent: 'user_message' } }
+        };
+        
+        useAISupportStoreBase.setState(s => ({ 
+            messages: [...s.messages, userMessage],
+            isLoading: true 
+        }));
+
+        try {
+            // @ts-ignore
+            const token = session?.accessToken;
+
+            if (!token) {
+                throw new Error("User is not authenticated (session token missing).");
+            }
+
+            const response = await fetch('/api/v1/ai-support/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ message: text }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.statusText}`);
+            }
+
+            const aiResponseData: NeuralCoreResponse = await response.json();
+            const aiMessage: ChatMessage = { sender: 'ai', data: aiResponseData };
+
+            useAISupportStoreBase.setState(s => ({
+                messages: [...s.messages, aiMessage],
+                isLoading: false,
+            }));
+
+        } catch (error) {
+            const errorResponse: ChatMessage = {
+                sender: 'ai',
+                data: {
+                    text: `I am having trouble connecting: ${error instanceof Error ? error.message : String(error)}`,
+                    action: null,
+                    explain: `An API or network error occurred: ${error}`,
+                    confidence: 1.0,
+                    telemetry: { intent: "error" }
+                }
+            };
+            useAISupportStoreBase.setState(s => ({
+                messages: [...s.messages, errorResponse],
+                isLoading: false,
+            }));
+        }
+    };
+
+    return { ...state, sendMessage };
+};
