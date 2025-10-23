@@ -1,85 +1,186 @@
 'use client';
 
-import React, { useEffect } from 'react'; // <-- تم إضافة useEffect
+import React, { useState } from 'react';
 import { useSession, signOut } from "next-auth/react";
-import { useRouter } from 'next/navigation';
 import { motion } from "framer-motion";
-import { User, LogOut, Shield } from 'lucide-react';
+import Image from 'next/image';
+import { 
+    User, 
+    Mail, 
+    ShieldCheck, 
+    MapPin, 
+    Phone, 
+    Edit3, 
+    LogOut, 
+    Camera, 
+    Loader2 
+} from 'lucide-react';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
 
-// --- مكون لإظهار حالة التحميل ---
+interface UserProfileData {
+    id: number;
+    email: string;
+    full_name?: string | null;
+    role?: string | null;
+    phone_number?: string | null;
+    address?: string | null;
+    avatar_url?: string | null;
+}
+
 const LoadingSpinner = () => (
-    <div className="flex justify-center items-center h-full">
-        <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+    <div className="flex min-h-screen w-full items-center justify-center bg-black">
+        <Loader2 className="h-12 w-12 animate-spin text-cyan-400" />
     </div>
 );
 
-// --- صفحة البروفايل الرئيسية ---
+const ProfileField = ({ icon, label, value, onEdit }: { 
+    icon: React.ReactNode; 
+    label: string; 
+    value: string | undefined | null; 
+    onEdit?: () => void;
+}) => (
+    <motion.div 
+        variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }}
+        className="flex items-center justify-between py-4 border-b border-white/10"
+    >
+        <div className="flex items-center gap-4">
+            <span className="text-cyan-400">{icon}</span>
+            <div>
+                <p className="text-xs text-gray-400">{label}</p>
+                <p className="text-white font-medium">{value || 'Not set'}</p>
+            </div>
+        </div>
+        {onEdit && (
+            <button onClick={onEdit} className="text-gray-500 hover:text-cyan-400 transition-colors">
+                <Edit3 size={18} />
+            </button>
+        )}
+    </motion.div>
+);
+
 export default function ProfilePage() {
-    const { data: session, status } = useSession();
-    const router = useRouter();
+    const { data: session, status: sessionStatus } = useSession(); 
+    
+    const { data: userData, error: userError, isLoading: isLoadingUser } = useSWR<UserProfileData>(
+        sessionStatus === 'authenticated' ? '/api/v1/users/me' : null, 
+        fetcher 
+    );
 
-    // --- هذا هو الكود الجديد للـ Redirect ---
-    useEffect(() => {
-        // إذا انتهى التحميل والمستخدم غير مسجل دخوله
-        if (status === "unauthenticated") {
-            // قم بإعادة التوجيه لصفحة تسجيل الدخول
-            // مع إضافة ?callbackUrl=/profile عشان يرجع هنا بعد اللوجن
-            router.push('/login?callbackUrl=/profile');
+    const [isEditing, setIsEditing] = useState<string | null>(null); 
+    const handleEdit = (fieldName: string) => setIsEditing(fieldName);
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: { 
+            opacity: 1,
+            transition: { staggerChildren: 0.1, delayChildren: 0.2 }
         }
-    }, [status, router]); // يعتمد على status و router
+    };
 
-    // حالة التحميل: جاري جلب بيانات المستخدم
-    if (status === "loading" || status === "unauthenticated") {
-        // نعرض التحميل طالما جاري التحقق أو جاري إعادة التوجيه
-        return (
-            <main className="min-h-screen w-full bg-black flex items-center justify-center">
-                <LoadingSpinner />
-            </main>
-        );
+    if (sessionStatus === 'loading' || (sessionStatus === 'authenticated' && isLoadingUser)) {
+        return <LoadingSpinner />;
     }
 
-    // حالة تسجيل الدخول بنجاح: عرض بيانات المستخدم
-    // (هذا الجزء لم يتغير)
+    if (sessionStatus === 'unauthenticated') {
+        return <div className="min-h-screen bg-black text-white flex items-center justify-center">Please log in to view your profile.</div>;
+    }
+
+    if (userError) {
+         return <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
+            <p className='text-red-500'>Error loading profile data:</p> 
+            <p className='text-red-400 text-sm'>{userError.message}</p>
+         </div>;
+    }
+
+    const user = session?.user;
+    const profileData = userData;
+
+    const userImage = profileData?.avatar_url || user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || user?.email || 'A')}&background=0D1117&color=00c6ff&bold=true`;
+
     return (
-        <main className="min-h-screen w-full bg-black text-white pt-32 px-4">
-            <div className="container mx-auto max-w-2xl">
-                <motion.div
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-8"
+        <main className="relative min-h-screen w-full bg-black text-gray-100 py-16 overflow-hidden">
+            <div className="absolute inset-0 bg-grid-white/[0.05] -z-10" />
+            <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="w-full max-w-4xl mx-auto px-4 md:px-8"
+            >
+                <motion.div 
+                    variants={{ hidden: { opacity: 0, y: -30 }, visible: { opacity: 1, y: 0 } }}
+                    className="flex flex-col md:flex-row items-center gap-6 md:gap-8 mb-12"
                 >
-                    <div className="flex flex-col items-center text-center">
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center mb-6">
-                            <User size={48} />
-                        </div>
-
-                        <h1 className="text-4xl font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            {session?.user?.name || 'User Profile'}
-                        </h1>
-                        <p className="text-gray-400 mt-2">{session?.user?.email}</p>
-
-                        {(session?.user as any)?.role === 'admin' && (
-                             <div className="mt-4 flex items-center gap-2 text-sm bg-yellow-500/10 text-yellow-300 px-3 py-1 rounded-full">
-                                <Shield size={14} />
-                                <span>Administrator</span>
-                            </div>
-                        )}
-
-                        <div className="w-full h-px bg-white/10 my-8" />
-
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => signOut({ callbackUrl: '/login' })}
-                            className="flex items-center justify-center gap-2 bg-red-600/80 hover:bg-red-600 transition-colors px-8 py-3 rounded-full font-bold"
+                    <div className="relative group">
+                        <Image 
+                            src={userImage} 
+                            alt={profileData?.full_name || 'User Avatar'} 
+                            width={120} 
+                            height={120} 
+                            className="rounded-full border-4 border-white/10 shadow-lg"
+                            priority
+                        />
+                        <button 
+                            className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            onClick={() => alert('Avatar upload functionality to be implemented!')}
                         >
-                            <LogOut size={18} />
-                            Sign Out
-                        </motion.button>
+                            <Camera size={32} className="text-cyan-400" />
+                        </button>
                     </div>
+                    
+                    <div className="text-center md:text-left">
+                        <h1 
+                            className="text-4xl font-black text-white" 
+                            style={{ fontFamily: "'Orbitron', sans-serif" }}
+                        >
+                            {profileData?.full_name || user?.email?.split('@')[0]}
+                        </h1>
+                        <p className="text-gray-400 mt-1">{profileData?.email}</p>
+                        {profileData?.role && (
+                            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-medium text-yellow-300 border border-yellow-500/30">
+                                <ShieldCheck size={14} />
+                                {profileData.role.charAt(0).toUpperCase() + profileData.role.slice(1)}
+                            </span>
+                        )}
+                    </div>
+                    <motion.button 
+                        onClick={() => signOut({ callbackUrl: '/' })} 
+                        whileHover={{ scale: 1.05 }} 
+                        whileTap={{ scale: 0.95 }}
+                        className="ml-auto flex items-center gap-2 rounded-lg bg-red-600/20 px-4 py-2 text-sm font-medium text-red-400 border border-red-600/50 hover:bg-red-600/30 transition-colors"
+                    >
+                        <LogOut size={16} />
+                        Sign Out
+                    </motion.button>
                 </motion.div>
-            </div>
+
+                <motion.div 
+                    variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }}
+                    className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-6 md:p-8"
+                >
+                    <h2 
+                        className="text-2xl font-bold text-white mb-6 pb-4 border-b border-white/10" 
+                        style={{ fontFamily: "'Orbitron', sans-serif" }}
+                    >
+                        Account Details
+                    </h2>
+                    <motion.div variants={containerVariants}>
+                        <ProfileField icon={<User size={20} />} label="Full Name" value={profileData?.full_name} onEdit={() => handleEdit('name')} />
+                        <ProfileField icon={<Mail size={20} />} label="Email Address" value={profileData?.email} /> 
+                        <ProfileField 
+                            icon={<Phone size={20} />} 
+                            label="Phone Number" 
+                            value={profileData?.phone_number} 
+                            onEdit={() => handleEdit('phone')} 
+                        />
+                        <ProfileField 
+                            icon={<MapPin size={20} />} 
+                            label="Primary Address" 
+                            value={profileData?.address} 
+                            onEdit={() => handleEdit('address')} 
+                        />
+                    </motion.div>
+                </motion.div>
+            </motion.div>
         </main>
     );
 }

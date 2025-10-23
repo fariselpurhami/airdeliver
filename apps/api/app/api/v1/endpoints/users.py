@@ -1,61 +1,74 @@
-# file: apps/api/app/api/v1/endpoints/users.py (النسخة النهائية الكاملة والآمنة)
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlmodel import Session
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
-
-# --- تم تصحيح الـ imports هنا ---
-from app import schemas
+from app import models
+from app.schemas.user import UserRead, UserCreate
+from app.schemas.msg import Msg
 from app.api import deps
-from app.models import User             # User model is in app.models
-from app.schemas import UserCreate    # UserCreate schema is in app.schemas
+from app.crud import crud_user
+from app.db.session import get_session
 from app.core.security import get_password_hash
 
 router = APIRouter()
 
-@router.post("", response_model=User, status_code=201)
+@router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_user(
     *,
-    db: Session = Depends(deps.get_session),
-    user_in: UserCreate, # This now correctly uses the imported UserCreate schema
+    session: Session = Depends(get_session),
+    user_in: UserCreate,
 ):
     """
-    Create a new user securely with a hashed password.
+    Create new user.
     """
-    user = db.exec(select(User).where(User.email == user_in.email)).first()
+    user = crud_user.user.get_by_email(db=session, email=user_in.email)
     if user:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="The user with this email already exists in the system.",
         )
-    
+
     hashed_password = get_password_hash(user_in.password)
-    
-    user = User.model_validate(user_in, update={"hashed_password": hashed_password})
-    
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+    user_create_data = user_in.model_dump(exclude={"password"})
+    user_create_data["hashed_password"] = hashed_password
 
+    db_user = models.User(**user_create_data)
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+    return db_user
 
-@router.get("/me/export-data", response_model=User)
+@router.get("/me", response_model=UserRead)
+def read_user_me(
+    current_user: models.User = Depends(deps.get_current_active_user),
+):
+    """
+    Get current user details. Returns all fields defined in UserRead schema.
+    """
+    return current_user
+
+@router.get("/me/export-data", response_model=UserRead)
 def export_user_data(
-    current_user: User = Depends(deps.get_current_active_user),
+    current_user: models.User = Depends(deps.get_current_active_user),
 ):
     """
     GDPR/CCPA: Allow a user to export their data.
     """
     return current_user
 
-@router.delete("/me/delete-account", response_model=schemas.Msg)
+@router.delete("/me/delete-account", response_model=Msg, status_code=status.HTTP_200_OK)
 def delete_account(
     *,
-    db: Session = Depends(deps.get_session),
-    current_user: User = Depends(deps.get_current_active_user),
+    session: Session = Depends(get_session),
+    current_user: models.User = Depends(deps.get_current_active_user),
 ):
     """
     GDPR/CCPA: Allow a user to delete their account.
     """
-    db.delete(current_user)
-    db.commit()
+    if current_user.id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found")
+
+    success = crud_user.user.remove(db=session, id=current_user.id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
     return {"msg": "Account deletion process has been initiated."}

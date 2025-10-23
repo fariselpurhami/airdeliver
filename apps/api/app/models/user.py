@@ -40,6 +40,10 @@ class User(SQLModel, table=True):
         sa_column=Column(SAEnum(UserRole, name="userrole", native_enum=False), nullable=False)
     )
 
+    phone_number: Optional[str] = Field(default=None, index=True, nullable=True)
+    address: Optional[str] = Field(default=None, nullable=True)
+    avatar_url: Optional[str] = Field(default=None, nullable=True)
+
     orders: Mapped[List["Order"]] = Relationship(sa_relationship=relationship("Order", back_populates="user"))
     badges: Mapped[List["UserBadge"]] = Relationship(sa_relationship=relationship("UserBadge", back_populates="user"))
     audit_changes: Mapped[List["AuditTrail"]] = Relationship(sa_relationship=relationship("AuditTrail", back_populates="user"))
