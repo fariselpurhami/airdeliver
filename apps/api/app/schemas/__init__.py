@@ -1,40 +1,41 @@
-# In your schemas/__init__.py or models/__init__.py file
 from .ai_ordering import ChatRequest, ChatResponse, ResponseMessage
-# Base schemas/models that don't have complex relationships
 from .msg import Msg
 from .token import Token, TokenData
 from .audit_trail import AuditTrail
-# Core data models
-from .user import User, UserCreate, UserUpdate
-from .product import Product, ProductCreate, ProductUpdate
-from .drone import Drone # You were missing this import
+from .user import User, UserCreate, UserUpdate, UserRead # Added UserRead for consistency
+from .product import Product, ProductCreate, ProductUpdate, ProductRead # Added ProductRead
+from .drone import Drone 
 
-# Dependent models (Order depends on User, Product, and Drone)
-from .order import Order, OrderCreate, OrderUpdate, OrderItem, OrderItemCreate
+# Import the correct schemas from order.py
+from .order import Order, OrderCreate, OrderUpdate, OrderItemRead, OrderItemCreate, OrderRead, PaginatedOrders # Use OrderItemRead, add OrderRead, PaginatedOrders
 
-# Utility/other schemas
 from .payment import PaymentIntent
 
-# The __all__ list should include everything you want to export
 __all__ = [
-    # Base
     "Msg",
     "Token",
     "TokenData",
     "PaymentIntent",
     "AuditTrail",
     
-    # Core Models & Schemas
     "User",
     "UserCreate",
     "UserUpdate",
+    "UserRead", # Added UserRead
+    
     "Product",
     "ProductCreate",
     "ProductUpdate",
+    "ProductRead", # Added ProductRead
+    
     "Drone",
+    
     "Order",
     "OrderCreate",
     "OrderUpdate",
-    "OrderItem",
+    "OrderRead", # Added OrderRead
+    "PaginatedOrders", # Added PaginatedOrders
+    
+    "OrderItemRead", # Changed from OrderItem
     "OrderItemCreate",
 ]

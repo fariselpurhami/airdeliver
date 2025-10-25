@@ -1,13 +1,11 @@
-# file: apps/api/app/schemas/product.py
-
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Field
 from typing import Optional
 
 class ProductBase(SQLModel):
-    name: str
-    description: str
+    name: str = Field(index=True)
+    description: Optional[str] = None
     price: float
-    inventory: int
+    inventory: int = 0
     image_url: Optional[str] = None
 
 class ProductCreate(ProductBase):
@@ -20,10 +18,11 @@ class ProductUpdate(SQLModel):
     inventory: Optional[int] = None
     image_url: Optional[str] = None
 
-class Product(ProductBase):
+class ProductRead(ProductBase):
     id: int
-
-    # Correct configuration for Pydantic v2
     model_config = {
         "from_attributes": True
     }
+
+class Product(ProductRead):
+    pass

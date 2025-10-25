@@ -136,7 +136,7 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
             if (result?.error) {
                 setError('Invalid credentials. Please try again.');
             } else if (result?.ok) {
-                router.push('/'); // Redirect to homepage on success
+                router.push('/profile'); // Redirect to homepage on success
             }
         } catch (err) {
             setError('An unexpected error occurred.');

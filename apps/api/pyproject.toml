@@ -4,7 +4,7 @@
 name = "airdeliver-api"
 version = "1.0.0"
 description = "Backend API for airdeliver"
-authors = ["Gemini 2.5 Pro"]
+authors = ["Faris Elpurhami"]
 package-mode = false
 
 [tool.poetry.dependencies]

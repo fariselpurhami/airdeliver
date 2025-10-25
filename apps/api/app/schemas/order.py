@@ -1,14 +1,9 @@
-# file: apps/api/app/schemas/order.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini 2.5 Pro
-
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Field
 from typing import List, Optional
 from datetime import datetime
 from app.models.order import OrderStatus
-from app.schemas.product import Product
-from app.schemas.user import User
+from app.schemas.product import ProductRead # Assuming ProductRead exists for API response
+from app.schemas.user import UserRead # Assuming UserRead exists for API response
 
 class OrderItemBase(SQLModel):
     product_id: int
@@ -17,12 +12,12 @@ class OrderItemBase(SQLModel):
 class OrderItemCreate(OrderItemBase):
     pass
 
-class OrderItem(OrderItemBase):
+class OrderItemRead(OrderItemBase):
+    id: int # Assuming OrderItem model has an ID
     price_per_unit: float
-    product: Product
+    product: Optional[ProductRead] = None # Use ProductRead for API
 
-    class Config:
-        from_attributes = True
+    model_config = { "from_attributes": True }
 
 class OrderBase(SQLModel):
     pass
@@ -34,15 +29,26 @@ class OrderUpdate(SQLModel):
     status: Optional[OrderStatus] = None
     drone_id: Optional[int] = None
 
-class Order(OrderBase):
+class OrderRead(OrderBase):
     id: int
-    user: User
+    user_id: int # Keep user_id for simplicity or embed UserRead
     status: OrderStatus
     total_price: float
     created_at: datetime
     updated_at: datetime
-    items: List[OrderItem]
+    items: List[OrderItemRead] = []
     drone_id: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = { "from_attributes": True }
+
+class PaginatedOrders(SQLModel):
+    total: int
+    page: int
+    limit: int
+    orders: List[OrderRead]
+
+# Existing Order schema if used elsewhere, ensure fields match OrderRead if needed
+class Order(OrderRead):
+     # You might include the full User object here if needed by other parts
+     user: Optional[UserRead] = None 
+     

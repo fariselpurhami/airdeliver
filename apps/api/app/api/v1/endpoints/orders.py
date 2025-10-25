@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlmodel import Session, select, func
 from typing import List
+from sqlalchemy.orm import selectinload
 
-from app import schemas
-from app.models.order import Order, OrderItem
+from app import schemas, models
 from app.models.product import Product
 from app.db.session import get_session
 from app.api import deps
@@ -19,34 +19,56 @@ def create_payment_intent(
     current_user: User = Depends(deps.get_current_active_user),
     items: List[schemas.OrderItemCreate],
 ):
-    """
-    Creates a payment intent for the given items in the cart.
-    The total amount is calculated on the backend to prevent tampering.
-    """
     if not items:
         raise HTTPException(status_code=400, detail="Cannot create payment for an empty cart.")
 
-    total_price = 0
+    total_price = 0.0
     for item in items:
         product = session.get(Product, item.product_id)
         if not product:
             raise HTTPException(status_code=404, detail=f"Product with id {item.product_id} not found")
-        total_price += product.price * item.quantity
+        total_price += float(product.price) * item.quantity 
 
-    # Use the payment orchestrator to create the payment with Stripe
     payment_info = payment_orchestrator.process_payment(
         amount=total_price, 
         currency="usd",
-        region="US" # This could be determined from user profile or IP in a real app
+        region="US" 
     )
 
-    # Check if the orchestrator failed to create an intent
     if "error" in payment_info or not payment_info.get("clientSecret"):
         raise HTTPException(
             status_code=500, 
             detail=payment_info.get("error", "Failed to create payment intent with the provider.")
         )
     
-    # Return the full payment info object, which will be validated by the response_model
     return payment_info
 
+
+@router.get("/me", response_model=schemas.PaginatedOrders)
+def read_my_orders(
+    *,
+    session: Session = Depends(deps.get_session),
+    current_user: models.User = Depends(deps.get_current_active_user),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100)
+):
+    offset = (page - 1) * limit
+    
+    count_statement = select(func.count(models.Order.id)).where(models.Order.user_id == current_user.id)
+    total_count = session.exec(count_statement).one_or_none() or 0
+    
+    orders_statement = (
+        select(models.Order)
+        .where(models.Order.user_id == current_user.id)
+        .options(
+            selectinload(models.Order.items)
+            .selectinload(models.OrderItem.product),
+            selectinload(models.Order.user) 
+        )
+        .order_by(models.Order.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    orders = session.exec(orders_statement).all()
+    
+    return schemas.PaginatedOrders(total=total_count, orders=orders, page=page, limit=limit)
