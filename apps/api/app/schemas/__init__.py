@@ -11,6 +11,8 @@ from .order import Order, OrderCreate, OrderUpdate, OrderItemRead, OrderItemCrea
 
 from .payment import PaymentIntent
 
+from .notification import NotificationRead
+
 __all__ = [
     "Msg",
     "Token",
@@ -38,4 +40,5 @@ __all__ = [
     
     "OrderItemRead", # Changed from OrderItem
     "OrderItemCreate",
+    "NotificationRead",
 ]

@@ -5,6 +5,7 @@ from sqlmodel import SQLModel, Field, Relationship, Field, JSON, Column
 from sqlalchemy import Column, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime
+from .notification import Notification
 
 if TYPE_CHECKING:
     from .order import Order
@@ -48,5 +49,13 @@ class User(SQLModel, table=True):
     badges: Mapped[List["UserBadge"]] = Relationship(sa_relationship=relationship("UserBadge", back_populates="user"))
     audit_changes: Mapped[List["AuditTrail"]] = Relationship(sa_relationship=relationship("AuditTrail", back_populates="user"))
     notification_subscription: Mapped[Optional["NotificationSubscription"]] = Relationship(sa_relationship=relationship("NotificationSubscription", back_populates="user"))
+
+    notifications: Mapped[List["Notification"]] = Relationship(
+        sa_relationship=relationship(
+            "Notification",
+            back_populates="user",
+            cascade="all, delete-orphan" # (اختياري: لحذف إشعارات المستخدم عند حذفه)
+        )
+    )
 
     model_config = { "from_attributes": True }

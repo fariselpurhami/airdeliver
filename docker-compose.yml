@@ -53,10 +53,13 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
+      args:
+         # This passes the variable to the build stage
+        - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://api:8000/api/v1
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
       - NEXTAUTH_URL=http://localhost:3000
       - NEXTAUTH_SECRET=a_super_secret_for_nextauth # Change this in production
     depends_on:

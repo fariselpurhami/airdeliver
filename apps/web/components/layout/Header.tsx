@@ -5,14 +5,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
-import { Home, Package, Info, User, ShoppingCart, Sun, Moon, Menu, X as CloseIcon } from 'lucide-react';
+// --- CHANGED: Removed 'Info', Added 'Bell' ---
+import { Home, Package, User, ShoppingCart, Sun, Moon, Menu, X as CloseIcon, Bell } from 'lucide-react';
 import { useCartStore } from '@/hooks/useCartStore'; // 1. Import the cart store
 
-// --- Navigation Items Data ---
+// --- Navigation Items Data (CHANGED: Removed 'About') ---
 const navItems = [
     { href: '/', label: 'Home', icon: Home },
     { href: '/products', label: 'Products', icon: Package },
-    { href: '/about', label: 'About', icon: Info },
     { href: '/profile', label: 'Profile', icon: User },
 ];
 
@@ -45,9 +45,9 @@ const ThemeToggle = () => {
 		   
                 >
                     {isDark ? (
-                      <Moon size={20} className="text-white" /> // القمر يفضل أبيض زي ما هو
+                      <Moon size={20} className="text-white" />
                     ) : (
-                      <Sun size={20} className="text-white" /> // الشمس تبقى غامقة وتبان فوق الخلفية الفاتحة
+                      <Sun size={20} className="text-white" />
 		  )}
                 </motion.div>
             </AnimatePresence>
@@ -123,7 +123,7 @@ export default function Header() {
                     {/* Right Side Icons */}
                     <div className="hidden md:flex items-center gap-4">
                         {/* 3. Updated Cart Link with Badge */}
-                        <Link href="/cart" className="relative p-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10">
+                        <Link href="/cart" className="relative p-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10" aria-label="Cart">
                             <ShoppingCart size={22} />
                             {totalItems > 0 && (
                                 <motion.div
@@ -136,6 +136,13 @@ export default function Header() {
                                 </motion.div>
                             )}
                         </Link>
+                        
+                        {/* --- ADDED: Notification Icon --- */}
+                        <Link href="/notifications" className="relative p-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10" aria-label="Notifications">
+                            <Bell size={22} />
+                            {/* You can add a notification badge here later, similar to the cart */}
+                        </Link>
+
                         <ThemeToggle />
                     </div>
                     
@@ -178,6 +185,13 @@ export default function Header() {
                                         <item.icon size={22} /> {item.label}
                                     </Link>
                                 ))}
+                                
+                                {/* --- ADDED: Mobile Notification Link --- */}
+                                <Link href="/notifications" onClick={() => setMobileMenuOpen(false)} className="relative flex items-center gap-3 p-3 rounded-lg text-lg text-gray-400">
+                                    <Bell size={22} />
+                                    <span>Notifications</span>
+                                </Link>
+
                                 <Link href="/cart" onClick={() => setMobileMenuOpen(false)} className="relative flex items-center gap-3 p-3 rounded-lg text-lg text-gray-400">
                                     <ShoppingCart size={22} />
                                     <span>Cart</span>

@@ -6,7 +6,8 @@ import { getSession } from 'next-auth/react';
 
 const api = axios.create({
   // Use a relative path to make requests go through the Next.js proxy.
-  baseURL: '/api/v1',
+  //baseURL: '/api/v1',
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
 });
 
 api.interceptors.request.use(async (config) => {

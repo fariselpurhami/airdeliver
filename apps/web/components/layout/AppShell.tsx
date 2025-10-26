@@ -3,7 +3,7 @@
 'use client'; 
 
 import React from 'react';
-import Header from "@/components/layout/Header";
+import Header from '@/components/layout/Header';
 import Footer from "@/components/layout/Footer";
 import AIChatOverlay from '@/components/ai/AIChatOverlay';
 import Chatbot from '@/components/ai/Chatbot';
