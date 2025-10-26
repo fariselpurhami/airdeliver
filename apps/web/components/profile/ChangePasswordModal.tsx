@@ -92,7 +92,7 @@ export default function ChangePasswordModal({
                 <motion.div
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     onClick={onClose}
-                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4"
+                    className="fixed inset-0 z-50 bg-black/20 backdrop-blur-md flex justify-center items-center p-4"
                 >
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0, y: 50 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 50 }}
