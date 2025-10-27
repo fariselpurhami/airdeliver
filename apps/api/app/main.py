@@ -1,4 +1,5 @@
 import logging
+import os
 from app.db import base
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -37,6 +38,18 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    print("--- Checking static directory on startup ---")
+    static_avatars_path = "/app/static/avatars"
+    if os.path.exists(static_avatars_path):
+        print(f"Directory exists: {static_avatars_path}")
+        try:
+            content = os.listdir(static_avatars_path)
+            print(f"Contents of {static_avatars_path}: {content}")
+        except Exception as e:
+            print(f"Error listing contents of {static_avatars_path}: {e}")
+    else:
+        print(f"Directory NOT FOUND: {static_avatars_path}")
+    print("--- Finished checking static directory ---")
 
 @app.middleware("http")
 async def ensure_utf8_encoding(request: Request, call_next):
@@ -53,9 +66,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-STATIC_DIR = Path("static")
-STATIC_DIR.mkdir(exist_ok=True)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+STATIC_DIRECTORY_STR = "/app/static"
+Path(STATIC_DIRECTORY_STR).mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=STATIC_DIRECTORY_STR), name="static")
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(tracking_router, prefix="/ws")

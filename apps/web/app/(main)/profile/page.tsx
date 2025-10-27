@@ -216,6 +216,9 @@ export default function ProfilePage() {
     // Prepare data for rendering (now guaranteed userData exists if no error)
     const profileData = userData!; // Assert non-null after error check
     const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'A')}&background=0a0f28&color=06b6d4&bold=true&size=128`;
+    if (profileData?.avatar_url) {
+      console.log("Attempting to load image:", userImage);
+    }
     const subtext = [joinedDate ? `Member since ${joinedDate}` : null, location]
         .filter(Boolean).join(' | ');
     const recentOrders = ordersData?.orders || [];
@@ -250,8 +253,7 @@ export default function ProfilePage() {
                                 <Image
                                     src={userImage} alt={profileData?.full_name || 'User Avatar'}
                                     width={128} height={128} className="rounded-full border-2 border-black/50"
-                                    priority key={userImage}
-                                    unoptimized={userImage.startsWith('https://ui-avatars.com')} // Don't optimize generated avatars
+                                    unoptimized={true}
                                     onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'E')}&background=ff0000&color=ffffff&bold=true&size=128`; }} // Fallback on error
                                 />
                             </div>

@@ -80,7 +80,7 @@ STATIC_DIR = Path("static")
 AVATARS_DIR = STATIC_DIR / "avatars"
 AVATARS_DIR.mkdir(parents=True, exist_ok=True)
 
-@router.post("/me/avatar", response_model=UserRead)
+@router.post("/me/avatar")
 async def upload_user_avatar(
     *,
     request: Request,

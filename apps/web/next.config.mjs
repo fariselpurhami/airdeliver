@@ -1,4 +1,4 @@
-// file: apps/web/next.config.mjs (مع تفعيل register و skipWaiting)
+// file: apps/web/next.config.mjs (النسخة المصححة)
 
 import withPWA from 'next-pwa';
 
@@ -13,13 +13,39 @@ const nextConfig = {
       },
     ];
   },
-};
+
+  // --- 👇 قسم images لازم يكون هنا (جوه nextConfig) 👇 ---
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8000', // Port for the API serving images
+        pathname: '/static/avatars/**', // Path for user avatars
+      },
+      // Allow images from ui-avatars.com (used for fallback)
+      {
+        protocol: 'https',
+        hostname: 'ui-avatars.com',
+        pathname: '/api/**',
+      },
+      // Allow images from placehold.co (used for fallback)
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+        pathname: '/**', // Allow any path from this domain
+      },
+    ],
+  },
+  // --- 👆 نهاية قسم images 👆 ---
+
+}; // <-- القوس ده هو اللي بيقفل nextConfig
 
 const pwaConfig = withPWA({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
-  register: true, // <-- تم تفعيله
-  skipWaiting: true, // <-- تم تفعيله
+  register: true, // <-- Kept as per original file
+  skipWaiting: true, // <-- Kept as per original file
 });
 
 export default pwaConfig(nextConfig);

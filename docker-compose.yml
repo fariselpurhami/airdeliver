@@ -32,6 +32,9 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=airdeliver
+    volumes:
+      # Mount the named volume to the container's static directory
+      - api-static-data:/app/static
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,6 +73,9 @@ services:
 
 volumes:
   postgres-data:
+    driver: local
+
+  api-static-data:
     driver: local
 
 networks:
