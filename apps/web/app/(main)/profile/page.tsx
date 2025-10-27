@@ -2,19 +2,19 @@
 
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { useSession, signOut } from "next-auth/react";
-// import Link from 'next/link'; // <-- تم إزالته (غير مستخدم)
+// Link is not used
 import { motion, useMotionValue, useSpring, useInView, AnimatePresence } from "framer-motion";
 import Image from 'next/image';
 import useSWR, { mutate } from 'swr';
-// import { fetcher } from '@/lib/fetcher'; // <-- تم إزالته (نستخدم api.get)
-import { api } from '@/lib/api'; // <-- نستخدم Axios مباشرة
+import { api } from '@/lib/api'; // Use axios directly
 import { redirect } from 'next/navigation';
-import { toast } from 'sonner'; // <-- لاستخدام نظام الإشعارات
+import { toast } from 'sonner'; // For notifications
 import {
     User, Mail, MapPin, Phone, Clock, Loader2, LogOut, AlertCircle,
     CreditCard, Package, ShieldCheck, Edit3, KeyRound, Settings, Camera, ChevronRight
 } from 'lucide-react';
-import EditProfileModal from '@/components/profile/EditProfileModal'; // (ملاحظة: هذا الملف يبدو غير مستخدم، تأكد من استخدامه أو إزالته)
+// EditProfileModal seems unused based on previous interactions, commented out
+// import EditProfileModal from '@/components/profile/EditProfileModal';
 import ChangePasswordModal from '@/components/profile/ChangePasswordModal';
 import ViewOrdersModal from '@/components/profile/ViewOrdersModal';
 import EditProfileDetailsModal from '@/components/profile/EditProfileDetailsModal';
@@ -25,6 +25,7 @@ interface UserProfileData {
     phone_number?: string | null; address?: string | null; avatar_url?: string | null;
     country?: string | null; city?: string | null; created_at?: string | null;
     orders_completed?: number; items_favorited?: number;
+    stripe_customer_id?: string | null; // Assuming this might be available
 }
 
 interface OrderRead {
@@ -46,112 +47,34 @@ interface PaginatedOrdersResponse {
     total: number; page: number; limit: number; orders: OrderRead[];
 }
 
-interface PaymentData { type: string; lastFour: string; }
-const mockPaymentInfo: PaymentData = { type: 'NovaCard', lastFour: '4288' }; // بيانات دفع وهمية مؤقتة
+// Interface for the new payment data endpoint
+interface DefaultPaymentData {
+    brand: string | null;
+    last4: string | null;
+}
 
-// --- Components ---
-const LoadingSpinner = () => (
-    <div className="flex min-h-screen w-full items-center justify-center bg-black">
-        <Loader2 className="h-12 w-12 animate-spin text-cyan-400" />
-    </div>
-);
-
-const AnimatedCounter = ({ value }: { value: number }) => {
-    const ref = useRef<HTMLSpanElement>(null);
-    const motionValue = useMotionValue(0);
-    const springValue = useSpring(motionValue, { damping: 50, stiffness: 100 });
-    const isInView = useInView(ref, { once: true, margin: "0px 0px -50px 0px" });
-    useEffect(() => { if (isInView) motionValue.set(value); }, [motionValue, isInView, value]);
-    useEffect(() => {
-        const unsubscribe = springValue.on("change", (latest) => {
-            if (ref.current) ref.current.textContent = Intl.NumberFormat('en-US').format(Math.round(latest));
-        }); return unsubscribe;
-    }, [springValue]);
-    return <span ref={ref}>{value}</span>;
-};
-
-const InfoItem = ({ icon, label, value }: {
-    icon: React.ReactNode; label: string; value: string | undefined | null;
-}) => (
-    <motion.div
-        variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
-        className="flex items-start gap-3 group py-3 border-b border-white/5"
-    >
-        <span className="text-cyan-400/80 mt-1 transition-colors group-hover:text-cyan-300">{icon}</span>
-        <div>
-            <p className="text-xs text-gray-400 mb-0.5 opacity-90">{label}</p>
-            <p className="text-white font-medium text-base transition-colors group-hover:text-gray-200">
-                {value || <span className="text-gray-500 italic flex items-center gap-1"><Settings size={12} className="opacity-50"/> Not set</span>}
-            </p>
-        </div>
-    </motion.div>
-);
-
-const OrderCard = ({ order }: { order: OrderRead }) => {
-    const statusColor = {
-        Delivered: 'text-green-400 bg-green-900/50 border-green-700/50',
-        Shipped: 'text-cyan-400 bg-cyan-900/50 border-cyan-700/50',
-        Processing: 'text-yellow-400 bg-yellow-900/50 border-yellow-700/50',
-    } as Record<string, string>;
-    const defaultColor = 'text-gray-400 bg-gray-900/50 border-gray-700/50';
-    const firstItem = order.items?.[0];
-    const productName = firstItem?.product?.name || `Order #${order.id}`;
-    const productImageUrl = firstItem?.product?.image_url || '/images/default.jpeg'; // تأكد من وجود صورة افتراضية
-
-    return (
-        <motion.div
-            variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0 } }}
-            whileHover={{ y: -6, transition: { duration: 0.2, ease: 'easeOut' } }}
-            className="w-64 flex-shrink-0 bg-black/40 border border-white/10 rounded-xl overflow-hidden shadow-lg backdrop-blur-md"
-        >
-            <Image
-                src={productImageUrl} alt={productName} width={256} height={144}
-                className="w-full h-36 object-cover"
-                unoptimized
-            />
-            <div className="p-4 space-y-2">
-                <h4 className="text-white font-semibold truncate">{productName}</h4>
-                <p className="text-gray-300 font-mono text-sm">${order.total_price.toFixed(2)}</p>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${statusColor[order.status] || defaultColor}`}>
-                    {order.status}
-                </span>
-            </div>
-        </motion.div>
-    );
-};
-
-const SettingsButton = ({ icon, label, onClick }: {
-    icon: React.ReactNode; label: string; onClick: () => void;
-}) => (
-     <motion.button
-        onClick={onClick}
-        variants={{ hidden: { opacity: 0, scale: 0.9 }, visible: { opacity: 1, scale: 1 } }}
-        whileHover={{ scale: 1.02, x: 2, boxShadow: '0 0 15px rgba(6, 182, 212, 0.3)' }}
-        whileTap={{ scale: 0.98 }}
-        className="flex w-full items-center justify-between gap-4 rounded-lg bg-white/5 p-4 border border-white/10 transition-all duration-200 group hover:border-cyan-700/50 hover:bg-gradient-to-r hover:from-cyan-900/30 hover:to-transparent"
-    >
-        <div className="flex items-center gap-4">
-            <span className="text-cyan-400">{icon}</span>
-            <span className="text-white font-medium">{label}</span>
-        </div>
-        <ChevronRight size={16} className="text-gray-600 group-hover:text-cyan-400 transition-colors" />
-    </motion.button>
-);
-
-// --- Main Profile Page ---
+// --- Main Profile Page Component ---
 export default function ProfilePage() {
     const { data: session, status: sessionStatus, update: updateSession } = useSession();
+    // Use relative paths, matching api.ts baseURL prefix
     const profileApiUrl = '/users/me';
-    const ordersApiUrl = '/orders/me?page=1&limit=3'; // جلب آخر 3 طلبات فقط
+    const ordersApiUrl = '/orders/me?page=1&limit=3';
+    const paymentApiUrl = '/users/me/default-payment-method'; // New API URL
 
-    // --- استخدام api.get مباشرة كـ fetcher لـ SWR ---
+    // Use axios directly as the fetcher
     const swrFetcher = (url: string) => api.get(url).then(res => res.data);
 
+    // Fetch user profile data
     const { data: userData, error: userError, isLoading: isLoadingUser, mutate: mutateProfile } = useSWR<UserProfileData>(
         sessionStatus === 'authenticated' ? profileApiUrl : null, swrFetcher, { revalidateOnFocus: false }
     );
+    // Fetch recent orders data
     const { data: ordersData, error: ordersError, isLoading: isLoadingOrders } = useSWR<PaginatedOrdersResponse>(
         sessionStatus === 'authenticated' ? ordersApiUrl : null, swrFetcher, { revalidateOnFocus: false }
+    );
+    // Fetch default payment method data
+    const { data: paymentData, error: paymentError, isLoading: isLoadingPayment } = useSWR<DefaultPaymentData>(
+        sessionStatus === 'authenticated' ? paymentApiUrl : null, swrFetcher, { revalidateOnFocus: false }
     );
 
     const [isClient, setIsClient] = useState(false);
@@ -162,23 +85,22 @@ export default function ProfilePage() {
 
     useEffect(() => { setIsClient(true); }, []);
 
-    const joinedDate = useMemo(() => {
-        return userData?.created_at
+    // Memoized computed values
+    const joinedDate = useMemo(() => (
+        userData?.created_at
             ? new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
-            : null;
-    }, [userData?.created_at]);
+            : null
+    ), [userData?.created_at]);
 
-    const location = useMemo(() => {
-        const parts = [userData?.city, userData?.country].filter(Boolean);
-        return parts.length > 0 ? parts.join(', ') : null;
-    }, [userData?.city, userData?.country]);
+    const location = useMemo(() => (
+        [userData?.city, userData?.country].filter(Boolean).join(', ') || null
+    ), [userData?.city, userData?.country]);
 
-    const realShippingInfo = useMemo(() => {
-        const parts = [userData?.address, userData?.city, userData?.country].filter(Boolean);
-        return parts.length > 0 ? parts.join(', ') : null;
-    }, [userData?.address, userData?.city, userData?.country]);
+    const realShippingInfo = useMemo(() => (
+        [userData?.address, userData?.city, userData?.country].filter(Boolean).join(', ') || null
+    ), [userData?.address, userData?.city, userData?.country]);
 
-
+    // Modal handlers
     const handleOpenEditDetailsModal = () => setIsEditDetailsModalOpen(true);
     const handleCloseEditDetailsModal = () => setIsEditDetailsModalOpen(false);
     const handleOpenPasswordModal = () => setIsPasswordModalOpen(true);
@@ -186,19 +108,18 @@ export default function ProfilePage() {
     const handleOpenOrdersModal = () => setIsOrdersModalOpen(true);
     const handleCloseOrdersModal = () => setIsOrdersModalOpen(false);
 
+    // --- API Interaction Handlers with Toasts ---
+
     const handleProfileDetailsSave = async (updatedData: Partial<UserProfileData>) => {
-        const token = session?.accessToken as string | undefined;
-        if (!token) {
+        if (!session?.accessToken) {
             toast.error("Authentication error. Please log in again.");
             return;
         }
         toast.promise(
             (async () => {
-                // استخدم api (axios instance) بدلاً من fetch
-                const response = await api.put<UserProfileData>(profileApiUrl, updatedData);
-                const updatedUser = response.data; // Axios returns data directly
-
-                mutateProfile(updatedUser, false); // Update SWR cache
+                const response = await api.put<UserProfileData>(profileApiUrl, updatedData); // Uses baseURL + relative path
+                const updatedUser = response.data;
+                mutateProfile(updatedUser, false);
                 if (updatedData.full_name && session?.user) {
                     await updateSession({ user: { ...session.user, name: updatedData.full_name } });
                 }
@@ -207,22 +128,20 @@ export default function ProfilePage() {
             })(),
             {
                 loading: 'Saving profile details...',
-                success: (data) => `Profile updated successfully!`,
+                success: 'Profile updated successfully!',
                 error: (err: any) => `Save failed: ${err.response?.data?.detail || err.message || 'Unknown error'}`,
             }
         );
     };
 
     const handlePasswordSave = async (currentPassword: string, newPassword: string) => {
-        const token = session?.accessToken as string | undefined; // Not needed if using axios interceptor
-        if (!token) { // Keep check just in case
+        if (!session?.accessToken) {
             toast.error("Authentication error. Please log in again.");
             return;
         }
         toast.promise(
              (async () => {
-                // استخدم api (axios instance)
-                await api.post('/users/me/change-password', {
+                await api.post('/users/me/change-password', { // Uses baseURL + relative path
                      current_password: currentPassword,
                      new_password: newPassword
                  });
@@ -238,29 +157,19 @@ export default function ProfilePage() {
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (!file) return;
-
-        const token = session?.accessToken as string | undefined; // Not needed if using axios interceptor
-        if (!token) {
-             toast.error("Authentication error. Please log in again.");
+        if (!file || !session?.accessToken) {
+            if (!session?.accessToken) toast.error("Authentication error.");
              return;
         }
-
         const formData = new FormData();
         formData.append('file', file);
-
         toast.promise(
             (async () => {
-                 // استخدم api (axios instance)
-                 const response = await api.post<UserProfileData>('/users/me/avatar', formData, {
-                     headers: {
-                         // Axios might set this automatically, but being explicit can help
-                         'Content-Type': 'multipart/form-data',
-                     }
+                 const response = await api.post<UserProfileData>('/users/me/avatar', formData, { // Uses baseURL + relative path
+                     headers: { 'Content-Type': 'multipart/form-data' }
                  });
                  const updatedUser = response.data;
-
-                 mutateProfile(updatedUser, false); // Update SWR
+                 mutateProfile(updatedUser, false);
                  if (updatedUser.avatar_url && session?.user && session.user.image !== updatedUser.avatar_url) {
                     await updateSession({ user: { ...session.user, image: updatedUser.avatar_url } });
                  }
@@ -270,11 +179,7 @@ export default function ProfilePage() {
                 loading: 'Uploading avatar...',
                 success: 'Avatar updated successfully!',
                 error: (err: any) => `Upload failed: ${err.response?.data?.detail || err.message || 'Unknown error'}`,
-                finally: () => {
-                    if (fileInputRef.current) {
-                        fileInputRef.current.value = '';
-                    }
-                }
+                finally: () => { if (fileInputRef.current) fileInputRef.current.value = ''; }
             }
         );
     };
@@ -284,62 +189,59 @@ export default function ProfilePage() {
         visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
     };
 
-    // --- تحسين شرط التحميل ---
-    const isLoading = !isClient || sessionStatus === 'loading' || (sessionStatus === 'authenticated' && isLoadingUser); // نركز على تحميل بيانات المستخدم أولاً
+    // Combined loading state
+    const isLoading = !isClient || sessionStatus === 'loading' ||
+                      (sessionStatus === 'authenticated' && (isLoadingUser || isLoadingPayment)); // Include payment loading
 
+    // Render loading state
     if (isLoading) return <LoadingSpinner />;
+
+    // Render redirect if unauthenticated on client
     if (isClient && sessionStatus === 'unauthenticated') redirect('/login');
 
-    // --- عرض خطأ بيانات المستخدم بشكل منفصل ---
+    // Render error state if profile fetch failed
     if (isClient && userError) {
         return (
             <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4">
                  <AlertCircle className="h-10 w-10 text-red-500 mb-3"/>
                 <h2 className="text-xl font-bold text-red-500 mb-2">Error Loading Profile</h2>
                 <p className='text-red-400 text-sm bg-red-900/50 p-3 rounded-md border border-red-800'>
-                    {userError.message || 'Could not fetch profile data.'}
+                    {/* Provide a fallback message */}
+                    {(userError as any)?.message || 'Could not fetch profile data.'}
                 </p>
             </div>
         );
     }
 
-    const profileData = userData; // userData مضمون الآن لو لم يكن هناك خطأ
+    // Prepare data for rendering (now guaranteed userData exists if no error)
+    const profileData = userData!; // Assert non-null after error check
     const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'A')}&background=0a0f28&color=06b6d4&bold=true&size=128`;
     const subtext = [joinedDate ? `Member since ${joinedDate}` : null, location]
         .filter(Boolean).join(' | ');
     const recentOrders = ordersData?.orders || [];
-
     const handleAvatarUpload = () => fileInputRef.current?.click();
 
     return (
         <>
             <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept="image/*"
-                style={{ display: 'none' }}
+                type="file" ref={fileInputRef} onChange={handleFileChange}
+                accept="image/*" style={{ display: 'none' }}
             />
 
             <main
                 className="relative min-h-screen w-full bg-black text-gray-200 py-24 md:py-32 px-4 overflow-hidden"
                 style={{ fontFamily: "'Inter', sans-serif" }}
             >
-                {/* --- Background Animation --- */}
-                <motion.div
-                    className="absolute inset-0 z-0 bg-gradient-to-br from-black via-black to-black"
-                    animate={{ backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'] }}
-                    transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-                    style={{ backgroundSize: '200% 200%' }}
+                <motion.div /* Background */
+                    className="absolute inset-0 z-0 bg-black" // Solid black background
                 />
 
-                {/* --- Main Content Container --- */}
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="relative z-10 w-full max-w-4xl mx-auto space-y-12">
 
-                    {/* --- Profile Header (Avatar, Name, etc.) --- */}
+                    {/* --- Profile Header --- */}
                     <motion.div variants={{ hidden: { opacity: 0, y: -20 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="flex flex-col items-center text-center">
                         <div className="relative group mb-5">
-                            <motion.div
+                            <motion.div /* Avatar Glow */
                                 className="absolute -inset-1.5 rounded-full bg-cyan-400/50 opacity-70 blur-xl"
                                 animate={{ scale: [1, 1.05, 1], opacity: [0.6, 0.8, 0.6] }}
                                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -347,9 +249,10 @@ export default function ProfilePage() {
                             <div className="relative z-10 rounded-full p-1 bg-gradient-to-tr from-cyan-900/60 via-black/30 to-cyan-900/60">
                                 <Image
                                     src={userImage} alt={profileData?.full_name || 'User Avatar'}
-                                    width={128} height={128}
-                                    className="rounded-full border-2 border-black/50"
-                                    priority key={userImage} // Add key to force re-render on change
+                                    width={128} height={128} className="rounded-full border-2 border-black/50"
+                                    priority key={userImage}
+                                    unoptimized={userImage.startsWith('https://ui-avatars.com')} // Don't optimize generated avatars
+                                    onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'E')}&background=ff0000&color=ffffff&bold=true&size=128`; }} // Fallback on error
                                 />
                             </div>
                              <button className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20" onClick={handleAvatarUpload}>
@@ -401,10 +304,8 @@ export default function ProfilePage() {
                             <h2 className="text-xl font-semibold text-cyan-400 inline-block" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 Your Recent Orders
                             </h2>
-                            {/* Decorative line */}
                             <span className="block h-0.5 w-16 bg-cyan-400/50 mt-2 shadow-[0_0_10px_theme(colors.cyan.400)]" />
                         </div>
-                        {/* --- عرض التحميل أو الخطأ أو الطلبات --- */}
                         {isLoadingOrders && !ordersData && (
                             <div className="flex justify-center items-center h-32"> <Loader2 className="h-6 w-6 animate-spin text-cyan-400" /> </div>
                         )}
@@ -424,12 +325,24 @@ export default function ProfilePage() {
                     {/* --- Payment & Shipping Info --- */}
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }}>
                         <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Payment Card */}
+                            {/* Payment Card (Updated) */}
                             <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl p-6 flex items-start gap-4">
                                 <CreditCard size={20} className="text-cyan-400/80 mt-1 flex-shrink-0" />
                                 <div>
                                     <h3 className="text-base font-semibold text-white mb-1">Default Payment</h3>
-                                    <p className="text-sm text-gray-300">{mockPaymentInfo.type} ending in {mockPaymentInfo.lastFour}</p>
+                                    {/* --- Display Real Data --- */}
+                                    {isLoadingPayment ? (
+                                        <p className="text-sm text-gray-500 italic">Loading...</p>
+                                    ) : paymentError ? (
+                                        <p className="text-sm text-red-400 italic">Could not load</p>
+                                    ) : paymentData?.brand && paymentData?.last4 ? (
+                                        <p className="text-sm text-gray-300 capitalize"> {/* Added capitalize */}
+                                            {paymentData.brand} ending in {paymentData.last4}
+                                        </p>
+                                    ) : (
+                                         <p className="text-sm text-gray-500 italic">No default method set</p>
+                                    )}
+                                    {/* ----------------------- */}
                                 </div>
                             </motion.div>
                             {/* Shipping Card */}
@@ -469,7 +382,8 @@ export default function ProfilePage() {
              <EditProfileDetailsModal
                 isOpen={isEditDetailsModalOpen}
                 onClose={handleCloseEditDetailsModal}
-                userData={profileData}
+                // Assert non-null as profileData is checked earlier
+                userData={profileData!}
                 onSave={handleProfileDetailsSave}
             />
              <ChangePasswordModal
@@ -484,3 +398,100 @@ export default function ProfilePage() {
         </>
     );
 }
+
+
+// --- Sub-Components (Keep definitions here as per user preference) ---
+
+const LoadingSpinner = () => (
+    <div className="flex min-h-screen w-full items-center justify-center bg-black">
+        <Loader2 className="h-12 w-12 animate-spin text-cyan-400" />
+    </div>
+);
+
+const AnimatedCounter = ({ value }: { value: number }) => {
+    const ref = useRef<HTMLSpanElement>(null);
+    const motionValue = useMotionValue(0);
+    const springValue = useSpring(motionValue, { damping: 50, stiffness: 100 });
+    const isInView = useInView(ref, { once: true, margin: "0px 0px -50px 0px" });
+    useEffect(() => { if (isInView) motionValue.set(value); }, [motionValue, isInView, value]);
+    useEffect(() => {
+        const unsubscribe = springValue.on("change", (latest) => {
+            if (ref.current) ref.current.textContent = Intl.NumberFormat('en-US').format(Math.round(latest));
+        }); return unsubscribe;
+    }, [springValue]);
+    return <span ref={ref}>{value}</span>;
+};
+
+const InfoItem = ({ icon, label, value }: {
+    icon: React.ReactNode; label: string; value: string | undefined | null;
+}) => (
+    <motion.div
+        variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
+        className="flex items-start gap-3 group py-3 border-b border-white/5"
+    >
+        <span className="text-cyan-400/80 mt-1 transition-colors group-hover:text-cyan-300">{icon}</span>
+        <div>
+            <p className="text-xs text-gray-400 mb-0.5 opacity-90">{label}</p>
+            <p className="text-white font-medium text-base transition-colors group-hover:text-gray-200">
+                {value || <span className="text-gray-500 italic flex items-center gap-1"><Settings size={12} className="opacity-50"/> Not set</span>}
+            </p>
+        </div>
+    </motion.div>
+);
+
+const OrderCard = ({ order }: { order: OrderRead }) => {
+    const statusColor = {
+        Delivered: 'text-green-400 bg-green-900/50 border-green-700/50',
+        Shipped: 'text-cyan-400 bg-cyan-900/50 border-cyan-700/50',
+        Processing: 'text-yellow-400 bg-yellow-900/50 border-yellow-700/50',
+    } as Record<string, string>;
+    const defaultColor = 'text-gray-400 bg-gray-900/50 border-gray-700/50';
+    const firstItem = order.items?.[0];
+    const productName = firstItem?.product?.name || `Order #${order.id}`;
+    // Provide a fallback image URL
+    const productImageUrl = firstItem?.product?.image_url || 'https://placehold.co/256x144/000000/FFF?text=Image';
+
+    return (
+        <motion.div
+            variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0 } }}
+            whileHover={{ y: -6, transition: { duration: 0.2, ease: 'easeOut' } }}
+            className="w-64 flex-shrink-0 bg-black/40 border border-white/10 rounded-xl overflow-hidden shadow-lg backdrop-blur-md"
+        >
+             {/* Use next/image correctly */}
+             <div className="relative w-full h-36">
+                <Image
+                    src={productImageUrl} alt={productName} fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes, adjust as needed
+                    unoptimized={productImageUrl.startsWith('https://placehold.co')} // Don't optimize placeholders
+                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/256x144/000000/FFF?text=Error'; }} // Fallback on error
+                />
+             </div>
+            <div className="p-4 space-y-2">
+                <h4 className="text-white font-semibold truncate">{productName}</h4>
+                <p className="text-gray-300 font-mono text-sm">${order.total_price.toFixed(2)}</p>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${statusColor[order.status] || defaultColor}`}>
+                    {order.status}
+                </span>
+            </div>
+        </motion.div>
+    );
+};
+
+const SettingsButton = ({ icon, label, onClick }: {
+    icon: React.ReactNode; label: string; onClick: () => void;
+}) => (
+     <motion.button
+        onClick={onClick}
+        variants={{ hidden: { opacity: 0, scale: 0.9 }, visible: { opacity: 1, scale: 1 } }}
+        whileHover={{ scale: 1.02, x: 2, boxShadow: '0 0 15px rgba(6, 182, 212, 0.3)' }}
+        whileTap={{ scale: 0.98 }}
+        className="flex w-full items-center justify-between gap-4 rounded-lg bg-white/5 p-4 border border-white/10 transition-all duration-200 group hover:border-cyan-700/50 hover:bg-gradient-to-r hover:from-cyan-900/30 hover:to-transparent"
+    >
+        <div className="flex items-center gap-4">
+            <span className="text-cyan-400">{icon}</span>
+            <span className="text-white font-medium">{label}</span>
+        </div>
+        <ChevronRight size={16} className="text-gray-600 group-hover:text-cyan-400 transition-colors" />
+    </motion.button>
+);

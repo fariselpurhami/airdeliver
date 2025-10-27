@@ -44,6 +44,7 @@ class User(SQLModel, table=True):
     phone_number: Optional[str] = Field(default=None, index=True, nullable=True)
     address: Optional[str] = Field(default=None, nullable=True)
     avatar_url: Optional[str] = Field(default=None, nullable=True)
+    stripe_customer_id: Optional[str] = Field(default=None, index=True, nullable=True)
 
     orders: Mapped[List["Order"]] = Relationship(sa_relationship=relationship("Order", back_populates="user"))
     badges: Mapped[List["UserBadge"]] = Relationship(sa_relationship=relationship("UserBadge", back_populates="user"))
