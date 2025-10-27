@@ -2,21 +2,24 @@
 
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { useSession, signOut } from "next-auth/react";
-import Link from 'next/link';
+// import Link from 'next/link'; // <-- تم إزالته (غير مستخدم)
 import { motion, useMotionValue, useSpring, useInView, AnimatePresence } from "framer-motion";
 import Image from 'next/image';
 import useSWR, { mutate } from 'swr';
-import { fetcher } from '@/lib/fetcher';
+// import { fetcher } from '@/lib/fetcher'; // <-- تم إزالته (نستخدم api.get)
+import { api } from '@/lib/api'; // <-- نستخدم Axios مباشرة
 import { redirect } from 'next/navigation';
+import { toast } from 'sonner'; // <-- لاستخدام نظام الإشعارات
 import {
     User, Mail, MapPin, Phone, Clock, Loader2, LogOut, AlertCircle,
     CreditCard, Package, ShieldCheck, Edit3, KeyRound, Settings, Camera, ChevronRight
 } from 'lucide-react';
-import EditProfileModal from '@/components/profile/EditProfileModal';
+import EditProfileModal from '@/components/profile/EditProfileModal'; // (ملاحظة: هذا الملف يبدو غير مستخدم، تأكد من استخدامه أو إزالته)
 import ChangePasswordModal from '@/components/profile/ChangePasswordModal';
 import ViewOrdersModal from '@/components/profile/ViewOrdersModal';
-import EditProfileDetailsModal from '@/components/profile/EditProfileDetailsModal'; // Added missing import
+import EditProfileDetailsModal from '@/components/profile/EditProfileDetailsModal';
 
+// --- Interfaces ---
 interface UserProfileData {
     id: number; email: string; full_name?: string | null; role?: string | null;
     phone_number?: string | null; address?: string | null; avatar_url?: string | null;
@@ -44,7 +47,7 @@ interface PaginatedOrdersResponse {
 }
 
 interface PaymentData { type: string; lastFour: string; }
-const mockPaymentInfo: PaymentData = { type: 'NovaCard', lastFour: '4288' };
+const mockPaymentInfo: PaymentData = { type: 'NovaCard', lastFour: '4288' }; // بيانات دفع وهمية مؤقتة
 
 // --- Components ---
 const LoadingSpinner = () => (
@@ -93,7 +96,7 @@ const OrderCard = ({ order }: { order: OrderRead }) => {
     const defaultColor = 'text-gray-400 bg-gray-900/50 border-gray-700/50';
     const firstItem = order.items?.[0];
     const productName = firstItem?.product?.name || `Order #${order.id}`;
-    const productImageUrl = firstItem?.product?.image_url || '/images/default.jpeg';
+    const productImageUrl = firstItem?.product?.image_url || '/images/default.jpeg'; // تأكد من وجود صورة افتراضية
 
     return (
         <motion.div
@@ -138,14 +141,17 @@ const SettingsButton = ({ icon, label, onClick }: {
 // --- Main Profile Page ---
 export default function ProfilePage() {
     const { data: session, status: sessionStatus, update: updateSession } = useSession();
-    const profileApiUrl = '/api/v1/users/me';
-    const ordersApiUrl = '/api/v1/orders/me?page=1&limit=3';
+    const profileApiUrl = '/users/me';
+    const ordersApiUrl = '/orders/me?page=1&limit=3'; // جلب آخر 3 طلبات فقط
+
+    // --- استخدام api.get مباشرة كـ fetcher لـ SWR ---
+    const swrFetcher = (url: string) => api.get(url).then(res => res.data);
 
     const { data: userData, error: userError, isLoading: isLoadingUser, mutate: mutateProfile } = useSWR<UserProfileData>(
-        sessionStatus === 'authenticated' ? profileApiUrl : null, fetcher, { revalidateOnFocus: false }
+        sessionStatus === 'authenticated' ? profileApiUrl : null, swrFetcher, { revalidateOnFocus: false }
     );
     const { data: ordersData, error: ordersError, isLoading: isLoadingOrders } = useSWR<PaginatedOrdersResponse>(
-        sessionStatus === 'authenticated' ? ordersApiUrl : null, fetcher, { revalidateOnFocus: false }
+        sessionStatus === 'authenticated' ? ordersApiUrl : null, swrFetcher, { revalidateOnFocus: false }
     );
 
     const [isClient, setIsClient] = useState(false);
@@ -163,17 +169,15 @@ export default function ProfilePage() {
     }, [userData?.created_at]);
 
     const location = useMemo(() => {
-        if (userData?.city && userData?.country) return `${userData.city}, ${userData.country}`;
-        if (userData?.country) return userData.country;
-        return null;
+        const parts = [userData?.city, userData?.country].filter(Boolean);
+        return parts.length > 0 ? parts.join(', ') : null;
     }, [userData?.city, userData?.country]);
 
     const realShippingInfo = useMemo(() => {
-        if (userData?.address && location) return `${userData.address}, ${location}`;
-        if (userData?.address) return userData.address;
-        if (location) return location;
-        return null;
-    }, [userData?.address, location]);
+        const parts = [userData?.address, userData?.city, userData?.country].filter(Boolean);
+        return parts.length > 0 ? parts.join(', ') : null;
+    }, [userData?.address, userData?.city, userData?.country]);
+
 
     const handleOpenEditDetailsModal = () => setIsEditDetailsModalOpen(true);
     const handleCloseEditDetailsModal = () => setIsEditDetailsModalOpen(false);
@@ -184,106 +188,95 @@ export default function ProfilePage() {
 
     const handleProfileDetailsSave = async (updatedData: Partial<UserProfileData>) => {
         const token = session?.accessToken as string | undefined;
-        if (!token) throw new Error("Authentication token not found.");
-        try {
-            const response = await fetch(profileApiUrl, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(updatedData),
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to update profile.');
-            }
-            const updatedUser: UserProfileData = await response.json();
-            mutateProfile(updatedUser, false);
-            if (updatedData.full_name && session?.user) {
-                 await updateSession({ user: { ...session.user, name: updatedData.full_name } });
-            }
-            handleCloseEditDetailsModal();
-        } catch (error: any) {
-            console.error("Save error:", error);
-            throw error;
+        if (!token) {
+            toast.error("Authentication error. Please log in again.");
+            return;
         }
+        toast.promise(
+            (async () => {
+                // استخدم api (axios instance) بدلاً من fetch
+                const response = await api.put<UserProfileData>(profileApiUrl, updatedData);
+                const updatedUser = response.data; // Axios returns data directly
+
+                mutateProfile(updatedUser, false); // Update SWR cache
+                if (updatedData.full_name && session?.user) {
+                    await updateSession({ user: { ...session.user, name: updatedData.full_name } });
+                }
+                handleCloseEditDetailsModal();
+                return updatedUser;
+            })(),
+            {
+                loading: 'Saving profile details...',
+                success: (data) => `Profile updated successfully!`,
+                error: (err: any) => `Save failed: ${err.response?.data?.detail || err.message || 'Unknown error'}`,
+            }
+        );
     };
 
     const handlePasswordSave = async (currentPassword: string, newPassword: string) => {
-        const token = session?.accessToken as string | undefined;
-        if (!token) throw new Error("Authentication token not found.");
-        try {
-            const response = await fetch('/api/v1/users/me/change-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
-            });
-            if (!response.ok) {
-                const errorData = await response.json();
-                if (response.status === 401) throw new Error(errorData.detail || 'Incorrect current password.');
-                throw new Error(errorData.detail || 'Failed to change password.');
-            }
-            console.log("Password changed successfully!");
-            handleClosePasswordModal();
-        } catch (error: any) {
-            console.error("Change Password error:", error);
-            throw error;
+        const token = session?.accessToken as string | undefined; // Not needed if using axios interceptor
+        if (!token) { // Keep check just in case
+            toast.error("Authentication error. Please log in again.");
+            return;
         }
+        toast.promise(
+             (async () => {
+                // استخدم api (axios instance)
+                await api.post('/users/me/change-password', {
+                     current_password: currentPassword,
+                     new_password: newPassword
+                 });
+                handleClosePasswordModal();
+             })(),
+            {
+                loading: 'Changing password...',
+                success: 'Password changed successfully!',
+                error: (err: any) => `Failed: ${err.response?.data?.detail || err.message || 'Unknown error'}`,
+            }
+        );
     };
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        // Optional: Show loading state or preview
-        console.log("Uploading file:", file.name);
-
-        const token = session?.accessToken as string | undefined;
+        const token = session?.accessToken as string | undefined; // Not needed if using axios interceptor
         if (!token) {
-             alert("Authentication error. Please log in again.");
+             toast.error("Authentication error. Please log in again.");
              return;
         }
 
         const formData = new FormData();
-        formData.append('file', file); // 'file' must match the backend File(...) parameter name
+        formData.append('file', file);
 
-        try {
-            const response = await fetch('/api/v1/users/me/avatar', { // Use the new endpoint
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    // 'Content-Type': 'multipart/form-data' // Browser sets this automatically for FormData
-                },
-                body: formData,
-            });
+        toast.promise(
+            (async () => {
+                 // استخدم api (axios instance)
+                 const response = await api.post<UserProfileData>('/users/me/avatar', formData, {
+                     headers: {
+                         // Axios might set this automatically, but being explicit can help
+                         'Content-Type': 'multipart/form-data',
+                     }
+                 });
+                 const updatedUser = response.data;
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to upload avatar.');
+                 mutateProfile(updatedUser, false); // Update SWR
+                 if (updatedUser.avatar_url && session?.user && session.user.image !== updatedUser.avatar_url) {
+                    await updateSession({ user: { ...session.user, image: updatedUser.avatar_url } });
+                 }
+                 return updatedUser;
+            })(),
+            {
+                loading: 'Uploading avatar...',
+                success: 'Avatar updated successfully!',
+                error: (err: any) => `Upload failed: ${err.response?.data?.detail || err.message || 'Unknown error'}`,
+                finally: () => {
+                    if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                    }
+                }
             }
-
-            const updatedUser: UserProfileData = await response.json();
-
-            // --- التحديثات هنا (ده الجزء اللي اتعدل) ---
-            // 1. حدث بيانات SWR فوراً بالداتا الجديدة (ده الأهم)
-            mutateProfile(updatedUser, false); 
-
-            // 2. حدث الـ session لو الـ avatar URL اتغير (ده بيحدّث الهيدر مثلاً)
-            if (updatedUser.avatar_url && session?.user && session.user.image !== updatedUser.avatar_url) {
-                 await updateSession({ user: { ...session.user, image: updatedUser.avatar_url } });
-            }
-            // ------------------------------------------
-
-            console.log("Avatar updated successfully!");
-            alert("Avatar updated successfully!"); // Simple feedback for now
-
-        } catch (error: any) {
-            console.error("Avatar upload error:", error);
-            alert(`Avatar upload failed: ${error.message}`); // Show error
-        } finally {
-             // Reset file input value so onChange fires again if user selects the same file
-             if (fileInputRef.current) {
-                 fileInputRef.current.value = '';
-             }
-        }
+        );
     };
 
     const containerVariants = {
@@ -291,59 +284,59 @@ export default function ProfilePage() {
         visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
     };
 
-    const isLoading = !isClient || sessionStatus === 'loading' || (sessionStatus === 'authenticated' && (isLoadingUser || isLoadingOrders) && (!userData || !ordersData) && !userError && !ordersError);
+    // --- تحسين شرط التحميل ---
+    const isLoading = !isClient || sessionStatus === 'loading' || (sessionStatus === 'authenticated' && isLoadingUser); // نركز على تحميل بيانات المستخدم أولاً
 
     if (isLoading) return <LoadingSpinner />;
     if (isClient && sessionStatus === 'unauthenticated') redirect('/login');
-    const combinedError = userError || ordersError;
-    if (isClient && combinedError) {
+
+    // --- عرض خطأ بيانات المستخدم بشكل منفصل ---
+    if (isClient && userError) {
         return (
             <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4">
                  <AlertCircle className="h-10 w-10 text-red-500 mb-3"/>
-                <h2 className="text-xl font-bold text-red-500 mb-2">Error Loading Profile Data</h2>
+                <h2 className="text-xl font-bold text-red-500 mb-2">Error Loading Profile</h2>
                 <p className='text-red-400 text-sm bg-red-900/50 p-3 rounded-md border border-red-800'>
-                    {combinedError.message || 'Could not fetch required data.'}
+                    {userError.message || 'Could not fetch profile data.'}
                 </p>
             </div>
         );
     }
 
-    const profileData = userData;
+    const profileData = userData; // userData مضمون الآن لو لم يكن هناك خطأ
     const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'A')}&background=0a0f28&color=06b6d4&bold=true&size=128`;
     const subtext = [joinedDate ? `Member since ${joinedDate}` : null, location]
-        .filter((item): item is string => !!item)
-        .join(' | ');
+        .filter(Boolean).join(' | ');
     const recentOrders = ordersData?.orders || [];
-    const hasActivityData = (profileData?.orders_completed ?? 0) > 0 || (profileData?.items_favorited ?? 0) > 0;
 
-    const handleAvatarUpload = () => {
-        fileInputRef.current?.click(); 
-    };
+    const handleAvatarUpload = () => fileInputRef.current?.click();
 
     return (
         <>
-            {/* --- 4. ده الـ Input المخفي --- */}
-            <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                accept="image/*" // Only accept image files
-                style={{ display: 'none' }} // Hide it visually
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                style={{ display: 'none' }}
             />
-            {/* ----------------------------- */}
-            
+
             <main
                 className="relative min-h-screen w-full bg-black text-gray-200 py-24 md:py-32 px-4 overflow-hidden"
                 style={{ fontFamily: "'Inter', sans-serif" }}
             >
+                {/* --- Background Animation --- */}
                 <motion.div
-                    className="absolute inset-0 z-0 bg-gradient-to-br from-black via-[#05081a] to-[#0a0f28]"
+                    className="absolute inset-0 z-0 bg-gradient-to-br from-black via-black to-black"
                     animate={{ backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'] }}
                     transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
                     style={{ backgroundSize: '200% 200%' }}
                 />
 
+                {/* --- Main Content Container --- */}
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="relative z-10 w-full max-w-4xl mx-auto space-y-12">
+
+                    {/* --- Profile Header (Avatar, Name, etc.) --- */}
                     <motion.div variants={{ hidden: { opacity: 0, y: -20 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="flex flex-col items-center text-center">
                         <div className="relative group mb-5">
                             <motion.div
@@ -356,23 +349,17 @@ export default function ProfilePage() {
                                     src={userImage} alt={profileData?.full_name || 'User Avatar'}
                                     width={128} height={128}
                                     className="rounded-full border-2 border-black/50"
-                                    priority key={userImage}
+                                    priority key={userImage} // Add key to force re-render on change
                                 />
                             </div>
                              <button className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20" onClick={handleAvatarUpload}>
                                 <Camera size={32} className="text-cyan-400" />
                             </button>
                         </div>
-
                         <h1 className="text-4xl md:text-5xl font-black text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             {profileData?.full_name || session?.user?.email?.split('@')[0]}
                         </h1>
-
-                        {subtext && (
-                            <p className="mt-2 text-base text-gray-400">
-                                {subtext}
-                            </p>
-                        )}
+                        {subtext && (<p className="mt-2 text-base text-gray-400">{subtext}</p>)}
                          {profileData?.role && (
                              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-md shadow-cyan-500/20">
                                 <ShieldCheck size={14} />
@@ -381,6 +368,7 @@ export default function ProfilePage() {
                         )}
                     </motion.div>
 
+                    {/* --- Account Information Card --- */}
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/30 p-6 md:p-8">
                         <h2 className="text-xl font-semibold text-cyan-400 mb-6 pb-4 border-b border-white/10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             Account Information
@@ -396,6 +384,7 @@ export default function ProfilePage() {
                         </motion.div>
                     </motion.div>
 
+                    {/* --- Settings Card --- */}
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/30 p-6 md:p-8">
                          <h2 className="text-xl font-semibold text-cyan-400 mb-6 pb-4 border-b border-white/10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             Settings
@@ -406,39 +395,36 @@ export default function ProfilePage() {
                          </motion.div>
                     </motion.div>
 
+                    {/* --- Recent Orders Card --- */}
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/30 p-6 md:p-8">
                         <div className="mb-5 flex justify-between items-center">
                             <h2 className="text-xl font-semibold text-cyan-400 inline-block" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 Your Recent Orders
                             </h2>
+                            {/* Decorative line */}
                             <span className="block h-0.5 w-16 bg-cyan-400/50 mt-2 shadow-[0_0_10px_theme(colors.cyan.400)]" />
                         </div>
+                        {/* --- عرض التحميل أو الخطأ أو الطلبات --- */}
                         {isLoadingOrders && !ordersData && (
-                            <div className="flex justify-center items-center h-32">
-                                <Loader2 className="h-6 w-6 animate-spin text-cyan-400" />
-                            </div>
+                            <div className="flex justify-center items-center h-32"> <Loader2 className="h-6 w-6 animate-spin text-cyan-400" /> </div>
                         )}
                         {ordersError && (
-                            <p className="text-center text-red-400 italic py-8">
-                                Error loading recent orders.
-                            </p>
+                            <p className="text-center text-red-400 italic py-8"> Error loading recent orders.</p>
                         )}
                         {!isLoadingOrders && recentOrders.length > 0 && (
                             <motion.div variants={containerVariants} className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
-                                {recentOrders.map(order => (
-                                    <OrderCard key={order.id} order={order} />
-                                ))}
+                                {recentOrders.map(order => (<OrderCard key={order.id} order={order} />))}
                             </motion.div>
                         )}
                         {!isLoadingOrders && recentOrders.length === 0 && (
-                             <motion.p variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }} className="text-center text-gray-500 italic py-8">
-                                No recent orders found.
-                             </motion.p>
+                             <motion.p variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }} className="text-center text-gray-500 italic py-8"> No recent orders found. </motion.p>
                         )}
                     </motion.div>
 
+                    {/* --- Payment & Shipping Info --- */}
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }}>
                         <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Payment Card */}
                             <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl p-6 flex items-start gap-4">
                                 <CreditCard size={20} className="text-cyan-400/80 mt-1 flex-shrink-0" />
                                 <div>
@@ -446,39 +432,40 @@ export default function ProfilePage() {
                                     <p className="text-sm text-gray-300">{mockPaymentInfo.type} ending in {mockPaymentInfo.lastFour}</p>
                                 </div>
                             </motion.div>
+                            {/* Shipping Card */}
                             <motion.div variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl p-6 flex items-start gap-4">
                                 <MapPin size={20} className="text-cyan-400/80 mt-1 flex-shrink-0" />
                                 <div>
                                     <h3 className="text-base font-semibold text-white mb-1">Default Shipping</h3>
-                                    <p className="text-sm text-gray-300 leading-snug">{realShippingInfo || <span className="text-gray-500 italic">No address set</span>}</p>
+                                    <p className="text-sm text-gray-300 leading-snug">
+                                        {realShippingInfo || <span className="text-gray-500 italic">No address set</span>}
+                                    </p>
                                 </div>
                             </motion.div>
                         </motion.div>
                     </motion.div>
 
+                    {/* --- Action Buttons --- */}
                     <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
                         <motion.button
                             onClick={handleOpenOrdersModal}
                             className="w-full sm:w-auto px-10 py-3 text-sm font-semibold rounded-lg text-cyan-300 bg-cyan-900/30 border-2 border-cyan-400 transition-colors duration-300 hover:bg-cyan-800/40 hover:text-white block text-center"
-                            whileHover={{ scale: 1.03, y: -2 }}
-                            whileTap={{ scale: 0.98 }}
+                            whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }}
                             animate={{ boxShadow: [ '0 0 0px theme(colors.cyan.500)', '0 0 20px theme(colors.cyan.500)', '0 0 0px theme(colors.cyan.500)' ] }}
                             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                        >
-                            View All Orders
-                        </motion.button>
+                        > View All Orders </motion.button>
                         <motion.button
                             onClick={() => signOut({ callbackUrl: '/login' })}
                             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-3 text-sm font-medium rounded-lg text-red-400 bg-red-900/30 border border-red-500/50 transition-colors duration-300 hover:bg-red-800/40 hover:text-red-300"
                             whileHover={{ scale: 1.03, y: -2, boxShadow: '0 0 15px rgba(239, 68, 68, 0.3)' }}
                             whileTap={{ scale: 0.98 }}
-                        >
-                            <LogOut size={16} /> Sign Out
-                        </motion.button>
+                        > <LogOut size={16} /> Sign Out </motion.button>
                     </motion.div>
+
                 </motion.div>
             </main>
 
+            {/* --- Modals --- */}
              <EditProfileDetailsModal
                 isOpen={isEditDetailsModalOpen}
                 onClose={handleCloseEditDetailsModal}

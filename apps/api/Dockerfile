@@ -26,7 +26,7 @@ COPY ./seed.py ./
 
 RUN apt-get update && apt-get install -y curl --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=5s --timeout=3s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:8000/ || exit 1
 
 EXPOSE 8000
