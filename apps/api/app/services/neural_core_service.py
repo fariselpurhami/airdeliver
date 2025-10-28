@@ -1,4 +1,4 @@
-# file: apps/api/app/services/neural_core_service.py
+# file: apps/api/app/services/neural_core_service.py (Fixed)
 import logging
 import httpx
 import re
@@ -6,7 +6,9 @@ from typing import Dict, Any, List
 from sqlmodel import Session, select
 from app.core.config import settings
 from app import models
-from app.models.user import AIMemory  # Import the new persistent memory model
+# --- 💡 تم إصلاح الخطأ هنا ---
+# تم تغيير المسار لاستيراد AIMemory من الملف الخاص به
+from app.models.aimemory import AIMemory  # Import the new persistent memory model
 from app.schemas.ai_actions import NeuralCoreResponse, AddToCartAction, TrackOrderAction, ProductSearchAction, SupportHandoffAction
 import datetime
 import random

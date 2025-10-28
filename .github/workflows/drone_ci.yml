@@ -1,0 +1,106 @@
+# file: .github/workflows/drone_ci.yml
+name: Drone Subsystem CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/api/**'
+      - 'drone_client/**'
+      - 'drone-simulator/**'
+      - 'docker-compose.drone.yml'
+      - '.github/workflows/drone_ci.yml'
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'drone_client/**'
+      - 'drone-simulator/**'
+      - 'docker-compose.drone.yml'
+      - '.github/workflows/drone_ci.yml'
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Poetry
+      run: pipx install poetry
+
+    - name: Install API dependencies
+      run: cd apps/api && poetry install --no-root
+
+    - name: Install Companion dependencies (Assume requirements.txt exists)
+      run: cd drone_client && pip install -r requirements.txt
+
+    - name: Lint API with Black and Flake8
+      run: |
+        cd apps/api
+        poetry run black --check .
+        poetry run flake8 .
+      continue-on-error: true # Or fail pipeline on lint errors
+
+    - name: Lint Companion with Black and Flake8
+      run: |
+        cd drone_client
+        black --check .
+        flake8 .
+      continue-on-error: true
+
+    - name: Run API Unit Tests
+      run: |
+        cd apps/api
+        # Ensure environment variables needed for tests are set
+        # Example: DATABASE_URL for test DB
+        poetry run pytest tests/ # Assuming tests are in apps/api/tests
+      env:
+         # Set necessary env vars for testing
+         POSTGRES_SERVER: localhost # Use localhost if using services below, else needs setup
+         POSTGRES_USER: testuser
+         POSTGRES_PASSWORD: testpassword
+         POSTGRES_DB: testdb
+         DRONE_JWT_SECRET: test-secret
+
+    # - name: Run Companion Unit Tests (Requires proper mocking setup)
+    #   run: |
+    #     cd drone_client
+    #     pytest # Assuming tests are in drone_client/tests
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: lint-and-test # Run only if lint/unit tests pass (remove continue-on-error above)
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Compose
+      run: sudo apt-get update && sudo apt-get install -y docker-compose
+
+    - name: Build and Run Simulation Stack
+      run: docker compose -f docker-compose.yml -f docker-compose.drone.yml up --build -d
+
+    - name: Wait for Services to Stabilize
+      run: |
+        echo "Waiting for stack to become healthy..."
+        # Implement a more robust wait script that checks health endpoints
+        sleep 60
+
+    - name: Run Integration Tests (Requires test script)
+      run: |
+        # Example: Run a python script that sends commands and checks results
+        # python tests/integration/run_sim_mission.py
+        echo "Integration test script placeholder - needs implementation"
+        # For now, just check if containers are running
+        docker compose -f docker-compose.yml -f docker-compose.drone.yml ps
+        # Add a command here that fails the workflow if integration fails
+        # exit 1 # Example failure
+
+    - name: Stop Simulation Stack
+      if: always() # Ensure cleanup even if tests fail
+      run: docker compose -f docker-compose.yml -f docker-compose.drone.yml down -v --remove-orphans

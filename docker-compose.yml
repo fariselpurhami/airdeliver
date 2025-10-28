@@ -32,6 +32,13 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=airdeliver
+      - USE_REDIS=false # Default to false for local dev
+      - REDIS_HOST=redis # If using Redis, add a Redis service
+      - REDIS_PORT=6379
+      - DRONE_JWT_SECRET=your_super_secret_drone_jwt_key # Add JWT secret
+      - ALGORITHM=HS256 # Or your chosen algorithm
+      - API_BASE_URL=http://api:8000/api/v1 # For internal calls if needed
+      - INTERNAL_API_TOKEN=your_internal_secret_token
     volumes:
       # Mount the named volume to the container's static directory
       - api-static-data:/app/static
@@ -40,6 +47,12 @@ services:
         condition: service_healthy
     networks:
       - airdeliver-net
+    healthcheck:
+       test: ["CMD-SHELL", "curl -f http://localhost:8000/ws/health || exit 1"] # Point to new health endpoint
+       interval: 10s
+       timeout: 5s
+       retries: 5
+       start_period: 30s
 
   drone-control:
     container_name: airdeliver-drone-control
@@ -81,3 +94,4 @@ volumes:
 networks:
   airdeliver-net:
     driver: bridge
+    name: airdeliver-net

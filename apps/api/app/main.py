@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import SQLModel
 from app.db.session import engine
 from starlette.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.websockets.tracking_ws import router as tracking_router
@@ -24,6 +25,7 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

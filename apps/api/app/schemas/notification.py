@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel
 from datetime import datetime
-from app.models.notification import NotificationType # Import the Enum from the model file
+from app.models.enums import NotificationType
 
 # Schema for reading a notification
 class NotificationRead(SQLModel):
@@ -19,6 +19,6 @@ class NotificationCreate(SQLModel):
     user_id: int
     title: str
     body: str
-    type: NotificationType = NotificationType.default
+    type: NotificationType = NotificationType.SYSTEM_ALERT
     cta: str | None = None
     meta: dict | None = None

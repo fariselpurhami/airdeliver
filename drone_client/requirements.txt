@@ -1,0 +1,6 @@
+mavsdk==1.4.1 # أو أحدث إصدار مستقر
+websockets>=11.0 # تأكد من التوافق
+python-dotenv>=0.20
+structlog>=23.0 # اختياري، للـ logging
+httpx>=0.25 # اختياري، لو احتجت عمل API calls من هنا
+# RPi.GPIO أو pigpio لو هتستخدم GPIO للـ Payload
