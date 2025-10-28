@@ -44,4 +44,4 @@ services:
 
 networks:
   airdeliver-net: # Ensure it uses the same network as the main docker-compose
-    external: true # Assumes 'airdeliver-net' is defined in the main docker-compose.yml
+   # external: true # Assumes 'airdeliver-net' is defined in the main docker-compose.yml

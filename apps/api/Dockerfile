@@ -52,4 +52,8 @@ HEALTHCHECK --interval=5s --timeout=3s --start-period=30s --retries=3 \
 EXPOSE 8000
 
 # Run migrations then start the server
-CMD ["bash", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["bash", "-c", \
+
+     "alembic upgrade base && \
+      alembic upgrade head && \
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"]

@@ -33,7 +33,6 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages/mavsdk /usr/local/li
 
 # Copy application code
 COPY drone-control.py .
-COPY .env . # Copy .env file if used for configuration
 
 # Expose local admin API port (optional)
 # EXPOSE 8080
