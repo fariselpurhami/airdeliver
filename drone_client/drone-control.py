@@ -1,17 +1,4 @@
-pydantic import BaseModel, ValidationError, Field, field_validator # For parsing server messages
-
-# --- Configuration ---
-load_dotenv() # Load .env file from current directory
-
-DRONE_ID = os.getenv("DRONE_ID", f"COMPANION-{uuid.uuid4().hex[:6].upper()}")
-# Default to API container hostname in Docker, fallback to localhost for local dev
-WEBSOCKET_HOST = os.getenv("WEBSOCKET_HOST", "api")
-WEBSOCKET_PORT = os.getenv("WEBSOCKET_PORT", "8000")
-WEBSOCKET_URI = os.getenv("WEBSOCKET_URI", f"ws://{WEBSOCKET_HOST}:{WEBSOCKET_PORT}/ws/drones/")
-MAVLINK_CONNECTION = os.getenv("MAVLINK_CONNECTION", "udp://:14540") # For SITL
-AUTH_TOKEN = os.getenv("AUTH_TOKEN") # REQUIRED: No default for security
-if not AUTH_TOKEN:
-            raise ValueError("AUTH_TOKEN environment variabl# file: drone_client/drone-control.py (Add details)
+# file: drone_client/drone-control.py (Syntax Fixed)
 # --- Full MAVSDK Implementation ---
 
 import asyncio
@@ -28,11 +15,27 @@ import websockets
 from mavsdk import System
 from mavsdk.action import ActionError
 from mavsdk.mission import MissionItem, MissionPlan, MissionError
-from mavsdk.telemetry import LandedState, FlightMode, GPSInfo, Battery, Health, Position
+from mavsdk.telemetry import LandedState, FlightMode, GpsInfo, Battery, Health, Position
 from mavsdk.offboard import OffboardError, PositionNedYaw
 from dotenv import load_dotenv
-# import structlog # For structured logging (Assuming standard logging for now)
-from e not set.")
+from pydantic import BaseModel, ValidationError, Field, field_validator # For parsing server messages
+
+
+# --- Configuration ---
+load_dotenv() # Load .env file from current directory
+
+DRONE_ID = os.getenv("DRONE_ID", f"COMPANION-{uuid.uuid4().hex[:6].upper()}")
+# Default to API container hostname in Docker, fallback to localhost for local dev
+WEBSOCKET_HOST = os.getenv("WEBSOCKET_HOST", "api")
+WEBSOCKET_PORT = os.getenv("WEBSOCKET_PORT", "8000")
+WEBSOCKET_URI = os.getenv("WEBSOCKET_URI", f"ws://{WEBSOCKET_HOST}:{WEBSOCKET_PORT}/ws/drones/")
+MAVLINK_CONNECTION = os.getenv("MAVLINK_CONNECTION", "udp://:14540") # For SITL
+AUTH_TOKEN = os.getenv("AUTH_TOKEN") # REQUIRED: No default for security
+
+# 💡 إصلاح الـ SyntaxError: يجب غلق علامة التنصيص
+if not AUTH_TOKEN:
+            raise ValueError("AUTH_TOKEN environment variable not set.")
+
 
 TELEMETRY_INTERVAL_S = 2.0
 HEARTBEAT_TIMEOUT_S = 30.0 # Increased timeout for server websocket
@@ -333,7 +336,7 @@ class DroneCompanion:
                 vel = async_tasks["velocity"].result()
                 bat: Optional[Battery] = async_tasks["battery"].result()
                 fm: Optional[FlightMode] = async_tasks["flight_mode"].result()
-                gps: Optional[GPSInfo] = async_tasks["gps_info"].result()
+                gps: Optional[GpsInfo] = async_tasks["gps_info"].result()
                 health: Optional[Health] = async_tasks["health"].result()
                 ls: Optional[LandedState] = async_tasks["landed_state"].result()
 
@@ -449,7 +452,7 @@ class DroneCompanion:
                 elif action == "goto" and payload.goto:
                      success, error_msg = await self.execute_goto(payload.goto.lat, payload.goto.lon, payload.goto.alt_m, command_id)
                 elif action == "release_payload":
-                     success, error_msg = await self.execute_release_payload(command_id)
+                    success, error_msg = await self.execute_release_payload(command_id)
                 elif action == "abort":
                      success, error_msg = await self.execute_abort(command_id)
                 elif action == "pause":
@@ -489,7 +492,7 @@ class DroneCompanion:
               # Wait briefly for telemetry streams to provide initial values
               await asyncio.sleep(1)
               bat: Optional[Battery] = await self.mavsdk_drone.telemetry.battery().__aiter__().__anext__()
-              gps: Optional[GPSInfo] = await self.mavsdk_drone.telemetry.gps_info().__aiter__().__anext__()
+              gps: Optional[GpsInfo] = await self.mavsdk_drone.telemetry.gps_info().__aiter__().__anext__()
               health: Optional[Health] = await self.mavsdk_drone.telemetry.health().__aiter__().__anext__()
 
               failures = []
@@ -769,7 +772,7 @@ class DroneCompanion:
             # await self._activate_servo(pin=18, duty_cycle_open=2.5, duration=1.0)
             # await asyncio.sleep(1.5) # Wait for release
             # release_success = await self._check_payload_sensor() # Check confirmation sensor
-            # await self._activate_servo(pin=18, duty_cycle_close=7.5, duration=0.5) # Close hook
+            # await self._activate_servo(pin=18, duty_cycle_close=7.75, duration=0.5) # Close hook
 
             # --- Simulation Placeholder ---
             log.info(f"[{self.drone_id}] SIMULATING payload release hardware interaction...")
@@ -976,3 +979,5 @@ if __name__ == "__main__":
         log.info("Companion stopped by user.")
     except Exception as e:
          log.critical("Unhandled exception in main execution", error=str(e), exc_info=True)
+
+# ⚠️ تم حذف القوس الزائد الذي كان هنا

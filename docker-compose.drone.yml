@@ -1,8 +1,6 @@
 # file: docker-compose.drone.yml
 # For running the drone simulation stack
 
-version: '3.8'
-
 services:
   px4-sitl:
     container_name: airdeliver-px4-sitl
@@ -12,13 +10,15 @@ services:
     # Expose UDP port for companion AND potentially map to host for QGroundControl
     ports:
       - "14540:14540/udp" # Companion connection
-      # - "14550:14550/udp" # Optional: Map for QGroundControl connection from host
+      - "14550:14550/udp" # Map MAVLink for QGC/companion communication
+      - "14556:14556/udp"
+      
     networks:
       - airdeliver-net
     environment:
       # Add any PX4 SITL specific env vars here if needed
-      - PX4_SIM_SPEED_FACTOR=1 # Run simulation at real time speed
-    # Add healthcheck if possible (e.g., check if MAVLink port is active)
+      - PX4_SIM_SPEED_FACTOR=1 
+   
 
   companion:
     container_name: airdeliver-companion-sim

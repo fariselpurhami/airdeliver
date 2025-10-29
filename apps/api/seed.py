@@ -18,8 +18,8 @@ def seed_db():
         if not user_in_db:
             print("Creating default superuser...")
             user = User(
-                email="admin@example.com",
-                hashed_password=get_password_hash("password"),
+                email=settings.FIRST_SUPERUSER,
+                hashed_password=get_password_hash(settings.FIRST_SUPERUSER_PASSWORD),
                 is_superuser=True,
             )
             session.add(user)

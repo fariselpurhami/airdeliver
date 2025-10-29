@@ -179,7 +179,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
             {isOpen && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
                     {/* THIS IS THE LINE THAT CREATES THE TRANSPARENT EFFECT */}
-                    <motion.div onClick={(e) => e.stopPropagation()} className="w-full max-w-6xl h-[90vh] max-h-[800px] flex bg-black/50 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
+                    <motion.div onClick={(e) => e.stopPropagation()} className="w-full max-w-7xl h-[95vh] max-h-[1000px] flex bg-black/50 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
                         <div className="w-full lg:w-2/3 flex flex-col">
                             <header className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0">
                                 <div className="flex items-center space-x-3"><Bot className="text-cyan-400" size={24} /><h3 className="font-bold text-lg text-white">Order With AI</h3></div>
