@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "airdeliver"
 
-    FIRST_SUPERUSER: str = "admin@example.com"
-    FIRST_SUPERUSER_PASSWORD: str = "password"
+    FIRST_SUPERUSER: str = "admin@airdeliver.com"
+    FIRST_SUPERUSER_PASSWORD: str = "pass123"
 
     # --- 💡 ADDED REDIS SETTINGS HERE ---
     USE_REDIS: bool = False # Default to False if not set in .env or environment
