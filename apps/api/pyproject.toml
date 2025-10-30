@@ -30,6 +30,9 @@ redis = "^7.0.1"
 python-jose = {version = "3.5.0", extras = ["cryptography"]}
 packaging = "23.1"
 certifi = "2023.7.22"
+email-validator = "^2.3.0"
+idna = "^3.11"
+pydantic = {version = "^2.12.3", extras = ["email"]}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"

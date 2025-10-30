@@ -14,6 +14,8 @@ RUN poetry export --without dev --without-hashes -f requirements.txt -o requirem
 
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
+RUN pip install --no-cache-dir --prefix=/install idna
+
 RUN ls /install/lib/python3.11/site-packages/ | grep jose
 
 FROM python:3.11-slim

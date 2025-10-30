@@ -164,7 +164,7 @@ class CommandPayload(BaseModel):
     requires_ack: bool = True
 
     @model_validator(mode='after') 
-    def check_payload_matches_action(cls, data: Any) -> Any:
+    def check_payload_matches_action(self, data: Any) -> Any:
         
         if isinstance(data, BaseModel): 
              action = data.action
