@@ -1,7 +1,4 @@
 # file: apps/api/app/crud/crud_user.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini 2.5 Pro
 
 from typing import Any, Dict, Optional, Union
 from sqlmodel import Session, select

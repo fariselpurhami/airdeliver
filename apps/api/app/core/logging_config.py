@@ -1,7 +1,4 @@
 # file: apps/api/app/core/logging_config.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini
 
 import logging
 import sys
@@ -40,4 +37,5 @@ def setup_logging():
             "handlers": ["stdout"],
         },
     }
+
     dictConfig(config)

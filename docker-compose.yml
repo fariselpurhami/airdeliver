@@ -32,15 +32,14 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=airdeliver
-      - USE_REDIS=false # Default to false for local dev
-      - REDIS_HOST=redis # If using Redis, add a Redis service
+      - USE_REDIS=false 
+      - REDIS_HOST=redis 
       - REDIS_PORT=6379
-      - DRONE_JWT_SECRET=your_super_secret_drone_jwt_key # Add JWT secret
-      - ALGORITHM=HS256 # Or your chosen algorithm
-      - API_BASE_URL=http://api:8000/api/v1 # For internal calls if needed
+      - DRONE_JWT_SECRET=your_super_secret_drone_jwt_key 
+      - ALGORITHM=HS256 
+      - API_BASE_URL=http://api:8000/api/v1 
       - INTERNAL_API_TOKEN=your_internal_secret_token
     volumes:
-      # Mount the named volume to the container's static directory
       - api-static-data:/app/static
     depends_on:
       postgres:
@@ -48,7 +47,7 @@ services:
     networks:
       - airdeliver-net
     healthcheck:
-       test: ["CMD-SHELL", "curl -f http://localhost:8000/ws/health || exit 1"] # Point to new health endpoint
+       test: ["CMD-SHELL", "curl -f http://localhost:8000/ws/health || exit 1"] 
        interval: 10s
        timeout: 5s
        retries: 5
@@ -58,7 +57,7 @@ services:
     container_name: airdeliver-drone-control
     build:
       context: ./apps/drone-control
-      dockerfile: Dockerfile # Assumes a similar Dockerfile to the main api
+      dockerfile: Dockerfile 
     ports:
       - "8001:8000"
     networks:
@@ -70,14 +69,14 @@ services:
       context: ./apps/web
       dockerfile: Dockerfile
       args:
-         # This passes the variable to the build stage
+         
         - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
       - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=a_super_secret_for_nextauth # Change this in production
+      - NEXTAUTH_SECRET=a_super_secret_for_nextauth 
     depends_on:
       api:
         condition: service_healthy

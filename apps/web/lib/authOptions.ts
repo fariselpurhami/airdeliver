@@ -1,4 +1,4 @@
-// file: apps/web/lib/authOptions.ts 
+// apps/web/lib/authOptions.ts 
 
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -30,7 +30,6 @@ export const authOptions: NextAuthOptions = {
           const res = await fetch(loginUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            // FastAPI's OAuth2 expects the email field to be named 'username'
             body: new URLSearchParams({ username: credentials.email, password: credentials.password }),
           });
 

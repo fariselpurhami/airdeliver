@@ -1,10 +1,4 @@
-# file: apps/api/app/services/feature_flags.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini 2.5 Pro
-
-# A simple, in-memory feature flag system.
-# In a production environment, this would be backed by a database or a service like LaunchDarkly.
+# apps/api/app/services/feature_flags.py
 
 class FeatureFlags:
     def __init__(self):
@@ -20,7 +14,6 @@ class FeatureFlags:
         if is_global:
             return True
 
-        # Simple hash-based bucketing to determine if user is in the percentage
         if (user_id % 100) < percentage:
             return True
 

@@ -1,7 +1,4 @@
-// file: apps/web/components/admin/AlertPanel.tsx
-// version: 1.0.0
-// date: 2025-09-23
-// author: Gemini
+// apps/web/components/admin/AlertPanel.tsx
 
 import { FiAlertTriangle, FiCheckCircle, FiXCircle } from "react-icons/fi";
 
@@ -33,4 +30,3 @@ export function AlertPanel() {
         </div>
     )
 }
-

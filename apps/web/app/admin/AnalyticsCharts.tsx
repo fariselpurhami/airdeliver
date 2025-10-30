@@ -1,7 +1,4 @@
-// file: apps/web/components/admin/AnalyticsCharts.tsx
-// version: 1.0.0
-// date: 2025-09-23
-// author: Gemini
+// apps/web/components/admin/AnalyticsCharts.tsx
 
 'use client';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';

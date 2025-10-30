@@ -1,4 +1,5 @@
-// file: apps/web/app/(admin)/dashboard/page.tsx
+// apps/web/app/(admin)/dashboard/page.tsx
+
 'use client';
 
 import React, { useEffect, useRef, Suspense } from 'react';
@@ -21,14 +22,13 @@ import {
     CartesianGrid 
 } from 'recharts';
 
-// --- (1) Data Interfaces (UPDATED) ---
 interface Stats {
     total_revenue: number;
     total_orders: number;
     total_products: number;
     active_drones: number;
-    pending_deliveries: number; // <-- NEW
-    active_users_today: number; // <-- NEW
+    pending_deliveries: number; 
+    active_users_today: number; 
 }
 interface Order {
     id: number;
@@ -44,7 +44,6 @@ interface PaginatedOrdersResponse {
 interface RevenueData { name: string; revenue: number; }
 interface ActivityEvent { id: string; icon: React.ReactNode; description: string; time: string; }
 
-// (Mock data for new components - replace with API calls when ready)
 const mockRevenueData: RevenueData[] = [
     { name: 'Mon', revenue: 400 }, { name: 'Tue', revenue: 300 }, { name: 'Wed', revenue: 600 }, 
     { name: 'Thu', revenue: 800 }, { name: 'Fri', revenue: 700 }, { name: 'Sat', revenue: 1100 }, 
@@ -57,8 +56,6 @@ const mockActivityData: ActivityEvent[] = [
     { id: '4', icon: <HardDrive size={16} />, description: 'New Product "iPhone 18" added', time: '45m ago' },
 ];
 
-
-// --- (2) API Fetcher (No changes) ---
 const fetcher = async (url: string) => {
     const { getSession } = await import('next-auth/react');
     const session = await getSession();
@@ -73,7 +70,6 @@ const fetcher = async (url: string) => {
     return res.json();
 };
 
-// --- (3) Re-usable Animated Counter (No changes) ---
 const AnimatedCounter = ({ value }: { value: number }) => {
     const ref = useRef<HTMLSpanElement>(null);
     const motionValue = useMotionValue(0);
@@ -101,14 +97,10 @@ const AnimatedCounter = ({ value }: { value: number }) => {
     return <span ref={ref}>{Number.isInteger(value) ? value : value.toFixed(2)}</span>;
 };
 
-
-// --- (4) Loading / Error / Access Denied States (No changes) ---
 const LoadingSpinner = () => ( <div className="flex min-h-screen w-full items-center justify-center bg-black"><Loader2 className="h-12 w-12 animate-spin text-cyan-400" /></div> );
 const AccessDenied = () => ( <div className="flex min-h-screen w-full flex-col items-center justify-center bg-black p-4 text-center"><div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-500/10"><Lock className="h-10 w-10 text-red-500" /></div><h1 className="mt-8 text-3xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Access Denied</h1><p className="mt-2 text-gray-400">You do not have permission to view this page.</p></div> );
 const ErrorDisplay = ({ error }: { error: Error }) => ( <div className="flex w-full flex-col items-center justify-center rounded-lg bg-red-500/10 p-12 text-center"><AlertCircle className="h-12 w-12 text-red-500" /><h2 className="mt-4 text-xl font-bold text-white">Error Loading Dashboard</h2><p className="mt-2 text-sm text-red-300">{error.message}</p></div> );
 
-
-// --- (5) Dashboard Sub-Components (UPDATED & NEW) ---
 
 const StatCardSkeleton = () => ( <div className="h-[124px] w-full animate-pulse rounded-2xl bg-white/5 border border-white/10 p-6" /> );
 const StatCard = ({ title, value, icon, isCurrency = false }: {
@@ -183,12 +175,10 @@ const OrdersTable = ({ orders }: { orders: Order[] }) => {
     );
 };
 
-// --- NEW: Revenue Chart Component (UPDATED with Animation) ---
 const RevenueChart = ({ data, isLoading }: { data: RevenueData[], isLoading: boolean }) => {
     if (isLoading) return <TableSkeleton />;
     
     return (
-        // --- 3. GRAPH ANIMATION: Animate the width for a "draw" effect ---
         <motion.div
             className="h-[300px] w-full"
             initial={{ opacity: 0 }}
@@ -215,8 +205,8 @@ const RevenueChart = ({ data, isLoading }: { data: RevenueData[], isLoading: boo
                         labelStyle={{ color: '#fff' }}
                     />
                     <Area 
-                        isAnimationActive={true} // <-- Default animation (fade-in)
-                        animationDuration={1500} // <-- Slower, smoother animation
+                        isAnimationActive={true} 
+                        animationDuration={1500} 
                         type="monotone" 
                         dataKey="revenue" 
                         stroke="#06b6d4" 
@@ -230,7 +220,7 @@ const RevenueChart = ({ data, isLoading }: { data: RevenueData[], isLoading: boo
     );
 };
 
-// --- NEW: Activity Timeline Component (UPDATED with Readability) ---
+
 const ActivityTimeline = ({ events, isLoading }: { events: ActivityEvent[], isLoading: boolean }) => {
     if (isLoading) return <TableSkeleton />;
 
@@ -253,7 +243,6 @@ const ActivityTimeline = ({ events, isLoading }: { events: ActivityEvent[], isLo
                                     <div>
                                         <p className="text-sm text-gray-300">{event.description}</p>
                                     </div>
-                                    {/* --- 2. READABILITY: Made time lighter --- */}
                                     <div className="whitespace-nowrap text-right text-sm text-gray-500 opacity-80">
                                         <time>{event.time}</time>
                                     </div>
@@ -268,7 +257,6 @@ const ActivityTimeline = ({ events, isLoading }: { events: ActivityEvent[], isLo
 };
 
 
-// --- (6) Main Dashboard Component (UPDATED LAYOUT) ---
 function DashboardContent() {
     const { data: statsData, error: statsError, isLoading: isLoadingStats } = useSWR<Stats>('/api/v1/admin/stats', fetcher);
     const { data: ordersData, error: ordersError, isLoading: isLoadingOrders } = useSWR<PaginatedOrdersResponse>('/api/v1/admin/orders?page=1&limit=5', fetcher);
@@ -300,10 +288,9 @@ function DashboardContent() {
                 Admin Dashboard
             </motion.h1>
 
-            {/* --- Stats Grid (UPDATED to 6 columns) --- */}
             <motion.div 
                 variants={containerVariants}
-                // --- 1. METRICS: Changed to 6 columns ---
+             
                 className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-6"
             >
                 {isLoadingStats ? (
@@ -317,19 +304,18 @@ function DashboardContent() {
                         <StatCard title="Total Orders" value={statsData.total_orders} icon={<Package size={20} />} />
                         <StatCard title="Total Products" value={statsData.total_products} icon={<HardDrive size={20} />} />
                         <StatCard title="Active Drones" value={statsData.active_drones} icon={<Wifi size={20} />} />
-                        {/* --- 1. METRICS: New Cards Added --- */}
+                     
                         <StatCard title="Pending" value={statsData.pending_deliveries} icon={<Truck size={20} />} />
                         <StatCard title="Active Users" value={statsData.active_users_today} icon={<Users size={20} />} />
                     </>
                 ) : null}
             </motion.div>
 
-            {/* --- Two-Column Layout for Charts/Tables --- */}
             <motion.div 
                 variants={containerVariants}
                 className="grid grid-cols-1 lg:grid-cols-3 gap-6"
             >
-                {/* Main Column (Graph + Orders) */}
+
                 <div className="lg:col-span-2 space-y-6">
                     <motion.div
                         variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
@@ -360,7 +346,6 @@ function DashboardContent() {
                     </motion.div>
                 </div>
 
-                {/* Side Column (Activity) */}
                 <motion.div
                     variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
                     className="lg:col-span-1 rounded-2xl bg-white/5 p-6 backdrop-blur-lg border border-white/10"
@@ -376,7 +361,6 @@ function DashboardContent() {
     );
 }
 
-// --- (7) Main Page Export (No changes) ---
 export default function AdminDashboardPage() {
     const { data: session, status } = useSession();
 

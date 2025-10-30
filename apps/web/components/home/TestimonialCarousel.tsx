@@ -1,12 +1,10 @@
 'use client';
 
-// 1. قم باستيراد الأدوات الأساسية من React
 import React, { useState, useEffect } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 
 const TestimonialCarousel = ({ testimonials }) => {
-  // الآن، سيعمل هذا الكود بنجاح
   const [isClient, setIsClient] = useState(false);
   const [emblaRef] = useEmblaCarousel({ loop: true }, [Autoplay()]);
 
@@ -15,7 +13,7 @@ const TestimonialCarousel = ({ testimonials }) => {
   }, []);
 
   if (!isClient) {
-    return null; //  يعرض لا شيء حتى يتم تحميل المكون على جانب العميل
+    return null; 
   }
 
   return (

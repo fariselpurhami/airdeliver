@@ -1,7 +1,4 @@
-// file: apps/web/components/ui/ThemeToggle.tsx
-// version: 1.0.0
-// date: 2025-09-23
-// author: Gemini 2.5 Pro
+// apps/web/components/ui/ThemeToggle.tsx
 
 'use client';
 
@@ -17,7 +14,7 @@ export function ThemeToggle() {
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return <div className="w-9 h-9" />; // Placeholder to prevent layout shift
+    return <div className="w-9 h-9" />; 
   }
 
   return (
@@ -36,4 +33,3 @@ export function ThemeToggle() {
     </Button>
   );
 }
-

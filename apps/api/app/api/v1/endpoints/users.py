@@ -1,13 +1,12 @@
-# file: apps/api/app/api/v1/endpoints/users.py
+# apps/api/app/api/v1/endpoints/users.py
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 from sqlmodel import Session
-from pydantic import BaseModel, Field # Ensure BaseModel and Field are imported
+from pydantic import BaseModel, Field
 import shutil
 import os
 from pathlib import Path
-import stripe # Import stripe
-
+import stripe 
 from app import models
 from app.schemas.user import UserRead, UserCreate, UserUpdate
 from app.schemas.msg import Msg
@@ -15,16 +14,14 @@ from app.api import deps
 from app.crud import crud_user
 from app.db.session import get_session
 from app.core import security
-from app.core.config import settings # Import settings for API key
+from app.core.config import settings
 
 router = APIRouter()
 
-# --- Define Response Schema for Payment Method ---
 class DefaultPaymentMethod(BaseModel):
     brand: str | None = None
     last4: str | None = None
 
-# --- Initialize Stripe API Key ---
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -97,7 +94,7 @@ async def upload_user_avatar(
         with file_path.open("wb") as buffer:
              shutil.copyfileobj(file.file, buffer)
     except Exception as e:
-         print(f"Error saving file: {e}") # Keep simple logging for errors
+         print(f"Error saving file: {e}") 
          raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not save avatar file.")
     finally:
          await file.close()
@@ -149,24 +146,20 @@ def update_user_me(
     session.refresh(current_user)
     return current_user
 
-# --- New Endpoint for Default Payment Method ---
 @router.get("/me/default-payment-method", response_model=DefaultPaymentMethod)
 def get_default_payment_method(
     *,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    """
-    Retrieve the default payment method details (brand and last4) for the current user from Stripe.
-    Assumes 'stripe_customer_id' field exists on the User model.
-    """
+    
     stripe_customer_id = getattr(current_user, 'stripe_customer_id', None)
 
     if not stripe_customer_id:
-        # No Stripe customer associated, return empty data
+    
         return DefaultPaymentMethod()
 
     try:
-        # Retrieve customer with expanded default payment method
+    
         customer = stripe.Customer.retrieve(
             stripe_customer_id,
             expand=["invoice_settings.default_payment_method"]
@@ -174,13 +167,11 @@ def get_default_payment_method(
 
         default_payment_method = customer.invoice_settings.default_payment_method
 
-        # Check if the expanded object is a PaymentMethod with card details
         if default_payment_method and isinstance(default_payment_method, stripe.PaymentMethod) and default_payment_method.card:
             brand = default_payment_method.card.brand
             last4 = default_payment_method.card.last4
             return DefaultPaymentMethod(brand=brand, last4=last4)
 
-        # Fallback if only the ID string was returned (less efficient)
         elif default_payment_method and isinstance(default_payment_method, str):
              pm = stripe.PaymentMethod.retrieve(default_payment_method)
              if pm.card:
@@ -188,17 +179,16 @@ def get_default_payment_method(
                  last4 = pm.card.last4
                  return DefaultPaymentMethod(brand=brand, last4=last4)
 
-        # No default payment method set in Stripe
         return DefaultPaymentMethod()
 
     except stripe.error.StripeError as e:
-        print(f"Stripe Error fetching default payment method for user {current_user.id}: {e}") # Log error
+        print(f"Stripe Error fetching default payment method for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Could not retrieve payment information from the payment provider."
         )
     except Exception as e:
-        print(f"Unexpected error fetching default payment method for user {current_user.id}: {e}") # Log error
+        print(f"Unexpected error fetching default payment method for user {current_user.id}: {e}") 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal error occurred while fetching payment information."

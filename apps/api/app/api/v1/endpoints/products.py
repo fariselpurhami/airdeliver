@@ -1,4 +1,4 @@
-# file: apps/api/app/api/v1/endpoints/products.py
+# apps/api/app/api/v1/endpoints/products.py
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
@@ -10,7 +10,6 @@ import random
 
 router = APIRouter()
 
-#@router.get("/", response_model=List[Dict[str, Any]])
 @router.get("", response_model=List[Dict[str, Any]], include_in_schema=False) 
 @router.get("/", response_model=List[Dict[str, Any]])
 def read_products(
@@ -18,9 +17,7 @@ def read_products(
     skip: int = 0,
     limit: int = 100,
 ):
-    """
-    Retrieve all products, enriched with dynamic data and correct image paths.
-    """
+
     products_from_db = db.exec(select(models.Product).offset(skip).limit(limit)).all()
     
     enriched_products = []

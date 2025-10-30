@@ -1,15 +1,8 @@
 # file: apps/drone-control/services/task_queue.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini
 
 import asyncio
 from collections import deque
 from typing import Dict, Any, Deque
-
-# NOTE: This is a simple in-memory queue for demonstration.
-# In production, this should be replaced with a robust message broker
-# like RabbitMQ or Redis (using Celery).
 
 class DroneTaskQueue:
     def __init__(self):

@@ -1,15 +1,14 @@
+# apps/api/alembic/env.py
+
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from app import models 
 from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 from app.core.config import settings
-
-
 from app.models.order import Order, OrderItem
 from app.models.drone import Drone
 from app.models.user import User
@@ -18,22 +17,18 @@ from app.models.audit_trail import AuditTrail
 from app.models.gamification import Badge, UserBadge
 from app.models.notification_subscription import NotificationSubscription
 
-# this is the Alembic Config object
 config = context.config
 
-# Interpret the config file for Python logging.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Set the database URL from your settings
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URI)
 
-# target_metadata for 'autogenerate' support
 target_metadata = SQLModel.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
+
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,

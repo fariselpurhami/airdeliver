@@ -1,4 +1,4 @@
-# file: airdeliver/apps/api/app/models/enums.py
+# apps/api/app/models/enums.py
 
 from enum import Enum
 
@@ -13,18 +13,18 @@ class OrderStatus(str, Enum):
     ASSIGNED = "assigned"
     IN_TRANSIT = "in_transit"
     DELIVERED = "delivered"
-    CANCELLED = "cancelled" # Consistent spelling
+    CANCELLED = "cancelled" 
     FAILED = "failed"
 
 class DroneStatus(str, Enum):
     IDLE = "idle"
     CHARGING = "charging"
-    PREPARING = "preparing" # Added from new schema
-    READY = "ready"         # Added from new schema
-    IN_MISSION = "in_mission" # Added from new schema (replaced DELIVERING)
+    PREPARING = "preparing" 
+    READY = "ready"     
+    IN_MISSION = "in_mission" 
     RETURNING = "returning"
     MAINTENANCE = "maintenance"
-    OFFLINE = "offline"     # Added from new schema
+    OFFLINE = "offline" 
 
 class MissionStatus(str, Enum):
     CREATED = "created"
@@ -48,12 +48,11 @@ class MissionStatus(str, Enum):
     FAILED_EMERGENCY_LANDING = "failed_emergency_landing"
 
 class NotificationType(str, Enum):
-    ORDER_UPDATE = "order_update" # Updated from 'order'
-    DRONE_STATUS = "drone_status" # New
-    SYSTEM_ALERT = "system_alert" # Updated from 'system'
+    ORDER_UPDATE = "order_update" 
+    DRONE_STATUS = "drone_status" 
+    SYSTEM_ALERT = "system_alert" 
     SECURITY = "security"
     PROMOTION = "promotion"
-    # 'default' removed as specific types are preferred
 
 class EventType(str, Enum):
     PREFLIGHT_OK = "preflight_ok"

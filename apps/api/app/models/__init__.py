@@ -1,6 +1,5 @@
-# file: airdeliver/apps/api/app/models/__init__.py (Corrected)
+# apps/api/app/models/__init__.py 
 
-# Import Enums first from the dedicated file
 from .enums import (
     UserRole,
     OrderStatus,
@@ -10,28 +9,24 @@ from .enums import (
     EventType,
 )
 
-# Import Models
 from .audit_trail import AuditTrail
-from .drone import Drone, DroneTelemetry, DroneEvent # Import all drone models
+from .drone import Drone, DroneTelemetry, DroneEvent 
 from .gamification import Badge, UserBadge
 from .mission import Mission
 from .notification_subscription import NotificationSubscription
 from .notification import Notification
-from .order import Order, OrderItem # Import both order models
+from .order import Order, OrderItem 
 from .product import Product
 from .user import User
-from .aimemory import AIMemory # Import from its own file
+from .aimemory import AIMemory 
 
 __all__ = [
-    # Enums
     "UserRole",
     "OrderStatus",
     "DroneStatus",
     "MissionStatus",
     "NotificationType",
-    "EventType",
-
-    # Models
+    "EventType",s
     "AuditTrail",
     "Drone",
     "DroneTelemetry",

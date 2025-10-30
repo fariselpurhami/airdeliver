@@ -1,4 +1,5 @@
-// file: apps/web/components/profile/ChangePasswordModal.tsx
+// apps/web/components/profile/ChangePasswordModal.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +9,7 @@ import { X, KeyRound, Loader2, Eye, EyeOff } from 'lucide-react';
 interface ChangePasswordModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (currentPassword: string, newPassword: string) => Promise<void>; // Async save handler
+    onSave: (currentPassword: string, newPassword: string) => Promise<void>; 
 }
 
 export default function ChangePasswordModal({
@@ -25,7 +26,6 @@ export default function ChangePasswordModal({
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
 
-    // Reset fields when modal opens
     useEffect(() => {
         if (isOpen) {
             setCurrentPassword('');
@@ -43,7 +43,7 @@ export default function ChangePasswordModal({
             setError("New passwords do not match.");
             return;
         }
-        if (newPassword.length < 8) { // Basic validation
+        if (newPassword.length < 8) { 
             setError("New password must be at least 8 characters long.");
             return;
         }
@@ -52,7 +52,7 @@ export default function ChangePasswordModal({
         setError(null);
         try {
             await onSave(currentPassword, newPassword);
-            onClose(); // Close modal on successful save
+            onClose(); 
         } catch (err: any) {
             setError(err.message || 'Failed to change password. Please try again.');
         } finally {

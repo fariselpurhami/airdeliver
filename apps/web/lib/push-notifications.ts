@@ -1,7 +1,4 @@
-// file: apps/web/lib/push-notifications.ts
-// version: 1.0.0
-// date: 2025-09-23
-// author: Gemini
+// apps/web/lib/push-notifications.ts
 
 import { api } from './api';
 

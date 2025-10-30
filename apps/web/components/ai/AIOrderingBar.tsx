@@ -1,7 +1,4 @@
 // file: apps/web/components/ai/AIOrderingBar.tsx
-// version: 1.0.0
-// date: 2025-09-27
-// author: Gemini
 
 'use client';
 

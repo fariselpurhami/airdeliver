@@ -11,10 +11,8 @@ import useSWR from 'swr';
 import { api } from '@/lib/api';
 import { AlertTriangle } from 'lucide-react';
 
-// --- دالة الجلب لـ SWR ---
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
-// --- مكونات الهياكل العظمية (Skeletons) ---
 const BannerSkeleton = () => (
     <div className="animate-pulse">
         <div className="h-16 md:h-24 bg-gray-700/50 rounded w-3/4 mx-auto mb-4"></div>
@@ -39,7 +37,6 @@ const ProductListSkeleton = () => (
     </div>
 );
 
-// --- مكون التوصيات الشخصية (يستخدم SWR الآن) ---
 const PersonalizedRecommendations = () => {
     const { data: session, status } = useSession();
     const userId = (session?.user as any)?.id;
@@ -73,7 +70,6 @@ const PersonalizedRecommendations = () => {
     );
 };
 
-// --- مكون عرض الخطأ ---
 const ErrorDisplay = ({ error }: { error: any }) => (
     <div className="flex flex-col items-center justify-center text-center text-red-400 my-16 p-6 border border-red-500/30 bg-red-500/10 rounded-lg">
         <AlertTriangle className="w-12 h-12 mb-4" />
@@ -83,8 +79,6 @@ const ErrorDisplay = ({ error }: { error: any }) => (
     </div>
 );
 
-
-// --- المكون الرئيسي للصفحة (يستخدم SWR الآن) ---
 export default function ProductsPage() {
     const [timeOfDay, setTimeOfDay] = useState<'day' | 'night'>('day');
 
@@ -93,14 +87,12 @@ export default function ProductsPage() {
         setTimeOfDay(currentHour > 18 || currentHour < 6 ? 'night' : 'day');
     }, []);
 
-    // --- جلب المنتجات باستخدام SWR ---
     const { data: productsData, error, isLoading } = useSWR<Product[] | { items: Product[] }>(
-        '/products/', // المسار النسبي صحيح بفضل الـ proxy
+        '/products/', 
         fetcher,
         { revalidateOnFocus: false }
     );
 
-    // استخراج القائمة الفعلية للمنتجات
     const products = useMemo(() => {
         if (!productsData) return [];
         return Array.isArray(productsData) ? productsData : productsData.items || [];
@@ -131,7 +123,6 @@ export default function ProductsPage() {
 
                 <h2 className="text-3xl font-bold mb-12 text-center" style={{ fontFamily: "'Orbitron', sans-serif" }}>All Products</h2>
 
-                {/* --- منطق العرض الجديد --- */}
                 {error ? (
                     <ErrorDisplay error={error} />
                 ) : isLoading && !productsData ? (
@@ -146,9 +137,6 @@ export default function ProductsPage() {
     );
 }
 
-// --- إعادة لصق الكود الكامل للمكونات الفرعية ---
-
-// --- Upgraded background component that changes based on time of day ---
 const LightGrid = ({ timeOfDay }: { timeOfDay: 'day' | 'night' }) => {
     const materialRef = useRef<THREE.ShaderMaterial>(null!);
     useFrame(({ clock }) => {
@@ -157,8 +145,8 @@ const LightGrid = ({ timeOfDay }: { timeOfDay: 'day' | 'night' }) => {
         }
     });
 
-    const dayColor = new THREE.Color(0.1, 0.7, 1.0); // Blueish tint for day
-    const nightColor = new THREE.Color(0.5, 0.3, 1.0); // Purplish tint for night
+    const dayColor = new THREE.Color(0.1, 0.7, 1.0); 
+    const nightColor = new THREE.Color(0.5, 0.3, 1.0); 
 
     const shader = {
         uniforms: {
@@ -186,7 +174,6 @@ const LightGrid = ({ timeOfDay }: { timeOfDay: 'day' | 'night' }) => {
     );
 };
 
-// --- Dynamic AI Banner Component ---
 const headlines = [
   "Analyzing Real-Time Trends...",
   "Drone Fleets Ready to Deliver.",

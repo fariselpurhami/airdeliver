@@ -1,4 +1,4 @@
-# file: apps/api/pyproject.toml
+# apps/api/pyproject.toml
 
 [tool.poetry]
 name = "airdeliver-api"

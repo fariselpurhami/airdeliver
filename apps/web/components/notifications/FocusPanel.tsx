@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion';
 import { X, Shield, Package } from 'lucide-react';
 
-// دي مجرد نسخة مبدئية جداً عشان نملى المكان
 export function FocusPanel({ notification, onClose }) {
     
     return (
@@ -13,7 +12,6 @@ export function FocusPanel({ notification, onClose }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 50 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            // الـ sticky ده عشان يفضل ثابت مكانه لو القائمة الشمال أطول
             className="sticky top-40 p-5 rounded-lg bg-white/5 border border-white/10 backdrop-blur-lg"
         >
             <div className="flex justify-between items-center mb-4">
@@ -34,7 +32,7 @@ export function FocusPanel({ notification, onClose }) {
                 <p className="text-gray-300">{notification.body}</p>
                 <span className="text-sm text-gray-500">{notification.timestamp}</span>
                 
-                {/* الأزرار الأساسية */}
+               
                 {notification.cta && (
                      <button className="w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors bg-cyan-400 text-black hover:bg-cyan-300">
                         {notification.cta}

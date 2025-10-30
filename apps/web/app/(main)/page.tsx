@@ -14,7 +14,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Preload, Float, Line, Text, useTexture, OrbitControls } from '@react-three/drei';
 import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue } from 'framer-motion';
 import { Bot, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map } from 'lucide-react';
-import { X } from 'lucide-react'; // Using X for Twitter icon
+import { X } from 'lucide-react'; 
 import * as THREE from 'three';
 
 const Cleanup = () => {
@@ -26,7 +26,7 @@ const Cleanup = () => {
   }, [gl]);
   return null; 
 };
-// --- Main Page Component ---
+
 export default function HomePage() {
   const { isOverlayVisible, setOverlayVisible } = useAIOrderingStore();
   const { isProductOverlayVisible, showProductOverlay, hideProductOverlay } = useUIStore();
@@ -57,7 +57,6 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
 
   return (
     <section ref={containerRef} className="relative h-screen w-full overflow-hidden">
-      {/* ... (3D Background Canvas code remains the same) ... */}
       <div className="absolute inset-0 z-0">
         <Suspense fallback={<div className="w-full h-full bg-transparent" />}>
           <Canvas camera={{ position: [0, 0, 15], fov: 75 }}>
@@ -68,9 +67,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
         </Suspense>
       </div>
 
-      {/* Foreground Content */}
       <motion.div style={{ y: parallaxY }} className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
-        {/* ... (h1 and p tags remain the same) ... */}
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -105,7 +102,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           transition={{ duration: 1, delay: 1.5 }}
           className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          {/* THIS BUTTON NOW USES the onOrderClick prop */}
+
           <button
             onClick={onOrderClick}
             className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-black bg-white rounded-full shadow-lg transition-transform duration-300 hover:scale-105 overflow-hidden"
@@ -125,13 +122,11 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
   );
 };
 
-// --- Hero 3D Background Component (Three.js / R3F) ---
 const Hero3DBackground = () => {
   const { viewport, mouse } = useThree();
   const droneRef = useRef<THREE.Group>(null!);
 
   useFrame(() => {
-    // Parallax effect for the drone
     if (droneRef.current) {
       droneRef.current.position.x = THREE.MathUtils.lerp(droneRef.current.position.x, mouse.x * 2, 0.05);
       droneRef.current.position.y = THREE.MathUtils.lerp(droneRef.current.position.y, mouse.y * 2, 0.05);
@@ -258,7 +253,7 @@ const HowItWorksSection = () => {
     hidden: {},
     visible: {
       transition: {
-        staggerChildren: 0.3, // يخلق تأخيرًا بين أنيميشن كل بطاقة
+        staggerChildren: 0.3, 
       },
     },
   };
@@ -270,7 +265,6 @@ const HowItWorksSection = () => {
 
   return (
     <section className="relative w-full py-24 px-4 bg-black overflow-hidden">
-      {/* شبكة خلفية خفية */}
       <div className="absolute inset-0 bg-grid-white/[0.05]" />
 
       <div className="container mx-auto">
@@ -292,7 +286,6 @@ const HowItWorksSection = () => {
           viewport={{ once: true, amount: 0.2 }}
           className="relative max-w-2xl mx-auto"
         >
-          {/* الخط الزمني المتوهج */}
           <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-cyan-400/20 -translate-x-1/2">
             <div className="absolute top-0 left-0 h-full w-full bg-cyan-400 blur-md" />
           </div>
@@ -322,7 +315,7 @@ const HowItWorksSection = () => {
                 </motion.div>
               </div>
 
-              {/* النقطة المتوهجة على الخط الزمني */}
+             
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-400 border-2 border-black">
                  <div className="absolute inset-0 rounded-full bg-cyan-400 blur-sm animate-pulse" />
               </div>
@@ -338,7 +331,7 @@ const HowItWorksSection = () => {
 // ============================================================================
 // --- 5. GLOBAL SCALE SECTION – "POWERING THE WORLD" ---
 // ============================================================================
-// --- Helper Component: Animated Counter ---
+
 const AnimatedCounter = ({ value, text }: { value: number, text: string }) => {
 
   const ref = useRef<HTMLParagraphElement>(null);
@@ -373,18 +366,16 @@ const AnimatedCounter = ({ value, text }: { value: number, text: string }) => {
   );
 };
 
-// --- Helper Component: 3D Globe ---
 const Globe = () => {
     const globeRef = useRef<THREE.Group>(null!);
-    const texture = useTexture('/textures/dark_earth.jpg'); // ضع هنا مسار صورة خريطة العالم
+    const texture = useTexture('/textures/dark_earth.jpg'); 
 
-    // بيانات المدن والمسارات
     const points = useMemo(() => [
-        { lat: 40.7128, lon: -74.0060 }, // New York
-        { lat: 51.5074, lon: -0.1278 },  // London
-        { lat: 35.6895, lon: 139.6917 }, // Tokyo
-        { lat: 34.0522, lon: -118.2437 },// LA
-        { lat: -33.8688, lon: 151.2093 },// Sydney
+        { lat: 40.7128, lon: -74.0060 }, 
+        { lat: 51.5074, lon: -0.1278 },  
+        { lat: 35.6895, lon: 139.6917 }, 
+        { lat: 34.0522, lon: -118.2437 },
+        { lat: -33.8688, lon: 151.2093 },
     ], []);
 
     const [paths, setPaths] = useState<THREE.CatmullRomCurve3[]>([]);
@@ -392,7 +383,6 @@ const Globe = () => {
     const pulseIndex = useRef(0);
     const pulseProgress = useRef(0);
 
-    // تحويل الإحداثيات وإنشاء المسارات
     useEffect(() => {
         const radius = 5;
         const getPos = (lat: number, lon: number) => {
@@ -422,7 +412,6 @@ const Globe = () => {
     useFrame((state, delta) => {
         globeRef.current.rotation.y += delta * 0.1;
 
-        // Pulse Animation
         if (paths.length > 0 && pulseRef.current) {
             pulseProgress.current += delta * 0.5;
             if (pulseProgress.current >= 1) {
@@ -436,19 +425,16 @@ const Globe = () => {
 
     return (
         <group ref={globeRef}>
-            {/* The Globe */}
             <mesh>
                 <sphereGeometry args={[5, 64, 64]} />
                 <meshStandardMaterial map={texture} color="#333" roughness={0.7} />
             </mesh>
-            {/* The Routes */}
             {paths.map((curve, i) => (
                 <mesh key={i}>
                     <tubeGeometry args={[curve, 64, 0.02]} />
                     <meshBasicMaterial color="#7F00FF" toneMapped={false} />
                 </mesh>
             ))}
-            {/* The Pulse */}
             <mesh ref={pulseRef}>
                 <sphereGeometry args={[0.08, 8, 8]} />
                 <meshBasicMaterial color="#00C6FF" toneMapped={false} />
@@ -461,7 +447,6 @@ const Globe = () => {
 const GlobalScaleSection = () => {
     return (
         <section className="relative py-24 px-4 h-[100vh] flex flex-col justify-center items-center overflow-hidden bg-black">
-            {/* 3D Canvas */}
             <div className="absolute inset-0 z-0">
                 <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
                     <ambientLight intensity={0.2} />
@@ -474,7 +459,6 @@ const GlobalScaleSection = () => {
                 </Canvas>
             </div>
 
-            {/* Foreground Content */}
             <div className="relative z-10 container mx-auto text-center">
                  <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -490,7 +474,6 @@ const GlobalScaleSection = () => {
                     </p>
                 </motion.div>
 
-                {/* Animated Stats */}
                 <motion.div
                      initial={{ opacity: 0, y: 30 }}
                      whileInView={{ opacity: 1, y: 0 }}
@@ -510,7 +493,6 @@ const GlobalScaleSection = () => {
 // --- 6. TESTIMONIALS / PARTNERS ---
 // ============================================================================
 
-// --- Dummy Data ---
 const testimonials = [
   {
     name: 'Elena M.',
@@ -535,8 +517,6 @@ const testimonials = [
   },
 ];
 
-
-// --- 2. New Reusable Components for Consistency ---
 const TrustSignal = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
     <div className="flex flex-col items-center justify-center h-full text-center gap-2 text-white">
         <div className="text-cyan-400 h-8 w-8 flex items-center justify-center">{icon}</div>
@@ -544,14 +524,12 @@ const TrustSignal = ({ icon, text }: { icon: React.ReactNode; text: string }) =>
     </div>
 );
 
-// --- 3. Final Trust Signals Array ---
 const trustSignals = [
     { name: 'Secure Payments', component: () => <TrustSignal icon={<Lock size={24} />} text="Secure Payments" /> },
     { name: 'Eco-Friendly', component: () => <TrustSignal icon={<Leaf size={24} />} text="Eco-Friendly" /> },
     { name: 'Insured', component: () => <TrustSignal icon={<ShieldCheck size={24} />} text="Insured & Reliable" /> },
 ];
 
-// --- Sub-Component: Testimonial Card ---
 const TestimonialCard = ({ testimonial }: { testimonial: typeof testimonials[0] }) => {
     return (
         <motion.div
@@ -585,7 +563,6 @@ const TestimonialCard = ({ testimonial }: { testimonial: typeof testimonials[0] 
     );
 };
 
-// --- Main Section Component ---
 const TestimonialsSection = () => {
   const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: 4000 })]);
 
@@ -604,7 +581,6 @@ const TestimonialsSection = () => {
     <section className="py-24 px-4 overflow-hidden relative">
       <div className="absolute inset-0 -z-10 bg-black bg-grid-white/[0.05]" />
       <div className="container mx-auto">
-        {/* Main Title */}
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -620,7 +596,6 @@ const TestimonialsSection = () => {
             </p>
         </motion.div>
 
-        {/* Testimonials Carousel */}
         <div className="overflow-hidden" ref={emblaRef}>
             <div className="flex gap-4">
                 {testimonials.map((t, i) => (
@@ -629,7 +604,6 @@ const TestimonialsSection = () => {
             </div>
         </div>
 
-        {/* Partners Grid */}
         <div className="mt-24">
             <motion.div
                 variants={partnerVariants}

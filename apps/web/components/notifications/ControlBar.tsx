@@ -12,7 +12,6 @@ export function ControlBar({ unreadCount, activeFilter, onFilterChange, onMarkAl
   return (
     <div className="sticky top-20 z-10 flex flex-col sm:flex-row justify-between items-center py-4 px-3 rounded-lg bg-black/50 backdrop-blur-md border-b border-white/10">
       
-      {/* Left: Title + Glow Line (النقطة 6 منفذة هنا) */}
       <div className="relative w-full sm:w-auto text-center sm:text-left mb-4 sm:mb-0">
         <div className="flex items-center justify-center sm:justify-start gap-3">
           <h1 className="text-3xl font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -31,8 +30,6 @@ export function ControlBar({ unreadCount, activeFilter, onFilterChange, onMarkAl
         <div className="glow-line-animation" />
       </div>
 
-      {/* --- (النقطة 7): Responsive Scroll --- */}
-      {/* --- (النقطة 5): Filter Hover (داخل الـ map) --- */}
       <div 
         className="flex items-center gap-2 pb-2 sm:pb-0 overflow-x-auto sm:overflow-x-visible 
                    whitespace-nowrap sm:whitespace-normal sm:flex-wrap sm:justify-center"
@@ -43,12 +40,12 @@ export function ControlBar({ unreadCount, activeFilter, onFilterChange, onMarkAl
             onClick={() => onFilterChange(filter)}
             className={`group relative px-4 py-2 rounded-full text-sm font-medium transition-colors duration-300
                 ${activeFilter === filter 
-                    ? 'text-black' // نشط
-                    : 'text-gray-300 bg-white/5 hover:bg-white/10 hover:text-white' // غير نشط
+                    ? 'text-black' 
+                    : 'text-gray-300 bg-white/5 hover:bg-white/10 hover:text-white'
                 }`}
           >
             {activeFilter === filter ? (
-              // --- الـ Pill النشط
+          
               <motion.div
                 layoutId="active-notification-pill"
                 className="absolute inset-0 bg-cyan-400 rounded-full"
@@ -56,7 +53,7 @@ export function ControlBar({ unreadCount, activeFilter, onFilterChange, onMarkAl
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               />
             ) : (
-              // --- (النقطة 5): الـ Glow عند الـ Hover (للغير نشط)
+              
               <motion.div
                 className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400 blur-[2px] opacity-0 
                            group-hover:opacity-100 transition-opacity"
@@ -67,7 +64,7 @@ export function ControlBar({ unreadCount, activeFilter, onFilterChange, onMarkAl
         ))}
       </div>
 
-      {/* Control Panel (زي ما هو) */}
+      
       <div className="relative hidden lg:flex items-center gap-2">
         <button 
           onClick={() => setMenuOpen(!menuOpen)} 

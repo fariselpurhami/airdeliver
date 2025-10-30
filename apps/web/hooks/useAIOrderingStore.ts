@@ -3,21 +3,20 @@
 
 import { create } from 'zustand';
 
-// The final, complete interface for all possible message types
 export interface Message {
   id: number;
   sender: 'user' | 'ai';
   contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion';
   content: any;
-  options?: string[];   // For interactive buttons
-  products?: any[];   // For product carousels
-  reason?: string;      // For "Explainable AI"
+  options?: string[];   
+  products?: any[];   
+  reason?: string;      
 }
 
 interface AIOrderingState {
   messages: Message[];
   isLoading: boolean;
-  isProcessing: boolean; // For the "cinematic" loading animation
+  isProcessing: boolean; 
   isOverlayVisible: boolean;
   suggestedProductIds: number[] | null;
   setOverlayVisible: (isVisible: boolean) => void;
@@ -45,7 +44,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     set((state) => ({
       messages: [...state.messages, userMessage, typingIndicator],
       isLoading: true,
-      isProcessing: true, // Trigger the cinematic loader
+      isProcessing: true, 
       suggestedProductIds: null,
     }));
 
@@ -60,7 +59,6 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
 
       const aiData = await response.json();
 
-      // The final mapping function that handles all rich data from the backend
       const aiMessages: Message[] = aiData.responses.map((res: any) => ({
           id: messageId++,
           sender: 'ai',
@@ -79,7 +77,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
       set((state) => ({
         messages: [...state.messages.filter(m => m.contentType !== 'typing'), ...aiMessages],
         isLoading: false,
-        isProcessing: false, // Turn off the cinematic loader
+        isProcessing: false, 
 	suggestedProductIds: suggestions.length > 0 ? suggestions : null,
       }));
 
@@ -93,9 +91,8 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
       set((state) => ({
         messages: [...state.messages.filter(m => m.contentType !== 'typing'), errorMessage],
         isLoading: false,
-        isProcessing: false, // Turn off the loader on error too
+        isProcessing: false, 
       }));
     }
   },
 }));
-

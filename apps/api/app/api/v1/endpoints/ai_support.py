@@ -1,4 +1,4 @@
-# file: apps/api/app/api/v1/endpoints/ai_support.py
+# apps/api/app/api/v1/endpoints/ai_support.py
 
 import logging
 from fastapi import APIRouter, Depends, HTTPException

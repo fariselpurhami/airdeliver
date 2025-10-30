@@ -2,30 +2,26 @@
 
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { useSession, signOut } from "next-auth/react";
-// Link is not used
 import { motion, useMotionValue, useSpring, useInView, AnimatePresence } from "framer-motion";
 import Image from 'next/image';
 import useSWR, { mutate } from 'swr';
-import { api } from '@/lib/api'; // Use axios directly
+import { api } from '@/lib/api'; 
 import { redirect } from 'next/navigation';
-import { toast } from 'sonner'; // For notifications
+import { toast } from 'sonner'; 
 import {
     User, Mail, MapPin, Phone, Clock, Loader2, LogOut, AlertCircle,
     CreditCard, Package, ShieldCheck, Edit3, KeyRound, Settings, Camera, ChevronRight
 } from 'lucide-react';
-// EditProfileModal seems unused based on previous interactions, commented out
-// import EditProfileModal from '@/components/profile/EditProfileModal';
 import ChangePasswordModal from '@/components/profile/ChangePasswordModal';
 import ViewOrdersModal from '@/components/profile/ViewOrdersModal';
 import EditProfileDetailsModal from '@/components/profile/EditProfileDetailsModal';
 
-// --- Interfaces ---
 interface UserProfileData {
     id: number; email: string; full_name?: string | null; role?: string | null;
     phone_number?: string | null; address?: string | null; avatar_url?: string | null;
     country?: string | null; city?: string | null; created_at?: string | null;
     orders_completed?: number; items_favorited?: number;
-    stripe_customer_id?: string | null; // Assuming this might be available
+    stripe_customer_id?: string | null; 
 }
 
 interface OrderRead {
@@ -47,32 +43,27 @@ interface PaginatedOrdersResponse {
     total: number; page: number; limit: number; orders: OrderRead[];
 }
 
-// Interface for the new payment data endpoint
 interface DefaultPaymentData {
     brand: string | null;
     last4: string | null;
 }
 
-// --- Main Profile Page Component ---
 export default function ProfilePage() {
     const { data: session, status: sessionStatus, update: updateSession } = useSession();
-    // Use relative paths, matching api.ts baseURL prefix
     const profileApiUrl = '/users/me';
     const ordersApiUrl = '/orders/me?page=1&limit=3';
-    const paymentApiUrl = '/users/me/default-payment-method'; // New API URL
-
-    // Use axios directly as the fetcher
+    const paymentApiUrl = '/users/me/default-payment-method'; 
     const swrFetcher = (url: string) => api.get(url).then(res => res.data);
 
-    // Fetch user profile data
+  
     const { data: userData, error: userError, isLoading: isLoadingUser, mutate: mutateProfile } = useSWR<UserProfileData>(
         sessionStatus === 'authenticated' ? profileApiUrl : null, swrFetcher, { revalidateOnFocus: false }
     );
-    // Fetch recent orders data
+    
     const { data: ordersData, error: ordersError, isLoading: isLoadingOrders } = useSWR<PaginatedOrdersResponse>(
         sessionStatus === 'authenticated' ? ordersApiUrl : null, swrFetcher, { revalidateOnFocus: false }
     );
-    // Fetch default payment method data
+   
     const { data: paymentData, error: paymentError, isLoading: isLoadingPayment } = useSWR<DefaultPaymentData>(
         sessionStatus === 'authenticated' ? paymentApiUrl : null, swrFetcher, { revalidateOnFocus: false }
     );
@@ -85,7 +76,6 @@ export default function ProfilePage() {
 
     useEffect(() => { setIsClient(true); }, []);
 
-    // Memoized computed values
     const joinedDate = useMemo(() => (
         userData?.created_at
             ? new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
@@ -100,15 +90,13 @@ export default function ProfilePage() {
         [userData?.address, userData?.city, userData?.country].filter(Boolean).join(', ') || null
     ), [userData?.address, userData?.city, userData?.country]);
 
-    // Modal handlers
+
     const handleOpenEditDetailsModal = () => setIsEditDetailsModalOpen(true);
     const handleCloseEditDetailsModal = () => setIsEditDetailsModalOpen(false);
     const handleOpenPasswordModal = () => setIsPasswordModalOpen(true);
     const handleClosePasswordModal = () => setIsPasswordModalOpen(false);
     const handleOpenOrdersModal = () => setIsOrdersModalOpen(true);
     const handleCloseOrdersModal = () => setIsOrdersModalOpen(false);
-
-    // --- API Interaction Handlers with Toasts ---
 
     const handleProfileDetailsSave = async (updatedData: Partial<UserProfileData>) => {
         if (!session?.accessToken) {
@@ -117,7 +105,7 @@ export default function ProfilePage() {
         }
         toast.promise(
             (async () => {
-                const response = await api.put<UserProfileData>(profileApiUrl, updatedData); // Uses baseURL + relative path
+                const response = await api.put<UserProfileData>(profileApiUrl, updatedData);
                 const updatedUser = response.data;
                 mutateProfile(updatedUser, false);
                 if (updatedData.full_name && session?.user) {
@@ -141,7 +129,7 @@ export default function ProfilePage() {
         }
         toast.promise(
              (async () => {
-                await api.post('/users/me/change-password', { // Uses baseURL + relative path
+                await api.post('/users/me/change-password', { 
                      current_password: currentPassword,
                      new_password: newPassword
                  });
@@ -165,7 +153,7 @@ export default function ProfilePage() {
         formData.append('file', file);
         toast.promise(
             (async () => {
-                 const response = await api.post<UserProfileData>('/users/me/avatar', formData, { // Uses baseURL + relative path
+                 const response = await api.post<UserProfileData>('/users/me/avatar', formData, { 
                      headers: { 'Content-Type': 'multipart/form-data' }
                  });
                  const updatedUser = response.data;
@@ -189,32 +177,26 @@ export default function ProfilePage() {
         visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
     };
 
-    // Combined loading state
     const isLoading = !isClient || sessionStatus === 'loading' ||
-                      (sessionStatus === 'authenticated' && (isLoadingUser || isLoadingPayment)); // Include payment loading
+                      (sessionStatus === 'authenticated' && (isLoadingUser || isLoadingPayment)); 
 
-    // Render loading state
     if (isLoading) return <LoadingSpinner />;
-
-    // Render redirect if unauthenticated on client
     if (isClient && sessionStatus === 'unauthenticated') redirect('/login');
 
-    // Render error state if profile fetch failed
     if (isClient && userError) {
         return (
             <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4">
                  <AlertCircle className="h-10 w-10 text-red-500 mb-3"/>
                 <h2 className="text-xl font-bold text-red-500 mb-2">Error Loading Profile</h2>
                 <p className='text-red-400 text-sm bg-red-900/50 p-3 rounded-md border border-red-800'>
-                    {/* Provide a fallback message */}
+                  
                     {(userError as any)?.message || 'Could not fetch profile data.'}
                 </p>
             </div>
         );
     }
 
-    // Prepare data for rendering (now guaranteed userData exists if no error)
-    const profileData = userData!; // Assert non-null after error check
+    const profileData = userData!; 
     const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'A')}&background=0a0f28&color=06b6d4&bold=true&size=128`;
     if (profileData?.avatar_url) {
       console.log("Attempting to load image:", userImage);
@@ -235,16 +217,16 @@ export default function ProfilePage() {
                 className="relative min-h-screen w-full bg-black text-gray-200 py-24 md:py-32 px-4 overflow-hidden"
                 style={{ fontFamily: "'Inter', sans-serif" }}
             >
-                <motion.div /* Background */
-                    className="absolute inset-0 z-0 bg-black" // Solid black background
+                <motion.div 
+                    className="absolute inset-0 z-0 bg-black" 
                 />
 
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="relative z-10 w-full max-w-4xl mx-auto space-y-12">
 
-                    {/* --- Profile Header --- */}
+                    
                     <motion.div variants={{ hidden: { opacity: 0, y: -20 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="flex flex-col items-center text-center">
                         <div className="relative group mb-5">
-                            <motion.div /* Avatar Glow */
+                            <motion.div 
                                 className="absolute -inset-1.5 rounded-full bg-cyan-400/50 opacity-70 blur-xl"
                                 animate={{ scale: [1, 1.05, 1], opacity: [0.6, 0.8, 0.6] }}
                                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -254,7 +236,7 @@ export default function ProfilePage() {
                                     src={userImage} alt={profileData?.full_name || 'User Avatar'}
                                     width={128} height={128} className="rounded-full border-2 border-black/50"
                                     unoptimized={true}
-                                    onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'E')}&background=ff0000&color=ffffff&bold=true&size=128`; }} // Fallback on error
+                                    onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'E')}&background=ff0000&color=ffffff&bold=true&size=128`; }} 
                                 />
                             </div>
                              <button className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20" onClick={handleAvatarUpload}>
@@ -273,7 +255,7 @@ export default function ProfilePage() {
                         )}
                     </motion.div>
 
-                    {/* --- Account Information Card --- */}
+                
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/30 p-6 md:p-8">
                         <h2 className="text-xl font-semibold text-cyan-400 mb-6 pb-4 border-b border-white/10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             Account Information
@@ -289,7 +271,7 @@ export default function ProfilePage() {
                         </motion.div>
                     </motion.div>
 
-                    {/* --- Settings Card --- */}
+           
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/30 p-6 md:p-8">
                          <h2 className="text-xl font-semibold text-cyan-400 mb-6 pb-4 border-b border-white/10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             Settings
@@ -300,7 +282,7 @@ export default function ProfilePage() {
                          </motion.div>
                     </motion.div>
 
-                    {/* --- Recent Orders Card --- */}
+               
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/30 p-6 md:p-8">
                         <div className="mb-5 flex justify-between items-center">
                             <h2 className="text-xl font-semibold text-cyan-400 inline-block" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -324,30 +306,28 @@ export default function ProfilePage() {
                         )}
                     </motion.div>
 
-                    {/* --- Payment & Shipping Info --- */}
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }}>
                         <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Payment Card (Updated) */}
+                           
                             <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl p-6 flex items-start gap-4">
                                 <CreditCard size={20} className="text-cyan-400/80 mt-1 flex-shrink-0" />
                                 <div>
                                     <h3 className="text-base font-semibold text-white mb-1">Default Payment</h3>
-                                    {/* --- Display Real Data --- */}
+                       
                                     {isLoadingPayment ? (
                                         <p className="text-sm text-gray-500 italic">Loading...</p>
                                     ) : paymentError ? (
                                         <p className="text-sm text-red-400 italic">Could not load</p>
                                     ) : paymentData?.brand && paymentData?.last4 ? (
-                                        <p className="text-sm text-gray-300 capitalize"> {/* Added capitalize */}
+                                        <p className="text-sm text-gray-300 capitalize">
                                             {paymentData.brand} ending in {paymentData.last4}
                                         </p>
                                     ) : (
                                          <p className="text-sm text-gray-500 italic">No default method set</p>
                                     )}
-                                    {/* ----------------------- */}
+                                
                                 </div>
                             </motion.div>
-                            {/* Shipping Card */}
                             <motion.div variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl p-6 flex items-start gap-4">
                                 <MapPin size={20} className="text-cyan-400/80 mt-1 flex-shrink-0" />
                                 <div>
@@ -360,7 +340,6 @@ export default function ProfilePage() {
                         </motion.div>
                     </motion.div>
 
-                    {/* --- Action Buttons --- */}
                     <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
                         <motion.button
                             onClick={handleOpenOrdersModal}
@@ -380,11 +359,9 @@ export default function ProfilePage() {
                 </motion.div>
             </main>
 
-            {/* --- Modals --- */}
              <EditProfileDetailsModal
                 isOpen={isEditDetailsModalOpen}
                 onClose={handleCloseEditDetailsModal}
-                // Assert non-null as profileData is checked earlier
                 userData={profileData!}
                 onSave={handleProfileDetailsSave}
             />
@@ -401,8 +378,6 @@ export default function ProfilePage() {
     );
 }
 
-
-// --- Sub-Components (Keep definitions here as per user preference) ---
 
 const LoadingSpinner = () => (
     <div className="flex min-h-screen w-full items-center justify-center bg-black">
@@ -450,7 +425,6 @@ const OrderCard = ({ order }: { order: OrderRead }) => {
     const defaultColor = 'text-gray-400 bg-gray-900/50 border-gray-700/50';
     const firstItem = order.items?.[0];
     const productName = firstItem?.product?.name || `Order #${order.id}`;
-    // Provide a fallback image URL
     const productImageUrl = firstItem?.product?.image_url || 'https://placehold.co/256x144/000000/FFF?text=Image';
 
     return (
@@ -459,14 +433,14 @@ const OrderCard = ({ order }: { order: OrderRead }) => {
             whileHover={{ y: -6, transition: { duration: 0.2, ease: 'easeOut' } }}
             className="w-64 flex-shrink-0 bg-black/40 border border-white/10 rounded-xl overflow-hidden shadow-lg backdrop-blur-md"
         >
-             {/* Use next/image correctly */}
+            
              <div className="relative w-full h-36">
                 <Image
                     src={productImageUrl} alt={productName} fill
                     className="object-cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" // Example sizes, adjust as needed
-                    unoptimized={productImageUrl.startsWith('https://placehold.co')} // Don't optimize placeholders
-                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/256x144/000000/FFF?text=Error'; }} // Fallback on error
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
+                    unoptimized={productImageUrl.startsWith('https://placehold.co')} 
+                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/256x144/000000/FFF?text=Error'; }} 
                 />
              </div>
             <div className="p-4 space-y-2">

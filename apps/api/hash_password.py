@@ -1,4 +1,5 @@
-# file: apps/api/hash_password.py
+# apps/api/hash_password.py
+
 import sys
 from app.core.security import get_password_hash
 
@@ -18,7 +19,6 @@ def hash_my_password(password_to_hash):
     print("Copy the hash above (starting with $2b$...) and paste it in your database.")
 
 if __name__ == "__main__":
-    # Get the password from the command line arguments
-    # (e.g., python hash_password.py my_secret_password)
+
     password = sys.argv[1] if len(sys.argv) > 1 else None
     hash_my_password(password)

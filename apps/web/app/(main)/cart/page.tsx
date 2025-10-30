@@ -9,14 +9,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCartStore, type CartItem } from '@/hooks/useCartStore';
 
-// A simple loading spinner to be used as a fallback
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center h-screen w-full bg-black">
         <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
     </div>
 );
 
-// --- Cart Item Card Component (with corrected Image component) ---
 const CartItemCard = ({ item }: { item: CartItem }) => {
     const { removeFromCart } = useCartStore();
     return (
@@ -54,7 +52,6 @@ const CartItemCard = ({ item }: { item: CartItem }) => {
     );
 };
 
-// --- Main Cart Page ---
 export default function CartPage() {
     const { items } = useCartStore();
     const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
@@ -105,11 +102,11 @@ export default function CartPage() {
 
                     <div className="relative">
                          <div className="sticky top-24">
-                            {/* The corrected summary card with flexbox for layout */}
+                           
                             <motion.div className="p-6 bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col min-h-[300px]">
                                 <h2 className="text-2xl font-bold text-white mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>AI Summary</h2>
                                 
-                                {/* This div now grows to push the button to the bottom */}
+                               
                                 <div className="flex-grow space-y-3 text-sm text-gray-300 border-b border-white/10 pb-4 mb-4">
                                     <div className="flex justify-between"><span>Subtotal</span> <span>${total.toFixed(2)}</span></div>
                                     <div className="flex justify-between"><span>Drone Allocation</span> <span>{items.length > 0 ? '1 Medium Fleet' : 'N/A'}</span></div>

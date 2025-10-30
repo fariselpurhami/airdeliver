@@ -1,3 +1,5 @@
+# apps/api/app/models/notification_subscription.py
+
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship

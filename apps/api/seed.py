@@ -1,4 +1,4 @@
-# file: apps/api/seed.py 
+# apps/api/seed.py 
 
 from sqlmodel import Session, SQLModel, create_engine, select
 from app.core.config import settings
@@ -34,7 +34,6 @@ def seed_db():
             session.delete(product)
         session.commit()
         print(f"Deleted {len(all_products)} old products.")
-        # --------------------------------------------------
 
         print("Seeding initial products with correct image_url paths...")
         initial_products = [

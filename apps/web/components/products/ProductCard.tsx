@@ -1,4 +1,5 @@
-// file: components/products/ProductCard.tsx (Corrected - Duplicate Removed)
+// apps/web/components/products/ProductCard.tsx
+
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -9,7 +10,6 @@ import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/hooks/useCartStore';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 
-// Custom Hook for the 3D tilt effect (Defined ONCE here)
 const useParallax = (ref: React.RefObject<HTMLDivElement>) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -36,7 +36,6 @@ const useParallax = (ref: React.RefObject<HTMLDivElement>) => {
   return { rotateX: yTransform, rotateY: xTransform };
 };
 
-// The Product interface
 export interface Product {
   id: number;
   name: string;
@@ -50,10 +49,9 @@ export interface Product {
   isAIRec?: boolean;
 }
 
-// --- The main Product Card Component ---
 export const ProductCard = ({ product, priority = false, onOpen }: { product: Product, priority?: boolean, onOpen: (product: Product) => void }) => {
   const cardRef = useRef<HTMLDivElement>(null);
-  const { rotateX, rotateY } = useParallax(cardRef); // Using the hook defined above
+  const { rotateX, rotateY } = useParallax(cardRef); 
   const { suggestedProductIds } = useAIOrderingStore();
   const isRecommendedByAI = product.isAIRec || suggestedProductIds?.includes(product.id);
 
@@ -110,5 +108,3 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
     </motion.div>
   );
 };
-
-// --- The duplicate useParallax function that was here has been DELETED ---

@@ -1,14 +1,11 @@
-# In airdeliver/apps/api/app/db/initial_data.py
+# apps/api/app/db/initial_data.py
 
 import os
 import sys
 
-# Correctly add the project root directory ('apps/api') to the path
-# This goes up two levels from the current file's directory (db -> app -> api)
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, project_root)
 
-# Now that the path is correct, the imports will work
 from sqlmodel import Session, select
 from app.db.session import engine
 from app import models

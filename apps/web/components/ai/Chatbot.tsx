@@ -1,4 +1,5 @@
-// file: apps/web/components/ai/Chatbot.tsx
+// apps/web/components/ai/Chatbot.tsx
+
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -6,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send, Bot, Cpu, User } from 'lucide-react';
 import { useAISupportStore, type ChatMessage } from '@/hooks/useAISupportStore';
 
-// --- Subcomponent: Explainability Chip ---
 const ExplainabilityChip = ({ text }: { text: string }) => (
     <motion.div 
         initial={{ opacity: 0, y: 5 }} 
@@ -18,7 +18,6 @@ const ExplainabilityChip = ({ text }: { text: string }) => (
     </motion.div>
 );
 
-// --- Subcomponent: Message Bubble ---
 const MessageBubble = ({ message }: { message: ChatMessage }) => {
     const isUser = message.sender === 'user';
     return (
@@ -37,7 +36,6 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
     );
 };
 
-// --- Main Chatbot Component ---
 export default function Chatbot() {
     const { isOpen, setIsOpen, messages, sendMessage, isLoading } = useAISupportStore();
     const [input, setInput] = useState('');

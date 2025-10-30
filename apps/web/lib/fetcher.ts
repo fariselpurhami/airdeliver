@@ -1,4 +1,4 @@
-// file: apps/web/lib/fetcher.ts
+// apps/web/lib/fetcher.ts
 
 import { getSession } from 'next-auth/react';
 

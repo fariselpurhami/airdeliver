@@ -1,7 +1,4 @@
-# file: apps/api/app/api/deps.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini 2.5 Pro
+# apps/api/app/api/deps.py
 
 from app.db.session import SessionLocal
 from typing import Generator
@@ -9,7 +6,6 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from sqlmodel import Session
-
 from app.core.config import settings
 from app.core import security
 from app.db.session import get_session
@@ -69,4 +65,5 @@ def get_current_admin_user(
         raise HTTPException(
             status_code=403, detail="The user doesn't have enough privileges"
         )
+
     return current_user

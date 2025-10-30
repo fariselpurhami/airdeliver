@@ -1,7 +1,4 @@
 # file: apps/drone-control/schemas/drone_commands.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini
 
 from pydantic import BaseModel, Field
 
@@ -16,4 +13,4 @@ class DroneStatus(BaseModel):
     longitude: float
     altitude: float
     battery_percent: int
-    status: str # e.g., "IDLE", "IN_TRANSIT", "RETURNING"
+    status: str 

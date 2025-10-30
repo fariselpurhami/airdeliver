@@ -5,18 +5,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from 'next-themes';
-// --- CHANGED: Removed 'Info', Added 'Bell' ---
 import { Home, Package, User, ShoppingCart, Sun, Moon, Menu, X as CloseIcon, Bell } from 'lucide-react';
-import { useCartStore } from '@/hooks/useCartStore'; // 1. Import the cart store
+import { useCartStore } from '@/hooks/useCartStore'; 
 
-// --- Navigation Items Data (CHANGED: Removed 'About') ---
 const navItems = [
     { href: '/', label: 'Home', icon: Home },
     { href: '/products', label: 'Products', icon: Package },
     { href: '/profile', label: 'Profile', icon: User },
 ];
 
-// --- Theme Toggle Component ---
 const ThemeToggle = () => {
     const [mounted, setMounted] = useState(false);
     const { theme, setTheme } = useTheme();
@@ -24,7 +21,7 @@ const ThemeToggle = () => {
     useEffect(() => setMounted(true), []);
 
     if (!mounted) {
-        return <div className="w-10 h-10" />; // Placeholder to prevent layout shift
+        return <div className="w-10 h-10" />; 
     }
 
     const isDark = theme === 'dark';
@@ -56,18 +53,14 @@ const ThemeToggle = () => {
 };
 
 
-// --- Main Header Component ---
 export default function Header() {
     const pathname = usePathname();
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-    // 2. Get items from the cart and calculate the total
     const cartItems = useCartStore((state) => state.items);
-    const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
-
-    // This handles hydration to prevent errors with localStorage
+    const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);e
     const [isMounted, setIsMounted] = useState(false);
+
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -80,7 +73,6 @@ export default function Header() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    // Prevent hydration mismatch by rendering an empty header on the server
     if (!isMounted) {
         return <header className="fixed top-0 left-0 right-0 z-50 h-20" />;
     }
@@ -98,12 +90,12 @@ export default function Header() {
                 className="fixed top-0 left-0 right-0 z-50 border-b"
             >
                 <div className="container mx-auto px-4 flex justify-between items-center h-20">
-                    {/* Logo */}
+                    
                     <Link href="/" className="text-2xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                         airdeliver
                     </Link>
 
-                    {/* Desktop Navigation */}
+                   
                     <nav className="hidden md:flex items-center gap-2 bg-white/5 p-1 rounded-full">
                         {navItems.map((item) => (
                             <Link key={item.href} href={item.href} className={`relative px-4 py-2 rounded-full text-sm font-medium transition-colors ${pathname === item.href ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
@@ -120,9 +112,9 @@ export default function Header() {
                         ))}
                     </nav>
 
-                    {/* Right Side Icons */}
+                  
                     <div className="hidden md:flex items-center gap-4">
-                        {/* 3. Updated Cart Link with Badge */}
+                     
                         <Link href="/cart" className="relative p-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10" aria-label="Cart">
                             <ShoppingCart size={22} />
                             {totalItems > 0 && (
@@ -137,16 +129,16 @@ export default function Header() {
                             )}
                         </Link>
                         
-                        {/* --- ADDED: Notification Icon --- */}
+                     
                         <Link href="/notifications" className="relative p-2 rounded-full text-gray-300 hover:text-white hover:bg-white/10" aria-label="Notifications">
                             <Bell size={22} />
-                            {/* You can add a notification badge here later, similar to the cart */}
+                          
                         </Link>
 
                         <ThemeToggle />
                     </div>
                     
-                    {/* Mobile Menu Button */}
+                
                     <div className="md:hidden">
                         <button onClick={() => setMobileMenuOpen(true)} className="p-2 text-white">
                             <Menu size={24} />
@@ -155,7 +147,7 @@ export default function Header() {
                 </div>
             </motion.header>
 
-            {/* Mobile Menu */}
+            
             <AnimatePresence>
                 {mobileMenuOpen && (
                     <motion.div
@@ -186,7 +178,7 @@ export default function Header() {
                                     </Link>
                                 ))}
                                 
-                                {/* --- ADDED: Mobile Notification Link --- */}
+                            
                                 <Link href="/notifications" onClick={() => setMobileMenuOpen(false)} className="relative flex items-center gap-3 p-3 rounded-lg text-lg text-gray-400">
                                     <Bell size={22} />
                                     <span>Notifications</span>

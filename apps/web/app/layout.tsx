@@ -1,4 +1,5 @@
-// file: apps/web/app/layout.tsx (النسخة المصححة)
+// apps/web/app/layout.tsx 
+
 import './globals.css';
 import type { Metadata } from 'next';
 import { Inter, Orbitron } from 'next/font/google';
@@ -21,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* --- 💡 التعديل هنا: تم إزالة bg-black و text-gray-200 --- */}
+
       <body className={`${inter.variable} ${orbitron.variable} font-sans`}>
         <Providers>
           <AppShell>
@@ -30,7 +31,7 @@ export default function RootLayout({
           <Toaster
             position="bottom-right"
             richColors
-            theme="dark" // يمكنك جعل هذا يتغير ديناميكياً بناءً على next-themes إذا أردت
+            theme="dark" 
             toastOptions={{
               style: { background: '#111', border: '1px solid #333', color: '#eee' },
             }}

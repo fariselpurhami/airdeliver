@@ -1,7 +1,4 @@
-// file: apps/web/components/checkout/CheckoutForm.tsx
-// version: 1.0.0
-// date: 2025-09-27
-// author: Gemini
+// apps/web/components/checkout/CheckoutForm.tsx
 
 'use client';
 
@@ -24,7 +21,6 @@ export default function CheckoutForm() {
     e.preventDefault();
 
     if (!stripe || !elements) {
-      // Stripe.js has not yet loaded.
       return;
     }
 
@@ -33,13 +29,10 @@ export default function CheckoutForm() {
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        // Make sure to change this to your payment completion page
         return_url: `${window.location.origin}/profile`,
       },
     });
 
-    // This point will only be reached if there is an immediate error when
-    // confirming the payment.
     if (error.type === "card_error" || error.type === "validation_error") {
       setMessage(error.message || "An unexpected error occurred.");
     } else {
@@ -57,7 +50,6 @@ export default function CheckoutForm() {
           {isLoading ? <div className="spinner" id="spinner"></div> : "Pay now"}
         </span>
       </Button>
-      {/* Show any error or success messages */}
       {message && <div id="payment-message" className="text-red-500 text-center mt-4">{message}</div>}
     </form>
   );

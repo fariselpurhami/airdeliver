@@ -7,7 +7,6 @@ import { useAIOrderingStore, Message } from '@/hooks/useAIOrderingStore';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
 
-// --- Subcomponent: Card for Rich Product Carousels ---
 const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (productName: string) => void }) => (
     <div className="embla__slide flex-[0_0_50%] md:flex-[0_0_40%]">
         <div className="flex flex-col p-4 bg-white/5 rounded-lg border border-white/10 h-full text-left">
@@ -30,7 +29,6 @@ const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (p
     </div>
 );
 
-// --- Subcomponent: The Product Carousel UI ---
 const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (productName: string) => void }) => {
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start' });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
@@ -49,7 +47,6 @@ const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (p
     );
 };
 
-// --- Subcomponent: Explainable AI "Reasoning" Chip ---
 const AIReasoning = ({ text }: { text: string }) => (
     <motion.div 
         initial={{ opacity: 0, y: 10 }} 
@@ -61,7 +58,6 @@ const AIReasoning = ({ text }: { text: string }) => (
     </motion.div>
 );
 
-// --- Subcomponent: The Master ChatMessage ---
 const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend: (text: string) => void }) => {
     const isAI = message.sender === 'ai';
 
@@ -110,7 +106,6 @@ const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend:
 });
 ChatMessage.displayName = 'ChatMessage';
 
-// --- All Other Subcomponents ---
 const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
@@ -168,7 +163,6 @@ const TypingIndicator = () => (
     </motion.div>
 );
 
-// --- Main Overlay Component ---
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     const { messages, isLoading, sendMessage } = useAIOrderingStore();
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -178,7 +172,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         <AnimatePresence>
             {isOpen && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
-                    {/* THIS IS THE LINE THAT CREATES THE TRANSPARENT EFFECT */}
+                   
                     <motion.div onClick={(e) => e.stopPropagation()} className="w-full max-w-7xl h-[95vh] max-h-[1000px] flex bg-black/50 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
                         <div className="w-full lg:w-2/3 flex flex-col">
                             <header className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0">

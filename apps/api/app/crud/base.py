@@ -1,7 +1,4 @@
 # file: apps/api/app/crud/base.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini 2.5 Pro
 
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 from fastapi.encoders import jsonable_encoder
@@ -28,4 +25,5 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
+
         return db_obj

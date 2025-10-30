@@ -4,10 +4,9 @@ import { CalendarDays } from 'lucide-react';
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Lock, CreditCard, User, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/Button'; // Assuming shadcn
-import { Input } from '@/components/ui/input'; // Assuming shadcn
+import { Button } from '@/components/ui/Button'; 
+import { Input } from '@/components/ui/input'; 
 
-// --- Futuristic Input Component ---
 const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>) => (
     <div className="relative">
         <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">{icon}</div>
@@ -15,7 +14,6 @@ const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.I
     </div>
 );
 
-// --- Main Checkout Page ---
 export default function CheckoutPage() {
     return (
         <main className="min-h-screen w-full bg-black text-gray-100 flex items-center justify-center p-4">
@@ -61,4 +59,3 @@ export default function CheckoutPage() {
         </main>
     );
 }
-

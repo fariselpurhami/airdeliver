@@ -1,0 +1,85 @@
+───────────────────────────────────────────────
+🔒 AIRDELIVER PROPRIETARY LICENSE
+───────────────────────────────────────────────
+Copyright (c) 2025 Faris Elpurhami
+All rights reserved.
+Operating under the brand name **airdeliver**
+
+───────────────────────────────────────────────
+
+1. OWNERSHIP & INTELLECTUAL PROPERTY
+   ───────────────────────────────────────────────
+   All source code, algorithms, AI models, APIs, documentation, system designs, user interfaces, workflows, and brand assets associated with **airdeliver** (the “Software”) are the exclusive intellectual property of Faris Elpurhami (the Founder and Owner).
+
+This includes—but is not limited to—all architecture, logic, data models, training datasets, and internal AI behaviors developed or generated as part of airdeliver’s platform.
+No ownership or rights are transferred to any party by viewing, accessing, or interacting with the Software.
+
+The Software is protected under international copyright, IP, and trade secret laws.
+
+───────────────────────────────────────────────
+2. AI OWNERSHIP CLAUSE
+───────────────────────────────────────────────
+Any code, logic, or artifact produced through AI assistance (including tools like Gemini, ChatGPT, Copilot, or others) within this project is considered **a derivative creation under the direction and authorship of Faris Elpurhami**.
+All rights, commercial usage, and derivative ownership belong exclusively to Faris Elpurhamiand **airdeliver**.
+AI tools are treated as instruments, not co-authors.
+
+───────────────────────────────────────────────
+3. LICENSE GRANT
+───────────────────────────────────────────────
+This license does **not** grant any permission to:
+
+* Copy or distribute the Software or any part thereof.
+* Modify, reverse-engineer, decompile, or extract its structure.
+* Use the Software to develop competing systems.
+* Reproduce or redistribute any components, branding, or trade secrets.
+
+Written authorization from Faris Elpurhami (airdeliver) is required for any access, use, or reference beyond viewing public documentation.
+
+───────────────────────────────────────────────
+4. CONFIDENTIALITY
+───────────────────────────────────────────────
+All components of the Software are confidential.
+Any contractors, contributors, or collaborators must sign a **Non-Disclosure Agreement (NDA)** before gaining access to any internal assets, source code, or documentation.
+
+Disclosure, copying, or transfer of any confidential information without written consent is strictly prohibited.
+
+───────────────────────────────────────────────
+5. TRADEMARK NOTICE
+───────────────────────────────────────────────
+The brand name **airdeliver**, its logo, design language, platform interface, and product identity are registered trademarks owned by Faris Elpurhami.
+Unauthorized use, imitation, or modification of these marks is forbidden.
+
+───────────────────────────────────────────────
+6. WARRANTY DISCLAIMER
+───────────────────────────────────────────────
+The Software is provided “as-is,” without any warranty, express or implied.
+airdeliver makes no guarantees regarding accuracy, reliability, or fitness for a particular purpose.
+All risks related to performance or usage remain solely with the user.
+
+───────────────────────────────────────────────
+7. LIMITATION OF LIABILITY
+───────────────────────────────────────────────
+In no event shall Faris Elpurhami or airdeliver be liable for any direct, indirect, incidental, or consequential damages resulting from use or inability to use the Software.
+
+───────────────────────────────────────────────
+8. TERMINATION
+───────────────────────────────────────────────
+Any violation of these terms immediately terminates this license.
+Upon termination, the Licensee must stop all use and destroy all copies of the Software.
+
+───────────────────────────────────────────────
+9. GOVERNING LAW & JURISDICTION
+───────────────────────────────────────────────
+This Agreement is governed by international IP law and the laws of the Arab Republic of Egypt.
+Exclusive jurisdiction resides with the competent courts in Cairo, Egypt.
+
+───────────────────────────────────────────────
+10. CONTACT
+───────────────────────────────────────────────
+For legal, licensing, or partnership inquiries, contact:
+📧 [legal@airdeliver.io](mailto:legal@airdeliver.io)
+
+───────────────────────────────────────────────
+END OF LICENSE
+───────────────────────────────────────────────
+

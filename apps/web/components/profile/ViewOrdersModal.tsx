@@ -1,24 +1,22 @@
-// file: apps/web/components/profile/ViewOrdersModal.tsx
+// apps/web/components/profile/ViewOrdersModal.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Package, Loader2, AlertCircle } from 'lucide-react';
 import useSWR from 'swr';
-import { fetcher } from '@/lib/fetcher'; // Assuming fetcher exists
-import Image from 'next/image'; // For order item images (if available)
+import { fetcher } from '@/lib/fetcher'; 
+import Image from 'next/image'; 
 
-// Interface matching the backend OrderRead schema
 interface Order {
     id: number;
     user_id: number;
     status: string;
     total_price: number;
     created_at: string;
-    // items: OrderItem[]; // Add if your API returns items
 }
 
-// Interface matching the backend PaginatedOrders schema
 interface PaginatedOrdersResponse {
     total: number;
     page: number;
@@ -26,7 +24,6 @@ interface PaginatedOrdersResponse {
     orders: Order[];
 }
 
-// Simple Order Item Row (expand later if needed)
 const OrderRow = ({ order }: { order: Order }) => {
     const statusColor = {
         Delivered: 'text-green-400', Shipped: 'text-cyan-400',
@@ -54,9 +51,8 @@ const OrderRow = ({ order }: { order: Order }) => {
 
 export default function ViewOrdersModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     const [page, setPage] = useState(1);
-    const limit = 10; // Orders per page
+    const limit = 10; 
 
-    // Fetch paginated orders for the current user
     const { data, error, isLoading } = useSWR<PaginatedOrdersResponse>(
         isOpen ? `/api/v1/orders/me?page=${page}&limit=${limit}` : null, 
         fetcher,
@@ -71,13 +67,13 @@ export default function ViewOrdersModal({ isOpen, onClose }: { isOpen: boolean; 
                 <motion.div
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     onClick={onClose}
-                    className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xl flex justify-center items-center p-4" // Increased blur
+                    className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xl flex justify-center items-center p-4"
                 >
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0, y: 50 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 50 }}
-                        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} // Smoother animation
+                        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-full max-w-5xl h-[85vh] max-h-[800px] flex flex-col bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden" // More transparency
+                        className="w-full max-w-5xl h-[85vh] max-h-[800px] flex flex-col bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden" 
                     >
                         <header className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0">
                             <h3 className="font-bold text-lg text-white flex items-center gap-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -88,7 +84,7 @@ export default function ViewOrdersModal({ isOpen, onClose }: { isOpen: boolean; 
                             </button>
                         </header>
 
-                        <div className="flex-grow p-1 overflow-y-auto"> {/* Reduced padding for table */}
+                        <div className="flex-grow p-1 overflow-y-auto"> 
                             {isLoading && !data && (
                                  <div className="flex items-center justify-center h-full">
                                     <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
@@ -125,7 +121,7 @@ export default function ViewOrdersModal({ isOpen, onClose }: { isOpen: boolean; 
                             )}
                         </div>
 
-                        {/* Pagination (only show if needed) */}
+                        
                         {totalPages > 1 && (
                             <footer className="p-3 border-t border-white/10 flex justify-between items-center flex-shrink-0">
                                 <button 

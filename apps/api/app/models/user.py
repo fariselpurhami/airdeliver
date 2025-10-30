@@ -1,4 +1,4 @@
-# file: airdeliver/apps/api/app/models/user.py (Corrected)
+# apps/api/app/models/user.py
 
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING, Dict, Any
@@ -7,11 +7,8 @@ from sqlalchemy import Column, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime
 from pydantic import EmailStr
-
-# Import Enum from the dedicated file
 from .enums import UserRole
 
-# Forward references for relationships
 if TYPE_CHECKING:
     from .order import Order
     from .gamification import UserBadge
@@ -33,17 +30,14 @@ class User(SQLModel, table=True):
     )
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    # Contact and Address Info
     phone_number: Optional[str] = Field(default=None, index=True, nullable=True)
     address: Optional[str] = Field(default=None, nullable=True)
     city: Optional[str] = Field(default=None, nullable=True)
     country: Optional[str] = Field(default=None, nullable=True)
     avatar_url: Optional[str] = Field(default=None, nullable=True)
 
-    # External Service IDs
     stripe_customer_id: Optional[str] = Field(default=None, index=True, nullable=True)
 
-    # Relationships defined using Mapped and sa_relationship
     orders: Mapped[List["Order"]] = Relationship(
         sa_relationship=relationship("Order", back_populates="user", cascade="all, delete-orphan")
     )
@@ -63,7 +57,7 @@ class User(SQLModel, table=True):
             cascade="all, delete-orphan"
         )
     )
-    ai_memory: Mapped[Optional["AIMemory"]] = Relationship( # Un-commented
+    ai_memory: Mapped[Optional["AIMemory"]] = Relationship( 
         sa_relationship=relationship("AIMemory", back_populates="user", cascade="all, delete-orphan", uselist=False)
     )
 

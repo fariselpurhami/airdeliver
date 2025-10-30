@@ -8,7 +8,6 @@ import { Cpu, Rocket, Leaf, Globe as GlobeIcon, Users } from 'lucide-react';
 import Image from 'next/image';
 import * as THREE from 'three';
 
-// --- Section 1: 3D Background for Hero ---
 const NeuralGridBackground = () => {
     const { mouse } = useThree();
     const groupRef = useRef<THREE.Group>(null!);
@@ -32,7 +31,6 @@ const NeuralGridBackground = () => {
     );
 };
 
-// --- Section 4: 3D Visuals for Technology Cards ---
 const AICoreVisual = () => (
     <Canvas camera={{ position: [0, 0, 3], fov: 50 }}>
         <ambientLight intensity={0.5} />
@@ -82,7 +80,6 @@ const SustainableGridVisual = () => (
     </Canvas>
 );
 
-// --- Section 4: Technology Card Component ---
 const TechnologyCard = ({ icon, title, text }: { icon: React.ReactNode, title: string, text: string }) => (
   <motion.div 
     variants={{ hidden: { opacity: 0, y: 50 }, visible: { opacity: 1, y: 0 } }}
@@ -96,7 +93,6 @@ const TechnologyCard = ({ icon, title, text }: { icon: React.ReactNode, title: s
   </motion.div>
 );
 
-// --- Section 5: Animated Counter Component ---
 const AnimatedCounter = ({ value, label }: { value: number; label: string; }) => {
     const ref = useRef<HTMLSpanElement>(null);
     const motionValue = useMotionValue(0);
@@ -124,7 +120,6 @@ const AnimatedCounter = ({ value, label }: { value: number; label: string; }) =>
     );
 };
 
-// --- Main About Page Component ---
 export default function AboutPage() {
   const scrollRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: scrollRef });
@@ -134,7 +129,6 @@ export default function AboutPage() {
   return (
     <div ref={scrollRef} className="bg-black text-white" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>
       
-      {/* 1. HERO SECTION */}
       <section className="relative h-screen w-full flex items-center justify-center text-center overflow-hidden">
         <div className="absolute inset-0 z-0 opacity-50">
             <Canvas>
@@ -163,7 +157,6 @@ export default function AboutPage() {
         </motion.div>
       </section>
 
-      {/* 2. OUR MISSION */}
       <section className="py-32 px-4 container mx-auto">
         <motion.div 
             style={{ scale: missionScale, opacity: missionOpacity }}
@@ -179,7 +172,6 @@ export default function AboutPage() {
         </motion.div>
       </section>
 
-      {/* 4. OUR TECHNOLOGY */}
       <section className="py-32 px-4 container mx-auto">
          <div className="text-center mb-16">
              <h2 className="text-4xl md:text-5xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>The AI Infrastructure</h2>
@@ -197,7 +189,6 @@ export default function AboutPage() {
         </motion.div>
       </section>
 
-      {/* 5. OUR IMPACT */}
        <section className="py-32 px-4 relative bg-black bg-grid-white/[0.05]">
             <div className="container mx-auto text-center">
                 <p className="text-2xl text-gray-300 mb-12 max-w-3xl mx-auto">We’re not just delivering products — we’re delivering progress.</p>
@@ -209,7 +200,6 @@ export default function AboutPage() {
             </div>
        </section>
 
-      {/* 6. THE HUMAN SIDE */}
       <section className="py-32 px-4">
         <div className="container mx-auto max-w-4xl text-center">
             <h2 className="text-4xl md:text-5xl font-bold mb-6" style={{ fontFamily: "'Orbitron', sans-serif" }}>Powered by People & AI</h2>
@@ -232,7 +222,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* 8. FOOTER */}
       <footer className="relative py-20 px-4 text-center border-t border-white/10 overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-black/50 backdrop-blur-md" />
         <h2 className="text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>Be Part of the Revolution.</h2>

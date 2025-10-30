@@ -1,47 +1,37 @@
 # file: docker-compose.drone.yml
-# For running the drone simulation stack
 
 services:
   px4-sitl:
     container_name: airdeliver-px4-sitl
     build:
-      context: ./drone-simulator # Use the Dockerfile created above
+      context: ./drone-simulator 
       dockerfile: Dockerfile
-    # Expose UDP port for companion AND potentially map to host for QGroundControl
     ports:
-      - "14540:14540/udp" # Companion connection
-      - "14550:14550/udp" # Map MAVLink for QGC/companion communication
+      - "14540:14540/udp"
+      - "14550:14550/udp" 
       - "14556:14556/udp"
       
     networks:
       - airdeliver-net
     environment:
-      # Add any PX4 SITL specific env vars here if needed
       - PX4_SIM_SPEED_FACTOR=1 
    
-
   companion:
     container_name: airdeliver-companion-sim
     build:
-      context: ./drone_client # Use the Dockerfile created above
+      context: ./drone_client 
       dockerfile: Dockerfile
     environment:
-      # --- Configure companion ---
-      - DRONE_ID=SIM-001 # Example ID for simulation
-      - WEBSOCKET_URI=ws://api:8000/ws/drones/ # Connect to API container's WS endpoint
-      - MAVLINK_CONNECTION=udp://px4-sitl:14540 # Connect to SITL container via UDP
-      - AUTH_TOKEN=your_secure_token_sim # Use a specific token for sim
-      # Add other env vars if needed (e.g., LOG_LEVEL)
+      - DRONE_ID=SIM-001 
+      - WEBSOCKET_URI=ws://api:8000/ws/drones/ 
+      - MAVLINK_CONNECTION=udp://px4-sitl:14540 
+      - AUTH_TOKEN=your_secure_token_sim 
     networks:
       - airdeliver-net
     depends_on:
       - px4-sitl
-      - api # Ensure API (with WS server) is ready
-    # Optional: Map local admin port
-    # ports:
-    #   - "127.0.0.1:8080:8080"
-    restart: unless-stopped # Restart if it crashes
+      - api 
+    restart: unless-stopped 
 
 networks:
-  airdeliver-net: # Ensure it uses the same network as the main docker-compose
-   # external: true # Assumes 'airdeliver-net' is defined in the main docker-compose.yml
+  airdeliver-net: 

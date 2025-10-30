@@ -1,7 +1,4 @@
-# file: apps/api/tests/test_ai_ordering.py
-# version: 1.0.0
-# date: 2025-09-27
-# author: Gemini
+# apps/api/tests/test_ai_ordering.py
 
 from app.services.ai_ordering_service import ai_ordering_service
 

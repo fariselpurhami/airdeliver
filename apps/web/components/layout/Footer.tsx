@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic';
 
 const Chatbot = dynamic(() => import('@/components/ai/Chatbot'), { 
   ssr: false,
-  loading: () => <p>Loading...</p> // (اختياري) يمكنك وضع أي شيء يظهر أثناء تحميل المكون
+  loading: () => <p>Loading...</p> 
 });
 
 const Tiktok = (props: React.SVGProps<SVGSVGElement>) => (
@@ -100,7 +100,6 @@ const Footer = () => {
             <ul className="space-y-2 text-sm">
                 {/* --- هذا هو السطر الذي تم تعديله --- */}
                 <li><Link href="/help" className="text-gray-400 hover:text-white transition-colors">Contact Us</Link></li>
-                {/* --- تم حذف السطر القديم من هنا --- */}
             </ul>
           </div>
         </div>

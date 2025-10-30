@@ -1,5 +1,4 @@
-# This file correctly triggers the loading of all models
-# via the app/models/__init__.py file.
+# apps/api/app/db/base.py
 
-from app.db.base_class import Base  # noqa
-from app import models  # noqa
+from app.db.base_class import Base  
+from app import models  

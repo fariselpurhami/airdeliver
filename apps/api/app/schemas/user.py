@@ -1,3 +1,5 @@
+# apps/api/app/schemas/user.py
+
 from sqlmodel import SQLModel, Field
 from pydantic import EmailStr
 from typing import Optional

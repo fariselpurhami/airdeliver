@@ -1,3 +1,5 @@
+# apps/api/app/models/gamification.py
+
 from __future__ import annotations
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List, TYPE_CHECKING

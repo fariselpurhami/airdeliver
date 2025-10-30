@@ -1,7 +1,4 @@
-// file: apps/web/__tests__/HomePage.test.tsx
-// version: 1.0.0
-// date: 2025-09-23
-// author: Gemini
+// apps/web/__tests__/HomePage.test.tsx
 
 import { render, screen } from '@testing-library/react'
 import HomePage from '../app/(main)/page'

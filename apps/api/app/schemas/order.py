@@ -1,9 +1,11 @@
+# apps/api/api/schemas/order.py  
+
 from sqlmodel import SQLModel, Field
 from typing import List, Optional
 from datetime import datetime
 from app.models.order import OrderStatus
-from app.schemas.product import ProductRead # Assuming ProductRead exists for API response
-from app.schemas.user import UserRead # Assuming UserRead exists for API response
+from app.schemas.product import ProductRead 
+from app.schemas.user import UserRead 
 
 class OrderItemBase(SQLModel):
     product_id: int
@@ -13,9 +15,9 @@ class OrderItemCreate(OrderItemBase):
     pass
 
 class OrderItemRead(OrderItemBase):
-    id: int # Assuming OrderItem model has an ID
+    id: int 
     price_per_unit: float
-    product: Optional[ProductRead] = None # Use ProductRead for API
+    product: Optional[ProductRead] = None 
 
     model_config = { "from_attributes": True }
 
@@ -31,7 +33,7 @@ class OrderUpdate(SQLModel):
 
 class OrderRead(OrderBase):
     id: int
-    user_id: int # Keep user_id for simplicity or embed UserRead
+    user_id: int 
     status: OrderStatus
     total_price: float
     created_at: datetime
@@ -47,8 +49,7 @@ class PaginatedOrders(SQLModel):
     limit: int
     orders: List[OrderRead]
 
-# Existing Order schema if used elsewhere, ensure fields match OrderRead if needed
 class Order(OrderRead):
-     # You might include the full User object here if needed by other parts
+    
      user: Optional[UserRead] = None 
      

@@ -1,106 +1,151 @@
-airdeliver
-we soar in the sky by delivering your orders.
+# airdeliver
 
-Airdeliver is a fully automated, intelligent eCommerce and Drone Delivery Platform. This monorepo contains the entire production-grade system, architected for enterprise scalability, global readiness, and operational excellence.
+*we soar in the sky by delivering your orders.*
 
-✨ Core Features
-End-to-End eCommerce Platform: A modern, performant Next.js frontend and a scalable FastAPI backend for a seamless user shopping experience.
+**Author:** Faris Elpurhami
 
-Intelligent Drone Control System: A dedicated microservice manages a fleet of drones in real-time using REST and WebSocket APIs, complete with a task queue and compliance layer for no-fly zones.
+---
 
-Global Payment Orchestration: A flexible backend service layer that intelligently routes payments through various gateways (Stripe, PayPal, etc.) based on region, supporting failover and easy expansion.
+## 🚀 Overview
 
-Advanced Observability: The entire system is instrumented for Prometheus and Grafana, with centralized structured logging and pre-defined SLOs for production monitoring.
+**airdeliver** is a fully automated, intelligent eCommerce and drone delivery platform — designed for next-generation commerce.
+It unifies online shopping, AI-powered order handling, and autonomous drone delivery in one production-grade system built for global scale and operational excellence.
 
-Production-Ready Infrastructure: Includes Docker Compose for local development and Kubernetes manifests for auto-scaling production deployments.
+---
 
-Comprehensive Testing: The platform is equipped with unit, integration, and load tests, plus a virtual drone simulator for end-to-end validation without hardware.
+## 🌍 Core Features
 
-🚀 Tech Stack
-Monorepo: pnpm Workspaces
+### 🛒 End-to-End eCommerce Platform
 
-Frontend: Next.js, React, TypeScript, Tailwind CSS, Framer Motion, Zustand
+A modern, high-performance **Next.js** frontend and **FastAPI** backend delivering a seamless shopping experience from browsing to checkout.
 
-Backend: FastAPI (Python), SQLModel, PostgreSQL, Alembic
+### 🚁 Intelligent Drone Control System
 
-Real-time Communication: WebSockets
+A dedicated microservice manages the drone fleet in real time using **REST** and **WebSocket APIs**, supported by:
 
-DevOps & Infrastructure: Docker, Kubernetes, Prometheus, Grafana, GitHub Actions
+* Automated task queueing and mission scheduling.
+* Dynamic no-fly zone compliance.
+* Virtual simulation for development and testing.
 
-Testing: Pytest (Backend), Jest & React Testing Library (Frontend), Locust (Load Testing)
+### 💳 Global Payment Orchestration
 
-📦 Monorepo Structure
-The project uses a standard apps/ and packages/ structure to maintain a clean separation of concerns.
+A modular backend service routes payments intelligently across gateways (**Stripe**, **PayPal**, etc.) depending on region, with built-in failover and easy scalability.
 
+### 📊 Advanced Observability
+
+Integrated **Prometheus** and **Grafana** dashboards for complete visibility.
+Centralized structured logging and defined **SLOs** ensure reliability in production environments.
+
+### 🧱 Production-Ready Infrastructure
+
+* **Docker Compose** for local development.
+* **Kubernetes manifests** for autoscaling, CI/CD, and resilient deployments.
+
+### 🧪 Comprehensive Testing
+
+Automated **unit**, **integration**, and **load testing** for both frontend and backend.
+Includes a **virtual drone simulator** for end-to-end validation without hardware.
+
+---
+
+## 🧠 Tech Stack
+
+| Layer              | Technologies                                                                     |
+| ------------------ | -------------------------------------------------------------------------------- |
+| **Frontend**       | Next.js, React, TypeScript, Tailwind CSS, Framer Motion, Zustand                 |
+| **Backend**        | FastAPI (Python), SQLModel, PostgreSQL, Alembic                                  |
+| **Real-time**      | WebSockets                                                                       |
+| **Infrastructure** | Docker, Kubernetes, Prometheus, Grafana, GitHub Actions                          |
+| **Testing**        | Pytest (Backend), Jest & React Testing Library (Frontend), Locust (Load Testing) |
+| **Monorepo**       | pnpm Workspaces                                                                  |
+
+---
+
+## 🏗️ Monorepo Structure
+
+```
 /airdeliver
 ├── apps/
 │   ├── api/            # Main eCommerce Backend (FastAPI)
 │   ├── drone-control/  # Drone Fleet Management Service (FastAPI)
-│   └── web/            # Customer-facing Frontend (Next.js)
-├── docs/               # High-level documentation (DR, Incident Response)
-├── drone-client/       # Python client code for drone hardware
-├── drone-simulator/    # Virtual drone fleet for testing
+│   └── web/            # Customer-Facing Frontend (Next.js)
+├── docs/               # High-Level Documentation (DR, Incident Response)
+├── drone-client/       # Python Client for Drone Hardware
+├── drone-simulator/    # Virtual Drone Fleet for Testing
 ├── infra/              # Infrastructure-as-Code (Kubernetes, Grafana)
-├── packages/           # Shared libraries (UI components, configs)
-├── README.md           # You are here!
-├── RUNBOOK.md          # The primary developer and operations manual
-└── SECURITY.md         # The project's security policy
-🛠️ Getting Started
-Follow these steps to get the entire airdeliver platform running on your local machine.
+├── packages/           # Shared Libraries (UI Components, Configs)
+├── README.md           # This File
+├── RUNBOOK.md          # Developer & Operations Manual
+└── SECURITY.md         # Security Policy
+```
 
-Prerequisites
-Docker & Docker Compose
+---
 
-Node.js v20+ & pnpm v9+
+## ⚙️ Getting Started
 
-Python v3.11+ & Poetry
+### Prerequisites
 
-Installation
-Clone the Repository:
+* Docker & Docker Compose
+* Node.js **v20+** and **pnpm v9+**
+* Python **v3.11+** and **Poetry**
 
-Bash
+### Installation
 
+```bash
+# Clone the repository
 git clone https://github.com/your-repo/airdeliver.git
 cd airdeliver
-Install All Dependencies:
-This command will install dependencies for all applications and packages in the monorepo.
 
-Bash
-
+# Install all dependencies
 pnpm install
 poetry install --all-extras
-Running the Stack
-The simplest way to run the entire application stack (all services + database) is with Docker Compose.
+```
 
-Configure Environment Variables:
+---
 
-Create a .env.local file in apps/web. A minimal setup requires NEXTAUTH_SECRET=your-secret and NEXTAUTH_URL=http://localhost:3000.
+## 🧭 Running the Stack
 
-The backend .env files will work out-of-the-box with the Docker Compose setup.
+### 1. Configure Environment Variables
 
-Launch with Docker Compose:
+Create `.env.local` inside `apps/web` with:
 
-Bash
+```
+NEXTAUTH_SECRET=your-secret
+NEXTAUTH_URL=http://localhost:3000
+```
 
+Backend `.env` files are preconfigured for Docker-based local development.
+
+### 2. Launch with Docker Compose
+
+```bash
 docker-compose up --build
-Once started, the services will be available at:
+```
 
-🌐 Frontend: http://localhost:3000
+Once started:
 
-📦 Main API: http://localhost:8000
+* 🌐 **Frontend:** [http://localhost:3000](http://localhost:3000)
+* 📦 **Main API:** [http://localhost:8000](http://localhost:8000)
+* 🚁 **Drone Control API:** [http://localhost:8001](http://localhost:8001)
 
-🚁 Drone Control API: http://localhost:8001
+---
 
-📚 Documentation
-This README.md is a high-level overview. For detailed technical and operational information, please refer to the following documents:
+## 📚 Documentation
 
-Developer Runbook (RUNBOOK.md): The primary guide for setup, testing, deployment, migrations, and SLO targets.
+| Document        | Description                                                         |
+| --------------- | ------------------------------------------------------------------- |
+| **RUNBOOK.md**  | Complete guide for setup, deployment, migrations, and service SLOs. |
+| **SECURITY.md** | Security measures and vulnerability reporting.                      |
+| **docs/**       | Disaster Recovery, Incident Response, and architectural overviews.  |
 
-Security Policy (SECURITY.md): Outlines our security measures and how to report vulnerabilities.
+---
 
-: Our strategy for maintaining service availability.
+## 🪪 License
 
-: Procedures for handling critical system incidents.
+This project is licensed under the **MIT License**.
+See the `LICENSE` file for details.
 
-📄 License
-This project is licensed under the MIT License. See the LICENSE file for details.
+---
+
+**airdeliver — redefining how commerce takes flight.**
+

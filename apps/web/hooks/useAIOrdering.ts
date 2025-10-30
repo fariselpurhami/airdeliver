@@ -1,7 +1,4 @@
 // file: apps/web/hooks/useAIOrdering.ts
-// version: 2.0.0 (Zustand Store)
-// date: 2025-09-30
-// author: Gemini
 
 import { create } from 'zustand';
 import { api } from '@/lib/api';
@@ -67,4 +64,3 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     }
   },
 }));
-

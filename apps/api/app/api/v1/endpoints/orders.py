@@ -1,8 +1,9 @@
+# apps/api/app/api/v1/endpoints/orders.py
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select, func
 from typing import List
 from sqlalchemy.orm import selectinload
-
 from app import schemas, models
 from app.models.product import Product
 from app.db.session import get_session

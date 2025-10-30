@@ -1,4 +1,4 @@
-# file: airdeliver/apps/api/app/models/aimemory.py
+# apps/api/app/models/aimemory.py
 
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING, Dict, Any
@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from .user import User
 
 class AIMemory(SQLModel, table=True):
-    __tablename__ = "ai_memory" # Added table name
-    id: Optional[int] = Field(default=None, primary_key=True) # Changed type hint
+    __tablename__ = "ai_memory" 
+    id: Optional[int] = Field(default=None, primary_key=True) 
     user_id: int = Field(foreign_key="users.id", unique=True)
 
     context_data: Dict[str, Any] = Field(sa_column=Column(JSON))

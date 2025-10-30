@@ -1,8 +1,9 @@
+# apps/api/app/schemas/notification.py 
+
 from sqlmodel import SQLModel
 from datetime import datetime
 from app.models.enums import NotificationType
 
-# Schema for reading a notification
 class NotificationRead(SQLModel):
     id: int
     title: str
@@ -11,10 +12,8 @@ class NotificationRead(SQLModel):
     read: bool
     cta: str | None
     created_at: datetime
-    # timestamp (for frontend)
-    timestamp: str # We will format this in the endpoint
+    timestamp: str 
 
-# Schema for creating (used internally by the system)
 class NotificationCreate(SQLModel):
     user_id: int
     title: str

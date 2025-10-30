@@ -1,17 +1,13 @@
-/* =================================================================
-   File: apps/web/app/globals.css
-   Version: Corrected and Cleaned
-   ================================================================= */
+/* apps/web/app/globals.css */
 
-/* --- 1. Font Imports (Corrected to be on single lines) --- */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Neue+Montreal:wght@400;500;700&family=Orbitron:wght@400;700;900&display=swap');
 
-/* --- 2. Tailwind Directives (Defined once) --- */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* --- 3. Base Layer and CSS Variables (Defined once) --- */
+/*==========*/
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -36,9 +32,11 @@
     --radius: 0.5rem;
   }
 
+  /*======================*/
+
   .dark {
-    --background: 0, 0%, 0%; /* Dark mode background */
-    --foreground: 0 0% 98%; /* Dark mode text */
+    --background: 0, 0%, 0%; 
+    --foreground: 0 0% 98%;
     --card: 0 0% 3.9%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 3.9%;
@@ -67,7 +65,6 @@
   }
 }
 
-/* --- 4. Custom Components and Animations --- */
 @layer components {
   .glowing-button {
     background: linear-gradient(90deg, #00c6ff, #7F00FF);
@@ -125,7 +122,7 @@
   .glow-line-animation::after {
     content: '';
     position: absolute;
-    width: 50%; /* عرض الخط المضيء */
+    width: 50%; 
     height: 100%;
     background: linear-gradient(90deg, transparent, #06b6d4, transparent);
     animation: move-glow 5s linear infinite;
@@ -133,7 +130,7 @@
   }
 
   
-/* --- 5. Keyframe Animations --- */
+/*====================*/
 @keyframes subtle-grid {
   0% { background-position: 0% 50%; }
   100% { background-position: 100% 50%; }
@@ -143,7 +140,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* Empty State */
+/* ==================*/
 @keyframes pulse-glow {
   0%, 100% {
     opacity: 0.5;
@@ -155,7 +152,7 @@
   }
 }
 
-/* */
+/*===================*/
 @keyframes move-glow {
   0% {
     left: -100%;

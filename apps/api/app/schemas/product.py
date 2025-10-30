@@ -1,3 +1,5 @@
+# apps/api/app/schemas/product.py 
+
 from sqlmodel import SQLModel, Field
 from typing import Optional
 

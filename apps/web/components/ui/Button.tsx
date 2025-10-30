@@ -1,7 +1,5 @@
-// file: apps/web/components/ui/Button.tsx
-// version: 1.0.0
-// date: 2025-09-23
-// author: Gemini 2.5 Pro
+// apps/web/components/ui/Button.tsx
+
 
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -49,4 +47,3 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 export { Button, buttonVariants };
-

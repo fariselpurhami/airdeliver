@@ -1,4 +1,4 @@
-// file: components/products/ProductOverlay.tsx
+// apps/web/components/products/ProductOverlay.tsx
 
 'use client';
 
@@ -58,7 +58,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                         onClick={(e) => e.stopPropagation()} 
                         className="w-full max-w-7xl h-[95vh] max-h-[1000px] flex flex-col bg-black/50 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden"
                     >
-                        {/* Header */}
+               
                         <header className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0">
                             <h3 className="font-bold text-lg text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 Explore Products
@@ -71,7 +71,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                             </button>
                         </header>
 
-                        {/* Product List */}
+                   
                         <div className="flex-grow p-6 overflow-y-auto">
                             {isLoading ? (
                                 <LoadingSpinner />

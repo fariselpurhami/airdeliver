@@ -1,4 +1,4 @@
-# file: airdeliver/apps/api/app/models/drone.py (Corrected)
+# apps/api/app/models/drone.py 
 
 from __future__ import annotations
 from typing import Optional, List, TYPE_CHECKING, Dict, Any
@@ -6,12 +6,9 @@ from sqlmodel import SQLModel, Field, Relationship, JSON, Column
 from sqlalchemy import Column, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime
-from pydantic import field_validator # Import validator
-
-# Import Enums from the dedicated file
+from pydantic import field_validator 
 from .enums import DroneStatus, EventType
 
-# Forward references
 if TYPE_CHECKING:
     from .order import Order
     from .mission import Mission
@@ -19,7 +16,7 @@ if TYPE_CHECKING:
 class Drone(SQLModel, table=True):
     __tablename__ = "drones"
     id: Optional[int] = Field(default=None, primary_key=True)
-    drone_id_str: str = Field(unique=True, index=True) # Public ID
+    drone_id_str: str = Field(unique=True, index=True) 
     model: Optional[str] = None
     status: DroneStatus = Field(
         default=DroneStatus.OFFLINE,
@@ -33,8 +30,7 @@ class Drone(SQLModel, table=True):
     home_base_lon: Optional[float] = None
     meta: Optional[Dict[str, Any]] = Field(default={}, sa_column=Column(JSON))
 
-    # Relationships
-    assigned_orders: Mapped[List["Order"]] = Relationship( # Direct link from Drone to Order
+    assigned_orders: Mapped[List["Order"]] = Relationship(
         sa_relationship=relationship("Order", back_populates="drone")
     )
     assigned_mission: Mapped[Optional["Mission"]] = Relationship(
@@ -47,17 +43,15 @@ class Drone(SQLModel, table=True):
         sa_relationship=relationship("DroneEvent", back_populates="drone", cascade="all, delete-orphan")
     )
 
-    # Corrected validator name
     @field_validator('current_battery_pct')
     @classmethod
-    def validate_battery_level(cls, v: Optional[int]) -> Optional[int]: # Made Optional to match field
+    def validate_battery_level(cls, v: Optional[int]) -> Optional[int]:
         if v is not None and not 0 <= v <= 100:
             raise ValueError('Battery level must be between 0 and 100')
         return v
 
     model_config = { "from_attributes": True }
 
-# Model for Telemetry Logs
 class DroneTelemetry(SQLModel, table=True):
     __tablename__ = "drone_telemetry"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -78,7 +72,6 @@ class DroneTelemetry(SQLModel, table=True):
 
     model_config = { "from_attributes": True }
 
-# Model for Drone Events
 class DroneEvent(SQLModel, table=True):
     __tablename__ = "drone_events"
     id: Optional[int] = Field(default=None, primary_key=True)

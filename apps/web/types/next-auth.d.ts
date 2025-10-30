@@ -1,9 +1,8 @@
-// file: apps/web/types/next-auth.d.ts
+// apps/web/types/next-auth.d.ts
 
 import { DefaultSession, DefaultUser } from 'next-auth';
 import { JWT, DefaultJWT } from 'next-auth/jwt';
 
-// قم بتوسيع تعريفات JWT
 declare module 'next-auth/jwt' {
   interface JWT extends DefaultJWT {
     role?: string;
@@ -11,7 +10,6 @@ declare module 'next-auth/jwt' {
   }
 }
 
-// قم بتوسيع تعريفات Session و User
 declare module 'next-auth' {
   interface Session {
     user: {

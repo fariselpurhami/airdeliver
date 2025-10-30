@@ -1,4 +1,4 @@
-// file: apps/web/app/api/auth/[...nextauth].ts
+// apps/web/app/api/auth/[...nextauth].ts
 
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -23,17 +23,16 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!res.ok) {
-            return null; // Login failed
+            return null; 
           }
 
           const tokenData = await res.json();
           const decodedToken: { sub: string, role: string, exp: number } = jwtDecode(tokenData.access_token);
           
-          // Return a user object that NextAuth can use
           return {
-            id: decodedToken.sub, // Using email as id for now
+            id: decodedToken.sub, 
             email: decodedToken.sub,
-            name: decodedToken.sub, // You can enhance this later
+            name: decodedToken.sub, 
             role: decodedToken.role,
             accessToken: tokenData.access_token,
           };
@@ -50,7 +49,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      // When user logs in, add custom properties to the JWT
+      
       if (user) {
         token.role = (user as any).role;
         token.accessToken = (user as any).accessToken;
@@ -58,7 +57,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      // Add custom properties to the session object
+      
       if (session.user) {
         (session.user as any).role = token.role;
         (session.user as any).accessToken = token.accessToken;
@@ -67,8 +66,8 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: '/login', // Redirect users to your custom login page
-    error: '/login', // Redirect users to login page on error
+    signIn: '/login', 
+    error: '/login', 
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

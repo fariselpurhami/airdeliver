@@ -2,8 +2,8 @@
 
 import { motion } from 'framer-motion';
 import { Search, SlidersHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/Button'; // Assuming shadcn Button
-import { Input } from '@/components/ui/input'; // Assuming shadcn Input
+import { Button } from '@/components/ui/Button'; 
+import { Input } from '@/components/ui/input'; 
 
 const categories = ["All", "Drones", "Pods", "Power Cells", "Accessories"];
 
@@ -16,7 +16,7 @@ export const ProductFilters = () => {
       className="sticky top-24 z-30 w-full max-w-5xl mx-auto"
     >
       <div className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex flex-col md:flex-row items-center gap-4">
-        {/* AI Search */}
+        
         <div className="relative w-full md:flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
           <Input 
@@ -26,7 +26,6 @@ export const ProductFilters = () => {
           />
         </div>
         
-        {/* Category Chips */}
         <div className="flex gap-2 overflow-x-auto">
           {categories.map(cat => (
             <Button 
@@ -39,7 +38,6 @@ export const ProductFilters = () => {
           ))}
         </div>
         
-        {/* Sorting (simplified) */}
         <Button variant="ghost" className="rounded-full text-gray-300 hover:bg-white/10 hover:text-white">
           <SlidersHorizontal size={16} className="mr-2" /> Sort
         </Button>

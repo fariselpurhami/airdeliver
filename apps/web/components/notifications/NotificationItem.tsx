@@ -11,7 +11,6 @@ import {
     Clock 
 } from 'lucide-react';
 
-// --- (النقطة 2): أيقونات حسب النوع ---
 const typeConfig = {
     order: { icon: Package, color: 'text-cyan-400' },
     security: { icon: Shield, color: 'text-amber-500' },
@@ -29,7 +28,6 @@ const getIcon = (type: string) => {
 export function NotificationItem({ notification, isSelected, onSelect, onMarkAsRead, onDismiss, index }) {
     const { id, type, title, body, timestamp, read, cta } = notification;
     
-    // --- (النقطة 2): Glow border ---
     const borderColor = read 
         ? 'border-gray-800' 
         : (type === 'security' ? 'border-amber-500' : 'border-cyan-400');
@@ -44,13 +42,13 @@ export function NotificationItem({ notification, isSelected, onSelect, onMarkAsR
     };
 
     return (
-        // --- (النقطة 4): Entry Motion ---
+       
         <motion.div
             layout
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
-            transition={{ delay: index * 0.07, duration: 0.3, ease: "easeOut" }} // <-- Staggered delay
+            transition={{ delay: index * 0.07, duration: 0.3, ease: "easeOut" }} 
             onClick={onSelect}
             className={`group relative flex items-start gap-4 p-4 rounded-lg cursor-pointer transition-all duration-300 border-l-2
                 ${read ? 'opacity-70 hover:opacity-100 bg-black/20' : 'bg-white/5'}
@@ -58,12 +56,12 @@ export function NotificationItem({ notification, isSelected, onSelect, onMarkAsR
                 ${borderColor} ${glowClass}
             `}
         >
-            {/* 1. Icon */}
+            
             <div className="flex-shrink-0 mt-1">
                 {getIcon(type)}
             </div>
 
-            {/* 2. Content */}
+            
             <div className="flex-1">
                 <h3 className={`font-semibold ${read ? 'text-gray-300' : 'text-white'}`}>
                     {title}
@@ -72,11 +70,10 @@ export function NotificationItem({ notification, isSelected, onSelect, onMarkAsR
                 <span className="text-xs text-gray-500 mt-2 block">{timestamp}</span>
             </div>
 
-            {/* --- (النقطة 3): Micro-actions --- */}
             <div className="flex flex-col items-end gap-2 ml-4">
                 {cta && (
                     <button 
-                        onClick={(e) => e.stopPropagation()} // سنبني الـ overlay لاحقاً
+                        onClick={(e) => e.stopPropagation()} 
                         className="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap
                                    bg-cyan-400 text-black hover:bg-cyan-300 transition-colors"
                     >
@@ -84,7 +81,6 @@ export function NotificationItem({ notification, isSelected, onSelect, onMarkAsR
                     </button>
                 )}
                 
-                {/* 3. Quick Actions (بتظهر عند الـ Hover) */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-8">
                     {!read && (
                         <button 

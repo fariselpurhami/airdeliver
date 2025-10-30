@@ -37,25 +37,25 @@ async def get_all_routes():
     """Temporary endpoint to list all registered routes."""
     route_list = []
     for route in app.routes:
-        # Check if it's a standard route with methods
+    
         if hasattr(route, "methods"):
             route_list.append({
                 "path": route.path,
                 "name": route.name,
                 "methods": list(route.methods) if route.methods else []
             })
-        # Check if it's a WebSocket route
+        
         elif isinstance(route, importlib.import_module('starlette.routing').WebSocketRoute):
              route_list.append({
                  "path": route.path,
                  "name": route.name,
                  "methods": ["WEBSOCKET"]
              })
-        # Handle mounted applications/routers if needed (might require recursion)
+        
         elif isinstance(route, importlib.import_module('starlette.routing').Mount):
-             # Simple representation for mounted apps/routers
+        
              route_list.append({
-                 "path": route.path + "/*", # Indicate it's a mount point
+                 "path": route.path + "/*", 
                  "name": route.name,
                  "methods": ["MOUNTED"]
              })

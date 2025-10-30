@@ -9,9 +9,6 @@ import { Stars } from '@react-three/drei';
 import { AtSign, Lock, User, ChevronsRight } from 'lucide-react';
 import * as THREE from 'three';
 
-// ... (كل المكونات المساعدة زي AIBackground و SignInForm تبقى كما هي) ...
-
-// --- Sign Up Form Component (هنا التعديل المهم) ---
 const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
@@ -27,8 +24,8 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
         setIsLoading(true);
 
         try {
-            // --- هذا هو السطر النهائي والصحيح 100% ---
-            const response = await fetch('/api/v1/users', { // <-- تم التأكد من عدم وجود سلاش
+            
+            const response = await fetch('/api/v1/users', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ full_name: fullName, email, password }),
@@ -74,8 +71,6 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
     );
 };
 
-// ... (باقي الملف زي ما هو بدون تغيير) ...
-// --- 3D Background Component ---
 const AIBackground = () => {
     const particlesRef = useRef<THREE.Points>(null!);
     useFrame(({ mouse }) => {
@@ -101,7 +96,6 @@ const AIBackground = () => {
     );
 };
 
-// --- Futuristic Input Component ---
 const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>) => (
     <div className="relative">
         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
@@ -114,7 +108,6 @@ const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.I
     </div>
 );
 
-// --- Sign In Form Component ---
 const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
     const router = useRouter();
     const [email, setEmail] = useState('');
@@ -136,7 +129,7 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
             if (result?.error) {
                 setError('Invalid credentials. Please try again.');
             } else if (result?.ok) {
-                router.push('/profile'); // Redirect to homepage on success
+                router.push('/profile');
             }
         } catch (err) {
             setError('An unexpected error occurred.');
@@ -166,7 +159,6 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
     );
 };
 
-// --- Main Authentication Page ---
 export default function AuthPage() {
     const [variant, setVariant] = useState<'SIGNIN' | 'SIGNUP'>('SIGNIN');
     const toggleVariant = () => setVariant(prev => prev === 'SIGNIN' ? 'SIGNUP' : 'SIGNIN');

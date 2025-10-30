@@ -1,12 +1,9 @@
-// file: apps/web/lib/api.ts
-// CORRECTED VERSION
+// apps/web/lib/api.ts
 
 import axios from 'axios';
 import { getSession } from 'next-auth/react';
 
 const api = axios.create({
-  // Use a relative path to make requests go through the Next.js proxy.
-  //baseURL: '/api/v1',
   baseURL: process.env.NEXT_PUBLIC_API_URL,
 });
 

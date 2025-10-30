@@ -2,9 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-// --- The Fix ---
-// 1. We define an interface for the SpeechRecognition object itself.
-//    This creates a global type named `SpeechRecognition`.
 interface SpeechRecognition {
   continuous: boolean;
   lang: string;
@@ -15,10 +12,8 @@ interface SpeechRecognition {
   stop: () => void;
 }
 
-// 2. We define a type for the constructor of the SpeechRecognition object.
 type SpeechRecognitionConstructor = new () => SpeechRecognition;
 
-// 3. We augment the global Window interface to tell TypeScript these constructors exist.
 declare global {
   interface Window {
     SpeechRecognition: SpeechRecognitionConstructor;
@@ -28,7 +23,6 @@ declare global {
 
 export const useSpeech = (onTranscript: (text: string) => void) => {
     const [isListening, setIsListening] = useState(false);
-    // Now this works, because the 'SpeechRecognition' type is defined globally.
     const recognition = useRef<SpeechRecognition | null>(null);
 
     useEffect(() => {

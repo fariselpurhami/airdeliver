@@ -1,4 +1,5 @@
-# file: apps/api/app/services/neural_core_service.py (Fixed)
+# file: apps/api/app/services/neural_core_service.py 
+
 import logging
 import httpx
 import re
@@ -6,9 +7,7 @@ from typing import Dict, Any, List
 from sqlmodel import Session, select
 from app.core.config import settings
 from app import models
-# --- 💡 تم إصلاح الخطأ هنا ---
-# تم تغيير المسار لاستيراد AIMemory من الملف الخاص به
-from app.models.aimemory import AIMemory  # Import the new persistent memory model
+from app.models.aimemory import AIMemory
 from app.schemas.ai_actions import NeuralCoreResponse, AddToCartAction, TrackOrderAction, ProductSearchAction, SupportHandoffAction
 import datetime
 import random
@@ -68,12 +67,10 @@ class NeuralCoreService:
         """--- NLU with Conversational Understanding Layer (Upgraded) ---"""
         message_lower = user_message.lower()
 
-        # 1. Contextual Confirmation Logic
         positive_confirmations = ["yes", "sure", "ok", "yep", "do it", "add it", "add to cart"]
         if last_intent == "present_product" and any(kw in message_lower for kw in positive_confirmations):
             return {"intent": "CONFIRM_ADD_TO_CART"}
 
-        # 2. Social & Emotional Intents
         greeting_keywords = ["hello", "hi", "hey", "مرحبا", "أهلا"]
         if any(kw in message_lower for kw in greeting_keywords):
             return {"intent": "GREETING"}
@@ -89,7 +86,6 @@ class NeuralCoreService:
            r"can you (feel|dream|think)",
            r"what is your name",
            r"who are you",
-           # Arabic variations
            r"هل انت (حقيقي|بوت|انسان|واعي|شخص)",
            r"انت مين",
            r"اسمك ايه",
@@ -103,24 +99,20 @@ class NeuralCoreService:
             "i'm good", "im good", "fine", "doing well", "great", "not bad", 
             "i'm fine", "feeling good", "i feel good", "yeah good", 
             "pretty good", "so good", "feeling so good", "all good",
-            "thanks", "thank you" # Added thanks as a social response
+            "thanks", "thank you" 
         }
 
         cleaned_message = re.sub(r'[^\w\s]', '', message_lower).strip()
 
-        # --- FIX 1: Check if ANY keyword is IN the message (Partial Match) ---
         if any(keyword in cleaned_message for keyword in social_responses):
             return {"intent": "SOCIAL_RESPONSE"}
 
-        # --- FIX 2: Understand Negative Social Responses ---
         social_responses_negative = {
             "not good", "bad", "sad", "terrible", "awful", "not great",
             "feeling bad", "i'm sad", "i feel bad", "تعبان", "متضايق", "زهقان"
         }
         if any(keyword in cleaned_message for keyword in social_responses_negative):
             return {"intent": "SOCIAL_RESPONSE_NEGATIVE"}
-
-        # 3. Operational & Functional Intents
         
         inquiry_keywords = [
             "price", "cost", "available", "availability", "in stock", "do you have", 
@@ -189,7 +181,6 @@ class NeuralCoreService:
         elif intent in self.SIMPLE_RESPONSE_MAP:
             text_response = random.choice(self.SIMPLE_RESPONSE_MAP[intent])
         
-        # --- FIX 2: Handle Negative Responses Empathetically ---
         elif intent == "SOCIAL_RESPONSE_NEGATIVE":
             text_response = random.choice([
                 "Oh no, I'm sorry to hear that. 😔 Is there anything I can help with?",
@@ -253,7 +244,7 @@ class NeuralCoreService:
                                 f"You got it! The **{title}** is currently {availability} and goes for ${price}. Want to grab it? 🛒",
                                 f"Currently, the **{title}** is priced at ${price} and it's {availability}."
                             ])
-                            # --- FIX 3: Override intent to set context for next turn ---
+                        
                             intent = "present_product"
                 
                 elif intent == "SUPPORT_HANDOFF":

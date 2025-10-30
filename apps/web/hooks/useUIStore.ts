@@ -1,4 +1,4 @@
-// file: hooks/useUIStore.ts
+// apps/web/hooks/useUIStore.ts
 
 import { create } from 'zustand';
 

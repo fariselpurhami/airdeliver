@@ -1,18 +1,14 @@
-# file: apps/api/app/services/notification_service.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini
+# apps/api/app/services/notification_service.py
 
 import json
 from pywebpush import webpush
 from typing import List
 from sqlmodel import Session, select
-
 from app.core.config import settings
 from app.models.notification_subscription import NotificationSubscription
 
-VAPID_PRIVATE_KEY = settings.VAPID_PRIVATE_KEY # Add to config
-VAPID_PUBLIC_KEY = settings.VAPID_PUBLIC_KEY # Add to config
+VAPID_PRIVATE_KEY = settings.VAPID_PRIVATE_KEY 
+VAPID_PUBLIC_KEY = settings.VAPID_PUBLIC_KEY 
 VAPID_CLAIMS = {"sub": "mailto:admin@airdeliver.com"}
 
 class NotificationService:
@@ -34,7 +30,6 @@ class NotificationService:
                 print(f"Error sending push notification: {e}")
 
     def send_email(self, email_address: str, subject: str, content: str):
-        # MOCK: In production, integrate with a service like SendGrid or Mailgun
         print("-" * 20)
         print(f"SENDING EMAIL to {email_address}")
         print(f"Subject: {subject}")
@@ -42,7 +37,6 @@ class NotificationService:
         print("-" * 20)
 
     def send_sms(self, phone_number: str, message: str):
-        # MOCK: In production, integrate with a service like Twilio
         print("-" * 20)
         print(f"SENDING SMS to {phone_number}")
         print(f"Message: {message}")

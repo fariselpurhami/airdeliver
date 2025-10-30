@@ -1,4 +1,4 @@
-// In apps/web/components/ClientOnly.tsx
+// apps/web/components/ClientOnly.tsx
 
 "use client";
 
@@ -16,8 +16,8 @@ export default function ClientOnly({ children }: ClientOnlyProps) {
   }, []);
 
   if (!hasMounted) {
-    return null; // Render nothing on the server
+    return null; 
   }
 
-  return <>{children}</>; // Render the children only on the client
+  return <>{children}</>; 
 }

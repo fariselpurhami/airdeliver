@@ -1,10 +1,10 @@
-# file: apps/api/app/services/payment_orchestrator.py
+# apps/api/app/services/payment_orchestrator.py
+
 import stripe
 from app.core.config import settings
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 
-# --- Abstract Payment Gateway Interface ---
 class PaymentGateway(ABC):
     @abstractmethod
     def create_payment(self, amount: float, currency: str, region: str) -> Dict[str, Any]:
@@ -14,7 +14,6 @@ class PaymentGateway(ABC):
     def get_status(self, payment_id: str) -> str:
         pass
 
-# --- Concrete Gateway Implementations ---
 class StripeGateway(PaymentGateway):
     def __init__(self):
         stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -61,8 +60,6 @@ class MpesaGateway(PaymentGateway):
     def get_status(self, payment_id: str) -> str:
         return "pending_confirmation"
 
-
-# --- Payment Orchestrator ---
 class PaymentOrchestrator:
     def __init__(self):
         self._gateways = {

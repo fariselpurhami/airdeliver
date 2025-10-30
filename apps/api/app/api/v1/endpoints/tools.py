@@ -1,4 +1,4 @@
-# file: apps/api/app/api/v1/endpoints/tools.py
+# apps/api/app/api/v1/endpoints/tools.py
 
 from app.models.product import Product
 from fastapi import APIRouter, Depends, Query
@@ -10,14 +10,13 @@ import random
 
 router = APIRouter()
 
-# --- In-Memory Database Simulation ---
 FAKE_INVENTORY_DB = {
     "sku_iphone_17_128": {"available_qty": 15, "reserved_qty": 2},
     "sku_case_leather_blk": {"available_qty": 50, "reserved_qty": 5},
 }
 FAKE_CARTS_DB = {}
 FAKE_USER_MEMORY_DB = {
-    "1": { # A sample user with ID 1
+    "1": { 
         "preferred_brands": ["Apple"],
         "address_book": [{"label": "home", "address": "El-Gesh Street, Cairo"}],
         "language_pref": "en"
@@ -25,19 +24,15 @@ FAKE_USER_MEMORY_DB = {
 }
 
 
-# --- Tool Definitions ---
-
 @router.get("/PRODUCT_SEARCH")
-# The function now correctly gets the database session
 def product_search(query: str = Query(..., description="Product name to search for"), db: Session = Depends(deps.get_session)):
-    """Searches the real database for products."""
+
     search_query = f"%{query.lower()}%"
-    # The query now correctly uses the imported 'Product' model and 'select' function
+
     products = db.exec(select(Product).where(Product.name.ilike(search_query))).all()
     if not products:
         return []
 
-    # Format the response to match what the AI expects
     return [
         {
             "sku": f"sku_{p.name.lower().replace(' ', '_')}_{p.id}",

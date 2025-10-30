@@ -5,10 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars, Point, Points } from '@react-three/drei';
 import { Bot, Mail, Phone, ChevronDown, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input'; // Assuming shadcn/ui
+import { Input } from '@/components/ui/input'; 
 import * as THREE from 'three';
 
-// --- Dummy Data for FAQ ---
 const faqItems = [
     {
         question: "How fast is the delivery?",
@@ -24,7 +23,6 @@ const faqItems = [
     },
 ];
 
-// --- 3D Background Component ---
 const NeuralLinesBackground = () => {
     const linesRef = useRef<THREE.Group>(null!);
     useFrame((state, delta) => {
@@ -44,7 +42,6 @@ const NeuralLinesBackground = () => {
     );
 };
 
-// --- Helper Component: Interactive Contact Card ---
 const ContactCard = ({ icon, title, text, delay }: { icon: React.ReactNode, title: string, text: string, delay: number }) => (
     <motion.div
         variants={{ hidden: { opacity: 0, y: 50 }, visible: { opacity: 1, y: 0 } }}
@@ -59,7 +56,6 @@ const ContactCard = ({ icon, title, text, delay }: { icon: React.ReactNode, titl
     </motion.div>
 );
 
-// --- Helper Component: FAQ Accordion Item ---
 const FaqItem = ({ item, isOpen, onToggle }: { item: any, isOpen: boolean, onToggle: () => void }) => (
     <motion.div layout className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
         <motion.header layout className="flex justify-between items-center p-6 cursor-pointer" onClick={onToggle}>
@@ -85,13 +81,12 @@ const FaqItem = ({ item, isOpen, onToggle }: { item: any, isOpen: boolean, onTog
     </motion.div>
 );
 
-// --- Main Help Center Page ---
 export default function HelpPage() {
     const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
 
     return (
         <div className="min-h-screen w-full bg-black text-white" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>
-            {/* 1. HERO SECTION */}
+      
             <section className="relative h-[80vh] w-full flex items-center justify-center text-center overflow-hidden">
                 <div className="absolute inset-0 z-0 opacity-40">
                     <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
@@ -123,7 +118,6 @@ export default function HelpPage() {
                 </motion.div>
             </section>
 
-            {/* 2. SMART CONTACT OPTIONS */}
             <section className="py-24 px-4 container mx-auto">
                 <motion.div
                     initial="hidden"
@@ -137,7 +131,6 @@ export default function HelpPage() {
                 </motion.div>
             </section>
 
-            {/* 3. KNOWLEDGE BASE / FAQ */}
             <section className="py-24 px-4 bg-black bg-grid-white/[0.05]">
                 <div className="container mx-auto max-w-4xl text-center">
                     <h2 className="text-4xl md:text-5xl font-bold text-white mb-12" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -164,7 +157,6 @@ export default function HelpPage() {
                 </div>
             </section>
             
-            {/* FOOTER */}
             <footer className="py-20 px-4 text-center border-t border-white/10">
                 <p className="text-gray-400">airdeliver © 2025 – Intelligent Support, Powered by AI.</p>
             </footer>

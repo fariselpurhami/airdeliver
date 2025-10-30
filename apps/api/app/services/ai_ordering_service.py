@@ -1,5 +1,4 @@
 # apps/api/app/services/ai_ordering_service.py
-# --- FINAL FIX VERSION ---
 
 import re
 from sqlmodel import Session, select
@@ -56,23 +55,19 @@ class AIOrderingService:
     def _recalculate_cart_total(self, cart: dict):
         cart['total'] = sum(item['price'] * item['quantity'] for item in cart['items'])
 
-    # --- THIS FUNCTION IS NOW FIXED ---
     def _format_product_for_frontend(self, p: Product) -> dict:
         """
         Takes a Product SQLModel object and formats its dictionary
         with the correct image_url path for the frontend.
         """
         product_data = p.model_dump()
-        image_filename = product_data.get("image_url") # Read from "image_url"
+        image_filename = product_data.get("image_url") 
         
         if image_filename:
-            # Overwrite "image_url" with the full path
             product_data["image_url"] = image_filename
         else:
-            # Provide a default if it's missing
             product_data["image_url"] = "default.jpeg"
         
-        # Also write to "image" just in case frontend uses it
         product_data["image"] = product_data["image_url"]
         return product_data
 
@@ -102,13 +97,12 @@ class AIOrderingService:
             
             if len(products) > 1:
                 self.conversation_state["stage"] = "AWAITING_CLARIFICATION"
-                # Use the fixed function here
+            
                 product_list = [self._format_product_for_frontend(p) for p in products]
                 return [{"contentType": "text", "content": "I found a few items. Which one did you mean?"}, {"contentType": "product_carousel", "products": product_list}]
 
             product = products[0]
             
-            # --- FIX: Use the formatting function BEFORE adding to cart ---
             formatted_product = self._format_product_for_frontend(product)
             
             cart['items'].append({
@@ -116,12 +110,11 @@ class AIOrderingService:
                 "name": product.name, 
                 "quantity": 1, 
                 "price": product.price,
-                "image_url": formatted_product["image_url"] # <-- Add the correct image path
+                "image_url": formatted_product["image_url"] 
             })
             self._recalculate_cart_total(cart)
             
             suggestions = db.exec(select(Product).where(Product.id != product.id).limit(2)).all()
-            # And use the fixed function here for suggestions
             suggestion_list = [self._format_product_for_frontend(p) for p in suggestions]
 
             self.conversation_state["stage"] = "AWAITING_CONFIRMATION"
