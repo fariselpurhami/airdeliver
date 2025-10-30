@@ -84,7 +84,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           style={{ fontFamily: "'Orbitron', sans-serif" }}
         >
           <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400">
-            THE FUTURE
+            THE FUTURE. DELIVERED BY DRONE.
           </span>
         </motion.h1>
         <motion.p
@@ -93,7 +93,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           transition={{ duration: 1, delay: 1.2 }}
           className="mt-6 max-w-2xl text-base md:text-lg text-gray-300"
         >
-          Experience the world’s first AI-driven delivery network merging intelligence, speed, and sustainability.
+          Experience the world's first AI-driven drone delivery network merging, intelligence, speed, and sustainability.
         </motion.p>
 
         <motion.div
