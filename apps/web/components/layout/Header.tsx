@@ -58,7 +58,7 @@ export default function Header() {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const cartItems = useCartStore((state) => state.items);
-    const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);e
+    const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {

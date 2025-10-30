@@ -1,4 +1,4 @@
-// apps/web/hooks/useRealtimeUpdates.ts
+// apps/web/hooks/useRealtimeUpdates.ts  
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
@@ -47,18 +47,15 @@ export function useRealtimeUpdates(
     const connectWebSocket = useCallback(() => {
        
         if (ws.current && ws.current.readyState !== WebSocket.CLOSED) {
-            console.log('WebSocket already connected or connecting.');
             return;
         }
 
         if (!session) {
-             console.log('Skipping WebSocket connection: No session.');
              setIsConnected(false);
              return;
         }
        
         if (droneIdToTrack === undefined) { 
-             console.log('Skipping WebSocket: droneIdToTrack is undefined');
              setIsConnected(false);
              return;
         }
@@ -68,25 +65,21 @@ export function useRealtimeUpdates(
         const wsPath = droneIdToTrack ? `/ws/drones/${droneIdToTrack}` : '/ws/ui';
         const wsUri = `${wsProtocol}://${wsHost}${wsPath}`;
 
-        console.log(`Attempting to connect WebSocket: ${wsUri}`);
         ws.current = new WebSocket(wsUri);
         setIsConnected(false); 
 
         ws.current.onopen = () => {
-            console.log('WebSocket Connected');
             setIsConnected(true);
 
             if (reconnectTimer.current) {
                 clearTimeout(reconnectTimer.current);
                 reconnectTimer.current = null;
             }
-            
         };
 
         ws.current.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                console.log('WebSocket Message:', message);
 
                 if (message.type === 'telemetry_update' && message.drone_id === droneIdToTrack) {
                     setLatestTelemetry(message.payload);
@@ -101,30 +94,23 @@ export function useRealtimeUpdates(
                         });
                     }
                 } else if (message.type === 'pong') {
-                    console.log('WebSocket Pong received');
                    
                 }
                 
             } catch (error) {
-                console.error('Failed to parse WebSocket message:', error);
                 toast.error("Received invalid data from server.");
             }
         };
 
         ws.current.onerror = (error) => {
-            console.error('WebSocket Error:', error);
-            setIsConnected(false);
-           
              toast.error("WebSocket connection error.");
         };
 
         ws.current.onclose = (event) => {
-            console.log('WebSocket Disconnected:', event.code, event.reason);
             setIsConnected(false);
             ws.current = null;
             
-            if (!event.wasClean && reconnectTimer.current === null) 
-                 console.log('Attempting WebSocket reconnect in 5 seconds...');
+            if (!event.wasClean && reconnectTimer.current === null) {
                  reconnectTimer.current = setTimeout(connectWebSocket, 5000); 
             }
         };
@@ -136,13 +122,11 @@ export function useRealtimeUpdates(
 
         const intervalId = setInterval(() => {
             if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-                console.log('Sending WebSocket Ping');
                 ws.current.send(JSON.stringify({ type: 'ping' }));
             }
         }, 30000); 
 
         return () => {
-            console.log('Cleaning up WebSocket connection.');
             clearInterval(intervalId);
             if (reconnectTimer.current) {
                 clearTimeout(reconnectTimer.current); 
@@ -158,11 +142,9 @@ export function useRealtimeUpdates(
             try {
                  ws.current.send(JSON.stringify(message));
             } catch (error) {
-                 console.error("Failed to send WebSocket message:", error);
                  toast.error("Failed to send message to server.");
             }
         } else {
-            console.error("Cannot send message: WebSocket not connected.");
             toast.warning("Cannot send message: Not connected to server.");
         }
     }, []); 

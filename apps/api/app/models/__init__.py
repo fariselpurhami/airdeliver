@@ -26,7 +26,7 @@ __all__ = [
     "DroneStatus",
     "MissionStatus",
     "NotificationType",
-    "EventType",s
+    "EventType",
     "AuditTrail",
     "Drone",
     "DroneTelemetry",
