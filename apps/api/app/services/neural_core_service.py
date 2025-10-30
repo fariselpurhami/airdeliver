@@ -37,7 +37,7 @@ class NeuralCoreService:
     }
 
     def _get_or_create_memory(self, db: Session, user: models.User) -> AIMemory:
-        """Retrieves or creates a persistent memory record for the user from the database."""
+        
         memory = db.exec(select(AIMemory).where(AIMemory.user_id == user.id)).first()
         if not memory:
             memory = AIMemory(user_id=user.id, context_data={
@@ -64,7 +64,7 @@ class NeuralCoreService:
         return "neutral"
 
     def _parse_intent(self, user_message: str, last_intent: str) -> Dict:
-        """--- NLU with Conversational Understanding Layer (Upgraded) ---"""
+    
         message_lower = user_message.lower()
 
         positive_confirmations = ["yes", "sure", "ok", "yep", "do it", "add it", "add to cart"]

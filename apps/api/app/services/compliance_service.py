@@ -19,10 +19,7 @@ class ComplianceService:
         return R * c
 
     def validate_flight_path(self, start_coords: Tuple[float, float], end_coords: Tuple[float, float]) -> bool:
-        """
-        Validates if a flight path intersects with any known no-fly zones.
-        This is a simplified check; a real implementation would check the entire line segment.
-        """
+        
         for zone in NO_FLY_ZONES:
             dist_to_end = self._haversine_distance(end_coords[0], end_coords[1], zone["lat"], zone["lon"])
             if dist_to_end <= zone["radius_km"]:

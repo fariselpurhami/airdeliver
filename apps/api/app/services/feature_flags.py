@@ -9,8 +9,9 @@ class FeatureFlags:
         }
 
     def is_enabled(self, flag_name: str, user_id: int) -> bool:
-        """Check if a flag is enabled for a specific user."""
+
         is_global, percentage = self._flags.get(flag_name, (False, 0))
+
         if is_global:
             return True
 
