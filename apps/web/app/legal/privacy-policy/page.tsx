@@ -6,7 +6,6 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Lock, EyeOff, ShieldCheck, FileText, ChevronDown } from 'lucide-react';
 import * as THREE from 'three';
 
-// --- Dummy Data for Policy Clauses ---
 const policyClauses = [
   {
     title: "Information We Collect",
@@ -25,7 +24,6 @@ const policyClauses = [
   }
 ];
 
-// --- 3D Background Component ---
 const FlowingParticles = () => {
     const pointsRef = useRef<THREE.Points>(null!);
     const count = 5000;
@@ -56,7 +54,6 @@ const FlowingParticles = () => {
     );
 };
 
-// --- Helper Component: AI Ethics Card ---
 const EthicsCard = ({ icon, title, text, delay }: { icon: React.ReactNode; title: string; text: string; delay: number }) => (
     <motion.div
         variants={{ hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0 } }}
@@ -69,7 +66,6 @@ const EthicsCard = ({ icon, title, text, delay }: { icon: React.ReactNode; title
     </motion.div>
 );
 
-// --- Helper Component: Dual Mode Toggle ---
 const DualModeToggle = ({ mode, setMode }: { mode: 'human' | 'legal', setMode: (mode: 'human' | 'legal') => void }) => (
     <div className="flex justify-center mb-12">
         <div className="bg-black/30 border border-white/10 rounded-full p-1 flex gap-1">
@@ -85,7 +81,6 @@ const DualModeToggle = ({ mode, setMode }: { mode: 'human' | 'legal', setMode: (
     </div>
 );
 
-// --- Helper Component: Interactive Policy Section ---
 const PolicySection = ({ clause, mode, isOpen, onToggle }: { clause: any, mode: 'human' | 'legal', isOpen: boolean, onToggle: () => void }) => (
     <motion.div layout className="bg-black/30 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-lg">
         <motion.header layout className="flex justify-between items-center p-6 cursor-pointer" onClick={onToggle}>
@@ -114,14 +109,13 @@ const PolicySection = ({ clause, mode, isOpen, onToggle }: { clause: any, mode: 
     </motion.div>
 );
 
-// --- Main Privacy Policy Page ---
 export default function PrivacyPolicyPage() {
     const [mode, setMode] = useState<'human' | 'legal'>('human');
     const [expandedSection, setExpandedSection] = useState<number | null>(0);
 
     return (
         <div className="min-h-screen w-full bg-black text-white" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>
-            {/* 1. HERO SECTION */}
+           
             <section className="relative h-screen w-full flex items-center justify-center text-center overflow-hidden">
                 <div className="absolute inset-0 z-0 opacity-60">
                     <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
@@ -138,7 +132,7 @@ export default function PrivacyPolicyPage() {
                 </motion.div>
             </section>
 
-            {/* 2. AI DATA ETHICS OVERVIEW */}
+          
             <section className="py-24 px-4 container mx-auto text-center">
                 <motion.h2 initial={{ opacity: 0, y:20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-4xl md:text-5xl font-bold mb-16" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                     Built on Trust. Secured by AI.
@@ -151,7 +145,7 @@ export default function PrivacyPolicyPage() {
                 </motion.div>
             </section>
 
-            {/* 3 & 4. INTERACTIVE POLICY SECTIONS */}
+           
             <section className="py-24 px-4 bg-black bg-grid-white/[0.05]">
                 <div className="container mx-auto max-w-4xl">
                     <DualModeToggle mode={mode} setMode={setMode} />
@@ -169,7 +163,7 @@ export default function PrivacyPolicyPage() {
                 </div>
             </section>
 
-            {/* 6. COMPLIANCE SECTION */}
+          
             <section className="py-24 px-4 text-center">
                 <h2 className="text-3xl font-bold mb-8 text-gray-400" style={{ fontFamily: "'Orbitron', sans-serif" }}>Our Commitments</h2>
                 <div className="flex justify-center gap-8 flex-wrap">
@@ -182,7 +176,7 @@ export default function PrivacyPolicyPage() {
                 <p className="mt-8 text-sm text-gray-500">airdeliver operates under full international compliance and continuous AI auditing.</p>
             </section>
 
-            {/* 7. FINAL STATEMENT */}
+         
             <footer className="py-24 px-4 text-center">
                  <p className="text-2xl text-gray-300 mb-8 max-w-3xl mx-auto" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>
                     “We believe privacy is not about hiding data — it’s about giving you power over it.”

@@ -6,7 +6,6 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { ChevronDown, ShieldCheck } from 'lucide-react';
 import * as THREE from 'three';
 
-// --- Dummy Data for Legal Clauses ---
 const clauses = [
   {
     title: "1. Data & Privacy Integrity",
@@ -25,7 +24,6 @@ const clauses = [
   },
 ];
 
-// --- 3D Background Component ---
 const AnimatedGridBackground = () => {
     const materialRef = useRef<THREE.ShaderMaterial>(null!);
     useFrame(({ clock }) => {
@@ -56,7 +54,6 @@ const AnimatedGridBackground = () => {
     );
 };
 
-// --- Helper Component: Dual Mode Toggle ---
 const DualModeToggle = ({ mode, setMode }: { mode: 'human' | 'legal', setMode: (mode: 'human' | 'legal') => void }) => (
     <div className="flex justify-center mb-12">
         <div className="bg-black/30 border border-white/10 rounded-full p-1 flex gap-1">
@@ -72,7 +69,6 @@ const DualModeToggle = ({ mode, setMode }: { mode: 'human' | 'legal', setMode: (
     </div>
 );
 
-// --- Helper Component: Interactive Legal Card ---
 const LegalCard = ({ clause, mode, isOpen, onToggle }: { clause: any, mode: 'human' | 'legal', isOpen: boolean, onToggle: () => void }) => (
     <motion.div layout className="bg-black/30 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-lg">
         <motion.div layout className="flex justify-between items-center p-6 cursor-pointer" onClick={onToggle}>
@@ -103,22 +99,19 @@ const LegalCard = ({ clause, mode, isOpen, onToggle }: { clause: any, mode: 'hum
     </motion.div>
 );
 
-// --- Helper Component: Visual Data Divider ---
 const DataDivider = () => (
     <div className="h-24 w-full flex items-center justify-center">
         <div className="h-px w-full max-w-lg bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
     </div>
 );
 
-
-// --- Main Terms of Service Page ---
 export default function TermsOfServicePage() {
     const [mode, setMode] = useState<'human' | 'legal'>('human');
     const [expandedCard, setExpandedCard] = useState<number | null>(0);
 
     return (
         <div className="min-h-screen w-full bg-black text-gray-100">
-            {/* 1. HERO SECTION */}
+        
             <section className="relative h-screen w-full flex items-center justify-center text-center overflow-hidden">
                 <div className="absolute inset-0 z-0 opacity-40">
                     <Canvas>
@@ -136,7 +129,6 @@ export default function TermsOfServicePage() {
                 </motion.div>
             </section>
 
-            {/* 2 & 3. INTERACTIVE LEGAL SECTIONS */}
             <section className="container mx-auto px-4 py-24 max-w-4xl">
                 <DualModeToggle mode={mode} setMode={setMode} />
                 <motion.div layout className="space-y-4">
@@ -154,7 +146,6 @@ export default function TermsOfServicePage() {
 
             <DataDivider />
 
-            {/* 6. FOOTER */}
             <footer className="py-20 px-4 text-center relative">
                 <div className="flex flex-col items-center gap-4">
                     <div className="relative flex items-center gap-2 border border-green-400/50 bg-green-900/50 text-green-300 px-4 py-2 rounded-lg">
