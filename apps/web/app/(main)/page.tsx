@@ -72,9 +72,9 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.5 }}
-          className="mb-4 text-sm font-light tracking-[0.3em] text-gray-400 uppercase"
+          className="mb-4 text-sm font-light tracking-[0.3em] text-gray-200 uppercase"
         >
-          AI. AUTONOMY. A NEW AGE OF COMMERCE.
+          AI. AUTONOMY. REDEFINING E-COMMERCE.
         </motion.p>
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
@@ -84,7 +84,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           style={{ fontFamily: "'Orbitron', sans-serif" }}
         >
           <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400">
-            THE FUTURE. DELIVERED BY DRONE.
+            COMMERCE. TAKES FLIGHT.
           </span>
         </motion.h1>
         <motion.p
@@ -93,7 +93,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           transition={{ duration: 1, delay: 1.2 }}
           className="mt-6 max-w-2xl text-base md:text-lg text-gray-300"
         >
-          Experience the world's first AI-driven drone delivery network merging, intelligence, speed, and sustainability.
+          Experience the World’s First AI-Driven Delivery Infrastructure — Faster, Smarter, and Fully Autonomous.
         </motion.p>
 
         <motion.div
