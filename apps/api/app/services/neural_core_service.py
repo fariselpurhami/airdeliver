@@ -241,7 +241,7 @@ class NeuralCoreService:
                             title = product.get("title")
                             text_response = random.choice([
                                 f"The **{title}** is {availability} and priced at ${price}.",
-                                f"You got it! The **{title}** is currently {availability} and goes for ${price}. Want to grab it? 🛒",
+                                f"You got it! The **{title}** is currently {availability} and goes for ${price}.",
                                 f"Currently, the **{title}** is priced at ${price} and it's {availability}."
                             ])
                         
