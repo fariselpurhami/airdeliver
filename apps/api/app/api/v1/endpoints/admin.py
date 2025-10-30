@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select, func
 from typing import List
 from datetime import datetime, timedelta
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 import random 
 from app.api import deps
 from app import models
@@ -26,8 +26,7 @@ class AdminOrder(BaseModel):
     total_price: float
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PaginatedAdminOrdersResponse(BaseModel):
     total_orders: int

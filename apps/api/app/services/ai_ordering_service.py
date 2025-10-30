@@ -21,7 +21,6 @@ class AIOrderingService:
         if session_id not in SESSION_CARTS:
             SESSION_CARTS[session_id] = {"items": [], "total": 0.0}
         return SESSION_CARTS[session_id]
-
     def _parse_intent(self, message: str) -> dict:
         message_lower = message.lower()
         add_keywords = ['buy', 'add', 'get', 'want', 'need', 'order']
@@ -41,17 +40,34 @@ class AIOrderingService:
                 if len(parts) > 1 and parts[1].strip():
                     product_name = parts[1].strip()
                     return {"intent": "REMOVE_FROM_CART", "product_name": product_name}
-        
+
         for keyword in add_keywords:
             if keyword in message_lower:
                 parts = message_lower.split(keyword, 1)
                 if len(parts) > 1 and parts[1].strip():
-                    product_name = parts[1].strip().replace('a ', '').replace('an ', '').replace('some ', '').strip().rstrip('s')
-                    return {"intent": "ADD_TO_CART", "quantity": 1, "product_name": product_name}
-        
+                    payload = parts[1].strip() 
+                    quantity = 1
+                    quantity_match = re.search(r'(\d+)', payload) 
+                    if quantity_match:
+                        quantity = int(quantity_match.group(1))
+                        payload = re.sub(r'(\d+)', '', payload).strip()
+
+                    articles = ['a ', 'an ', 'some ']
+                    for article in articles:
+                        if payload.startswith(article):
+                            payload = payload[len(article):]
+
+                    product_name = payload.strip()
+                    product_name = product_name.rstrip('s')
+                    stop_words_at_end = ['to my order', 'from my cart', 'for me', 'please']
+                    for phrase in stop_words_at_end:
+                        if product_name.endswith(phrase):
+                            product_name = product_name[:-len(phrase)].strip()
+
+                    return {"intent": "ADD_TO_CART", "quantity": quantity, "product_name": product_name}
+
         if any(keyword in message_lower for keyword in view_cart_keywords): return {"intent": "VIEW_CART"}
         return {"intent": "UNKNOWN"}
-
     def _recalculate_cart_total(self, cart: dict):
         cart['total'] = sum(item['price'] * item['quantity'] for item in cart['items'])
 
@@ -61,13 +77,13 @@ class AIOrderingService:
         with the correct image_url path for the frontend.
         """
         product_data = p.model_dump()
-        image_filename = product_data.get("image_url") 
-        
+        image_filename = product_data.get("image_url")
+
         if image_filename:
             product_data["image_url"] = image_filename
         else:
             product_data["image_url"] = "default.jpeg"
-        
+
         product_data["image"] = product_data["image_url"]
         return product_data
 
@@ -84,7 +100,7 @@ class AIOrderingService:
                  return [{"contentType": "text", "content": "Please choose an option by clicking one of the buttons."}]
         else:
             parsed_data = self._parse_intent(message)
-        
+
         intent = parsed_data.get("intent")
         self.conversation_state["stage"] = "IDLE"
 
@@ -94,26 +110,26 @@ class AIOrderingService:
 
             if not products:
                 return [{"contentType": "text", "content": f"I couldn't find a product matching '{product_name}'. Please try another."}]
-            
+
             if len(products) > 1:
                 self.conversation_state["stage"] = "AWAITING_CLARIFICATION"
-            
+
                 product_list = [self._format_product_for_frontend(p) for p in products]
                 return [{"contentType": "text", "content": "I found a few items. Which one did you mean?"}, {"contentType": "product_carousel", "products": product_list}]
 
             product = products[0]
-            
+
             formatted_product = self._format_product_for_frontend(product)
-            
+
             cart['items'].append({
-                "product_id": product.id, 
-                "name": product.name, 
-                "quantity": 1, 
+                "product_id": product.id,
+                "name": product.name,
+                "quantity": 1,
                 "price": product.price,
-                "image_url": formatted_product["image_url"] 
+                "image_url": formatted_product["image_url"]
             })
             self._recalculate_cart_total(cart)
-            
+
             suggestions = db.exec(select(Product).where(Product.id != product.id).limit(2)).all()
             suggestion_list = [self._format_product_for_frontend(p) for p in suggestions]
 
@@ -122,14 +138,14 @@ class AIOrderingService:
 
             if suggestion_list:
                 responses.append({"contentType": "proactive_suggestion", "content": "Customers who bought this also love:", "products": suggestion_list, "reason": "I selected these based on top-seller data and immediate availability."})
-            
+
             responses.append({"contentType": "confirmation_prompt", "content": "Ready to go, or would you like to add anything else?", "options": ["Confirm Order", "Modify Cart", "Cancel Order"]})
             return responses
-            
+
         if intent == "REMOVE_FROM_CART":
             product_name_to_remove = parsed_data["product_name"]
             item_to_remove = next((item for item in cart['items'] if product_name_to_remove in item['name'].lower()), None)
-            
+
             if not item_to_remove:
                 return [{"contentType": "text", "content": f"I couldn't find '{product_name_to_remove}' in your cart."}]
 
@@ -144,7 +160,7 @@ class AIOrderingService:
             self._clear_state_and_cart()
             empty_cart = self._get_user_cart()
             return [{"contentType": "text", "content": f"Confirmed! Your order for ${total:.2f} is being processed. Thank you!"}, {"contentType": "cart_preview", "content": empty_cart}]
-        
+
         if intent == "MODIFY_CART":
             self.conversation_state["stage"] = "IDLE"
             return [{"contentType": "text", "content": "Okay, what would you like to change? You can ask me to add or remove another item."}]
@@ -153,7 +169,7 @@ class AIOrderingService:
             self._clear_state_and_cart()
             empty_cart = self._get_user_cart()
             return [{"contentType": "text", "content": "No problem, your cart has been cleared."}, {"contentType": "cart_preview", "content": empty_cart}]
-        
+
         return [{"contentType": "text", "content": "I'm sorry, I didn't quite understand. To start, you can ask me to 'buy' an item."}]
 
 ai_ordering_service = AIOrderingService()

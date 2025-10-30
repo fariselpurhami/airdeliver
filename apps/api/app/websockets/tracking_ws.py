@@ -426,11 +426,6 @@ async def update_command_status(command_id: str, status: str):
     
 router = APIRouter()
 
-@router.on_event("startup")
-async def startup_event():
-    await initialize_redis()
-    log.info("WebSocket Router Started.")
-
 @router.websocket("/drones/{drone_id}") 
 async def websocket_endpoint(websocket: WebSocket, drone_id: str, background_tasks: BackgroundTasks):
     await websocket.accept()
@@ -457,7 +452,7 @@ async def websocket_endpoint(websocket: WebSocket, drone_id: str, background_tas
 
         except (asyncio.TimeoutError, json.JSONDecodeError, ValidationError, ValueError) as e:
             reason = f"Authentication Failed: {e}"
-            log.warning(reason, drone_id=drone_id)
+            log.warning(f"{reason} (drone_id: {drone_id})")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
             return
 
@@ -500,13 +495,13 @@ async def websocket_endpoint(websocket: WebSocket, drone_id: str, background_tas
             except json.JSONDecodeError:
                 log.warning("Invalid JSON received", drone_id=drone_id)
             except Exception as e:
-                log.error("WebSocket communication error", drone_id=drone_id, error=str(e), exc_info=True)
+                log.error(f"WebSocket communication error (drone_id: {drone_id}): {e}", exc_info=True)
                 break 
 
     except WebSocketDisconnect as e:
         log.info(f"Drone disconnected", drone_id=drone_id, code=e.code, reason=e.reason)
     except Exception as e:
-        log.error(f"Unexpected WebSocket error", drone_id=drone_id, error=str(e), exc_info=True)
+        log.error(f"Unexpected WebSocket error (drone_id: {drone_id}): {e}", exc_info=True)
         if websocket.client_state == WebSocketState.CONNECTED:
              await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
     finally:

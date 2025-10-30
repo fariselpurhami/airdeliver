@@ -1,5 +1,6 @@
 
 import logging
+from contextlib import asynccontextmanager
 import importlib
 import os
 from app.db import base
@@ -11,7 +12,7 @@ from starlette.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from app.api.v1.api import api_router
 from app.core.config import settings
-from app.websockets.tracking_ws import router as tracking_router
+from app.websockets.tracking_ws import router as tracking_router, initialize_redis
 from app.core.limiter import limiter
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -22,9 +23,39 @@ from pathlib import Path
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    print("--- Lifespan: Running startup tasks ---")
+    create_db_and_tables()
+    await initialize_redis()
+
+    print("--- Lifespan: Ensuring static directory exists ---")
+    Path(STATIC_DIRECTORY_STR).mkdir(parents=True, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=STATIC_DIRECTORY_STR), name="static")
+
+    print("--- Lifespan: Checking static directory on startup ---")
+    static_avatars_path = "/app/static/avatars"
+    if os.path.exists(static_avatars_path):
+        print(f"Directory exists: {static_avatars_path}")
+        try:
+            content = os.listdir(static_avatars_path)
+            print(f"Contents of {static_avatars_path}: {content}")
+        except Exception as e:
+            print(f"Error listing contents of {static_avatars_path}: {e}")
+    else:
+        print(f"Directory NOT FOUND: {static_avatars_path}")
+    print("--- Lifespan: Finished checking static directory ---")
+
+    print("--- Lifespan: Startup complete. Yielding control. ---")
+    yield
+
+    print("--- Lifespan: Running shutdown tasks ---")
+
 app = FastAPI(
     title="airdeliver API",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan,
 )
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
@@ -70,22 +101,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"message": f"An unexpected server error occurred. Please check the logs."},
     )
 
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
-    print("--- Checking static directory on startup ---")
-    static_avatars_path = "/app/static/avatars"
-    if os.path.exists(static_avatars_path):
-        print(f"Directory exists: {static_avatars_path}")
-        try:
-            content = os.listdir(static_avatars_path)
-            print(f"Contents of {static_avatars_path}: {content}")
-        except Exception as e:
-            print(f"Error listing contents of {static_avatars_path}: {e}")
-    else:
-        print(f"Directory NOT FOUND: {static_avatars_path}")
-    print("--- Finished checking static directory ---")
-
 @app.middleware("http")
 async def ensure_utf8_encoding(request: Request, call_next):
     response = await call_next(request)
@@ -102,10 +117,9 @@ app.add_middleware(
 )
 
 STATIC_DIRECTORY_STR = "/app/static"
-Path(STATIC_DIRECTORY_STR).mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=STATIC_DIRECTORY_STR), name="static")
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
 app.include_router(tracking_router, prefix="/ws")
 
 @app.get("/")

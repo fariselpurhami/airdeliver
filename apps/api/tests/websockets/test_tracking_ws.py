@@ -1,5 +1,6 @@
 # apps/api/tests/websockets/test_tracking_ws.py
 
+import anyio
 import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
@@ -9,7 +10,7 @@ from datetime import datetime, timezone
 from app.main import app
 from app.websockets.tracking_ws import TelemetryMessage, TelemetryPayload
 
-pytestmark = pytest.mark.asyncio
+pytestmark = pytest.mark.anyio
 
 @pytest.fixture
 def test_client():
@@ -62,7 +63,7 @@ async def test_websocket_handle_telemetry():
             }
             websocket.send_json(telemetry_msg)
 
-            await asyncio.sleep(0.1) 
+            await anyio.sleep(0.1) 
             mock_update_last_seen.assert_called_once_with(drone_id)
             mock_add_task.assert_called_once()
         

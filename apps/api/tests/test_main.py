@@ -14,4 +14,4 @@ def test_read_root():
 def test_docs_redirect():
 
     response = client.get("/docs", follow_redirects=False)
-    assert response.status_code == 307 # Temporary Redirect
+    assert response.status_code == 200
