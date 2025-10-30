@@ -1,6 +1,6 @@
 # AI Ordering Agent Documentation
 
-This document outlines the architecture and customization points for the Airdeliver AI Ordering Agent.
+This document outlines the architecture and customization points for the airdeliver AI Ordering Agent.
 
 ## Architecture
 

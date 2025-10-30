@@ -1,179 +1,90 @@
-airdeliver
-├── .github/
-│   └── workflows/
-│       ├── backend-ci.yml
-│       └── frontend-ci.yml
+airdeliver/
 ├── apps/
 │   ├── api/
 │   │   ├── alembic/
-│   │   │   ├── versions/
-│   │   │   └── env.py
+│   │   │   └── versions/
 │   │   ├── app/
-│   │   │   ├── __init__.py
 │   │   │   ├── api/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── deps.py
 │   │   │   │   └── v1/
-│   │   │   │       ├── __init__.py
-│   │   │   │       ├── api.py
 │   │   │   │       ├── endpoints/
-│   │   │   │       │   ├── auth.py
-│   │   │   │       │   ├── notifications.py
-│   │   │   │       │   ├── orders.py
-│   │   │   │       │   ├── products.py
-│   │   │   │       │   └── users.py
-│   │   │   │       └── webhooks.py
+│   │   │   │       └── api.py
 │   │   │   ├── core/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── config.py
-│   │   │   │   ├── logging_config.py
-│   │   │   │   └── security.py
 │   │   │   ├── crud/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── base.py
-│   │   │   │   └── crud_user.py
 │   │   │   ├── db/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── base.py
-│   │   │   │   └── session.py
 │   │   │   ├── models/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── audit_trail.py
-│   │   │   │   ├── drone.py
-│   │   │   │   ├── gamification.py
-│   │   │   │   ├── notification_subscription.py
-│   │   │   │   ├── order.py
-│   │   │   │   ├── product.py
-│   │   │   │   └── user.py
 │   │   │   ├── schemas/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── msg.py
-│   │   │   │   ├── order.py
-│   │   │   │   ├── product.py
-│   │   │   │   ├── token.py
-│   │   │   │   └── user.py
 │   │   │   ├── services/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── compliance_service.py
-│   │   │   │   ├── experimentation_service.py
-│   │   │   │   ├── gamification_service.py
-│   │   │   │   ├── notification_service.py
-│   │   │   │   └── payment_orchestrator.py
 │   │   │   ├── websockets/
-│   │   │   │   ├── __init__.py
-│   │   │   │   └── manager.py
 │   │   │   └── main.py
+│   │   ├── static/
 │   │   ├── tests/
-│   │   │   └── test_main.py
 │   │   ├── Dockerfile
-│   │   ├── alembic.ini
-│   │   ├── poetry.lock
 │   │   └── pyproject.toml
+│   │
 │   ├── drone-control/
 │   │   ├── schemas/
-│   │   │   └── drone_commands.py
 │   │   ├── services/
-│   │   │   └── task_queue.py
-│   │   ├── tests/
 │   │   ├── Dockerfile
-│   │   ├── locustfile.py
 │   │   ├── main.py
+│   │   ├── locustfile.py
 │   │   └── pyproject.toml
+│   │
 │   └── web/
-│       ├── __tests__/
-│       │   └── HomePage.test.tsx
 │       ├── app/
 │       │   ├── (admin)/
 │       │   │   └── dashboard/
 │       │   │       └── page.tsx
 │       │   ├── (main)/
 │       │   │   ├── about/
-│       │   │   │   └── page.tsx
 │       │   │   ├── cart/
-│       │   │   │   └── page.tsx
 │       │   │   ├── products/
-│       │   │   │   └── page.tsx
-│       │   │   ├── profile/
-│       │   │   │   └── page.tsx
 │       │   │   ├── tracking/
 │       │   │   │   └── [orderId]/
-│       │   │   │       └── page.tsx
+│       │   │   ├── layout.tsx
 │       │   │   └── page.tsx
 │       │   ├── api/
 │       │   │   └── auth/
 │       │   │       └── [...nextauth]/
 │       │   │           └── route.ts
 │       │   ├── legal/
-│       │   │   ├── privacy-policy/
-│       │   │   │   └── page.tsx
-│       │   │   └── terms-of-service/
-│       │   │       └── page.tsx
-│       │   ├── globals.css
-│       │   └── layout.tsx
+│       │   ├── layout.tsx
+│       │   └── globals.css
 │       ├── components/
 │       │   ├── ai/
-│       │   │   └── Chatbot.tsx
-│       │   ├── admin/
-│       │   │   ├── AlertPanel.tsx
-│       │   │   └── AnalyticsCharts.tsx
 │       │   ├── layout/
-│       │   │   ├── Footer.tsx
-│       │   │   └── Header.tsx
 │       │   ├── products/
-│       │   │   ├── ProductCard.tsx
-│       │   │   └── ProductList.tsx
-│       │   ├── profile/
-│       │   │   ├── MyBadges.tsx
-│       │   │   └── ReferralProgram.tsx
 │       │   └── ui/
-│       │       ├── Button.tsx
-│       │       └── ThemeToggle.tsx
 │       ├── hooks/
-│       │   ├── useCartStore.ts
-│       │   └── useExperiment.ts
 │       ├── lib/
-│       │   ├── api.ts
-│       │   ├── authOptions.ts
-│       │   ├── providers.tsx
-│       │   └── push-notifications.ts
 │       ├── public/
-│       │   ├── fonts/
-│       │   │   └── CaviarDreams.ttf
-│       │   ├── icons/
-│       │   ├── airdeliver-logo.svg
-│       │   ├── airdeliver-logomark.svg
-│       │   └── sw.js
+│       ├── __tests__/
 │       ├── Dockerfile
-│       ├── jest.config.mjs
-│       ├── jest.setup.js
 │       ├── next.config.mjs
-│       ├── package.json
-│       ├── postcss.config.mjs
-│       └── tailwind.config.ts
+│       └── package.json
+│
 ├── docs/
+│   ├── AI_ORDERING_AGENT.md
 │   ├── DISASTER_RECOVERY.md
-│   ├── INCIDENT_RESPONSE.md
-│   └── MULTI_TENANCY.md
-├── drone-client/
-│   ├── api_client.py
-│   ├── drone_controller.py
-│   ├── edge_ai.py
-│   └── main.py
+│   └── ...
 ├── drone-simulator/
+│   ├── Dockerfile
 │   └── virtual_drone.py
+├── drone_client/
+│   ├── api_client.py
+│   └── drone_controller.py
 ├── infra/
 │   ├── grafana/
-│   │   └── api_dashboard.json
 │   └── k8s/
 │       ├── api-deployment.yml
-│       ├── ingress.yml
-│       └── namespace.yml
-├── packages/
-│   ├── config/
-│   │   └── eslint-preset.js
-│   └── ui/
-│       └── package.json
+│       └── ...
+├── public/
+│   └── sw.js
+├── tests/
+│   └── integration/
+│       └── test_drone_simulation.py
+│
+├── docker-compose.yml
+├── docker-compose.drone.yml
 ├── README.md
 ├── RUNBOOK.md
-├── SECURITY.md
-└── docker-compose.yml
+└── ...

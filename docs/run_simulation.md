@@ -1,4 +1,4 @@
-# Running the AirDeliver Drone Simulation Locally
+# Running the airdeliver Drone Simulation Locally
 
 This guide explains how to run the full drone simulation stack using Docker Compose.
 

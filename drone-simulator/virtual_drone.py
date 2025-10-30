@@ -1,4 +1,4 @@
-# file: drone-simulator/virtual_drone.py
+# drone-simulator/virtual_drone.py
 
 import asyncio
 import json

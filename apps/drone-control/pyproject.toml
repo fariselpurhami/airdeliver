@@ -1,4 +1,4 @@
-# file: apps/drone-control/pyproject.toml
+# apps/drone-control/pyproject.toml
 
 [tool.poetry]
 name = "drone-control"

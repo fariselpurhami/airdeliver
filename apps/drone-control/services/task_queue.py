@@ -1,4 +1,4 @@
-# file: apps/drone-control/services/task_queue.py
+# apps/drone-control/services/task_queue.py
 
 import asyncio
 from collections import deque

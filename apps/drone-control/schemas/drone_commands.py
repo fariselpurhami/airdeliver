@@ -1,4 +1,4 @@
-# file: apps/drone-control/schemas/drone_commands.py
+# apps/drone-control/schemas/drone_commands.py
 
 from pydantic import BaseModel, Field
 

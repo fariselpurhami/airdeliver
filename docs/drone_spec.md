@@ -1,6 +1,6 @@
-# AirDeliver Drone Hardware & Companion Specification
+# airdeliver Drone Hardware & Companion Specification
 
-This document outlines the hardware and software requirements for the drone companion computer used in the AirDeliver system.
+This document outlines the hardware and software requirements for the drone companion computer used in the airdeliver system.
 
 ## 1. Flight Controller
 

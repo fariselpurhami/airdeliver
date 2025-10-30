@@ -1,4 +1,4 @@
-# file: drone-simulator/Dockerfile
+# drone-simulator/Dockerfile
 
 FROM px4io/px4-dev-simulation-jammy:latest
 

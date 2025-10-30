@@ -1,4 +1,4 @@
-# file: docker-compose.drone.yml
+# docker-compose.drone.yml
 
 services:
   px4-sitl:

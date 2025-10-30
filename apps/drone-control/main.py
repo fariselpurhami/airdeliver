@@ -1,4 +1,4 @@
-# file: apps/drone-control/main.py
+# apps/drone-control/main.py
 
 from fastapi import FastAPI, WebSocket, Depends, HTTPException, status, WebSocketDisconnect
 from typing import Dict

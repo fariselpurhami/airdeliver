@@ -1,4 +1,4 @@
-# file: apps/drone-control/locustfile.py
+# apps/drone-control/locustfile.py
 
 from locust import task, User
 from locust_plugins.users.socketio import SocketIOUser

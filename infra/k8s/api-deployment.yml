@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: api
-        image: yourusername/airdeliver-api:latest # Image from CI/CD
+        image: yourusername/airdeliver-api:latest 
         ports:
         - containerPort: 8000
         resources:
