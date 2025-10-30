@@ -1,7 +1,4 @@
-# file: .github/workflows/frontend-ci.yml
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini
+# .github/workflows/frontend-ci.yml
 
 name: Frontend CI
 

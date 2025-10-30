@@ -1,7 +1,4 @@
-# file: .github/workflows/backend-ci.yml
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini
+# .github/workflows/backend-ci.yml
 
 name: Backend CI
 
@@ -72,8 +69,8 @@ jobs:
         deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: build # Assuming build job is defined
-    if: github.ref == 'refs/heads/main' # Auto-deploy to staging on merge to main
+    needs: build 
+    if: github.ref == 'refs/heads/main' 
     environment:
       name: staging
       url: https://staging.airdeliver.com
@@ -88,7 +85,7 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: deploy-staging
-    if: github.event_name == 'workflow_dispatch' # Manual trigger
+    if: github.event_name == 'workflow_dispatch' 
     environment:
       name: production
       url: https://airdeliver.com
