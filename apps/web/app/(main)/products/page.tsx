@@ -115,7 +115,7 @@ export default function ProductsPage() {
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
                         className="mt-4 text-lg text-gray-400"
                     >
-                        Curated by intelligence. Delivered by drones.
+                        Find Products You Love, Get Them in Minutes
                     </motion.p>
                 </section>
 
@@ -175,10 +175,8 @@ const LightGrid = ({ timeOfDay }: { timeOfDay: 'day' | 'night' }) => {
 };
 
 const headlines = [
-  "Analyzing Real-Time Trends...",
-  "Drone Fleets Ready to Deliver.",
-  "Your AI-Optimized Marketplace is Active.",
-  "Welcome to the Future of Commerce."
+  "Discover Products. Shipped By Drone",
+  "Explore Our Diverse Selection"
 ];
 
 const DynamicBanner = () => {

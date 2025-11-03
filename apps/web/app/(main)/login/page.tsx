@@ -51,8 +51,8 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
     return (
          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
             <div className="text-center mb-8">
-                <h1 className="text-4xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Join the AI Revolution</h1>
-                <p className="text-gray-400 mt-2">Seamless access. Infinite intelligence.</p>
+                <h1 className="text-4xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Sign Up, Get it in Minutes</h1>
+                <p className="text-gray-400 mt-2">It's Delivery, Just Way Faster</p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <FuturisticInput icon={<User size={18} />} value={fullName} onChange={(e) => setFullName(e.target.value)} name="fullName" type="text" placeholder="Full Name" required disabled={isLoading} />
@@ -61,7 +61,7 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
                 {error && <p className="text-sm text-red-400 text-center">{error}</p>}
                 {success && <p className="text-sm text-green-400 text-center">{success}</p>}
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" className="w-full glowing-button rounded-full py-3 text-lg font-bold mt-4" disabled={isLoading}>
-                    {isLoading ? 'Creating Account...' : <>Activate My AI Experience <ChevronsRight className="inline ml-2" size={20} /></>}
+                    {isLoading ? 'Creating Account...' : <>Sign Up<ChevronsRight className="inline ml-2" size={20} /></>}
                 </motion.button>
             </form>
             <div className="text-center text-sm text-gray-500 mt-6">
@@ -141,19 +141,19 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
             <div className="text-center mb-8">
-                <h1 className="text-4xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Access Granted</h1>
-                <p className="text-gray-400 mt-2">Your identity in the new era of AI commerce.</p>
+                <h1 className="text-4xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Welcome Back</h1>
+                <p className="text-gray-400 mt-2">Continue Your Seamless Delivery Experience</p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
                 <FuturisticInput icon={<AtSign size={18} />} value={email} onChange={(e) => setEmail(e.target.value)} name="email" type="email" placeholder="Email Address" required disabled={isLoading} />
                 <FuturisticInput icon={<Lock size={18} />} value={password} onChange={(e) => setPassword(e.target.value)} name="password" type="password" placeholder="Password" required disabled={isLoading} />
                 {error && <p className="text-sm text-red-400 text-center">{error}</p>}
                 <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} type="submit" className="w-full glowing-button rounded-full py-3 text-lg font-bold" disabled={isLoading}>
-                    {isLoading ? 'Authenticating...' : 'Sign In to the Future'}
+                    {isLoading ? 'Authenticating...' : 'Sign In'}
                 </motion.button>
             </form>
             <div className="text-center text-sm text-gray-500 mt-6">
-                <button onClick={onSwitch} className="hover:text-cyan-400 transition-colors">Create AI Account</button>
+                <button onClick={onSwitch} className="hover:text-cyan-400 transition-colors">Create Account</button>
             </div>
         </motion.div>
     );
@@ -189,7 +189,7 @@ export default function AuthPage() {
                         transition={{ duration: 1, ease: 'easeOut' }}
                         className="text-6xl font-black text-white leading-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}
                     >
-                        THE FUTURE RECOGNIZES YOU.
+                        Order Now, Delivered in Minutes
                     </motion.h1>
                      <motion.p 
                         initial={{ opacity: 0, x: -50 }}
@@ -197,7 +197,7 @@ export default function AuthPage() {
                         transition={{ duration: 1, delay: 0.2, ease: 'easeOut' }}
                         className="mt-4 text-lg text-gray-400 max-w-md"
                     >
-                        Secure by Intelligence. Powered by You. Your identity in the new era of AI commerce.
+                        No traffic, No waiting. Get your products delivered by our autonomous drone fleet
                     </motion.p>
                 </div>
 

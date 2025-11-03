@@ -65,11 +65,11 @@ const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend:
         switch (message.contentType) {
             case 'text':
             case 'error':
-                return <p className={`whitespace-pre-wrap ${message.contentType === 'error' ? 'text-red-400' : ''}`}>{message.content}</p>;
+                return <p className={`whitespace-pre-wrap text-base ${message.contentType === 'error' ? 'text-red-400' : ''}`}>{message.content}</p>;
             case 'confirmation_prompt':
                 return (
                     <div>
-                        <p className="whitespace-pre-wrap mb-3">{message.content}</p>
+                        <p className="whitespace-pre-wrap mb-3 text-base">{message.content}</p>
                         <div className="flex flex-wrap gap-2">
                             {(message.options as string[])?.map((option: string) => (
                                 <motion.button key={option} whileHover={{ scale: 1.05 }} onClick={() => onSend(option)} className="text-sm bg-cyan-500/20 text-cyan-300 px-3 py-1.5 rounded-full border border-cyan-500/50">
@@ -83,7 +83,7 @@ const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend:
             case 'proactive_suggestion':
                 return (
                     <div>
-                        <p className="whitespace-pre-wrap mb-2">{message.content}</p>
+                        <p className="whitespace-pre-wrap mb-2 test-base">{message.content}</p>
                         <ProductCarousel products={message.products || []} onSelect={onSend} />
                         {message.reason && <AIReasoning text={message.reason} />}
                     </div>
