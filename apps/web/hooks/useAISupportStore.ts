@@ -30,7 +30,7 @@ const useAISupportStoreBase = create<AISupportState>((set) => ({
   messages: [{
     sender: 'ai',
     data: {
-        text: 'Hello! I am the airdeliver Neural Core. How can I assist you?',
+        text: 'Hello! How Can I Help You?',
         action: null,
         explain: "Initial greeting.",
         confidence: 1.0,

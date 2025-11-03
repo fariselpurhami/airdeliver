@@ -17,9 +17,7 @@ def handle_neural_core_chat(
     db: Session = Depends(deps.get_session),
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    """
-    The new, intelligent endpoint for the airdeliver Neural Core.
-    """
+
     try:
        response_envelope = neural_core_service.handle_message(
            db=db,
