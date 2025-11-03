@@ -72,7 +72,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.5 }}
-          className="mb-4 text-sm font-light tracking-[0.3em] text-gray-200 uppercase"
+          className="mb-4 text-sm font-light tracking-[0.3em] text-gray-50 uppercase"
         >
           AI. AUTONOMY. REDEFINING E-COMMERCE.
         </motion.p>
@@ -80,7 +80,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.8 }}
-          className="text-5xl md:text-7xl lg:text-8xl font-black uppercase"
+          className="text-6xl md:text-7xl lg:text-8xl font-black uppercase"
           style={{ fontFamily: "'Orbitron', sans-serif" }}
         >
           <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400">
