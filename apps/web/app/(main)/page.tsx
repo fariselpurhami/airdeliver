@@ -83,9 +83,23 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           className="text-6xl md:text-7xl lg:text-8xl font-black uppercase"
           style={{ fontFamily: "'Orbitron', sans-serif" }}
         >
-          <span className="text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400">
+          <motion.span
+            className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
+            animate={{
+              filter: [
+                'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))',
+                'drop-shadow(0 0 16px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.8))',
+                'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))'
+              ]
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          >
             COMMERCE. TAKES FLIGHT.
-          </span>
+          </motion.span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
@@ -123,18 +137,11 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
 };
 
 const Hero3DBackground = () => {
-  const { viewport, mouse } = useThree();
-  const droneRef = useRef<THREE.Group>(null!);
   const light1Ref = useRef<THREE.PointLight>(null!);
   const light2Ref = useRef<THREE.PointLight>(null!);
 
   useFrame((state) => {
     const time = state.clock.elapsedTime;
-
-    if (droneRef.current) {
-      droneRef.current.position.x = THREE.MathUtils.lerp(droneRef.current.position.x, mouse.x * 2, 0.05);
-      droneRef.current.position.y = THREE.MathUtils.lerp(droneRef.current.position.y, mouse.y * 2, 0.05);
-    }
 
     if (light1Ref.current) {
       light1Ref.current.position.x = Math.sin(time * 0.5) * 10;
@@ -155,12 +162,6 @@ const Hero3DBackground = () => {
       <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
       <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
       <Starfield />
-      <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
-        <group ref={droneRef}>
-          <DroneHologram position={[viewport.width / 4, 0, -2]} scale={0.5} />
-          <DroneHologram position={[-viewport.width / 4, viewport.height / 4, -5]} scale={0.3} rotation={[0, Math.PI / 2, 0]} />
-        </group>
-      </Float>
     </>
   );
 };
@@ -186,18 +187,6 @@ const Starfield = (props: any) => {
         fade
         speed={1.5}
       />
-    </group>
-  );
-};
-
-const DroneHologram = (props: any) => {
-  return (
-    <group {...props}>
-      <mesh>
-        <boxGeometry args={[2, 0.2, 1]} />
-        <meshStandardMaterial color="#00C6FF" emissive="#00C6FF" emissiveIntensity={2} transparent opacity={0.3} />
-      </mesh>
-      <Line points={[[-1, 0, -0.5], [-1, 0, 0.5], [1, 0, 0.5], [1, 0, -0.5], [-1, 0, -0.5]]} color="#fff" lineWidth={2} />
     </group>
   );
 };
