@@ -11,7 +11,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { Star } from 'lucide-react';
 import React, { Suspense, useRef, useMemo, useEffect, useState, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Preload, Float, Line, Text, useTexture, OrbitControls } from '@react-three/drei';
+import { Preload, Float, Line, Text, useTexture, OrbitControls, Stars } from '@react-three/drei';
 import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue } from 'framer-motion';
 import { Bot, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map } from 'lucide-react';
 import { X } from 'lucide-react'; 
@@ -32,7 +32,7 @@ export default function HomePage() {
   const { isProductOverlayVisible, showProductOverlay, hideProductOverlay } = useUIStore();
 
   return (
-    <div className="min-h-screen w-full text-gray-100 overflow-x-hidden" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+    <div className="min-h-screen w-full text-gray-100 overflow-x-hidden bg-black" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <main className="relative z-10">
         <HeroSection onOrderClick={() => setOverlayVisible(true)} onExploreClick={showProductOverlay} />
         <HowItWorksSection />
@@ -125,83 +125,68 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
 const Hero3DBackground = () => {
   const { viewport, mouse } = useThree();
   const droneRef = useRef<THREE.Group>(null!);
+  const light1Ref = useRef<THREE.PointLight>(null!);
+  const light2Ref = useRef<THREE.PointLight>(null!);
 
-  useFrame(() => {
+  useFrame((state) => {
+    const time = state.clock.elapsedTime;
+
     if (droneRef.current) {
       droneRef.current.position.x = THREE.MathUtils.lerp(droneRef.current.position.x, mouse.x * 2, 0.05);
       droneRef.current.position.y = THREE.MathUtils.lerp(droneRef.current.position.y, mouse.y * 2, 0.05);
+    }
+
+    if (light1Ref.current) {
+      light1Ref.current.position.x = Math.sin(time * 0.5) * 10;
+      light1Ref.current.position.y = Math.cos(time * 0.5) * 10;
+      light1Ref.current.position.z = Math.cos(time * 0.5) * 10;
+    }
+    if (light2Ref.current) {
+      light2Ref.current.position.x = Math.sin(time * 0.3) * -10;
+      light2Ref.current.position.y = Math.cos(time * 0.3) * -10;
+      light2Ref.current.position.z = Math.sin(time * 0.3) * 5;
     }
   });
 
   return (
     <>
+      <fog attach="fog" args={['#000000', 10, 40]} />
       <ambientLight intensity={1.5} />
-      <pointLight position={[10, 10, 10]} intensity={200} color="#00C6FF" />
-      <pointLight position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
-      <NeuralGrid />
+      <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
+      <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
+      <Starfield />
       <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
         <group ref={droneRef}>
           <DroneHologram position={[viewport.width / 4, 0, -2]} scale={0.5} />
           <DroneHologram position={[-viewport.width / 4, viewport.height / 4, -5]} scale={0.3} rotation={[0, Math.PI / 2, 0]} />
         </group>
       </Float>
-      {/* City silhouette */}
-      <mesh position={[0, -viewport.height / 2 - 2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[100, 20]} />
-        <meshBasicMaterial color="#000" transparent opacity={0.8} fog={false} />
-      </mesh>
     </>
   );
 };
 
-const NeuralGrid = () => {
-  const materialRef = useRef<THREE.ShaderMaterial>(null!);
-  const time = useRef(0);
+const Starfield = (props: any) => {
+  const starsRef = useRef<THREE.Group>(null!);
+
   useFrame((_, delta) => {
-    if (materialRef.current) {
-      time.current += delta;
-      materialRef.current.uniforms.time.value = time.current;
+    if (starsRef.current) {
+      starsRef.current.rotation.x += delta * 0.01;
+      starsRef.current.rotation.y += delta * 0.02;
     }
   });
 
-  const shader = {
-    uniforms: { time: { value: 0 } },
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float time;
-      varying vec2 vUv;
-      void main() {
-        vec2 p = -1.0 + 2.0 * vUv;
-        float a = atan(p.y, p.x);
-        float r = length(p);
-
-        float color = 0.0;
-
-        // Animated grid
-        vec2 grid = fract(vUv * 20.0);
-        color += smoothstep(0.01, 0.02, grid.x);
-        color += smoothstep(0.01, 0.02, grid.y);
-
-        // Pulsing waves
-        float wave = sin(r * 10.0 - time * 2.0) * 0.5 + 0.5;
-        color *= smoothstep(0.4, 1.0, wave);
-
-        gl_FragColor = vec4(vec3(color * 0.1, color * 0.3, color * 0.5), 1.0);
-      }
-    `,
-  };
-
   return (
-    <mesh>
-      <planeGeometry args={[100, 100]} />
-      <shaderMaterial ref={materialRef} args={[shader]} transparent opacity={0.3} />
-    </mesh>
+    <group ref={starsRef} {...props} position={[0, 0, -50]}>
+      <Stars
+        radius={100}
+        depth={100}
+        count={25000}
+        factor={6}
+        saturation={0}
+        fade
+        speed={1.5}
+      />
+    </group>
   );
 };
 
@@ -265,7 +250,7 @@ const HowItWorksSection = () => {
 
   return (
     <section className="relative w-full py-24 px-4 bg-black overflow-hidden">
-      <div className="absolute inset-0 bg-grid-white/[0.05]" />
+      <div className="absolute inset-0 bg-grid-cyan-400/[0.05]" />
 
       <div className="container mx-auto">
         <motion.h2
@@ -497,7 +482,7 @@ const testimonials = [
   {
     name: 'Elena M.',
     title: 'CEO, NeoCommerce',
-    quote: "airdeliver isn't just a service; it's the future of logistics. The speed and autonomy are unparalleled.",
+    quote: "airdeliver isn't justa service; it's the future of logistics. The speed and autonomy are unparalleled.",
     rating: 5,
     avatar: '/avatars/avatar1.png'
   },
