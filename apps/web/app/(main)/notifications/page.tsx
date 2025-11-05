@@ -365,7 +365,7 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
   return (
     <div className="w-full grid grid-cols-1 sm:grid-cols-3 items-center py-4 sticky top-[72px] z-30 bg-black/30 backdrop-blur-lg rounded-b-lg gap-4 sm:gap-0">
      
-      {/* --- العنوان (اليسار) --- */}
+      
       <div className="flex sm:justify-start justify-center">
           <div className="relative flex items-center gap-3 sm:ml-6">
              <span
@@ -374,26 +374,10 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
              />
             <div className='relative'> 
                 <motion.h1 
-                    className="text-2xl font-bold" 
+                    className="text-2xl font-bold text-white" 
                     style={{ fontFamily: "'Orbitron', sans-serif" }}
                 >
-                  <motion.span
-                    className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
-                    animate={{
-                      filter: [
-                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 2px rgba(168, 85, 247, 0.4))',
-                        'drop-shadow(0 0 10px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))',
-                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 2px rgba(168, 85, 247, 0.4))'
-                      ]
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  >
                     Notifications
-                  </motion.span>
                 </motion.h1>
             </div>
             {unreadCount > 0 && (
@@ -406,7 +390,7 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
           </div>
       </div>
 
-      {/* --- الفلاتر (المنتصف) --- */}
+    
       <div className="flex items-center justify-center gap-2 flex-wrap">
          {filters.map((filter, index) => (
           <React.Fragment key={filter}>
@@ -432,7 +416,7 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
         ))}
       </div>
 
-      {/* --- الإعدادات (اليمين) --- */}
+     
       <div className="relative hidden sm:flex justify-end sm:mr-6">
          <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
             <Settings size={20} />
@@ -543,7 +527,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
           )}
         </div>
       </div>
-      {/* Actions */}
+      
       <motion.div
         className="flex flex-col sm:flex-row items-center gap-2 ml-4 flex-shrink-0"
         animate={{ opacity: isHovered || !read ? 1 : 0, x: isHovered || !read ? 0 : 5 }}

@@ -9,7 +9,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 
 const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (productName: string) => void }) => (
     <div className="embla__slide flex-[0_0_50%] md:flex-[0_0_40%]">
-        <div className="flex flex-col p-4 bg-white/5 rounded-lg border border-white/10 h-full text-left">
+        <div className="flex flex-col p-4 bg-white/5 rounded-lg border border-cyan-400/20 h-full text-left">
             <Image src={product.image || '/images/default.jpeg'} alt={product.name} width={120} height={120} className="w-full h-24 object-contain mb-3 rounded-md"/>
             <h4 className="text-sm font-bold text-white">{product.name}</h4>
             <p className="text-lg font-bold text-white mb-2">${product.price}</p>
@@ -51,10 +51,10 @@ const AIReasoning = ({ text }: { text: string }) => (
     <motion.div 
         initial={{ opacity: 0, y: 10 }} 
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-2 p-2 mt-3 bg-gray-500/10 border border-gray-500/20 rounded-lg"
+        className="flex items-center gap-2 p-2 mt-3 bg-cyan-900/10 border border-cyan-400/20 rounded-lg"
     >
-        <Cpu size={16} className="text-gray-400 flex-shrink-0"/>
-        <p className="text-xs text-gray-400 italic">{text}</p>
+        <Cpu size={16} className="text-cyan-400 flex-shrink-0"/>
+        <p className="text-xs text-cyan-300/80 italic">{text}</p>
     </motion.div>
 );
 
@@ -97,7 +97,7 @@ const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend:
     return (
         <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`flex items-start gap-3 w-full ${isAI ? 'justify-start' : 'justify-end'}`}>
             {isAI && <Bot size={24} className="flex-shrink-0 mt-1 text-cyan-400 glowing-icon" />}
-            <div className={`w-auto max-w-lg p-4 rounded-xl ${isAI ? 'bg-black/20 border border-white/10 text-gray-200' : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white'}`}>
+            <div className={`w-auto max-w-lg p-4 rounded-xl ${isAI ? 'bg-black/20 border border-cyan-400/30 text-gray-200' : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white'}`}>
                 <MessageContent />
             </div>
             {!isAI && <User size={24} className="flex-shrink-0 mt-1 text-gray-300" />}
@@ -110,7 +110,7 @@ const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
     return (
-        <div className="hidden lg:block w-1/3 bg-black/20 border-l border-white/10 p-6 rounded-r-2xl overflow-y-auto">
+        <div className="hidden lg:block w-1/3 bg-black/20 border-l border-cyan-400/30 p-6 rounded-r-2xl overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
             <div className="sticky top-0 flex flex-col h-full">
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><ShoppingCart size={18} /> Order Summary</h3>
                 <div className="space-y-3 mb-6 flex-grow min-h-[120px]">
@@ -129,10 +129,10 @@ const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
                         <div className="flex justify-between"><span>Estimated Delivery:</span><span className="text-white font-semibold">12 Mins</span></div>
                         <div className="flex justify-between"><span>Delivery Fee:</span><span className="text-white font-semibold">Free</span></div>
                     </div>
-                    <div className="w-full h-[1px] bg-white/10 my-6" />
+                    <div className="w-full h-[1px] bg-cyan-400/20 my-6" />
                     <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Cpu size={18} /> AI Notes</h3>
                     <p className="text-sm text-gray-400 italic">"AI reasoning will appear here."</p>
-                    <div className="w-full h-[1px] bg-white/10 my-6" />
+                    <div className="w-full h-[1px] bg-cyan-400/20 my-6" />
                     <div className="flex justify-between items-center font-bold">
                         <span className="text-gray-300 text-lg">Total</span>
                         <span className="text-3xl text-white">${cart.total.toFixed(2)}</span>
@@ -148,7 +148,7 @@ const ChatInput = ({ onSend, isTyping }: { onSend: (text: string) => void; isTyp
     const [value, setValue] = useState('');
     const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (value.trim() && !isTyping) { onSend(value); setValue(''); } };
     return (
-        <form onSubmit={handleSubmit} className="p-4 border-t border-white/10 flex-shrink-0">
+        <form onSubmit={handleSubmit} className="p-4 border-t border-cyan-400/30 flex-shrink-0">
             <div className="relative">
                 <input type="text" value={value} onChange={(e) => setValue(e.target.value)} placeholder={isTyping ? "AI is thinking..." : "Ask AI to order anything..."} disabled={isTyping} className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-full py-3 pr-14 pl-5 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-all" />
                 <button type="submit" disabled={isTyping} onClick={(e) => e.stopPropagation()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-600 transition-colors"><CornerDownRight size={20} className="text-black" /></button>
@@ -171,24 +171,63 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     return (
         <AnimatePresence>
             {isOpen && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
+                <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    exit={{ opacity: 0 }} 
+                    onClick={onClose} 
+                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex justify-center items-center p-4"
+                >
+                    <motion.div 
+                        initial={{ scale: 0.9, opacity: 0, y: 50 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: 50 }}
+                        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} 
+                        onClick={(e) => e.stopPropagation()} 
+                        className="w-full max-w-7xl h-[95vh] max-h-[1000px] flex flex-col bg-black/50 backdrop-blur-2xl border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden"
+                    >
+                        <header className="p-4 border-b border-cyan-400/30 flex justify-between items-center flex-shrink-0">
+                            <h3 className="font-bold text-lg text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                                <motion.span
+                                    className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
+                                    animate={{
+                                    filter: [
+                                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))',
+                                        'drop-shadow(0 0 8px rgba(0, 198, 255, 0.8))',
+                                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))'
+                                    ]
+                                    }}
+                                    transition={{
+                                    duration: 3,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                    }}
+                                >
+                                    Order With AI
+                                </motion.span>
+                            </h3>
+                            <button
+                                onClick={onClose}
+                                className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </header>
                    
-                    <motion.div onClick={(e) => e.stopPropagation()} className="w-full max-w-7xl h-[95vh] max-h-[1000px] flex bg-black/50 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden">
-                        <div className="w-full lg:w-2/3 flex flex-col">
-                            <header className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0">
-                                <div className="flex items-center space-x-3"><Bot className="text-cyan-400" size={24} /><h3 className="font-bold text-lg text-white">Order With AI</h3></div>
-                                <button onClick={onClose} className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"><X size={20} /></button>
-                            </header>
-                            <div className="flex-grow p-6 space-y-6 overflow-y-auto">
-                                <AnimatePresence>
-                                    {messages.map((msg, index) => <ChatMessage key={index} message={msg} onSend={sendMessage} />)}
-                                </AnimatePresence>
-                                {isLoading && <TypingIndicator />}
-                                <div ref={chatEndRef} />
+                        <div className="flex-grow flex overflow-hidden">
+                            <div className="w-full lg:w-2/3 flex flex-col">
+                                <div className="flex-grow p-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
+                                    <AnimatePresence>
+                                        {messages.map((msg, index) => <ChatMessage key={index} message={msg} onSend={sendMessage} />)}
+                                    </AnimatePresence>
+                                    {isLoading && <TypingIndicator />}
+                                    <div ref={chatEndRef} />
+                                </div>
+                                <ChatInput onSend={sendMessage} isTyping={isLoading} />
                             </div>
-                            <ChatInput onSend={sendMessage} isTyping={isLoading} />
+                            <AIChatSidebar messages={messages} />
                         </div>
-                        <AIChatSidebar messages={messages} />
+
                     </motion.div>
                 </motion.div>
             )}

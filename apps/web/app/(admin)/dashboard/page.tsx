@@ -1,5 +1,3 @@
-// apps/web/app/(admin)/dashboard/page.tsx
-
 'use client';
 
 import React, { useEffect, useRef, Suspense } from 'react';
@@ -9,8 +7,8 @@ import { motion, useMotionValue, useSpring, useInView } from 'framer-motion';
 import { 
     AlertCircle, Lock, Loader2, DollarSign, Package, 
     HardDrive, Wifi, Clock, BarChart2, Zap,
-    Users, // <-- NEW ICON
-    Truck  // <-- NEW ICON
+    Users,
+    Truck 
 } from 'lucide-react';
 import { 
     ResponsiveContainer, 
@@ -21,6 +19,10 @@ import {
     Tooltip, 
     CartesianGrid 
 } from 'recharts';
+import dynamic from 'next/dynamic';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Stars } from '@react-three/drei';
+import * as THREE from 'three';
 
 interface Stats {
     total_revenue: number;
@@ -70,6 +72,48 @@ const fetcher = async (url: string) => {
     return res.json();
 };
 
+// ============================================================================
+// --- 1. (New) Dashboard Background Component ---
+// ============================================================================
+const DashboardBackground = () => {
+    const light1Ref = useRef<THREE.PointLight>(null!);
+    const light2Ref = useRef<THREE.PointLight>(null!);
+
+    useFrame((state) => {
+        const time = state.clock.elapsedTime;
+        if (light1Ref.current) {
+            light1Ref.current.position.x = Math.sin(time * 0.5) * 15;
+            light1Ref.current.position.y = Math.cos(time * 0.5) * 15;
+            light1Ref.current.position.z = Math.cos(time * 0.5) * 10;
+        }
+        if (light2Ref.current) {
+            light2Ref.current.position.x = Math.sin(time * 0.3) * -15;
+            light2Ref.current.position.y = Math.cos(time * 0.3) * -15;
+            light2Ref.current.position.z = Math.sin(time * 0.3) * 5;
+        }
+    });
+
+    return (
+        <>
+            <fog attach="fog" args={['#000000', 10, 30]} />
+            <ambientLight intensity={1.0} />
+            <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
+            <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
+            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+        </>
+    );
+};
+
+const DynamicDashboardBackground = dynamic(() => Promise.resolve(DashboardBackground), { 
+    ssr: false,
+    loading: () => null
+});
+
+
+// ============================================================================
+// --- 2. (Re-styled) Sub-Components ---
+// ============================================================================
+
 const AnimatedCounter = ({ value }: { value: number }) => {
     const ref = useRef<HTMLSpanElement>(null);
     const motionValue = useMotionValue(0);
@@ -99,10 +143,10 @@ const AnimatedCounter = ({ value }: { value: number }) => {
 
 const LoadingSpinner = () => ( <div className="flex min-h-screen w-full items-center justify-center bg-black"><Loader2 className="h-12 w-12 animate-spin text-cyan-400" /></div> );
 const AccessDenied = () => ( <div className="flex min-h-screen w-full flex-col items-center justify-center bg-black p-4 text-center"><div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-500/10"><Lock className="h-10 w-10 text-red-500" /></div><h1 className="mt-8 text-3xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Access Denied</h1><p className="mt-2 text-gray-400">You do not have permission to view this page.</p></div> );
-const ErrorDisplay = ({ error }: { error: Error }) => ( <div className="flex w-full flex-col items-center justify-center rounded-lg bg-red-500/10 p-12 text-center"><AlertCircle className="h-12 w-12 text-red-500" /><h2 className="mt-4 text-xl font-bold text-white">Error Loading Dashboard</h2><p className="mt-2 text-sm text-red-300">{error.message}</p></div> );
+const ErrorDisplay = ({ error }: { error: Error }) => ( <div className="flex w-full flex-col items-center justify-center rounded-lg bg-red-900/50 p-12 text-center border border-red-500/50 backdrop-blur-lg"><AlertCircle className="h-12 w-12 text-red-500" /><h2 className="mt-4 text-xl font-bold text-white">Error Loading Dashboard</h2><p className="mt-2 text-sm text-red-300">{error.message}</p></div> );
 
 
-const StatCardSkeleton = () => ( <div className="h-[124px] w-full animate-pulse rounded-2xl bg-white/5 border border-white/10 p-6" /> );
+const StatCardSkeleton = () => ( <div className="h-[124px] w-full animate-pulse rounded-2xl bg-black/30 border border-cyan-400/30 p-6" /> );
 const StatCard = ({ title, value, icon, isCurrency = false }: {
     title: string;
     value: number;
@@ -111,7 +155,7 @@ const StatCard = ({ title, value, icon, isCurrency = false }: {
 }) => (
     <motion.div
         variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-        className="transform-gpu rounded-2xl bg-white/5 p-6 backdrop-blur-lg border border-white/10 transition-all duration-300 hover:bg-white/10 hover:shadow-2xl hover:shadow-cyan-500/10"
+        className="transform-gpu rounded-2xl bg-black/30 p-6 backdrop-blur-lg border border-cyan-400/30 transition-all duration-300 hover:bg-black/50 hover:shadow-2xl hover:shadow-cyan-500/10"
     >
         <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-400">{title}</span>
@@ -130,7 +174,7 @@ const StatCard = ({ title, value, icon, isCurrency = false }: {
 const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
         case 'delivered': return 'bg-green-500/20 text-green-300';
-        case 'in transit': return 'bg-blue-500/20 text-blue-300';
+        case 'in transit': return 'bg-cyan-500/20 text-cyan-300';
         case 'processing': return 'bg-yellow-500/20 text-yellow-300';
         case 'cancelled': return 'bg-red-500/20 text-red-300';
         default: return 'bg-gray-500/20 text-gray-300';
@@ -139,9 +183,9 @@ const getStatusColor = (status: string) => {
 
 const TableSkeleton = () => (
     <div className="space-y-4">
-        <div className="h-8 w-full animate-pulse rounded bg-white/10"></div>
-        <div className="h-8 w-full animate-pulse rounded bg-white/10 opacity-75"></div>
-        <div className="h-8 w-full animate-pulse rounded bg-white/10 opacity-50"></div>
+        <div className="h-8 w-full animate-pulse rounded bg-black/50 opacity-80"></div>
+        <div className="h-8 w-full animate-pulse rounded bg-black/50 opacity-60"></div>
+        <div className="h-8 w-full animate-pulse rounded bg-black/50 opacity-40"></div>
     </div>
 );
 
@@ -151,7 +195,7 @@ const OrdersTable = ({ orders }: { orders: Order[] }) => {
     }
     return (
         <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10">
+            <table className="min-w-full divide-y divide-cyan-400/20">
                 <thead className="opacity-60">
                     <tr>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300">Order ID</th>
@@ -160,9 +204,9 @@ const OrdersTable = ({ orders }: { orders: Order[] }) => {
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-300">Total</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10">
+                <tbody className="divide-y divide-cyan-400/20">
                     {orders.map(order => (
-                        <motion.tr key={order.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="transition-colors hover:bg-white/5">
+                        <motion.tr key={order.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="transition-colors hover:bg-cyan-900/30">
                             <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-cyan-400">#{order.id}</td>
                             <td className="whitespace-nowrap px-6 py-4 text-sm"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}>{order.status}</span></td>
                             <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{new Date(order.created_at).toLocaleDateString()}</td>
@@ -193,13 +237,13 @@ const RevenueChart = ({ data, isLoading }: { data: RevenueData[], isLoading: boo
                             <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
                         </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff1a" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#06b6d433" />
                     <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
                     <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(val) => `$${val}`} />
                     <Tooltip
                         contentStyle={{ 
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)', 
-                            borderColor: 'rgba(255, 255, 255, 0.2)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)', 
+                            borderColor: 'rgba(6, 182, 212, 0.3)',
                             borderRadius: '12px',
                         }}
                         labelStyle={{ color: '#fff' }}
@@ -231,11 +275,11 @@ const ActivityTimeline = ({ events, isLoading }: { events: ActivityEvent[], isLo
                     <li key={event.id}>
                         <div className="relative pb-8">
                             {eventIdx !== events.length - 1 ? (
-                                <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-white/10" aria-hidden="true" />
+                                <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-cyan-400/20" aria-hidden="true" />
                             ) : null}
                             <div className="relative flex space-x-3">
                                 <div>
-                                    <span className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center ring-8 ring-transparent text-cyan-400">
+                                    <span className="h-8 w-8 rounded-full bg-black/30 border border-cyan-400/30 flex items-center justify-center ring-4 ring-black/50 text-cyan-400">
                                         {event.icon}
                                     </span>
                                 </div>
@@ -278,19 +322,18 @@ function DashboardContent() {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="w-full max-w-7xl mx-auto p-4 md:p-8 space-y-8 mt-16" 
+            className="w-full max-w-7xl mx-auto p-4 md:p-8 space-y-8 mt-16 relative z-10" 
         >
             <motion.h1 
                 variants={{ hidden: { opacity: 0, y: -20 }, visible: { opacity: 1, y: 0 } }}
-                className="text-3xl font-bold text-center text-cyan-400" 
+                className="text-3xl font-bold text-center text-white" 
                 style={{ fontFamily: "'Orbitron', sans-serif" }}
             >
-                Admin Dashboard
+                ADMIN DASHBOARD
             </motion.h1>
 
             <motion.div 
                 variants={containerVariants}
-             
                 className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-6"
             >
                 {isLoadingStats ? (
@@ -304,7 +347,6 @@ function DashboardContent() {
                         <StatCard title="Total Orders" value={statsData.total_orders} icon={<Package size={20} />} />
                         <StatCard title="Total Products" value={statsData.total_products} icon={<HardDrive size={20} />} />
                         <StatCard title="Active Drones" value={statsData.active_drones} icon={<Wifi size={20} />} />
-                     
                         <StatCard title="Pending" value={statsData.pending_deliveries} icon={<Truck size={20} />} />
                         <StatCard title="Active Users" value={statsData.active_users_today} icon={<Users size={20} />} />
                     </>
@@ -316,39 +358,20 @@ function DashboardContent() {
                 className="grid grid-cols-1 lg:grid-cols-3 gap-6"
             >
 
-                <div className="lg:col-span-2 space-y-6">
-                    <motion.div
-                        variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                        className="rounded-2xl bg-white/5 p-6 backdrop-blur-lg border border-white/10"
-                    >
-                        <h2 className="flex items-center text-2xl font-bold text-white mb-6" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            <BarChart2 className="mr-3 text-cyan-400" size={24} />
-                            Revenue (Last 7 Days)
-                        </h2>
-                        <RevenueChart data={mockRevenueData} isLoading={isLoadingGraph} />
-                    </motion.div>
-
-                    <motion.div
-                        variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                        className="rounded-2xl bg-white/5 p-6 backdrop-blur-lg border border-white/10"
-                    >
-                        <h2 className="flex items-center text-2xl font-bold text-white mb-6" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            <Package className="mr-3 text-cyan-400" size={24} />
-                            Recent Orders
-                        </h2>
-                        {isLoadingOrders ? (
-                            <TableSkeleton />
-                        ) : ordersData ? (
-                            <OrdersTable orders={ordersData.orders} />
-                        ) : (
-                            <p className="text-gray-500">No orders data available.</p>
-                        )}
-                    </motion.div>
-                </div>
+                <motion.div
+                    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                    className="lg:col-span-2 rounded-2xl bg-black/30 p-6 backdrop-blur-lg border border-cyan-400/30 shadow-lg shadow-cyan-500/10"
+                >
+                    <h2 className="flex items-center text-2xl font-bold text-white mb-6" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                        <BarChart2 className="mr-3 text-cyan-400" size={24} />
+                        Revenue (Last 7 Days)
+                    </h2>
+                    <RevenueChart data={mockRevenueData} isLoading={isLoadingGraph} />
+                </motion.div>
 
                 <motion.div
                     variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                    className="lg:col-span-1 rounded-2xl bg-white/5 p-6 backdrop-blur-lg border border-white/10"
+                    className="lg:col-span-1 rounded-2xl bg-black/30 p-6 backdrop-blur-lg border border-cyan-400/30 shadow-lg shadow-cyan-500/10"
                 >
                     <h2 className="flex items-center text-2xl font-bold text-white mb-6" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                         <Clock className="mr-3 text-cyan-400" size={24} />
@@ -356,6 +379,24 @@ function DashboardContent() {
                     </h2>
                     <ActivityTimeline events={mockActivityData} isLoading={isLoadingTimeline} />
                 </motion.div>
+                
+                <motion.div
+                    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                    className="lg:col-span-3 rounded-2xl bg-black/30 p-6 backdrop-blur-lg border border-cyan-400/30 shadow-lg shadow-cyan-500/10"
+                >
+                    <h2 className="flex items-center text-2xl font-bold text-white mb-6" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                        <Package className="mr-3 text-cyan-400" size={24} />
+                        Recent Orders
+                    </h2>
+                    {isLoadingOrders ? (
+                        <TableSkeleton />
+                    ) : ordersData ? (
+                        <OrdersTable orders={ordersData.orders} />
+                    ) : (
+                        <p className="text-gray-500">No orders data available.</p>
+                    )}
+                </motion.div>
+
             </motion.div>
         </motion.div>
     );
@@ -373,8 +414,14 @@ export default function AdminDashboardPage() {
     }
     
     return (
-        <div className="min-h-screen w-full bg-black text-gray-100 relative overflow-hidden" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            <div className="absolute inset-0 bg-grid-white/[0.05] -z-10" />
+        <div className="min-h-screen w-full bg-black text-gray-100 relative overflow-y-auto" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+            <div className="fixed inset-0 z-0 opacity-70">
+                <Canvas>
+                    <Suspense fallback={null}>
+                        <DynamicDashboardBackground />
+                    </Suspense>
+                </Canvas>
+            </div>
             <Suspense fallback={<LoadingSpinner />}>
                 <DashboardContent />
             </Suspense>

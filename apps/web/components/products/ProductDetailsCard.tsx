@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Check, Rocket, Package, TrendingUp, Bot, Star, MessageSquare } from 'lucide-react';
+import { X, Plus, Check, Rocket, Package, TrendingUp, Bot, Star } from 'lucide-react';
 import Image from 'next/image';
 import { useCartStore } from '@/hooks/useCartStore';
 import { type Product } from './ProductCard';
@@ -23,7 +23,7 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
     return (
         <motion.div
             layoutId={`product-card-${product.id}`} 
-            className="relative w-[90vw] max-w-3xl h-[80vh] max-h-[600px] rounded-2xl bg-gradient-to-br from-gray-900 via-black to-gray-800 border border-white/10 p-8 flex flex-col md:flex-row gap-8 overflow-hidden shadow-2xl shadow-black/50"
+            className="relative w-[90vw] max-w-3xl h-[80vh] max-h-[600px] rounded-2xl bg-black/50 backdrop-blur-2xl border border-cyan-400/30 p-8 flex flex-col md:flex-row gap-8 overflow-hidden shadow-2xl shadow-cyan-500/20"
         >
          
             <motion.button
@@ -60,7 +60,7 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                  initial={{ opacity: 0, x: 50 }}
                  animate={{ opacity: 1, x: 0 }}
                  transition={{ duration: 0.5, delay: 0.2 }}
-                 className="w-full md:w-1/2 flex flex-col justify-center text-white overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent" 
+                 className="w-full md:w-1/2 flex flex-col justify-center text-white overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent" 
             >
                 {product.isAIRec && (
                     <div className="mb-3 bg-cyan-400/20 text-cyan-300 text-xs px-2 py-1 rounded-full border border-cyan-400/50 inline-flex items-center gap-1 self-start">
@@ -71,18 +71,18 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                 <h2 className="text-3xl font-bold mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                     {product.name}
                 </h2>
-                <p className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-violet-400 mb-6" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                <p className="text-4xl font-black text-cyan-400 mb-6" style={{ fontFamily: "'Orbitron', sans-serif", textShadow: '0 0 10px rgba(6, 182, 212, 0.4)' }}>
                     ${product.price}
                 </p>
 
                  <div className="space-y-3 text-sm text-gray-300 mb-6">
                    
                     <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => <Star key={i} size={16} className={i < 4 ? "text-yellow-400 fill-yellow-400" : "text-gray-600"}/>)}
+                        {[...Array(5)].map((_, i) => <Star key={i} size={16} className={i < 4 ? "text-cyan-400 fill-cyan-400" : "text-gray-600"}/>)}
                         <span className="text-gray-500 ml-1">(4.7)</span>
                     </div>
                      {product.predicted_delivery && <div className="flex items-center gap-2"><Rocket size={16} className="text-cyan-400"/><span>{product.predicted_delivery}</span></div>}
-                     {product.trending_status && <div className="flex items-center gap-2"><TrendingUp size={16} className="text-violet-400"/><span>{product.trending_status}</span></div>}
+                     {product.trending_status && <div className="flex items-center gap-2"><TrendingUp size={16} className="text-cyan-400"/><span>{product.trending_status}</span></div>}
                      {product.stock_level && <div className="flex items-center gap-2 text-yellow-400"><Package size={16} /><span>{product.stock_level}</span></div>}
                      
                      <p className="text-gray-400 pt-2">{product.description || "No description available."}</p>
@@ -94,7 +94,12 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                             <Check size={20} /> Added to Cart
                         </motion.div>
                         ) : (
-                        <motion.button key="button" onClick={handleAddToCart} className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold px-6 py-3 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105">
+                        <motion.button 
+                            key="button" 
+                            onClick={handleAddToCart} 
+                            className="w-full flex items-center justify-center gap-2 bg-cyan-500/30 text-cyan-200 border-2 border-cyan-500/50 font-bold px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105 hover:bg-cyan-500/40 hover:text-white"
+                            whileHover={{ boxShadow: '0 0 20px rgba(0, 198, 255, 0.5)' }}
+                        >
                             <Plus size={18} /> Add to Cart
                         </motion.button>
                         )}

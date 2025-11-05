@@ -261,7 +261,7 @@ export default function ProfilePage() {
                 className="relative min-h-screen w-full bg-black text-gray-200 py-24 md:py-32 px-4 overflow-hidden"
                 style={{ fontFamily: "'Inter', sans-serif" }}
             >
-                {/* --- New 3D Background --- */}
+                
                 <div className="fixed inset-0 z-0 opacity-70">
                     <Canvas>
                         <Suspense fallback={null}>
@@ -296,23 +296,7 @@ export default function ProfilePage() {
                             </button>
                         </div>
                         <h1 className="text-4xl md:text-5xl font-black text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                             <motion.span
-                                className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
-                                animate={{
-                                filter: [
-                                    'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))',
-                                    'drop-shadow(0 0 16px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.8))',
-                                    'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))'
-                                ]
-                                }}
-                                transition={{
-                                duration: 3,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                                }}
-                            >
-                                {profileData?.full_name || session?.user?.email?.split('@')[0]}
-                            </motion.span>
+                            {profileData?.full_name || session?.user?.email?.split('@')[0]}
                         </h1>
                         {subtext && (<p className="mt-2 text-base text-gray-400">{subtext}</p>)}
                          {profileData?.role && (

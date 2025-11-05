@@ -178,23 +178,7 @@ export default function AboutPage() {
               className="text-5xl md:text-7xl font-black text-white" 
               style={{ fontFamily: "'Orbitron', sans-serif" }}
             >
-              <motion.span
-                className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
-                animate={{
-                  filter: [
-                    'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))',
-                    'drop-shadow(0 0 16px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.8))',
-                    'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))'
-                  ]
-                }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              >
                 We’re Redefining the Meaning of Commerce.
-              </motion.span>
             </motion.h1>
 
             <p className="mt-4 text-lg text-gray-300 max-w-3xl mx-auto">
@@ -293,24 +277,7 @@ export default function AboutPage() {
             className="text-3xl md:text-4xl font-bold text-white mb-4" 
             style={{ fontFamily: "'Orbitron', sans-serif" }}
         >
-            <motion.span
-                className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600"
-                 animate={{
-                    filter: [
-                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 2px rgba(168, 85, 247, 0.4))',
-                        'drop-shadow(0 0 10px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))',
-                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 2px rgba(168, 85, 247, 0.4))'
-                    ]
-                }}
-                transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                    delay: 0.5
-                }}
-            >
-                Be Part of the Revolution.
-            </motion.span>
+            Be Part of the Revolution.
         </motion.h2>
 
         <p className="text-lg text-gray-400 mb-8 max-w-xl mx-auto">"The sky is no longer the limit — it’s our infrastructure."</p>

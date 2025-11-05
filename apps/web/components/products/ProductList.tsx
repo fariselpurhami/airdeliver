@@ -12,7 +12,7 @@ const listVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1, 
+      staggerChildren: 0.05, 
     },
   },
 };
@@ -36,7 +36,7 @@ export default function ProductList({ products }: { products: Product[] }) {
         variants={listVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8" 
       >
         {products.map((product, index) => (
           <ProductCard
@@ -54,11 +54,9 @@ export default function ProductList({ products }: { products: Product[] }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-center items-center p-4"
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex justify-center items-center p-4" 
           >
-        
             <div onClick={(e) => e.stopPropagation()}>
-              
               <ProductDetailsCard
                 product={selectedProduct}
                 onClose={handleClose}
