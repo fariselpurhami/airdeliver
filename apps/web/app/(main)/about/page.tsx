@@ -2,98 +2,124 @@
 
 import React, { Suspense, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Stars, Float } from '@react-three/drei';
+import { Stars, Float, Preload } from '@react-three/drei';
 import { motion, useScroll, useTransform, useSpring, useMotionValue } from 'framer-motion';
-import { Cpu, Rocket, Leaf, Globe as GlobeIcon, Users } from 'lucide-react';
+import { Cpu, Rocket, Leaf, Globe as GlobeIcon, Users, Zap, Map, Video } from 'lucide-react';
 import Image from 'next/image';
 import * as THREE from 'three';
+import dynamic from 'next/dynamic';
 
-const NeuralGridBackground = () => {
-    const { mouse } = useThree();
-    const groupRef = useRef<THREE.Group>(null!);
+// ============================================================================
+// --- Hero 3D Visual (New: Matches Main Page) ---
+// ============================================================================
 
-    useFrame(() => {
-        if (groupRef.current) {
-            groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, mouse.x * 0.1, 0.05);
-            groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -mouse.y * 0.1, 0.05);
+const AboutHeroVisual = () => {
+    const light1Ref = useRef<THREE.PointLight>(null!);
+    const light2Ref = useRef<THREE.PointLight>(null!);
+
+    useFrame((state) => {
+        const time = state.clock.elapsedTime;
+        if (light1Ref.current) {
+            light1Ref.current.position.x = Math.sin(time * 0.5) * 10;
+            light1Ref.current.position.y = Math.cos(time * 0.5) * 10;
+            light1Ref.current.position.z = Math.cos(time * 0.5) * 10;
+        }
+        if (light2Ref.current) {
+            light2Ref.current.position.x = Math.sin(time * 0.3) * -10;
+            light2Ref.current.position.y = Math.cos(time * 0.3) * -10;
+            light2Ref.current.position.z = Math.sin(time * 0.3) * 5;
         }
     });
 
     return (
-        <group ref={groupRef}>
-            <Float speed={0.5} rotationIntensity={0.5} floatIntensity={0.5}>
-                <mesh>
-                    <sphereGeometry args={[1, 32, 32]} />
-                    <meshBasicMaterial wireframe color="#7F00FF" toneMapped={false} />
-                </mesh>
-            </Float>
-        </group>
+        <>
+            <fog attach="fog" args={['#000000', 10, 40]} />
+            <ambientLight intensity={1.5} />
+            <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
+            <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
+            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+        </>
     );
 };
 
-const AICoreVisual = () => (
-    <Canvas camera={{ position: [0, 0, 3], fov: 50 }}>
-        <ambientLight intensity={0.5} />
-        <pointLight position={[5, 5, 5]} intensity={150} color="#7F00FF" />
-        <Float speed={2} rotationIntensity={1}>
-            <mesh>
-                <icosahedronGeometry args={[1, 1]} />
-                <meshBasicMaterial wireframe color="#00c6ff" toneMapped={false} />
-            </mesh>
-        </Float>
-    </Canvas>
-);
+// ============================================================================
+// --- Dynamic Loaders (Crucial for Build) ---
+// ============================================================================
 
-const DroneVisual = () => (
-     <Canvas camera={{ position: [0, 0, 4], fov: 50 }}>
-        <ambientLight intensity={1} />
-        <directionalLight position={[0, 5, 5]} intensity={2}/>
-        <Float speed={1.5} floatIntensity={0.5}>
-            <group rotation={[0.3, Math.PI / 2, 0]}>
-                 <mesh>
-                    <boxGeometry args={[1.5, 0.1, 0.7]} />
-                    <meshStandardMaterial color="#E0E0E0" roughness={0.3} />
-                </mesh>
-                 <mesh position={[0, 0.1, 0]}>
-                    <cylinderGeometry args={[0.3, 0.2, 0.2, 32]} />
-                    <meshStandardMaterial color="#BDBDBD" />
-                </mesh>
-            </group>
-        </Float>
-    </Canvas>
-);
+const DynamicAboutHeroVisual = dynamic(() => Promise.resolve(AboutHeroVisual), { 
+  ssr: false, 
+  loading: () => null
+});
 
-const SustainableGridVisual = () => (
-    <Canvas camera={{ position: [0, 0, 3], fov: 50 }}>
-        <ambientLight intensity={0.5} />
-        <pointLight position={[5, 5, 5]} intensity={100} color="#00c6ff" />
-        <Float speed={1}>
-            <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[1, 0.05, 16, 100]} />
-                <meshStandardMaterial color="#00ffab" emissive="#00ffab" emissiveIntensity={2} toneMapped={false}/>
-            </mesh>
-            <mesh scale={0.6}>
-                <sphereGeometry args={[1, 32, 32]} />
-                <meshStandardMaterial wireframe color="#00c6ff" transparent opacity={0.5}/>
-            </mesh>
-        </Float>
-    </Canvas>
-);
+// ============================================================================
+// --- Re-designed Components ---
+// ============================================================================
 
-const TechnologyCard = ({ icon, title, text }: { icon: React.ReactNode, title: string, text: string }) => (
-  <motion.div 
-    variants={{ hidden: { opacity: 0, y: 50 }, visible: { opacity: 1, y: 0 } }}
-    className="h-96 p-6 bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col justify-between"
-  >
-    <div className="h-2/5">{icon}</div>
-    <div className="h-3/5 flex flex-col justify-end">
-      <h3 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
-      <p className="text-gray-400">{text}</p>
-    </div>
-  </motion.div>
-);
+const PillarSection = ({ 
+    icon: Icon, 
+    title, 
+    text, 
+    videoSrc, 
+    reverse = false 
+}: { 
+    icon: React.ElementType, 
+    title: string, 
+    text: string, 
+    videoSrc: string, 
+    reverse?: boolean 
+}) => {
+    const ref = useRef(null);
+    const { scrollYProgress } = useScroll({
+        target: ref,
+        offset: ['start end', 'end start']
+    });
+    const y = useTransform(scrollYProgress, [0, 1], ['-20%', '20%']);
 
-const AnimatedCounter = ({ value, label }: { value: number; label: string; }) => {
+    return (
+        <div ref={ref} className={`flex flex-col md:flex-row items-center gap-12 ${reverse ? 'md:flex-row-reverse' : ''} my-32`}>
+            {/* --- Text Content --- */}
+            <motion.div 
+                initial={{ opacity: 0, x: reverse ? 50 : -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.8 }}
+                className="w-full md:w-1/2"
+            >
+                <Icon className="w-12 h-12 text-cyan-400 mb-4" />
+                <h3 className="text-4xl font-bold text-white mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                    {title}
+                </h3>
+                <p className="text-lg text-gray-400 leading-relaxed">
+                    {text}
+                </p>
+            </motion.div>
+
+            {/* --- Visual Content (Video) --- */}
+            <div className="w-full md:w-1/2 h-96">
+                <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true, amount: 0.3 }}
+                    transition={{ duration: 0.8 }}
+                    className="relative h-full w-full rounded-2xl border border-cyan-400/30 overflow-hidden shadow-2xl shadow-cyan-500/20"
+                >
+                    <motion.video
+                        style={{ y }}
+                        className="absolute top-0 left-0 w-full h-full object-cover"
+                        src={videoSrc}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                    />
+                    <div className="absolute inset-0 bg-black/40" />
+                </motion.div>
+            </div>
+        </div>
+    );
+};
+
+const AnimatedCounter = ({ value, label, icon }: { value: number; label: string; icon: React.ReactNode; }) => {
     const ref = useRef<HTMLSpanElement>(null);
     const motionValue = useMotionValue(0);
     const springValue = useSpring(motionValue, { damping: 100, stiffness: 100 });
@@ -113,12 +139,17 @@ const AnimatedCounter = ({ value, label }: { value: number; label: string; }) =>
     }, [springValue, value, motionValue]);
 
     return (
-        <div className="text-center">
-            <span ref={ref} className="text-5xl font-black text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>0</span>
-            <p className="text-gray-400 mt-2">{label}</p>
+        <div className="p-6 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-lg shadow-cyan-500/10 text-center">
+            <div className="h-8 w-8 text-cyan-400 mx-auto mb-3">{icon}</div>
+            <span ref={ref} className="text-4xl md:text-5xl font-bold text-white tabular-nums" style={{ fontFamily: "'Orbitron', sans-serif" }}>0</span>
+            <p className="text-sm text-gray-400 uppercase tracking-widest mt-2">{label}</p>
         </div>
     );
 };
+
+// ============================================================================
+// --- Main Page Component ---
+// ============================================================================
 
 export default function AboutPage() {
   const scrollRef = useRef(null);
@@ -130,11 +161,10 @@ export default function AboutPage() {
     <div ref={scrollRef} className="bg-black text-white" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>
       
       <section className="relative h-screen w-full flex items-center justify-center text-center overflow-hidden">
-        <div className="absolute inset-0 z-0 opacity-50">
+        <div className="absolute inset-0 z-0 opacity-70">
             <Canvas>
                 <Suspense fallback={null}>
-                    <NeuralGridBackground />
-                    <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+                    <DynamicAboutHeroVisual />
                 </Suspense>
             </Canvas>
         </div>
@@ -144,9 +174,29 @@ export default function AboutPage() {
             transition={{ duration: 1, ease: "easeOut" }}
             className="z-10 px-4"
         >
-            <h1 className="text-5xl md:text-7xl font-black text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            <motion.h1 
+              className="text-5xl md:text-7xl font-black text-white" 
+              style={{ fontFamily: "'Orbitron', sans-serif" }}
+            >
+              <motion.span
+                className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
+                animate={{
+                  filter: [
+                    'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))',
+                    'drop-shadow(0 0 16px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.8))',
+                    'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))'
+                  ]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
                 We’re Redefining the Meaning of Commerce.
-            </h1>
+              </motion.span>
+            </motion.h1>
+
             <p className="mt-4 text-lg text-gray-300 max-w-3xl mx-auto">
                 From intelligence to autonomy — we’re building the next evolution of global trade.
             </p>
@@ -172,30 +222,45 @@ export default function AboutPage() {
         </motion.div>
       </section>
 
-      <section className="py-32 px-4 container mx-auto">
+      {/* --- BEGIN NEW "PILLARS" SECTION --- */}
+      <section className="py-32 px-4 container mx-auto max-w-6xl">
          <div className="text-center mb-16">
-             <h2 className="text-4xl md:text-5xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>The AI Infrastructure</h2>
+             <h2 className="text-4xl md:text-5xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>The Pillars of Autonomy</h2>
          </div>
-        <motion.div 
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ staggerChildren: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto"
-        >
-            <TechnologyCard icon={<AICoreVisual />} title="AI Core" text="Self-learning algorithms managing global commerce autonomously." />
-            <TechnologyCard icon={<DroneVisual />} title="Autonomous Drones" text="A fully automated aerial logistics network." />
-            <TechnologyCard icon={<SustainableGridVisual />} title="Sustainable Grid" text="Zero-emission, energy-efficient operations." />
-        </motion.div>
-      </section>
+        
+         <PillarSection 
+            icon={Cpu}
+            title="AI Core"
+            text="Our self-learning neural network optimizes millions of routes in real-time, managing the entire global logistics network autonomously and efficiently."
+            videoSrc="/videos/ai_core_visual.mp4"
+         />
 
-       <section className="py-32 px-4 relative bg-black bg-grid-white/[0.05]">
+         <PillarSection 
+            icon={Rocket}
+            title="Autonomous Drones"
+            text="A fully automated aerial fleet. Our drones are engineered for speed, reliability, and all-weather operation, ensuring your package arrives instantly."
+            videoSrc="/videos/drone_visual.mp4"
+            reverse={true}
+         />
+
+         <PillarSection 
+            icon={Leaf}
+            title="Sustainable Grid"
+            text="We built our network on a zero-emission foundation. Our operations are powered by clean energy, redefining commerce to be as good for the planet as it is for you."
+            videoSrc="/videos/grid_visual.mp4"
+         />
+
+      </section>
+      {/* --- END NEW "PILLARS" SECTION --- */}
+
+
+       <section className="py-32 px-4 relative bg-black bg-grid-cyan-400/[0.05]">
             <div className="container mx-auto text-center">
                 <p className="text-2xl text-gray-300 mb-12 max-w-3xl mx-auto">We’re not just delivering products — we’re delivering progress.</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <AnimatedCounter value={1200000} label="CO₂ Saved (tons)" />
-                    <AnimatedCounter value={10582} label="Drones in Active Flight" />
-                    <AnimatedCounter value={127} label="Cities Connected" />
+                    <AnimatedCounter value={1200000} label="CO₂ Saved (tons)" icon={<Leaf size={32} />} />
+                    <AnimatedCounter value={10582} label="Drones in Active Flight" icon={<Rocket size={32} />} />
+                    <AnimatedCounter value={127} label="Cities Connected" icon={<Map size={32} />} />
                 </div>
             </div>
        </section>
@@ -215,7 +280,7 @@ export default function AboutPage() {
                         className="absolute"
                         style={{ left: `${25 + i * 25}%`, transform: 'translateX(-50%)' }}
                     >
-                         <Image src={img} alt="Team member" width={128} height={128} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-black/50 shadow-2xl" />
+                         <Image src={img} alt="Team member" width={128} height={128} className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-cyan-400/30 shadow-2xl shadow-cyan-500/20" />
                     </motion.div>
                 ))}
             </div>
@@ -224,7 +289,30 @@ export default function AboutPage() {
 
       <footer className="relative py-20 px-4 text-center border-t border-white/10 overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-black/50 backdrop-blur-md" />
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>Be Part of the Revolution.</h2>
+        <motion.h2 
+            className="text-3xl md:text-4xl font-bold text-white mb-4" 
+            style={{ fontFamily: "'Orbitron', sans-serif" }}
+        >
+            <motion.span
+                className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600"
+                 animate={{
+                    filter: [
+                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 2px rgba(168, 85, 247, 0.4))',
+                        'drop-shadow(0 0 10px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))',
+                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 2px rgba(168, 85, 247, 0.4))'
+                    ]
+                }}
+                transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 0.5
+                }}
+            >
+                Be Part of the Revolution.
+            </motion.span>
+        </motion.h2>
+
         <p className="text-lg text-gray-400 mb-8 max-w-xl mx-auto">"The sky is no longer the limit — it’s our infrastructure."</p>
          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-black bg-white rounded-full shadow-lg overflow-hidden">

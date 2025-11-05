@@ -1,8 +1,6 @@
-// apps/web/app/(main)/notifications/page.tsx 
-
 'use client';
 
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
@@ -24,6 +22,10 @@ import {
 
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { toast } from 'sonner'; 
+import dynamic from 'next/dynamic';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Stars } from '@react-three/drei';
+import * as THREE from 'three';
 
 interface Notification {
     id: number;
@@ -58,7 +60,45 @@ const getGroupTitle = (dateStr: string) => {
 };
 
 // ============================================================================
-// --- 1. (Main Page Component) ---
+// --- 1. (New) Notification Background Component ---
+// ============================================================================
+const NotificationBackground = () => {
+    const light1Ref = useRef<THREE.PointLight>(null!);
+    const light2Ref = useRef<THREE.PointLight>(null!);
+
+    useFrame((state) => {
+        const time = state.clock.elapsedTime;
+        if (light1Ref.current) {
+            light1Ref.current.position.x = Math.sin(time * 0.5) * 15;
+            light1Ref.current.position.y = Math.cos(time * 0.5) * 15;
+            light1Ref.current.position.z = Math.cos(time * 0.5) * 10;
+        }
+        if (light2Ref.current) {
+            light2Ref.current.position.x = Math.sin(time * 0.3) * -15;
+            light2Ref.current.position.y = Math.cos(time * 0.3) * -15;
+            light2Ref.current.position.z = Math.sin(time * 0.3) * 5;
+        }
+    });
+
+    return (
+        <>
+            <fog attach="fog" args={['#000000', 10, 30]} />
+            <ambientLight intensity={1.0} />
+            <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
+            <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
+            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+        </>
+    );
+};
+
+const DynamicNotificationBackground = dynamic(() => Promise.resolve(NotificationBackground), { 
+    ssr: false,
+    loading: () => null
+});
+
+
+// ============================================================================
+// --- 2. (Main Page Component) ---
 // ============================================================================
 export default function NotificationsPage() {
    
@@ -218,11 +258,17 @@ export default function NotificationsPage() {
     }
 
     return (
-        <div
-            className="min-h-screen w-full text-white flex flex-col items-center justify-start pt-20 p-4"
-            style={{ backgroundColor: '#000000' }}
-        >
-            <div className="w-full max-w-4xl flex flex-col items-center">
+        <div className="relative min-h-screen w-full text-white flex flex-col items-center justify-start p-4 bg-black">
+            
+            <div className="absolute inset-0 z-0 opacity-70">
+                <Canvas>
+                    <Suspense fallback={null}>
+                        <DynamicNotificationBackground />
+                    </Suspense>
+                </Canvas>
+            </div>
+
+            <div className="w-full max-w-6xl flex flex-col items-center relative z-10">
 
                 <ControlBar
                     unreadCount={unreadCount}
@@ -291,7 +337,7 @@ export default function NotificationsPage() {
 
 
 // ============================================================================
-// --- 2. المكونات الفرعية (Sub-Components) ---
+// --- 3. (Re-styled) Sub-Components ---
 // ============================================================================
 
 const typeConfig: { [key: string]: { icon: React.ElementType; color: string } } = {
@@ -317,29 +363,50 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="w-full flex flex-col sm:flex-row justify-center sm:justify-between items-center py-4 border-b border-gray-700">
+    <div className="w-full grid grid-cols-1 sm:grid-cols-3 items-center py-4 sticky top-[72px] z-30 bg-black/30 backdrop-blur-lg rounded-b-lg gap-4 sm:gap-0">
      
-      <div className="relative mb-4 sm:mb-0 flex items-center gap-3">
-         
-         <span
-              className={`w-2.5 h-2.5 rounded-full ${isWebSocketConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-600'}`}
-              title={isWebSocketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
-         />
-        <div className='relative'> 
-            <h1 className="text-2xl font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                Notifications
-            </h1>
-
-        </div>
-        {unreadCount > 0 && (
-            <motion.div
-              initial={{ scale: 0 }} animate={{ scale: 1 }}
-              className="flex items-center justify-center w-7 h-7 rounded-full bg-cyan-400 text-black text-xs font-bold">
-              {unreadCount}
-            </motion.div>
-         )}
+      {/* --- العنوان (اليسار) --- */}
+      <div className="flex sm:justify-start justify-center">
+          <div className="relative flex items-center gap-3 sm:ml-6">
+             <span
+                  className={`w-2.5 h-2.5 rounded-full ${isWebSocketConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.7)]' : 'bg-gray-600'}`}
+                  title={isWebSocketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
+             />
+            <div className='relative'> 
+                <motion.h1 
+                    className="text-2xl font-bold" 
+                    style={{ fontFamily: "'Orbitron', sans-serif" }}
+                >
+                  <motion.span
+                    className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
+                    animate={{
+                      filter: [
+                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 2px rgba(168, 85, 247, 0.4))',
+                        'drop-shadow(0 0 10px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 10px rgba(168, 85, 247, 0.8))',
+                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 2px rgba(168, 85, 247, 0.4))'
+                      ]
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    Notifications
+                  </motion.span>
+                </motion.h1>
+            </div>
+            {unreadCount > 0 && (
+                <motion.div
+                  initial={{ scale: 0 }} animate={{ scale: 1 }}
+                  className="flex items-center justify-center w-7 h-7 rounded-full bg-cyan-400 text-black text-xs font-bold shadow-lg shadow-cyan-500/50">
+                  {unreadCount}
+                </motion.div>
+             )}
+          </div>
       </div>
 
+      {/* --- الفلاتر (المنتصف) --- */}
       <div className="flex items-center justify-center gap-2 flex-wrap">
          {filters.map((filter, index) => (
           <React.Fragment key={filter}>
@@ -365,8 +432,9 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
         ))}
       </div>
 
-      <div className="relative hidden sm:block">
-         <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+      {/* --- الإعدادات (اليمين) --- */}
+      <div className="relative hidden sm:flex justify-end sm:mr-6">
+         <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
             <Settings size={20} />
          </button>
          <AnimatePresence>
@@ -375,15 +443,15 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="absolute right-0 top-10 w-48 bg-gray-900 border border-gray-700 rounded-md shadow-lg z-20"
+                    className="absolute right-0 top-10 w-48 bg-black/50 backdrop-blur-lg border border-cyan-400/30 rounded-md shadow-2xl shadow-cyan-500/20 z-20"
                 >
                     <button
                         onClick={onMarkAllAsRead}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/10 flex items-center gap-2"
                     >
                         <CheckCheck size={16} /> Mark all as read
                     </button>
-                    <button className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 flex items-center gap-2">
+                    <button className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/10 flex items-center gap-2">
                         <BellOff size={16} /> Mute notifications
                     </button>
                 </motion.div>
@@ -401,11 +469,11 @@ const CinematicEmptyState = () => {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.5, ease: 'easeInOut' }}
-      className="flex flex-col items-center justify-center text-center py-24 px-6"
+      className="flex flex-col items-center justify-center text-center pt-48 pb-24 px-6"
     >
-      <Bell size={48} className="text-gray-700 mb-6" />
+      <Bell size={64} className="text-cyan-400/30 mb-6" />
       <h3
-        className="text-xl font-semibold text-gray-300 mb-2"
+        className="text-xl font-semibold text-white mb-2"
         style={{ fontFamily: "'Orbitron', sans-serif" }}
       >
         All Clear
@@ -433,9 +501,12 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
       transition={{ delay: index * 0.05, type: 'spring', stiffness: 200, damping: 25 }}
-      className={`w-full flex items-start p-4 rounded-lg border transition-all duration-300 ease-in-out ${
-        read ? 'bg-gray-900 border-gray-800' : 'bg-gray-800 border-gray-700'
-      } hover:border-cyan-500`}
+      whileHover={{ scale: 1.02, y: -2 }}
+      className={`w-full flex items-start p-4 rounded-xl transition-all duration-300 ease-in-out ${
+        read 
+          ? 'bg-black/10 backdrop-blur-sm border border-gray-800/50' 
+          : 'bg-black/30 backdrop-blur-lg border border-cyan-400/30 shadow-lg shadow-cyan-500/10'
+      } hover:border-cyan-400/80`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -445,12 +516,12 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
-            className="w-2.5 h-2.5 bg-cyan-400 rounded-full mr-4 mt-1.5 flex-shrink-0"
+            className="w-2.5 h-2.5 bg-cyan-400 rounded-full mr-4 mt-1.5 flex-shrink-0 shadow-[0_0_6px_rgba(0,198,255,0.7)]"
             title="Unread"
           />
         )}
       </AnimatePresence>
-      <div className={`mr-4 mt-1 flex-shrink-0 ${read ? 'opacity-50' : ''}`}>
+      <div className={`mr-4 mt-1 flex-shrink-0 ${read ? 'opacity-30' : ''}`}>
         {getIcon(type)}
       </div>
     
@@ -482,7 +553,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
           <button
             onClick={() => onMarkAsRead(id)}
             title="Mark as read"
-            className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+            className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
           >
             <Check size={16} />
           </button>
@@ -490,7 +561,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
         <button
           onClick={() => onDismiss(id)}
           title="Dismiss"
-          className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-red-800 transition-colors"
+          className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-red-900/50 transition-colors"
         >
           <X size={16} />
         </button>
@@ -507,7 +578,7 @@ const UndoToast = ({ message, onUndo }: { message: string; onUndo: () => void })
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.9 }}
       transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-700 text-white py-3 px-5 rounded-lg shadow-2xl flex items-center justify-between z-50"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-lg border border-cyan-400/50 text-white py-3 px-5 rounded-lg shadow-2xl shadow-cyan-500/20 flex items-center justify-between z-50"
     >
       <span className="text-sm mr-6">{message}</span>
       <button
@@ -532,4 +603,3 @@ const ErrorDisplay = ({ error }: { error: Error }) => (
         <p className="text-gray-500">{error.message}</p>
     </div>
 );
-

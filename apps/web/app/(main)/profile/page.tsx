@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useRef, useEffect, useState } from 'react';
+import React, { useMemo, useRef, useEffect, useState, Suspense } from 'react';
 import { useSession, signOut } from "next-auth/react";
 import { motion, useMotionValue, useSpring, useInView, AnimatePresence } from "framer-motion";
 import Image from 'next/image';
@@ -15,6 +15,10 @@ import {
 import ChangePasswordModal from '@/components/profile/ChangePasswordModal';
 import ViewOrdersModal from '@/components/profile/ViewOrdersModal';
 import EditProfileDetailsModal from '@/components/profile/EditProfileDetailsModal';
+import dynamic from 'next/dynamic';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Stars } from '@react-three/drei';
+import * as THREE from 'three';
 
 interface UserProfileData {
     id: number; email: string; full_name?: string | null; role?: string | null;
@@ -48,6 +52,46 @@ interface DefaultPaymentData {
     last4: string | null;
 }
 
+// ============================================================================
+// --- 1. (New) Profile Background Component ---
+// ============================================================================
+const ProfileBackground = () => {
+    const light1Ref = useRef<THREE.PointLight>(null!);
+    const light2Ref = useRef<THREE.PointLight>(null!);
+
+    useFrame((state) => {
+        const time = state.clock.elapsedTime;
+        if (light1Ref.current) {
+            light1Ref.current.position.x = Math.sin(time * 0.5) * 15;
+            light1Ref.current.position.y = Math.cos(time * 0.5) * 15;
+            light1Ref.current.position.z = Math.cos(time * 0.5) * 10;
+        }
+        if (light2Ref.current) {
+            light2Ref.current.position.x = Math.sin(time * 0.3) * -15;
+            light2Ref.current.position.y = Math.cos(time * 0.3) * -15;
+            light2Ref.current.position.z = Math.sin(time * 0.3) * 5;
+        }
+    });
+
+    return (
+        <>
+            <fog attach="fog" args={['#000000', 10, 30]} />
+            <ambientLight intensity={1.0} />
+            <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
+            <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
+            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+        </>
+    );
+};
+
+const DynamicProfileBackground = dynamic(() => Promise.resolve(ProfileBackground), { 
+    ssr: false,
+    loading: () => null
+});
+
+// ============================================================================
+// --- 2. (Main Page Component) ---
+// ============================================================================
 export default function ProfilePage() {
     const { data: session, status: sessionStatus, update: updateSession } = useSession();
     const profileApiUrl = '/users/me';
@@ -217,9 +261,14 @@ export default function ProfilePage() {
                 className="relative min-h-screen w-full bg-black text-gray-200 py-24 md:py-32 px-4 overflow-hidden"
                 style={{ fontFamily: "'Inter', sans-serif" }}
             >
-                <motion.div 
-                    className="absolute inset-0 z-0 bg-black" 
-                />
+                {/* --- New 3D Background --- */}
+                <div className="fixed inset-0 z-0 opacity-70">
+                    <Canvas>
+                        <Suspense fallback={null}>
+                            <DynamicProfileBackground />
+                        </Suspense>
+                    </Canvas>
+                </div>
 
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="relative z-10 w-full max-w-4xl mx-auto space-y-12">
 
@@ -227,8 +276,11 @@ export default function ProfilePage() {
                     <motion.div variants={{ hidden: { opacity: 0, y: -20 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="flex flex-col items-center text-center">
                         <div className="relative group mb-5">
                             <motion.div 
-                                className="absolute -inset-1.5 rounded-full bg-cyan-400/50 opacity-70 blur-xl"
-                                animate={{ scale: [1, 1.05, 1], opacity: [0.6, 0.8, 0.6] }}
+                                className="absolute -inset-1.5 rounded-full bg-cyan-400 blur-xl"
+                                animate={{ 
+                                    opacity: [0.6, 1, 0.6],
+                                    scale: [1, 1.05, 1]
+                                }}
                                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                             />
                             <div className="relative z-10 rounded-full p-1 bg-gradient-to-tr from-cyan-900/60 via-black/30 to-cyan-900/60">
@@ -244,7 +296,23 @@ export default function ProfilePage() {
                             </button>
                         </div>
                         <h1 className="text-4xl md:text-5xl font-black text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            {profileData?.full_name || session?.user?.email?.split('@')[0]}
+                             <motion.span
+                                className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
+                                animate={{
+                                filter: [
+                                    'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))',
+                                    'drop-shadow(0 0 16px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.8))',
+                                    'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))'
+                                ]
+                                }}
+                                transition={{
+                                duration: 3,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                                }}
+                            >
+                                {profileData?.full_name || session?.user?.email?.split('@')[0]}
+                            </motion.span>
                         </h1>
                         {subtext && (<p className="mt-2 text-base text-gray-400">{subtext}</p>)}
                          {profileData?.role && (
@@ -256,7 +324,7 @@ export default function ProfilePage() {
                     </motion.div>
 
                 
-                    <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/30 p-6 md:p-8">
+                    <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-xl shadow-cyan-500/10 p-6 md:p-8">
                         <h2 className="text-xl font-semibold text-cyan-400 mb-6 pb-4 border-b border-white/10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             Account Information
                         </h2>
@@ -272,7 +340,7 @@ export default function ProfilePage() {
                     </motion.div>
 
            
-                    <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/30 p-6 md:p-8">
+                    <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-xl shadow-cyan-500/10 p-6 md:p-8">
                          <h2 className="text-xl font-semibold text-cyan-400 mb-6 pb-4 border-b border-white/10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             Settings
                         </h2>
@@ -283,7 +351,7 @@ export default function ProfilePage() {
                     </motion.div>
 
                
-                    <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl shadow-xl shadow-black/30 p-6 md:p-8">
+                    <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-xl shadow-cyan-500/10 p-6 md:p-8">
                         <div className="mb-5 flex justify-between items-center">
                             <h2 className="text-xl font-semibold text-cyan-400 inline-block" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 Your Recent Orders
@@ -309,7 +377,7 @@ export default function ProfilePage() {
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }}>
                         <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                            
-                            <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl p-6 flex items-start gap-4">
+                            <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl p-6 flex items-start gap-4">
                                 <CreditCard size={20} className="text-cyan-400/80 mt-1 flex-shrink-0" />
                                 <div>
                                     <h3 className="text-base font-semibold text-white mb-1">Default Payment</h3>
@@ -328,7 +396,7 @@ export default function ProfilePage() {
                                 
                                 </div>
                             </motion.div>
-                            <motion.div variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/40 backdrop-blur-lg border border-white/10 rounded-2xl p-6 flex items-start gap-4">
+                            <motion.div variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl p-6 flex items-start gap-4">
                                 <MapPin size={20} className="text-cyan-400/80 mt-1 flex-shrink-0" />
                                 <div>
                                     <h3 className="text-base font-semibold text-white mb-1">Default Shipping</h3>
@@ -431,7 +499,7 @@ const OrderCard = ({ order }: { order: OrderRead }) => {
         <motion.div
             variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0 } }}
             whileHover={{ y: -6, transition: { duration: 0.2, ease: 'easeOut' } }}
-            className="w-64 flex-shrink-0 bg-black/40 border border-white/10 rounded-xl overflow-hidden shadow-lg backdrop-blur-md"
+            className="w-64 flex-shrink-0 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/10"
         >
             
              <div className="relative w-full h-36">
