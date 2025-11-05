@@ -3,8 +3,10 @@
 import React, { useState, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { ChevronDown, ShieldCheck } from 'lucide-react';
+import { Stars } from '@react-three/drei';
+import { ChevronDown, ShieldCheck, Cpu } from 'lucide-react';
 import * as THREE from 'three';
+import dynamic from 'next/dynamic';
 
 const clauses = [
   {
@@ -24,45 +26,61 @@ const clauses = [
   },
 ];
 
-const AnimatedGridBackground = () => {
-    const materialRef = useRef<THREE.ShaderMaterial>(null!);
-    useFrame(({ clock }) => {
-        if (materialRef.current) {
-            materialRef.current.uniforms.time.value = clock.getElapsedTime();
+// ============================================================================
+// --- 1. (New) Background Component ---
+// ============================================================================
+const TermsBackground = () => {
+    const light1Ref = useRef<THREE.PointLight>(null!);
+    const light2Ref = useRef<THREE.PointLight>(null!);
+
+    useFrame((state) => {
+        const time = state.clock.elapsedTime;
+        if (light1Ref.current) {
+            light1Ref.current.position.x = Math.sin(time * 0.5) * 15;
+            light1Ref.current.position.y = Math.cos(time * 0.5) * 15;
+            light1Ref.current.position.z = Math.cos(time * 0.5) * 10;
+        }
+        if (light2Ref.current) {
+            light2Ref.current.position.x = Math.sin(time * 0.3) * -15;
+            light2Ref.current.position.y = Math.cos(time * 0.3) * -15;
+            light2Ref.current.position.z = Math.sin(time * 0.3) * 5;
         }
     });
-    const shader = {
-        uniforms: { time: { value: 0 } },
-        vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-        fragmentShader: `
-            uniform float time;
-            varying vec2 vUv;
-            void main() {
-                vec2 p = vUv * 2.0 - 1.0;
-                float len = length(p);
-                float a = atan(p.y, p.x);
-                float pulse = sin(len * 10.0 - time * 2.0) * 0.5 + 0.5;
-                float strength = smoothstep(0.99, 1.0, pulse) * 0.1;
-                gl_FragColor = vec4(0.1, 0.7, 1.0, strength);
-            }`
-    };
+
     return (
-        <mesh scale={[1.5, 1.5, 1.5]}>
-            <planeGeometry args={[20, 20]} />
-            <shaderMaterial ref={materialRef} args={[shader]} transparent depthWrite={false} />
-        </mesh>
+        <>
+            <fog attach="fog" args={['#000000', 10, 30]} />
+            <ambientLight intensity={1.0} />
+            <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
+            <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
+            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+        </>
     );
 };
 
+const DynamicTermsBackground = dynamic(() => Promise.resolve(TermsBackground), { 
+    ssr: false,
+    loading: () => null
+});
+
+// ============================================================================
+// --- 2. (Re-styled) Sub-Components ---
+// ============================================================================
 const DualModeToggle = ({ mode, setMode }: { mode: 'human' | 'legal', setMode: (mode: 'human' | 'legal') => void }) => (
     <div className="flex justify-center mb-12">
-        <div className="bg-black/30 border border-white/10 rounded-full p-1 flex gap-1">
-            <button onClick={() => setMode('human')} className="relative px-6 py-2 rounded-full text-sm font-medium text-white transition-colors">
-                {mode === 'human' && <motion.div layoutId="toggle-bg" className="absolute inset-0 bg-white/10 rounded-full" />}
+        <div className="bg-black/50 backdrop-blur-lg border border-cyan-400/30 rounded-full p-1 flex gap-1 shadow-lg shadow-cyan-500/10">
+            <button 
+                onClick={() => setMode('human')} 
+                className="relative px-6 py-2 rounded-full text-sm font-medium text-white transition-colors"
+            >
+                {mode === 'human' && <motion.div layoutId="toggle-bg" className="absolute inset-0 bg-cyan-500/30 border border-cyan-500/50 rounded-full" />}
                 <span className="relative z-10">Human Readable</span>
             </button>
-            <button onClick={() => setMode('legal')} className="relative px-6 py-2 rounded-full text-sm font-medium text-white transition-colors">
-                {mode === 'legal' && <motion.div layoutId="toggle-bg" className="absolute inset-0 bg-white/10 rounded-full" />}
+            <button 
+                onClick={() => setMode('legal')} 
+                className="relative px-6 py-2 rounded-full text-sm font-medium text-white transition-colors"
+            >
+                {mode === 'legal' && <motion.div layoutId="toggle-bg" className="absolute inset-0 bg-cyan-500/30 border border-cyan-500/50 rounded-full" />}
                 <span className="relative z-10">Legal Text</span>
             </button>
         </div>
@@ -70,10 +88,14 @@ const DualModeToggle = ({ mode, setMode }: { mode: 'human' | 'legal', setMode: (
 );
 
 const LegalCard = ({ clause, mode, isOpen, onToggle }: { clause: any, mode: 'human' | 'legal', isOpen: boolean, onToggle: () => void }) => (
-    <motion.div layout className="bg-black/30 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-lg">
+    <motion.div 
+        layout 
+        className="bg-black/50 backdrop-blur-xl border border-cyan-400/30 rounded-2xl overflow-hidden shadow-lg shadow-cyan-500/10"
+        whileHover={{ borderColor: 'rgba(0, 198, 255, 0.7)', boxShadow: '0 0 24px rgba(0, 198, 255, 0.3)' }}
+    >
         <motion.div layout className="flex justify-between items-center p-6 cursor-pointer" onClick={onToggle}>
             <h3 className="text-xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>{clause.title}</h3>
-            <motion.div animate={{ rotate: isOpen ? 180 : 0 }}>
+            <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-cyan-400">
                 <ChevronDown />
             </motion.div>
         </motion.div>
@@ -86,9 +108,10 @@ const LegalCard = ({ clause, mode, isOpen, onToggle }: { clause: any, mode: 'hum
                     transition={{ duration: 0.4, ease: "easeInOut" }}
                 >
                     <div className="px-6 pb-6 text-gray-400" style={{ fontFamily: "'Inter', sans-serif" }}>
-                        <p className="whitespace-pre-wrap">{mode === 'human' ? clause.humanText : clause.legalText}</p>
+                        <p className="whitespace-pre-wrap leading-relaxed">{mode === 'human' ? clause.humanText : clause.legalText}</p>
                         {mode === 'human' && (
-                             <div className="mt-4 p-3 bg-cyan-900/50 border border-cyan-500/30 rounded-lg text-sm text-cyan-200">
+                             <div className="mt-4 p-4 bg-black/30 border border-cyan-500/30 rounded-lg text-sm text-cyan-200 flex items-center gap-3">
+                                 <Cpu size={20} className="flex-shrink-0" />
                                  <strong>AI Note:</strong> Your data is encrypted and anonymized during every transaction.
                             </div>
                         )}
@@ -99,28 +122,49 @@ const LegalCard = ({ clause, mode, isOpen, onToggle }: { clause: any, mode: 'hum
     </motion.div>
 );
 
-const DataDivider = () => (
-    <div className="h-24 w-full flex items-center justify-center">
-        <div className="h-px w-full max-w-lg bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
-    </div>
-);
-
+// ============================================================================
+// --- 3. (Re-built) Main Page Component ---
+// ============================================================================
 export default function TermsOfServicePage() {
     const [mode, setMode] = useState<'human' | 'legal'>('human');
     const [expandedCard, setExpandedCard] = useState<number | null>(0);
 
     return (
         <div className="min-h-screen w-full bg-black text-gray-100">
+            
+            <div className="fixed inset-0 z-0 opacity-70">
+                <Canvas>
+                    <Suspense fallback={null}>
+                        <DynamicTermsBackground />
+                    </Suspense>
+                </Canvas>
+            </div>
         
             <section className="relative h-screen w-full flex items-center justify-center text-center overflow-hidden">
-                <div className="absolute inset-0 z-0 opacity-40">
-                    <Canvas>
-                        <Suspense fallback={null}><AnimatedGridBackground /></Suspense>
-                    </Canvas>
-                </div>
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: "easeOut" }} className="z-10 px-4">
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ duration: 1, ease: "easeOut" }} 
+                    className="z-10 px-4"
+                >
                     <h1 className="text-5xl md:text-7xl font-black text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        Terms of Service
+                        <motion.span
+                            className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
+                            animate={{
+                            filter: [
+                                'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))',
+                                'drop-shadow(0 0 16px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.8))',
+                                'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))'
+                            ]
+                            }}
+                            transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                            }}
+                        >
+                            THE PACT
+                        </motion.span>
                     </h1>
                     <p className="mt-2 text-cyan-400" style={{ fontFamily: "'Orbitron', sans-serif" }}>Powered by AI Transparency</p>
                     <p className="mt-6 text-lg text-gray-300 max-w-3xl mx-auto" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>
@@ -129,7 +173,7 @@ export default function TermsOfServicePage() {
                 </motion.div>
             </section>
 
-            <section className="container mx-auto px-4 py-24 max-w-4xl">
+            <section className="relative z-10 container mx-auto px-4 py-24 max-w-5xl">
                 <DualModeToggle mode={mode} setMode={setMode} />
                 <motion.div layout className="space-y-4">
                     {clauses.map((clause, index) => (
@@ -144,10 +188,8 @@ export default function TermsOfServicePage() {
                 </motion.div>
             </section>
 
-            <DataDivider />
-
-            <footer className="py-20 px-4 text-center relative">
-                <div className="flex flex-col items-center gap-4">
+            <footer className="relative z-10 py-20 px-4 text-center mt-12 w-full bg-black/30 backdrop-blur-lg border-t border-cyan-400/20">
+                <div className="flex flex-col items-center gap-4 max-w-5xl mx-auto">
                     <div className="relative flex items-center gap-2 border border-green-400/50 bg-green-900/50 text-green-300 px-4 py-2 rounded-lg">
                         <ShieldCheck size={18} />
                         <span className="font-semibold text-sm">AI Verified Document</span>
