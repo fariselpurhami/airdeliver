@@ -337,7 +337,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                             <div ref={chatEndRef} />
                                         </div>
                                        
-                                        <ChatInput onSend={handleSendMessage} isTyping={isLoading || status === 'loading'} />
+                                        <ChatInput onSend={handleSendMessage} isTyping={isLoading} />
                                     </motion.div>
                                 )}
                             </AnimatePresence>

@@ -75,6 +75,18 @@ const TypingIndicator = () => (
 
 const ChatInput = ({ onSend, isTyping }: { onSend: (text: string) => void; isTyping: boolean }) => {
     const [value, setValue] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+    const wasTypingRef = useRef<boolean>(isTyping);
+
+    useEffect(() => {
+        
+        if (wasTypingRef.current === true && isTyping === false) {
+            
+            inputRef.current?.focus();
+        }
+       
+        wasTypingRef.current = isTyping;
+    }, [isTyping]);
     
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -88,6 +100,7 @@ const ChatInput = ({ onSend, isTyping }: { onSend: (text: string) => void; isTyp
       <form onSubmit={handleSubmit} className="p-4 border-t border-cyan-400/30 flex-shrink-0">
         <div className="relative">
           <input
+	    ref={inputRef}
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
