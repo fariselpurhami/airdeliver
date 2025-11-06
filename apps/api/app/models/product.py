@@ -1,12 +1,11 @@
-# app/models/product.py
-
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, JSON, Column
 from sqlalchemy.orm import Mapped, relationship
 
 if TYPE_CHECKING:
     from .order import OrderItem
+    from .ai_cart import AIOrderingCartItem
 
 class Product(SQLModel, table=True):
     __tablename__ = "products"
@@ -16,7 +15,14 @@ class Product(SQLModel, table=True):
     price: float
     inventory: int
     image_url: Optional[str] = None
+    
+    category: str = Field(default="uncategorized", index=True)
+    tags: Optional[list[str]] = Field(default=None, sa_column=Column(JSON))
 
     order_items: Mapped[List["OrderItem"]] = Relationship(sa_relationship=relationship("OrderItem", back_populates="product"))
+
+    ai_cart_items: Mapped[List["AIOrderingCartItem"]] = Relationship(
+        sa_relationship=relationship("AIOrderingCartItem", back_populates="product")
+    )
 
     model_config = { "from_attributes": True }

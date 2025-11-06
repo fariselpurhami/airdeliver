@@ -6,25 +6,33 @@ import { Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, ChevronLeft, C
 import { useAIOrderingStore, Message } from '@/hooks/useAIOrderingStore';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
+import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import { AIPaymentForm } from './AIPaymentForm'; 
+import { useSession } from "next-auth/react";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (productName: string) => void }) => (
     <div className="embla__slide flex-[0_0_50%] md:flex-[0_0_40%]">
         <div className="flex flex-col p-4 bg-white/5 rounded-lg border border-cyan-400/20 h-full text-left">
             <Image src={product.image || '/images/default.jpeg'} alt={product.name} width={120} height={120} className="w-full h-24 object-contain mb-3 rounded-md"/>
             <h4 className="text-sm font-bold text-white">{product.name}</h4>
-            <p className="text-lg font-bold text-white mb-2">${product.price}</p>
+            <p className="text-lg font-bold text-white mb-2">${product.price.toFixed(2)}</p>
             <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">
-                <span>⭐ {product.rating} ({product.reviews}k)</span> | <span className="text-green-400">{product.stock_status}</span>
+                <span>⭐ {product.rating || '4.5'} ({product.reviews || '1.2'}k)</span> | <span className="text-green-400">{product.stock_status || 'In Stock'}</span>
             </div>
             <div className="text-xs text-gray-400 flex items-center gap-2 mt-auto">
-                <span>🚀 {product.delivery_eta} Delivery</span>
+                <span>🚀 {product.delivery_eta || '15 Min'} Delivery</span>
             </div>
+           
             <motion.button 
-                onClick={() => onSelect(`buy ${product.name}`)} 
+                onClick={() => onSelect(`__ADD_BY_ID__:${product.id}`)} 
                 className="w-full mt-3 text-sm bg-cyan-500/30 text-cyan-200 py-2 rounded-lg border border-cyan-500/50"
             >
                 Add to Cart
             </motion.button>
+            
         </div>
     </div>
 );
@@ -38,7 +46,7 @@ const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (p
         <div className="relative my-4 -mx-4">
             <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex space-x-4 ml-4">
-                    {products.map(p => <CarouselProductCard key={p.id} product={p} onSelect={onSelect} />)}
+                    {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} />)}
                 </div>
             </div>
             <button onClick={scrollPrev} className="absolute top-1/2 -translate-y-1/2 -left-3 p-1 bg-white/10 rounded-full z-10 hover:bg-white/20"><ChevronLeft size={16}/></button>
@@ -86,13 +94,14 @@ const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend:
                         <p className="whitespace-pre-wrap mb-2 test-base">{message.content}</p>
                         <ProductCarousel products={message.products || []} onSelect={onSend} />
                         {message.reason && <AIReasoning text={message.reason} />}
+                        {message.ai_notes && <AIReasoning text={message.ai_notes} />}
                     </div>
                 );
             default: return null;
         }
     };
 
-    if (['cart_preview', 'typing'].includes(message.contentType)) return null;
+    if (['cart_preview', 'typing', 'payment_intent'].includes(message.contentType)) return null;
 
     return (
         <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`flex items-start gap-3 w-full ${isAI ? 'justify-start' : 'justify-end'}`}>
@@ -109,6 +118,10 @@ ChatMessage.displayName = 'ChatMessage';
 const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
+    
+    const lastAINoteMessage = [...messages].reverse().find(m => m.sender === 'ai' && (m.ai_notes || m.reason));
+    const aiNote = lastAINoteMessage ? (lastAINoteMessage.ai_notes || lastAINoteMessage.reason) : "AI reasoning will appear here.";
+
     return (
         <div className="hidden lg:block w-1/3 bg-black/20 border-l border-cyan-400/30 p-6 rounded-r-2xl overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
             <div className="sticky top-0 flex flex-col h-full">
@@ -116,7 +129,7 @@ const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
                 <div className="space-y-3 mb-6 flex-grow min-h-[120px]">
                     <AnimatePresence>
                         {cart.items.length === 0 ? <p className="text-sm text-gray-500">Your cart is empty.</p> : cart.items.map((item: any, index: number) => (
-                            <motion.div key={index} layout initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex justify-between items-center text-sm">
+                            <motion.div key={item.product_id || index} layout initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex justify-between items-center text-sm">
                                 <span className="text-gray-300">{item.name} (x{item.quantity})</span>
                                 <span className="font-bold text-white">${(item.price * item.quantity).toFixed(2)}</span>
                             </motion.div>
@@ -131,7 +144,7 @@ const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
                     </div>
                     <div className="w-full h-[1px] bg-cyan-400/20 my-6" />
                     <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Cpu size={18} /> AI Notes</h3>
-                    <p className="text-sm text-gray-400 italic">"AI reasoning will appear here."</p>
+                    <p className="text-sm text-gray-400 italic">{aiNote}</p>
                     <div className="w-full h-[1px] bg-cyan-400/20 my-6" />
                     <div className="flex justify-between items-center font-bold">
                         <span className="text-gray-300 text-lg">Total</span>
@@ -163,11 +176,84 @@ const TypingIndicator = () => (
     </motion.div>
 );
 
+
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    const { messages, isLoading, sendMessage } = useAIOrderingStore();
-    const chatEndRef = useRef<HTMLDivElement>(null);
-    useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages, isLoading]);
     
+    const { messages, isLoading, sendMessage, paymentDetails, setOverlayVisible, addLocalAIMessage } = useAIOrderingStore();
+    const { data: session, status } = useSession();
+    const token = (session as any)?.accessToken;
+    
+    const chatEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => { 
+        if (chatEndRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' }); 
+        }
+    }, [messages, isLoading]);
+
+    const handleClose = () => {
+        setOverlayVisible(false); 
+        onClose();
+    };
+    
+    const handlePaymentSuccess = () => {
+        setOverlayVisible(false); 
+        onClose();
+    };
+
+    const handleSendMessage = useCallback((text: string) => {
+        
+        if (status === 'loading') {
+             setTimeout(() => { 
+                addLocalAIMessage(
+                    "Authenticating... Please wait a moment.",
+                    'error'
+                );
+            }, 300);
+            return;
+        }
+
+        if (status === 'authenticated' && token) {
+            sendMessage(text, token); 
+        } else {
+            const userMessage: Message = {
+                id: Date.now(),
+                sender: 'user',
+                contentType: 'text',
+                content: text,
+            };
+            useAIOrderingStore.setState((state) => ({
+                messages: [...state.messages, userMessage],
+                isLoading: true,
+            }));
+
+         
+            setTimeout(() => { 
+                addLocalAIMessage(
+                    "I'm sorry, I can only help you if you are logged in. Please log in to start your order.",
+                    'error'
+                );
+            }, 500);
+        }
+    }, [sendMessage, token, status, addLocalAIMessage]);
+
+    const stripeOptions: StripeElementsOptions = {
+        clientSecret: paymentDetails?.clientSecret,
+        appearance: {
+            theme: 'night',
+            labels: 'floating',
+            variables: {
+              colorPrimary: '#06b6d4',
+              colorBackground: '#0F172A',
+              colorText: '#ffffff',
+              colorDanger: '#ef4444',
+              fontFamily: 'system-ui, sans-serif',
+              spacingUnit: '4px',
+              borderRadius: '6px',
+            }
+        },
+    };
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -175,7 +261,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }} 
                     exit={{ opacity: 0 }} 
-                    onClick={onClose} 
+                    onClick={handleClose} 
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex justify-center items-center p-4"
                 >
                     <motion.div 
@@ -203,11 +289,11 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                     ease: "easeInOut"
                                     }}
                                 >
-                                    Order With AI
+                                    {paymentDetails ? 'Secure Checkout' : 'Order With AI'}
                                 </motion.span>
                             </h3>
                             <button
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
                             >
                                 <X size={20} />
@@ -215,17 +301,51 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         </header>
                    
                         <div className="flex-grow flex overflow-hidden">
-                            <div className="w-full lg:w-2/3 flex flex-col">
-                                <div className="flex-grow p-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
-                                    <AnimatePresence>
-                                        {messages.map((msg, index) => <ChatMessage key={index} message={msg} onSend={sendMessage} />)}
-                                    </AnimatePresence>
-                                    {isLoading && <TypingIndicator />}
-                                    <div ref={chatEndRef} />
-                                </div>
-                                <ChatInput onSend={sendMessage} isTyping={isLoading} />
-                            </div>
-                            <AIChatSidebar messages={messages} />
+                            <AnimatePresence mode="wait">
+                                {paymentDetails && paymentDetails.clientSecret ? (
+                                  
+                                    <motion.div
+                                        key="payment"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="w-full h-full flex items-center justify-center overflow-y-auto"
+                                    >
+                                        <Elements stripe={stripePromise} options={stripeOptions}>
+                                            <AIPaymentForm 
+                                                orderId={paymentDetails.orderId}
+                                                total={paymentDetails.total}
+                                                onPaymentSuccess={handlePaymentSuccess}
+                                            />
+                                        </Elements>
+                                    </motion.div>
+                                ) : (
+                                    
+                                    <motion.div 
+                                        key="chat"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="w-full lg:w-2/3 flex flex-col"
+                                    >
+                                        <div className="flex-grow p-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
+                                            <AnimatePresence>
+                                             
+                                                {messages.map((msg) => <ChatMessage key={msg.id} message={msg} onSend={handleSendMessage} />)}
+                                            </AnimatePresence>
+                                            {isLoading && <TypingIndicator />}
+                                            <div ref={chatEndRef} />
+                                        </div>
+                                       
+                                        <ChatInput onSend={handleSendMessage} isTyping={isLoading || status === 'loading'} />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                            
+                           
+                            {!(paymentDetails && paymentDetails.clientSecret) && (
+                                 <AIChatSidebar messages={messages} />
+                            )}
                         </div>
 
                     </motion.div>

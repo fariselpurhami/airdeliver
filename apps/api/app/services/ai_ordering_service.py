@@ -1,173 +1,290 @@
-# apps/api/app/services/ai_ordering_service.py
-
 import re
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
 from app.models.product import Product
 from app.models.user import User
-from app import models
-import random
-
-SESSION_CARTS = {}
+from app.models.order import Order, OrderItem
+from app.models.enums import OrderStatus
+from app.models.ai_cart import AIOrderingCartItem
+from app import models, schemas
+from app.services.ai_commerce_engine import ai_commerce_engine
+from app.services.payment_orchestrator import payment_orchestrator
+from sqlalchemy import cast, String
+from typing import List
 
 class AIOrderingService:
     def __init__(self):
         self.conversation_state = {"stage": "IDLE"}
 
-    def _clear_state_and_cart(self, session_id: str = "default_user"):
+    def _clear_state_and_cart(self, db: Session, user_id: int):
         self.conversation_state = {"stage": "IDLE"}
-        SESSION_CARTS.pop(session_id, None)
+        items_to_delete = db.exec(select(AIOrderingCartItem).where(AIOrderingCartItem.user_id == user_id)).all()
+        for item in items_to_delete:
+            db.delete(item)
+        db.commit()
 
-    def _get_user_cart(self, session_id: str = "default_user"):
-        if session_id not in SESSION_CARTS:
-            SESSION_CARTS[session_id] = {"items": [], "total": 0.0}
-        return SESSION_CARTS[session_id]
+    def _get_user_cart(self, db: Session, user_id: int) -> dict:
+        cart_items_db = db.exec(
+            select(AIOrderingCartItem, Product)
+            .join(Product, AIOrderingCartItem.product_id == Product.id)
+            .where(AIOrderingCartItem.user_id == user_id)
+        ).all()
+        
+        cart = {"items": [], "total": 0.0}
+        total = 0.0
+
+        for cart_item, product in cart_items_db:
+            item_total = product.price * cart_item.quantity
+            cart["items"].append({
+                "product_id": product.id,
+                "name": product.name,
+                "quantity": cart_item.quantity,
+                "price": product.price,
+                "image_url": self._format_product_for_frontend(product).get("image_url")
+            })
+            total += item_total
+            
+        cart["total"] = total
+        return cart
+
+    def _format_product_for_frontend(self, p: Product) -> dict:
+        product_data = p.model_dump()
+        image_filename = product_data.get("image_url")
+        if image_filename:
+            product_data["image_url"] = image_filename
+        else:
+            product_data["image_url"] = "default.jpeg"
+        product_data["image"] = product_data["image_url"]
+        return product_data
+
     def _parse_intent(self, message: str) -> dict:
+        if message.startswith("__ADD_BY_ID__"):
+            try:
+                product_id = int(message.split(":")[-1])
+                return {"intent": "ADD_BY_ID", "product_id": product_id}
+            except (ValueError, IndexError):
+                return {"intent": "UNKNOWN"}
+
         message_lower = message.lower()
-        add_keywords = ['buy', 'add', 'get', 'want', 'need', 'order']
-        modify_keywords = ['modify cart']
-        view_cart_keywords = ['show my cart', 'view cart']
         confirm_keywords = ['confirm', 'checkout', 'pay', 'proceed', 'confirm order']
         clear_keywords = ["clear cart", "cancel", "cancel order"]
         remove_keywords = ['remove', 'delete']
 
         if any(keyword in message_lower for keyword in confirm_keywords): return {"intent": "CONFIRM_ORDER"}
         if any(keyword in message_lower for keyword in clear_keywords): return {"intent": "CLEAR_CART"}
-        if any(keyword in message_lower for keyword in modify_keywords): return {"intent": "MODIFY_CART"}
 
         for keyword in remove_keywords:
             if keyword in message_lower:
                 parts = message_lower.split(keyword, 1)
-                if len(parts) > 1 and parts[1].strip():
-                    product_name = parts[1].strip()
-                    return {"intent": "REMOVE_FROM_CART", "product_name": product_name}
+                product_name = parts[1].strip() if len(parts) > 1 else ""
+                return {"intent": "REMOVE_FROM_CART", "product_name": product_name}
 
-        for keyword in add_keywords:
-            if keyword in message_lower:
-                parts = message_lower.split(keyword, 1)
-                if len(parts) > 1 and parts[1].strip():
-                    payload = parts[1].strip() 
-                    quantity = 1
-                    quantity_match = re.search(r'(\d+)', payload) 
-                    if quantity_match:
-                        quantity = int(quantity_match.group(1))
-                        payload = re.sub(r'(\d+)', '', payload).strip()
+        return {"intent": "ADD_TO_CART", "product_name": message}
 
-                    articles = ['a ', 'an ', 'some ']
-                    for article in articles:
-                        if payload.startswith(article):
-                            payload = payload[len(article):]
+    def _find_proactive_suggestions(self, db: Session, added_product: Product) -> List[Product]:
+        suggestions = []
+        
+        if not added_product.tags:
+            return []
 
-                    product_name = payload.strip()
-                    product_name = product_name.rstrip('s')
-                    stop_words_at_end = ['to my order', 'from my cart', 'for me', 'please']
-                    for phrase in stop_words_at_end:
-                        if product_name.endswith(phrase):
-                            product_name = product_name[:-len(phrase)].strip()
+        search_tags = [tag for tag in added_product.tags if tag in ["gift", "premium", "sport", "formal", "electronics", "clothing", "accessories"]]
+        
+        if search_tags:
+            tag_criteria = [cast(Product.tags, String).ilike(f"%{tag}%") for tag in search_tags]
+            suggestions = db.exec(
+                select(Product)
+                .where(
+                    Product.id != added_product.id,
+                    or_(*tag_criteria)
+                )
+                .limit(3)
+            ).all()
 
-                    return {"intent": "ADD_TO_CART", "quantity": quantity, "product_name": product_name}
+        if not suggestions:
+            suggestions = db.exec(
+                select(Product)
+                .where(
+                    Product.id != added_product.id,
+                    Product.category == added_product.category
+                )
+                .limit(3)
+            ).all()
+        
+        return suggestions
 
-        if any(keyword in message_lower for keyword in view_cart_keywords): return {"intent": "VIEW_CART"}
-        return {"intent": "UNKNOWN"}
-    def _recalculate_cart_total(self, cart: dict):
-        cart['total'] = sum(item['price'] * item['quantity'] for item in cart['items'])
+    def _add_product_to_cart_by_id(self, db: Session, user_id: int, product_id: int, initial_add: bool = False) -> List[dict]:
+        product = db.get(Product, product_id)
+        if not product:
+            return [{"contentType": "text", "content": f"Sorry, I couldn't find that specific item (ID: {product_id})."}]
 
-    def _format_product_for_frontend(self, p: Product) -> dict:
-        """
-        Takes a Product SQLModel object and formats its dictionary
-        with the correct image_url path for the frontend.
-        """
-        product_data = p.model_dump()
-        image_filename = product_data.get("image_url")
-
-        if image_filename:
-            product_data["image_url"] = image_filename
+        existing_item = db.exec(select(AIOrderingCartItem).where(
+            AIOrderingCartItem.user_id == user_id,
+            AIOrderingCartItem.product_id == product.id
+        )).first()
+        
+        if existing_item:
+            existing_item.quantity += 1
+            db.add(existing_item)
         else:
-            product_data["image_url"] = "default.jpeg"
+            new_cart_item = AIOrderingCartItem(user_id=user_id, product_id=product.id, quantity=1)
+            db.add(new_cart_item)
+        
+        db.commit()
 
-        product_data["image"] = product_data["image_url"]
-        return product_data
+        cart = self._get_user_cart(db, user_id)
+        
+        add_message = f"Great choice! I've added {product.name} to your cart."
+        if not initial_add:
+             add_message = f"Okay, I've also added {product.name} to your cart."
+
+        responses = [
+            {"contentType": "text", "content": add_message, "ai_notes": f"Based on your item, you might also like these."},
+            {"contentType": "cart_preview", "content": cart}
+        ]
+
+        suggestions = self._find_proactive_suggestions(db, product)
+        if suggestions:
+            suggestion_list = [self._format_product_for_frontend(p) for p in suggestions]
+            responses.append({
+                "contentType": "proactive_suggestion", 
+                "content": "Customers who bought this also love:" if initial_add else "Here are some other items you might like:", 
+                "products": suggestion_list, 
+                "reason": "Based on your latest addition."
+            })
+
+        responses.append({"contentType": "confirmation_prompt", "content": "Anything else?", "options": ["Confirm Order", "Clear Cart"]})
+        return responses
 
     def handle_message(self, db: Session, message: str, user: models.User) -> list[dict]:
-        cart = self._get_user_cart()
         current_stage = self.conversation_state.get("stage")
 
         if current_stage == "AWAITING_CLARIFICATION":
             parsed_data = {"intent": "ADD_TO_CART", "product_name": message}
+            self.conversation_state["stage"] = "IDLE"
         elif current_stage == "AWAITING_CONFIRMATION":
             parsed_data = self._parse_intent(message)
-            allowed_intents = ["CONFIRM_ORDER", "MODIFY_CART", "CLEAR_CART", "ADD_TO_CART", "REMOVE_FROM_CART"]
-            if parsed_data['intent'] not in allowed_intents:
-                 return [{"contentType": "text", "content": "Please choose an option by clicking one of the buttons."}]
         else:
             parsed_data = self._parse_intent(message)
 
         intent = parsed_data.get("intent")
-        self.conversation_state["stage"] = "IDLE"
+        
+        if intent == "ADD_BY_ID":
+            return self._add_product_to_cart_by_id(db, user.id, parsed_data["product_id"])
 
         if intent == "ADD_TO_CART":
-            product_name = parsed_data["product_name"]
-            products = db.exec(select(Product).where(Product.name.ilike(f"%{product_name}%"))).all()
+            product_name_query = parsed_data["product_name"]
+            products = ai_commerce_engine.find_products_from_message(db, product_name_query)
 
             if not products:
-                return [{"contentType": "text", "content": f"I couldn't find a product matching '{product_name}'. Please try another."}]
+                return [{"contentType": "text", "content": f"I couldn't find a product matching '{product_name_query}'. Please try another."}]
 
             if len(products) > 1:
                 self.conversation_state["stage"] = "AWAITING_CLARIFICATION"
-
                 product_list = [self._format_product_for_frontend(p) for p in products]
-                return [{"contentType": "text", "content": "I found a few items. Which one did you mean?"}, {"contentType": "product_carousel", "products": product_list}]
+                ai_note = f"Found {len(products)} items based on your search. For example, '{products[0].name}' matches your request."
+                return [{"contentType": "text", "content": "I found a few items. Which one did you mean?", "ai_notes": ai_note}, {"contentType": "product_carousel", "products": product_list}]
 
             product = products[0]
-
-            formatted_product = self._format_product_for_frontend(product)
-
-            cart['items'].append({
-                "product_id": product.id,
-                "name": product.name,
-                "quantity": 1,
-                "price": product.price,
-                "image_url": formatted_product["image_url"]
-            })
-            self._recalculate_cart_total(cart)
-
-            suggestions = db.exec(select(Product).where(Product.id != product.id).limit(2)).all()
-            suggestion_list = [self._format_product_for_frontend(p) for p in suggestions]
-
-            self.conversation_state["stage"] = "AWAITING_CONFIRMATION"
-            responses = [{"contentType": "text", "content": f"Great choice! I've added {product.name} to your cart."}, {"contentType": "cart_preview", "content": cart}]
-
-            if suggestion_list:
-                responses.append({"contentType": "proactive_suggestion", "content": "Customers who bought this also love:", "products": suggestion_list, "reason": "I selected these based on top-seller data and immediate availability."})
-
-            responses.append({"contentType": "confirmation_prompt", "content": "Ready to go, or would you like to add anything else?", "options": ["Confirm Order", "Modify Cart", "Cancel Order"]})
-            return responses
+            return self._add_product_to_cart_by_id(db, user.id, product.id, initial_add=True)
 
         if intent == "REMOVE_FROM_CART":
             product_name_to_remove = parsed_data["product_name"]
-            item_to_remove = next((item for item in cart['items'] if product_name_to_remove in item['name'].lower()), None)
-
-            if not item_to_remove:
+            cart = self._get_user_cart(db, user.id)
+            
+            item_to_remove_from_cart = next((item for item in cart['items'] if product_name_to_remove in item['name'].lower()), None)
+            
+            if not item_to_remove_from_cart:
                 return [{"contentType": "text", "content": f"I couldn't find '{product_name_to_remove}' in your cart."}]
 
-            cart['items'].remove(item_to_remove)
-            self._recalculate_cart_total(cart)
+            item_db = db.exec(select(AIOrderingCartItem).where(
+                AIOrderingCartItem.user_id == user.id,
+                AIOrderingCartItem.product_id == item_to_remove_from_cart['product_id']
+            )).first()
+            
+            if item_db:
+                db.delete(item_db)
+                db.commit()
+
+            cart = self._get_user_cart(db, user.id)
             self.conversation_state["stage"] = "AWAITING_CONFIRMATION"
-            return [{"contentType": "text", "content": f"Okay, I've removed {item_to_remove['name']} from your cart."}, {"contentType": "cart_preview", "content": cart}, {"contentType": "confirmation_prompt", "content": "Your cart is updated. What's next?", "options": ["Confirm Order", "Modify Cart", "Cancel Order"]}]
+            return [
+                {"contentType": "text", "content": f"Okay, I've removed {item_to_remove_from_cart['name']} from your cart."},
+                {"contentType": "cart_preview", "content": cart},
+                {"contentType": "confirmation_prompt", "content": "Your cart is updated. What's next?", "options": ["Confirm Order", "Clear Cart"]}
+            ]
 
         if intent == "CONFIRM_ORDER":
-            if not cart["items"]: return [{"contentType": "text", "content": "Your cart is empty."}]
-            total = cart['total']
-            self._clear_state_and_cart()
-            empty_cart = self._get_user_cart()
-            return [{"contentType": "text", "content": f"Confirmed! Your order for ${total:.2f} is being processed. Thank you!"}, {"contentType": "cart_preview", "content": empty_cart}]
+            cart = self._get_user_cart(db, user.id)
+            if not cart["items"]:
+                return [{"contentType": "text", "content": "Your cart is empty."}]
 
-        if intent == "MODIFY_CART":
-            self.conversation_state["stage"] = "IDLE"
-            return [{"contentType": "text", "content": "Okay, what would you like to change? You can ask me to add or remove another item."}]
+            total = cart['total']
+            
+            delivery_addr = user.address or f"Default Address for {user.email}"
+            if user.city and user.country:
+                delivery_addr = f"{user.address}, {user.city}, {user.country}"
+            
+            new_order = Order(
+                user_id=user.id,
+                status=OrderStatus.PENDING,
+                total_price=total,
+                delivery_address=delivery_addr
+            )
+            db.add(new_order)
+            db.commit()
+            db.refresh(new_order)
+
+            order_items_to_create = []
+            for item in cart["items"]:
+                order_items_to_create.append(
+                    OrderItem(
+                        order_id=new_order.id,
+                        product_id=item["product_id"],
+                        quantity=item["quantity"],
+                        price_per_unit=item["price"]
+                    )
+                )
+            
+            db.add_all(order_items_to_create)
+            db.commit()
+            
+            payment_metadata = {
+                "order_id": str(new_order.id),
+                "user_id": str(user.id),
+                "user_email": user.email
+            }
+
+            payment_info = payment_orchestrator.process_payment(
+                amount=total,
+                currency="usd",
+                region="US",
+                metadata=payment_metadata
+            )
+            
+            if "error" in payment_info or not payment_info.get("clientSecret"):
+                 new_order.status = OrderStatus.FAILED
+                 db.add(new_order)
+                 db.commit()
+                 return [{"contentType": "text", "content": f"I couldn't create a payment for this order. Error: {payment_info.get('error', 'Payment gateway failed')}"}]
+
+            self._clear_state_and_cart(db, user.id)
+            empty_cart = self._get_user_cart(db, user.id)
+
+            return [
+                {"contentType": "text", "content": f"Great! I've created Order #{new_order.id}. Please complete the payment."},
+                {"contentType": "cart_preview", "content": empty_cart},
+                {
+                    "contentType": "payment_intent", 
+                    "content": {
+                        "clientSecret": payment_info.get("clientSecret"),
+                        "orderId": new_order.id,
+                        "total": total
+                    }
+                }
+            ]
 
         if intent == "CLEAR_CART":
-            self._clear_state_and_cart()
-            empty_cart = self._get_user_cart()
+            self._clear_state_and_cart(db, user.id)
+            empty_cart = self._get_user_cart(db, user.id)
             return [{"contentType": "text", "content": "No problem, your cart has been cleared."}, {"contentType": "cart_preview", "content": empty_cart}]
 
         return [{"contentType": "text", "content": "I'm sorry, I didn't quite understand. To start, you can ask me to 'buy' an item."}]

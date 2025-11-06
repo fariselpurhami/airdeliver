@@ -1,7 +1,5 @@
-# apps/api/app/api/deps.py
-
 from app.db.session import SessionLocal
-from typing import Generator
+from typing import Generator, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
@@ -16,11 +14,12 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/token"
 )
 
+optional_oauth2 = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/token",
+    auto_error=False
+)
+
 def get_db():
-    """
-    Dependency function that yields a new database session.
-    Ensures the session is closed after the request is complete.
-    """
     db = SessionLocal()
     try:
         yield db
@@ -67,3 +66,29 @@ def get_current_admin_user(
         )
 
     return current_user
+
+def get_optional_current_user(
+    session: Session = Depends(get_session), token: Optional[str] = Depends(optional_oauth2)
+) -> Optional[User]:
+    if not token:
+        return None
+    
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+        )
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+    except JWTError:
+        return None
+    
+    user = crud_user.user.get_by_email(session, email=email)
+    
+    if not user:
+        return None
+        
+    if not user.is_active:
+        return None
+            
+    return user

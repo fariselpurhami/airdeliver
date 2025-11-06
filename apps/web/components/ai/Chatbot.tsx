@@ -1,10 +1,8 @@
-// apps/web/components/ai/Chatbot.tsx
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, X, Send, Bot, Cpu, User } from 'lucide-react';
+import { X, Send, Bot, Cpu, User, Loader2 } from 'lucide-react';
 import { useAISupportStore, type ChatMessage } from '@/hooks/useAISupportStore';
 
 const ExplainabilityChip = ({ text }: { text: string }) => (
@@ -27,40 +25,135 @@ const MessageBubble = ({ message }: { message: ChatMessage }) => {
             animate={{ opacity: 1, y: 0 }}
             className={`flex w-full items-start gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
         >
-            {!isUser && <Bot size={24} className="flex-shrink-0 mt-1 text-cyan-400" />}
-            <div className={`max-w-xs px-3 py-2 rounded-xl text-sm ${isUser ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white/10 text-gray-200 rounded-bl-none'}`}>
-                <p>{message.data.text}</p>
+            {!isUser && (
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
+                    <Bot size={16} className="text-cyan-400" />
+                </div>
+            )}
+            <div className={`max-w-xs px-3 py-2 rounded-xl text-sm ${isUser ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white' : 'bg-black/20 border border-cyan-400/30 text-gray-200'}`}>
+                <p className="whitespace-pre-wrap">{message.data.text}</p>
             </div>
-            {isUser && <User size={24} className="flex-shrink-0 mt-1 text-gray-300" />}
+            {isUser && (
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-500/20 flex items-center justify-center border border-gray-500/50">
+                    <User size={16} className="text-gray-400" />
+                </div>
+            )}
         </motion.div>
     );
 };
 
+const TypingIndicator = () => (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="flex items-center gap-2"
+    >
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
+        <Bot size={16} className="text-cyan-400" />
+      </div>
+      <div className="flex items-center gap-1.5 px-4 py-3 bg-black/20 rounded-lg">
+        <motion.div
+          className="w-2 h-2 bg-cyan-400 rounded-full"
+          animate={{ y: [0, -3, 0] }}
+          transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="w-2 h-2 bg-cyan-400 rounded-full"
+          animate={{ y: [0, -3, 0] }}
+          transition={{ duration: 0.8, delay: 0.1, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="w-2 h-2 bg-cyan-400 rounded-full"
+          animate={{ y: [0, -3, 0] }}
+          transition={{ duration: 0.8, delay: 0.2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </div>
+    </motion.div>
+  );
+
+const ChatInput = ({ onSend, isTyping }: { onSend: (text: string) => void; isTyping: boolean }) => {
+    const [value, setValue] = useState('');
+    
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (value.trim() && !isTyping) {
+        onSend(value);
+        setValue('');
+      }
+    };
+  
+    return (
+      <form onSubmit={handleSubmit} className="p-4 border-t border-cyan-400/30 flex-shrink-0">
+        <div className="relative">
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={isTyping ? "AI is thinking..." : "Ask for support..."}
+            disabled={isTyping}
+            className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-full py-3 pr-12 pl-5 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-all"
+          />
+          <button
+            type="submit"
+            disabled={isTyping}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-600 transition-colors"
+          >
+            {isTyping ? (
+              <Loader2 size={20} className="text-black animate-spin" />
+            ) : (
+              <Send size={18} className="text-black" />
+            )}
+          </button>
+        </div>
+      </form>
+    );
+  };
+
 export default function Chatbot() {
     const { isOpen, setIsOpen, messages, sendMessage, isLoading } = useAISupportStore();
-    const [input, setInput] = useState('');
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
 
-    const handleSend = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSend = (input: string) => {
         sendMessage(input);
-        setInput('');
     };
 
     return (
         <>
             <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 z-40 w-16 h-16 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-full shadow-lg shadow-black/50 flex justify-center items-center"
-                aria-label="Open AI Support"
+                className="fixed bottom-6 right-6 z-40 p-4 rounded-full 
+                           bg-gradient-to-br from-cyan-500 to-purple-600 
+                           text-white shadow-lg shadow-cyan-500/40 
+                           flex items-center justify-center 
+                           focus:outline-none focus:ring-4 focus:ring-cyan-400/50 
+                           hover:scale-110 transition-all duration-300 ease-in-out group"
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                aria-label="Open AI Support Chat"
             >
-                <MessageSquare size={32} className="text-white" />
+                <motion.div
+                    key={isOpen ? "close-icon" : "bot-icon"}
+                    initial={{ scale: 0, rotate: -90 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    exit={{ scale: 0, rotate: 90 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                >
+                    {isOpen ? (
+                        <X size={28} className="text-white group-hover:rotate-180 transition-transform duration-300" />
+                    ) : (
+                        <Bot size={28} className="text-white group-hover:scale-110 transition-transform duration-300" />
+                    )}
+                </motion.div>
             </motion.button>
 
             <AnimatePresence>
@@ -69,46 +162,50 @@ export default function Chatbot() {
                         initial={{ opacity: 0, y: 50, scale: 0.9 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.9 }}
-                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                        className="fixed bottom-24 right-6 z-50 w-[90vw] max-w-sm h-[60vh] max-h-[500px] bg-black/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col"
+                        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                        className="fixed bottom-24 right-2 z-50 w-[90vw] max-w-sm h-[70vh] max-h-[600px] flex flex-col bg-black/50 backdrop-blur-2xl border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden"
                     >
-                        <header className="p-4 border-b border-white/10 flex justify-between items-center flex-shrink-0">
-                            <div className="flex items-center space-x-3">
-                                <Bot className="text-cyan-400 glowing-icon" size={24} />
-                                <h3 className="font-bold text-lg text-white">AI Support</h3>
-                            </div>
+                        <header className="p-4 border-b border-cyan-400/30 flex justify-between items-center flex-shrink-0">
+                            <h3 className="font-bold text-lg text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                              <motion.span
+                                className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
+                                animate={{
+                                filter: [
+                                    'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))',
+                                    'drop-shadow(0 0 8px rgba(0, 198, 255, 0.8))',
+                                    'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))'
+                                ]
+                                }}
+                                transition={{
+                                duration: 3,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                                }}
+                            >
+                                AI Support
+                            </motion.span>
+                            </h3>
                             <button onClick={() => setIsOpen(false)} className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
                         </header>
 
-                        <main className="flex-grow p-4 space-y-2 overflow-y-auto">
-                            {messages.map((msg, i) => (
-                                <React.Fragment key={i}>
-                                    <MessageBubble message={msg} />
-                                    {msg.sender === 'ai' && msg.data.explain && !["Initial greeting.", "User input."].includes(msg.data.explain) && (
-                                        <ExplainabilityChip text={msg.data.explain} />
-                                    )}
-                                </React.Fragment>
-                            ))}
-                            {isLoading && <div className="text-sm text-gray-400 italic pl-10">Neural Core is thinking...</div>}
+                        <main className="flex-grow p-4 space-y-4 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
+                            <AnimatePresence>
+                                {messages.map((msg) => (
+                                    <React.Fragment key={msg.id}>
+                                        <MessageBubble message={msg} />
+                                        {msg.sender === 'ai' && msg.data.explain && !["Initial greeting.", "User input."].includes(msg.data.explain) && (
+                                            <ExplainabilityChip text={msg.data.explain} />
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </AnimatePresence>
+                            {isLoading && <TypingIndicator />}
                             <div ref={chatEndRef} />
                         </main>
 
-                        <footer className="p-3 border-t border-white/10">
-                            <form onSubmit={handleSend} className="relative">
-                                <input
-                                    type="text"
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    placeholder="Ask about your order..."
-                                    className="w-full bg-white/5 border border-white/10 rounded-full py-2 pr-12 pl-4 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-400 focus:outline-none"
-                                />
-                                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 transition-colors">
-                                    <Send size={18} className="text-black" />
-                                </button>
-                            </form>
-                        </footer>
+                       <ChatInput onSend={handleSend} isTyping={isLoading} />
                     </motion.div>
                 )}
             </AnimatePresence>

@@ -193,7 +193,7 @@ const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) =>
     const userId = (session?.user as any)?.id;
 
     const apiUrl = status === 'authenticated' && userId
-        ? `/products/suggestions?product_id=1&user_id=${userId}`
+        ? `/api/v1/products/suggestions?product_id=1&user_id=${userId}`
         : null;
 
     const { data: recommendationsData, error, isLoading } = useSWR<Product[]>(apiUrl, fetcher, {
@@ -272,7 +272,7 @@ const ErrorDisplay = ({ error }: { error: any }) => (
 
 export default function ProductsPage() {
     const { data: productsData, error, isLoading } = useSWR<Product[] | { items: Product[] }>(
-        '/products/', 
+        '/api/v1/products/',
         fetcher,
         { revalidateOnFocus: false }
     );

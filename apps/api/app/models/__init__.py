@@ -19,6 +19,7 @@ from .order import Order, OrderItem
 from .product import Product
 from .user import User
 from .aimemory import AIMemory 
+from .ai_cart import AIOrderingCartItem
 
 __all__ = [
     "UserRole",
@@ -41,4 +42,5 @@ __all__ = [
     "Product",
     "User",
     "AIMemory",
+    "AIOrderingCartItem",
 ]

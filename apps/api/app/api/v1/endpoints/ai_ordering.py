@@ -1,5 +1,3 @@
-# api/app/api/v1/endpoints/ai_ordering.py
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from app.api import deps
@@ -14,15 +12,8 @@ def handle_chat_message(
     *,
     db: Session = Depends(get_session),
     request: schemas.ChatRequest,
+    current_user: models.User = Depends(deps.get_current_active_user)
 ):
-
-    first_user = db.exec(select(models.User)).first()
-    if not first_user:
-        raise HTTPException(
-            status_code=404, 
-            detail="No users found in the database. Please create or seed a user first."
-        )
-    current_user = first_user
     responses = ai_ordering_service.handle_message(db, request.message, user=current_user)
 
     return {"responses": responses}

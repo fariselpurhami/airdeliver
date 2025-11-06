@@ -1,9 +1,8 @@
-// file: apps/web/hooks/useAISupportStore.ts
-
 'use client';
 
 import { create } from 'zustand';
-import { useSession } from 'next-auth/react';
+import { v4 as uuidv4 } from 'uuid';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface NeuralCoreResponse {
   text: string;
@@ -14,96 +13,108 @@ export interface NeuralCoreResponse {
 }
 
 export type ChatMessage = {
-    sender: 'user' | 'ai';
-    data: NeuralCoreResponse;
+  id: string;
+  sender: 'user' | 'ai';
+  data: NeuralCoreResponse;
 };
 
 interface AISupportState {
   isOpen: boolean;
   messages: ChatMessage[];
   isLoading: boolean;
+  sessionId: string;
   setIsOpen: (isOpen: boolean) => void;
+  sendMessage: (text: string) => void;
 }
 
-const useAISupportStoreBase = create<AISupportState>((set) => ({
-  isOpen: false,
-  messages: [{
-    sender: 'ai',
-    data: {
-        text: 'Hello! How Can I Help You?',
-        action: null,
-        explain: "Initial greeting.",
-        confidence: 1.0,
-        telemetry: { intent: "greeting" }
-    }
-  }],
-  isLoading: false,
-  setIsOpen: (isOpen) => set({ isOpen }),
-}));
+const createWelcomeMessage = (): ChatMessage => ({
+  id: uuidv4(),
+  sender: 'ai',
+  data: {
+    text: 'Hello! How Can I Help You?',
+    action: null,
+    explain: "Initial greeting.",
+    confidence: 1.0,
+    telemetry: { intent: "greeting" }
+  },
+});
 
-export const useAISupportStore = () => {
-    const state = useAISupportStoreBase();
-    const { data: session } = useSession();
+export const useAISupportStore = create<AISupportState>()(
+  persist(
+    (set, get) => ({
+      isOpen: false,
+      messages: [createWelcomeMessage()],
+      isLoading: false,
+      sessionId: uuidv4(),
 
-    const sendMessage = async (text: string) => {
-        if (!text.trim() || state.isLoading) return;
+      setIsOpen: (isOpen) => {
+        if (isOpen && (get().messages.length === 0 || get().isLoading)) {
+          set({ 
+            isOpen: true, 
+            messages: [createWelcomeMessage()], 
+            sessionId: uuidv4(),
+            isLoading: false
+          });
+        } else {
+          set({ isOpen });
+        }
+      },
+
+      sendMessage: async (text: string) => {
+        if (!text.trim() || get().isLoading) return;
 
         const userMessage: ChatMessage = {
-            sender: 'user',
-            data: { text, action: null, explain: "User input.", confidence: 1.0, telemetry: { intent: 'user_message' } }
+          id: uuidv4(),
+          sender: 'user',
+          data: { text, action: null, explain: "User input.", confidence: 1.0, telemetry: { intent: 'user_message' } }
         };
         
-        useAISupportStoreBase.setState(s => ({ 
-            messages: [...s.messages, userMessage],
-            isLoading: true 
+        set((state) => ({ 
+          messages: [...state.messages, userMessage],
+          isLoading: true 
         }));
 
+        const sessionId = get().sessionId;
+        let aiMessage: ChatMessage;
+
         try {
-            // @ts-ignore
-            const token = session?.accessToken;
+          const response = await fetch('/api/v1/ai-support/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, session_id: sessionId }),
+          });
 
-            if (!token) {
-                throw new Error("User is not authenticated (session token missing).");
-            }
+          if (!response.ok) {
+            throw new Error(`Network response was not ok: ${response.statusText}`);
+          }
 
-            const response = await fetch('/api/v1/ai-support/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ message: text }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`Network response was not ok: ${response.statusText}`);
-            }
-
-            const aiResponseData: NeuralCoreResponse = await response.json();
-            const aiMessage: ChatMessage = { sender: 'ai', data: aiResponseData };
-
-            useAISupportStoreBase.setState(s => ({
-                messages: [...s.messages, aiMessage],
-                isLoading: false,
-            }));
+          const aiResponseData: NeuralCoreResponse = await response.json();
+          aiMessage = { id: uuidv4(), sender: 'ai', data: aiResponseData };
 
         } catch (error) {
-            const errorResponse: ChatMessage = {
-                sender: 'ai',
-                data: {
-                    text: `I am having trouble connecting: ${error instanceof Error ? error.message : String(error)}`,
-                    action: null,
-                    explain: `An API or network error occurred: ${error}`,
-                    confidence: 1.0,
-                    telemetry: { intent: "error" }
-                }
-            };
-            useAISupportStoreBase.setState(s => ({
-                messages: [...s.messages, errorResponse],
-                isLoading: false,
-            }));
+          aiMessage = {
+            id: uuidv4(),
+            sender: 'ai',
+            data: {
+              text: `I am having trouble connecting: ${error instanceof Error ? error.message : String(error)}`,
+              action: null,
+              explain: `An API or network error occurred: ${error}`,
+              confidence: 1.0,
+              telemetry: { intent: "error" }
+            }
+          };
         }
-    };
 
-    return { ...state, sendMessage };
-};
+        set((state) => ({
+          messages: [...state.messages, aiMessage],
+          isLoading: false,
+        }));
+      },
+    }),
+    {
+      name: 'ai-support-session',
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => ({ sessionId: state.sessionId }),
+    }
+  )
+);

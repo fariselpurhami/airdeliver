@@ -57,10 +57,11 @@
   }
 
   * {
-    @apply border-border;
+    border-color: hsl(var(--border) / <alpha-value>);
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
@@ -87,12 +88,16 @@
     color: #00c6ff;
     transform: scale(1.02);
   }
+
+  /**************/
   .glowing-text {
-    text-shadow: 0 0 8px theme('colors.cyan.400');
+    text-shadow: 0 0 8px #22d3ee; 
   }
   .glowing-icon {
-    filter: drop-shadow(0 0 5px theme('colors.cyan.400'));
+    filter: drop-shadow(0 0 5px #22d3ee); 
   }
+  /*************/
+
   .animated-grid {
     width: 100%;
     height: 100%;

@@ -1,5 +1,3 @@
-# apps/api/app/models/user.py
-
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING, Dict, Any
 from sqlmodel import SQLModel, Field, Relationship, JSON, Column
@@ -16,6 +14,7 @@ if TYPE_CHECKING:
     from .notification_subscription import NotificationSubscription
     from .notification import Notification
     from .aimemory import AIMemory
+    from .ai_cart import AIOrderingCartItem
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
@@ -59,6 +58,10 @@ class User(SQLModel, table=True):
     )
     ai_memory: Mapped[Optional["AIMemory"]] = Relationship( 
         sa_relationship=relationship("AIMemory", back_populates="user", cascade="all, delete-orphan", uselist=False)
+    )
+
+    ai_cart_items: Mapped[List["AIOrderingCartItem"]] = Relationship(
+        sa_relationship=relationship("AIOrderingCartItem", back_populates="user", cascade="all, delete-orphan")
     )
 
     model_config = { "from_attributes": True }

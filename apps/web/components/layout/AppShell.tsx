@@ -1,5 +1,3 @@
-// apps/web/components/layout/AppShell.tsx
-
 'use client'; 
 
 import React from 'react';

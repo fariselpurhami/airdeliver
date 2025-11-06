@@ -21,7 +21,7 @@ const LoadingSpinner = () => (
 export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     
     const { data: productsData, error, isLoading } = useSWR(
-        isOpen ? 'http://127.0.0.1:8000/api/v1/products/' : null,
+        isOpen ? '/api/v1/products/' : null,
         fetcher,
         { revalidateOnFocus: false }
     );
