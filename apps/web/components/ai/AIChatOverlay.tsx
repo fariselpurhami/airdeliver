@@ -157,18 +157,55 @@ const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
 });
 AIChatSidebar.displayName = 'AIChatSidebar';
 
-const ChatInput = ({ onSend, isTyping }: { onSend: (text: string) => void; isTyping: boolean; }) => {
+const ChatInput = React.memo(
+  ({ onSend, isTyping }: { onSend: (text: string) => void; isTyping: boolean }) => {
     const [value, setValue] = useState('');
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (value.trim() && !isTyping) { onSend(value); setValue(''); } };
+    const inputRef = useRef<HTMLInputElement>(null);
+    const wasTypingRef = useRef<boolean>(isTyping);
+
+    useEffect(() => {
+      if (wasTypingRef.current === true && isTyping === false) {
+        inputRef.current?.focus();
+      }
+      wasTypingRef.current = isTyping;
+    }, [isTyping]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (value.trim() && !isTyping) {
+        onSend(value);
+        setValue('');
+      }
+    };
+
     return (
-        <form onSubmit={handleSubmit} className="p-4 border-t border-cyan-400/30 flex-shrink-0">
-            <div className="relative">
-                <input type="text" value={value} onChange={(e) => setValue(e.target.value)} placeholder={isTyping ? "AI is thinking..." : "Ask AI to order anything..."} disabled={isTyping} className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-full py-3 pr-14 pl-5 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-all" />
-                <button type="submit" disabled={isTyping} onClick={(e) => e.stopPropagation()} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-600 transition-colors"><CornerDownRight size={20} className="text-black" /></button>
-            </div>
-        </form>
+      <form onSubmit={handleSubmit} className="p-4 border-t border-cyan-400/30 flex-shrink-0">
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={isTyping ? 'AI is thinking...' : 'Ask AI to order anything...'}
+            disabled={isTyping}
+            className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-full py-3 pr-14 pl-5 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-all"
+          />
+          <button
+            type="submit"
+            disabled={isTyping}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-600 transition-colors"
+          >
+            <CornerDownRight size={20} className="text-black" />
+          </button>
+        </div>
+      </form>
     );
-};
+  }
+);
+
+ChatInput.displayName = 'ChatInput';
+
 
 const TypingIndicator = () => (
     <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 self-start ml-12">
@@ -227,15 +264,26 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                 isLoading: true,
             }));
 
-         
             setTimeout(() => { 
                 addLocalAIMessage(
-                    "I'm sorry, I can only help you if you are logged in. Please log in to start your order.",
-                    'error'
+                    "Access to Autonomous Commerce is personalized. Sign in to unlock instant AI ordering and personalized recommendations.",
+                    'text'
                 );
+                
+                useAIOrderingStore.setState((state) => ({
+                    messages: [...state.messages, {
+                        id: Date.now() + 1,
+                        sender: 'ai',
+                        contentType: 'confirmation_prompt',
+                        content: "Ready to start your autonomous journey?",
+                        options: ["Sign In", "Create Account"],
+                    }],
+                    isLoading: false,
+                }));
             }, 500);
         }
     }, [sendMessage, token, status, addLocalAIMessage]);
+             
 
     const stripeOptions: StripeElementsOptions = {
         clientSecret: paymentDetails?.clientSecret,
