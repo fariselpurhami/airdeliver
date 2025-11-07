@@ -2,7 +2,7 @@ import re
 from sqlmodel import Session, select, or_
 from app.models.product import Product
 from typing import List, Dict, Any, Tuple, Optional
-from sqlalchemy import case, cast, String
+from sqlalchemy import case, cast, String, and_
 
 class AICommerceEngine:
 
@@ -114,8 +114,11 @@ class AICommerceEngine:
 
         quantity_match = self.quantity_pattern.search(message)
         if quantity_match:
-            entities["quantity"] = int(quantity_match.group(1))
-            message = message.replace(quantity_match.group(0), "")
+            try:
+                entities["quantity"] = int(quantity_match.group(1))
+                message = message.replace(quantity_match.group(0), "")
+            except ValueError:
+                entities["quantity"] = 1
 
         product_name_parts = []
         for word in message.split():
@@ -177,29 +180,26 @@ class AICommerceEngine:
             name_query = f"%{product_name}%"
             words = product_name.split()
             
-            name_match = Product.name.ilike(name_query)
+            exact_name_match = Product.name.ilike(product_name)
+            partial_name_match = Product.name.ilike(name_query)
+            
+            # **IMPROVEMENT**: Use AND logic for multi-word name search
+            multi_word_name_match = and_(*[Product.name.ilike(f"%{word}%") for word in words])
             
             tag_match = cast(Product.tags, String).ilike(name_query)
             desc_match = Product.description.ilike(name_query)
             
-            if len(words) > 1:
-                name_word_criteria = [Product.name.ilike(f"%{word}%") for word in words]
-        
-                tag_word_criteria = [cast(Product.tags, String).ilike(f"%{word}%") for word in words]
-                
-                search_criteria.append(name_match)
-                search_criteria.append(tag_match)
-                search_criteria.append(desc_match)
-                search_criteria.extend(name_word_criteria)
-                search_criteria.extend(tag_word_criteria)
-            else:
-                search_criteria.append(name_match)
-                search_criteria.append(tag_match)
-                search_criteria.append(desc_match)
+            search_criteria.append(exact_name_match)
+            search_criteria.append(partial_name_match)
+            search_criteria.append(multi_word_name_match)
+            search_criteria.append(tag_match)
+            search_criteria.append(desc_match)
 
+            # **IMPROVEMENT**: Give much higher rank to exact and multi-word matches
             search_rank = case(
-                (Product.name.ilike(product_name), 5), 
-                (name_match, 4),                     
+                (exact_name_match, 10),
+                (multi_word_name_match, 8),
+                (partial_name_match, 5),                     
                 (tag_match, 3),                      
                 (desc_match, 2),                     
                 else_=0
@@ -213,7 +213,7 @@ class AICommerceEngine:
         statement = statement.limit(5)
         return statement
 
-    def find_products_from_message(self, db: Session, message: str) -> List[Product]:
+    def find_products_from_message(self, db: Session, message: str) -> Tuple[List[Product], Dict[str, Any]]:
         normalized_message = self._normalize_message(message)
         intent, cleaned_message = self._classify_intent(normalized_message)
         
@@ -222,7 +222,7 @@ class AICommerceEngine:
         statement = self._generate_query_statement(db, entities)
         
         if statement is None:
-            return []
+            return [], entities
             
         products = db.exec(statement).all()
         
@@ -232,7 +232,8 @@ class AICommerceEngine:
             statement = self._generate_query_statement(db, new_entities)
             if statement is not None:
                 products = db.exec(statement).all()
+                return products, new_entities
 
-        return products
+        return products, entities
 
 ai_commerce_engine = AICommerceEngine()

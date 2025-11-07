@@ -19,6 +19,8 @@ class Product(SQLModel, table=True):
     category: str = Field(default="uncategorized", index=True)
     tags: Optional[list[str]] = Field(default=None, sa_column=Column(JSON))
 
+    rating: Optional[float] = Field(default=4.5, index=True)
+
     order_items: Mapped[List["OrderItem"]] = Relationship(sa_relationship=relationship("OrderItem", back_populates="product"))
 
     ai_cart_items: Mapped[List["AIOrderingCartItem"]] = Relationship(

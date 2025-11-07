@@ -8,8 +8,8 @@ from app.models.ai_cart import AIOrderingCartItem
 from app import models, schemas
 from app.services.ai_commerce_engine import ai_commerce_engine
 from app.services.payment_orchestrator import payment_orchestrator
-from sqlalchemy import cast, String
-from typing import List
+from sqlalchemy import cast, String, desc
+from typing import List, Tuple, Dict, Any
 
 class AIOrderingService:
     def __init__(self):
@@ -29,7 +29,7 @@ class AIOrderingService:
             .where(AIOrderingCartItem.user_id == user_id)
         ).all()
         
-        cart = {"items": [], "total": 0.0}
+        cart = {"items": [], "total": 0.0, "categories": set()}
         total = 0.0
 
         for cart_item, product in cart_items_db:
@@ -41,6 +41,8 @@ class AIOrderingService:
                 "price": product.price,
                 "image_url": self._format_product_for_frontend(product).get("image_url")
             })
+            if product.category:
+                cart["categories"].add(product.category.lower())
             total += item_total
             
         cart["total"] = total
@@ -57,10 +59,17 @@ class AIOrderingService:
         return product_data
 
     def _parse_intent(self, message: str) -> dict:
-        if message.startswith("__ADD_BY_ID__"):
+        if message.startswith("__INTERNAL_ADD_BY_ID__"):
             try:
                 product_id = int(message.split(":")[-1])
-                return {"intent": "ADD_BY_ID", "product_id": product_id}
+                return {"intent": "INTERNAL_ADD_BY_ID", "product_id": product_id}
+            except (ValueError, IndexError):
+                return {"intent": "UNKNOWN"}
+        
+        if message.startswith("__INTERNAL_GET_SUGGESTIONS__"):
+            try:
+                product_id = int(message.split(":")[-1])
+                return {"intent": "INTERNAL_GET_SUGGESTIONS", "product_id": product_id}
             except (ValueError, IndexError):
                 return {"intent": "UNKNOWN"}
 
@@ -81,40 +90,80 @@ class AIOrderingService:
         return {"intent": "ADD_TO_CART", "product_name": message}
 
     def _find_proactive_suggestions(self, db: Session, added_product: Product) -> List[Product]:
-        suggestions = []
         
-        if not added_product.tags:
-            return []
-
-        search_tags = [tag for tag in added_product.tags if tag in ["gift", "premium", "sport", "formal", "electronics", "clothing", "accessories"]]
+        # 💡 (الإصلاح): تم إعادة كتابة هذه الدالة بالكامل لتطبيق "قاعدة الـ 3 منتجات"
+        
+        suggestions_list: List[Product] = []
+        excluded_ids = {added_product.id}
+        
+        # --- الخطوة 1: البحث بناءً على الوسوم (Tags) ---
+        search_tags = [tag for tag in (added_product.tags or []) if tag in ["gift", "premium", "sport", "formal", "electronics", "clothing", "accessories"]]
         
         if search_tags:
             tag_criteria = [cast(Product.tags, String).ilike(f"%{tag}%") for tag in search_tags]
-            suggestions = db.exec(
+            tag_suggestions = db.exec(
                 select(Product)
                 .where(
-                    Product.id != added_product.id,
+                    Product.id.notin_(excluded_ids), # استخدام notin_
                     or_(*tag_criteria)
                 )
-                .limit(3)
+                .limit(3) # دائماً اطلب 3 في البداية
             ).all()
+            
+            for p in tag_suggestions:
+                if p.id not in excluded_ids:
+                    suggestions_list.append(p)
+                    excluded_ids.add(p.id)
 
-        if not suggestions:
-            suggestions = db.exec(
+        # --- التحقق والعودة مبكراً إذا اكتملنا ---
+        if len(suggestions_list) >= 3:
+            return suggestions_list[:3] # إرجاع 3 فقط
+
+        # --- الخطوة 2: البحث بناءً على الفئة (Category) ---
+        needed_count = 3 - len(suggestions_list)
+        if added_product.category:
+            category_suggestions = db.exec(
                 select(Product)
                 .where(
-                    Product.id != added_product.id,
+                    Product.id.notin_(excluded_ids),
                     Product.category == added_product.category
                 )
-                .limit(3)
+                .limit(needed_count) # طلب العدد المتبقي
             ).all()
-        
-        return suggestions
 
-    def _add_product_to_cart_by_id(self, db: Session, user_id: int, product_id: int, initial_add: bool = False) -> List[dict]:
+            for p in category_suggestions:
+                if p.id not in excluded_ids:
+                    suggestions_list.append(p)
+                    excluded_ids.add(p.id)
+
+        # --- التحقق والعودة مبكراً إذا اكتملنا ---
+        if len(suggestions_list) >= 3:
+            return suggestions_list[:3]
+
+        # --- الخطوة 3: البحث العام (Fallback - الأعلى تقييماً) ---
+        # نفترض وجود "rating" بناءً على الواجهة الأمامية
+        needed_count = 3 - len(suggestions_list)
+        
+        fallback_suggestions = db.exec(
+            select(Product)
+            .where(Product.id.notin_(excluded_ids))
+            # نفترض وجود Product.rating بناءً على كود الواجهة الأمامية
+            .order_by(desc(Product.rating)) 
+            .limit(needed_count)
+        ).all()
+        
+        for p in fallback_suggestions:
+                if p.id not in excluded_ids:
+                    suggestions_list.append(p)
+                    excluded_ids.add(p.id)
+        
+        # إرجاع ما لدينا، حتى لو كان أقل من 3 (في حالة نفاذ المنتجات من الداتا بيز)
+        return suggestions_list[:3] 
+
+    def _add_product_by_id_silent(self, db: Session, user_id: int, product_id: int, quantity_to_add: int = 1) -> List[dict]:
         product = db.get(Product, product_id)
         if not product:
-            return [{"contentType": "text", "content": f"Sorry, I couldn't find that specific item (ID: {product_id})."}]
+            return [{"contentType": "error", "content": f"Item (ID: {product_id}) not found."}]
 
         existing_item = db.exec(select(AIOrderingCartItem).where(
             AIOrderingCartItem.user_id == user_id,
@@ -122,43 +171,106 @@ class AIOrderingService:
         )).first()
         
         if existing_item:
-            existing_item.quantity += 1
+            existing_item.quantity += quantity_to_add
             db.add(existing_item)
         else:
-            new_cart_item = AIOrderingCartItem(user_id=user_id, product_id=product.id, quantity=1)
+            new_cart_item = AIOrderingCartItem(user_id=user_id, product_id=product.id, quantity=quantity_to_add)
             db.add(new_cart_item)
         
         db.commit()
-
         cart = self._get_user_cart(db, user_id)
         
-        add_message = f"Great choice! I've added {product.name} to your cart."
-        if not initial_add:
-             add_message = f"Okay, I've also added {product.name} to your cart."
-
-        responses = [
-            {"contentType": "text", "content": add_message, "ai_notes": f"Based on your item, you might also like these."},
-            {"contentType": "cart_preview", "content": cart}
+        return [
+            {"contentType": "cart_preview", "content": cart},
+            {"contentType": "confirmation_prompt", "content": "Anything else?", "options": ["Confirm Order", "Clear Cart"]}
         ]
 
+    def _get_contextual_ai_note(self, db: Session, product: Product, cart: dict) -> str:
+        
+        # **FIX**: Use hasattr() to safely check if 'delivery_eta' exists before accessing it
+        if hasattr(product, 'delivery_eta') and product.delivery_eta and "10 Min" in product.delivery_eta:
+            return f"This item is eligible for our 10-minute priority delivery!"
+        
+        cart_categories = cart.get("categories", set())
+        if product.category and product.category.lower() == "sport" and "sport" in cart_categories:
+            sport_items_count = sum(1 for item in cart["items"] if db.get(Product, item["product_id"]).category.lower() == "sport")
+            if sport_items_count == 1:
+                return "That's your 2nd sport item! Add one more for a 15% bundle discount."
+            if sport_items_count > 1:
+                return f"Another sport item added! You've unlocked the 15% bundle discount."
+
+        if product.tags and "premium" in product.tags:
+            return "A premium choice! These accessories would be a perfect match."
+        
+        if product.tags and "gift" in product.tags:
+            return "Great gift idea! We can add gift wrapping at checkout."
+
+        return "Based on your latest addition."
+
+    def _get_suggestions_for_product(self, db: Session, product_id: int, user_id: int) -> List[dict]:
+        product = db.get(Product, product_id)
+        if not product:
+            return []
+            
         suggestions = self._find_proactive_suggestions(db, product)
+        
+        cart = self._get_user_cart(db, user_id)
+        
+        ai_note = self._get_contextual_ai_note(db, product, cart)
+        
         if suggestions:
             suggestion_list = [self._format_product_for_frontend(p) for p in suggestions]
-            responses.append({
+            
+            return [{
                 "contentType": "proactive_suggestion", 
-                "content": "Customers who bought this also love:" if initial_add else "Here are some other items you might like:", 
+                "content": "You might also like these:", 
                 "products": suggestion_list, 
-                "reason": "Based on your latest addition."
-            })
+                "reason": ai_note 
+            }]
+        return []
 
-        responses.append({"contentType": "confirmation_prompt", "content": "Anything else?", "options": ["Confirm Order", "Clear Cart"]})
+    def _add_product_to_cart_by_name(self, db: Session, user_id: int, product_name_query: str) -> List[dict]:
+        products, entities = ai_commerce_engine.find_products_from_message(db, product_name_query)
+        
+        quantity = entities.get("quantity", 1)
+
+        if not products:
+            return [{"contentType": "text", "content": f"I couldn't find a product matching '{product_name_query}'. Please try another."}]
+
+        if len(products) > 1:
+            self.conversation_state["stage"] = "AWAITING_CLARIFICATION"
+            product_list = [self._format_product_for_frontend(p) for p in products]
+            ai_note = f"Found {len(products)} items. For example, '{products[0].name}' matches your request."
+            return [{"contentType": "text", "content": "I found a few items. Which one did you mean?", "ai_notes": ai_note}, {"contentType": "product_carousel", "products": product_list}]
+
+        product = products[0]
+        
+        cart_responses = self._add_product_by_id_silent(db, user_id, product.id, quantity_to_add=quantity)
+        
+        suggestion_responses = self._get_suggestions_for_product(db, product.id, user_id)
+        
+        cart = self._get_user_cart(db, user_id)
+        ai_note = self._get_contextual_ai_note(db, product, cart)
+
+        add_message = f"Great choice! I've added {product.name} to your cart."
+        if quantity > 1:
+            add_message = f"Great choice! I've added {quantity} units of {product.name} to your cart."
+
+        responses = [
+            {"contentType": "text", "content": add_message, "ai_notes": ai_note}, 
+            *cart_responses,
+            *suggestion_responses,
+        ]
         return responses
 
     def handle_message(self, db: Session, message: str, user: models.User) -> list[dict]:
         current_stage = self.conversation_state.get("stage")
 
         if current_stage == "AWAITING_CLARIFICATION":
-            parsed_data = {"intent": "ADD_TO_CART", "product_name": message}
+            parsed_data = self._parse_intent(message)
+            if parsed_data["intent"] == "ADD_TO_CART":
+                 self.conversation_state["stage"] = "IDLE"
+                 return self._add_product_to_cart_by_name(db, user.id, parsed_data["product_name"])
             self.conversation_state["stage"] = "IDLE"
         elif current_stage == "AWAITING_CONFIRMATION":
             parsed_data = self._parse_intent(message)
@@ -167,24 +279,15 @@ class AIOrderingService:
 
         intent = parsed_data.get("intent")
         
-        if intent == "ADD_BY_ID":
-            return self._add_product_to_cart_by_id(db, user.id, parsed_data["product_id"])
+        if intent == "INTERNAL_ADD_BY_ID":
+            return self._add_product_by_id_silent(db, user.id, parsed_data["product_id"], quantity_to_add=1)
+
+        if intent == "INTERNAL_GET_SUGGESTIONS":
+            return self._get_suggestions_for_product(db, parsed_data["product_id"], user.id)
 
         if intent == "ADD_TO_CART":
             product_name_query = parsed_data["product_name"]
-            products = ai_commerce_engine.find_products_from_message(db, product_name_query)
-
-            if not products:
-                return [{"contentType": "text", "content": f"I couldn't find a product matching '{product_name_query}'. Please try another."}]
-
-            if len(products) > 1:
-                self.conversation_state["stage"] = "AWAITING_CLARIFICATION"
-                product_list = [self._format_product_for_frontend(p) for p in products]
-                ai_note = f"Found {len(products)} items based on your search. For example, '{products[0].name}' matches your request."
-                return [{"contentType": "text", "content": "I found a few items. Which one did you mean?", "ai_notes": ai_note}, {"contentType": "product_carousel", "products": product_list}]
-
-            product = products[0]
-            return self._add_product_to_cart_by_id(db, user.id, product.id, initial_add=True)
+            return self._add_product_to_cart_by_name(db, user.id, product_name_query)
 
         if intent == "REMOVE_FROM_CART":
             product_name_to_remove = parsed_data["product_name"]
@@ -204,7 +307,7 @@ class AIOrderingService:
                 db.delete(item_db)
                 db.commit()
 
-            cart = self._get_user_cart(db, user.id)
+            cart = self._get_user_cart(db, user_id)
             self.conversation_state["stage"] = "AWAITING_CONFIRMATION"
             return [
                 {"contentType": "text", "content": f"Okay, I've removed {item_to_remove_from_cart['name']} from your cart."},
@@ -270,7 +373,6 @@ class AIOrderingService:
             empty_cart = self._get_user_cart(db, user.id)
 
             return [
-                {"contentType": "text", "content": f"Great! I've created Order #{new_order.id}. Please complete the payment."},
                 {"contentType": "cart_preview", "content": empty_cart},
                 {
                     "contentType": "payment_intent", 

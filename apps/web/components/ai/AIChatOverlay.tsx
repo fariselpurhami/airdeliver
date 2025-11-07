@@ -13,44 +13,66 @@ import { useSession } from "next-auth/react";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
-const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (productName: string) => void }) => (
-    <div className="embla__slide flex-[0_0_50%] md:flex-[0_0_40%]">
-        <div className="flex flex-col p-4 bg-white/5 rounded-lg border border-cyan-400/20 h-full text-left">
-            <Image src={product.image || '/images/default.jpeg'} alt={product.name} width={120} height={120} className="w-full h-24 object-contain mb-3 rounded-md"/>
-            <h4 className="text-sm font-bold text-white">{product.name}</h4>
-            <p className="text-lg font-bold text-white mb-2">${product.price.toFixed(2)}</p>
-            <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">
-                <span>⭐ {product.rating || '4.5'} ({product.reviews || '1.2'}k)</span> | <span className="text-green-400">{product.stock_status || 'In Stock'}</span>
-            </div>
-            <div className="text-xs text-gray-400 flex items-center gap-2 mt-auto">
-                <span>🚀 {product.delivery_eta || '15 Min'} Delivery</span>
-            </div>
-           
-            <motion.button 
-                onClick={() => onSelect(`__ADD_BY_ID__:${product.id}`)} 
-                className="w-full mt-3 text-sm bg-cyan-500/30 text-cyan-200 py-2 rounded-lg border border-cyan-500/50"
-            >
-                Add to Cart
-            </motion.button>
-            
-        </div>
-    </div>
-);
+const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (product: any) => void }) => {
+    
+    // حجم موحد للبطاقة لضمان التناسق
+    const slideWidthClass = "flex-[0_0_65%] sm:flex-[0_0_50%] md:flex-[0_0_40%]";
 
-const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (productName: string) => void }) => {
-    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start' });
+    return (
+        <div className={`embla__slide ${slideWidthClass}`}>
+            {/* تم إضافة هوامش (m-2) وحركة */}
+            <motion.div 
+                className="flex flex-col m-2 p-4 bg-white/5 rounded-lg border border-cyan-400/20 h-full text-left"
+                whileHover={{ scale: 1.03, z: 10 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            >
+                <Image src={product.image || '/images/default.jpeg'} alt={product.name} width={120} height={120} className="w-full h-24 object-contain mb-3 rounded-md"/>
+                <h4 className="text-sm font-bold text-white">{product.name}</h4>
+                <p className="text-lg font-bold text-white mb-2">${product.price.toFixed(2)}</p>
+                <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">
+                    <span>⭐ {product.rating || '4.5'} ({product.reviews || '1.2'}k)</span> | <span className="text-green-400">{product.stock_status || 'In Stock'}</span>
+                </div>
+                <div className="text-xs text-gray-400 flex items-center gap-2 mt-auto">
+                    <span>🚀 {product.delivery_eta || '15 Min'} Delivery</span>
+                </div>
+            
+                <motion.button 
+                    onClick={() => onSelect(product)} 
+                    whileHover={{ scale: 1.05 }}
+                    className="w-full mt-3 text-sm bg-cyan-500/30 text-cyan-200 py-2 rounded-lg border border-cyan-500/50"
+                >
+                    Add to Cart
+                </motion.button>
+            </motion.div>
+        </div>
+    );
+};
+
+const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (product: any) => void }) => {
+    // 💡 (الإصلاح): تم تغيير المحاذاة إلى 'center' لتوسيط منتج واحد بشكل صحيح
+    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'center' });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+    
+    const totalItems = products.length;
+    
+    // إظهار الأسهم فقط إذا كان عدد المنتجات أكبر من 2
+    const canScroll = totalItems > 2; 
 
     return (
         <div className="relative my-4 -mx-4">
-            <div className="overflow-hidden" ref={emblaRef}>
-                <div className="flex space-x-4 ml-4">
+            {/* تم تعديل الحشو ليتناسب مع هوامش البطاقة */}
+            <div className="overflow-hidden pl-2" ref={emblaRef}>
+                <div className="flex">
                     {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} />)}
                 </div>
             </div>
-            <button onClick={scrollPrev} className="absolute top-1/2 -translate-y-1/2 -left-3 p-1 bg-white/10 rounded-full z-10 hover:bg-white/20"><ChevronLeft size={16}/></button>
-            <button onClick={scrollNext} className="absolute top-1/2 -translate-y-1/2 -right-3 p-1 bg-white/10 rounded-full z-10 hover:bg-white/20"><ChevronRight size={16}/></button>
+            {canScroll && (
+                <>
+                    <button onClick={scrollPrev} className="absolute top-1/2 -translate-y-1/2 -left-3 p-1 bg-white/10 rounded-full z-10 hover:bg-white/20"><ChevronLeft size={16}/></button>
+                    <button onClick={scrollNext} className="absolute top-1/2 -translate-y-1/2 -right-3 p-1 bg-white/10 rounded-full z-10 hover:bg-white/20"><ChevronRight size={16}/></button>
+                </>
+            )}
         </div>
     );
 };
@@ -59,21 +81,23 @@ const AIReasoning = ({ text }: { text: string }) => (
     <motion.div 
         initial={{ opacity: 0, y: 10 }} 
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-2 p-2 mt-3 bg-cyan-900/10 border border-cyan-400/20 rounded-lg"
+        // 💡 (الإصلاح): 'mx-auto' لتوسيط هذا المربع ليتناسب مع البطاقة
+        className="flex items-center gap-2 p-2 mt-3 bg-cyan-900/10 border border-cyan-400/20 rounded-lg max-w-md mx-auto"
     >
-        <Cpu size={16} className="text-cyan-400 flex-shrink-0"/>
+        <Cpu size={16} className="text-cyan-400 flex-shrink-0 glowing-icon"/>
         <p className="text-xs text-cyan-300/80 italic">{text}</p>
     </motion.div>
 );
 
-const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend: (text: string) => void }) => {
+const ChatMessage = React.memo(({ message, onSend, onProductSelect }: { message: Message, onSend: (text: string) => void, onProductSelect: (product: any) => void }) => {
     const isAI = message.sender === 'ai';
 
     const MessageContent = () => {
         switch (message.contentType) {
             case 'text':
             case 'error':
-                return <p className={`whitespace-pre-wrap text-base ${message.contentType === 'error' ? 'text-red-400' : ''}`}>{message.content}</p>;
+            case 'success_text':
+                return <p className={`whitespace-pre-wrap text-base ${message.contentType === 'error' ? 'text-red-400' : ''} ${message.contentType === 'success_text' ? 'text-cyan-300' : ''}`}>{message.content}</p>;
             case 'confirmation_prompt':
                 return (
                     <div>
@@ -91,8 +115,8 @@ const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend:
             case 'proactive_suggestion':
                 return (
                     <div>
-                        <p className="whitespace-pre-wrap mb-2 test-base">{message.content}</p>
-                        <ProductCarousel products={message.products || []} onSelect={onSend} />
+                        <p className="whitespace-pre-wrap mb-2 text-base">{message.content}</p>
+                        <ProductCarousel products={message.products || []} onSelect={onProductSelect} />
                         {message.reason && <AIReasoning text={message.reason} />}
                         {message.ai_notes && <AIReasoning text={message.ai_notes} />}
                     </div>
@@ -104,52 +128,124 @@ const ChatMessage = React.memo(({ message, onSend }: { message: Message, onSend:
     if (['cart_preview', 'typing', 'payment_intent'].includes(message.contentType)) return null;
 
     return (
-        <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`flex items-start gap-3 w-full ${isAI ? 'justify-start' : 'justify-end'}`}>
-            {isAI && <Bot size={24} className="flex-shrink-0 mt-1 text-cyan-400 glowing-icon" />}
-            <div className={`w-auto max-w-lg p-4 rounded-xl ${isAI ? 'bg-black/20 border border-cyan-400/30 text-gray-200' : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white'}`}>
+        <motion.div 
+            layout 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className={`flex items-start gap-3 w-full ${isAI ? 'justify-start' : 'justify-end'}`}
+        >
+            {isAI && (
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
+                    <Bot size={16} className="text-cyan-400" />
+                </div>
+            )}
+            
+            <div className={`w-auto max-w-lg px-3 py-2 rounded-xl ${isAI ? 'bg-black/20 border border-cyan-400/30 text-gray-200' : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white'}`}>
                 <MessageContent />
             </div>
-            {!isAI && <User size={24} className="flex-shrink-0 mt-1 text-gray-300" />}
+
+            {!isAI && (
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-500/20 flex items-center justify-center border border-gray-500/50">
+                    <User size={16} className="text-gray-400" />
+                </div>
+            )}
         </motion.div>
     );
 });
 ChatMessage.displayName = 'ChatMessage';
 
-const AIChatSidebar = React.memo(({ messages }: { messages: Message[] }) => {
+const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Message[], glowingProductId: number | null }) => {
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
-    
+
     const lastAINoteMessage = [...messages].reverse().find(m => m.sender === 'ai' && (m.ai_notes || m.reason));
     const aiNote = lastAINoteMessage ? (lastAINoteMessage.ai_notes || lastAINoteMessage.reason) : "AI reasoning will appear here.";
 
     return (
-        <div className="hidden lg:block w-1/3 bg-black/20 border-l border-cyan-400/30 p-6 rounded-r-2xl overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
-            <div className="sticky top-0 flex flex-col h-full">
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><ShoppingCart size={18} /> Order Summary</h3>
-                <div className="space-y-3 mb-6 flex-grow min-h-[120px]">
+        // 💡 (الإصلاح): الهيكل الرئيسي: flex-col لتقسيم المحتوى والفوت
+        <div className="hidden lg:block w-1/3 bg-black/20 border-l border-cyan-400/30 rounded-r-2xl flex flex-col overflow-hidden">
+
+            {/* 1. قسم ملخص الطلب (قابل للتمرير) */}
+            {/* flex-grow + min-h-0 تضمن أن هذا القسم يملأ كل المساحة المتاحة ويسمح بالتمرير الداخلي */}
+            <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <ShoppingCart size={18} /> Order Summary
+                </h3>
+                <div className="space-y-2 flex-grow">
                     <AnimatePresence>
-                        {cart.items.length === 0 ? <p className="text-sm text-gray-500">Your cart is empty.</p> : cart.items.map((item: any, index: number) => (
-                            <motion.div key={item.product_id || index} layout initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex justify-between items-center text-sm">
+                        {cart.items.length === 0 ? <p className="text-sm text-gray-500 italic">Your cart is empty.</p> : cart.items.map((item: any, index: number) => (
+                            <motion.div
+                                key={item.product_id || index}
+                                layout
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{
+                                    opacity: 1,
+                                    x: 0,
+                                    backgroundColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                                    borderColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.5)" : "rgba(255, 255, 255, 0.1)",
+                                }}
+                                transition={{ duration: 0.8, ease: "easeInOut" }}
+                                exit={{ opacity: 0, x: 20 }}
+                                className="flex justify-between items-center text-sm p-3 rounded-lg border"
+                            >
                                 <span className="text-gray-300">{item.name} (x{item.quantity})</span>
                                 <span className="font-bold text-white">${(item.price * item.quantity).toFixed(2)}</span>
                             </motion.div>
                         ))}
                     </AnimatePresence>
                 </div>
-                <div className="mt-auto">
-                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Clock size={18} /> Details</h3>
+            </div>
+
+            {/* 2. الفوتر الثابت (التفاصيل، ملاحظات AI، الإجمالي) */}
+            {/* 💡 (الإصلاح): flex-shrink-0 تمنع هذا القسم من التقلص وتثبته في الأسفل تماماً */}
+            <div className="flex-shrink-0 p-6 border-t border-cyan-400/30 bg-black/30 backdrop-blur-sm space-y-5">
+
+                {/* Details */}
+                <div>
+                    <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                        <Clock size={18} /> Details
+                    </h3>
                     <div className="text-sm space-y-2 text-gray-400">
                         <div className="flex justify-between"><span>Estimated Delivery:</span><span className="text-white font-semibold">12 Mins</span></div>
                         <div className="flex justify-between"><span>Delivery Fee:</span><span className="text-white font-semibold">Free</span></div>
                     </div>
-                    <div className="w-full h-[1px] bg-cyan-400/20 my-6" />
-                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Cpu size={18} /> AI Notes</h3>
+                </div>
+
+                {/* الفاصل المتوهج الأول */}
+                <div className="w-full h-[1px] bg-cyan-400/20" />
+
+                {/* AI Notes (مع أيقونة متوهجة) */}
+                <div>
+                    <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                        <motion.div
+                            animate={{
+                            filter: [
+                                'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))',
+                                'drop-shadow(0 0 8px rgba(0, 198, 255, 0.8))',
+                                'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))'
+                            ]
+                            }}
+                            transition={{
+                            duration: 3,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                            }}
+                        >
+                            <Cpu size={18} className="text-cyan-400"/>
+                        </motion.div>
+                        AI Notes
+                    </h3>
                     <p className="text-sm text-gray-400 italic">{aiNote}</p>
-                    <div className="w-full h-[1px] bg-cyan-400/20 my-6" />
-                    <div className="flex justify-between items-center font-bold">
-                        <span className="text-gray-300 text-lg">Total</span>
-                        <span className="text-3xl text-white">${cart.total.toFixed(2)}</span>
-                    </div>
+                </div>
+
+                {/* الفاصل المتوهج الثاني */}
+                <div className="w-full h-[1px] bg-cyan-400/20" />
+
+                {/* Total */}
+                <div className="flex justify-between items-center font-bold pt-2">
+                    {/* 💡 (الإصلاح): تم تغيير اللون إلى الأبيض */}
+                    <span className="text-white text-lg">Total</span>
+                    <span className="text-lg text-white">${cart.total.toFixed(2)}</span>
                 </div>
             </div>
         </div>
@@ -203,45 +299,105 @@ const ChatInput = React.memo(
     );
   }
 );
-
 ChatInput.displayName = 'ChatInput';
 
 
 const TypingIndicator = () => (
-    <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 self-start ml-12">
-      <Bot size={24} className="flex-shrink-0 text-cyan-400 glowing-icon" /><div className="flex items-center gap-1"><motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.8, repeat: Infinity }} /><motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.8, delay: 0.1, repeat: Infinity }} /><motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -4, 0] }} transition={{ duration: 0.8, delay: 0.2, repeat: Infinity }} /></div>
+    <motion.div
+        layout
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        className="flex items-center gap-3"
+    >
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
+        <Bot size={16} className="text-cyan-400" />
+      </div>
+      <div className="flex items-center gap-1.5 px-4 py-3 bg-black/20 rounded-lg">
+        <motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }} />
+        <motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ duration: 0.8, delay: 0.1, repeat: Infinity, ease: 'easeInOut' }} />
+        <motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ duration: 0.8, delay: 0.2, repeat: Infinity, ease: 'easeInOut' }} />
+      </div>
     </motion.div>
 );
 
+const FlyingItemAnimator = ({ imageUrl }: { imageUrl: string }) => {
+    const { flyToCartItem, setOverlayVisible } = useAIOrderingStore((state) => ({
+        flyToCartItem: state.flyToCartItem,
+        setOverlayVisible: state.setOverlayVisible,
+    }));
+
+    const onAnimationComplete = () => {
+        useAIOrderingStore.setState({ flyToCartItem: null });
+    };
+
+    return (
+        <motion.div
+            className="absolute z-[999] p-1 bg-white/10 rounded-lg border border-cyan-400/50"
+            style={{
+                top: '50%',
+                left: '30%',
+                transform: 'translate(-50%, -50%)',
+            }}
+            initial={{
+                opacity: 1,
+                scale: 0.8,
+                x: 0,
+                y: 0,
+            }}
+            animate={{
+                x: '100vh',
+                y: '-30vh',
+                opacity: 0,
+                scale: 0.1,
+            }}
+            transition={{ duration: 0.8, ease: "easeIn" }}
+            onAnimationComplete={onAnimationComplete}
+        >
+            <Image src={imageUrl} alt="Flying item" width={60} height={60} className="object-contain" />
+        </motion.div>
+    );
+};
+
 
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    
-    const { messages, isLoading, sendMessage, paymentDetails, setOverlayVisible, addLocalAIMessage } = useAIOrderingStore();
+
+    const {
+        messages,
+        isLoading,
+        sendMessage,
+        addProductById,
+        paymentDetails,
+        setOverlayVisible,
+        addLocalAIMessage,
+        glowingProductId,
+        flyToCartItem
+    } = useAIOrderingStore();
+
     const { data: session, status } = useSession();
-    const token = (session as any)?.accessToken;
-    
+
     const chatEndRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => { 
+    useEffect(() => {
         if (chatEndRef.current) {
-            chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' }); 
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
     }, [messages, isLoading]);
 
     const handleClose = () => {
-        setOverlayVisible(false); 
+        setOverlayVisible(false);
         onClose();
     };
-    
+
     const handlePaymentSuccess = () => {
-        setOverlayVisible(false); 
+        setOverlayVisible(false);
         onClose();
     };
 
     const handleSendMessage = useCallback((text: string) => {
-        
+
         if (status === 'loading') {
-             setTimeout(() => { 
+             setTimeout(() => {
                 addLocalAIMessage(
                     "Authenticating... Please wait a moment.",
                     'error'
@@ -250,8 +406,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
             return;
         }
 
-        if (status === 'authenticated' && token) {
-            sendMessage(text, token); 
+        if (status === 'authenticated') {
+            sendMessage(text);
         } else {
             const userMessage: Message = {
                 id: Date.now(),
@@ -264,12 +420,12 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                 isLoading: true,
             }));
 
-            setTimeout(() => { 
+            setTimeout(() => {
                 addLocalAIMessage(
                     "Access to Autonomous Commerce is personalized. Sign in to unlock instant AI ordering and personalized recommendations.",
                     'text'
                 );
-                
+
                 useAIOrderingStore.setState((state) => ({
                     messages: [...state.messages, {
                         id: Date.now() + 1,
@@ -282,8 +438,19 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                 }));
             }, 500);
         }
-    }, [sendMessage, token, status, addLocalAIMessage]);
-             
+    }, [sendMessage, status, addLocalAIMessage]);
+
+    const handleProductSelect = useCallback((product: any) => {
+        if (status === 'authenticated') {
+            addProductById(product);
+        } else {
+             addLocalAIMessage(
+                "Please sign in to add items to your cart.",
+                'error'
+            );
+        }
+    }, [addProductById, status, addLocalAIMessage]);
+
 
     const stripeOptions: StripeElementsOptions = {
         clientSecret: paymentDetails?.clientSecret,
@@ -305,19 +472,20 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     return (
         <AnimatePresence>
             {isOpen && (
-                <motion.div 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }} 
-                    exit={{ opacity: 0 }} 
-                    onClick={handleClose} 
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={handleClose}
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex justify-center items-center p-4"
                 >
-                    <motion.div 
+                    {flyToCartItem && <FlyingItemAnimator imageUrl={flyToCartItem} />}
+                    <motion.div
                         initial={{ scale: 0.9, opacity: 0, y: 50 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.9, opacity: 0, y: 50 }}
-                        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }} 
-                        onClick={(e) => e.stopPropagation()} 
+                        // 💡 (الإصلاح): تحسين حركة الدخول والخروج
+                        animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } }}
+                        exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.2, ease: "easeOut" } }}
+                        onClick={(e) => e.stopPropagation()}
                         className="w-full max-w-7xl h-[95vh] max-h-[1000px] flex flex-col bg-black/50 backdrop-blur-2xl border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden"
                     >
                         <header className="p-4 border-b border-cyan-400/30 flex justify-between items-center flex-shrink-0">
@@ -347,11 +515,11 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                 <X size={20} />
                             </button>
                         </header>
-                   
+
                         <div className="flex-grow flex overflow-hidden">
                             <AnimatePresence mode="wait">
                                 {paymentDetails && paymentDetails.clientSecret ? (
-                                  
+
                                     <motion.div
                                         key="payment"
                                         initial={{ opacity: 0 }}
@@ -360,7 +528,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         className="w-full h-full flex items-center justify-center overflow-y-auto"
                                     >
                                         <Elements stripe={stripePromise} options={stripeOptions}>
-                                            <AIPaymentForm 
+                                            <AIPaymentForm
                                                 orderId={paymentDetails.orderId}
                                                 total={paymentDetails.total}
                                                 onPaymentSuccess={handlePaymentSuccess}
@@ -368,8 +536,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         </Elements>
                                     </motion.div>
                                 ) : (
-                                    
-                                    <motion.div 
+
+                                    <motion.div
                                         key="chat"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
@@ -378,21 +546,21 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                     >
                                         <div className="flex-grow p-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
                                             <AnimatePresence>
-                                             
-                                                {messages.map((msg) => <ChatMessage key={msg.id} message={msg} onSend={handleSendMessage} />)}
+
+                                                {messages.map((msg) => <ChatMessage key={msg.id} message={msg} onSend={handleSendMessage} onProductSelect={handleProductSelect} />)}
                                             </AnimatePresence>
                                             {isLoading && <TypingIndicator />}
                                             <div ref={chatEndRef} />
                                         </div>
-                                       
-                                        <ChatInput onSend={handleSendMessage} isTyping={isLoading} />
+
+                                        <ChatInput onSend={handleSendMessage} isTyping={isLoading || (messages.length > 0 && messages[messages.length - 1].contentType === 'success_text')} />
                                     </motion.div>
                                 )}
                             </AnimatePresence>
-                            
-                           
+
+
                             {!(paymentDetails && paymentDetails.clientSecret) && (
-                                 <AIChatSidebar messages={messages} />
+                                 <AIChatSidebar messages={messages} glowingProductId={glowingProductId} />
                             )}
                         </div>
 
