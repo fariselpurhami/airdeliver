@@ -15,12 +15,12 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
 
 const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (product: any) => void }) => {
     
-    // حجم موحد للبطاقة لضمان التناسق
+   
     const slideWidthClass = "flex-[0_0_65%] sm:flex-[0_0_50%] md:flex-[0_0_40%]";
 
     return (
         <div className={`embla__slide ${slideWidthClass}`}>
-            {/* تم إضافة هوامش (m-2) وحركة */}
+          
             <motion.div 
                 className="flex flex-col m-2 p-4 bg-white/5 rounded-lg border border-cyan-400/20 h-full text-left"
                 whileHover={{ scale: 1.03, z: 10 }}
@@ -49,19 +49,18 @@ const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (p
 };
 
 const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (product: any) => void }) => {
-    // 💡 (الإصلاح): تم تغيير المحاذاة إلى 'center' لتوسيط منتج واحد بشكل صحيح
-    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'center' });
+   
+    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start' });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
     
     const totalItems = products.length;
     
-    // إظهار الأسهم فقط إذا كان عدد المنتجات أكبر من 2
     const canScroll = totalItems > 2; 
 
     return (
         <div className="relative my-4 -mx-4">
-            {/* تم تعديل الحشو ليتناسب مع هوامش البطاقة */}
+          
             <div className="overflow-hidden pl-2" ref={emblaRef}>
                 <div className="flex">
                     {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} />)}
@@ -81,7 +80,7 @@ const AIReasoning = ({ text }: { text: string }) => (
     <motion.div 
         initial={{ opacity: 0, y: 10 }} 
         animate={{ opacity: 1, y: 0 }}
-        // 💡 (الإصلاح): 'mx-auto' لتوسيط هذا المربع ليتناسب مع البطاقة
+        
         className="flex items-center gap-2 p-2 mt-3 bg-cyan-900/10 border border-cyan-400/20 rounded-lg max-w-md mx-auto"
     >
         <Cpu size={16} className="text-cyan-400 flex-shrink-0 glowing-icon"/>
@@ -162,11 +161,11 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Me
     const aiNote = lastAINoteMessage ? (lastAINoteMessage.ai_notes || lastAINoteMessage.reason) : "AI reasoning will appear here.";
 
     return (
-        // 💡 (الإصلاح): الهيكل الرئيسي: flex-col لتقسيم المحتوى والفوت
-        <div className="hidden lg:block w-1/3 bg-black/20 border-l border-cyan-400/30 rounded-r-2xl flex flex-col overflow-hidden">
+      
+        <div className="hidden lg:flex w-1/3 bg-black/20 border-l border-cyan-400/30 rounded-r-2xl flex-col overflow-hidden">
 
-            {/* 1. قسم ملخص الطلب (قابل للتمرير) */}
-            {/* flex-grow + min-h-0 تضمن أن هذا القسم يملأ كل المساحة المتاحة ويسمح بالتمرير الداخلي */}
+         
+           
             <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                     <ShoppingCart size={18} /> Order Summary
@@ -196,11 +195,10 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Me
                 </div>
             </div>
 
-            {/* 2. الفوتر الثابت (التفاصيل، ملاحظات AI، الإجمالي) */}
-            {/* 💡 (الإصلاح): flex-shrink-0 تمنع هذا القسم من التقلص وتثبته في الأسفل تماماً */}
+           
             <div className="flex-shrink-0 p-6 border-t border-cyan-400/30 bg-black/30 backdrop-blur-sm space-y-5">
 
-                {/* Details */}
+              
                 <div>
                     <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
                         <Clock size={18} /> Details
@@ -211,10 +209,10 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Me
                     </div>
                 </div>
 
-                {/* الفاصل المتوهج الأول */}
+             
                 <div className="w-full h-[1px] bg-cyan-400/20" />
 
-                {/* AI Notes (مع أيقونة متوهجة) */}
+              
                 <div>
                     <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
                         <motion.div
@@ -238,12 +236,12 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Me
                     <p className="text-sm text-gray-400 italic">{aiNote}</p>
                 </div>
 
-                {/* الفاصل المتوهج الثاني */}
+             
                 <div className="w-full h-[1px] bg-cyan-400/20" />
 
-                {/* Total */}
+             
                 <div className="flex justify-between items-center font-bold pt-2">
-                    {/* 💡 (الإصلاح): تم تغيير اللون إلى الأبيض */}
+                  
                     <span className="text-white text-lg">Total</span>
                     <span className="text-lg text-white">${cart.total.toFixed(2)}</span>
                 </div>
@@ -482,7 +480,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                     {flyToCartItem && <FlyingItemAnimator imageUrl={flyToCartItem} />}
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0, y: 50 }}
-                        // 💡 (الإصلاح): تحسين حركة الدخول والخروج
+                      
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } }}
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.2, ease: "easeOut" } }}
                         onClick={(e) => e.stopPropagation()}

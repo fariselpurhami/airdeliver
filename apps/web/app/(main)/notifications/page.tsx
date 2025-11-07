@@ -222,8 +222,9 @@ export default function NotificationsPage() {
     }, []); 
 
     const allNotifications = useMemo(() => {
-       
-        const initialFiltered = (initialNotifications || []).filter(
+
+        const safeInitialNotifications = Array.isArray(initialNotifications) ? initialNotifications : [];
+        const initialFiltered = safeInitialNotifications.filter(
             initial => !liveNotifications.some(live => live.id === initial.id)
         );
         return [...liveNotifications, ...initialFiltered];
