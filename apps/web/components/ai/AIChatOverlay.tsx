@@ -13,10 +13,10 @@ import { useSession } from "next-auth/react";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
-const CarouselProductCard = ({ product, onSelect }: { product: any, onSelect: (product: any) => void }) => {
+const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, onSelect: (product: any) => void, totalItems: number }) => {
     
-   
-    const slideWidthClass = "flex-[0_0_65%] sm:flex-[0_0_50%] md:flex-[0_0_40%]";
+    const mdWidthClass = totalItems === 2 ? "md:flex-[0_0_50%]" : "md:flex-[0_0_40%]";
+    const slideWidthClass = `flex-[0_0_65%] sm:flex-[0_0_50%] ${mdWidthClass}`;
 
     return (
         <div className={`embla__slide ${slideWidthClass}`}>
@@ -63,7 +63,7 @@ const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (p
           
             <div className="overflow-hidden pl-2" ref={emblaRef}>
                 <div className="flex">
-                    {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} />)}
+                    {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} totalItems={totalItems} />)}
                 </div>
             </div>
             {canScroll && (
