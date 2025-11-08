@@ -35,6 +35,8 @@ interface AIOrderingState {
   sendMessage: (text: string) => void;
   addProductById: (product: any) => void;
   addLocalAIMessage: (content: string, type: 'error' | 'text' | 'success_text') => void;
+  // 🚩 **(وظيفة جديدة) أضفناها للـ state**
+  fetchInitialSuggestions: () => void;
   clearPayment: () => void;
   resetChat: () => void;
 }
@@ -48,7 +50,6 @@ const initialWelcomeMessage: Message = {
   content: 'Autonomous AI. Ready to assist your order."',
 };
 
-// **IMPROVEMENT**: This dynamic, emotional reply logic matches your prompt perfectly.
 const smartReplies = [
     (name: string) => `Nice pick! ${name} is now in your cart.`,
     (name: string) => `Got it — added ${name}.`,
@@ -71,13 +72,14 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   glowingProductId: null,
   flyToCartItem: null,
 
-  // **IMPROVEMENT**: This function NO LONGER resets the chat on close.
-  // This preserves the chat state when the user hides the overlay.
   setOverlayVisible: (isVisible) => {
     set({ isOverlayVisible: isVisible });
-    // if (!isVisible) {
-    //   get().resetChat(); // <-- This line was removed.
-    // }
+    
+    // 🚩 **(اللوجيك الجديد) أول ما الشات يتفتح**
+    // لو الشات لسه جديد (فيه رسالة واحدة بس)، اطلب الاقتراحات
+    if (isVisible && get().messages.length === 1) {
+      get().fetchInitialSuggestions();
+    }
   },
   
   setSuggestedProductIds: (ids) => set({ suggestedProductIds: ids }),
@@ -113,32 +115,58 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     }));
   },
 
+  // 🚩 **(وظيفة جديدة) لطلب الاقتراحات المبدئية**
+  fetchInitialSuggestions: async () => {
+    if (get().isLoading) return; // متطلبش لو فيه حاجة بتحمل
+
+    const typingIndicator: Message = { id: messageId++, sender: 'ai', contentType: 'typing', content: null };
+    set((state) => ({
+      messages: [...state.messages, typingIndicator],
+      isLoading: true,
+    }));
+
+    try {
+      const response = await api.post('/ai-ordering/chat', {
+          message: "__INTERNAL_GET_INITIAL_SUGGESTIONS__"
+      });
+
+      const aiData = response.data;
+      const aiMessages: Message[] = (aiData.responses || [])
+          .map((res: any) => ({
+              id: messageId++,
+              sender: 'ai',
+              ...res
+           }));
+      
+      set((state) => ({
+          messages: [...state.messages.filter(m => m.contentType !== 'typing'), ...aiMessages],
+          isLoading: false,
+      }));
+
+    } catch (error) {
+       get().addLocalAIMessage('Could not load suggestions right now. What are you looking for?', 'error');
+    }
+  },
+
   addProductById: async (product) => {
     if (!product || get().isProcessing) return;
 
-    // **IMPROVEMENT**: This logic implements your "Cinematic & Emotional Layer"
-    
-    // 1️⃣ & 5️⃣: Instant visual feedback (Glow + Fly Animation)
     set({ 
       isProcessing: true,
       glowingProductId: product.id,
       flyToCartItem: product.image || '/images/default.jpeg',
     });
     
-    setTimeout(() => set({ glowingProductId: null }), 1500); // Glow duration
+    setTimeout(() => set({ glowingProductId: null }), 1500); 
 
-    // 2️⃣: Instant emotional confirmation message
     get().addLocalAIMessage(randomSmartReply(product.name), 'success_text');
     
     try {
-      // 1️⃣: Silently add product and get IMMEDIATE cart/confirmation
-      // 🚩 **الإصلاح: تم إزالة /api/v1 من هنا**
       const cartResponse = await api.post('/ai-ordering/chat', {
           message: `__INTERNAL_ADD_BY_ID__:${product.id}`
       });
       
       const cartData = cartResponse.data;
-      // **IMPROVEMENT**: Process the *array* of responses (cart + confirm)
       const cartMessages: Message[] = (cartData.responses || [])
           .map((res: any) => ({
               id: messageId++,
@@ -156,12 +184,9 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
        return;
     }
     
-    // 3️⃣: Cinematic delay (~0.8s) before showing suggestions
     setTimeout(async () => {
-        set({ isLoading: true }); // Show typing indicator briefly for suggestion
+        set({ isLoading: true }); 
         try {
-            // 4️⃣: Get *only* the suggestions
-            // 🚩 **الإصلاح: تم إزالة /api/v1 من هنا**
             const suggestionResponse = await api.post('/ai-ordering/chat', {
                 message: `__INTERNAL_GET_SUGGESTIONS__:${product.id}`
             });
@@ -188,7 +213,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
         } catch (error) {
             set({ isLoading: false, isProcessing: false });
         }
-    }, 800); // The 800ms cinematic delay, as requested.
+    }, 800); 
   },
 
   sendMessage: async (text) => {
@@ -205,7 +230,6 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     }));
 
     try {
-      // 🚩 **الإصلاح: تم إزالة /api/v1 من هنا**
       const response = await api.post('/ai-ordering/chat', {
         message: text 
       });
