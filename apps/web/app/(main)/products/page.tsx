@@ -1,3 +1,4 @@
+// file: apps/web/app/(main)/products/page.tsx
 'use client';
 
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
@@ -190,10 +191,11 @@ const ProductList = ({ products, onOpen }: { products: Product[], onOpen: (produ
 // ============================================================================
 const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) => void }) => {
     const { data: session, status } = useSession();
-    const userId = (session?.user as any)?.id;
 
-    const apiUrl = status === 'authenticated' && userId
-        ? `/api/v1/products/suggestions?product_id=1&user_id=${userId}`
+    // *** 🚩 (الإصلاح): تم إزالة user_id من الـ URL ***
+    // الباك إند هياخده من الـ token لوحده
+    const apiUrl = status === 'authenticated'
+        ? `/products/suggestions?product_id=1` 
         : null;
 
     const { data: recommendationsData, error, isLoading } = useSWR<Product[]>(apiUrl, fetcher, {
@@ -272,7 +274,7 @@ const ErrorDisplay = ({ error }: { error: any }) => (
 
 export default function ProductsPage() {
     const { data: productsData, error, isLoading } = useSWR<Product[] | { items: Product[] }>(
-        '/api/v1/products/',
+        '/products/',
         fetcher,
         { revalidateOnFocus: false }
     );

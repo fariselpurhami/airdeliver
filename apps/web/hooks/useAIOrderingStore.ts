@@ -1,3 +1,4 @@
+// file: apps/web/hooks/useAIOrderingStore.ts
 'use client';
 
 import { create } from 'zustand';
@@ -131,7 +132,8 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     
     try {
       // 1️⃣: Silently add product and get IMMEDIATE cart/confirmation
-      const cartResponse = await api.post('/api/v1/ai-ordering/chat', {
+      // 🚩 **الإصلاح: تم إزالة /api/v1 من هنا**
+      const cartResponse = await api.post('/ai-ordering/chat', {
           message: `__INTERNAL_ADD_BY_ID__:${product.id}`
       });
       
@@ -159,7 +161,8 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
         set({ isLoading: true }); // Show typing indicator briefly for suggestion
         try {
             // 4️⃣: Get *only* the suggestions
-            const suggestionResponse = await api.post('/api/v1/ai-ordering/chat', {
+            // 🚩 **الإصلاح: تم إزالة /api/v1 من هنا**
+            const suggestionResponse = await api.post('/ai-ordering/chat', {
                 message: `__INTERNAL_GET_SUGGESTIONS__:${product.id}`
             });
             
@@ -202,7 +205,8 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     }));
 
     try {
-      const response = await api.post('/api/v1/ai-ordering/chat', {
+      // 🚩 **الإصلاح: تم إزالة /api/v1 من هنا**
+      const response = await api.post('/ai-ordering/chat', {
         message: text 
       });
 

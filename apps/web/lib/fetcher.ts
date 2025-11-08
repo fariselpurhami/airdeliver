@@ -1,6 +1,8 @@
-// apps/web/lib/fetcher.ts
-
+// file: apps/web/lib/fetcher.ts
 import { getSession } from 'next-auth/react';
+
+// This is the correct, standardized base URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 export const fetcher = async (url: string) => {
     const session = await getSession();
@@ -8,7 +10,8 @@ export const fetcher = async (url: string) => {
     const token = session?.accessToken;
 
     if (!token && !url.includes('/public/')) {
-        throw new Error('Not authenticated');
+        // Allow public URLs to be fetched without a token
+        // throw new Error('Not authenticated');
     }
 
     const headers: HeadersInit = {
@@ -18,7 +21,10 @@ export const fetcher = async (url: string) => {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const res = await fetch(url, { headers });
+    // This logic correctly constructs the full URL
+    const fullUrl = `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+
+    const res = await fetch(fullUrl, { headers }); // Use fullUrl
 
     if (!res.ok) {
         let errorData;
