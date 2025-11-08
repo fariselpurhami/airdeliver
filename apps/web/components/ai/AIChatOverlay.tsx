@@ -167,7 +167,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Me
          
            
             <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
                     <ShoppingCart size={18} /> Order Summary
                 </h3>
                 <div className="space-y-2 flex-grow">
@@ -200,7 +200,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Me
 
               
                 <div>
-                    <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
                         <Clock size={18} /> Details
                     </h3>
                     <div className="text-sm space-y-2 text-gray-400">
@@ -242,8 +242,8 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Me
              
                 <div className="flex justify-between items-center font-bold pt-2">
                   
-                    <span className="text-white text-lg">Total</span>
-                    <span className="text-lg text-white">${cart.total.toFixed(2)}</span>
+                    <span className="text-white text-base">Total</span>
+                    <span className="text-base text-white">${cart.total.toFixed(2)}</span>
                 </div>
             </div>
         </div>

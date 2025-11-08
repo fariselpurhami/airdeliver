@@ -2,6 +2,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from app.core.config import settings
 from app.models.product import Product
 from app.models.user import User
+from app.models.ai_cart import AIOrderingCartItem
 from app.core.security import get_password_hash
 
 engine = create_engine(str(settings.DATABASE_URI), echo=False)
@@ -27,11 +28,20 @@ def seed_db():
             print("Superuser already exists.")
 
         print("Deleting all existing products to ensure a fresh seed...")
+
+        print("Deleting all existing AI cart items first...")
+        all_cart_items = session.exec(select(AIOrderingCartItem)).all()
+        for item in all_cart_items:
+            session.delete(item)
+        print(f"Deleted {len(all_cart_items)} old AI cart items.")
+
         all_products = session.exec(select(Product)).all()
         for product in all_products:
             session.delete(product)
         session.commit()
         print(f"Deleted {len(all_products)} old products.")
+
+        session.commit()
 
         print("Seeding initial products with smart tags and categories...")
         initial_products = [

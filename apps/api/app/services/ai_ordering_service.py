@@ -308,7 +308,7 @@ class AIOrderingService:
             return self._add_product_by_id_silent(db, user.id, parsed_data["product_id"], quantity_to_add=1)
 
         if intent == "INTERNAL_GET_SUGGESTIONS":
-            return self._get_suggestions_for_product(db, user_id, user.id)
+            return self._get_suggestions_for_product(db, parsed_data["product_id"], user.id)
 
         if intent == "ADD_TO_CART":
             product_name_query = parsed_data["product_name"]
