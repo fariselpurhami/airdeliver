@@ -19,10 +19,10 @@ const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, 
     const slideWidthClass = `flex-[0_0_65%] sm:flex-[0_0_50%] ${mdWidthClass}`;
 
     return (
-        <div className={`embla__slide ${slideWidthClass}`}>
+        <div className={`embla__slide ${slideWidthClass} px-2`}>
           
             <motion.div 
-                className="flex flex-col m-2 p-4 bg-white/5 rounded-lg border border-cyan-400/20 h-full text-left"
+                className="flex flex-col  p-4 bg-white/5 rounded-lg border border-cyan-400/20 h-full text-left"
                 whileHover={{ scale: 1.03, z: 10 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
@@ -59,9 +59,9 @@ const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (p
     const canScroll = totalItems > 2; 
 
     return (
-        <div className="relative my-4 -mx-4">
+        <div className="relative my-4">
           
-            <div className="overflow-hidden pl-2" ref={emblaRef}>
+            <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex">
                     {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} totalItems={totalItems} />)}
                 </div>

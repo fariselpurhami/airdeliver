@@ -300,7 +300,9 @@ class AIOrderingService:
         intent = parsed_data.get("intent")
         
         if intent == "INTERNAL_GET_INITIAL_SUGGESTIONS":
+            self._clear_state_and_cart(db, user.id)
             return self._get_initial_suggestions(db)
+
         
         if intent == "INTERNAL_ADD_BY_ID":
             return self._add_product_by_id_silent(db, user.id, parsed_data["product_id"], quantity_to_add=1)
