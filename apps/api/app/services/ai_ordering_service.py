@@ -76,7 +76,13 @@ class AIOrderingService:
                 return {"intent": "INTERNAL_ADD_BY_ID", "product_id": product_id}
             except (ValueError, IndexError):
                 return {"intent": "UNKNOWN"}
-        
+        if message.startswith("__INTERNAL_REMOVE_BY_ID__"):
+            try:
+                product_id = int(message.split(":")[-1])
+                return {"intent": "INTERNAL_REMOVE_BY_ID", "product_id": product_id}
+            except (ValueError, IndexError):
+                return {"intent": "UNKNOWN"}
+
         if message.startswith("__INTERNAL_GET_SUGGESTIONS__"):
             try:
                 product_id = int(message.split(":")[-1])
@@ -203,6 +209,37 @@ class AIOrderingService:
             {"contentType": "cart_preview", "content": cart},
             {"contentType": "confirmation_prompt", "content": "Anything else?", "options": ["Confirm Order", "Clear Cart"]}
         ]
+    def _remove_product_by_id_silent(self, db: Session, user_id: int, product_id: int) -> List[dict]:
+        item_db = db.exec(select(AIOrderingCartItem).where(
+            AIOrderingCartItem.user_id == user_id,
+            AIOrderingCartItem.product_id == product_id
+        )).first()
+
+        if not item_db:
+            cart = self._get_user_cart(db, user_id)
+            return [{"contentType": "cart_preview", "content": cart}]
+
+        product_name = "Item"
+        product = db.get(Product, product_id)
+        if product:
+            product_name = product.name
+
+        db.delete(item_db)
+        db.commit()
+
+        cart = self._get_user_cart(db, user_id)
+
+        responses = [
+            {"contentType": "success_text", "content": f"Removed {product_name} from cart."},
+            {"contentType": "cart_preview", "content": cart}
+        ]
+
+        if cart["items"]:
+            responses.append({"contentType": "confirmation_prompt", "content": "Cart updated.", "options": ["Confirm Order", "Clear Cart"]})
+        else:
+            responses.append({"contentType": "text", "content": "Your cart is now empty."})
+
+        return responses
 
     def _get_contextual_ai_note(self, db: Session, product: Product, cart: dict) -> str:
         
@@ -304,9 +341,11 @@ class AIOrderingService:
         if intent == "INTERNAL_ADD_BY_ID":
             return self._add_product_by_id_silent(db, user.id, parsed_data["product_id"], quantity_to_add=1)
 
+        if intent == "INTERNAL_REMOVE_BY_ID":
+            return self._remove_product_by_id_silent(db, user.id, parsed_data["product_id"])
+
         if intent == "INTERNAL_GET_SUGGESTIONS":
-            # 🚩 **(الإصلاح الأول)**
-            # كان مكتوب (user_id) بالغلط، صلحناه لـ (parsed_data["product_id"])
+            
             return self._get_suggestions_for_product(db, parsed_data["product_id"], user.id)
 
         if intent == "ADD_TO_CART":

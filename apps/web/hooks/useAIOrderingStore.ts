@@ -34,6 +34,7 @@ interface AIOrderingState {
   setSuggestedProductIds: (ids: number[] | null) => void;
   sendMessage: (text: string) => void;
   addProductById: (product: any) => void;
+  removeProductById: (productId: number) => void;
   addLocalAIMessage: (content: string, type: 'error' | 'text' | 'success_text') => void;
   // 🚩 **(وظيفة جديدة) أضفناها للـ state**
   fetchInitialSuggestions: () => void;
@@ -214,6 +215,39 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
             set({ isLoading: false, isProcessing: false });
         }
     }, 800); 
+  },
+
+  removeProductById: async (productId) => {
+    if (get().isLoading || get().isProcessing) return;
+
+    const localMessageContent = 'Updating cart...';
+
+    set({ isLoading: true, isProcessing: true });
+    get().addLocalAIMessage(localMessageContent, 'success_text');
+
+    try {
+      const response = await api.post('/ai-ordering/chat', {
+        message: `__INTERNAL_REMOVE_BY_ID__:${productId}`
+      });
+
+      const aiData = response.data;
+      const aiMessages: Message[] = (aiData.responses || [])
+          .map((res: any) => ({
+              id: messageId++,
+              sender: 'ai',
+              ...res
+           }));
+
+      set((state) => ({
+          messages: [...state.messages.filter(m => m.content !== localMessageContent), ...aiMessages],
+          isLoading: false,
+          isProcessing: false,
+      }));
+
+    } catch (error) {
+       get().addLocalAIMessage('There was an error removing the item. Please try again.', 'error');
+       set({ isLoading: false, isProcessing: false });
+    }
   },
 
   sendMessage: async (text) => {

@@ -153,7 +153,11 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect }: { message:
 });
 ChatMessage.displayName = 'ChatMessage';
 
-const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Message[], glowingProductId: number | null }) => {
+const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: { 
+    messages: Message[], 
+    glowingProductId: number | null,
+    onRemoveItem: (productId: number) => void 
+}) => {
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
 
@@ -187,8 +191,23 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId }: { messages: Me
                                 exit={{ opacity: 0, x: 20 }}
                                 className="flex justify-between items-center text-sm p-3 rounded-lg border"
                             >
-                                <span className="text-gray-300">{item.name} (x{item.quantity})</span>
-                                <span className="font-bold text-white">${(item.price * item.quantity).toFixed(2)}</span>
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <motion.button
+                                        onClick={() => onRemoveItem(item.product_id)}
+                                        className="p-0.5 rounded-full text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all flex-shrink-0"
+                                        whileHover={{ scale: 1.2, rotate: 90 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        title={`Remove ${item.name}`}
+                                    >
+                                        <X size={14} />
+                                    </motion.button>
+                                    <span className="text-gray-300 truncate" title={item.name}>
+                                        {item.name} (x{item.quantity})
+                                    </span>
+                                </div>
+                                <span className="font-bold text-white flex-shrink-0 ml-2">
+                                    ${(item.price * item.quantity).toFixed(2)}
+                                </span>
                             </motion.div>
                         ))}
                     </AnimatePresence>
@@ -370,7 +389,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         addLocalAIMessage,
         glowingProductId,
         flyToCartItem,
-        resetChat
+        resetChat,
+        removeProductById
     } = useAIOrderingStore();
 
     const { data: session, status } = useSession();
@@ -570,7 +590,11 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
 
                             {!(paymentDetails && paymentDetails.clientSecret) && (
-                                 <AIChatSidebar messages={messages} glowingProductId={glowingProductId} />
+                                 <AIChatSidebar 
+                                    messages={messages} 
+                                    glowingProductId={glowingProductId} 
+                                    onRemoveItem={removeProductById}
+                                 />
                             )}
                         </div>
 
