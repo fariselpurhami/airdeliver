@@ -36,7 +36,6 @@ interface AIOrderingState {
   addProductById: (product: any) => void;
   removeProductById: (productId: number) => void;
   addLocalAIMessage: (content: string, type: 'error' | 'text' | 'success_text') => void;
-  // 🚩 **(وظيفة جديدة) أضفناها للـ state**
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
   resetChat: () => void;
@@ -48,7 +47,7 @@ const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
-  content: 'Autonomous AI. Ready to assist your order."',
+  content: 'Autonomous agent activated. Your order is ready for deployment',
 };
 
 const smartReplies = [
@@ -76,8 +75,6 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   setOverlayVisible: (isVisible) => {
     set({ isOverlayVisible: isVisible });
     
-    // 🚩 **(اللوجيك الجديد) أول ما الشات يتفتح**
-    // لو الشات لسه جديد (فيه رسالة واحدة بس)، اطلب الاقتراحات
     if (isVisible && get().messages.length === 1) {
       get().fetchInitialSuggestions();
     }
@@ -116,9 +113,8 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     }));
   },
 
-  // 🚩 **(وظيفة جديدة) لطلب الاقتراحات المبدئية**
   fetchInitialSuggestions: async () => {
-    if (get().isLoading) return; // متطلبش لو فيه حاجة بتحمل
+    if (get().isLoading) return;
 
     const typingIndicator: Message = { id: messageId++, sender: 'ai', contentType: 'typing', content: null };
     set((state) => ({
