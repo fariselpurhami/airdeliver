@@ -393,13 +393,10 @@ class AIOrderingService:
                  db.commit()
                  return [{"contentType": "text", "content": f"I couldn't create a payment for this order. Error: {payment_info.get('error', 'Payment gateway failed')}"}]
 
-            self._clear_state_and_cart(db, user.id)
-            # 🚩 **(الإصلاح الثاني)**
-            # كان مكتوب (user_id) بالغلط، صلحناه لـ (user.id)
-            empty_cart = self._get_user_cart(db, user.id)
+        
 
             return [
-                {"contentType": "cart_preview", "content": empty_cart},
+                {"contentType": "cart_preview", "content": cart},
                 {
                     "contentType": "payment_intent", 
                     "content": {
