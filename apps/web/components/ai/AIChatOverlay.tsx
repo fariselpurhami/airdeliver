@@ -369,7 +369,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         setOverlayVisible,
         addLocalAIMessage,
         glowingProductId,
-        flyToCartItem
+        flyToCartItem,
+        resetChat
     } = useAIOrderingStore();
 
     const { data: session, status } = useSession();
@@ -390,6 +391,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const handlePaymentSuccess = () => {
         setOverlayVisible(false);
         onClose();
+        resetChat();
     };
 
     const handleSendMessage = useCallback((text: string) => {
@@ -436,7 +438,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                 }));
             }, 500);
         }
-    }, [sendMessage, status, addLocalAIMessage]);
+    }, [sendMessage, status, addLocalAIMessage, resetChat]);
 
     const handleProductSelect = useCallback((product: any) => {
         if (status === 'authenticated') {
@@ -466,6 +468,10 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
             }
         },
     };
+
+    const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+    const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
+
 
     return (
         <AnimatePresence>
@@ -514,21 +520,27 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                             </button>
                         </header>
 
-                        <div className="flex-grow flex overflow-hidden">
-                            <AnimatePresence mode="wait">
+                        <div className="flex-grow flex overflow-hidden relative">
+                            <AnimatePresence>
                                 {paymentDetails && paymentDetails.clientSecret ? (
 
                                     <motion.div
                                         key="payment"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
+                                        exit={{ opacity: 0, transition: { duration: 0.1 } }}
                                         className="w-full h-full flex items-center justify-center overflow-y-auto"
+                                        style={{ position: 'absolute', top: 0, left: 0 }}
                                     >
-                                        <Elements stripe={stripePromise} options={stripeOptions}>
+                                        <Elements
+                                            key={paymentDetails.clientSecret}
+                                            stripe={stripePromise}
+                                            options={stripeOptions}
+                                        >
                                             <AIPaymentForm
                                                 orderId={paymentDetails.orderId}
                                                 total={paymentDetails.total}
+                                                items={cart.items}
                                                 onPaymentSuccess={handlePaymentSuccess}
                                             />
                                         </Elements>
@@ -539,7 +551,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         key="chat"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
+                                        exit={{ opacity: 0, transition: { duration: 0.1 } }}
                                         className="w-full lg:w-2/3 flex flex-col"
                                     >
                                         <div className="flex-grow p-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">

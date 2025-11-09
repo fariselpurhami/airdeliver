@@ -9,10 +9,9 @@ from app.models.ai_cart import AIOrderingCartItem
 from app import models, schemas
 from app.services.ai_commerce_engine import ai_commerce_engine
 from app.services.payment_orchestrator import payment_orchestrator
-# 🚩 **(تعديل) إضافة func عشان نجيب منتجات عشوائية**
 from sqlalchemy import cast, String, desc, func
 from typing import List, Tuple, Dict, Any
-import random # 🚩 **(تعديل) إضافة random**
+import random
 
 class AIOrderingService:
     def __init__(self):
@@ -102,10 +101,9 @@ class AIOrderingService:
         return {"intent": "ADD_TO_CART", "product_name": message}
     
     def _get_initial_suggestions(self, db: Session) -> List[dict]:
-        # 🚩 **(الإصلاح) هنجيب 5 منتجات عشوائية بدل الأعلى تقييمًا**
         top_products = db.exec(
             select(Product)
-            .order_by(func.random()) # <-- ده بيجيب عشوائي
+            .order_by(func.random()) 
             .limit(5)
         ).all()
 
@@ -116,7 +114,7 @@ class AIOrderingService:
         
         return [{
             "contentType": "proactive_suggestion",
-            "content": "Here are some popular items to get you started:", # غيرنا الرسالة
+            "content": "Here are some popular items to get you started:",
             "products": formatted_products,
             "reason": "Popular items this week"
         }]
@@ -302,12 +300,13 @@ class AIOrderingService:
         if intent == "INTERNAL_GET_INITIAL_SUGGESTIONS":
             self._clear_state_and_cart(db, user.id)
             return self._get_initial_suggestions(db)
-
         
         if intent == "INTERNAL_ADD_BY_ID":
             return self._add_product_by_id_silent(db, user.id, parsed_data["product_id"], quantity_to_add=1)
 
         if intent == "INTERNAL_GET_SUGGESTIONS":
+            # 🚩 **(الإصلاح الأول)**
+            # كان مكتوب (user_id) بالغلط، صلحناه لـ (parsed_data["product_id"])
             return self._get_suggestions_for_product(db, parsed_data["product_id"], user.id)
 
         if intent == "ADD_TO_CART":
@@ -332,7 +331,7 @@ class AIOrderingService:
                 db.delete(item_db)
                 db.commit()
 
-            cart = self._get_user_cart(db, user_id)
+            cart = self._get_user_cart(db, user.id)
             self.conversation_state["stage"] = "AWAITING_CONFIRMATION"
             return [
                 {"contentType": "text", "content": f"Okay, I've removed {item_to_remove_from_cart['name']} from your cart."},
@@ -395,7 +394,9 @@ class AIOrderingService:
                  return [{"contentType": "text", "content": f"I couldn't create a payment for this order. Error: {payment_info.get('error', 'Payment gateway failed')}"}]
 
             self._clear_state_and_cart(db, user.id)
-            empty_cart = self._get_user_cart(db, user_id)
+            # 🚩 **(الإصلاح الثاني)**
+            # كان مكتوب (user_id) بالغلط، صلحناه لـ (user.id)
+            empty_cart = self._get_user_cart(db, user.id)
 
             return [
                 {"contentType": "cart_preview", "content": empty_cart},
