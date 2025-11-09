@@ -215,7 +215,7 @@ const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) =>
     }
 
     return (
-        <section className="mb-24">
+        <section className="mb-16">
             <motion.div 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
@@ -307,7 +307,7 @@ export default function ProductsPage() {
             </div>
 
             <main className="container mx-auto px-4 pb-24 relative z-10">
-                <section className="relative text-center py-32 md:py-48">
+                <section className="relative text-center pt-24 pb-8 md:pt-32 md:pb-12">
                     {isLoading && !productsData && !error ? <BannerSkeleton /> : (
                         <motion.h1
                             initial={{ opacity: 0, y: -20 }}
@@ -345,7 +345,7 @@ export default function ProductsPage() {
 
                 <PersonalizedRecommendations onOpen={handleOpen} />
 
-                <h2 className="text-3xl font-bold mb-12 text-center" style={{ fontFamily: "'Orbitron', sans-serif" }}>All Products</h2>
+                <h2 className="text-3xl font-bold mb-10 text-center" style={{ fontFamily: "'Orbitron', sans-serif" }}>All Products</h2>
 
                 {error ? (
                     <ErrorDisplay error={error} />
