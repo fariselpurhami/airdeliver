@@ -179,11 +179,14 @@ const Starfield = (props: any) => {
 // --- 3. HOW IT WORKS SECTION (Definition) ---
 // ========================================================================
 
+const VIEWBOX_WIDTH = 850;
+const VIEWBOX_HEIGHT = 1100;
+
 const timelineSteps = [
   {
     icon: Bot,
     step: 1,
-    title: "Order with air",
+    title: "Order with AI",
     description: "Simply tell our AI what you need. It understands natural language to start your order instantly."
   },
   {
@@ -206,11 +209,21 @@ const timelineSteps = [
   },
 ];
 
+// الإحداثيات من ملف .drawio
+const stepsWithPositions = [
+  { ...timelineSteps[0], x: 70, y: 40, width: 340, height: 180 }, // .drawio Card 1
+  { ...timelineSteps[1], x: 490, y: 220, width: 340, height: 180 }, // .drawio Card 3
+  { ...timelineSteps[2], x: 70, y: 400, width: 340, height: 180 }, // .drawio Card 2
+  { ...timelineSteps[3], x: 390, y: 721, width: 340, height: 180 }, // .drawio Card 4
+];
+
+// ============================================================================
+// --- 2. BACKGROUND (Starry Sky) ---
+// ============================================================================
+
 const StarryBackground = () => (
   <div className="absolute inset-0 z-0 overflow-hidden">
     <div className="absolute inset-0 bg-black" />
-
-    {/* (1) نجوم صغيرة (خفيفة جداً) */}
     <div
       className="absolute inset-0"
       style={{
@@ -219,8 +232,6 @@ const StarryBackground = () => (
         opacity: 0.3
       }}
     />
-
-    {/* (2) نجوم متوسطة (أوضح قليلاً) */}
     <div
       className="absolute inset-0"
       style={{
@@ -230,8 +241,6 @@ const StarryBackground = () => (
         opacity: 0.2
       }}
     />
-
-    {/* (3) توهج مركزي (لإعطاء عمق سينمائي) */}
     <div
       className="absolute inset-0"
       style={{
@@ -241,97 +250,136 @@ const StarryBackground = () => (
   </div>
 );
 
-const GlowingPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
-  const pathHeight = useTransform(scrollYProgress, [0.1, 0.9], ['0%', '100%']);
+// ============================================================================
+// --- 3. SVG DIAGRAM PATH (Calculated "By the Ruler") ---
+// ============================================================================
+
+const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
+  const pathLength = useTransform(scrollYProgress, [0.1, 0.9], [0, 1]);
+
+  // الإحداثيات الدقيقة من ملف XML:
+  const precisePathDef =
+    // Path 1 -> 2 (DrawIO 1 -> 3)
+    `M 410 125 L 440 125 L 440 322 L 488 322 ` +
+
+    // Path 2 -> 3 (DrawIO 3 -> 2)
+    `M 628.98 380 L 658.98 380 L 658.98 500 L 400 498.98 ` +
+
+    // Path 3 -> 4 (DrawIO 2 -> 4)
+    // [FIX] تم تغيير Y من 590 إلى 580 لإلغاء الفراغ
+    `M 223 580 L 221 814 L 395.1 814.06`;
 
   return (
-    <>
-      <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-cyan-900/30 -translate-x-1/2" />
-      <motion.div
-        className="absolute left-1/2 top-0 bottom-0 w-1 -translate-x-1/2"
+    <svg
+      className="absolute inset-0 w-full h-full"
+      viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
+      preserveAspectRatio="xMidYMin meet"
+    >
+      <path
+        d={precisePathDef}
+        fill="none"
+        stroke="rgba(0, 198, 255, 0.2)"
+        strokeWidth={2}
+      />
+      <motion.path
+        d={precisePathDef}
+        fill="none"
+        stroke="url(#glowing-gradient)"
+        strokeWidth={3}
+        strokeLinecap="round"
         style={{
-          height: pathHeight,
-          background: 'linear-gradient(to bottom, rgba(0, 198, 255, 1) 0%, rgba(168, 85, 247, 1) 100%)',
-          filter: 'drop-shadow(0 0 8px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 8px rgba(168, 85, 247, 0.8))',
-          boxShadow: '0 0 20px rgba(0, 198, 255, 0.5), 0 0 30px rgba(168, 85, 247, 0.5)',
+          pathLength: pathLength,
+          filter: 'drop-shadow(0 0 6px rgba(0, 198, 255, 0.8))'
         }}
       />
-    </>
+      <defs>
+        <linearGradient id="glowing-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="rgba(0, 198, 255, 1)" />
+          <stop offset="100%" stopColor="rgba(168, 85, 247, 1)" />
+        </linearGradient>
+      </defs>
+    </svg>
   );
 };
 
-const PathNode = ({ scrollYProgress, start, end }: {
-  scrollYProgress: MotionValue<number>,
-  start: number,
-  end: number
-}) => {
-  const scale = useTransform(scrollYProgress, [start, end], [1, 1.8]);
-  const opacity = useTransform(scrollYProgress, [start - 0.05, start, end, end + 0.05], [0.5, 1, 1, 0.5]);
+// ============================================================================
+// --- 4. STEP CARD COMPONENT (Styling Only) ---
+// ============================================================================
 
+const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
   return (
-    <motion.div
-      style={{ scale, opacity }}
-      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black border-2 border-cyan-400 z-10"
+    <div
+      // الانحناء `rounded-[40px]`
+      className="rounded-[40px] p-6 bg-black/40 backdrop-blur-lg border border-cyan-400/30 shadow-2xl shadow-cyan-500/10 text-left items-start flex flex-col h-full w-full"
     >
-      <div className="absolute inset-0 rounded-full bg-cyan-400 blur-md animate-pulse" />
-    </motion.div>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="text-cyan-400 glowing-icon">
+          <item.icon className="w-7 h-7" />
+        </div>
+        <span className="text-xs text-gray-500">STEP {item.step}</span>
+      </div>
+      <h3
+        className="text-xl md:text-2xl font-bold text-white mb-2"
+        style={{ fontFamily: "'Orbitron', sans-serif" }}
+      >
+        {item.title}
+      </h3>
+      <p
+        className="text-sm text-gray-400 leading-relaxed"
+      >
+        {item.description}
+      </p>
+    </div>
   );
 };
 
-const StepCard = ({ item, index }: { item: typeof timelineSteps[0], index: number }) => {
+// ============================================================================
+// --- 5. POSITIONED STEP CARD (The "Magic" Component) ---
+// ============================================================================
+
+const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) => {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, amount: 0.4 });
 
-  const isEven = index % 2 === 0;
-
-  const xTransform = isEven ? [-50, 0] : [50, 0];
+  // التحويل من إحداثيات .draw.io إلى نسب مئوية
+  const style = {
+    left: `${(step.x / VIEWBOX_WIDTH) * 100}%`,
+    top: `${(step.y / VIEWBOX_HEIGHT) * 100}%`,
+    width: `${(step.width / VIEWBOX_WIDTH) * 100}%`,
+    height: `${(step.height / VIEWBOX_HEIGHT) * 100}%`,
+  };
 
   return (
     <motion.div
       ref={ref}
-      style={{
-        opacity: isInView ? 1 : 0,
-        x: isInView ? xTransform[1] : xTransform[0],
-        justifyContent: isEven ? 'flex-start' : 'flex-end',
+      className="absolute z-10"
+      style={style}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      // [UPGRADE] إضافة تأثير hover لزيادة التفاعل
+      whileHover={{ scale: 1.03 }}
+      transition={{
+        duration: 0.8,
+        ease: [0.22, 1, 0.36, 1],
+        scale: { duration: 0.3 } // transition مخصص للـ hover
       }}
-      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-      className="relative mb-32 flex w-full"
     >
-      <div className="w-1/2 px-8">
-        <div
-          className={`p-8 md:p-10 bg-black/40 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/10 ${isEven ? 'text-right items-end' : 'text-left items-start'} flex flex-col`}
-        >
-          <div className="flex items-center gap-4 mb-4">
-            {!isEven && <div className="text-cyan-400 glowing-icon"><item.icon size={32} /></div>}
-            <span className="text-sm text-gray-500">STEP {item.step}</span>
-            {isEven && <div className="text-cyan-400 glowing-icon"><item.icon size={32} /></div>}
-          </div>
-          <h3 className="text-3xl font-bold text-white mb-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-            {item.title}
-          </h3>
-          <p className="text-base text-gray-400">{item.description}</p>
-        </div>
-      </div>
-
-      <motion.div
-        style={{
-          opacity: isInView ? 1 : 0,
-        }}
-        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black border-2 border-cyan-400 z-10"
-      >
-        <div className="absolute inset-0 rounded-full bg-cyan-400 blur-md animate-pulse" />
-      </motion.div>
+      <StepCard item={step} />
     </motion.div>
   );
 };
+
+
+// ============================================================================
+// --- 6. MAIN SECTION (The Container) ---
+// ============================================================================
 
 const HowItWorksSection = () => {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ['start center', 'end end']
+    offset: ['start start', 'end end']
   });
 
   return (
@@ -350,18 +398,19 @@ const HowItWorksSection = () => {
           How It Works
         </motion.h2>
 
-        <div className="relative max-w-5xl mx-auto">
-          <GlowingPath scrollYProgress={scrollYProgress} />
+        <div
+          className="relative w-full max-w-5xl mx-auto"
+          style={{ aspectRatio: `${VIEWBOX_WIDTH} / ${VIEWBOX_HEIGHT}` }}
+        >
 
-          <div className="relative z-10">
-            {timelineSteps.map((item, index) => (
-              <StepCard
-                key={item.title}
-                item={item}
-                index={index}
-              />
-            ))}
+          <div className="absolute inset-0 z-0">
+            <DiagramPath scrollYProgress={scrollYProgress} />
           </div>
+
+          {stepsWithPositions.map((step) => (
+            <PositionedStepCard key={step.step} step={step} />
+          ))}
+
         </div>
       </div>
     </section>
@@ -369,7 +418,7 @@ const HowItWorksSection = () => {
 };
 
 // ============================================================================
-// --- 5. GLOBAL SCALE SECTION (Definition) ---
+// --- 7. GLOBAL SCALE SECTION (Definition) ---
 // ============================================================================
 
 const AnimatedCounter = ({ value, text }: { value: number, text: string }) => {
@@ -564,7 +613,7 @@ const GlobalScaleSection = () => {
 };
 
 // ============================================================================
-// --- 6. TESTIMONIALS (Definition) ---
+// --- 8. TESTIMONIALS (Redesigned) ---
 // ============================================================================
 
 const testimonials = [
@@ -573,36 +622,45 @@ const testimonials = [
     title: 'CEO, Neo',
     quote: "airdeliver isn't justa service; it's the future of logistics. The speed and autonomy are unparalleled.",
     rating: 5,
-    avatar: '/avatars/avatar1.png'
+    avatar: 'https://placehold.co/100x100/00C6FF/FFFFFF?text=E&font=orbitron'
   },
   {
     name: 'Kenji',
     title: 'Lead Futurist, QuantumLeap',
     quote: "The AI's efficiency in optimizing routes is something we thought was years away. It's here now.",
     rating: 5,
-    avatar: '/avatars/avatar2.png'
+    avatar: 'https://placehold.co/100x100/A855F7/FFFFFF?text=K&font=orbitron'
   },
   {
     name: 'Fatima',
     title: 'Head of Innovation, EcoSpear',
     quote: "Sustainability is key for us. airdeliver's zero-emission network is a game-changer for green commerce.",
     rating: 5,
-    avatar: '/avatars/avatar3.png'
+    avatar: 'https://placehold.co/100x100/E879F9/FFFFFF?text=F&font=orbitron'
   },
 ];
 
-const TrustSignal = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
-    <div className="flex flex-col items-center justify-center h-full text-center gap-2 text-white">
+// [UPGRADE] تمت إعادة تصميم هذا المكون بالكامل
+const TrustSignal = ({ icon, text, variants }: { icon: React.ReactNode; text: string; variants: any }) => (
+    <motion.div
+        variants={variants}
+        whileHover={{
+            scale: 1.05,
+            borderColor: 'rgba(0, 198, 255, 0.5)',
+            boxShadow: '0 0 20px rgba(0, 198, 255, 0.3)',
+        }}
+        className="flex flex-col items-center justify-center text-center gap-3 p-6 h-full w-full bg-black/40 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-xl shadow-cyan-500/10 transition-all duration-300"
+    >
         <div className="text-cyan-400 h-8 w-8 flex items-center justify-center">{icon}</div>
-        <span className="text-xs font-semibold tracking-wider uppercase">{text}</span>
-    </div>
+        <span className="text-sm font-semibold tracking-wider uppercase text-white">{text}</span>
+    </motion.div>
 );
 
 const trustSignals = [
-    { name: 'Secure Payments', component: () => <TrustSignal icon={<Lock size={24} />} text="Secure Payments" /> },
-    { name: 'Eco-Friendly', component: () => <TrustSignal icon={<Leaf size={24} />} text="Eco-Friendly" /> },
-    { name: 'Insured', component: () => <TrustSignal icon={<ShieldCheck size={24} />} text="Insured & Reliable" /> },
-    { name: '24/7 Service', component: () => <TrustSignal icon={<Clock size={24} />} text="24/7 Service" /> },
+    { name: 'Secure Payments', component: (props: any) => <TrustSignal icon={<Lock size={28} />} text="Secure Payments" {...props} /> },
+    { name: 'Eco-Friendly', component: (props: any) => <TrustSignal icon={<Leaf size={28} />} text="Eco-Friendly" {...props} /> },
+    { name: 'Insured', component: (props: any) => <TrustSignal icon={<ShieldCheck size={28} />} text="Insured & Reliable" {...props} /> },
+    { name: '24/7 Service', component: (props: any) => <TrustSignal icon={<Clock size={28} />} text="24/7 Service" {...props} /> },
 ];
 
 const TestimonialCard = ({ testimonial }: { testimonial: typeof testimonials[0] }) => {
@@ -610,11 +668,14 @@ const TestimonialCard = ({ testimonial }: { testimonial: typeof testimonials[0] 
         <motion.div
             whileHover={{ scale: 1.05, zIndex: 10, y: -10 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="flex-shrink-0 w-[80%] md:w-[40%] p-6 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl cursor-pointer shadow-lg shadow-cyan-500/10"
+            // [UPGRADE] تم تغيير الانحناء ليطابق "منحنى air-deliver"
+            className="flex-shrink-0 w-[80%] md:w-[40%] p-6 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-[40px] cursor-pointer shadow-lg shadow-cyan-500/10"
         >
             <div className="flex items-start gap-4">
                 <div className="relative">
-                    <img src={testimonial.avatar} alt={testimonial.name} className="w-14 h-14 rounded-full object-cover" />
+                    <img src={testimonial.avatar} alt={testimonial.name} className="w-14 h-14 rounded-full object-cover"
+                         onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100/333/FFF?text=?')}
+                    />
                     <div className="absolute -inset-0.5 rounded-full border-2 border-[#00C6FF] blur-sm" />
                 </div>
                 <div>
@@ -653,9 +714,13 @@ const TestimonialsSection = () => {
   };
 
   return (
-    <section className="py-24 px-4 overflow-hidden relative bg-black">
-      <div className="absolute inset-0 -z-10 bg-black bg-grid-cyan-400/[0.05]" />
-      <div className="container mx-auto">
+    // [UPGRADE] تم إزالة الخلفية الشبكية
+    <section className="py-24 px-4 overflow-hidden relative">
+      {/* [UPGRADE] تم إضافة الخلفية الفضائية لتوحيد التصميم */}
+      <StarryBackground />
+
+      {/* تمت إضافة z-10 ليظهر المحتوى فوق الخلفية */}
+      <div className="container mx-auto relative z-10">
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -663,7 +728,7 @@ const TestimonialsSection = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-12"
         >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                 Trusted by Innovators. Loved by Visionaries.
             </h2>
             <p className="max-w-2xl mx-auto text-gray-400">
@@ -687,33 +752,16 @@ const TestimonialsSection = () => {
                 viewport={{ once: true, amount: 0.2 }}
                 className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center"
             >
+                {/* [UPGRADE] تم تبسيط طريقة العرض بعد إعادة تصميم المكون */}
                 {trustSignals.map((signal, i) => (
-                    <motion.div
-                        key={i}
-                        variants={partnerVariants}
-                        className="flex justify-center"
-                    >
-                        <motion.div
-                            whileHover={{
-                                scale: 1.1,
-                                borderColor: 'rgba(0, 198, 255, 0.5)',
-                                boxShadow: '0 0 16px rgba(0, 198, 255, 0.3)',
-                                opacity: 1,
-                            }}
-                            className="h-full w-full p-4 bg-white/5 border border-white/10 rounded-lg opacity-70 transition-all duration-300"
-                        >
-                            <signal.component />
-                        </motion.div>
-                    </motion.div>
+                    <signal.component key={i} variants={partnerVariants} />
                 ))}
-
             </motion.div>
         </div>
       </div>
     </section>
   );
 };
-
 
 // ============================================================================
 // --- DYNAMIC LOADERS ---
@@ -734,7 +782,8 @@ const DynamicGlobalScaleSection = dynamic(() => Promise.resolve(GlobalScaleSecti
 // --- PAGE COMPONENT ---
 // ============================================================================
 
-export default function HomePage() {
+// تم تغيير الاسم من HomePage إلى Page ليطابق متطلبات Next.js App Router
+export default function Page() {
   const { isOverlayVisible, setOverlayVisible } = useAIOrderingStore();
   const { isProductOverlayVisible, showProductOverlay, hideProductOverlay } = useUIStore();
 
