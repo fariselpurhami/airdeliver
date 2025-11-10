@@ -4,12 +4,6 @@ import React, { useRef } from 'react';
 import Link from 'next/link';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { Linkedin, Youtube, X, Facebook, Instagram } from 'lucide-react';
-import dynamic from 'next/dynamic';
-
-const Chatbot = dynamic(() => import('@/components/ai/Chatbot'), { 
-  ssr: false,
-  loading: () => <p>Loading...</p> 
-});
 
 const Tiktok = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -39,7 +33,6 @@ const Footer = () => {
             if (!rect || newX === Infinity) {
                 return "radial-gradient(circle at 50% -200%, white 0%, black 100%)";
             }
-            
             
             const x = (newX as number) - rect.left;
             const y = (newY as number) - rect.top;
@@ -98,7 +91,6 @@ const Footer = () => {
           <div>
             <h3 className="font-bold mb-4 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Support</h3>
             <ul className="space-y-2 text-sm">
-                {/* --- هذا هو السطر الذي تم تعديله --- */}
                 <li><Link href="/help" className="text-gray-400 hover:text-white transition-colors">Contact Us</Link></li>
             </ul>
           </div>
@@ -124,8 +116,6 @@ const Footer = () => {
           </div>
         </div>
       </motion.footer>
-      
-      <Chatbot />
     </>
   );
 };

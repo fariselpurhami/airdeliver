@@ -5,7 +5,15 @@ from sqlmodel import Session, select
 from app.core.config import settings
 from app import models
 from app.models.aimemory import AIMemory
-from app.schemas.ai_actions import NeuralCoreResponse, AddToCartAction, TrackOrderAction, ProductSearchAction, SupportHandoffAction
+from app.schemas.ai_actions import (
+    NeuralCoreResponse, 
+    AddToCartAction, 
+    TrackOrderAction, 
+    ProductSearchAction, 
+    SupportHandoffAction,
+    PresentOptionsAction, # <-- 🚀 IMPORT NEW ACTION
+    QuickReplyOption      # <-- 🚀 IMPORT NEW ACTION
+)
 import datetime
 import random
 from app.models.product import Product 
@@ -89,6 +97,7 @@ class NeuralCoreService:
         else:
             self.guest_session_memory[session_id] = session_data
 
+    # This function is no longer the primary greeting.
     def _get_temporal_greeting(self, user_name: str) -> str:
         current_hour = datetime.datetime.now().hour
         if 5 <= current_hour < 12: return f"Good morning, {user_name} ☀️ How can I assist you?"
@@ -161,11 +170,15 @@ class NeuralCoreService:
 
             return {"intent": "PRODUCT_INQUIRY", "entities": {"product_name": product_name or None}}
 
-        support_keywords = ["support", "help", "agent", "someone real", "issue", "refund"]
+        support_keywords = ["support", "help", "agent", "someone real", "issue", "refund", "human"]
         if any(kw in message_lower for kw in support_keywords): return {"intent": "SUPPORT_HANDOFF"}
 
         track_match = re.search(r'(track|where is|eta for) my order\s*#?(\d+)', message_lower)
         if track_match: return {"intent": "TRACK_ORDER", "entities": {"order_id": track_match.group(2)}}
+        
+        track_match_generic = re.search(r'(track|where is|eta for) my order', message_lower)
+        if track_match_generic: return {"intent": "TRACK_ORDER", "entities": {"order_id": None}}
+
 
         return {"intent": "UNKNOWN"}
     
@@ -185,8 +198,20 @@ class NeuralCoreService:
         entities_dict = plan.get("entities", {})
         entities_list = [v for v in entities_dict.values() if v is not None]
 
+        # --- 🚀 ARCHITECTURAL FIX: HYBRID GREETING ---
         if intent == "GREETING": 
-            text_response = self._get_temporal_greeting(session_data["user_name"])
+            text_response = "Hi 🤗 air intelligence activated. Ready to track orders, connect you directly to our team or check prices."
+            action_payload = PresentOptionsAction(
+                action="present_options",
+                payload={
+                    "options": [
+                        QuickReplyOption(title="Track my recent order", payload="Track my order"),
+                        QuickReplyOption(title="Talk to a human agent", payload="Transfer me to a human")
+                    ]
+                }
+            )
+            explain_text = "User initiated contact. Responded with hybrid interface (Text + Quick Replies)."
+        # --- 🚀 END FIX ---
 
         elif intent in self.SIMPLE_RESPONSE_MAP:
             text_response = random.choice(self.SIMPLE_RESPONSE_MAP[intent])
@@ -198,13 +223,21 @@ class NeuralCoreService:
             ])
             explain_text = "User expressed a negative sentiment; responded with empathy."
         
-        if text_response:
+        if text_response and not action_payload:
             session_data["lastIntent"] = intent
             self._save_memory(db, user, session_id, session_data)
             return NeuralCoreResponse(
                 text=text_response, action=action_payload, explain=explain_text,
                 confidence=confidence_score, telemetry={"intent": intent, "entities": entities_list}
             )
+        
+        if text_response and action_payload:
+             session_data["lastIntent"] = intent
+             self._save_memory(db, user, session_id, session_data)
+             return NeuralCoreResponse(
+                 text=text_response, action=action_payload, explain=explain_text,
+                 confidence=confidence_score, telemetry={"intent": intent, "entities": entities_list}
+             )
 
         try:
             if intent == "PRODUCT_INQUIRY":
@@ -233,8 +266,20 @@ class NeuralCoreService:
             
             elif intent == "SUPPORT_HANDOFF":
                 text_response = "Of course 👍 I’ll connect you with a specialist right away."
-                action_payload = SupportHandoffAction(action="initiate_support_handoff")
+                action_payload = SupportHandoffAction(action="initiate_support_handoff", payload={})
                 explain_text = "User requested human support; initiating handover protocol."
+
+            elif intent == "TRACK_ORDER":
+                order_id = plan.get("entities", {}).get("order_id")
+                if not order_id:
+                    # TODO: Implement logic to find *last* order for the user
+                    text_response = "Sure, I can help with that. Could you please confirm your latest order ID?"
+                    explain_text = "User asked to track order without ID. Asking for clarification."
+                else:
+                    text_response = f"Checking on order #{order_id} now... (WIP: Order tracking logic)"
+                    action_payload = TrackOrderAction(action="track_order", payload={"order_id": order_id})
+                    explain_text = f"User requested tracking for order {order_id}. Initiating track."
+
 
         except Exception as e:
             logger.error(f"[NeuralCoreService] Tool execution failed: {e}")

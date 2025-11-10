@@ -513,7 +513,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         className="w-full max-w-7xl h-[95vh] max-h-[1000px] flex flex-col bg-black/50 backdrop-blur-2xl border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden"
                     >
                         <header className="p-4 border-b border-cyan-400/30 flex justify-between items-center flex-shrink-0">
-                            <h3 className="font-bold text-lg text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                            <h3 className="font-normal text-base text-white normal-case" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 <motion.span
                                     className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
                                     animate={{
@@ -529,7 +529,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                     ease: "easeInOut"
                                     }}
                                 >
-                                    {paymentDetails ? 'Secure Checkout' : 'Order With AI'}
+                                    {paymentDetails ? 'Secure Checkout' : 'Order with air'}
                                 </motion.span>
                             </h3>
                             <button

@@ -16,31 +16,62 @@ const ExplainabilityChip = ({ text }: { text: string }) => (
     </motion.div>
 );
 
-const MessageBubble = ({ message }: { message: ChatMessage }) => {
+// --- 🚀 MODIFIED COMPONENT ---
+// (Now handles Quick Replies)
+const MessageBubble = ({ message, onSend }: { message: ChatMessage, onSend: (text: string) => void }) => {
     const isUser = message.sender === 'user';
+    const action = message.data.action;
+
     return (
         <motion.div
             layout
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`flex w-full items-start gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
+            className={`flex w-full flex-col items-start gap-1 ${isUser ? 'items-end' : 'items-start'}`}
         >
-            {!isUser && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
-                    <Bot size={16} className="text-cyan-400" />
+            <div className={`flex w-full items-start gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                {!isUser && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
+                        <Bot size={16} className="text-cyan-400" />
+                    </div>
+                )}
+                <div className={`max-w-xs px-3 py-2 rounded-xl text-sm ${isUser ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white' : 'bg-black/20 border border-cyan-400/30 text-gray-200'}`}>
+                    <p className="whitespace-pre-wrap">{message.data.text}</p>
                 </div>
-            )}
-            <div className={`max-w-xs px-3 py-2 rounded-xl text-sm ${isUser ? 'bg-gradient-to-r from-blue-600 to-violet-600 text-white' : 'bg-black/20 border border-cyan-400/30 text-gray-200'}`}>
-                <p className="whitespace-pre-wrap">{message.data.text}</p>
+                {isUser && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-500/20 flex items-center justify-center border border-gray-500/50">
+                        <User size={16} className="text-gray-400" />
+                    </div>
+                )}
             </div>
-            {isUser && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-500/20 flex items-center justify-center border border-gray-500/50">
-                    <User size={16} className="text-gray-400" />
-                </div>
+            
+            {/* --- 🚀 NEW UI: Quick Replies --- */}
+            {!isUser && action && action.action === 'present_options' && (
+                <motion.div 
+                    layout
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0, transition: { delay: 0.3 } }}
+                    className="flex flex-wrap gap-2 ml-10 mt-2"
+                >
+                    {action.payload.options.map((option: any) => (
+                        <motion.button
+                            key={option.payload}
+                            onClick={() => onSend(option.payload)}
+                            className="text-sm bg-cyan-500/20 text-cyan-300 px-3 py-1.5 rounded-full border border-cyan-500/50"
+                            whileHover={{ scale: 1.05 }}
+                        >
+                            {option.title}
+                        </motion.button>
+                    ))}
+                </motion.div>
             )}
+            {/* --- 🚀 END NEW UI --- */}
+
         </motion.div>
     );
 };
+// --- 🚀 END MODIFIED COMPONENT ---
+
 
 const TypingIndicator = () => (
     <motion.div
@@ -179,7 +210,7 @@ export default function Chatbot() {
                         className="fixed bottom-24 right-2 z-50 w-[90vw] max-w-sm h-[70vh] max-h-[600px] flex flex-col bg-black/50 backdrop-blur-2xl border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden"
                     >
                         <header className="p-4 border-b border-cyan-400/30 flex justify-between items-center flex-shrink-0">
-                            <h3 className="font-bold text-lg text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                            <h3 className="font-normal text-base text-white normal-case" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                               <motion.span
                                 className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
                                 animate={{
@@ -195,7 +226,7 @@ export default function Chatbot() {
                                 ease: "easeInOut"
                                 }}
                             >
-                                AI Support
+                                air intelligence
                             </motion.span>
                             </h3>
                             <button onClick={() => setIsOpen(false)} className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
@@ -207,7 +238,7 @@ export default function Chatbot() {
                             <AnimatePresence>
                                 {messages.map((msg) => (
                                     <React.Fragment key={msg.id}>
-                                        <MessageBubble message={msg} />
+                                        <MessageBubble message={msg} onSend={handleSend} />
                                         {msg.sender === 'ai' && msg.data.explain && !["Initial greeting.", "User input."].includes(msg.data.explain) && (
                                             <ExplainabilityChip text={msg.data.explain} />
                                         )}

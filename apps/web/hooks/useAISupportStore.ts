@@ -31,7 +31,7 @@ const createWelcomeMessage = (): ChatMessage => ({
   id: uuidv4(),
   sender: 'ai',
   data: {
-    text: 'Hello! How Can I Help You?',
+    text: 'Hey There 👋, air intelligence Is Here For You.',
     action: null,
     explain: "Initial greeting.",
     confidence: 1.0,

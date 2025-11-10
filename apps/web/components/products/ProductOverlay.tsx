@@ -48,7 +48,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                     >
                
                         <header className="p-4 border-b border-cyan-400/30 flex justify-between items-center flex-shrink-0">
-                            <h3 className="font-bold text-lg text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                            <h3 className="font-bold text-lg text-white normal-case" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 <motion.span
                                     className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
                                     animate={{

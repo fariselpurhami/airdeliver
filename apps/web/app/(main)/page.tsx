@@ -71,9 +71,9 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
             className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
             animate={{
               filter: [
-                'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))',
-                'drop-shadow(0 0 16px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.8))',
-                'drop-shadow(0 0 4px rgba(0, 198, 255, 0.4)) drop-shadow(0 0 4px rgba(168, 85, 247, 0.4))'
+                'drop-shadow(0 0 16px rgba(0, 198, 255, 0.7)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.7))',
+                'drop-shadow(0 0 24px rgba(0, 198, 255, 1)) drop-shadow(0 0 24px rgba(168, 85, 247, 1))',
+                'drop-shadow(0 0 16px rgba(0, 198, 255, 0.7)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.7))'
               ]
             }}
             transition={{
@@ -106,7 +106,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
             className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-black bg-white rounded-full shadow-lg transition-transform duration-300 hover:scale-105 overflow-hidden"
           >
             <span className="absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <span className="relative flex items-center">Order with AI <Bot className="ml-2 h-5 w-5" /></span>
+            <span className="relative flex items-center">Order with air <Bot className="ml-2 h-5 w-5" /></span>
           </button>
 
           <button
@@ -165,7 +165,7 @@ const Starfield = (props: any) => {
       <Stars
         radius={100}
         depth={100}
-        count={25000}
+        count={60000}
         factor={6}
         saturation={0}
         fade

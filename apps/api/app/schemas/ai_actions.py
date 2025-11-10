@@ -42,7 +42,26 @@ class SupportHandoffAction(BaseModel):
     rollback: None = None
     requires_mfa: bool = False
 
-AnyAction = Union[AddToCartAction, TrackOrderAction, ProductSearchAction, SupportHandoffAction]
+# --- 🚀 NEW ACTION ---
+class QuickReplyOption(BaseModel):
+    title: str
+    payload: str
+
+class PresentOptionsAction(BaseModel):
+    action: Literal["present_options"]
+    payload: Dict[str, List[QuickReplyOption]] = Field(..., example={"options": [{"title": "Track Order", "payload": "Track my recent order"}]})
+    rollback: None = None
+    requires_mfa: bool = False
+# --- 🚀 END NEW ACTION ---
+
+
+AnyAction = Union[
+    AddToCartAction, 
+    TrackOrderAction, 
+    ProductSearchAction, 
+    SupportHandoffAction,
+    PresentOptionsAction  # <-- Added new action
+]
 
 class Telemetry(BaseModel):
     intent: str
