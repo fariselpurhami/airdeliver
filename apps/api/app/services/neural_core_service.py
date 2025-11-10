@@ -11,8 +11,8 @@ from app.schemas.ai_actions import (
     TrackOrderAction, 
     ProductSearchAction, 
     SupportHandoffAction,
-    PresentOptionsAction, # <-- 🚀 IMPORT NEW ACTION
-    QuickReplyOption      # <-- 🚀 IMPORT NEW ACTION
+    PresentOptionsAction,
+    QuickReplyOption
 )
 import datetime
 import random
@@ -97,7 +97,6 @@ class NeuralCoreService:
         else:
             self.guest_session_memory[session_id] = session_data
 
-    # This function is no longer the primary greeting.
     def _get_temporal_greeting(self, user_name: str) -> str:
         current_hour = datetime.datetime.now().hour
         if 5 <= current_hour < 12: return f"Good morning, {user_name} ☀️ How can I assist you?"
@@ -113,6 +112,9 @@ class NeuralCoreService:
     def _parse_intent(self, user_message: str, last_intent: str) -> Dict:
         message_lower = user_message.lower()
         cleaned_message = re.sub(r'[^\w\s]', '', message_lower).strip()
+
+        if user_message == "__INITIAL_GREETING__":
+            return {"intent": "GREETING"}
 
         greeting_keywords = ["hello", "hi", "hey", "مرحبا", "أهلا"]
         if any(kw in message_lower for kw in greeting_keywords):
@@ -198,9 +200,8 @@ class NeuralCoreService:
         entities_dict = plan.get("entities", {})
         entities_list = [v for v in entities_dict.values() if v is not None]
 
-        # --- 🚀 ARCHITECTURAL FIX: HYBRID GREETING ---
         if intent == "GREETING": 
-            text_response = "Hi 🤗 air intelligence activated. Ready to track orders, connect you directly to our team or check prices."
+            text_response = "Hey There 👋, air intelligence activated. Ready to track orders, connect you directly to our team or check prices."
             action_payload = PresentOptionsAction(
                 action="present_options",
                 payload={
@@ -211,7 +212,6 @@ class NeuralCoreService:
                 }
             )
             explain_text = "User initiated contact. Responded with hybrid interface (Text + Quick Replies)."
-        # --- 🚀 END FIX ---
 
         elif intent in self.SIMPLE_RESPONSE_MAP:
             text_response = random.choice(self.SIMPLE_RESPONSE_MAP[intent])
@@ -272,7 +272,6 @@ class NeuralCoreService:
             elif intent == "TRACK_ORDER":
                 order_id = plan.get("entities", {}).get("order_id")
                 if not order_id:
-                    # TODO: Implement logic to find *last* order for the user
                     text_response = "Sure, I can help with that. Could you please confirm your latest order ID?"
                     explain_text = "User asked to track order without ID. Asking for clarification."
                 else:

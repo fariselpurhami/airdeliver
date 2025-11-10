@@ -165,7 +165,7 @@ const Starfield = (props: any) => {
       <Stars
         radius={100}
         depth={100}
-        count={60000}
+        count={44000}
         factor={6}
         saturation={0}
         fade

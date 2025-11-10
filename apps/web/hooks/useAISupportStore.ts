@@ -25,39 +25,73 @@ interface AISupportState {
   sessionId: string;
   setIsOpen: (isOpen: boolean) => void;
   sendMessage: (text: string) => void;
+  fetchInitialGreeting: () => void; // 🚀 (1) أضفنا الوظيفة الجديدة
 }
 
-const createWelcomeMessage = (): ChatMessage => ({
-  id: uuidv4(),
-  sender: 'ai',
-  data: {
-    text: 'Hey There 👋, air intelligence Is Here For You.',
-    action: null,
-    explain: "Initial greeting.",
-    confidence: 1.0,
-    telemetry: { intent: "greeting" }
-  },
-});
+// 🚀 (2) حذفنا الرسالة الوهمية (createWelcomeMessage)
 
 export const useAISupportStore = create<AISupportState>()(
   persist(
     (set, get) => ({
       isOpen: false,
-      messages: [createWelcomeMessage()],
+      messages: [], // 🚀 (3) الحالة المبدئية: لا توجد رسائل
       isLoading: false,
       sessionId: uuidv4(),
 
       setIsOpen: (isOpen) => {
-        if (isOpen && (get().messages.length === 0 || get().isLoading)) {
-          set({ 
-            isOpen: true, 
-            messages: [createWelcomeMessage()], 
-            sessionId: uuidv4(),
-            isLoading: false
-          });
+        const { messages, fetchInitialGreeting } = get();
+        
+        if (isOpen) {
+          // إذا فتح المستخدم الشات، وكان الشات فارغاً
+          if (messages.length === 0) {
+            set({ isOpen: true, isLoading: true, sessionId: uuidv4() });
+            fetchInitialGreeting(); // 🚀 (4) قم بطلب الرد الذكي من الباك إند
+          } else {
+            // لو الشات مفتوح وفيه رسايل، اعرضه بس
+            set({ isOpen: true });
+          }
         } else {
-          set({ isOpen });
+          // لو قفل الشات
+          set({ isOpen: false });
         }
+      },
+
+     
+      fetchInitialGreeting: async () => {
+        const sessionId = get().sessionId;
+        let aiMessage: ChatMessage;
+
+        try {
+          const response = await fetch('/api/v1/ai-support/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            
+            body: JSON.stringify({ message: "__INITIAL_GREETING__", session_id: sessionId }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Network response was not ok: ${response.statusText}`);
+          }
+
+          const aiResponseData: NeuralCoreResponse = await response.json();
+          aiMessage = { id: uuidv4(), sender: 'ai', data: aiResponseData };
+
+        } catch (error) {
+          aiMessage = {
+            id: uuidv4(),
+            sender: 'ai',
+            data: {
+              text: `I am having trouble connecting: ${error instanceof Error ? error.message : String(error)}`,
+              action: null,
+              explain: `An API or network error occurred: ${error}`,
+              confidence: 1.0,
+              telemetry: { intent: "error" }
+            }
+          };
+        }
+
+        // نضع الرد الذكي (الذي يحتوي على الأزرار) كـ "أول" رسالة
+        set({ messages: [aiMessage], isLoading: false });
       },
 
       sendMessage: async (text: string) => {
