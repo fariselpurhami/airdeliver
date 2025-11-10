@@ -55,7 +55,6 @@ const ThemeToggle = () => {
 
 export default function Header() {
     const pathname = usePathname();
-    const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const cartItems = useCartStore((state) => state.items);
     const totalItems = cartItems.reduce((total, item) => total + item.quantity, 0);
@@ -65,14 +64,6 @@ export default function Header() {
         setIsMounted(true);
     }, []);
 
-    useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 50);
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
     if (!isMounted) {
         return <header className="fixed top-0 left-0 right-0 z-50 h-20" />;
     }
@@ -80,14 +71,8 @@ export default function Header() {
     return (
         <>
             <motion.header
-                initial={false}
-                animate={{
-                    backgroundColor: scrolled ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0)',
-                    backdropFilter: scrolled ? 'blur(16px)' : 'blur(0px)',
-                    borderColor: scrolled ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0)',
-                }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
-                className="fixed top-0 left-0 right-0 z-50 border-b"
+                // [MODIFIED] تم تغيير الشفافية من bg-black/30 إلى bg-black/20
+                className="fixed top-0 left-0 right-0 z-50 border-b bg-black/35 backdrop-blur-lg border-white/10"
             >
                 <div className="container mx-auto px-4 flex justify-between items-center h-20">
                     
@@ -96,10 +81,15 @@ export default function Header() {
                     </Link>
 
                    
+                    {/* [MODIFIED] تم إرجاع gap-2 */}
                     <nav className="hidden md:flex items-center gap-2 bg-white/5 p-1 rounded-full">
                         {navItems.map((item) => (
+                            // [MODIFIED] تم إرجاع padding
                             <Link key={item.href} href={item.href} className={`relative px-4 py-2 rounded-full text-sm font-medium transition-colors ${pathname === item.href ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
+                                
+                                {/* [MODIFIED] تم إرجاع النص بدلاً من الأيقونة */}
                                 {item.label}
+
                                 {pathname === item.href && (
                                     <motion.div
                                         layoutId="active-pill"
@@ -161,7 +151,7 @@ export default function Header() {
                             animate={{ y: "0%" }}
                             exit={{ y: "-100%" }}
                             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                            className="bg-ultra-black p-4 border-b border-white/10"
+                            className="bg-black p-4 border-b border-white/10"
                         >
                             <div className="flex justify-between items-center mb-8">
                                 <Link href="/" className="text-2xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
