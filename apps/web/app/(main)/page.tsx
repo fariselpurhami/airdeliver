@@ -392,7 +392,7 @@ const HowItWorksSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.5 }}
           transition={{ duration: 0.8 }}
-          className="text-center text-4xl md:text-5xl font-medium text-white mb-32"
+          className="text-center text-4xl md:text-5xl font-bold text-white mb-32"
           style={{ fontFamily: "'Space Grotesk', sans-serif" }}
         >
           HOW IT WORKS
