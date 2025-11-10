@@ -186,7 +186,7 @@ const timelineSteps = [
   {
     icon: Bot,
     step: 1,
-    title: "Order with AI",
+    title: "Order with air",
     description: "Simply tell our AI what you need. It understands natural language to start your order instantly."
   },
   {
@@ -392,10 +392,10 @@ const HowItWorksSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.5 }}
           transition={{ duration: 0.8 }}
-          className="text-center text-4xl md:text-5xl font-black uppercase text-white mb-32"
-          style={{ fontFamily: "'Orbitron', sans-serif" }}
+          className="text-center text-4xl md:text-5xl font-medium text-white mb-32"
+          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
         >
-          How It Works
+          HOW IT WORKS
         </motion.h2>
 
         <div

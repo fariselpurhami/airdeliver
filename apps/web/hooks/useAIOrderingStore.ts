@@ -47,7 +47,7 @@ const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
-  content: 'Autonomous agent activated. Your order is ready for deployment',
+  content: 'Autonomous Order with air activated. Your order is ready for deployment.',
 };
 
 const smartReplies = [
