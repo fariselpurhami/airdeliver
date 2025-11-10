@@ -72,7 +72,7 @@ export default function Header() {
         <>
             <motion.header
                 // [MODIFIED] تم إرجاع التنسيق ليمتد بعرض الشاشة بالكامل
-                className="fixed top-0 left-0 right-0 z-50 border-b bg-black/35 backdrop-blur-xl border-cyan-400/30 shadow-lg shadow-cyan-500/20"
+                className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl border-cyan-400/30 shadow-lg shadow-cyan-500/20"
             >
                 {/* [MODIFIED] تم إزالة التنسيق العائم من هنا */}
                 <div 
