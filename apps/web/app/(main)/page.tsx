@@ -313,8 +313,6 @@ const StepCard = ({ item, index }: { item: typeof timelineSteps[0], index: numbe
         </div>
       </div>
 
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl h-0.5 bg-cyan-900/30" />
-
       <motion.div
         style={{
           opacity: isInView ? 1 : 0,
