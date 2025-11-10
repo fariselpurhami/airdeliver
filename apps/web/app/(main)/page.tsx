@@ -12,7 +12,7 @@ import { Star } from 'lucide-react';
 import React, { Suspense, useRef, useMemo, useEffect, useState, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Preload, Float, Line, Text, useTexture, OrbitControls, Stars } from '@react-three/drei';
-import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue } from 'framer-motion';
+import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue, type MotionValue } from 'framer-motion';
 import { Bot, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map } from 'lucide-react';
 import { X } from 'lucide-react'; 
 import * as THREE from 'three';
@@ -177,115 +177,194 @@ const Starfield = (props: any) => {
 
 // ============================================================================
 // --- 3. HOW IT WORKS SECTION (Definition) ---
-// ============================================================================
+// ========================================================================
+
 const timelineSteps = [
   {
-    icon: <Bot size={28} />,
+    icon: Bot,
     step: 1,
-    title: "AI Takes Your Order",
+    title: "Order with air",
     description: "Simply tell our AI what you need. It understands natural language to start your order instantly."
   },
   {
-    icon: <Cpu size={28} />,
+    icon: Cpu,
     step: 2,
-    title: "Smart System Finds Best Option",
-    description: "Our AI core analyzes millions of data points to find the fastest, most efficient delivery route for you."
+    title: "Smart System Routes",
+    description: "Our core AI analyzes millions of data points to find the fastest, most efficient delivery route for you."
   },
   {
-    icon: <Map size={28} />,
+    icon: Map,
     step: 3,
     title: "Instant Order Tracking",
     description: "Monitor your delivery in real-time on a holographic map from the moment of dispatch."
   },
   {
-    icon: <Rocket size={28} />,
+    icon: Rocket,
     step: 4,
-    title: "Fast, Optimized Delivery",
+    title: "Autonomous Delivery",
     description: "Your order arrives via an autonomous drone, completing the journey with unparalleled speed and precision."
   },
 ];
 
-const HowItWorksSection = () => {
+const StarryBackground = () => (
+  <div className="absolute inset-0 z-0 overflow-hidden">
+    <div className="absolute inset-0 bg-black" />
 
-  const containerVariants = {
-    hidden: {},
-    visible: {
-      transition: {
-        staggerChildren: 0.3, 
-      },
-    },
-  };
+    {/* (1) نجوم صغيرة (خفيفة جداً) */}
+    <div
+      className="absolute inset-0"
+      style={{
+        backgroundImage: 'radial-gradient(circle, rgba(255, 255, 255, 0.8) 1px, transparent 1px)',
+        backgroundSize: '100px 100px',
+        opacity: 0.3
+      }}
+    />
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: 'easeOut' } },
-  };
+    {/* (2) نجوم متوسطة (أوضح قليلاً) */}
+    <div
+      className="absolute inset-0"
+      style={{
+        backgroundImage: 'radial-gradient(circle, rgba(255, 255, 255, 0.6) 1.5px, transparent 1.5px)',
+        backgroundSize: '200px 200px',
+        backgroundPosition: '50px 50px',
+        opacity: 0.2
+      }}
+    />
+
+    {/* (3) توهج مركزي (لإعطاء عمق سينمائي) */}
+    <div
+      className="absolute inset-0"
+      style={{
+        backgroundImage: 'radial-gradient(ellipse at center, rgba(0, 198, 255, 0.15) 0%, transparent 70%)',
+      }}
+    />
+  </div>
+);
+
+const GlowingPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
+  const pathHeight = useTransform(scrollYProgress, [0.1, 0.9], ['0%', '100%']);
 
   return (
-    <section className="relative w-full py-24 px-4 bg-black overflow-hidden">
-      <div className="absolute inset-0 bg-grid-cyan-400/[0.05]" />
+    <>
+      <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-cyan-900/30 -translate-x-1/2" />
+      <motion.div
+        className="absolute left-1/2 top-0 bottom-0 w-1 -translate-x-1/2"
+        style={{
+          height: pathHeight,
+          background: 'linear-gradient(to bottom, rgba(0, 198, 255, 1) 0%, rgba(168, 85, 247, 1) 100%)',
+          filter: 'drop-shadow(0 0 8px rgba(0, 198, 255, 0.8)) drop-shadow(0 0 8px rgba(168, 85, 247, 0.8))',
+          boxShadow: '0 0 20px rgba(0, 198, 255, 0.5), 0 0 30px rgba(168, 85, 247, 0.5)',
+        }}
+      />
+    </>
+  );
+};
 
-      <div className="container mx-auto">
+const PathNode = ({ scrollYProgress, start, end }: {
+  scrollYProgress: MotionValue<number>,
+  start: number,
+  end: number
+}) => {
+  const scale = useTransform(scrollYProgress, [start, end], [1, 1.8]);
+  const opacity = useTransform(scrollYProgress, [start - 0.05, start, end, end + 0.05], [0.5, 1, 1, 0.5]);
+
+  return (
+    <motion.div
+      style={{ scale, opacity }}
+      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black border-2 border-cyan-400 z-10"
+    >
+      <div className="absolute inset-0 rounded-full bg-cyan-400 blur-md animate-pulse" />
+    </motion.div>
+  );
+};
+
+const StepCard = ({ item, index }: { item: typeof timelineSteps[0], index: number }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, amount: 0.4 });
+
+  const isEven = index % 2 === 0;
+
+  const xTransform = isEven ? [-50, 0] : [50, 0];
+
+  return (
+    <motion.div
+      ref={ref}
+      style={{
+        opacity: isInView ? 1 : 0,
+        x: isInView ? xTransform[1] : xTransform[0],
+        justifyContent: isEven ? 'flex-start' : 'flex-end',
+      }}
+      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      className="relative mb-32 flex w-full"
+    >
+      <div className="w-1/2 px-8">
+        <div
+          className={`p-8 md:p-10 bg-black/40 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/10 ${isEven ? 'text-right items-end' : 'text-left items-start'} flex flex-col`}
+        >
+          <div className="flex items-center gap-4 mb-4">
+            {!isEven && <div className="text-cyan-400 glowing-icon"><item.icon size={32} /></div>}
+            <span className="text-sm text-gray-500">STEP {item.step}</span>
+            {isEven && <div className="text-cyan-400 glowing-icon"><item.icon size={32} /></div>}
+          </div>
+          <h3 className="text-3xl font-bold text-white mb-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            {item.title}
+          </h3>
+          <p className="text-base text-gray-400">{item.description}</p>
+        </div>
+      </div>
+
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl h-0.5 bg-cyan-900/30" />
+
+      <motion.div
+        style={{
+          opacity: isInView ? 1 : 0,
+        }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black border-2 border-cyan-400 z-10"
+      >
+        <div className="absolute inset-0 rounded-full bg-cyan-400 blur-md animate-pulse" />
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const HowItWorksSection = () => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ['start center', 'end end']
+  });
+
+  return (
+    <section ref={containerRef} className="relative w-full py-32 px-4 overflow-hidden">
+      <StarryBackground />
+
+      <div className="container mx-auto relative z-10">
         <motion.h2
           initial={{ opacity: 0, y: -20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.5 }}
           transition={{ duration: 0.8 }}
-          className="text-center text-4xl md:text-5xl font-black uppercase text-white mb-20"
+          className="text-center text-4xl md:text-5xl font-black uppercase text-white mb-32"
           style={{ fontFamily: "'Orbitron', sans-serif" }}
         >
           How It Works
         </motion.h2>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          className="relative max-w-2xl mx-auto"
-        >
-          <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-cyan-400/20 -translate-x-1/2">
-            <div className="absolute top-0 left-0 h-full w-full bg-cyan-400 blur-md animate-pulse" />
+        <div className="relative max-w-5xl mx-auto">
+          <GlowingPath scrollYProgress={scrollYProgress} />
+
+          <div className="relative z-10">
+            {timelineSteps.map((item, index) => (
+              <StepCard
+                key={item.title}
+                item={item}
+                index={index}
+              />
+            ))}
           </div>
-
-          {timelineSteps.map((item, index) => (
-            <motion.div
-              key={item.step}
-              variants={cardVariants}
-              className="relative mb-12 flex items-center"
-              style={{
-                justifyContent: index % 2 === 0 ? 'flex-start' : 'flex-end',
-              }}
-            >
-              <div className={`w-1/2 ${index % 2 === 0 ? 'pr-8 text-right' : 'pl-8 text-left'}`}>
-                <motion.div
-                  whileHover={{ 
-                    scale: 1.03, 
-                    y: -5,
-                    borderColor: 'rgba(0, 198, 255, 0.7)', 
-                    boxShadow: '0 0 24px rgba(0, 198, 255, 0.3)' 
-                  }}
-                  className="p-6 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl cursor-pointer shadow-lg shadow-cyan-500/10 transition-all duration-300"
-                >
-                  <div className={`flex items-center gap-4 mb-3 ${index % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
-                    <span className="text-sm text-gray-500">STEP {item.step}</span>
-                    <div className="text-cyan-400 glowing-icon">{item.icon}</div>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                    {item.title}
-                  </h3>
-                  <p className="text-sm text-gray-400">{item.description}</p>
-                </motion.div>
-              </div>
-
-             
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-400 border-2 border-black">
-                 <div className="absolute inset-0 rounded-full bg-cyan-400 blur-sm animate-pulse" />
-              </div>
-
-            </motion.div>
-          ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );
