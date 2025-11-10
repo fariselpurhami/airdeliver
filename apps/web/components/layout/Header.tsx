@@ -71,10 +71,13 @@ export default function Header() {
     return (
         <>
             <motion.header
-                // [MODIFIED] تم تغيير الشفافية من bg-black/30 إلى bg-black/20
-                className="fixed top-0 left-0 right-0 z-50 border-b bg-black/35 backdrop-blur-lg border-white/10"
+                // [MODIFIED] تم إرجاع التنسيق ليمتد بعرض الشاشة بالكامل
+                className="fixed top-0 left-0 right-0 z-50 border-b bg-black/35 backdrop-blur-xl border-cyan-400/30 shadow-lg shadow-cyan-500/20"
             >
-                <div className="container mx-auto px-4 flex justify-between items-center h-20">
+                {/* [MODIFIED] تم إزالة التنسيق العائم من هنا */}
+                <div 
+                    className="container mx-auto px-4 flex justify-between items-center h-20"
+                >
                     
                     <Link href="/" className="text-2xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                         airdeliver
