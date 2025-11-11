@@ -1,7 +1,4 @@
-# file: drone_client/api_client.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini
+# drone_client/api_client.py
 
 import asyncio
 import websockets
@@ -28,13 +25,12 @@ class ApiClient:
         while True:
             status_payload = self.controller.get_status_payload(self.drone_id)
             await websocket.send(json.dumps(status_payload))
-            await asyncio.sleep(2) # Send status every 2 seconds
+            await asyncio.sleep(2) 
 
     async def _process_commands(self):
         while True:
             command = await self.command_queue.get()
             self.controller.execute_command(command)
-            # Mark the task as done after execution
             self.command_queue.task_done()
 
     async def run(self):
@@ -42,7 +38,7 @@ class ApiClient:
             try:
                 async with websockets.connect(self.uri) as websocket:
                     print("Connected to Drone Control Server.")
-                    # Run tasks concurrently
+                
                     listen_task = asyncio.create_task(self._listen_for_commands(websocket))
                     status_task = asyncio.create_task(self._send_status_updates(websocket))
                     process_task = asyncio.create_task(self._process_commands())

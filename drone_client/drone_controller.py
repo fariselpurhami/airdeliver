@@ -1,12 +1,7 @@
 # file: drone_client/drone_controller.py
-# version: 1.0.0
-# date: 2025-09-23
-# author: Gemini
 
 import time
 
-# Mock SDK. In a real application, this would be a library like
-# 'dronekit' for MAVLink or a proprietary DJI SDK.
 class MockDroneSDK:
     def __init__(self):
         self.is_armed = False
@@ -45,7 +40,6 @@ class MockDroneSDK:
         print("Landed and disarmed.")
 
     def get_battery(self):
-        # Simulate battery drain
         self.battery -= 0.1
         return max(0, int(self.battery))
 
@@ -56,7 +50,7 @@ class DroneController:
     def __init__(self):
         self.vehicle = MockDroneSDK()
         self.status = "IDLE"
-        self.vehicle.connect("udp:127.0.0.1:14550") # Example connection string
+        self.vehicle.connect("udp:127.0.0.1:14550") 
 
     def execute_command(self, command: dict):
         cmd_type = command.get("command")
@@ -73,7 +67,7 @@ class DroneController:
         elif cmd_type == "goto":
             self.status = "IN_TRANSIT"
             self.vehicle.goto(payload["latitude"], payload["longitude"], payload["altitude"])
-            self.status = "IDLE" # Reverts to idle after task completion
+            self.status = "IDLE" 
 
         elif cmd_type == "land":
             self.status = "LANDING"

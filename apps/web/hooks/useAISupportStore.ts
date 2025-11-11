@@ -25,16 +25,14 @@ interface AISupportState {
   sessionId: string;
   setIsOpen: (isOpen: boolean) => void;
   sendMessage: (text: string) => void;
-  fetchInitialGreeting: () => void; // 🚀 (1) أضفنا الوظيفة الجديدة
+  fetchInitialGreeting: () => void; 
 }
-
-// 🚀 (2) حذفنا الرسالة الوهمية (createWelcomeMessage)
 
 export const useAISupportStore = create<AISupportState>()(
   persist(
     (set, get) => ({
       isOpen: false,
-      messages: [], // 🚀 (3) الحالة المبدئية: لا توجد رسائل
+      messages: [], 
       isLoading: false,
       sessionId: uuidv4(),
 
@@ -42,16 +40,16 @@ export const useAISupportStore = create<AISupportState>()(
         const { messages, fetchInitialGreeting } = get();
         
         if (isOpen) {
-          // إذا فتح المستخدم الشات، وكان الشات فارغاً
+          
           if (messages.length === 0) {
             set({ isOpen: true, isLoading: true, sessionId: uuidv4() });
-            fetchInitialGreeting(); // 🚀 (4) قم بطلب الرد الذكي من الباك إند
+            fetchInitialGreeting(); 
           } else {
-            // لو الشات مفتوح وفيه رسايل، اعرضه بس
+
             set({ isOpen: true });
           }
         } else {
-          // لو قفل الشات
+
           set({ isOpen: false });
         }
       },
@@ -90,7 +88,6 @@ export const useAISupportStore = create<AISupportState>()(
           };
         }
 
-        // نضع الرد الذكي (الذي يحتوي على الأزرار) كـ "أول" رسالة
         set({ messages: [aiMessage], isLoading: false });
       },
 

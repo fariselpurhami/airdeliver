@@ -183,7 +183,6 @@ class AICommerceEngine:
             exact_name_match = Product.name.ilike(product_name)
             partial_name_match = Product.name.ilike(name_query)
             
-            # **IMPROVEMENT**: Use AND logic for multi-word name search
             multi_word_name_match = and_(*[Product.name.ilike(f"%{word}%") for word in words])
             
             tag_match = cast(Product.tags, String).ilike(name_query)
@@ -194,8 +193,6 @@ class AICommerceEngine:
             search_criteria.append(multi_word_name_match)
             search_criteria.append(tag_match)
             search_criteria.append(desc_match)
-
-            # **IMPROVEMENT**: Give much higher rank to exact and multi-word matches
             search_rank = case(
                 (exact_name_match, 10),
                 (multi_word_name_match, 8),

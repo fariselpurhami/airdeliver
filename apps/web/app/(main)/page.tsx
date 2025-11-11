@@ -177,7 +177,7 @@ const Starfield = (props: any) => {
 
 // ============================================================================
 // --- 3. HOW IT WORKS SECTION (Definition) ---
-// ========================================================================
+// ============================================================================
 
 const VIEWBOX_WIDTH = 850;
 const VIEWBOX_HEIGHT = 1100;
@@ -209,12 +209,11 @@ const timelineSteps = [
   },
 ];
 
-// الإحداثيات من ملف .drawio
 const stepsWithPositions = [
-  { ...timelineSteps[0], x: 70, y: 40, width: 340, height: 180 }, // .drawio Card 1
-  { ...timelineSteps[1], x: 490, y: 220, width: 340, height: 180 }, // .drawio Card 3
-  { ...timelineSteps[2], x: 70, y: 400, width: 340, height: 180 }, // .drawio Card 2
-  { ...timelineSteps[3], x: 390, y: 721, width: 340, height: 180 }, // .drawio Card 4
+  { ...timelineSteps[0], x: 70, y: 40, width: 340, height: 180 }, 
+  { ...timelineSteps[1], x: 490, y: 220, width: 340, height: 180 }, 
+  { ...timelineSteps[2], x: 70, y: 400, width: 340, height: 180 }, 
+  { ...timelineSteps[3], x: 390, y: 721, width: 340, height: 180 }, 
 ];
 
 // ============================================================================
@@ -257,16 +256,12 @@ const StarryBackground = () => (
 const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
   const pathLength = useTransform(scrollYProgress, [0.1, 0.9], [0, 1]);
 
-  // الإحداثيات الدقيقة من ملف XML:
   const precisePathDef =
-    // Path 1 -> 2 (DrawIO 1 -> 3)
+    
     `M 410 125 L 440 125 L 440 322 L 488 322 ` +
 
-    // Path 2 -> 3 (DrawIO 3 -> 2)
     `M 628.98 380 L 658.98 380 L 658.98 500 L 400 498.98 ` +
 
-    // Path 3 -> 4 (DrawIO 2 -> 4)
-    // [FIX] تم تغيير Y من 590 إلى 580 لإلغاء الفراغ
     `M 223 580 L 221 814 L 395.1 814.06`;
 
   return (
@@ -309,7 +304,6 @@ const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number>
 const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
   return (
     <div
-      // الانحناء `rounded-[40px]`
       className="rounded-[40px] p-6 bg-black/40 backdrop-blur-lg border border-cyan-400/30 shadow-2xl shadow-cyan-500/10 text-left items-start flex flex-col h-full w-full"
     >
       <div className="flex items-center gap-3 mb-3">
@@ -341,7 +335,6 @@ const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) 
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, amount: 0.4 });
 
-  // التحويل من إحداثيات .draw.io إلى نسب مئوية
   const style = {
     left: `${(step.x / VIEWBOX_WIDTH) * 100}%`,
     top: `${(step.y / VIEWBOX_HEIGHT) * 100}%`,
@@ -356,12 +349,11 @@ const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) 
       style={style}
       initial={{ opacity: 0, y: 30 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
-      // [UPGRADE] إضافة تأثير hover لزيادة التفاعل
       whileHover={{ scale: 1.03 }}
       transition={{
         duration: 0.8,
         ease: [0.22, 1, 0.36, 1],
-        scale: { duration: 0.3 } // transition مخصص للـ hover
+        scale: { duration: 0.3 } 
       }}
     >
       <StepCard item={step} />
@@ -640,7 +632,6 @@ const testimonials = [
   },
 ];
 
-// [UPGRADE] تمت إعادة تصميم هذا المكون بالكامل
 const TrustSignal = ({ icon, text, variants }: { icon: React.ReactNode; text: string; variants: any }) => (
     <motion.div
         variants={variants}
@@ -714,12 +705,9 @@ const TestimonialsSection = () => {
   };
 
   return (
-    // [UPGRADE] تم إزالة الخلفية الشبكية
     <section className="py-24 px-4 overflow-hidden relative">
-      {/* [UPGRADE] تم إضافة الخلفية الفضائية لتوحيد التصميم */}
+      
       <StarryBackground />
-
-      {/* تمت إضافة z-10 ليظهر المحتوى فوق الخلفية */}
       <div className="container mx-auto relative z-10">
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -752,7 +740,6 @@ const TestimonialsSection = () => {
                 viewport={{ once: true, amount: 0.2 }}
                 className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center"
             >
-                {/* [UPGRADE] تم تبسيط طريقة العرض بعد إعادة تصميم المكون */}
                 {trustSignals.map((signal, i) => (
                     <signal.component key={i} variants={partnerVariants} />
                 ))}
@@ -782,7 +769,6 @@ const DynamicGlobalScaleSection = dynamic(() => Promise.resolve(GlobalScaleSecti
 // --- PAGE COMPONENT ---
 // ============================================================================
 
-// تم تغيير الاسم من HomePage إلى Page ليطابق متطلبات Next.js App Router
 export default function Page() {
   const { isOverlayVisible, setOverlayVisible } = useAIOrderingStore();
   const { isProductOverlayVisible, showProductOverlay, hideProductOverlay } = useUIStore();

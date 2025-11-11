@@ -16,8 +16,6 @@ const ExplainabilityChip = ({ text }: { text: string }) => (
     </motion.div>
 );
 
-// --- 🚀 MODIFIED COMPONENT ---
-// (Now handles Quick Replies)
 const MessageBubble = ({ message, onSend }: { message: ChatMessage, onSend: (text: string) => void }) => {
     const isUser = message.sender === 'user';
     const action = message.data.action;
@@ -45,7 +43,6 @@ const MessageBubble = ({ message, onSend }: { message: ChatMessage, onSend: (tex
                 )}
             </div>
             
-            {/* --- 🚀 NEW UI: Quick Replies --- */}
             {!isUser && action && action.action === 'present_options' && (
                 <motion.div 
                     layout
@@ -65,13 +62,10 @@ const MessageBubble = ({ message, onSend }: { message: ChatMessage, onSend: (tex
                     ))}
                 </motion.div>
             )}
-            {/* --- 🚀 END NEW UI --- */}
 
         </motion.div>
     );
 };
-// --- 🚀 END MODIFIED COMPONENT ---
-
 
 const TypingIndicator = () => (
     <motion.div

@@ -7,7 +7,7 @@ import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 interface AIPaymentFormProps {
   orderId: number;
   total: number;
-  items: any[]; // <-- (1) ضفنا المنتجات هنا
+  items: any[]; 
   onPaymentSuccess: () => void;
 }
 
@@ -64,7 +64,6 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
         <p className="text-gray-400 text-base">Order ID: #{orderId}</p>
       </div>
 
-      {/* (2) ده الجزء الجديد اللي بيعرض المنتجات */}
       <div className="mb-6 space-y-2 p-4 bg-black/20 border border-cyan-400/20 rounded-lg">
         {items && items.length > 0 ? (
           items.map((item: any) => (
@@ -89,7 +88,7 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
             </motion.p>
         </div>
       </div>
-      {/* (نهاية الجزء الجديد) */}
+      {
 
 
       <form onSubmit={handleSubmit} className="space-y-6">
