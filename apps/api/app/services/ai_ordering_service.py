@@ -606,5 +606,25 @@ class AIOrderingService:
             }
         ]
 
+    async def cancel_order_by_id(
+        self, db: AsyncSession, order_id: int, user_id: int
+    ) -> Order | None:
+        """
+        Cancels a PENDING order.
+        """
+        order = await db.get(Order, order_id)
+        if not order or order.user_id != user_id:
+            
+            return None
+
+        if order.status != OrderStatus.PENDING:
+            raise ValueError("Order is not pending and cannot be cancelled.")
+
+        order.status = OrderStatus.CANCELLED
+        db.add(order)
+        await db.commit()
+        await db.refresh(order)
+
+        return order
 
 ai_ordering_service = AIOrderingService()

@@ -40,6 +40,7 @@ interface AIOrderingState {
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
   resetChat: () => void;
+  cancelPaymentIntent: () => Promise<void>;
 }
 
 let messageId = 1;
@@ -212,6 +213,33 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
             set({ isLoading: false, isProcessing: false });
         }
     }, 800); 
+  },
+
+  cancelPaymentIntent: async () => {
+    const { paymentDetails, addLocalAIMessage } = get();
+
+    if (!paymentDetails) return;
+
+    set({ isProcessing: true });
+
+    try {
+      await api.patch(`/ai-ordering/order/${paymentDetails.orderId}/cancel`);
+
+      set({ paymentDetails: null, isProcessing: false });
+
+      addLocalAIMessage(
+        "I’ve cancelled your pending payment for you. Let me know if you’d like any help with something else?",
+        'text'
+      );
+
+    } catch (error: any) {
+      console.error("Failed to cancel order:", error);
+      addLocalAIMessage(
+        `I had a problem cancelling this order (${error.response?.data?.detail || 'Network Error'}). Please refresh.`,
+        'error'
+      );
+      set({ isProcessing: false });
+    }
   },
 
   removeProductById: async (productId) => {

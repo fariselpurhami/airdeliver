@@ -1,3 +1,5 @@
+// apps/web/app/(main)/profile/page.tsx
+
 'use client';
 
 import React, { useMemo, useRef, useEffect, useState, Suspense } from 'react';
@@ -134,6 +136,27 @@ export default function ProfilePage() {
         [userData?.address, userData?.city, userData?.country].filter(Boolean).join(', ') || null
     ), [userData?.address, userData?.city, userData?.country]);
 
+    const recentOrders = useMemo(() => {
+        if (!ordersData?.orders) return [];
+
+        const now = new Date();
+
+        const twentyFourHoursAgo = now.getTime() - (24 * 60 * 60 * 1000);
+
+        return ordersData.orders.filter(order => {
+            const orderStatus = order.status.toLowerCase();
+
+            if (orderStatus === 'pending') {
+
+                const orderTime = new Date(order.created_at).getTime();
+
+                return orderTime > twentyFourHoursAgo;
+            }
+
+            return true;
+        });
+    }, [ordersData]);
+
 
     const handleOpenEditDetailsModal = () => setIsEditDetailsModalOpen(true);
     const handleCloseEditDetailsModal = () => setIsEditDetailsModalOpen(false);
@@ -247,7 +270,7 @@ export default function ProfilePage() {
     }
     const subtext = [joinedDate ? `Member since ${joinedDate}` : null, location]
         .filter(Boolean).join(' | ');
-    const recentOrders = ordersData?.orders || [];
+
     const handleAvatarUpload = () => fileInputRef.current?.click();
 
     return (
@@ -473,11 +496,13 @@ const OrderCard = ({ order }: { order: OrderRead }) => {
         Delivered: 'text-green-400 bg-green-900/50 border-green-700/50',
         Shipped: 'text-cyan-400 bg-cyan-900/50 border-cyan-700/50',
         Processing: 'text-yellow-400 bg-yellow-900/50 border-yellow-700/50',
+	cancelled: 'text-red-400 bg-red-900/50 border-red-700/50',
     } as Record<string, string>;
     const defaultColor = 'text-gray-400 bg-gray-900/50 border-gray-700/50';
     const firstItem = order.items?.[0];
     const productName = firstItem?.product?.name || `Order #${order.id}`;
     const productImageUrl = firstItem?.product?.image_url || 'https://placehold.co/256x144/000000/FFF?text=Image';
+    const displayStatus = order.status.charAt(0).toUpperCase() + order.status.slice(1);
 
     return (
         <motion.div
@@ -489,7 +514,7 @@ const OrderCard = ({ order }: { order: OrderRead }) => {
              <div className="relative w-full h-36">
                 <Image
                     src={productImageUrl} alt={productName} fill
-                    className="object-cover"
+                    className="object-contain"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
                     unoptimized={productImageUrl.startsWith('https://placehold.co')} 
                     onError={(e) => { e.currentTarget.src = 'https://placehold.co/256x144/000000/FFF?text=Error'; }} 

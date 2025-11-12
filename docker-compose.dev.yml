@@ -4,12 +4,16 @@ services:
   web:
     volumes:
       - ./apps/web:/app
-    command: pnpm run dev
+      - /app/node_modules 
+      - /app/.next
+    entrypoint: ""
+    command: ["pnpm", "run", "dev"]
 
     environment:
       - NEXTAUTH_URL=http://localhost:3000
       - NEXTAUTH_SECRET=a_super_secret_for_nextauth
       - NODE_ENV=development
+      - WATCHPACK_POLLING=true
 
   api:
     volumes:

@@ -22,7 +22,7 @@ const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, 
         <div className={`embla__slide ${slideWidthClass} px-2`}>
           
             <motion.div 
-                className="flex flex-col  p-4 bg-white/5 rounded-lg border border-cyan-400/20 h-full text-left"
+                className="flex flex-col  p-4 bg-black/90 rounded-lg border border-cyan-400/20 h-full text-left"
                 whileHover={{ scale: 1.03, z: 10 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
@@ -390,7 +390,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         glowingProductId,
         flyToCartItem,
         resetChat,
-        removeProductById
+        removeProductById,
+	cancelPaymentIntent
     } = useAIOrderingStore();
 
     const { data: session, status } = useSession();
@@ -404,8 +405,14 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     }, [messages, isLoading]);
 
     const handleClose = () => {
-        setOverlayVisible(false);
-        onClose();
+        if (paymentDetails) {
+            cancelPaymentIntent();
+           
+        } else {
+            
+            setOverlayVisible(false);
+            onClose();
+        }
     };
 
     const handlePaymentSuccess = () => {
