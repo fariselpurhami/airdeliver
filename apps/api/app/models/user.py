@@ -9,7 +9,7 @@ from .enums import UserRole
 
 if TYPE_CHECKING:
     from .order import Order
-    from .gamification import UserBadge
+    from .gamification import UserBadge, UserActivity
     from .audit_trail import AuditTrail
     from .notification_subscription import NotificationSubscription
     from .notification import Notification
@@ -62,6 +62,10 @@ class User(SQLModel, table=True):
 
     ai_cart_items: Mapped[List["AIOrderingCartItem"]] = Relationship(
         sa_relationship=relationship("AIOrderingCartItem", back_populates="user", cascade="all, delete-orphan")
+    )
+
+    activities: Mapped[List["UserActivity"]] = Relationship(
+        sa_relationship=relationship("UserActivity", back_populates="user", cascade="all, delete-orphan")
     )
 
     model_config = { "from_attributes": True }

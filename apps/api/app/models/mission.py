@@ -32,7 +32,7 @@ class Mission(SQLModel, table=True):
         sa_relationship=relationship("Order", back_populates="mission")
     )
     assigned_drone: Mapped[Optional["Drone"]] = Relationship(
-        sa_relationship=relationship("Drone", back_populates="assigned_mission")
+        sa_relationship=relationship("Drone", back_populates="missions")
     )
 
     model_config = { "from_attributes": True }

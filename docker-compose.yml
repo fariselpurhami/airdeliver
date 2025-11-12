@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     container_name: airdeliver-db
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=airdeliver
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
@@ -13,35 +13,59 @@ services:
     networks:
       - airdeliver-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d airdeliver"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  mq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: airdeliver-mq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq/
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - airdeliver-net
 
   api:
     container_name: airdeliver-api
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+    env_file: .env
     ports:
       - "8000:8000"
     environment:
       - POSTGRES_SERVER=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=airdeliver
-      - USE_REDIS=false 
-      - REDIS_HOST=redis 
-      - REDIS_PORT=6379
-      - DRONE_JWT_SECRET=your_super_secret_drone_jwt_key 
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - RABBITMQ_HOST=mq
+      - RABBITMQ_PORT=5672
+      - DRONE_JWT_SECRET=${DRONE_JWT_SECRET}
       - ALGORITHM=HS256 
       - API_BASE_URL=http://api:8000/api/v1 
-      - INTERNAL_API_TOKEN=your_internal_secret_token
+      - INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
     volumes:
       - api-static-data:/app/static
+      - ./apps/api:/app
     depends_on:
       postgres:
+        condition: service_healthy
+      mq:
         condition: service_healthy
     networks:
       - airdeliver-net
@@ -51,16 +75,31 @@ services:
        timeout: 5s
        retries: 5
        start_period: 30s
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  drone-control:
-    container_name: airdeliver-drone-control
+  c2_gateway:
+    container_name: airdeliver-c2-gateway
     build:
-      context: ./apps/drone-control
-      dockerfile: Dockerfile 
+      context: ./apps/c2-gateway
+      dockerfile: Dockerfile
     ports:
-      - "8001:8000"
+      - "8001:8001"
+    environment:
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - RABBITMQ_HOST=mq
+      - RABBITMQ_PORT=5672
+      - DRONE_JWT_SECRET=${DRONE_JWT_SECRET}
+      - INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN}
+      - API_BASE_URL=http://api:8000/api/v1
+    volumes:
+      - ./apps/c2-gateway:/app
+    depends_on:
+      - mq
+      - api
     networks:
       - airdeliver-net
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 
   web:
     container_name: airdeliver-web
@@ -70,7 +109,6 @@ services:
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-      
     ports:
       - "3000:3000"
     environment:
@@ -87,7 +125,8 @@ services:
 volumes:
   postgres-data:
     driver: local
-
+  rabbitmq-data:
+    driver: local
   api-static-data:
     driver: local
 

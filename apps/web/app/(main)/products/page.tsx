@@ -192,21 +192,18 @@ const ProductList = ({ products, onOpen }: { products: Product[], onOpen: (produ
 const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) => void }) => {
     const { data: session, status } = useSession();
 
-    // *** 🚩 (الإصلاح): تم إزالة user_id من الـ URL ***
-    // الباك إند هياخده من الـ token لوحده
     const apiUrl = status === 'authenticated'
-        ? `/products/suggestions?product_id=1` 
+        ? `/products/featured-recommendation` 
         : null;
 
-    const { data: recommendationsData, error, isLoading } = useSWR<Product[]>(apiUrl, fetcher, {
+    const { data: recommendationsData, error, isLoading } = useSWR<Product>(apiUrl, fetcher, {
         revalidateOnFocus: false,
         shouldRetryOnError: false
     });
 
     const topPick = useMemo(() => {
         if (!recommendationsData) return null;
-        const items = Array.isArray(recommendationsData) ? recommendationsData : (recommendationsData as any).items || [];
-        const product = items.map((p: any) => ({ ...p, isAIRec: true }))[0];
+        const product = { ...recommendationsData, isAIRec: true };
         return product || null;
     }, [recommendationsData]);
 

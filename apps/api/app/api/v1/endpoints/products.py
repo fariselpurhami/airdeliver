@@ -1,7 +1,8 @@
 # apps/api/app/api/v1/endpoints/products.py
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import List, Dict, Any
 from app import models, schemas
 from app.db.session import get_session
@@ -10,97 +11,135 @@ import random
 
 router = APIRouter()
 
-@router.get("", response_model=List[Dict[str, Any]], include_in_schema=False) 
+
+@router.get("", response_model=List[Dict[str, Any]], include_in_schema=False)
 @router.get("/", response_model=List[Dict[str, Any]])
-def read_products(
-    db: Session = Depends(get_session),
+async def read_products(
+    db: AsyncSession = Depends(get_session),
     skip: int = 0,
     limit: int = 100,
 ):
+    products_from_db = (
+        await db.exec(select(models.Product).offset(skip).limit(limit))
+    ).all()
 
-    products_from_db = db.exec(select(models.Product).offset(skip).limit(limit)).all()
-    
     enriched_products = []
     for p in products_from_db:
         data = p.model_dump()
-        
+
         if not data.get("image_url"):
             data["image_url"] = "/images/default.jpeg"
-        
+
         data["predicted_delivery"] = f"{random.randint(8, 25)} mins near your zone."
-        data["trending_status"] = "Trending in your region 🚀" if p.inventory < 80 and random.choice([True, False]) else None
-        data["stock_level"] = f"Low stock – {p.inventory} left." if p.inventory < 20 else None
-        
+        data["trending_status"] = (
+            "Trending in your region 🚀"
+            if p.inventory < 80 and random.choice([True, False])
+            else None
+        )
+        data["stock_level"] = (
+            f"Low stock – {p.inventory} left." if p.inventory < 20 else None
+        )
+
         enriched_products.append(data)
-        
+
     return enriched_products
 
+
 @router.post("/", response_model=schemas.Product, status_code=201)
-def create_product(
+async def create_product(
     *,
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
     product_in: schemas.ProductCreate,
     current_user: models.User = Depends(deps.get_current_admin_user),
 ):
     db_product = models.Product.model_validate(product_in)
     db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
+    await db.commit()
+    await db.refresh(db_product)
     return db_product
 
+
 @router.get("/suggestions", response_model=List[Dict[str, Any]])
-def get_product_suggestions(
+async def get_product_suggestions(
     product_id: int,
-    db: Session = Depends(get_session),
+    db: AsyncSession = Depends(get_session),
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    source_product = db.get(models.Product, product_id)
+    source_product = await db.get(models.Product, product_id)
     if not source_product:
         raise HTTPException(status_code=404, detail="Source product not found")
 
     purchased_product_ids = set()
     try:
-        
         for order in current_user.orders:
             for item in order.items:
                 purchased_product_ids.add(item.product_id)
     except Exception as e:
-        
         print(f"Could not preload user orders for suggestions: {e}")
-            
+
     purchased_product_ids.add(product_id)
 
     suggestions = []
     if source_product.category:
-        suggestions = db.exec(
-            select(models.Product)
-            .where(
-                models.Product.category == source_product.category, 
-                models.Product.id.notin_(purchased_product_ids)    
+        suggestions = (
+            await db.exec(
+                select(models.Product)
+                .where(
+                    models.Product.category == source_product.category,
+                    models.Product.id.notin_(purchased_product_ids),
+                )
+                .limit(3)
             )
-            .limit(3)
         ).all()
-    
+
     if not suggestions or len(suggestions) < 3:
         needed = 3 - len(suggestions)
-        fallback_suggestions = db.exec(
-            select(models.Product)
-            .where(models.Product.id.notin_(purchased_product_ids)) 
-            .limit(needed)
+        fallback_suggestions = (
+            await db.exec(
+                select(models.Product)
+                .where(models.Product.id.notin_(purchased_product_ids))
+                .limit(needed)
+            )
         ).all()
         suggestions.extend(fallback_suggestions)
 
     formatted_suggestions = []
     for p in suggestions:
         data = p.model_dump()
-        
+
         if not data.get("image_url"):
             data["image_url"] = "/images/default.jpeg"
-            
+
         data["rating"] = round(random.uniform(4.5, 5.0), 1)
         data["reviews"] = random.randint(500, 2000)
         data["delivery_eta"] = "Instant"
         data["stock_status"] = "In Stock"
         formatted_suggestions.append(data)
-        
+
     return formatted_suggestions
+
+
+@router.get("/featured-recommendation", response_model=Dict[str, Any])
+async def get_featured_recommendation(
+    db: AsyncSession = Depends(get_session),
+):
+    result = await db.exec(
+        select(models.Product).order_by(models.Product.inventory.asc()).limit(1)
+    )
+    featured_product = result.first()
+
+    if not featured_product:
+        raise HTTPException(
+            status_code=404, detail="No products available to feature"
+        )
+
+    data = featured_product.model_dump()
+
+    if not data.get("image_url"):
+        data["image_url"] = "/images/default.jpeg"
+
+    data["predicted_delivery"] = f"{random.randint(8, 25)} mins near your zone."
+    data["trending_status"] = "Top Recommendation 🔥"
+    data["stock_level"] = f"Low stock – {featured_product.inventory} left."
+
+    return data

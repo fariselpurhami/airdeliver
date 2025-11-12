@@ -5,7 +5,7 @@ from typing import Optional, TYPE_CHECKING, Dict, Any
 from sqlmodel import SQLModel, Field, Relationship, JSON, Column
 from sqlalchemy import Column, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
-from datetime import datetime, timezone
+from datetime import datetime
 from .enums import NotificationType
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ class NotificationBase(SQLModel):
     read: bool = Field(default=False)
 
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=datetime.utcnow,  # <--- (تم التعديل هنا)
         nullable=False
     )
 

@@ -1,4 +1,4 @@
-# apps/api/app/models/__init__.py 
+# apps/api/app/models/__init__.py (الكود الصحيح)
 
 from .enums import (
     UserRole,
@@ -9,8 +9,8 @@ from .enums import (
     EventType,
 )
 
-from .audit_trail import AuditTrail
-from .drone import Drone, DroneTelemetry, DroneEvent 
+from .drone import Drone
+from .audit_trail import AuditTrail, DroneTelemetry, DroneEvent
 from .gamification import Badge, UserBadge
 from .mission import Mission
 from .notification_subscription import NotificationSubscription

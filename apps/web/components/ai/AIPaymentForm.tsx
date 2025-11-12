@@ -88,8 +88,6 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
             </motion.p>
         </div>
       </div>
-      {
-
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="p-4 bg-black/40 rounded-xl border border-cyan-400/30 backdrop-blur-sm">

@@ -9,6 +9,18 @@ from datetime import datetime
 if TYPE_CHECKING:
     from .user import User
 
+class UserActivity(SQLModel, table=True):
+    __tablename__ = "user_activities"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True, nullable=False)
+    activity_type: str = Field(index=True) 
+    points_awarded: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    user: Mapped["User"] = Relationship(
+        sa_relationship=relationship("User", back_populates="activities")
+    )
+
 class Badge(SQLModel, table=True):
     __tablename__ = "badges"
     id: Optional[int] = Field(default=None, primary_key=True)

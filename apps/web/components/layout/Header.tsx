@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -71,10 +72,9 @@ export default function Header() {
     return (
         <>
             <motion.header
-                // [MODIFIED] تم إرجاع التنسيق ليمتد بعرض الشاشة بالكامل
                 className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl border-cyan-400/30 shadow-lg shadow-cyan-500/20"
             >
-                {/* [MODIFIED] تم إزالة التنسيق العائم من هنا */}
+                
                 <div 
                     className="container mx-auto px-4 flex justify-between items-center h-20"
                 >
@@ -83,14 +83,12 @@ export default function Header() {
                         airdeliver
                     </Link>
 
-                   
-                    {/* [MODIFIED] تم إرجاع gap-2 */}
                     <nav className="hidden md:flex items-center gap-2 bg-white/5 p-1 rounded-full">
                         {navItems.map((item) => (
-                            // [MODIFIED] تم إرجاع padding
+                           
                             <Link key={item.href} href={item.href} className={`relative px-4 py-2 rounded-full text-sm font-medium transition-colors ${pathname === item.href ? 'text-white' : 'text-gray-400 hover:text-white'}`}>
                                 
-                                {/* [MODIFIED] تم إرجاع النص بدلاً من الأيقونة */}
+                                
                                 {item.label}
 
                                 {pathname === item.href && (

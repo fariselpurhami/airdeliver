@@ -1,14 +1,16 @@
-from app.db.session import SessionLocal
-from typing import Generator, Optional
+# apps/api/app/api/deps.py
+
+from typing import Generator, Optional, AsyncGenerator
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from sqlmodel import Session
+from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.core import security
 from app.db.session import get_session
 from app.models.user import User, UserRole
 from app.crud import crud_user
+from app.db.session import get_session as get_async_session 
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/token"
@@ -19,16 +21,8 @@ optional_oauth2 = OAuth2PasswordBearer(
     auto_error=False
 )
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def get_current_user(
-    session: Session = Depends(get_session), token: str = Depends(reusable_oauth2)
+async def get_current_user(
+    session: AsyncSession = Depends(get_async_session), token: str = Depends(reusable_oauth2)
 ) -> User:
     try:
         payload = jwt.decode(
@@ -45,19 +39,20 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
-    user = crud_user.user.get_by_email(session, email=email)
+
+    user = await crud_user.user.get_by_email(session, email=email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-def get_current_active_user(
+async def get_current_active_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-def get_current_admin_user(
+async def get_current_admin_user(
     current_user: User = Depends(get_current_active_user),
 ) -> User:
     if current_user.role != UserRole.ADMIN:
@@ -67,8 +62,8 @@ def get_current_admin_user(
 
     return current_user
 
-def get_optional_current_user(
-    session: Session = Depends(get_session), token: Optional[str] = Depends(optional_oauth2)
+async def get_optional_current_user(
+    session: AsyncSession = Depends(get_async_session), token: Optional[str] = Depends(optional_oauth2)
 ) -> Optional[User]:
     if not token:
         return None
@@ -83,7 +78,7 @@ def get_optional_current_user(
     except JWTError:
         return None
     
-    user = crud_user.user.get_by_email(session, email=email)
+    user = await crud_user.user.get_by_email(session, email=email)
     
     if not user:
         return None

@@ -4,13 +4,12 @@ services:
   px4-sitl:
     container_name: airdeliver-px4-sitl
     build:
-      context: ./drone-simulator 
+      context: ./apps/drone-simulator
       dockerfile: Dockerfile
     ports:
       - "14540:14540/udp"
       - "14550:14550/udp" 
       - "14556:14556/udp"
-      
     networks:
       - airdeliver-net
     environment:
@@ -23,15 +22,18 @@ services:
       dockerfile: Dockerfile
     environment:
       - DRONE_ID=SIM-001 
-      - WEBSOCKET_URI=ws://api:8000/ws/drones/ 
+      - WEBSOCKET_URI=ws://c2_gateway:8001/ws/connect/
       - MAVLINK_CONNECTION=udp://px4-sitl:14540 
-      - AUTH_TOKEN=your_secure_token_sim 
+      - AUTH_TOKEN=${DRONE_AUTH_TOKEN}
     networks:
       - airdeliver-net
     depends_on:
       - px4-sitl
-      - api 
-    restart: unless-stopped 
+      - c2_gateway
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
 
 networks:
-  airdeliver-net: 
+  airdeliver-net:
+    external: true

@@ -1,13 +1,18 @@
-# file: apps/api/app/db/session.py
+# apps/api/app/db/session.py
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
+from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
-from sqlmodel import create_engine, Session
+from typing import AsyncGenerator
+from sqlmodel import Session 
 
-engine = create_engine(settings.DATABASE_URI, pool_pre_ping=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine: AsyncEngine = create_async_engine(settings.DATABASE_URI, pool_pre_ping=True)
 
-def get_session():
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSession(engine) as session:
+        yield session
+
+def get_sync_session():
+    
     with Session(engine) as session:
         yield session

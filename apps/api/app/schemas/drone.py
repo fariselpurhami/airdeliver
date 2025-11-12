@@ -1,48 +1,63 @@
 # apps/api/app/schemas/drone.py
 
-from __future__ import annotations
-from typing import Optional, Any, Dict 
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Field
+from typing import Optional, List, Dict, Any
 from datetime import datetime
-from app.models.drone import DroneStatus
-from app.models.enums import EventType
+from pydantic import BaseModel
+from app.models.enums import DroneStatus, EventType
+from app.models.drone import Drone as DroneModel
 
 class DroneBase(SQLModel):
-    model: str
-    battery_level: int = 100
-    status: DroneStatus = DroneStatus.IDLE
+    drone_id_str: str = Field(unique=True, index=True) 
+    model: Optional[str] = None
+    home_base_lat: Optional[float] = None
+    home_base_lon: Optional[float] = None
+    meta: Optional[Dict[str, Any]] = Field(default={})
 
 class DroneCreate(DroneBase):
     pass
 
-class DroneUpdate(DroneBase):
-    pass
-
-class DroneInDBBase(DroneBase):
+class DroneRead(DroneBase):
     id: int
-    current_lat: Optional[float] = None
-    current_lon: Optional[float] = None
+    status: DroneStatus
+    current_battery_pct: Optional[int]
+    last_seen: Optional[datetime]
+    current_lat: Optional[float]
+    current_lon: Optional[float]
 
-    model_config = {
-        "from_attributes": True
-    }
+class DroneUpdate(SQLModel):
+    model: Optional[str] = None
+    home_base_lat: Optional[float] = None
+    home_base_lon: Optional[float] = None
+    meta: Optional[Dict[str, Any]] = None
 
-class Drone(DroneInDBBase): 
-    pass
-
-class DroneTelemetryCreate(SQLModel):
-    mission_id_str: Optional[str] = None
+class DroneTelemetryIngest(BaseModel):
+    drone_id: str
     timestamp: datetime
+    mission_id_str: Optional[str] = None
     lat: float
     lon: float
     alt_m: float
-    speed_m_s: float
+    ground_speed_m_s: float
     battery_pct: int
-    flight_mode: Optional[str] = None
-    raw_payload_json: Optional[str | Dict[str, Any]] = None 
+    flight_mode: str
 
-class DroneEventCreate(SQLModel):
-    mission_id_str: Optional[str] = None
+class DroneEventIngest(BaseModel):
+    drone_id: str
     timestamp: datetime
-    event_type: EventType 
+    event_type: EventType
+    mission_id_str: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
+
+class CommandWaypoint(BaseModel):
+    lat: float
+    lon: float
+    alt_m: float
+
+class CommandStartMission(BaseModel):
+    mission_id: str
+    waypoints: List[CommandWaypoint]
+    
+class CommandWrapper(BaseModel):
+    command: str
+    payload: Dict[str, Any]

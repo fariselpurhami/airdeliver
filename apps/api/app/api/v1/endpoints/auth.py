@@ -1,27 +1,38 @@
-# apps/api/app/api/v1/endpoints/auth.py 
+# apps/api/app/api/v1/endpoints/auth.py
 
-from fastapi import ( APIRouter, Depends, HTTPException, status, Request, Response, Cookie, Header )
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    Request,
+    Response,
+    Cookie,
+    Header,
+)
 from app.core.limiter import limiter
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import Session, select 
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select
 from datetime import timedelta
-from typing import Optional 
+from typing import Optional
 from app.core import security
 from app.core.config import settings
-from app import schemas, models 
+from app import schemas, models
 from app.db.session import get_session
 
 router = APIRouter()
+
 
 class TokenWithRefresh(schemas.Token):
     refresh_token: str
     refresh_token_expires_in: int
 
+
 async def get_refresh_token_from_cookie_or_header(
     refresh_token_cookie: Optional[str] = Cookie(None, alias="refresh_token"),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
 ) -> str:
-
     if refresh_token_cookie:
         return refresh_token_cookie
     if authorization:
@@ -34,16 +45,16 @@ async def get_refresh_token_from_cookie_or_header(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+
 @router.post("/token", response_model=TokenWithRefresh)
 @limiter.limit("5/minute")
 async def login_for_access_token(
     request: Request,
     response: Response,
-    session: Session = Depends(get_session),
-    form_data: OAuth2PasswordRequestForm = Depends()
+    session: AsyncSession = Depends(get_session),
+    form_data: OAuth2PasswordRequestForm = Depends(),
 ):
-
-    user = security.authenticate_user(
+    user = await security.authenticate_user(
         session, email=form_data.username, password=form_data.password
     )
     if not user:
@@ -54,10 +65,10 @@ async def login_for_access_token(
         )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    user_role = getattr(user, 'role', 'user') 
+    user_role = getattr(user, "role", "user")
     access_token = security.create_access_token(
         data={"sub": user.email, "role": user_role},
-        expires_delta=access_token_expires
+        expires_delta=access_token_expires,
     )
 
     refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
@@ -71,24 +82,24 @@ async def login_for_access_token(
         httponly=True,
         secure=settings.COOKIES_SECURE,
         samesite="lax",
-        expires=int(refresh_token_expires.total_seconds())
+        expires=int(refresh_token_expires.total_seconds()),
     )
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "refresh_token": refresh_token, 
-        "refresh_token_expires_in": int(refresh_token_expires.total_seconds())
+        "refresh_token": refresh_token,
+        "refresh_token_expires_in": int(refresh_token_expires.total_seconds()),
     }
 
-@router.post("/refresh", response_model=schemas.Token)
-@limiter.limit("10/minute") 
-async def refresh_access_token(
-    request: Request, 
-    refresh_token: str = Depends(get_refresh_token_from_cookie_or_header),
-    db: Session = Depends(get_session)
-):
 
+@router.post("/refresh", response_model=schemas.Token)
+@limiter.limit("10/minute")
+async def refresh_access_token(
+    request: Request,
+    refresh_token: str = Depends(get_refresh_token_from_cookie_or_header),
+    db: AsyncSession = Depends(get_session),
+):
     payload = security.verify_refresh_token(refresh_token)
     if not payload:
         raise HTTPException(
@@ -105,7 +116,9 @@ async def refresh_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = db.exec(select(models.User).where(models.User.email == user_email)).first()
+    user = (
+        await db.exec(select(models.User).where(models.User.email == user_email))
+    ).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -114,10 +127,10 @@ async def refresh_access_token(
         )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    user_role = getattr(user, 'role', 'user')
+    user_role = getattr(user, "role", "user")
     new_access_token = security.create_access_token(
         data={"sub": user.email, "role": user_role},
-        expires_delta=access_token_expires
+        expires_delta=access_token_expires,
     )
 
     return {"access_token": new_access_token, "token_type": "bearer"}

@@ -1,180 +1,130 @@
-from sqlmodel import Session, SQLModel, create_engine, select
+# apps/api/seed.py
+
+import asyncio
+import json
+import os
+import sys
+from typing import List
+from sqlmodel import select, SQLModel
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from app.core.config import settings
 from app.models.product import Product
 from app.models.user import User
 from app.models.ai_cart import AIOrderingCartItem
+from app.models.order import Order, OrderItem
 from app.core.security import get_password_hash
 
-engine = create_engine(str(settings.DATABASE_URI), echo=False)
 
-def seed_db():
-    print("Seeding database...")
+if settings.APP_ENV != "development":
+    print(f"ERROR: Seeding is disabled in '{settings.APP_ENV}' environment.")
+    print("Set APP_ENV=development in your .env file to run the seeder.")
+    sys.exit(1)
 
-    with Session(engine) as session:
-    
-        user_in_db = session.exec(select(User).where(User.email == settings.FIRST_SUPERUSER)).first()
-        if not user_in_db:
-            print("Creating default superuser...")
-            user = User(
-                email=settings.FIRST_SUPERUSER,
-                hashed_password=get_password_hash(settings.FIRST_SUPERUSER_PASSWORD),
-                is_superuser=True, 
-                role="ADMIN" 
-            )
-            session.add(user)
-            session.commit()
-            print("Default superuser created.")
-        else:
-            print("Superuser already exists.")
+engine = create_async_engine(str(settings.DATABASE_URI), echo=False)
+SEED_DATA_FILE = "seed_data.json"
 
-        print("Deleting all existing products to ensure a fresh seed...")
 
-        print("Deleting all existing AI cart items first...")
-        all_cart_items = session.exec(select(AIOrderingCartItem)).all()
-        for item in all_cart_items:
-            session.delete(item)
-        print(f"Deleted {len(all_cart_items)} old AI cart items.")
+async def clear_data(session: AsyncSession):
+    print("Clearing old data...")
 
-        all_products = session.exec(select(Product)).all()
-        for product in all_products:
-            session.delete(product)
-        session.commit()
-        print(f"Deleted {len(all_products)} old products.")
+    all_cart_items_result = await session.execute(select(AIOrderingCartItem))
+    all_cart_items = all_cart_items_result.scalars().all()
+    for item in all_cart_items:
+        await session.delete(item)
+    print(f"Deleted {len(all_cart_items)} old AI cart items.")
 
-        session.commit()
+    all_order_items_result = await session.execute(select(OrderItem))
+    all_order_items = all_order_items_result.scalars().all()
+    for item in all_order_items:
+        await session.delete(item)
+    print(f"Deleted {len(all_order_items)} old order items.")
 
-        print("Seeding initial products with smart tags and categories...")
-        initial_products = [
-            Product(
-                name="Iphone 17 Pro Max", 
-                description="The latest iPhone model. Perfect gift and premium device.", 
-                price=1299.99, 
-                inventory=50, 
-                image_url="/images/iphone-17-pro-max.jpg", 
-                category="electronics", 
-                tags=["phone", "smartphone", "premium", "gift", "expensive"]
-            ),
-            Product(
-                name="Cable Type C", 
-                description="A durable USB-C to USB-C cable. Essential accessory.", 
-                price=29.99, 
-                inventory=200, 
-                image_url="/images/cable.jpg", 
-                category="accessories", 
-                tags=["cable", "usb", "charge", "cheap", "budget", "affordable"]
-            ),
-            Product(
-                name="iPhone Case Leather", 
-                description="A premium leather case for iPhone. Protect your investment.", 
-                price=59.99, 
-                inventory=100, 
-                image_url="/images/case.jpeg", 
-                category="accessories", 
-                tags=["case", "leather", "protection", "gift", "premium"]
-            ),
-            Product(
-                name="Apple Watch Ultra 3", 
-                description="The latest Apple Watch series. Great for fitness and style.", 
-                price=799.99, 
-                inventory=75, 
-                image_url="/images/watch.jpg", 
-                category="electronics", 
-                tags=["watch", "smartwatch", "fitness", "premium", "sport", "gift", "running"]
-            ),
-            Product(
-                name="Business Suit Black", 
-                description="A sharp black suit. Essential for interviews and formal events.", 
-                price=399.99, 
-                inventory=20, 
-                image_url="/images/suit.jpg", 
-                category="clothing", 
-                tags=["suit", "formal", "business", "interview", "men", "job", "meeting"]
-            ),
-            Product(
-                name="Luxury Perfume", 
-                description="A beautiful, long-lasting perfume. The perfect gift for her.", 
-                price=199.99, 
-                inventory=30, 
-                image_url="/images/perfume.jpg", 
-                category="beauty", 
-                tags=["perfume", "gift", "women", "luxury", "girlfriend", "wife", "present"]
-            ),
-            Product(
-                name="Men's Running Shoes",
-                description="High-performance running shoes for athletes. Perfect for workout and sport.",
-                price=129.99,
-                inventory=150,
-                image_url="/images/running_shoes.jpg",
-                category="shoes",
-                tags=["shoes", "sport", "running", "fitness", "men", "workout"]
-            ),
-            Product(
-                name="Pro Yoga Mat",
-                description="Eco-friendly non-slip yoga mat. Ideal for home workouts.",
-                price=45.50,
-                inventory=300,
-                image_url="/images/yoga_mat.jpg",
-                category="sport",
-                tags=["sport", "fitness", "yoga", "workout", "women", "gift", "budget"]
-            ),
-            Product(
-                name="Red Evening Dress",
-                description="Stunning formal evening dress for special occasions like parties.",
-                price=249.99,
-                inventory=30,
-                image_url="/images/red_dress.jpg",
-                category="clothing",
-                tags=["dress", "clothing", "formal", "party", "women", "luxury"]
-            ),
-            Product(
-                name="18k Gold Necklace",
-                description="A timeless 18-karat gold necklace. The perfect luxury gift.",
-                price=550.00,
-                inventory=15,
-                image_url="/images/gold_necklace.jpg",
-                category="jewelry",
-                tags=["jewelry", "gift", "women", "girlfriend", "wife", "premium", "luxury", "expensive"]
-            ),
-            Product(
-                name="Wireless Earbuds Pro",
-                description="Noise-cancelling wireless earbuds with charging case. Great budget gift.",
-                price=79.99,
-                inventory=250,
-                image_url="/images/earbuds.jpg",
-                category="electronics",
-                tags=["electronics", "audio", "earbuds", "cheap", "budget", "gift", "affordable"]
-            ),
-            Product(
-                name="Smart Speaker Mini",
-                description="Voice-controlled smart speaker for your home. Plays music and answers questions.",
-                price=149.00,
-                inventory=80,
-                image_url="/images/smart_speaker.jpg",
-                category="electronics",
-                tags=["electronics", "home", "smart", "audio", "gift"]
-            ),
-            Product(
-                name="Espresso Machine",
-                description="Automatic espresso machine for perfect coffee at home.",
-                price=499.99,
-                inventory=25,
-                image_url="/images/espresso_machine.jpg",
-                category="home",
-                tags=["home", "kitchen", "coffee", "premium", "gift", "expensive"]
-            ),
-            Product(
-                name="Men's Leather Wallet",
-                description="A classic bifold leather wallet. A great gift for him.",
-                price=89.99,
-                inventory=120,
-                image_url="/images/wallet.jpg",
-                category="accessories",
-                tags=["wallet", "leather", "men", "gift", "boyfriend", "husband"]
-            )
-        ]
-        session.add_all(initial_products)
-        session.commit()
-        print(f"Successfully seeded {len(initial_products)} products.")
+    all_orders_result = await session.execute(select(Order))
+    all_orders = all_orders_result.scalars().all()
+    for item in all_orders:
+        await session.delete(item)
+    print(f"Deleted {len(all_orders)} old orders.")
+
+    all_products_result = await session.execute(select(Product))
+    all_products = all_products_result.scalars().all()
+    for product in all_products:
+        await session.delete(product)
+    print(f"Deleted {len(all_products)} old products.")
+
+    await session.commit()
+
+
+async def create_superuser(session: AsyncSession):
+    print("Checking for superuser...")
+    user_in_db_result = await session.execute(
+        select(User).where(User.email == settings.FIRST_SUPERUSER)
+    )
+    user_in_db = user_in_db_result.scalars().first()
+
+    if not user_in_db:
+        print("Creating default superuser...")
+        user = User(
+            email=settings.FIRST_SUPERUSER,
+            full_name="Admin User",
+            hashed_password=get_password_hash(settings.FIRST_SUPERUSER_PASSWORD),
+            is_superuser=True, 
+            role="admin",
+            is_active=True,
+        )
+        session.add(user)
+        await session.commit()
+        print("Default superuser created.")
+    else:
+        print("Superuser already exists.")
+
+
+async def seed_products(session: AsyncSession):
+    print("Loading seed data from JSON...")
+    try:
+        with open(SEED_DATA_FILE, "r") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f"ERROR: '{SEED_DATA_FILE}' not found.")
+        print("Make sure it is in the same directory as seed.py.")
+        return
+    except json.JSONDecodeError:
+        print(f"ERROR: Could not decode JSON from '{SEED_DATA_FILE}'.")
+        return
+
+    products_data = data.get("products", [])
+    if not products_data:
+        print("No products found in JSON file.")
+        return
+
+    print(f"Found {len(products_data)} products in JSON. Seeding...")
+
+    products_to_create = []
+    for p_data in products_data:
+        if "id" not in p_data:
+            print(f"Skipping product '{p_data.get('name')}' - Missing 'id'.")
+            continue
+
+        product = Product(**p_data)
+        products_to_create.append(product)
+
+    session.add_all(products_to_create)
+    await session.commit()
+    print(f"Successfully seeded {len(products_to_create)} products.")
+
+
+async def seed_db():
+    print("--- Starting Database Seed (Async) ---")
+
+    async with AsyncSession(engine) as session:
+        
+        await clear_data(session)
+        
+        await create_superuser(session)
+        
+        await seed_products(session)
+
+    print("--- Database Seeding Complete ---")
+
 
 if __name__ == "__main__":
-    seed_db()
+    asyncio.run(seed_db())
