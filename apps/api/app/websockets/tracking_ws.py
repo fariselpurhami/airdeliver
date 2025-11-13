@@ -1,32 +1,22 @@
-# apps/api/app/websockets/tracking_ws.py 
+# apps/api/app/websockets/tracking_ws.py
 
 import asyncio
 import json
 import logging
 import uuid
-import os 
+import os
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, Optional, Set, List 
-from enum import Enum 
+from typing import Dict, Any, Optional, Set, List
+from enum import Enum
 import httpx
-import redis.asyncio as redis
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, BackgroundTasks, Query 
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, BackgroundTasks, Query, Request
 from starlette.websockets import WebSocketState
-from starlette.responses import JSONResponse 
+from starlette.responses import JSONResponse
 import jose.jwt as jwt
 from jose.exceptions import JWTError
 from pydantic import BaseModel, ValidationError, Field, field_validator, model_validator
 from app.core.config import settings
-
-WEBSOCKET_TIMEOUT_SECONDS = 60 * 5 
-ACK_TIMEOUT_SECONDS = 10
-ACK_RETRIES = 3
-REDIS_URL = f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}" if settings.USE_REDIS else None
-DRONE_SESSION_PREFIX = "drone_session:"
-PENDING_ACK_PREFIX = "pending_ack:"
-COMMAND_STATUS_PREFIX = "command_status:"
-REDIS_ACK_TIMEOUT = ACK_TIMEOUT_SECONDS * (2**(ACK_RETRIES - 1)) + 5 
-TELEMETRY_INTERVAL_S = 10 
+from app.services.cache_service import IAsyncCacheClient, get_cache_client, RedisCacheClient
 
 try:
     import structlog
@@ -35,14 +25,21 @@ except ImportError:
     log = logging.getLogger(__name__)
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-redis_client: Optional[redis.Redis] = None
+WEBSOCKET_TIMEOUT_SECONDS = 60 * 5
+ACK_TIMEOUT_SECONDS = 10
+ACK_RETRIES = 3
+DRONE_SESSION_PREFIX = "drone_session:"
+PENDING_ACK_PREFIX = "pending_ack:"
+COMMAND_STATUS_PREFIX = "command_status:"
+REDIS_ACK_TIMEOUT = ACK_TIMEOUT_SECONDS * (2**(ACK_RETRIES - 1)) + 5
+TELEMETRY_INTERVAL_S = 10
+
 connected_drones: Dict[str, Dict[str, Any]] = {}
-connected_ui_clients: Set[WebSocket] = set() 
+connected_ui_clients: Set[WebSocket] = set()
 
 async def broadcast_to_ui(message: dict):
-    """Sends a JSON message to all connected UI clients."""
     disconnected_clients: Set[WebSocket] = set()
-    message_json = json.dumps(message, default=str) 
+    message_json = json.dumps(message, default=str)
 
     for client in list(connected_ui_clients):
         if client.client_state == WebSocketState.CONNECTED:
@@ -56,7 +53,6 @@ async def broadcast_to_ui(message: dict):
 
     for client in disconnected_clients:
         connected_ui_clients.discard(client)
-        log.info(f"Removed disconnected UI client: {client.client}")
 
 class EventType(str, Enum):
     TAKEOFF = "takeoff"
@@ -112,7 +108,7 @@ class TelemetryMessage(BaseModel):
         return v
 
 class EventPayload(BaseModel):
-    event_type: str 
+    event_type: str
     mission_id: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
 
@@ -133,7 +129,7 @@ class AckMessage(BaseModel):
     type: str
     command_id: str
     drone_id: str
-    status: str 
+    status: str
 
     @field_validator('type')
     @classmethod
@@ -163,10 +159,9 @@ class CommandPayload(BaseModel):
     goto: Optional[CommandGotoPayload] = None
     requires_ack: bool = True
 
-    @model_validator(mode='after') 
+    @model_validator(mode='after')
     def check_payload_matches_action(self, data: Any) -> Any:
-        
-        if isinstance(data, BaseModel): 
+        if isinstance(data, BaseModel):
              action = data.action
              mission = data.mission
              goto_payload = data.goto
@@ -176,7 +171,6 @@ class CommandPayload(BaseModel):
              if action == "goto" and not goto_payload:
                  raise ValueError("Missing 'goto' payload for 'goto' action")
         return data
-
 
 class CommandMessage(BaseModel):
     type: str
@@ -191,48 +185,47 @@ class CommandMessage(BaseModel):
             raise ValueError('Type must be "command"')
         return v
 
-async def initialize_redis():
-    global redis_client
-    if settings.USE_REDIS and REDIS_URL and redis_client is None:
-        try:
-            redis_client = await redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
-            await redis_client.ping()
-            log.info("Connected to Redis for session management.")
-        except Exception as e:
-            log.error(f"Failed to connect to Redis: {e}. Falling back to in-memory session management.")
-            redis_client = None
-
-async def register_drone(drone_id: str, websocket: WebSocket, meta: Optional[HandshakeMeta] = None):
+async def register_drone(drone_id: str, websocket: WebSocket, cache: IAsyncCacheClient, meta: Optional[HandshakeMeta] = None):
     session_data = {
-        "websocket": websocket, 
+        "websocket": websocket,
         "last_seen": datetime.now(timezone.utc).isoformat(),
         "meta": meta.model_dump() if meta else {}
     }
     connected_drones[drone_id] = session_data
 
-    if redis_client:
-        redis_data = {
-            "last_seen": session_data["last_seen"],
-            "meta": json.dumps(session_data["meta"]),
-            "server_node_id": os.getenv("HOSTNAME", "node1")
-        }
-        await redis_client.hset(f"{DRONE_SESSION_PREFIX}{drone_id}", mapping=redis_data)
-        await redis_client.publish("drone_connections", json.dumps({"drone_id": drone_id, "status": "connected"}))
+    redis_data = {
+        "last_seen": session_data["last_seen"],
+        "meta": session_data["meta"],
+        "server_node_id": os.getenv("HOSTNAME", "node1"),
+        "status": "connected"
+    }
+    await cache.set_json(f"{DRONE_SESSION_PREFIX}{drone_id}", redis_data)
+
+    if isinstance(cache, RedisCacheClient):
+        try:
+            await cache._redis.publish("drone_connections", json.dumps({"drone_id": drone_id, "status": "connected"}))
+        except Exception as e:
+            log.error(f"Failed to publish drone connection event: {e}")
+
     log.info("Drone registered", drone_id=drone_id, meta=session_data["meta"])
 
-async def unregister_drone(drone_id: str):
-    session_info = connected_drones.pop(drone_id, None) 
+async def unregister_drone(drone_id: str, cache: IAsyncCacheClient):
+    session_info = connected_drones.pop(drone_id, None)
     if session_info:
         log.info("Drone unregistered", drone_id=drone_id)
-        if redis_client:
-            await redis_client.delete(f"{DRONE_SESSION_PREFIX}{drone_id}")
-            await redis_client.publish("drone_connections", json.dumps({"drone_id": drone_id, "status": "disconnected"}))
+
+        await cache.delete(f"{DRONE_SESSION_PREFIX}{drone_id}")
+
+        if isinstance(cache, RedisCacheClient):
+            try:
+                await cache._redis.publish("drone_connections", json.dumps({"drone_id": drone_id, "status": "disconnected"}))
+            except Exception as e:
+                log.error(f"Failed to publish drone disconnection event: {e}")
 
         async def notify_disconnect():
             async with httpx.AsyncClient(timeout=10.0) as client:
                 try:
                     headers = {"Authorization": f"Bearer {settings.INTERNAL_API_TOKEN}"} if settings.INTERNAL_API_TOKEN else {}
-
                     url = f"{settings.API_BASE_URL.rstrip('/')}/internal/drone_disconnected"
                     await client.post(url, json={"drone_id": drone_id}, headers=headers)
                     log.info("Notified main API about drone disconnect", drone_id=drone_id)
@@ -243,42 +236,42 @@ async def unregister_drone(drone_id: str):
 
         asyncio.create_task(notify_disconnect())
 
-async def get_websocket(drone_id: str) -> Optional[WebSocket]:
+async def get_websocket(drone_id: str, cache: IAsyncCacheClient) -> Optional[WebSocket]:
     drone_info = connected_drones.get(drone_id)
     if drone_info:
         ws = drone_info["websocket"]
-
         if ws.client_state == WebSocketState.CONNECTED:
             try:
                 await asyncio.wait_for(ws.send_json({"type": "ping"}), timeout=1.0)
-            
                 return ws
             except (asyncio.TimeoutError, Exception) as e:
                  log.warning("Ping failed, assuming stale connection", drone_id=drone_id, error=str(e))
-                 
-                 await unregister_drone(drone_id)
+                 await unregister_drone(drone_id, cache)
                  return None
         else:
             log.warning("Found disconnected websocket object in registry", drone_id=drone_id)
-            await unregister_drone(drone_id)
+            await unregister_drone(drone_id, cache)
             return None
-    return None 
+    return None
 
-async def update_last_seen(drone_id: str):
+async def update_last_seen(drone_id: str, cache: IAsyncCacheClient):
     now_iso = datetime.now(timezone.utc).isoformat()
     if drone_id in connected_drones:
         connected_drones[drone_id]["last_seen"] = now_iso
-    if redis_client:
-        await redis_client.hset(f"{DRONE_SESSION_PREFIX}{drone_id}", "last_seen", now_iso)
+
+    current_data = await cache.get_json(f"{DRONE_SESSION_PREFIX}{drone_id}")
+    if current_data:
+        current_data["last_seen"] = now_iso
+        await cache.set_json(f"{DRONE_SESSION_PREFIX}{drone_id}", current_data)
 
 async def verify_token(token: str, drone_id: str) -> bool:
     try:
         payload = jwt.decode(token, settings.DRONE_JWT_SECRET, algorithms=[settings.ALGORITHM])
-        token_drone_id = payload.get("sub") 
+        token_drone_id = payload.get("sub")
         if token_drone_id != drone_id:
              log.warning("Token drone_id mismatch", token_id=token_drone_id, path_id=drone_id)
              return False
-    
+
         expiry = payload.get("exp")
         if expiry and datetime.now(timezone.utc) > datetime.fromtimestamp(expiry, timezone.utc):
             log.warning("Token expired", drone_id=drone_id)
@@ -294,7 +287,6 @@ async def verify_token(token: str, drone_id: str) -> bool:
          return False
 
 async def persist_data(endpoint_path: str, data: dict):
-
     async with httpx.AsyncClient(base_url=settings.API_BASE_URL.rstrip('/'), timeout=10.0) as client:
         try:
             headers = {"Authorization": f"Bearer {settings.INTERNAL_API_TOKEN}"} if settings.INTERNAL_API_TOKEN else {}
@@ -308,11 +300,11 @@ async def persist_data(endpoint_path: str, data: dict):
         except Exception as e:
              log.error("Unexpected error during persistence", endpoint=endpoint_path, error=str(e))
 
-async def handle_telemetry(websocket: WebSocket, data: dict, background_tasks: BackgroundTasks):
+async def handle_telemetry(websocket: WebSocket, data: dict, background_tasks: BackgroundTasks, cache: IAsyncCacheClient):
     try:
         telemetry = TelemetryMessage.model_validate(data)
         drone_id = telemetry.drone_id
-        await update_last_seen(drone_id)
+        await update_last_seen(drone_id, cache)
 
         payload_to_persist = {
             "drone_id": drone_id,
@@ -321,9 +313,9 @@ async def handle_telemetry(websocket: WebSocket, data: dict, background_tasks: B
             "lat": telemetry.payload.lat, "lon": telemetry.payload.lon, "alt_m": telemetry.payload.alt_m,
             "speed_m_s": telemetry.payload.ground_speed_m_s, "battery_pct": telemetry.payload.battery_pct,
             "flight_mode": telemetry.payload.flight_mode,
-            "raw_payload_json": telemetry.model_dump(mode='json') 
+            "raw_payload_json": telemetry.model_dump(mode='json')
         }
-    
+
         background_tasks.add_task(persist_data, f"/drones/{drone_id}/telemetry", payload_to_persist)
 
     except ValidationError as e:
@@ -335,12 +327,12 @@ def create_notification_from_event(event: EventMessage) -> Optional[Dict]:
     payload = event.payload
     title = f"Drone {event.drone_id} Update"
     body = f"Event: {payload.event_type}"
-    notif_type = NotificationType.DRONE_STATUS 
+    notif_type = NotificationType.DRONE_STATUS
 
     if payload.event_type == EventType.TAKEOFF:
         title = "Drone Airborne"
         body = f"Drone {event.drone_id} has taken off for mission {payload.mission_id or 'N/A'}."
-        notif_type = NotificationType.ORDER_UPDATE 
+        notif_type = NotificationType.ORDER_UPDATE
     elif payload.event_type == EventType.PAYLOAD_DROPPED:
         title = "Package Delivered (Estimated)"
         body = f"Drone {event.drone_id} reported payload dropped for mission {payload.mission_id or 'N/A'}."
@@ -352,10 +344,10 @@ def create_notification_from_event(event: EventMessage) -> Optional[Dict]:
         title = f"⚠️ EMERGENCY: Drone {event.drone_id}"
         body = f"Emergency landing initiated. Reason: {payload.details.get('reason', 'Unknown') if payload.details else 'Unknown'}."
         notif_type = NotificationType.SYSTEM_ALERT
-    
+
     if title and body:
         return {
-            "id": None, 
+            "id": None,
             "type": notif_type.value,
             "title": title,
             "body": body,
@@ -363,11 +355,11 @@ def create_notification_from_event(event: EventMessage) -> Optional[Dict]:
         }
     return None
 
-async def handle_event(websocket: WebSocket, data: dict, background_tasks: BackgroundTasks):
+async def handle_event(websocket: WebSocket, data: dict, background_tasks: BackgroundTasks, cache: IAsyncCacheClient):
     try:
         event = EventMessage.model_validate(data)
         drone_id = event.drone_id
-        await update_last_seen(drone_id)
+        await update_last_seen(drone_id, cache)
 
         payload_to_persist = {
             "drone_id": drone_id,
@@ -376,7 +368,7 @@ async def handle_event(websocket: WebSocket, data: dict, background_tasks: Backg
             "details": event.payload.details,
             "timestamp": event.timestamp.isoformat()
         }
-        
+
         background_tasks.add_task(persist_data, f"/drones/{drone_id}/events", payload_to_persist)
 
         notification_payload = create_notification_from_event(event)
@@ -385,7 +377,6 @@ async def handle_event(websocket: WebSocket, data: dict, background_tasks: Backg
                 "type": "notification",
                 "payload": notification_payload
             })
-            
 
         log.info("Event received", drone_id=drone_id, event_type=event.payload.event_type)
 
@@ -396,55 +387,59 @@ async def handle_event(websocket: WebSocket, data: dict, background_tasks: Backg
 
 pending_ack_events: Dict[str, asyncio.Event] = {}
 
-async def handle_ack(websocket: WebSocket, data: dict, background_tasks: BackgroundTasks):
+async def update_command_status(command_id: str, status: str, cache: IAsyncCacheClient):
+    try:
+        await cache.set(f"{COMMAND_STATUS_PREFIX}{command_id}", status, ttl=REDIS_ACK_TIMEOUT)
+        log.debug("Command status updated in Redis", command_id=command_id, status=status)
+    except Exception as e:
+        log.error("Failed to update command status in Redis", command_id=command_id, error=str(e))
+
+async def handle_ack(websocket: WebSocket, data: dict, background_tasks: BackgroundTasks, cache: IAsyncCacheClient):
     try:
         ack = AckMessage.model_validate(data)
         drone_id = ack.drone_id
         command_id = ack.command_id
         status = ack.status
-        await update_last_seen(drone_id)
+        await update_last_seen(drone_id, cache)
         log.info("ACK received", drone_id=drone_id, command_id=command_id, status=status)
 
         if command_id in pending_ack_events:
             pending_ack_events[command_id].set()
-            
-        background_tasks.add_task(update_command_status, command_id, status)
+
+        background_tasks.add_task(update_command_status, command_id, status, cache)
 
     except ValidationError as e:
         log.warning("Invalid ACK format", errors=e.errors(), data=data)
     except Exception as e:
         log.error("Error handling ACK", error=str(e), exc_info=True)
 
-async def update_command_status(command_id: str, status: str):
-    """Updates the command status in Redis (or potentially DB)."""
-    if redis_client:
-        try:
-            await redis_client.setex(f"{COMMAND_STATUS_PREFIX}{command_id}", REDIS_ACK_TIMEOUT, status)
-            log.debug("Command status updated in Redis", command_id=command_id, status=status)
-        except Exception as e:
-            log.error("Failed to update command status in Redis", command_id=command_id, error=str(e))
-    
 router = APIRouter()
 
-@router.websocket("/drones/{drone_id}") 
+@router.websocket("/drones/{drone_id}")
 async def websocket_endpoint(websocket: WebSocket, drone_id: str, background_tasks: BackgroundTasks):
     await websocket.accept()
+
+    cache: IAsyncCacheClient = getattr(websocket.app.state, "cache", None)
+    if not cache:
+        log.error("Cache client not initialized in app state.")
+        await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+        return
+
     authenticated = False
     log.info("Drone connection attempt", drone_id=drone_id, client=websocket.client)
 
     try:
-        
         try:
-            raw_handshake = await asyncio.wait_for(websocket.receive_text(), timeout=15.0) 
+            raw_handshake = await asyncio.wait_for(websocket.receive_text(), timeout=15.0)
             handshake_data = json.loads(raw_handshake)
             handshake = HandshakeMessage.model_validate(handshake_data)
 
             if handshake.drone_id != drone_id:
                 raise ValueError("Drone ID mismatch")
 
-            if await verify_token(handshake.token, drone_id): 
+            if await verify_token(handshake.token, drone_id):
                 authenticated = True
-                await register_drone(drone_id, websocket, handshake.meta)
+                await register_drone(drone_id, websocket, cache, handshake.meta)
                 await websocket.send_json({"status": "connected", "drone_id": drone_id})
                 log.info("Drone authenticated", drone_id=drone_id)
             else:
@@ -459,44 +454,41 @@ async def websocket_endpoint(websocket: WebSocket, drone_id: str, background_tas
         last_comm_time = datetime.now(timezone.utc)
         while authenticated and websocket.client_state == WebSocketState.CONNECTED:
             try:
-                
                 receive_timeout = TELEMETRY_INTERVAL_S * 2 + 5
                 raw_message = await asyncio.wait_for(websocket.receive_text(), timeout=receive_timeout)
-                last_comm_time = datetime.now(timezone.utc) 
+                last_comm_time = datetime.now(timezone.utc)
                 message_data = json.loads(raw_message)
                 message_type = message_data.get("type")
 
                 if message_type == "telemetry":
-                    await handle_telemetry(websocket, message_data, background_tasks)
+                    await handle_telemetry(websocket, message_data, background_tasks, cache)
                 elif message_type == "event":
-                    await handle_event(websocket, message_data, background_tasks)
+                    await handle_event(websocket, message_data, background_tasks, cache)
                 elif message_type == "ack":
-                    await handle_ack(websocket, message_data, background_tasks)
+                    await handle_ack(websocket, message_data, background_tasks, cache)
                 elif message_type == "ping":
-                    await update_last_seen(drone_id)
+                    await update_last_seen(drone_id, cache)
                     await websocket.send_json({"type": "pong"})
                 else:
                     log.warning("Unknown message type", drone_id=drone_id, type=message_type)
 
             except asyncio.TimeoutError:
-            
                 if datetime.now(timezone.utc) - last_comm_time > timedelta(seconds=WEBSOCKET_TIMEOUT_SECONDS):
                     log.warning(f"WebSocket inactivity timeout", drone_id=drone_id)
                     await websocket.close(code=status.WS_1000_NORMAL_CLOSURE, reason="Inactivity Timeout")
                     break
                 else:
-                
                     log.debug("Receive timeout, sending ping", drone_id=drone_id)
                     try:
                          await websocket.send_json({"type": "ping"})
                     except Exception:
                          log.warning("Ping failed after receive timeout, closing.", drone_id=drone_id)
-                         break 
+                         break
             except json.JSONDecodeError:
                 log.warning("Invalid JSON received", drone_id=drone_id)
             except Exception as e:
                 log.error(f"WebSocket communication error (drone_id: {drone_id}): {e}", exc_info=True)
-                break 
+                break
 
     except WebSocketDisconnect as e:
         log.info(f"Drone disconnected", drone_id=drone_id, code=e.code, reason=e.reason)
@@ -505,29 +497,20 @@ async def websocket_endpoint(websocket: WebSocket, drone_id: str, background_tas
         if websocket.client_state == WebSocketState.CONNECTED:
              await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
     finally:
-    
-        if authenticated and drone_id in connected_drones: 
-            await unregister_drone(drone_id)
-
+        if authenticated and drone_id in connected_drones:
+            await unregister_drone(drone_id, cache)
 
 @router.websocket("/ui")
 async def websocket_ui_endpoint(websocket: WebSocket, token: Optional[str] = Query(None)):
-
-    user_id = None
-    if token:
-        pass 
-
     await websocket.accept()
     connected_ui_clients.add(websocket)
-    log.info(f"UI client connected: {websocket.client}" + (f" (User: {user_id})" if user_id else ""))
+    log.info(f"UI client connected: {websocket.client}")
     try:
         while True:
             message = await websocket.receive_text()
             data = json.loads(message)
-
             if data.get("type") == "ping":
                 await websocket.send_json({"type": "pong"})
-        
     except WebSocketDisconnect:
         log.info(f"UI client disconnected: {websocket.client}")
     except Exception as e:
@@ -540,15 +523,20 @@ async def wait_for_ack(command_id: str, timeout: float):
     pending_ack_events[command_id] = ack_event
     try:
         await asyncio.wait_for(ack_event.wait(), timeout=timeout)
-        return True 
+        return True
     except asyncio.TimeoutError:
-        return False 
+        return False
     finally:
         pending_ack_events.pop(command_id, None)
 
 @router.post("/internal/send_command/{drone_id}", status_code=status.HTTP_202_ACCEPTED)
-async def send_command_to_drone(drone_id: str, command_req: CommandMessage, background_tasks: BackgroundTasks):
-    websocket = await get_websocket(drone_id)
+async def send_command_to_drone(
+    drone_id: str,
+    command_req: CommandMessage,
+    background_tasks: BackgroundTasks,
+    cache: IAsyncCacheClient = Depends(get_cache_client)
+):
+    websocket = await get_websocket(drone_id, cache)
     if not websocket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Drone {drone_id} not connected or connection stale.")
 
@@ -563,32 +551,31 @@ async def send_command_to_drone(drone_id: str, command_req: CommandMessage, back
         is_sent = False
         for attempt in range(ACK_RETRIES if requires_ack else 1):
             try:
-                current_websocket = await get_websocket(drone_id) 
+                current_websocket = await get_websocket(drone_id, cache)
                 if not current_websocket:
                     log.error("Drone disconnected before command could be sent/resent", drone_id=drone_id, command_id=command_id)
-                    await update_command_status(command_id, "failed:disconnected")
-                    return 
+                    await update_command_status(command_id, "failed:disconnected", cache)
+                    return
 
                 await current_websocket.send_text(command.model_dump_json(exclude_none=True))
                 is_sent = True
                 log.debug(f"Command sent (Attempt {attempt + 1})", drone_id=drone_id, command_id=command_id)
 
                 if not requires_ack:
-                    await update_command_status(command_id, "sent_no_ack")
-                    return 
+                    await update_command_status(command_id, "sent_no_ack", cache)
+                    return
 
                 ack_timeout = ACK_TIMEOUT_SECONDS * (2**attempt)
                 ack_received = await wait_for_ack(command_id, ack_timeout)
 
                 if ack_received:
                     log.info("ACK received in time", drone_id=drone_id, command_id=command_id)
-
                     return
                 else:
                     log.warning(f"ACK timeout (Attempt {attempt + 1}/{ACK_RETRIES})", drone_id=drone_id, command_id=command_id, timeout=ack_timeout)
                     if attempt == ACK_RETRIES - 1:
                         log.error(f"Command failed after {ACK_RETRIES} attempts (ACK timeout)", drone_id=drone_id, command_id=command_id)
-                        await update_command_status(command_id, "failed:comms_timeout")
+                        await update_command_status(command_id, "failed:comms_timeout", cache)
 
                         async with httpx.AsyncClient(timeout=5.0) as client:
                              try:
@@ -597,39 +584,39 @@ async def send_command_to_drone(drone_id: str, command_req: CommandMessage, back
                                 await client.post(url, json={"drone_id": drone_id, "command_id": command_id}, headers=headers)
                              except Exception as notify_err:
                                  log.error("Failed to notify API about command timeout", command_id=command_id, error=str(notify_err))
-                        return 
+                        return
 
             except WebSocketDisconnect:
                 log.error("Drone disconnected during send/wait", drone_id=drone_id, command_id=command_id)
-                if is_sent: 
-                    await update_command_status(command_id, "failed:disconnected_after_send")
+                if is_sent:
+                    await update_command_status(command_id, "failed:disconnected_after_send", cache)
                 else:
-                     await update_command_status(command_id, "failed:disconnected_before_send")
-                return 
+                     await update_command_status(command_id, "failed:disconnected_before_send", cache)
+                return
             except Exception as e:
                 log.error(f"Error sending/waiting for command (Attempt {attempt + 1})", drone_id=drone_id, command_id=command_id, error=str(e), exc_info=True)
                 if attempt == ACK_RETRIES - 1:
-                    await update_command_status(command_id, f"failed:send_error - {e}")
+                    await update_command_status(command_id, f"failed:send_error - {e}", cache)
                 await asyncio.sleep(1 * (2**attempt))
 
     background_tasks.add_task(_send_and_handle_ack_in_background)
-    await update_command_status(command_id, "pending_send") 
+    await update_command_status(command_id, "pending_send", cache)
 
     return {"status": "command_accepted", "command_id": command_id}
 
-@router.get("/health") 
-async def health_check():
-    response = {"status": "ok", "redis_connected": False}
-    if redis_client:
+@router.get("/health")
+async def health_check(cache: IAsyncCacheClient = Depends(get_cache_client)):
+    status_data = {"status": "ok", "redis": "disabled"}
+    if settings.USE_REDIS:
         try:
-            await redis_client.ping()
-            response["redis_connected"] = True
+            if await cache.ping():
+                status_data["redis"] = "connected"
+            else:
+                status_data["redis"] = "disconnected"
+                status_data["status"] = "error"
         except Exception:
-             response["status"] = "degraded" 
-             log.warning("Health check: Redis ping failed.")
-    elif settings.USE_REDIS:
-         response["status"] = "degraded" 
-         log.warning("Health check: Configured for Redis but not connected.")
+             status_data["redis"] = "error"
+             status_data["status"] = "error"
 
-    status_code = 200 if response["status"] == "ok" else 503
-    return JSONResponse(content=response, status_code=status_code)
+    status_code = status.HTTP_200_OK if status_data["status"] == "ok" else status.HTTP_503_SERVICE_UNAVAILABLE
+    return JSONResponse(content=status_data, status_code=status_code)

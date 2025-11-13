@@ -155,6 +155,12 @@ class DroneCompanion:
             await self._update_state(DroneState.DISCONNECTED_PIXHAWK, "Connection Timeout")
             return False
 
+        except Exception as e:
+            reason = f"Unhandled MavSDK connection error: {e}"
+            log.error(f"[{self.drone_id}] {reason}")
+            await self._update_state(DroneState.DISCONNECTED_PIXHAWK, reason)
+            return False
+
     async def _wait_for_pixhawk_connection(self):
          async for state in self.mavsdk_drone.core.connection_state():
             if state.is_connected:

@@ -1,7 +1,6 @@
 # apps/api/app/api/v1/api.py 
 
 from fastapi import APIRouter
-
 from .endpoints import (
     admin,
     auth,
@@ -14,10 +13,12 @@ from .endpoints import (
     ai_support,
     tools,
     drones,
-    commands 
+    commands,
+    health
 )
 api_router = APIRouter()
 
+api_router.include_router(health.router, tags=["Health"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(products.router, prefix="/products", tags=["Products"])
 api_router.include_router(drones.router, prefix="/drones", tags=["Drones"]) 

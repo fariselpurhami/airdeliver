@@ -3,37 +3,72 @@
 services:
   px4-sitl:
     container_name: airdeliver-px4-sitl
-    build:
-      context: ./apps/drone-simulator
-      dockerfile: Dockerfile
+    image: px4io/px4-dev-simulation-focal:latest
+    command: >
+      /bin/bash -c "
+      set -e;
+      apt-get update;
+      apt-get install -y net-tools;
+      pip3 install kconfiglib;
+      if [ ! -f '/root/PX4-Autopilot/Makefile' ]; then
+        rm -rf /root/PX4-Autopilot/*;
+        rm -rf /root/PX4-Autopilot/.[!.]*;
+        git clone https://github.com/PX4/PX4-Autopilot.git --recursive --depth 1 --branch v1.14.0 /root/PX4-Autopilot;
+      fi;
+      cd /root/PX4-Autopilot;
+      git submodule sync --recursive;
+      git submodule update --init --recursive --force;
+      if [ -d 'build' ]; then
+        make distclean;
+      fi;
+      HEADLESS=1 make px4_sitl gazebo_iris
+      "
     ports:
       - "14540:14540/udp"
-      - "14550:14550/udp" 
+      - "14550:14550/udp"
       - "14556:14556/udp"
     networks:
       - airdeliver-net
     environment:
-      - PX4_SIM_SPEED_FACTOR=1 
-   
+      - PX4_SIM_SPEED_FACTOR=1
+      - PX4_HOME_LAT=30.0444
+      - PX4_HOME_LON=31.2357
+      - PX4_HOME_ALT=100
+    volumes:
+      - px4-source-data:/root/PX4-Autopilot
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -upln | grep 14540 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 1200s
+    restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+
   companion:
     container_name: airdeliver-companion-sim
     build:
-      context: ./drone_client 
+      context: ./drone_client
       dockerfile: Dockerfile
     environment:
-      - DRONE_ID=SIM-001 
-      - WEBSOCKET_URI=ws://c2_gateway:8001/ws/connect/
-      - MAVLINK_CONNECTION=udp://px4-sitl:14540 
+      - DRONE_ID=SIM-001
+      - WEBSOCKET_URI=ws://c2_gateway:8001/drones/SIM-001
+      - MAVLINK_CONNECTION=udp:px4-sitl:14540
       - AUTH_TOKEN=${DRONE_AUTH_TOKEN}
     networks:
       - airdeliver-net
     depends_on:
-      - px4-sitl
-      - c2_gateway
+      px4-sitl:
+        condition: service_started
+      c2_gateway:
+        condition: service_started
     restart: unless-stopped
     stdin_open: true
     tty: true
 
-networks:
-  airdeliver-net:
-    external: true
+volumes:
+  px4-source-data:
+    driver: local

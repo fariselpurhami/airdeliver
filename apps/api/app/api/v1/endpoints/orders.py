@@ -10,7 +10,10 @@ from app.models.product import Product
 from app.db.session import get_session
 from app.api import deps
 from app.models.user import User
-from app.services.payment_orchestrator import payment_orchestrator
+from app.services.payment_orchestrator import (
+    PaymentOrchestrator,
+    get_payment_orchestrator,
+)
 
 router = APIRouter()
 
@@ -21,6 +24,7 @@ async def create_payment_intent(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(deps.get_current_active_user),
     items: List[schemas.OrderItemCreate],
+    payment_orchestrator: PaymentOrchestrator = Depends(get_payment_orchestrator),
 ):
     if not items:
         raise HTTPException(
@@ -36,11 +40,11 @@ async def create_payment_intent(
             )
         total_price += float(product.price) * item.quantity
 
-    payment_info = payment_orchestrator.process_payment(
+    payment_info = await payment_orchestrator.process_payment(
         amount=total_price, currency="usd", region="US"
     )
 
-    if "error" in payment_info or not payment_info.get("clientSecret"):
+    if "error" in payment_info or payment_info.get("status") == "failure":
         raise HTTPException(
             status_code=500,
             detail=payment_info.get(

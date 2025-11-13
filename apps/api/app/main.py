@@ -1,28 +1,32 @@
-# apps/api/app/main.py
+# apps/api/app/main.py  
 
 import logging
-from contextlib import asynccontextmanager
-import importlib
-import os
 import asyncio
-from app.db import base
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from sqlmodel import SQLModel
-from app.db.session import engine
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
+from sqlmodel import SQLModel
 from prometheus_fastapi_instrumentator import Instrumentator
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+
+from app.db.session import engine
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.websockets.tracking_ws import router as tracking_router
 from app.services.rabbitmq_service import rabbitmq_service
 from app.services import telemetry_consumer, event_consumer
-from app.core.limiter import limiter
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
+from app.services.cache_service import RedisCacheClient, NoOpCacheClient
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+STATIC_DIRECTORY_STR = "/app/static"
 
 async def create_db_and_tables():
     async with engine.begin() as conn:
@@ -30,11 +34,18 @@ async def create_db_and_tables():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("--- Lifespan: Running startup tasks ---")
-
+    logger.info("--- Lifespan: Startup ---")
     await create_db_and_tables()
+
+    cache_client = NoOpCacheClient()
+    if settings.USE_REDIS and settings.REDIS_URL:
+        logger.info("--- Lifespan: Warming up Redis connection ---")
+        cache_client = RedisCacheClient(url=settings.REDIS_URL)
+        await cache_client.connect()
     
-    print("--- Lifespan: Connecting to RabbitMQ ---")
+    app.state.cache = cache_client
+
+    logger.info("--- Lifespan: Connecting RabbitMQ ---")
     await rabbitmq_service.connect()
     
     consumer_tasks = []
@@ -42,26 +53,24 @@ async def lifespan(app: FastAPI):
         task1 = asyncio.create_task(telemetry_consumer.consume_telemetry(rabbitmq_service.connection_pool))
         task2 = asyncio.create_task(event_consumer.consume_events(rabbitmq_service.connection_pool))
         consumer_tasks.extend([task1, task2])
-        print("--- Lifespan: RabbitMQ Telemetry and Event consumers started ---")
-    else:
-        logging.error("--- Lifespan: FAILED to start RabbitMQ consumers. Pool not available. ---")
-
-    print("--- Lifespan: Ensuring static directory exists ---")
+        logger.info("--- Lifespan: Consumers Started ---")
+    
     Path(STATIC_DIRECTORY_STR).mkdir(parents=True, exist_ok=True)
     app.mount("/static", StaticFiles(directory=STATIC_DIRECTORY_STR), name="static")
 
-    print("--- Lifespan: Startup complete. Yielding control. ---")
+    logger.info("--- Lifespan: Ready ---")
     yield
     
-    print("--- Lifespan: Running shutdown tasks ---")
+    logger.info("--- Lifespan: Shutdown ---")
     for task in consumer_tasks:
         task.cancel()
     await asyncio.gather(*consumer_tasks, return_exceptions=True)
+    
     await rabbitmq_service.disconnect()
-    print("--- Lifespan: RabbitMQ connection closed. ---")
+    await app.state.cache.disconnect()
 
 app = FastAPI(
-    title="airdeliver API",
+    title="AirDeliver API",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan,
 )
@@ -70,63 +79,37 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-@app.get("/debug-routes")
-async def get_all_routes():
-    route_list = []
-    for route in app.routes:
-        if hasattr(route, "methods"):
-            route_list.append({
-                "path": route.path,
-                "name": route.name,
-                "methods": list(route.methods) if route.methods else []
-            })
-        elif isinstance(route, importlib.import_module('starlette.routing').WebSocketRoute):
-             route_list.append({
-                 "path": route.path,
-                 "name": route.name,
-                 "methods": ["WEBSOCKET"]
-             })
-        elif isinstance(route, importlib.import_module('starlette.routing').Mount):
-             route_list.append({
-                 "path": route.path + "/*", 
-                 "name": route.name,
-                 "methods": ["MOUNTED"]
-             })
-    return JSONResponse(content=route_list)
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logging.error(f"Global exception handler caught: {exc}", exc_info=True)
+    logger.error(f"Global Handler: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"message": f"An unexpected server error occurred. Please check the logs."},
+        content={"message": "Internal Server Error"},
     )
 
 @app.middleware("http")
 async def ensure_utf8_encoding(request: Request, call_next):
     response = await call_next(request)
     if "charset" not in response.headers.get("content-type", ""):
-        response.headers["Content-Type"] = "application/json; charset=utf-f"
+        response.headers["Content-Type"] = "application/json; charset=utf-8"
     return response
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-STATIC_DIRECTORY_STR = "/app/static"
+if settings.BACKEND_CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
-
 app.include_router(tracking_router, prefix="/ws")
 
-@app.get("/ws/health")
-def health_check():
-    return {"status": "ok"}
+@app.get("/debug-routes")
+async def get_all_routes():
+    return JSONResponse(content=[{"path": route.path, "name": route.name} for route in app.routes])
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to airdeliver API"}
+    return {"message": "AirDeliver API", "env": settings.APP_ENV}

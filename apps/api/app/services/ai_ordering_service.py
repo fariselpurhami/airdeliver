@@ -1,4 +1,5 @@
-# file: api/app/services/ai_ordering_service.py
+# apps/api/app/services/ai_ordering_service.py
+
 import re
 from sqlmodel import select, or_
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -9,18 +10,32 @@ from app.models.enums import OrderStatus
 from app.models.ai_cart import AIOrderingCartItem
 from app import models, schemas
 from app.services.ai_commerce_engine import ai_commerce_engine
-from app.services.payment_orchestrator import payment_orchestrator
+from app.services.payment_orchestrator import PaymentOrchestrator
+from app.services.cache_service import IAsyncCacheClient
+from app.core.config import settings
 from sqlalchemy import cast, String, desc, func
 from typing import List, Tuple, Dict, Any
 import random
 
 
 class AIOrderingService:
-    def __init__(self):
-        self.conversation_state = {"stage": "IDLE"}
 
-    async def _clear_state_and_cart(self, db: AsyncSession, user_id: int):
-        self.conversation_state = {"stage": "IDLE"}
+    def _get_state_key(self, user_id: int) -> str:
+        return f"ai_chat_state:{user_id}"
+
+    async def _get_conversation_state(self, cache: IAsyncCacheClient, user_id: int) -> dict:
+        state_key = self._get_state_key(user_id)
+        state = await cache.get_json(state_key)
+        return state if state else {"stage": "IDLE"}
+
+    async def _set_conversation_state(self, cache: IAsyncCacheClient, user_id: int, state: dict):
+        state_key = self._get_state_key(user_id)
+        await cache.set_json(state_key, state, ttl=settings.AI_CHAT_STATE_TTL_SECONDS)
+
+    async def _clear_state_and_cart(self, db: AsyncSession, cache: IAsyncCacheClient, user_id: int):
+        state_key = self._get_state_key(user_id)
+        await cache.delete(state_key)
+
         items_to_delete = (
             await db.exec(
                 select(AIOrderingCartItem).where(AIOrderingCartItem.user_id == user_id)
@@ -370,7 +385,7 @@ class AIOrderingService:
         return []
 
     async def _add_product_to_cart_by_name(
-        self, db: AsyncSession, user_id: int, product_name_query: str
+        self, db: AsyncSession, cache: IAsyncCacheClient, user_id: int, product_name_query: str
     ) -> List[dict]:
         products, entities = await ai_commerce_engine.find_products_from_message(
             db, product_name_query
@@ -387,7 +402,7 @@ class AIOrderingService:
             ]
 
         if len(products) > 1:
-            self.conversation_state["stage"] = "AWAITING_CLARIFICATION"
+            await self._set_conversation_state(cache, user_id, {"stage": "AWAITING_CLARIFICATION"})
             product_list = [self._format_product_for_frontend(p) for p in products]
             ai_note = f"Found {len(products)} items. For example, '{products[0].name}' matches your request."
             return [
@@ -426,18 +441,32 @@ class AIOrderingService:
         return responses
 
     async def handle_message(
-        self, db: AsyncSession, message: str, user: models.User
+        self,
+        db: AsyncSession,
+        cache: IAsyncCacheClient,
+        message: str,
+        user: models.User,
+        orchestrator: PaymentOrchestrator,
     ) -> list[dict]:
-        current_stage = self.conversation_state.get("stage")
+        
+        user_id = user.id
+        user_email = user.email
+        user_country = user.country or "US"
+        user_phone = user.phone_number or ""
+        user_address = user.address
+        user_city = user.city
+
+        conversation_state = await self._get_conversation_state(cache, user_id)
+        current_stage = conversation_state.get("stage")
 
         if current_stage == "AWAITING_CLARIFICATION":
             parsed_data = self._parse_intent(message)
             if parsed_data["intent"] == "ADD_TO_CART":
-                self.conversation_state["stage"] = "IDLE"
+                await self._set_conversation_state(cache, user_id, {"stage": "IDLE"})
                 return await self._add_product_to_cart_by_name(
-                    db, user.id, parsed_data["product_name"]
+                    db, cache, user_id, parsed_data["product_name"]
                 )
-            self.conversation_state["stage"] = "IDLE"
+            await self._set_conversation_state(cache, user_id, {"stage": "IDLE"})
         elif current_stage == "AWAITING_CONFIRMATION":
             parsed_data = self._parse_intent(message)
         else:
@@ -446,31 +475,31 @@ class AIOrderingService:
         intent = parsed_data.get("intent")
 
         if intent == "INTERNAL_GET_INITIAL_SUGGESTIONS":
-            await self._clear_state_and_cart(db, user.id)
+            await self._clear_state_and_cart(db, cache, user_id)
             return await self._get_initial_suggestions(db)
 
         if intent == "INTERNAL_ADD_BY_ID":
             return await self._add_product_by_id_silent(
-                db, user.id, parsed_data["product_id"], quantity_to_add=1
+                db, user_id, parsed_data["product_id"], quantity_to_add=1
             )
 
         if intent == "INTERNAL_REMOVE_BY_ID":
             return await self._remove_product_by_id_silent(
-                db, user.id, parsed_data["product_id"]
+                db, user_id, parsed_data["product_id"]
             )
 
         if intent == "INTERNAL_GET_SUGGESTIONS":
             return await self._get_suggestions_for_product(
-                db, parsed_data["product_id"], user.id
+                db, parsed_data["product_id"], user_id
             )
 
         if intent == "ADD_TO_CART":
             product_name_query = parsed_data["product_name"]
-            return await self._add_product_to_cart_by_name(db, user.id, product_name_query)
+            return await self._add_product_to_cart_by_name(db, cache, user_id, product_name_query)
 
         if intent == "REMOVE_FROM_CART":
             product_name_to_remove = parsed_data["product_name"]
-            cart = await self._get_user_cart(db, user.id)
+            cart = await self._get_user_cart(db, user_id)
 
             item_to_remove_from_cart = next(
                 (
@@ -492,7 +521,7 @@ class AIOrderingService:
             item_db = (
                 await db.exec(
                     select(AIOrderingCartItem).where(
-                        AIOrderingCartItem.user_id == user.id,
+                        AIOrderingCartItem.user_id == user_id,
                         AIOrderingCartItem.product_id
                         == item_to_remove_from_cart["product_id"],
                     )
@@ -503,8 +532,8 @@ class AIOrderingService:
                 await db.delete(item_db)
                 await db.commit()
 
-            cart = await self._get_user_cart(db, user.id)
-            self.conversation_state["stage"] = "AWAITING_CONFIRMATION"
+            cart = await self._get_user_cart(db, user_id)
+            await self._set_conversation_state(cache, user_id, {"stage": "AWAITING_CONFIRMATION"})
             return [
                 {
                     "contentType": "text",
@@ -519,25 +548,24 @@ class AIOrderingService:
             ]
 
         if intent == "CONFIRM_ORDER":
-            cart = await self._get_user_cart(db, user.id)
+            cart = await self._get_user_cart(db, user_id)
             if not cart["items"]:
                 return [{"contentType": "text", "content": "Your cart is empty."}]
 
             total = cart["total"]
 
-            delivery_addr = user.address or f"Default Address for {user.email}"
-            if user.city and user.country:
-                delivery_addr = f"{user.address}, {user.city}, {user.country}"
+            delivery_addr = user_address or f"Default Address for {user_email}"
+            if user_city and user_country:
+                delivery_addr = f"{user_address}, {user_city}, {user_country}"
 
             new_order = Order(
-                user_id=user.id,
+                user_id=user_id,
                 status=OrderStatus.PENDING,
                 total_price=total,
                 delivery_address=delivery_addr,
             )
             db.add(new_order)
-            
-            # --- (هنا التعديل) ---
+
             order_items_to_create = []
             for item in cart["items"]:
                 order_items_to_create.append(
@@ -545,30 +573,30 @@ class AIOrderingService:
                         product_id=item["product_id"],
                         quantity=item["quantity"],
                         price_per_unit=item["price"],
-                        order=new_order 
+                        order=new_order
                     )
                 )
-            
+
             db.add_all(order_items_to_create)
             await db.commit()
 
-            # (!!! الإضافة الجديدة أهيه !!!)
-            # 3. اعمل Refresh لكل الأوبجكتس اللي هتحتاجها
-            await db.refresh(new_order) 
-            await db.refresh(user) 
-            # --- (نهاية التعديل) ---
+            await db.refresh(new_order)
 
             payment_metadata = {
-                "order_id": str(new_order.id), 
-                "user_id": str(user.id),       
-                "user_email": user.email,     
+                "order_id": str(new_order.id),
+                "user_id": str(user_id),
+                "user_email": user_email,
+                "phone_number": user_phone,
             }
 
-            payment_info = payment_orchestrator.process_payment(
-                amount=total, currency="usd", region="US", metadata=payment_metadata
+            payment_info = await orchestrator.process_payment(
+                amount=total,
+                currency="usd",
+                region=user_country,
+                metadata=payment_metadata
             )
 
-            if "error" in payment_info or not payment_info.get("clientSecret"):
+            if "error" in payment_info or not (payment_info.get("clientSecret") or payment_info.get("approval_url") or payment_info.get("checkoutRequestId")):
                 new_order.status = OrderStatus.FAILED
                 db.add(new_order)
                 await db.commit()
@@ -587,13 +615,16 @@ class AIOrderingService:
                         "clientSecret": payment_info.get("clientSecret"),
                         "orderId": new_order.id,
                         "total": total,
+                        "provider": payment_info.get("provider"),
+                        "approval_url": payment_info.get("approval_url"),
+                        "checkoutRequestId": payment_info.get("checkoutRequestId"),
                     },
                 },
             ]
 
         if intent == "CLEAR_CART":
-            await self._clear_state_and_cart(db, user.id)
-            empty_cart = await self._get_user_cart(db, user.id)
+            await self._clear_state_and_cart(db, cache, user_id)
+            empty_cart = await self._get_user_cart(db, user_id)
             return [
                 {"contentType": "text", "content": "No problem, your cart has been cleared."},
                 {"contentType": "cart_preview", "content": empty_cart},
@@ -609,12 +640,8 @@ class AIOrderingService:
     async def cancel_order_by_id(
         self, db: AsyncSession, order_id: int, user_id: int
     ) -> Order | None:
-        """
-        Cancels a PENDING order.
-        """
         order = await db.get(Order, order_id)
         if not order or order.user_id != user_id:
-            
             return None
 
         if order.status != OrderStatus.PENDING:

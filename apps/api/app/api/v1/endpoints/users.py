@@ -14,7 +14,7 @@ from app.api import deps
 from app.crud import crud_user
 from app.db.session import get_session
 from app.core import security
-from app.core.config import settings
+from app.core.config import StripeSettings, get_stripe_settings
 
 router = APIRouter()
 
@@ -22,9 +22,6 @@ router = APIRouter()
 class DefaultPaymentMethod(BaseModel):
     brand: str | None = None
     last4: str | None = None
-
-
-stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -104,7 +101,6 @@ async def upload_user_avatar(
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
-        print(f"Error saving file: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not save avatar file.",
@@ -137,7 +133,6 @@ async def delete_account(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="User ID not found"
         )
-    # Assuming crud_user.user.remove is now async
     success = await crud_user.user.remove(db=session, id=current_user.id)
     if not success:
         raise HTTPException(
@@ -171,7 +166,9 @@ async def update_user_me(
 def get_default_payment_method(
     *,
     current_user: models.User = Depends(deps.get_current_active_user),
+    stripe_settings: StripeSettings = Depends(get_stripe_settings),
 ):
+    stripe.api_key = stripe_settings.STRIPE_SECRET_KEY
     stripe_customer_id = getattr(current_user, "stripe_customer_id", None)
 
     if not stripe_customer_id:
@@ -203,17 +200,11 @@ def get_default_payment_method(
         return DefaultPaymentMethod()
 
     except stripe.error.StripeError as e:
-        print(
-            f"Stripe Error fetching default payment method for user {current_user.id}: {e}"
-        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Could not retrieve payment information from the payment provider.",
         )
     except Exception as e:
-        print(
-            f"Unexpected error fetching default payment method for user {current_user.id}: {e}"
-        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal error occurred while fetching payment information.",

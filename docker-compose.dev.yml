@@ -6,20 +6,20 @@ services:
       - ./apps/web:/app
       - /app/node_modules 
       - /app/.next
-    entrypoint: ""
-    command: ["pnpm", "run", "dev"]
 
     environment:
-      - NEXTAUTH_URL=http://localhost:3000
-      - NEXTAUTH_SECRET=a_super_secret_for_nextauth
-      - NODE_ENV=development
       - WATCHPACK_POLLING=true
+      - NODE_ENV=development
 
   api:
     volumes:
       - ./apps/api:/app
-
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
     environment:
       - APP_ENV=development
+      - LOG_LEVEL=debug 
+
+  c2_gateway:
+    volumes:
+      - ./apps/c2-gateway:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
