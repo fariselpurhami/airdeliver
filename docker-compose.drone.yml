@@ -5,6 +5,7 @@ services:
     container_name: airdeliver-px4-sitl
     image: px4io/px4-dev-simulation-focal:latest
     command: >
+
       /bin/bash -c "
       set -e;
       apt-get update;
@@ -14,6 +15,7 @@ services:
         rm -rf /root/PX4-Autopilot/*;
         rm -rf /root/PX4-Autopilot/.[!.]*;
         git clone https://github.com/PX4/PX4-Autopilot.git --recursive --depth 1 --branch v1.14.0 /root/PX4-Autopilot;
+
       fi;
       cd /root/PX4-Autopilot;
       git submodule sync --recursive;
@@ -21,8 +23,13 @@ services:
       if [ -d 'build' ]; then
         make distclean;
       fi;
+
+      export MAVLINK_UDP_HOST=companion;
+      export MAVLINK_UDP_PORT=14540;
+
       HEADLESS=1 make px4_sitl gazebo_iris
       "
+
     ports:
       - "14540:14540/udp"
       - "14550:14550/udp"
@@ -36,6 +43,11 @@ services:
       - PX4_HOME_ALT=100
     volumes:
       - px4-source-data:/root/PX4-Autopilot
+    deploy:
+      resources:
+        limits:
+          memory: 8192m
+
     healthcheck:
       test: ["CMD-SHELL", "netstat -upln | grep 14540 || exit 1"]
       interval: 10s
@@ -58,6 +70,7 @@ services:
       - WEBSOCKET_URI=ws://c2_gateway:8001/drones/SIM-001
       - MAVLINK_CONNECTION=udp:px4-sitl:14540
       - AUTH_TOKEN=${DRONE_AUTH_TOKEN}
+
     networks:
       - airdeliver-net
     depends_on:
