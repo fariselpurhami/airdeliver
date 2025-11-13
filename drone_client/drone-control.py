@@ -143,23 +143,34 @@ class DroneCompanion:
     async def _connect_to_pixhawk(self):
         await self._update_state(DroneState.CONNECTING_PIXHAWK)
         log.info(f"[{self.drone_id}] Connecting to Pixhawk: {self.mavlink_conn}")
-        await self.mavsdk_drone.connect(system_address=self.mavlink_conn)
 
-        try:
-            await asyncio.wait_for(self._wait_for_pixhawk_connection(), timeout=30.0)
-            log.info(f"[{self.drone_id}] Pixhawk connected!")
-            await self._update_state(DroneState.GETTING_JWT) 
-            return True
-        except asyncio.TimeoutError:
-            log.error(f"[{self.drone_id}] Timeout waiting for Pixhawk connection.")
-            await self._update_state(DroneState.DISCONNECTED_PIXHAWK, "Connection Timeout")
-            return False
+        # Final Fix: Add a robust retry loop for connection resilience
+        MAX_ATTEMPTS = 10
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                await self.mavsdk_drone.connect(system_address=self.mavlink_conn)
 
-        except Exception as e:
-            reason = f"Unhandled MavSDK connection error: {e}"
-            log.error(f"[{self.drone_id}] {reason}")
-            await self._update_state(DroneState.DISCONNECTED_PIXHAWK, reason)
-            return False
+                # Wait for system to confirm connection (up to 30s)
+                await asyncio.wait_for(self._wait_for_pixhawk_connection(), timeout=30.0)
+
+                log.info(f"[{self.drone_id}] Pixhawk connected! (Attempt {attempt + 1}/{MAX_ATTEMPTS})")
+                await self._update_state(DroneState.GETTING_JWT)
+                return True
+
+            except asyncio.TimeoutError:
+                log.warning(f"[{self.drone_id}] Attempt {attempt + 1}/{MAX_ATTEMPTS} timed out.")
+                # We catch timeout here, but let the loop continue
+            except Exception as e:
+                # Catch hard connection errors (e.g., port not open, invalid address)
+                log.warning(f"[{self.drone_id}] Connect attempt {attempt + 1} failed: {e}")
+                # We sleep briefly between attempts to allow the port to open
+            
+            await asyncio.sleep(RECONNECT_DELAY_S)
+
+        # If the loop finishes without success after all attempts
+        log.error(f"[{self.drone_id}] Permanent connection failure after {MAX_ATTEMPTS} attempts.")
+        await self._update_state(DroneState.DISCONNECTED_PIXHAWK, "Permanent Connect Failure")
+        return False
 
     async def _wait_for_pixhawk_connection(self):
          async for state in self.mavsdk_drone.core.connection_state():
