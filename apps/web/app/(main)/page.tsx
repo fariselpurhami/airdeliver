@@ -64,26 +64,16 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.8 }}
-          className="text-6xl md:text-7xl lg:text-8xl font-black uppercase"
+          className="w-full max-w-[90vw] mx-auto font-black uppercase leading-none" 
           style={{ fontFamily: "'Orbitron', sans-serif" }}
         >
-          <motion.span
-            className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
-            animate={{
-              filter: [
-                'drop-shadow(0 0 16px rgba(0, 198, 255, 0.7)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.7))',
-                'drop-shadow(0 0 24px rgba(0, 198, 255, 1)) drop-shadow(0 0 24px rgba(168, 85, 247, 1))',
-                'drop-shadow(0 0 16px rgba(0, 198, 255, 0.7)) drop-shadow(0 0 16px rgba(168, 85, 247, 0.7))'
-              ]
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          >
-            COMMERCE. TAKES FLIGHT.
-          </motion.span>
+          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] lg:text-[8vw] leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-cyan-300 via-blue-500 to-blue-600 drop-shadow-[0_0_25px_rgba(0,198,255,0.5)]">
+            COMMERCE.
+          </span>
+          
+          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] lg:text-[8vw] leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-blue-600 via-purple-500 to-purple-400 drop-shadow-[0_0_25px_rgba(168,85,247,0.5)]">
+            TAKES FLIGHT.
+          </span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
