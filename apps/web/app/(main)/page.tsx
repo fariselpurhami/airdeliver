@@ -765,7 +765,7 @@ export default function Page() {
 
   return (
     <div className="min-h-screen w-full text-gray-100 overflow-x-hidden bg-black" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-      <main className="relative z-10">
+      <main className="relative z-10 w-full">
         <DynamicHeroSection onOrderClick={() => setOverlayVisible(true)} onExploreClick={showProductOverlay} />
         <HowItWorksSection />
         <DynamicGlobalScaleSection />
