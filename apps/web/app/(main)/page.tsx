@@ -1,3 +1,5 @@
+//** apps/web/app/(main)/page.tsx **//
+
 'use client';
 
 import { ShieldCheck, Lock, Clock } from 'lucide-react';
@@ -65,7 +67,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.8 }}
           className="w-full max-w-[90vw] mx-auto font-black uppercase leading-none" 
-          style={{ fontFamily: "'Orbitron', sans-serif" }}
+          style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
         >
           <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] lg:text-[8vw] leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-cyan-300 via-blue-500 to-blue-600 drop-shadow-[0_0_25px_rgba(0,198,255,0.5)]">
             COMMERCE.
