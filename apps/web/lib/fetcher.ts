@@ -1,50 +1,12 @@
-// file: apps/web/lib/fetcher.ts
-import { getSession } from 'next-auth/react';
+//** apps/web/lib/fetcher.ts **//
 
-// This is the correct, standardized base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+import { api } from './api';
 
-export const fetcher = async (url: string) => {
-    const session = await getSession();
-    // @ts-ignore
-    const token = session?.accessToken;
-
-    if (!token && !url.includes('/public/')) {
-        // Allow public URLs to be fetched without a token
-        // throw new Error('Not authenticated');
-    }
-
-    const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-    };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    // This logic correctly constructs the full URL
-    const fullUrl = `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
-
-    const res = await fetch(fullUrl, { headers }); // Use fullUrl
-
-    if (!res.ok) {
-        let errorData;
-        try {
-            errorData = await res.json();
-        } catch (e) {
-            errorData = { detail: res.statusText };
-        }
-        const error = new Error(errorData.detail || 'An error occurred while fetching the data.');
-        
-        // @ts-ignore
-        error.info = errorData;
-        // @ts-ignore
-        error.status = res.status;
-        throw error;
-    }
-
-    if (res.status === 204) {
-        return null;
-    }
-
-    return res.json();
+export const fetcher = async <T = any>(url: string): Promise<T> => {
+  try {
+    const res = await api.get<T>(url);
+    return res.data;
+  } catch (error: any) {
+    throw new Error(error.info?.detail || error.message || 'An error occurred while fetching the data.');
+  }
 };

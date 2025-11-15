@@ -1,4 +1,4 @@
-// apps/web/app/(main)/profile/page.tsx
+//** apps/web/app/(main)/profile/page.tsx **//
 
 'use client';
 
@@ -7,9 +7,10 @@ import { useSession, signOut } from "next-auth/react";
 import { motion, useMotionValue, useSpring, useInView, AnimatePresence } from "framer-motion";
 import Image from 'next/image';
 import useSWR, { mutate } from 'swr';
-import { api } from '@/lib/api'; 
+import { api } from '@/lib/api';
+import { fetcher } from '@/lib/fetcher';
 import { redirect } from 'next/navigation';
-import { toast } from 'sonner'; 
+import { toast } from 'sonner';
 import {
     User, Mail, MapPin, Phone, Clock, Loader2, LogOut, AlertCircle,
     CreditCard, Package, ShieldCheck, Edit3, KeyRound, Settings, Camera, ChevronRight
@@ -27,7 +28,7 @@ interface UserProfileData {
     phone_number?: string | null; address?: string | null; avatar_url?: string | null;
     country?: string | null; city?: string | null; created_at?: string | null;
     orders_completed?: number; items_favorited?: number;
-    stripe_customer_id?: string | null; 
+    stripe_customer_id?: string | null;
 }
 
 interface OrderRead {
@@ -54,9 +55,6 @@ interface DefaultPaymentData {
     last4: string | null;
 }
 
-// ============================================================================
-// --- 1. (New) Profile Background Component ---
-// ============================================================================
 const ProfileBackground = () => {
     const light1Ref = useRef<THREE.PointLight>(null!);
     const light2Ref = useRef<THREE.PointLight>(null!);
@@ -86,32 +84,28 @@ const ProfileBackground = () => {
     );
 };
 
-const DynamicProfileBackground = dynamic(() => Promise.resolve(ProfileBackground), { 
+const DynamicProfileBackground = dynamic(() => Promise.resolve(ProfileBackground), {
     ssr: false,
     loading: () => null
 });
 
-// ============================================================================
-// --- 2. (Main Page Component) ---
-// ============================================================================
 export default function ProfilePage() {
     const { data: session, status: sessionStatus, update: updateSession } = useSession();
+
     const profileApiUrl = '/users/me';
     const ordersApiUrl = '/orders/me?page=1&limit=3';
-    const paymentApiUrl = '/users/me/default-payment-method'; 
-    const swrFetcher = (url: string) => api.get(url).then(res => res.data);
+    const paymentApiUrl = '/users/me/default-payment-method';
 
-  
     const { data: userData, error: userError, isLoading: isLoadingUser, mutate: mutateProfile } = useSWR<UserProfileData>(
-        sessionStatus === 'authenticated' ? profileApiUrl : null, swrFetcher, { revalidateOnFocus: false }
+        sessionStatus === 'authenticated' ? profileApiUrl : null, fetcher, { revalidateOnFocus: false }
     );
-    
+
     const { data: ordersData, error: ordersError, isLoading: isLoadingOrders } = useSWR<PaginatedOrdersResponse>(
-        sessionStatus === 'authenticated' ? ordersApiUrl : null, swrFetcher, { revalidateOnFocus: false }
+        sessionStatus === 'authenticated' ? ordersApiUrl : null, fetcher, { revalidateOnFocus: false }
     );
-   
+
     const { data: paymentData, error: paymentError, isLoading: isLoadingPayment } = useSWR<DefaultPaymentData>(
-        sessionStatus === 'authenticated' ? paymentApiUrl : null, swrFetcher, { revalidateOnFocus: false }
+        sessionStatus === 'authenticated' ? paymentApiUrl : null, fetcher, { revalidateOnFocus: false }
     );
 
     const [isClient, setIsClient] = useState(false);
@@ -138,21 +132,14 @@ export default function ProfilePage() {
 
     const recentOrders = useMemo(() => {
         if (!ordersData?.orders) return [];
-
         const now = new Date();
-
         const twentyFourHoursAgo = now.getTime() - (24 * 60 * 60 * 1000);
-
         return ordersData.orders.filter(order => {
             const orderStatus = order.status.toLowerCase();
-
             if (orderStatus === 'pending') {
-
                 const orderTime = new Date(order.created_at).getTime();
-
                 return orderTime > twentyFourHoursAgo;
             }
-
             return true;
         });
     }, [ordersData]);
@@ -166,10 +153,6 @@ export default function ProfilePage() {
     const handleCloseOrdersModal = () => setIsOrdersModalOpen(false);
 
     const handleProfileDetailsSave = async (updatedData: Partial<UserProfileData>) => {
-        if (!session?.accessToken) {
-            toast.error("Authentication error. Please log in again.");
-            return;
-        }
         toast.promise(
             (async () => {
                 const response = await api.put<UserProfileData>(profileApiUrl, updatedData);
@@ -184,19 +167,15 @@ export default function ProfilePage() {
             {
                 loading: 'Saving profile details...',
                 success: 'Profile updated successfully!',
-                error: (err: any) => `Save failed: ${err.response?.data?.detail || err.message || 'Unknown error'}`,
+                error: (err: any) => `Save failed: ${err.info?.detail || err.message || 'Unknown error'}`,
             }
         );
     };
 
     const handlePasswordSave = async (currentPassword: string, newPassword: string) => {
-        if (!session?.accessToken) {
-            toast.error("Authentication error. Please log in again.");
-            return;
-        }
         toast.promise(
              (async () => {
-                await api.post('/users/me/change-password', { 
+                await api.post('/users/me/change-password', {
                      current_password: currentPassword,
                      new_password: newPassword
                  });
@@ -205,22 +184,20 @@ export default function ProfilePage() {
             {
                 loading: 'Changing password...',
                 success: 'Password changed successfully!',
-                error: (err: any) => `Failed: ${err.response?.data?.detail || err.message || 'Unknown error'}`,
+                error: (err: any) => `Failed: ${err.info?.detail || err.message || 'Unknown error'}`,
             }
         );
     };
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (!file || !session?.accessToken) {
-            if (!session?.accessToken) toast.error("Authentication error.");
-             return;
-        }
+        if (!file) return;
+
         const formData = new FormData();
         formData.append('file', file);
         toast.promise(
             (async () => {
-                 const response = await api.post<UserProfileData>('/users/me/avatar', formData, { 
+                 const response = await api.post<UserProfileData>('/users/me/avatar', formData, {
                      headers: { 'Content-Type': 'multipart/form-data' }
                  });
                  const updatedUser = response.data;
@@ -233,7 +210,7 @@ export default function ProfilePage() {
             {
                 loading: 'Uploading avatar...',
                 success: 'Avatar updated successfully!',
-                error: (err: any) => `Upload failed: ${err.response?.data?.detail || err.message || 'Unknown error'}`,
+                error: (err: any) => `Upload failed: ${err.info?.detail || err.message || 'Unknown error'}`,
                 finally: () => { if (fileInputRef.current) fileInputRef.current.value = ''; }
             }
         );
@@ -245,7 +222,7 @@ export default function ProfilePage() {
     };
 
     const isLoading = !isClient || sessionStatus === 'loading' ||
-                      (sessionStatus === 'authenticated' && (isLoadingUser || isLoadingPayment)); 
+                      (sessionStatus === 'authenticated' && (isLoadingUser || isLoadingPayment));
 
     if (isLoading) return <LoadingSpinner />;
     if (isClient && sessionStatus === 'unauthenticated') redirect('/login');
@@ -256,14 +233,13 @@ export default function ProfilePage() {
                  <AlertCircle className="h-10 w-10 text-red-500 mb-3"/>
                 <h2 className="text-xl font-bold text-red-500 mb-2">Error Loading Profile</h2>
                 <p className='text-red-400 text-sm bg-red-900/50 p-3 rounded-md border border-red-800'>
-                  
                     {(userError as any)?.message || 'Could not fetch profile data.'}
                 </p>
             </div>
         );
     }
 
-    const profileData = userData!; 
+    const profileData = userData!;
     const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'A')}&background=0a0f28&color=06b6d4&bold=true&size=128`;
     if (profileData?.avatar_url) {
       console.log("Attempting to load image:", userImage);
@@ -284,7 +260,7 @@ export default function ProfilePage() {
                 className="relative min-h-screen w-full bg-black text-gray-200 py-24 md:py-32 px-4 overflow-hidden"
                 style={{ fontFamily: "'Inter', sans-serif" }}
             >
-                
+
                 <div className="fixed inset-0 z-0 opacity-70">
                     <Canvas>
                         <Suspense fallback={null}>
@@ -295,12 +271,12 @@ export default function ProfilePage() {
 
                 <motion.div variants={containerVariants} initial="hidden" animate="visible" className="relative z-10 w-full max-w-4xl mx-auto space-y-12">
 
-                    
+
                     <motion.div variants={{ hidden: { opacity: 0, y: -20 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="flex flex-col items-center text-center">
                         <div className="relative group mb-5">
-                            <motion.div 
+                            <motion.div
                                 className="absolute -inset-1.5 rounded-full bg-cyan-400 blur-xl"
-                                animate={{ 
+                                animate={{
                                     opacity: [0.6, 1, 0.6],
                                     scale: [1, 1.05, 1]
                                 }}
@@ -311,7 +287,7 @@ export default function ProfilePage() {
                                     src={userImage} alt={profileData?.full_name || 'User Avatar'}
                                     width={128} height={128} className="rounded-full border-2 border-black/50"
                                     unoptimized={true}
-                                    onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'E')}&background=ff0000&color=ffffff&bold=true&size=128`; }} 
+                                    onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'E')}&background=ff0000&color=ffffff&bold=true&size=128`; }}
                                 />
                             </div>
                              <button className="absolute inset-0 flex items-center justify-center bg-black/70 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20" onClick={handleAvatarUpload}>
@@ -330,7 +306,7 @@ export default function ProfilePage() {
                         )}
                     </motion.div>
 
-                
+
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-xl shadow-cyan-500/10 p-6 md:p-8">
                         <h2 className="text-xl font-semibold text-cyan-400 mb-6 pb-4 border-b border-white/10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             Account Information
@@ -346,7 +322,7 @@ export default function ProfilePage() {
                         </motion.div>
                     </motion.div>
 
-           
+
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-xl shadow-cyan-500/10 p-6 md:p-8">
                          <h2 className="text-xl font-semibold text-cyan-400 mb-6 pb-4 border-b border-white/10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             Settings
@@ -357,7 +333,7 @@ export default function ProfilePage() {
                          </motion.div>
                     </motion.div>
 
-               
+
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-xl shadow-cyan-500/10 p-6 md:p-8">
                         <div className="mb-5 flex justify-between items-center">
                             <h2 className="text-xl font-semibold text-cyan-400 inline-block" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -383,12 +359,12 @@ export default function ProfilePage() {
 
                     <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.4, ease: 'easeOut' }}>
                         <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                           
+
                             <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl p-6 flex items-start gap-4">
                                 <CreditCard size={20} className="text-cyan-400/80 mt-1 flex-shrink-0" />
                                 <div>
                                     <h3 className="text-base font-semibold text-white mb-1">Default Payment</h3>
-                       
+
                                     {isLoadingPayment ? (
                                         <p className="text-sm text-gray-500 italic">Loading...</p>
                                     ) : paymentError ? (
@@ -400,7 +376,7 @@ export default function ProfilePage() {
                                     ) : (
                                          <p className="text-sm text-gray-500 italic">No default method set</p>
                                     )}
-                                
+
                                 </div>
                             </motion.div>
                             <motion.div variants={{ hidden: { opacity: 0, x: 20 }, visible: { opacity: 1, x: 0 } }} className="bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl p-6 flex items-start gap-4">
@@ -510,14 +486,14 @@ const OrderCard = ({ order }: { order: OrderRead }) => {
             whileHover={{ y: -6, transition: { duration: 0.2, ease: 'easeOut' } }}
             className="w-64 flex-shrink-0 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/10"
         >
-            
+
              <div className="relative w-full h-36">
                 <Image
                     src={productImageUrl} alt={productName} fill
                     className="object-contain"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
-                    unoptimized={productImageUrl.startsWith('https://placehold.co')} 
-                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/256x144/000000/FFF?text=Error'; }} 
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    unoptimized={productImageUrl.startsWith('https://placehold.co')}
+                    onError={(e) => { e.currentTarget.src = 'https://placehold.co/256x144/000000/FFF?text=Error'; }}
                 />
              </div>
             <div className="p-4 space-y-2">

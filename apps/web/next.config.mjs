@@ -7,11 +7,27 @@ import withPWAInit from 'next-pwa';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+const API_BASE_URL = process.env.BACKEND_API_URL || 'http://api:8000';
+
 const nextConfig = {
   output: 'standalone',
 
   experimental: {
     outputFileTracingRoot: path.join(__dirname, '../../'),
+  },
+
+  async rewrites() {
+    if (isDevelopment) {
+      return [
+        {
+          source: '/api/v1/:path*',
+          destination: `${API_BASE_URL}/api/v1/:path*`,
+        },
+      ];
+    }
+    return [];
   },
 
   reactStrictMode: true,
@@ -20,6 +36,12 @@ const nextConfig = {
       {
         protocol: 'http',
         hostname: 'localhost',
+        port: '8000',
+        pathname: '/static/avatars/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'api',
         port: '8000',
         pathname: '/static/avatars/**',
       },
@@ -34,8 +56,7 @@ const nextConfig = {
         pathname: '/api/**',
       },
       {
-        protocol: 'https'
-        ,
+        protocol: 'https',
         hostname: 'placehold.co',
         pathname: '/**',
       },
@@ -45,7 +66,7 @@ const nextConfig = {
 
 const withPWA = withPWAInit({
   dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
+  disable: isDevelopment,
   register: true,
   skipWaiting: true,
 });

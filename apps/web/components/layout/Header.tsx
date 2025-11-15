@@ -1,3 +1,4 @@
+//** apps/web/components/layout/Header.tsx  **//
 
 'use client';
 
@@ -72,7 +73,7 @@ export default function Header() {
     return (
         <>
             <motion.header
-                className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl border-cyan-400/30 shadow-lg shadow-cyan-500/20"
+                className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-md bg-transparent border-cyan-400/30 shadow-lg shadow-cyan-500/20"
             >
                 
                 <div 
@@ -145,7 +146,7 @@ export default function Header() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg md:hidden"
+                        className="fixed inset-0 z-50 bg-transparent backdrop-blur-lg md:hidden"
                     >
                         <motion.div
                             initial={{ y: "-100%" }}
