@@ -1,3 +1,5 @@
+# apps/api/app/models/product.py
+
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship, JSON, Column
@@ -15,7 +17,7 @@ class Product(SQLModel, table=True):
     price: float
     inventory: int
     image_url: Optional[str] = None
-    
+
     category: str = Field(default="uncategorized", index=True)
     tags: Optional[list[str]] = Field(default=None, sa_column=Column(JSON))
 

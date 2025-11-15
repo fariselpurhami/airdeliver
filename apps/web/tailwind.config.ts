@@ -1,7 +1,10 @@
+//** apps/web/tailwind.config.ts **//  
+
 import type { Config } from "tailwindcss";
+const { fontFamily } = require("tailwindcss/defaultTheme");
 
 const config: Config = {
-  darkMode: ["class", "class"],
+  darkMode: "class",
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,14 +13,9 @@ const config: Config = {
   theme: {
   	extend: {
   		fontFamily: {
-  			sans: [
-  				'Neue Montreal',
-  				'sans-serif'
-  			],
-  			orbitron: [
-  				'Orbitron',
-  				'sans-serif'
-  			]
+  			sans: ["var(--font-inter)", ...fontFamily.sans],
+  			orbitron: ["var(--font-orbitron)", ...fontFamily.sans],
+        montserrat: ["var(--font-montserrat)", ...fontFamily.sans],
   		},
   		colors: {
   			'ultra-black': '#000000',
@@ -58,7 +56,7 @@ const config: Config = {
   				'1': 'hsl(var(--chart-1))',
   				'2': 'hsl(var(--chart-2))',
   				'3': 'hsl(var(--chart-3))',
-  				'4': 'hsl(var(--chart-4))',
+  				'4CSS': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			}
   		},
@@ -102,4 +100,3 @@ const config: Config = {
 };
 
 export default config;
-

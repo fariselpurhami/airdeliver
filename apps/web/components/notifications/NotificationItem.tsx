@@ -1,54 +1,76 @@
+//** components/notifications/NotificationItem.tsx **//
+
 'use client';
 
 import { motion } from 'framer-motion';
-import { 
-    Package, // Order
-    Shield, // Security
-    Banknote, // Payment
-    BrainCircuit, // AI/System
-    Check, 
-    X, 
-    Clock 
+import {
+    Package,
+    Shield,
+    Banknote,
+    BrainCircuit,
+    Check,
+    X,
+    Clock
 } from 'lucide-react';
+import { Notification } from '@/types';
+import React from 'react';
 
-const typeConfig = {
-    order: { icon: Package, color: 'text-cyan-400' },
+type NotificationType = Notification['type'];
+
+const typeConfig: Record<NotificationType | 'default', { icon: React.ElementType; color: string }> = {
+    order_update: { icon: Package, color: 'text-cyan-400' },
     security: { icon: Shield, color: 'text-amber-500' },
     payment: { icon: Banknote, color: 'text-green-400' },
-    system: { icon: BrainCircuit, color: 'text-violet-400' },
+    ai_agent: { icon: BrainCircuit, color: 'text-violet-400' },
     default: { icon: BrainCircuit, color: 'text-gray-500' }
 };
 
-const getIcon = (type: string) => {
+const getIcon = (type: NotificationType) => {
     const config = typeConfig[type] || typeConfig.default;
     const IconComponent = config.icon;
     return <IconComponent className={config.color} size={20} />;
 };
 
-export function NotificationItem({ notification, isSelected, onSelect, onMarkAsRead, onDismiss, index }) {
+interface NotificationItemProps {
+    notification: Notification;
+    isSelected: boolean;
+    onSelect: () => void;
+    onMarkAsRead: (id: number) => void;
+    onDismiss: (id: number) => void;
+    index: number;
+}
+
+export const NotificationItem: React.FC<NotificationItemProps> = ({
+    notification,
+    isSelected,
+    onSelect,
+    onMarkAsRead,
+    onDismiss,
+    index
+}) => {
     const { id, type, title, body, timestamp, read, cta } = notification;
-    
-    const borderColor = read 
-        ? 'border-gray-800' 
+
+    const borderColor = read
+        ? 'border-gray-800'
         : (type === 'security' ? 'border-amber-500' : 'border-cyan-400');
-    
-    const glowClass = !read 
+
+    const glowClass = !read
         ? (type === 'security' ? 'shadow-[0_0_15px_-3px_rgba(245,158,11,0.3)]' : 'shadow-[0_0_15px_-3px_rgba(6,182,212,0.3)]')
         : '';
 
-    const handleActionClick = (e, action) => {
-        e.stopPropagation(); 
+    const handleActionClick = (e: React.MouseEvent, action: (id: number) => void) => {
+        e.stopPropagation();
         action(id);
     };
 
     return (
-       
+
         <motion.div
             layout
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, x: -50, transition: { duration: 0.2 } }}
-            transition={{ delay: index * 0.07, duration: 0.3, ease: "easeOut" }} 
+            transition={{ delay: index * 0.07, duration: 0.3, ease: "easeOut" }}
             onClick={onSelect}
             className={`group relative flex items-start gap-4 p-4 rounded-lg cursor-pointer transition-all duration-300 border-l-2
                 ${read ? 'opacity-70 hover:opacity-100 bg-black/20' : 'bg-white/5'}
@@ -56,13 +78,13 @@ export function NotificationItem({ notification, isSelected, onSelect, onMarkAsR
                 ${borderColor} ${glowClass}
             `}
         >
-            
+
             <div className="flex-shrink-0 mt-1">
                 {getIcon(type)}
             </div>
 
-            
-            <div className="flex-1">
+
+            <div className="flex-1 min-w-0">
                 <h3 className={`font-semibold ${read ? 'text-gray-300' : 'text-white'}`}>
                     {title}
                 </h3>
@@ -70,22 +92,22 @@ export function NotificationItem({ notification, isSelected, onSelect, onMarkAsR
                 <span className="text-xs text-gray-500 mt-2 block">{timestamp}</span>
             </div>
 
-            <div className="flex flex-col items-end gap-2 ml-4">
+            <div className="flex flex-col items-end gap-2 ml-4 flex-shrink-0">
                 {cta && (
-                    <button 
-                        onClick={(e) => e.stopPropagation()} 
+                    <button
+                        onClick={(e) => e.stopPropagation()}
                         className="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap
                                    bg-cyan-400 text-black hover:bg-cyan-300 transition-colors"
                     >
                         {cta}
                     </button>
                 )}
-                
+
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-8">
                     {!read && (
-                        <button 
+                        <button
                             onClick={(e) => handleActionClick(e, onMarkAsRead)}
-                            title="Mark as read" 
+                            title="Mark as read"
                             className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white"
                         >
                             <Check size={16} />
@@ -94,9 +116,9 @@ export function NotificationItem({ notification, isSelected, onSelect, onMarkAsR
                     <button title="Snooze" className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white">
                         <Clock size={16} />
                     </button>
-                    <button 
+                    <button
                         onClick={(e) => handleActionClick(e, onDismiss)}
-                        title="Dismiss" 
+                        title="Dismiss"
                         className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white"
                     >
                         <X size={16} />

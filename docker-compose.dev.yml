@@ -1,25 +1,226 @@
 # docker-compose.dev.yml
 
-services:
-  web:
-    volumes:
-      - ./apps/web:/app
-      - /app/node_modules 
-      - /app/.next
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  redis-data:
+  api-static-data:
+  px4-source-data:
+    driver: local
 
+networks:
+  airdeliver-net:
+    driver: bridge
+    name: airdeliver-net
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: airdeliver-db
+    restart: always
     environment:
-      - WATCHPACK_POLLING=true
-      - NODE_ENV=development
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - airdeliver-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+
+  mq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: airdeliver-mq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq/
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --spider --tries=1 --timeout=10 \"http://${RABBITMQ_USER}:${RABBITMQ_PASS}@127.0.0.1:15672/api/aliveness-test/%2F\""
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+    networks:
+      - airdeliver-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: airdeliver-redis
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - airdeliver-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  api-migrator:
+    container_name: airdeliver-api-migrator
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      - DATABASE_URI=${DATABASE_URL_SYNC}
+      - POSTGRES_SERVER=postgres
+      - REDIS_HOST=redis
+      - RABBITMQ_HOST=mq
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - airdeliver-net
+    restart: 'no'
 
   api:
+    container_name: airdeliver-api
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    env_file: .env
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URI=${DATABASE_URL_ASYNC}
+      - POSTGRES_SERVER=postgres
+      - RABBITMQ_HOST=mq
+      - REDIS_HOST=redis
+      - APP_ENV=development
+      - LOG_LEVEL=debug
     volumes:
       - ./apps/api:/app
+      - api-static-data:/app/static
+    depends_on:
+      api-migrator:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      mq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - airdeliver-net
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    environment:
-      - APP_ENV=development
-      - LOG_LEVEL=debug 
 
   c2_gateway:
+    container_name: airdeliver-c2-gateway
+    build:
+      context: ./apps/c2-gateway
+      dockerfile: Dockerfile
+    env_file: .env
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      - RABBITMQ_HOST=mq
+      - API_BASE_URL=http://api:8000/api/v1
     volumes:
       - ./apps/c2-gateway:/app
+    depends_on:
+      mq:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - airdeliver-net
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+
+  web:
+    container_name: airdeliver-web
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: development
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+    restart: always
+    ports:
+      - "3000:3000"
+
+    entrypoint: []
+
+    command: pnpm dev
+    environment:
+      - NEXTAUTH_URL=http://localhost:3000
+      - NODE_ENV=development
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - airdeliver-net
+
+  px4-sitl:
+    container_name: airdeliver-px4-sitl
+    build:
+      context: ./docker/px4-sitl
+      dockerfile: Dockerfile
+    networks:
+      - airdeliver-net
+    environment:
+      - PX4_SIM_SPEED_FACTOR=1
+      - PX4_HOME_LAT=30.0444
+      - PX4_HOME_LON=31.2357
+      - PX4_HOME_ALT=100
+    volumes:
+      - px4-source-data:/root/PX4-Autopilot
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -upln | grep -q 14580"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: on-failure
+
+  companion:
+    container_name: airdeliver-companion-sim
+    build:
+      context: ./drone_client
+      dockerfile: Dockerfile
+    environment:
+      - DRONE_ID=SIM-001
+      - WEBSOCKET_URI=ws://c2_gateway:8001/drones/SIM-001
+      - MAVLINK_CONNECTION=udp:px4-sitl:14540
+      - AUTH_TOKEN=${DRONE_AUTH_TOKEN}
+    networks:
+      - airdeliver-net
+    depends_on:
+      px4-sitl:
+        condition: service_healthy
+      c2_gateway:
+        condition: service_healthy
+    restart: unless-stopped
+    stdin_open: true
+    tty: true

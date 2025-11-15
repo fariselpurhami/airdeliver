@@ -68,7 +68,6 @@ class StripeGateway(PaymentGateway):
 
     def __init__(self, settings: StripeSettings):
         self.settings = settings
-        stripe.api_key = self.settings.STRIPE_SECRET_KEY
 
     async def create_payment(
         self,
@@ -90,7 +89,10 @@ class StripeGateway(PaymentGateway):
                 "metadata": metadata or {"region": region},
             }
 
-            intent = stripe.PaymentIntent.create(**intent_params)
+            intent = stripe.PaymentIntent.create(
+                **intent_params,
+                api_key=self.settings.STRIPE_SECRET_KEY
+            )
 
             logger.info(f"Stripe PaymentIntent {intent.id} created successfully.")
             return {
@@ -112,7 +114,10 @@ class StripeGateway(PaymentGateway):
 
     async def get_status(self, payment_id: str) -> str:
         try:
-            intent = stripe.PaymentIntent.retrieve(payment_id)
+            intent = stripe.PaymentIntent.retrieve(
+                payment_id,
+                api_key=self.settings.STRIPE_SECRET_KEY
+            )
             return intent.status
         except stripe.error.StripeError as e:
             logger.error(f"Failed to retrieve Stripe status for {payment_id}: {e}")
@@ -408,27 +413,27 @@ class PaymentOrchestrator:
 
 def get_payment_orchestrator(
     cache: IAsyncCacheClient = Depends(get_cache_client),
-    stripe_settings: Optional[StripeSettings] = Depends(get_stripe_settings),
-    paypal_settings: Optional[PayPalSettings] = Depends(get_paypal_settings),
-    mpesa_settings: Optional[MpesaSettings] = Depends(get_mpesa_settings),
+    stripe_settings: StripeSettings = Depends(get_stripe_settings),
+    paypal_settings: PayPalSettings = Depends(get_paypal_settings),
+    mpesa_settings: MpesaSettings = Depends(get_mpesa_settings),
 ) -> PaymentOrchestrator:
 
     stripe_gateway: PaymentGateway
-    if stripe_settings:
+    try:
         stripe_gateway = StripeGateway(settings=stripe_settings)
-    else:
+    except ValidationError:
         stripe_gateway = NoOpGateway(provider_name="Stripe")
 
     paypal_gateway: PaymentGateway
-    if paypal_settings:
+    try:
         paypal_gateway = PayPalGateway(settings=paypal_settings, cache=cache)
-    else:
+    except ValidationError:
         paypal_gateway = NoOpGateway(provider_name="PayPal")
 
     mpesa_gateway: PaymentGateway
-    if mpesa_settings:
+    try:
         mpesa_gateway = MpesaGateway(settings=mpesa_settings, cache=cache)
-    else:
+    except ValidationError:
         mpesa_gateway = NoOpGateway(provider_name="Mpesa")
 
     return PaymentOrchestrator(

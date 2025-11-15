@@ -1,6 +1,7 @@
 # apps/api/app/services/ai_ordering_service.py
 
 import re
+import functools
 from sqlmodel import select, or_
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.product import Product
@@ -12,10 +13,12 @@ from app import models, schemas
 from app.services.ai_commerce_engine import ai_commerce_engine
 from app.services.payment_orchestrator import PaymentOrchestrator
 from app.services.cache_service import IAsyncCacheClient
-from app.core.config import settings
+from app.core.config import get_core_settings
 from sqlalchemy import cast, String, desc, func
 from typing import List, Tuple, Dict, Any
 import random
+
+settings = get_core_settings()
 
 
 class AIOrderingService:
@@ -448,7 +451,7 @@ class AIOrderingService:
         user: models.User,
         orchestrator: PaymentOrchestrator,
     ) -> list[dict]:
-        
+
         user_id = user.id
         user_email = user.email
         user_country = user.country or "US"
@@ -654,4 +657,6 @@ class AIOrderingService:
 
         return order
 
-ai_ordering_service = AIOrderingService()
+@functools.lru_cache()
+def get_ai_ordering_service() -> AIOrderingService:
+    return AIOrderingService()

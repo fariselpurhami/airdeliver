@@ -70,8 +70,6 @@ class CoreSettings(BaseSettings):
         "extra": "ignore",
     }
 
-settings = CoreSettings()
-
 class StripeSettings(BaseSettings):
     STRIPE_SECRET_KEY: str = Field(..., env="STRIPE_SECRET_KEY")
     STRIPE_WEBHOOK_SECRET: str = Field(..., env="STRIPE_WEBHOOK_SECRET")
@@ -93,22 +91,19 @@ class MpesaSettings(BaseSettings):
     model_config = {"case_sensitive": True, "env_file": ".env", "extra": "ignore"}
 
 @functools.lru_cache()
-def get_stripe_settings() -> Optional[StripeSettings]:
-    try:
-        return StripeSettings()
-    except ValidationError:
-        return None
+def get_core_settings() -> CoreSettings:
+    return CoreSettings()
 
 @functools.lru_cache()
-def get_paypal_settings() -> Optional[PayPalSettings]:
-    try:
-        return PayPalSettings()
-    except ValidationError:
-        return None
+def get_stripe_settings() -> StripeSettings:
+    return StripeSettings()
 
 @functools.lru_cache()
-def get_mpesa_settings() -> Optional[MpesaSettings]:
-    try:
-        return MpesaSettings()
-    except ValidationError:
-        return None
+def get_paypal_settings() -> PayPalSettings:
+    return PayPalSettings()
+
+@functools.lru_cache()
+def get_mpesa_settings() -> MpesaSettings:
+    return MpesaSettings()
+
+settings = get_core_settings()

@@ -1,11 +1,11 @@
-# apps/api/app/models/order.py 
+# apps/api/app/models/order.py
 
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
-from datetime import datetime, timezone
+from datetime import datetime
 from .enums import OrderStatus
 
 if TYPE_CHECKING:
@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from .product import Product
     from .audit_trail import AuditTrail
     from .mission import Mission
-
 
 class Order(SQLModel, table=True):
     __tablename__ = "orders"

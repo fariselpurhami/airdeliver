@@ -77,11 +77,6 @@ async def change_user_password(
     return {"msg": "Password updated successfully"}
 
 
-STATIC_DIR = Path("static")
-AVATARS_DIR = STATIC_DIR / "avatars"
-AVATARS_DIR.mkdir(parents=True, exist_ok=True)
-
-
 @router.post("/me/avatar")
 async def upload_user_avatar(
     *,
@@ -90,6 +85,10 @@ async def upload_user_avatar(
     current_user: models.User = Depends(deps.get_current_active_user),
     file: UploadFile = File(...),
 ):
+    STATIC_DIR = Path("static")
+    AVATARS_DIR = STATIC_DIR / "avatars"
+    AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+
     if not file.content_type.startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="File must be an image."
@@ -168,7 +167,6 @@ def get_default_payment_method(
     current_user: models.User = Depends(deps.get_current_active_user),
     stripe_settings: StripeSettings = Depends(get_stripe_settings),
 ):
-    stripe.api_key = stripe_settings.STRIPE_SECRET_KEY
     stripe_customer_id = getattr(current_user, "stripe_customer_id", None)
 
     if not stripe_customer_id:
@@ -176,7 +174,9 @@ def get_default_payment_method(
 
     try:
         customer = stripe.Customer.retrieve(
-            stripe_customer_id, expand=["invoice_settings.default_payment_method"]
+            stripe_customer_id,
+            expand=["invoice_settings.default_payment_method"],
+            api_key=stripe_settings.STRIPE_SECRET_KEY,
         )
 
         default_payment_method = customer.invoice_settings.default_payment_method
@@ -191,7 +191,10 @@ def get_default_payment_method(
             return DefaultPaymentMethod(brand=brand, last4=last4)
 
         elif default_payment_method and isinstance(default_payment_method, str):
-            pm = stripe.PaymentMethod.retrieve(default_payment_method)
+            pm = stripe.PaymentMethod.retrieve(
+                default_payment_method,
+                api_key=stripe_settings.STRIPE_SECRET_KEY,
+            )
             if pm.card:
                 brand = pm.card.brand
                 last4 = pm.card.last4

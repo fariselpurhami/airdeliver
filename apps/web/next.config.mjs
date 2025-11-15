@@ -1,48 +1,53 @@
-// apps/web/next.config.mjs
+//** apps/web/next.config.mjs **//
 
-import withPWA from 'next-pwa';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import withPWAInit from 'next-pwa';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const nextConfig = {
-  reactStrictMode: true,
-  async rewrites() {
-    return [
-      {
-        source: '/api/v1/:path*',
-        destination: 'http://api:8000/api/v1/:path*',
-      },
-    ];
+  output: 'standalone',
+
+  experimental: {
+    outputFileTracingRoot: path.join(__dirname, '../../'),
   },
 
+  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
         protocol: 'http',
         hostname: 'localhost',
-        port: '8000', 
-        pathname: '/static/avatars/**', 
+        port: '8000',
+        pathname: '/static/avatars/**',
       },
-    
+      {
+        protocol: 'https',
+        hostname: 'api.airdeliver.com',
+        pathname: '/static/avatars/**',
+      },
       {
         protocol: 'https',
         hostname: 'ui-avatars.com',
         pathname: '/api/**',
       },
-      
       {
-        protocol: 'https',
+        protocol: 'https'
+        ,
         hostname: 'placehold.co',
-        pathname: '/**', 
+        pathname: '/**',
       },
     ],
   },
+};
 
-}; 
-
-const pwaConfig = withPWA({
+const withPWA = withPWAInit({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
-  register: true, 
+  register: true,
   skipWaiting: true,
 });
 
-export default pwaConfig(nextConfig);
+export default withPWA(nextConfig);

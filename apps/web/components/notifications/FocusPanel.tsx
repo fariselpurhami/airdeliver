@@ -1,10 +1,23 @@
+//** apps/web/components/notifications/FocusPanel.tsx **//
+
 'use client';
 
 import { motion } from 'framer-motion';
 import { X, Shield, Package } from 'lucide-react';
+import { Notification } from '@/types';
+import React from 'react';
 
-export function FocusPanel({ notification, onClose }) {
-    
+interface FocusPanelProps {
+  notification: Notification;
+  onClose: () => void;
+}
+
+export const FocusPanel: React.FC<FocusPanelProps> = ({ notification, onClose }) => {
+
+    if (!notification) {
+        return null;
+    }
+
     return (
         <motion.div
             layout
@@ -16,9 +29,9 @@ export function FocusPanel({ notification, onClose }) {
         >
             <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-2">
-                    {notification.type === 'order' && <Package size={18} className="text-cyan-400" />}
+                    {notification.type === 'order_update' && <Package size={18} className="text-cyan-400" />}
                     {notification.type === 'security' && <Shield size={18} className="text-amber-500" />}
-                    <h2 className="text-lg font-semibold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                    <h2 className="font-orbitron text-lg font-semibold text-white">
                         Details
                     </h2>
                 </div>
@@ -31,8 +44,8 @@ export function FocusPanel({ notification, onClose }) {
                 <h3 className="text-xl font-medium text-white">{notification.title}</h3>
                 <p className="text-gray-300">{notification.body}</p>
                 <span className="text-sm text-gray-500">{notification.timestamp}</span>
-                
-               
+
+
                 {notification.cta && (
                      <button className="w-full px-4 py-3 rounded-lg text-sm font-semibold transition-colors bg-cyan-400 text-black hover:bg-cyan-300">
                         {notification.cta}

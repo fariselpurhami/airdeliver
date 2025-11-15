@@ -3,37 +3,9 @@
 services:
   px4-sitl:
     container_name: airdeliver-px4-sitl
-    image: px4io/px4-dev-simulation-focal:latest
-    command: >
-
-      /bin/bash -c "
-      set -e;
-      apt-get update;
-      apt-get install -y net-tools;
-      pip3 install kconfiglib;
-      if [ ! -f '/root/PX4-Autopilot/Makefile' ]; then
-        rm -rf /root/PX4-Autopilot/*;
-        rm -rf /root/PX4-Autopilot/.[!.]*;
-        git clone https://github.com/PX4/PX4-Autopilot.git --recursive --depth 1 --branch v1.14.0 /root/PX4-Autopilot;
-
-      fi;
-      cd /root/PX4-Autopilot;
-      git submodule sync --recursive;
-      git submodule update --init --recursive --force;
-      if [ -d 'build' ]; then
-        make distclean;
-      fi;
-
-      export MAVLINK_UDP_HOST=companion;
-      export MAVLINK_UDP_PORT=14540;
-
-      HEADLESS=1 make px4_sitl gazebo_iris
-      "
-
-    ports:
-      - "14540:14540/udp"
-      - "14550:14550/udp"
-      - "14556:14556/udp"
+    build:
+      context: ./docker/px4-sitl
+      dockerfile: Dockerfile
     networks:
       - airdeliver-net
     environment:
@@ -47,13 +19,14 @@ services:
       resources:
         limits:
           memory: 8192m
-
+        reservations:
+          memory: 4096m
     healthcheck:
       test: ["CMD-SHELL", "netstat -upln | grep 14540 || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 10
-      start_period: 1200s
+      start_period: 60s
     restart: on-failure
     logging:
       driver: "json-file"
@@ -69,15 +42,16 @@ services:
       - DRONE_ID=SIM-001
       - WEBSOCKET_URI=ws://c2_gateway:8001/drones/SIM-001
       - MAVLINK_CONNECTION=udp:px4-sitl:14540
-      - AUTH_TOKEN=${DRONE_AUTH_TOKEN}
-
+      - AUTH_TOKEN_FILE=/run/secrets/drone_auth_token
+    secrets:
+      - drone_auth_token
     networks:
       - airdeliver-net
     depends_on:
       px4-sitl:
-        condition: service_started
+        condition: service_healthy
       c2_gateway:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
     stdin_open: true
     tty: true

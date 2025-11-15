@@ -5,7 +5,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api import deps
 from app import models, schemas
 from app.db.session import get_session
-from app.services.ai_ordering_service import ai_ordering_service
+from app.services.ai_ordering_service import (
+    AIOrderingService,
+    get_ai_ordering_service,
+)
 from app.services.cache_service import IAsyncCacheClient, get_cache_client
 from app.services.payment_orchestrator import (
     PaymentOrchestrator,
@@ -21,10 +24,11 @@ async def handle_chat_message(
     db: AsyncSession = Depends(get_session),
     cache: IAsyncCacheClient = Depends(get_cache_client),
     orchestrator: PaymentOrchestrator = Depends(get_payment_orchestrator),
+    service: AIOrderingService = Depends(get_ai_ordering_service),
     request: schemas.ChatRequest,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    responses = await ai_ordering_service.handle_message(
+    responses = await service.handle_message(
         db=db,
         cache=cache,
         message=request.message,
@@ -39,11 +43,12 @@ async def handle_chat_message(
 async def cancel_order(
     *,
     db: AsyncSession = Depends(get_session),
+    service: AIOrderingService = Depends(get_ai_ordering_service),
     order_id: int,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
     try:
-        order = await ai_ordering_service.cancel_order_by_id(
+        order = await service.cancel_order_by_id(
             db=db, order_id=order_id, user_id=current_user.id
         )
 

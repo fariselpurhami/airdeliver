@@ -1,3 +1,5 @@
+//** apps/web/app/(main)/notifications/page.tsx **//
+
 'use client';
 
 import React, { useState, useRef, useMemo, useEffect, useCallback, Suspense } from 'react';
@@ -19,37 +21,18 @@ import {
     X,
     Clock
 } from 'lucide-react';
-
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
-import { toast } from 'sonner'; 
+import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import * as THREE from 'three';
-
-interface Notification {
-    id: number;
-    title: string;
-    body: string;
-    type: string;
-    read: boolean;
-    cta: string | null;
-    timestamp: string; 
-    created_at: string; 
-}
-
-interface WebSocketNotification {
-    id: number;
-    type: string;
-    title: string;
-    body: string;
-    created_at: string;
-}
+import { Notification, WebSocketNotification } from '@/types';
 
 const API_KEY = '/notifications';
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 const getGroupTitle = (dateStr: string) => {
-    
+
     const date = new Date(dateStr);
     const today = new Date();
     const yesterday = new Date(today);
@@ -59,9 +42,6 @@ const getGroupTitle = (dateStr: string) => {
     return 'Older';
 };
 
-// ============================================================================
-// --- 1. (New) Notification Background Component ---
-// ============================================================================
 const NotificationBackground = () => {
     const light1Ref = useRef<THREE.PointLight>(null!);
     const light2Ref = useRef<THREE.PointLight>(null!);
@@ -91,17 +71,13 @@ const NotificationBackground = () => {
     );
 };
 
-const DynamicNotificationBackground = dynamic(() => Promise.resolve(NotificationBackground), { 
+const DynamicNotificationBackground = dynamic(() => Promise.resolve(NotificationBackground), {
     ssr: false,
     loading: () => null
 });
 
-
-// ============================================================================
-// --- 2. (Main Page Component) ---
-// ============================================================================
 export default function NotificationsPage() {
-   
+
     const { data: initialNotifications, error, isLoading, mutate } = useSWR<Notification[]>(
         API_KEY,
         fetcher,
@@ -109,50 +85,50 @@ export default function NotificationsPage() {
     );
 
     const [filter, setFilter] = useState('All');
-    const [liveNotifications, setLiveNotifications] = useState<Notification[]>([]); 
+    const [liveNotifications, setLiveNotifications] = useState<Notification[]>([]);
     const [undoItem, setUndoItem] = useState<(Notification & { originalIndex: number; source: 'initial' | 'live' }) | null>(null);
     const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleNewNotification = useCallback((newNotification: WebSocketNotification) => {
-        console.log("New notification received via WebSocket:", newNotification);
-      
-        const formattedNotification = {
+
+        const formattedNotification: Notification = {
             ...newNotification,
-            timestamp: "Just now", 
-            cta: null, 
-            read: false, 
-        } as Notification; 
+            id: newNotification.id || Date.now(),
+            timestamp: "Just now",
+            cta: null,
+            read: false,
+        };
 
         setLiveNotifications(prev => {
-  
+
             if (prev.some(n => n.id === formattedNotification.id)) {
                 return prev;
             }
-            
+
             if (initialNotifications?.some(n => n.id === formattedNotification.id)) {
-               
+
             }
             return [formattedNotification, ...prev];
         });
-        
+
         toast.info(formattedNotification.body, { description: formattedNotification.title });
-    }, [initialNotifications]); 
+    }, [initialNotifications]);
 
     const { isConnected: isWebSocketConnected } = useRealtimeUpdates(null, {
-        onNotification: handleNewNotification 
+        onNotification: handleNewNotification
     });
 
     const handleMarkAsRead = async (id: number) => {
-    
+
         mutate((currentData = []) => currentData.map(n => (n.id === id ? { ...n, read: true } : n)), false);
         setLiveNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)));
         try {
             await api.post(`/notifications/${id}/read`);
-           
+
         } catch (e) {
             toast.error("Failed to mark as read. Reverting.");
-            mutate(); 
-            setLiveNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: false } : n))); 
+            mutate();
+            setLiveNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: false } : n)));
         }
     };
 
@@ -170,28 +146,28 @@ export default function NotificationsPage() {
         }
 
         if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-        setUndoItem({ ...itemToDismiss, originalIndex, source }); 
+        setUndoItem({ ...itemToDismiss, originalIndex, source });
         undoTimerRef.current = setTimeout(() => {
             api.delete(`/notifications/${id}`)
-                .then(() => setUndoItem(null)) 
+                .then(() => setUndoItem(null))
                 .catch(() => {
                     toast.error("Failed to dismiss notification. Reverting.");
-                    handleUndo(); 
+                    handleUndo();
                 });
         }, 5000);
     };
 
      const handleMarkAllAsRead = async () => {
-        
+
         mutate((currentData = []) => currentData.map(n => ({ ...n, read: true })), false);
         setLiveNotifications(prev => prev.map(n => ({ ...n, read: true })));
         try {
              await api.post('/notifications/read-all');
-             
+
         } catch (e) {
              toast.error("Failed to mark all as read. Reverting.");
-             mutate(); 
-             setLiveNotifications(prev => prev.map(n => ({ ...n, read: false }))); 
+             mutate();
+             setLiveNotifications(prev => prev.map(n => ({ ...n, read: false })));
         }
     };
 
@@ -199,17 +175,17 @@ export default function NotificationsPage() {
         if (!undoItem) return;
         clearTimeout(undoTimerRef.current!);
 
-       
+
         if (undoItem.source === 'live') {
             setLiveNotifications(prev => {
                 const newArray = [undoItem, ...prev];
-              
+
                 return newArray.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             });
         } else {
             mutate((currentData = []) => {
                 const newArray = [undoItem, ...(currentData || [])];
-               
+
                 return newArray.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             }, false);
         }
@@ -217,9 +193,9 @@ export default function NotificationsPage() {
     };
 
     useEffect(() => {
-        
+
         return () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); };
-    }, []); 
+    }, []);
 
     const allNotifications = useMemo(() => {
 
@@ -231,14 +207,14 @@ export default function NotificationsPage() {
     }, [liveNotifications, initialNotifications]);
 
     const groupedNotifications = useMemo(() => {
-       
+
         const filtered = allNotifications.filter(n => {
             if (filter === 'Unread') return !n.read;
-            if (filter === 'Orders') return n.type === 'order_update'; 
+            if (filter === 'Orders') return n.type === 'order_update';
             if (filter === 'Security') return n.type === 'security';
-            return true; 
+            return true;
         });
-       
+
         return filtered.reduce((groups, item) => {
             const groupTitle = getGroupTitle(item.created_at);
             groups[groupTitle] = groups[groupTitle] || [];
@@ -251,16 +227,16 @@ export default function NotificationsPage() {
     const totalFilteredCount = Object.values(groupedNotifications).reduce((sum, group) => sum + group.length, 0);
     const unreadCount = useMemo(() => allNotifications.filter(n => !n.read).length, [allNotifications]);
 
-    if (isLoading && !initialNotifications) { 
+    if (isLoading && !initialNotifications) {
         return <LoadingSpinner />;
      }
     if (error) {
-         return <ErrorDisplay error={error} />; 
+         return <ErrorDisplay error={error} />;
     }
 
     return (
         <div className="relative min-h-screen w-full text-white flex flex-col items-center justify-start p-4 bg-black">
-            
+
             <div className="absolute inset-0 z-0 opacity-70">
                 <Canvas>
                     <Suspense fallback={null}>
@@ -282,19 +258,19 @@ export default function NotificationsPage() {
                 <motion.div layout className="w-full mt-8">
                     <AnimatePresence mode="wait">
                         <motion.div
-                            key={filter} 
+                            key={filter}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.25, ease: 'easeInOut' }}
                             className="space-y-3"
                         >
-                           
+
                             {totalFilteredCount === 0 ? (
                                 <CinematicEmptyState />
                             ) : (
                                 groupOrder.map(groupTitle => (
-                                    groupedNotifications[groupTitle]?.length > 0 && ( 
+                                    groupedNotifications[groupTitle]?.length > 0 && (
                                         <motion.div key={groupTitle} layout>
                                             <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider my-4"
                                                 style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -302,15 +278,15 @@ export default function NotificationsPage() {
                                             </h2>
                                             <div className="space-y-3">
                                                 {groupedNotifications[groupTitle].map((notification, index) => {
-                                                  
+
                                                     const source: 'live' | 'initial' = liveNotifications.some(n => n.id === notification.id) ? 'live' : 'initial';
                                                     return (
                                                         <NotificationItem
-                                                            key={`${source}-${notification.id}`} 
+                                                            key={`${source}-${notification.id}`}
                                                             notification={notification}
                                                             onMarkAsRead={handleMarkAsRead}
                                                             onDismiss={() => handleDismiss(notification.id, source)}
-                                                            index={index} 
+                                                            index={index}
                                                         />
                                                     );
                                                 })}
@@ -336,11 +312,6 @@ export default function NotificationsPage() {
     );
 }
 
-
-// ============================================================================
-// --- 3. (Re-styled) Sub-Components ---
-// ============================================================================
-
 const typeConfig: { [key: string]: { icon: React.ElementType; color: string } } = {
     security: { icon: Shield, color: 'text-red-400' },
     order_update: { icon: Package, color: 'text-cyan-400' },
@@ -353,7 +324,7 @@ const getIcon = (type: string) => {
     return <config.icon className={`w-5 h-5 ${config.color}`} />;
 };
 
-const filters = ['All', 'Unread', 'Orders', 'Security']; 
+const filters = ['All', 'Unread', 'Orders', 'Security'];
 const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead, isWebSocketConnected }: {
     unreadCount: number;
     activeFilter: string;
@@ -365,17 +336,17 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
 
   return (
     <div className="w-full grid grid-cols-1 sm:grid-cols-3 items-center py-4 sticky top-[72px] z-30 bg-black/30 backdrop-blur-lg rounded-b-lg gap-4 sm:gap-0">
-     
-      
+
+
       <div className="flex sm:justify-start justify-center">
           <div className="relative flex items-center gap-3 sm:ml-6">
              <span
                   className={`w-2.5 h-2.5 rounded-full ${isWebSocketConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.7)]' : 'bg-gray-600'}`}
                   title={isWebSocketConnected ? 'Real-time connection active' : 'Real-time connection inactive'}
              />
-            <div className='relative'> 
-                <motion.h1 
-                    className="text-2xl font-bold text-white" 
+            <div className='relative'>
+                <motion.h1
+                    className="text-2xl font-bold text-white"
                     style={{ fontFamily: "'Orbitron', sans-serif" }}
                 >
                     Notifications
@@ -391,7 +362,7 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
           </div>
       </div>
 
-    
+
       <div className="flex items-center justify-center gap-2 flex-wrap">
          {filters.map((filter, index) => (
           <React.Fragment key={filter}>
@@ -417,7 +388,7 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
         ))}
       </div>
 
-     
+
       <div className="relative hidden sm:flex justify-end sm:mr-6">
          <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
             <Settings size={20} />
@@ -488,8 +459,8 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
       transition={{ delay: index * 0.05, type: 'spring', stiffness: 200, damping: 25 }}
       whileHover={{ scale: 1.02, y: -2 }}
       className={`w-full flex items-start p-4 rounded-xl transition-all duration-300 ease-in-out ${
-        read 
-          ? 'bg-black/10 backdrop-blur-sm border border-gray-800/50' 
+        read
+          ? 'bg-black/10 backdrop-blur-sm border border-gray-800/50'
           : 'bg-black/30 backdrop-blur-lg border border-cyan-400/30 shadow-lg shadow-cyan-500/10'
       } hover:border-cyan-400/80`}
       onMouseEnter={() => setIsHovered(true)}
@@ -509,7 +480,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
       <div className={`mr-4 mt-1 flex-shrink-0 ${read ? 'opacity-30' : ''}`}>
         {getIcon(type)}
       </div>
-    
+
       <div className="flex-grow">
         <h4 className={`font-semibold ${read ? 'text-gray-500' : 'text-gray-100'}`}>
           {title}
@@ -528,7 +499,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
           )}
         </div>
       </div>
-      
+
       <motion.div
         className="flex flex-col sm:flex-row items-center gap-2 ml-4 flex-shrink-0"
         animate={{ opacity: isHovered || !read ? 1 : 0, x: isHovered || !read ? 0 : 5 }}

@@ -1,0 +1,25 @@
+# apps/c2-gateway/pyproject.toml
+
+[tool.poetry]
+name = "c2-gateway"
+version = "0.1.0"
+description = "airdeliver C2 Gateway Service"
+authors = ["airdeliver Engineering <dev@airdeliver.com>"]
+package-mode = false 
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0" 
+
+fastapi = {version = "^0.121.2", extras = ["all"]}
+aio-pika = "^9.5.8"
+httpx = "^0.28.1"
+structlog = "^25.5.0"
+python-jose = {version = "^3.5.0", extras = ["cryptography"]}
+pydantic-settings = "^2.12.0"
+gunicorn = "^23.0.0"
+
+[tool.poetry.group.dev.dependencies]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

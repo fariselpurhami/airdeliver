@@ -1,10 +1,23 @@
+//** apps/web/components/home/TestimonialCarousel.tsx **//
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 
-const TestimonialCarousel = ({ testimonials }) => {
+interface Testimonial {
+  quote: string;
+  author: string;
+  initials: string;
+  title: string;
+}
+
+interface TestimonialCarouselProps {
+  testimonials: Testimonial[];
+}
+
+const TestimonialCarousel: React.FC<TestimonialCarouselProps> = ({ testimonials }) => {
   const [isClient, setIsClient] = useState(false);
   const [emblaRef] = useEmblaCarousel({ loop: true }, [Autoplay()]);
 
@@ -13,13 +26,13 @@ const TestimonialCarousel = ({ testimonials }) => {
   }, []);
 
   if (!isClient) {
-    return null; 
+    return null;
   }
 
   return (
     <div className="overflow-hidden" ref={emblaRef}>
       <div className="flex">
-        {testimonials.map((testimonial) => (
+        {testimonials.map((testimonial: Testimonial) => (
           <div className="flex-grow-0 flex-shrink-0 w-full md:w-1/2 lg:w-1/3 p-4" key={testimonial.author}>
             <div className="h-full p-8 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-inner flex flex-col">
               <p className="flex-grow italic text-gray-600 dark:text-gray-300">"{testimonial.quote}"</p>

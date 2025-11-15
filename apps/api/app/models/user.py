@@ -1,6 +1,8 @@
+# apps/api/app/models/user.py
+
 from __future__ import annotations
-from typing import List, Optional, TYPE_CHECKING, Dict, Any
-from sqlmodel import SQLModel, Field, Relationship, JSON, Column
+from typing import List, Optional, TYPE_CHECKING
+from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime
@@ -56,7 +58,7 @@ class User(SQLModel, table=True):
             cascade="all, delete-orphan"
         )
     )
-    ai_memory: Mapped[Optional["AIMemory"]] = Relationship( 
+    ai_memory: Mapped[Optional["AIMemory"]] = Relationship(
         sa_relationship=relationship("AIMemory", back_populates="user", cascade="all, delete-orphan", uselist=False)
     )
 

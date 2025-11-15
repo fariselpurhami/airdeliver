@@ -8,10 +8,12 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Airdeliver C2 Gateway"
     API_V1_STR: str = "/api/v1"
     
+    BACKEND_CORS_ORIGINS: list[str] = Field(default=[], env="BACKEND_CORS_ORIGINS")
+
     RABBITMQ_USER: str = Field(..., env="RABBITMQ_USER")
     RABBITMQ_PASS: str = Field(..., env="RABBITMQ_PASS")
     RABBITMQ_HOST: str = Field(..., env="RABBITMQ_HOST")
-    RABBITMQ_PORT: int = Field(..., env="RABBITMQ_PORT")
+    RABBITMQ_PORT: int = Field(default=5672, env="RABBITMQ_PORT")
     
     DRONE_JWT_SECRET: str = Field(..., env="DRONE_JWT_SECRET")
     ALGORITHM: str = Field(default="HS256", env="ALGORITHM")
