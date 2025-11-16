@@ -7,15 +7,15 @@ from app.models.user import UserRole
 
 class UserBase(SQLModel):
     email: EmailStr = Field(index=True)
-    is_active: bool = True
+    is_active: bool = Field(default=True)
     full_name: Optional[str] = None
-    role: UserRole = Field(default=UserRole.USER)
     phone_number: Optional[str] = Field(default=None, index=True, nullable=True)
     address: Optional[str] = Field(default=None, nullable=True)
     avatar_url: Optional[str] = Field(default=None, nullable=True)
 
 class UserCreate(UserBase):
     password: str
+    role: UserRole = Field(default=UserRole.USER)
 
 class UserUpdate(SQLModel):
     email: Optional[EmailStr] = None
@@ -29,6 +29,7 @@ class UserUpdate(SQLModel):
 
 class UserRead(UserBase):
     id: int
+    role: Optional[UserRole] = None
     model_config = {
         "from_attributes": True
     }
@@ -36,6 +37,7 @@ class UserRead(UserBase):
 class UserInDBBase(UserBase):
     id: int
     hashed_password: Optional[str] = None
+    role: UserRole = Field(default=UserRole.USER)
     model_config = {
         "from_attributes": True
     }

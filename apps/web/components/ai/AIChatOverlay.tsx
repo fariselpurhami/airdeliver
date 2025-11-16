@@ -1,3 +1,5 @@
+//** apps/web/components/ai/AIChatOverlay.tsx **//
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -8,20 +10,20 @@ import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import { AIPaymentForm } from './AIPaymentForm'; 
+import { AIPaymentForm } from './AIPaymentForm';
 import { useSession } from "next-auth/react";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, onSelect: (product: any) => void, totalItems: number }) => {
-    
+
     const mdWidthClass = totalItems === 2 ? "md:flex-[0_0_50%]" : "md:flex-[0_0_40%]";
     const slideWidthClass = `flex-[0_0_65%] sm:flex-[0_0_50%] ${mdWidthClass}`;
 
     return (
         <div className={`embla__slide ${slideWidthClass} px-2`}>
-          
-            <motion.div 
+
+            <motion.div
                 className="flex flex-col  p-4 bg-black/90 rounded-lg border border-cyan-400/20 h-full text-left"
                 whileHover={{ scale: 1.03, z: 10 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
@@ -35,9 +37,9 @@ const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, 
                 <div className="text-xs text-gray-400 flex items-center gap-2 mt-auto">
                     <span>🚀 {product.delivery_eta || '15 Min'} Delivery</span>
                 </div>
-            
-                <motion.button 
-                    onClick={() => onSelect(product)} 
+
+                <motion.button
+                    onClick={() => onSelect(product)}
                     whileHover={{ scale: 1.05 }}
                     className="w-full mt-3 text-sm bg-cyan-500/30 text-cyan-200 py-2 rounded-lg border border-cyan-500/50"
                 >
@@ -49,18 +51,18 @@ const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, 
 };
 
 const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (product: any) => void }) => {
-   
+
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start' });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
-    
+
     const totalItems = products.length;
-    
-    const canScroll = totalItems > 2; 
+
+    const canScroll = totalItems > 2;
 
     return (
         <div className="relative my-4">
-          
+
             <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex">
                     {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} totalItems={totalItems} />)}
@@ -77,10 +79,10 @@ const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (p
 };
 
 const AIReasoning = ({ text }: { text: string }) => (
-    <motion.div 
-        initial={{ opacity: 0, y: 10 }} 
+    <motion.div
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        
+
         className="flex items-center gap-2 p-2 mt-3 bg-cyan-900/10 border border-cyan-400/20 rounded-lg max-w-md mx-auto"
     >
         <Cpu size={16} className="text-cyan-400 flex-shrink-0 glowing-icon"/>
@@ -127,10 +129,10 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect }: { message:
     if (['cart_preview', 'typing', 'payment_intent'].includes(message.contentType)) return null;
 
     return (
-        <motion.div 
-            layout 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
+        <motion.div
+            layout
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             className={`flex items-start gap-3 w-full ${isAI ? 'justify-start' : 'justify-end'}`}
         >
             {isAI && (
@@ -138,7 +140,7 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect }: { message:
                     <Bot size={16} className="text-cyan-400" />
                 </div>
             )}
-            
+
             <div className={`w-auto max-w-lg px-3 py-2 rounded-xl ${isAI ? 'bg-black/20 border border-cyan-400/30 text-gray-200' : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white'}`}>
                 <MessageContent />
             </div>
@@ -153,10 +155,10 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect }: { message:
 });
 ChatMessage.displayName = 'ChatMessage';
 
-const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: { 
-    messages: Message[], 
+const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: {
+    messages: Message[],
     glowingProductId: number | null,
-    onRemoveItem: (productId: number) => void 
+    onRemoveItem: (productId: number) => void
 }) => {
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
@@ -165,11 +167,11 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
     const aiNote = lastAINoteMessage ? (lastAINoteMessage.ai_notes || lastAINoteMessage.reason) : "AI reasoning will appear here.";
 
     return (
-      
+
         <div className="hidden lg:flex w-1/3 bg-black/20 border-l border-cyan-400/30 rounded-r-2xl flex-col overflow-hidden">
 
-         
-           
+
+
             <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
                 <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
                     <ShoppingCart size={18} /> Order Summary
@@ -214,10 +216,10 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                 </div>
             </div>
 
-           
+
             <div className="flex-shrink-0 p-6 border-t border-cyan-400/30 bg-black/30 backdrop-blur-sm space-y-5">
 
-              
+
                 <div>
                     <h3 className="text-base font-bold text-white mb-3 flex items-center gap-2">
                         <Clock size={18} /> Details
@@ -228,10 +230,10 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                     </div>
                 </div>
 
-             
+
                 <div className="w-full h-[1px] bg-cyan-400/20" />
 
-              
+
                 <div>
                     <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
                         <motion.div
@@ -255,12 +257,12 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                     <p className="text-sm text-gray-400 italic">{aiNote}</p>
                 </div>
 
-             
+
                 <div className="w-full h-[1px] bg-cyan-400/20" />
 
-             
+
                 <div className="flex justify-between items-center font-bold pt-2">
-                  
+
                     <span className="text-white text-base">Total</span>
                     <span className="text-base text-white">${cart.total.toFixed(2)}</span>
                 </div>
@@ -407,9 +409,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const handleClose = () => {
         if (paymentDetails) {
             cancelPaymentIntent();
-           
+
         } else {
-            
+
             setOverlayVisible(false);
             onClose();
         }
@@ -513,7 +515,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                     {flyToCartItem && <FlyingItemAnimator imageUrl={flyToCartItem} />}
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0, y: 50 }}
-                      
+
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } }}
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.2, ease: "easeOut" } }}
                         onClick={(e) => e.stopPropagation()}
@@ -597,9 +599,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
 
                             {!(paymentDetails && paymentDetails.clientSecret) && (
-                                 <AIChatSidebar 
-                                    messages={messages} 
-                                    glowingProductId={glowingProductId} 
+                                 <AIChatSidebar
+                                    messages={messages}
+                                    glowingProductId={glowingProductId}
                                     onRemoveItem={removeProductById}
                                  />
                             )}

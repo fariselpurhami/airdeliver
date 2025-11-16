@@ -1,4 +1,4 @@
-// apps/web/lib/authOptions.ts 
+//** apps/web/lib/authOptions.ts **//
 
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -9,6 +9,8 @@ interface DecodedToken {
   role: string; 
   exp: number;
 }
+
+const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://api:8000/api/v1';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -22,8 +24,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials) return null;
         try {
           
-          const apiUrl = 'http://api:8000/api/v1'; 
-          const loginUrl = `${apiUrl}/auth/token`; 
+          const loginUrl = `${INTERNAL_API_URL}/auth/token`; 
 
           console.log(`Authorize attempting to fetch from: ${loginUrl}`);
 

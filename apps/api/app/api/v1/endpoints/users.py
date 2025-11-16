@@ -7,6 +7,7 @@ import shutil
 import os
 from pathlib import Path
 import stripe
+import logging
 from app import models
 from app.schemas.user import UserRead, UserCreate, UserUpdate
 from app.schemas.msg import Msg
@@ -18,6 +19,7 @@ from app.core.config import StripeSettings, get_stripe_settings
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
 
 class DefaultPaymentMethod(BaseModel):
     brand: str | None = None
@@ -34,13 +36,8 @@ async def create_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="The user with this email already exists in the system.",
         )
-    hashed_password = security.get_password_hash(user_in.password)
-    user_create_data = user_in.model_dump(exclude={"password"})
-    user_create_data["hashed_password"] = hashed_password
-    db_user = models.User(**user_create_data)
-    session.add(db_user)
-    await session.commit()
-    await session.refresh(db_user)
+
+    db_user = await crud_user.user.create(db=session, obj_in=user_in)
     return db_user
 
 
@@ -100,6 +97,7 @@ async def upload_user_avatar(
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
+        logger.error(f"Failed to save avatar file for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not save avatar file.",
@@ -203,11 +201,13 @@ def get_default_payment_method(
         return DefaultPaymentMethod()
 
     except stripe.error.StripeError as e:
+        logger.warning(f"Stripe service error for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Could not retrieve payment information from the payment provider.",
         )
     except Exception as e:
+        logger.error(f"Unhandled error fetching payment method for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal error occurred while fetching payment information.",

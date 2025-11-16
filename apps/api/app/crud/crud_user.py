@@ -1,4 +1,4 @@
-# file: apps/api/app/crud/crud_user.py
+# apps/api/app/crud/crud_user.py
 
 from typing import Any, Dict, Optional, Union
 from sqlmodel import select
@@ -14,12 +14,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return (await db.exec(select(User).where(User.email == email))).first()
 
     async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> User:
-        db_obj = User(
-            email=obj_in.email,
-            hashed_password=get_password_hash(obj_in.password),
-            full_name=obj_in.full_name,
-            is_active=obj_in.is_active,
-        )
+        create_data = obj_in.model_dump()
+        create_data["hashed_password"] = get_password_hash(obj_in.password)
+        del create_data["password"]
+
+        db_obj = User(**create_data)
+
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
