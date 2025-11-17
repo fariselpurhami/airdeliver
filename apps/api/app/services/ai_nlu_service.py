@@ -45,6 +45,9 @@ class AINLUService:
         )
         
         await asyncio.sleep(0.01)
+        
+        statement = select(Product).order_by(Product.price.desc()).limit(3)
+        secondary_products = (await self.db.exec(statement)).all()
 
         await self.rabbitmq.publish(
             {
@@ -52,6 +55,8 @@ class AINLUService:
                 "content": "Anything else?",
                 "type": "confirmation_prompt",
                 "options": ["Confirm Order", "Clear Cart"],
+                "secondary_suggestions": [p.model_dump() for p in secondary_products],
+                "reason": "Displaying complementary items for bundle eligibility."
             },
             "airdeliver.ai.response.out",
         )
@@ -65,21 +70,6 @@ class AINLUService:
             },
             "airdeliver.ai.response.out",
         )
-        
-    async def _handle_secondary_suggestions(self, user_id: int):
-        statement = select(Product).order_by(Product.price.desc()).limit(3)
-        products = (await self.db.exec(statement)).all()
-        
-        await self.rabbitmq.publish(
-            {
-                "user_id": user_id,
-                "content": "You might also like these:",
-                "type": "proactive_suggestion",
-                "products": [p.model_dump() for p in products],
-                "reason": "Displaying complementary items based on your cart for bundle discount eligibility."
-            },
-            "airdeliver.ai.response.out",
-        )
 
     async def process_message(self, message_payload: dict):
         user_id = message_payload["user_id"]
@@ -87,6 +77,20 @@ class AINLUService:
         
         if message == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
             await self._handle_initial_suggestions(user_id)
+            return
+
+        if message == "__INTERNAL_RESET_SESSION__":
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "notify_user": False},
+                "airdeliver.ai.intent.clear_cart",
+            )
+            return
+            
+        if message == "__INTERNAL_CLEAR_CART__":
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "notify_user": True},
+                "airdeliver.ai.intent.clear_cart",
+            )
             return
 
         if message.startswith("__INTERNAL_ADD_BY_ID__:") and user_id:
@@ -102,7 +106,6 @@ class AINLUService:
                 product = await self.db.get(Product, product_id)
                 if product:
                     await self._send_add_success_prompt(user_id, product.name)
-                    await self._handle_secondary_suggestions(user_id)
                 
                 return
             except Exception as e:
@@ -170,9 +173,15 @@ class AINLUService:
         elif intent == "CONFIRM_ORDER":
              await self.rabbitmq.publish(
                 {**response_payload, **message_payload},
-                "airdeliver.ai.intent.confirm_order",
+                "airdeliver.ai.response.out",
             )
         
+        elif intent == "CLEAR_CART":
+            await self.rabbitmq.publish(
+                {**response_payload, "notify_user": True},
+                "airdeliver.ai.intent.clear_cart",
+            )
+
         elif intent == "SEARCH_PRODUCT":
             if products:
                 await self.rabbitmq.publish(

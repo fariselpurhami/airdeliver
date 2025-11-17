@@ -1,4 +1,4 @@
-//** apps/web/hooks/useAIOrderingStore.ts **//
+// apps/web/hooks/useAIOrderingStore.ts
 
 'use client';
 
@@ -26,6 +26,7 @@ export interface Message {
   content: any;
   options?: string[];
   products?: any[];
+  secondary_suggestions?: any[];
   reason?: string;
   ai_notes?: string;
 }
@@ -38,18 +39,19 @@ interface AIOrderingState {
   suggestedProductIds: number[] | null;
   paymentDetails: PaymentDetails | null;
   glowingProductId: number | null;
-  flyToCartItem: string | null;
+  flyToCartItem: { id: number; image: string; startElementId: string } | null;
   socket: WebSocket | null;
   connectSocket: (token: string) => void;
   disconnectSocket: () => void;
   setOverlayVisible: (isVisible: boolean) => void;
   setSuggestedProductIds: (ids: number[] | null) => void;
   sendMessage: (text: string) => void;
-  addProductById: (product: any) => void;
+  addProductById: (product: any, startElementId: string) => void;
   removeProductById: (productId: number) => void;
   addSocketAIMessage: (message: any) => void;
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
+  clearCart: () => void;
   resetChat: () => void;
   cancelPaymentIntent: () => Promise<void>;
   _sendInternalCommand: (command: string, payload?: any) => void;
@@ -101,6 +103,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
 
     socket.onopen = () => {
       set({ socket });
+      get()._sendInternalCommand("__INTERNAL_RESET_SESSION__");
       get().fetchInitialSuggestions();
     };
 
@@ -135,6 +138,8 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
         contentType: response.type,
         content: response.content,
         products: response.products,
+        secondary_suggestions: response.secondary_suggestions,
+        options: response.options,
         reason: response.reason,
         ai_notes: response.ai_notes,
       };
@@ -163,6 +168,10 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
         aiMessage.contentType = 'text';
         aiMessage.content = response.content;
       }
+      
+      if (response.type === 'cart_preview' && response.content?.items?.length === 0) {
+          state.messages = state.messages.filter(m => m.contentType !== 'confirmation_prompt');
+      }
 
       state.messages.push(aiMessage);
     }));
@@ -177,8 +186,13 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   clearPayment: () => {
     set({ paymentDetails: null });
   },
+  
+  clearCart: () => {
+    get()._sendInternalCommand("__INTERNAL_CLEAR_CART__");
+  },
 
   resetChat: () => {
+    get().clearCart();
     set({
       messages: [initialWelcomeMessage],
       isLoading: false,
@@ -206,8 +220,19 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     get()._sendInternalCommand("__INTERNAL_GET_INITIAL_SUGGESTIONS__");
   },
 
-  addProductById: async (product) => {
+  addProductById: async (product, startElementId) => {
+    set({
+      flyToCartItem: {
+        id: product.id,
+        image: product.image_url,
+        startElementId: startElementId,
+      },
+    });
     get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${product.id}`);
+    
+    setTimeout(() => {
+      set({ flyToCartItem: null });
+    }, 1000);
   },
 
   cancelPaymentIntent: async () => {

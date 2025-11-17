@@ -44,6 +44,8 @@ class AICommerceEngine:
             "ADD_TO_CART": ["add", "buy", "get", "purchase", "i want", "i need"],
             "REMOVE_FROM_CART": ["remove", "delete", "take off"],
             "SEARCH_PRODUCT": ["find", "search", "show me", "do you have"],
+            "CONFIRM_ORDER": ["confirm", "checkout", "pay", "ready to pay", "confirm order"],
+            "CLEAR_CART": ["clear cart", "empty cart", "reset order", "start over"],
         }
         self.stop_words = ["a", "an", "the", "for", "me", "item", "product"]
 
@@ -58,6 +60,8 @@ class AICommerceEngine:
                 if normalized_message.startswith(keyword + " "):
                     cleaned_message = normalized_message[len(keyword) :].strip()
                     return intent, cleaned_message
+                elif normalized_message == keyword:
+                     return intent, ""
         return "SEARCH_PRODUCT", normalized_message
 
     def _get_query_embedding(self, query: str) -> List[float]:
@@ -98,6 +102,9 @@ class AICommerceEngine:
     ) -> Tuple[List[Product], Dict[str, Any]]:
         normalized_message = self._normalize_message(message)
         intent, cleaned_message = self._classify_intent(normalized_message)
+
+        if intent not in ["ADD_TO_CART", "SEARCH_PRODUCT"]:
+            return [], {"intent": intent}
 
         if not cleaned_message:
             return [], {"intent": intent}

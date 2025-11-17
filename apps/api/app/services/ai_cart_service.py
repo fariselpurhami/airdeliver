@@ -95,3 +95,21 @@ class AICartService:
                 {"user_id": user_id, "content": f"Couldn't find item to remove.", "type": "error"},
                 "airdeliver.ai.response.out",
             )
+
+    async def handle_clear_cart(self, payload: dict):
+        user_id = payload["user_id"]
+        cart_key = self._get_cart_key(user_id)
+        
+        await self.cache.delete(cart_key)
+        
+        empty_cart = {"items": [], "total": 0.0}
+        await self.rabbitmq.publish(
+            {"user_id": user_id, "content": empty_cart, "type": "cart_preview"},
+            "airdeliver.ai.response.out",
+        )
+        
+        if payload.get("notify_user", False):
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "content": "Cart cleared successfully.", "type": "success_text"},
+                "airdeliver.ai.response.out",
+            )

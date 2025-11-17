@@ -92,6 +92,14 @@ async def main():
                 async with SessionLocal() as db:
                     cart_service = AICartService(db, cache_client, rabbitmq)
                     await cart_service.handle_remove_from_cart(payload)
+        
+        async def handle_clear_intent(message: AbstractIncomingMessage):
+            async with message.process():
+                payload = json.loads(message.body.decode())
+                logger.info(f"Worker processing: intent.clear for user {payload.get('user_id')}")
+                async with SessionLocal() as db:
+                    cart_service = AICartService(db, cache_client, rabbitmq)
+                    await cart_service.handle_clear_cart(payload)
 
         async def handle_confirm_intent(message: AbstractIncomingMessage):
             async with message.process():
@@ -113,6 +121,7 @@ async def main():
             "q.ai.chat": ("airdeliver.ai.chat.in", handle_chat_message),
             "q.ai.intent.add": ("airdeliver.ai.intent.add_to_cart", handle_add_intent),
             "q.ai.intent.remove": ("airdeliver.ai.intent.remove_from_cart", handle_remove_intent),
+            "q.ai.intent.clear": ("airdeliver.ai.intent.clear_cart", handle_clear_intent),
             "q.ai.intent.confirm": ("airdeliver.ai.intent.confirm_order", handle_confirm_intent),
             "q.ai.intent.cancel": ("airdeliver.ai.intent.cancel_order", handle_cancel_intent),
         })
