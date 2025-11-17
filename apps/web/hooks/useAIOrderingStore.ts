@@ -1,23 +1,31 @@
-// file: apps/web/hooks/useAIOrderingStore.ts
+//** apps/web/hooks/useAIOrderingStore.ts **//
 
 'use client';
 
 import { create } from 'zustand';
 import { api } from '@/lib/api';
+import { produce } from 'immer';
+
+type PaymentGateway = {
+  provider: string;
+  clientSecret?: string;
+  approval_url?: string;
+  checkoutRequestId?: string;
+};
 
 type PaymentDetails = {
-  clientSecret: string;
   orderId: number;
   total: number;
+  gateways: PaymentGateway[];
 };
 
 export interface Message {
   id: number;
   sender: 'user' | 'ai';
-  contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'payment_intent' | 'success_text';
+  contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'payment_intent' | 'success_text' | 'ORDER_CANCELLED';
   content: any;
-  options?: string[];   
-  products?: any[];   
+  options?: string[];
+  products?: any[];
   reason?: string;
   ai_notes?: string;
 }
@@ -25,22 +33,26 @@ export interface Message {
 interface AIOrderingState {
   messages: Message[];
   isLoading: boolean;
-  isProcessing: boolean; 
+  isProcessing: boolean;
   isOverlayVisible: boolean;
   suggestedProductIds: number[] | null;
   paymentDetails: PaymentDetails | null;
   glowingProductId: number | null;
-  flyToCartItem: string | null; 
+  flyToCartItem: string | null;
+  socket: WebSocket | null;
+  connectSocket: (token: string) => void;
+  disconnectSocket: () => void;
   setOverlayVisible: (isVisible: boolean) => void;
   setSuggestedProductIds: (ids: number[] | null) => void;
   sendMessage: (text: string) => void;
   addProductById: (product: any) => void;
   removeProductById: (productId: number) => void;
-  addLocalAIMessage: (content: string, type: 'error' | 'text' | 'success_text') => void;
+  addSocketAIMessage: (message: any) => void;
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
   resetChat: () => void;
   cancelPaymentIntent: () => Promise<void>;
+  _sendInternalCommand: (command: string, payload?: any) => void;
 }
 
 let messageId = 1;
@@ -52,17 +64,23 @@ const initialWelcomeMessage: Message = {
   content: 'Autonomous Order with air activated. Your order is ready for deployment.',
 };
 
-const smartReplies = [
-    (name: string) => `Nice pick! ${name} is now in your cart.`,
-    (name: string) => `Got it — added ${name}.`,
-    (name: string) => `🔥 ${name} added! You’ve got great taste.`,
-    (name: string) => `Done! ${name} is ready in your cart.`,
-];
+const getWebSocketURL = () => {
 
-const randomSmartReply = (productName: string) => {
-    const reply = smartReplies[Math.floor(Math.random() * smartReplies.length)];
-    return reply(productName);
+  const apiURL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+  const url = new URL(apiURL, window.location.origin);
+
+  url.protocol = url.protocol.replace('http', 'ws');
+
+  let pathname = url.pathname;
+  if (pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
+  }
+
+  url.pathname = `${pathname}/ai-ordering/chat`;
+
+  return url.href;
 };
+
 
 export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   messages: [initialWelcomeMessage],
@@ -73,15 +91,79 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   paymentDetails: null,
   glowingProductId: null,
   flyToCartItem: null,
+  socket: null,
+
+  connectSocket: (token) => {
+    if (get().socket) return;
+
+    const wsUrl = `${getWebSocketURL()}?token=${token}`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      set({ socket });
+      get().fetchInitialSuggestions();
+    };
+
+    socket.onmessage = (event) => {
+      const response = JSON.parse(event.data);
+      get().addSocketAIMessage(response);
+    };
+
+    socket.onclose = () => {
+      set({ socket: null, isLoading: false });
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket Error:", error);
+      get().addSocketAIMessage({ contentType: 'error', content: 'Connection error. Please reconnect.' });
+    };
+  },
+
+  disconnectSocket: () => {
+    get().socket?.close();
+    set({ socket: null });
+  },
+
+  addSocketAIMessage: (response) => {
+    set(produce((state: AIOrderingState) => {
+      state.messages = state.messages.filter(m => m.contentType !== 'typing');
+      state.isLoading = false;
+      state.isProcessing = false;
+
+      const aiMessage: Message = {
+        id: messageId++,
+        sender: 'ai',
+        contentType: response.type,
+        content: response.content,
+        products: response.products,
+        reason: response.reason,
+        ai_notes: response.ai_notes,
+      };
+
+      if (response.type === 'payment_intent') {
+        state.paymentDetails = response.content as PaymentDetails;
+        aiMessage.contentType = 'text';
+        aiMessage.content = "Great! I've prepared your order. Please complete the secure payment to finalize.";
+      }
+
+      if (response.type === 'ORDER_CANCELLED') {
+        state.paymentDetails = null;
+        state.isProcessing = false;
+        aiMessage.contentType = 'text';
+        aiMessage.content = response.content;
+      }
+
+      if (response.type === 'cart_preview') {
+      }
+
+      state.messages.push(aiMessage);
+    }));
+  },
 
   setOverlayVisible: (isVisible) => {
     set({ isOverlayVisible: isVisible });
-    
-    if (isVisible && get().messages.length === 1) {
-      get().fetchInitialSuggestions();
-    }
   },
-  
+
   setSuggestedProductIds: (ids) => set({ suggestedProductIds: ids }),
 
   clearPayment: () => {
@@ -94,189 +176,50 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
       isLoading: false,
       isProcessing: false,
       paymentDetails: null,
-      suggestedProductIds: null,
-      glowingProductId: null,
-      flyToCartItem: null,
     });
     messageId = 1;
+    get().fetchInitialSuggestions();
   },
 
-  addLocalAIMessage: (content, type) => {
-    const aiMessage: Message = {
-      id: messageId++,
-      sender: 'ai',
-      contentType: type,
-      content: content,
-    };
-    set((state) => ({
-      messages: [...state.messages.filter(m => m.contentType !== 'typing'), aiMessage],
-      isLoading: false,
-      isProcessing: false,
+  _sendInternalCommand: (command: string, payload: any = {}) => {
+    const { socket } = get();
+    if (!socket) return;
+
+    set({ isLoading: true, isProcessing: true, suggestedProductIds: null });
+
+    socket.send(JSON.stringify({
+      type: "CHAT_MESSAGE",
+      message: command,
+      ...payload
     }));
   },
 
-  fetchInitialSuggestions: async () => {
-    if (get().isLoading) return;
-
-    const typingIndicator: Message = { id: messageId++, sender: 'ai', contentType: 'typing', content: null };
-    set((state) => ({
-      messages: [...state.messages, typingIndicator],
-      isLoading: true,
-    }));
-
-    try {
-      const response = await api.post('/ai-ordering/chat', {
-          message: "__INTERNAL_GET_INITIAL_SUGGESTIONS__"
-      });
-
-      const aiData = response.data;
-      const aiMessages: Message[] = (aiData.responses || [])
-          .map((res: any) => ({
-              id: messageId++,
-              sender: 'ai',
-              ...res
-           }));
-      
-      set((state) => ({
-          messages: [...state.messages.filter(m => m.contentType !== 'typing'), ...aiMessages],
-          isLoading: false,
-      }));
-
-    } catch (error) {
-       get().addLocalAIMessage('Could not load suggestions right now. What are you looking for?', 'error');
-    }
+  fetchInitialSuggestions: () => {
+    get()._sendInternalCommand("__INTERNAL_GET_INITIAL_SUGGESTIONS__");
   },
 
   addProductById: async (product) => {
-    if (!product || get().isProcessing) return;
-
-    set({ 
-      isProcessing: true,
-      glowingProductId: product.id,
-      flyToCartItem: product.image || '/images/default.jpeg',
-    });
-    
-    setTimeout(() => set({ glowingProductId: null }), 1500); 
-
-    get().addLocalAIMessage(randomSmartReply(product.name), 'success_text');
-    
-    try {
-      const cartResponse = await api.post('/ai-ordering/chat', {
-          message: `__INTERNAL_ADD_BY_ID__:${product.id}`
-      });
-      
-      const cartData = cartResponse.data;
-      const cartMessages: Message[] = (cartData.responses || [])
-          .map((res: any) => ({
-              id: messageId++,
-              sender: 'ai',
-              ...res
-           }));
-      
-      set((state) => ({
-          messages: [...state.messages, ...cartMessages],
-      }));
-
-    } catch (error) {
-       get().addLocalAIMessage(`I had a slight issue adding ${product.name}. Let's try that again.`, 'error');
-       set({ isProcessing: false });
-       return;
-    }
-    
-    setTimeout(async () => {
-        set({ isLoading: true }); 
-        try {
-            const suggestionResponse = await api.post('/ai-ordering/chat', {
-                message: `__INTERNAL_GET_SUGGESTIONS__:${product.id}`
-            });
-            
-            const suggestionData = suggestionResponse.data;
-            const aiMessages: Message[] = (suggestionData.responses || [])
-                .map((res: any) => ({
-                    id: messageId++,
-                    sender: 'ai',
-                    contentType: res.contentType,
-                    content: res.content,
-                    options: res.options,
-                    products: res.products,
-                    reason: res.reason,
-                    ai_notes: res.ai_notes,
-                }));
-            
-            set((state) => ({
-                messages: [...state.messages.filter(m => m.contentType !== 'typing'), ...aiMessages],
-                isLoading: false,
-                isProcessing: false,
-            }));
-
-        } catch (error) {
-            set({ isLoading: false, isProcessing: false });
-        }
-    }, 800); 
+    get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${product.id}`);
   },
 
   cancelPaymentIntent: async () => {
-    const { paymentDetails, addLocalAIMessage } = get();
-
-    if (!paymentDetails) return;
+    const { paymentDetails, isProcessing, socket } = get();
+    if (!paymentDetails || isProcessing || !socket) return;
 
     set({ isProcessing: true });
 
-    try {
-      await api.patch(`/ai-ordering/order/${paymentDetails.orderId}/cancel`);
-
-      set({ paymentDetails: null, isProcessing: false });
-
-      addLocalAIMessage(
-        "I’ve cancelled your pending payment for you. Let me know if you’d like any help with something else?",
-        'text'
-      );
-
-    } catch (error: any) {
-      console.error("Failed to cancel order:", error);
-      addLocalAIMessage(
-        `I had a problem cancelling this order (${error.response?.data?.detail || 'Network Error'}). Please refresh.`,
-        'error'
-      );
-      set({ isProcessing: false });
-    }
+    socket.send(JSON.stringify({
+      type: "CANCEL_INTENT",
+      message: { orderId: paymentDetails.orderId }
+    }));
   },
 
   removeProductById: async (productId) => {
-    if (get().isLoading || get().isProcessing) return;
-
-    const localMessageContent = 'Updating cart...';
-
-    set({ isLoading: true, isProcessing: true });
-    get().addLocalAIMessage(localMessageContent, 'success_text');
-
-    try {
-      const response = await api.post('/ai-ordering/chat', {
-        message: `__INTERNAL_REMOVE_BY_ID__:${productId}`
-      });
-
-      const aiData = response.data;
-      const aiMessages: Message[] = (aiData.responses || [])
-          .map((res: any) => ({
-              id: messageId++,
-              sender: 'ai',
-              ...res
-           }));
-
-      set((state) => ({
-          messages: [...state.messages.filter(m => m.content !== localMessageContent), ...aiMessages],
-          isLoading: false,
-          isProcessing: false,
-      }));
-
-    } catch (error) {
-       get().addLocalAIMessage('There was an error removing the item. Please try again.', 'error');
-       set({ isLoading: false, isProcessing: false });
-    }
+    get()._sendInternalCommand(`__INTERNAL_REMOVE_BY_ID__:${productId}`);
   },
 
-  sendMessage: async (text) => {
-    if (!text || get().isLoading) return;
+  sendMessage: (text) => {
+    if (!text || get().isLoading || !get().socket) return;
 
     const userMessage: Message = { id: messageId++, sender: 'user', contentType: 'text', content: text };
     const typingIndicator: Message = { id: messageId++, sender: 'ai', contentType: 'typing', content: null };
@@ -284,61 +227,13 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     set((state) => ({
       messages: [...state.messages.filter(m => m.contentType !== 'typing'), userMessage, typingIndicator],
       isLoading: true,
-      isProcessing: true, 
+      isProcessing: true,
       suggestedProductIds: null,
     }));
 
-    try {
-      const response = await api.post('/ai-ordering/chat', {
-        message: text 
-      });
-
-      const aiData = response.data;
-      const rawResponses: any[] = aiData.responses || [];
-
-      const paymentIntentMessage = rawResponses.find(res => res.contentType === 'payment_intent');
-      let paymentDetailsFound: PaymentDetails | null = null;
-      
-      if (paymentIntentMessage) {
-        paymentDetailsFound = paymentIntentMessage.content as PaymentDetails;
-        set({ paymentDetails: paymentDetailsFound });
-      }
-
-      const aiMessages: Message[] = rawResponses
-        .filter(res => res.contentType !== 'payment_intent')
-        .map((res: any) => ({
-          id: messageId++,
-          sender: 'ai',
-          contentType: res.contentType,
-          content: res.content,
-          options: res.options,
-          products: res.products,
-          reason: res.reason,
-          ai_notes: res.ai_notes,
-      }));
-
-      if (paymentDetailsFound) {
-        aiMessages.push({
-          id: messageId++,
-          sender: 'ai',
-          contentType: 'text',
-          content: "Great! I've prepared your order. Please complete the secure payment to finalize."
-        });
-      }
-
-      const suggestions = rawResponses
-        .filter((res: any) => res.contentType === 'product_carousel' && res.products)
-        .flatMap((res: any) => res.products.map((p: any) => p.id));
-
-      set((state) => ({
-        messages: [...state.messages.filter(m => m.contentType !== 'typing'), ...aiMessages],
-        isLoading: false,
-        isProcessing: false, 
-	      suggestedProductIds: suggestions.length > 0 ? suggestions : null,
-      }));
-
-    } catch (error) {
-      get().addLocalAIMessage('Sorry, I encountered a critical connection error. Please try again later.', 'error');
-    }
+    get().socket?.send(JSON.stringify({
+      type: "CHAT_MESSAGE",
+      message: text
+    }));
   },
 }));

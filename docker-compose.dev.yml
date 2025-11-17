@@ -4,6 +4,8 @@ volumes:
   postgres-data:
   rabbitmq-data:
   redis-data:
+  api-storage-data:
+  opensearch-data:
   api-static-data:
   px4-source-data:
     driver: local
@@ -11,7 +13,6 @@ volumes:
 networks:
   airdeliver-net:
     driver: bridge
-    name: airdeliver-net
 
 services:
   postgres:
@@ -128,7 +129,82 @@ services:
         condition: service_healthy
     networks:
       - airdeliver-net
+
+    healthcheck:
+       test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health || exit 1"]
+       interval: 10s
+       timeout: 5s
+       retries: 10
+       start_period: 60s
+  
+
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+
+  api-worker:
+    container_name: airdeliver-api-worker
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    env_file: .env
+    restart: always
+    environment:
+      - DATABASE_URI=${DATABASE_URL_ASYNC}
+      - POSTGRES_SERVER=postgres
+      - RABBITMQ_HOST=mq
+      - REDIS_HOST=redis
+      - APP_ENV=development
+      - LOG_LEVEL=debug
+      - OPENSEARCH_HOST=opensearch
+      - OPENSEARCH_PORT=9200
+  
+    volumes:
+      - ./apps/api:/app
+      - api-storage-data:/app/storage
+    depends_on:
+      api-migrator:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      mq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    networks:
+      - airdeliver-net
+    command: python /app/worker_entrypoint.py
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    container_name: airdeliver-opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" 
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      - "DISABLE_SECURITY_PLUGIN=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - airdeliver-net 
 
   c2_gateway:
     container_name: airdeliver-c2-gateway
@@ -197,7 +273,7 @@ services:
     volumes:
       - px4-source-data:/root/PX4-Autopilot
     healthcheck:
-      test: ["CMD-SHELL", "netstat -upln | grep -q 14580"]
+      test: ["CMD-SHELL", "ps -ef | grep px4 | grep -v grep"]
       interval: 10s
       timeout: 10s
       retries: 10

@@ -1,64 +1,46 @@
 # apps/api/app/api/v1/endpoints/ai_ordering.py
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from app.api import deps
-from app import models, schemas
-from app.db.session import get_session
-from app.services.ai_ordering_service import (
-    AIOrderingService,
-    get_ai_ordering_service,
-)
-from app.services.cache_service import IAsyncCacheClient, get_cache_client
-from app.services.payment_orchestrator import (
-    PaymentOrchestrator,
-    get_payment_orchestrator,
-)
+from app import models
+from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
+import json
 
 router = APIRouter()
 
-
-@router.post("/chat", response_model=schemas.ChatResponse)
-async def handle_chat_message(
-    *,
-    db: AsyncSession = Depends(get_session),
-    cache: IAsyncCacheClient = Depends(get_cache_client),
-    orchestrator: PaymentOrchestrator = Depends(get_payment_orchestrator),
-    service: AIOrderingService = Depends(get_ai_ordering_service),
-    request: schemas.ChatRequest,
-    current_user: models.User = Depends(deps.get_current_active_user),
+@router.websocket("/chat")
+async def handle_chat_websocket(
+    websocket: WebSocket,
+    current_user: models.User = Depends(deps.get_current_active_user_ws),
+    rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
 ):
-    responses = await service.handle_message(
-        db=db,
-        cache=cache,
-        message=request.message,
-        user=current_user,
-        orchestrator=orchestrator,
-    )
+    await websocket.accept()
 
-    return {"responses": responses}
+    connection_manager = deps.get_websocket_manager()
+    await connection_manager.connect(current_user.id, websocket)
 
-
-@router.patch("/order/{order_id}/cancel", response_model=models.Order)
-async def cancel_order(
-    *,
-    db: AsyncSession = Depends(get_session),
-    service: AIOrderingService = Depends(get_ai_ordering_service),
-    order_id: int,
-    current_user: models.User = Depends(deps.get_current_active_user),
-):
     try:
-        order = await service.cancel_order_by_id(
-            db=db, order_id=order_id, user_id=current_user.id
-        )
+        while True:
+            data = await websocket.receive_text()
+            message_data = json.loads(data)
 
-        if not order:
-            raise HTTPException(
-                status_code=404,
-                detail="Order not found or you do not have permission to cancel it.",
+            message_payload = {
+                "user_id": current_user.id,
+                "email": current_user.email,
+                "country": current_user.country or "US",
+                "phone": current_user.phone_number or "",
+                "address": current_user.address or "",
+                "city": current_user.city or "",
+                "message": message_data.get("message"),
+                "type": message_data.get("type", "CHAT_MESSAGE"),
+            }
+
+            await rabbitmq.publish(
+                body=message_payload,
+                routing_key="airdeliver.ai.chat.in",
             )
 
-        return order
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except WebSocketDisconnect:
+        await connection_manager.disconnect(current_user.id)
+    except Exception as e:
+        await connection_manager.disconnect(current_user.id)

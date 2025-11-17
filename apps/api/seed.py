@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from app.core.config import settings
 from app.models.product import Product
 from app.models.user import User
-from app.models.ai_cart import AIOrderingCartItem
 from app.models.order import Order, OrderItem
 from app.core.security import get_password_hash
 
@@ -26,12 +25,6 @@ SEED_DATA_FILE = "seed_data.json"
 
 async def clear_data(session: AsyncSession):
     print("Clearing old data...")
-
-    all_cart_items_result = await session.execute(select(AIOrderingCartItem))
-    all_cart_items = all_cart_items_result.scalars().all()
-    for item in all_cart_items:
-        await session.delete(item)
-    print(f"Deleted {len(all_cart_items)} old AI cart items.")
 
     all_order_items_result = await session.execute(select(OrderItem))
     all_order_items = all_order_items_result.scalars().all()

@@ -7,8 +7,7 @@ import json
 import logging
 from app import models
 from app.schemas.drone import CommandStartMission, CommandWrapper
-from app.services.rabbitmq_service import rabbitmq_service
-from app.core.config import settings
+from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
 from app.api import deps
 
 router = APIRouter()
@@ -33,6 +32,7 @@ async def command_start_mission(
     drone_id_str: str,
     mission_payload: CommandStartMission,
     current_user: models.User = Depends(deps.get_current_admin_user),
+    rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
 ):
     drone = await get_drone_by_id_str(drone_id_str, session)
 
@@ -43,12 +43,11 @@ async def command_start_mission(
         )
 
     command = CommandWrapper(command="start_mission", payload=mission_payload.model_dump())
-
-    routing_key = f"drone.{drone.drone_id_str}"
-    message_body = command.model_dump_json().encode()
+    command_body = command.model_dump()
+    routing_key = f"airdeliver.commands.drone.{drone.drone_id_str}"
 
     try:
-        await rabbitmq_service.publish_command(routing_key, message_body)
+        await rabbitmq.publish(body=command_body, routing_key=routing_key)
         logging.info(
             f"Published start_mission command for {drone_id_str} to {routing_key}"
         )
@@ -67,6 +66,7 @@ async def command_return_to_home(
     session: AsyncSession = Depends(deps.get_session),
     drone_id_str: str,
     current_user: models.User = Depends(deps.get_current_admin_user),
+    rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
 ):
     drone = await get_drone_by_id_str(drone_id_str, session)
 
@@ -77,12 +77,11 @@ async def command_return_to_home(
         )
 
     command = CommandWrapper(command="return_to_home", payload={})
-
-    routing_key = f"drone.{drone.drone_id_str}"
-    message_body = command.model_dump_json().encode()
+    command_body = command.model_dump()
+    routing_key = f"airdeliver.commands.drone.{drone.drone_id_str}"
 
     try:
-        await rabbitmq_service.publish_command(routing_key, message_body)
+        await rabbitmq.publish(body=command_body, routing_key=routing_key)
         logging.info(
             f"Published return_to_home command for {drone_id_str} to {routing_key}"
         )

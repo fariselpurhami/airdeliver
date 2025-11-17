@@ -45,6 +45,11 @@ class CoreSettings(BaseSettings):
     VAPID_PRIVATE_KEY: str
     AI_CHAT_STATE_TTL_SECONDS: int = 900
 
+    OPENSEARCH_HOST: str = Field("localhost", env="OPENSEARCH_HOST")
+    OPENSEARCH_PORT: int = Field(9200, env="OPENSEARCH_PORT")
+    OPENSEARCH_USER: Optional[str] = Field(None, env="OPENSEARCH_USER")
+    OPENSEARCH_PASS: Optional[str] = Field(None, env="OPENSEARCH_PASS")
+
     @computed_field
     @property
     def DATABASE_URI(self) -> str:

@@ -37,18 +37,18 @@ const nextConfig = {
         protocol: 'http',
         hostname: 'localhost',
         port: '8000',
-        pathname: '/static/avatars/**',
+        pathname: '/**',
       },
       {
         protocol: 'http',
         hostname: 'api',
         port: '8000',
-        pathname: '/static/avatars/**',
+        pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'api.airdeliver.com',
-        pathname: '/static/avatars/**',
+        pathname: '/**',
       },
       {
         protocol: 'https',

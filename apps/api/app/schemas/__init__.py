@@ -2,7 +2,7 @@
 
 from .ai_ordering import ChatRequest, ChatResponse, ResponseMessage
 from .msg import Msg
-from .token import Token, TokenData
+from .token import Token, TokenData, TokenPayload
 from .audit_trail import AuditTrail
 from .user import User, UserCreate, UserUpdate, UserRead 
 from .product import Product, ProductCreate, ProductUpdate, ProductRead 
@@ -15,6 +15,7 @@ __all__ = [
     "Msg",
     "Token",
     "TokenData",
+    "TokenPayload",
     "PaymentIntent",
     "AuditTrail",
     "User",

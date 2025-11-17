@@ -7,8 +7,7 @@ from sqlalchemy.orm import Mapped, relationship
 
 if TYPE_CHECKING:
     from .order import OrderItem
-    from .ai_cart import AIOrderingCartItem
-
+    
 class Product(SQLModel, table=True):
     __tablename__ = "products"
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -24,9 +23,5 @@ class Product(SQLModel, table=True):
     rating: Optional[float] = Field(default=4.5, index=True)
 
     order_items: Mapped[List["OrderItem"]] = Relationship(sa_relationship=relationship("OrderItem", back_populates="product"))
-
-    ai_cart_items: Mapped[List["AIOrderingCartItem"]] = Relationship(
-        sa_relationship=relationship("AIOrderingCartItem", back_populates="product")
-    )
 
     model_config = { "from_attributes": True }

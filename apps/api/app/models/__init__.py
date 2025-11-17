@@ -1,4 +1,4 @@
-# apps/api/app/models/__init__.py (الكود الصحيح)
+# apps/api/app/models/__init__.py
 
 from .enums import (
     UserRole,
@@ -19,7 +19,6 @@ from .order import Order, OrderItem
 from .product import Product
 from .user import User
 from .aimemory import AIMemory 
-from .ai_cart import AIOrderingCartItem
 
 __all__ = [
     "UserRole",
@@ -42,5 +41,4 @@ __all__ = [
     "Product",
     "User",
     "AIMemory",
-    "AIOrderingCartItem",
 ]

@@ -1,111 +1,55 @@
+# apps/api/app/services/ai_commerce_engine.py
+
 import re
+import asyncio
+from fastapi import Depends
 from sqlmodel import select, or_
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.product import Product
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, AsyncGenerator
 from sqlalchemy import case, cast, String, and_
+from opensearchpy import AsyncOpenSearch
+from pymilvus import MilvusClient
+from sentence_transformers import SentenceTransformer
+import numpy as np
+from app.core.config import get_core_settings, CoreSettings
 
+MILVUS_DB_PATH = "/app/storage/milvus_in_memory.db"
+
+class HybridSearchReranker:
+    def __init__(self, k: int = 60):
+        self.k = k
+
+    def rerank(self, results: List[Tuple[str, float]]) -> Dict[str, float]:
+        reranked_scores = {}
+        for doc_id, score in results:
+            if doc_id not in reranked_scores:
+                reranked_scores[doc_id] = 0.0
+            reranked_scores[doc_id] += 1.0 / (self.k + score)
+        return reranked_scores
 
 class AICommerceEngine:
-    def __init__(self):
+    def __init__(
+        self,
+        opensearch_client: AsyncOpenSearch,
+        milvus_client: MilvusClient,
+        embedding_model: SentenceTransformer,
+    ):
+        self.opensearch_client = opensearch_client
+        self.milvus_client = milvus_client
+        self.embedding_model = embedding_model
+        self.reranker = HybridSearchReranker()
+        self.milvus_collection = "airdeliver_products"
         self.intent_keywords = {
-            "ADD_TO_CART": [
-                "add",
-                "buy",
-                "get",
-                "purchase",
-                "i want",
-                "i need",
-                "i'd like",
-            ],
-            "REMOVE_FROM_CART": ["remove", "delete", "take off", "drop"],
-            "SEARCH_PRODUCT": [
-                "find",
-                "search for",
-                "show me",
-                "can i see",
-                "do you have",
-            ],
-            "CHECK_PRICE": ["how much is", "what's the price of", "price of"],
+            "ADD_TO_CART": ["add", "buy", "get", "purchase", "i want", "i need"],
+            "REMOVE_FROM_CART": ["remove", "delete", "take off"],
+            "SEARCH_PRODUCT": ["find", "search", "show me", "do you have"],
         }
-
-        self.stop_words = [
-            "a",
-            "an",
-            "the",
-            "some",
-            "for",
-            "me",
-            "my",
-            "to",
-            "please",
-            "thank you",
-            "item",
-            "items",
-            "product",
-            "products",
-            "of",
-            "is",
-            "are",
-        ]
-
-        self.price_patterns = {
-            "max_price": re.compile(
-                r"(under|less than|below|max|maximum) (\$|usd)? ?(\d+\.?\d*)"
-            ),
-            "min_price": re.compile(
-                r"(over|more than|above|min|minimum) (\$|usd)? ?(\d+\.?\d*)"
-            ),
-            "around_price": re.compile(
-                r"(around|about|approx|approximately) (\$|usd)? ?(\d+\.?\d*)"
-            ),
-            "price_range": re.compile(
-                r"(between|from) (\$|usd)? ?(\d+\.?\d*) (and|to) (\$|usd)? ?(\d+\.?\d*)"
-            ),
-        }
-
-        self.quantity_pattern = re.compile(r"(\d+) (units|items|pairs|of them|)")
-
-        self.synonym_map = {
-            "phone": "smartphone",
-            "cellphone": "smartphone",
-            "watch": "smartwatch",
-            "tv": "television",
-            "laptop": "computer",
-            "pc": "computer",
-            "cheap": "budget",
-            "affordable": "budget",
-            "costly": "premium",
-            "expensive": "premium",
-            "sneakers": "shoes",
-            "running": "sport",
-            "formal": "business",
-            "dress": "clothing",
-            "shirt": "clothing",
-            "pants": "clothing",
-        }
-
-        self.context_map = {
-            "interview": {"category": "clothing", "tags": ["formal", "business", "suit"]},
-            "job": {"category": "clothing", "tags": ["formal", "business", "suit"]},
-            "meeting": {"category": "clothing", "tags": ["business"]},
-            "sport": {"category": "clothing", "tags": ["sport", "fitness"]},
-            "running": {"category": "shoes", "tags": ["sport", "running"]},
-            "workout": {"tags": ["sport", "fitness"]},
-            "party": {"category": "clothing", "tags": ["party", "formal"]},
-            "gift": {"tags": ["gift", "popular", "premium"]},
-            "present": {"tags": ["gift", "popular", "premium"]},
-            "gift for her": {"tags": ["gift", "women", "jewelry", "perfume"]},
-            "girlfriend": {"tags": ["gift", "women", "jewelry", "perfume"]},
-            "wife": {"tags": ["gift", "women", "jewelry", "perfume"]},
-            "gift for him": {"tags": ["gift", "men", "watch", "electronics"]},
-            "boyfriend": {"tags": ["gift", "men", "watch", "electronics"]},
-            "husband": {"tags": ["gift", "men", "watch", "electronics"]},
-        }
+        self.stop_words = ["a", "an", "the", "for", "me", "item", "product"]
 
     def _normalize_message(self, message: str) -> str:
         message = message.lower()
-        message = re.sub(r"[^\w\s\d\$\.]", "", message)
+        message = re.sub(r"[^\w\s]", "", message)
         return message
 
     def _classify_intent(self, normalized_message: str) -> Tuple[str, str]:
@@ -114,180 +58,113 @@ class AICommerceEngine:
                 if normalized_message.startswith(keyword + " "):
                     cleaned_message = normalized_message[len(keyword) :].strip()
                     return intent, cleaned_message
-
         return "SEARCH_PRODUCT", normalized_message
 
-    def _extract_entities(self, message: str) -> Dict[str, Any]:
-        entities = {
-            "product_name": None,
-            "min_price": None,
-            "max_price": None,
-            "quantity": 1,
-            "context_rules": [],
+    def _get_query_embedding(self, query: str) -> List[float]:
+        vector = self.embedding_model.encode(query, convert_to_numpy=True)
+        return vector.tolist()
+
+    async def _search_opensearch(self, query: str) -> List[Tuple[str, float]]:
+        opensearch_query = {
+            "query": {
+                "multi_match": {
+                    "query": query,
+                    "fields": ["name^3", "description", "tags^2", "category"],
+                }
+            },
+            "size": 20,
         }
+        response = await self.opensearch_client.search(
+            index="airdeliver_products", body=opensearch_query
+        )
+        return [
+            (hit["_id"], hit["_score"]) for hit in response["hits"]["hits"]
+        ]
 
-        original_message = message
-
-        for context_key, rules in self.context_map.items():
-            if context_key in message:
-                entities["context_rules"].append(rules)
-                message = message.replace(context_key, "")
-
-        for price_type, pattern in self.price_patterns.items():
-            match = pattern.search(message)
-            if match:
-                if price_type == "max_price":
-                    entities["max_price"] = float(match.group(3))
-                elif price_type == "min_price":
-                    entities["min_price"] = float(match.group(3))
-                elif price_type == "around_price":
-                    price = float(match.group(3))
-                    entities["min_price"] = price * 0.9
-                    entities["max_price"] = price * 1.1
-                elif price_type == "price_range":
-                    entities["min_price"] = float(match.group(3))
-                    entities["max_price"] = float(match.group(6))
-
-                message = message.replace(match.group(0), "")
-
-        quantity_match = self.quantity_pattern.search(message)
-        if quantity_match:
-            try:
-                entities["quantity"] = int(quantity_match.group(1))
-                message = message.replace(quantity_match.group(0), "")
-            except ValueError:
-                entities["quantity"] = 1
-
-        product_name_parts = []
-        for word in message.split():
-            if word not in self.stop_words:
-                product_name_parts.append(word)
-
-        product_name = " ".join(product_name_parts).strip()
-
-        if not product_name:
-            if (
-                not entities["context_rules"]
-                and not entities["min_price"]
-                and not entities["max_price"]
-            ):
-                if original_message.strip():
-                    entities["product_name"] = original_message.strip().rstrip("s")
-            else:
-                entities["product_name"] = None
-        else:
-            entities["product_name"] = product_name.rstrip("s")
-
-            synonym = self.synonym_map.get(entities["product_name"])
-            if synonym:
-                if "tags" not in entities:
-                    entities["tags"] = []
-                entities["tags"] = [synonym]
-
-        return entities
-
-    def _generate_query_statement(
-        self, db: AsyncSession, entities: dict
-    ) -> Any:
-        statement = select(Product)
-        search_criteria = []
-
-        product_name = entities.get("product_name")
-        context_tags = set()
-        context_categories = set()
-
-        if entities.get("min_price"):
-            statement = statement.where(Product.price >= entities["min_price"])
-        if entities.get("max_price"):
-            statement = statement.where(Product.price <= entities["max_price"])
-
-        for rule in entities.get("context_rules", []):
-            if "category" in rule:
-                context_categories.add(rule["category"])
-            if "tags" in rule:
-                context_tags.update(rule["tags"])
-
-        if context_categories:
-            statement = statement.where(Product.category.in_(list(context_categories)))
-
-        if context_tags:
-            tag_criteria = [
-                cast(Product.tags, String).ilike(f"%{tag}%") for tag in context_tags
-            ]
-            statement = statement.where(or_(*tag_criteria))
-
-        if entities.get("tags"):
-            synonym_criteria = [
-                cast(Product.tags, String).ilike(f"%{tag}%")
-                for tag in entities["tags"]
-            ]
-            statement = statement.where(or_(*synonym_criteria))
-
-        if product_name:
-            name_query = f"%{product_name}%"
-            words = product_name.split()
-
-            exact_name_match = Product.name.ilike(product_name)
-            partial_name_match = Product.name.ilike(name_query)
-
-            multi_word_name_match = and_(*[Product.name.ilike(f"%{word}%") for word in words])
-
-            tag_match = cast(Product.tags, String).ilike(name_query)
-            desc_match = Product.description.ilike(name_query)
-
-            search_criteria.append(exact_name_match)
-            search_criteria.append(partial_name_match)
-            search_criteria.append(multi_word_name_match)
-            search_criteria.append(tag_match)
-            search_criteria.append(desc_match)
-            search_rank = case(
-                (exact_name_match, 10),
-                (multi_word_name_match, 8),
-                (partial_name_match, 5),
-                (tag_match, 3),
-                (desc_match, 2),
-                else_=0,
-            ).label("rank")
-
-            statement = statement.where(or_(*search_criteria)).order_by(
-                search_rank.desc(), Product.price.asc()
-            )
-
-        elif (
-            not context_tags
-            and not context_categories
-            and not entities.get("min_price")
-            and not entities.get("max_price")
-        ):
-            return None
-
-        statement = statement.limit(5)
-        return statement
+    async def _search_milvus(self, vector: List[float]) -> List[Tuple[str, float]]:
+        search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
+        results = self.milvus_client.search(
+            collection_name=self.milvus_collection,
+            data=[vector],
+            limit=20,
+            search_params=search_params,
+        )
+        return [
+            (hit.id, hit.distance) for hit in results[0]
+        ]
 
     async def find_products_from_message(
-        self, db: AsyncSession, message: str
+        self, db: AsyncSession, message: str, user_id: int
     ) -> Tuple[List[Product], Dict[str, Any]]:
         normalized_message = self._normalize_message(message)
         intent, cleaned_message = self._classify_intent(normalized_message)
 
-        entities = self._extract_entities(cleaned_message)
+        if not cleaned_message:
+            return [], {"intent": intent}
 
-        statement = self._generate_query_statement(db, entities)
+        query_vector = self._get_query_embedding(cleaned_message)
 
-        if statement is None:
-            return [], entities
+        opensearch_results, milvus_results = await asyncio.gather(
+            self._search_opensearch(cleaned_message),
+            self._search_milvus(query_vector)
+        )
 
+        all_results = opensearch_results + milvus_results
+        reranked_scores = self.reranker.rerank(all_results)
+
+        sorted_ids = sorted(
+            reranked_scores, key=reranked_scores.get, reverse=True
+        )[:5]
+
+        if not sorted_ids:
+            return [], {"intent": intent}
+
+        product_ids_int = [int(pid) for pid in sorted_ids]
+
+        statement = select(Product).where(Product.id.in_(product_ids_int))
         products = (await db.exec(statement)).all()
 
-        if not products and entities.get("product_Gname") and " " in entities.get("product_name", ""):
-            new_entities = entities.copy()
-            new_entities["product_name"] = entities["product_name"].split(" ")[-1]
-            statement = self._generate_query_statement(db, new_entities)
-            if statement is not None:
-                products = (await db.exec(statement)).all()
-                return products, new_entities
+        product_map = {str(p.id): p for p in products}
+        sorted_products = [product_map[pid] for pid in sorted_ids if pid in product_map]
 
-        return products, entities
+        return sorted_products, {"intent": intent, "quantity": 1}
 
+def get_embedding_model() -> SentenceTransformer:
+    return SentenceTransformer(
+        "all-MiniLM-L6-v2"
+    )
 
-ai_commerce_engine = AICommerceEngine()
+def get_milvus_client() -> MilvusClient:
+    return MilvusClient(uri=MILVUS_DB_PATH)
+
+async def get_opensearch_client(
+    settings: CoreSettings = Depends(get_core_settings),
+) -> AsyncGenerator[AsyncOpenSearch, None]:
+
+    hosts = [{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}]
+    auth = None
+
+    if settings.APP_ENV == "production":
+        auth = (settings.OPENSEARCH_USER, settings.OPENSEARCH_PASS)
+
+    client = AsyncOpenSearch(
+        hosts=hosts,
+        http_auth=auth,
+        use_ssl=False,
+        verify_certs=False,
+        ssl_assert_hostname=False,
+        ssl_show_warn=False
+    )
+    yield client
+    await client.close()
+
+def get_ai_commerce_engine(
+    opensearch_client: AsyncOpenSearch = Depends(get_opensearch_client),
+    milvus_client: MilvusClient = Depends(get_milvus_client),
+    embedding_model: SentenceTransformer = Depends(get_embedding_model),
+) -> AICommerceEngine:
+    return AICommerceEngine(
+        opensearch_client=opensearch_client,
+        milvus_client=milvus_client,
+        embedding_model=embedding_model,
+    )

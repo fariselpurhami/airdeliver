@@ -1,70 +1,74 @@
 # apps/api/app/services/telemetry_consumer.py
 
-import logging
 import json
-import aio_pika
-from sqlmodel import select
-from app.core.config import settings
-from app.db.session import get_session
+import logging
+from aio_pika.abc import AbstractIncomingMessage
+from app.db.session import SessionLocal
 from app import models
 from app.schemas.drone import DroneTelemetryIngest
+from sqlmodel import select
 
-async def process_telemetry_message(message: aio_pika.abc.AbstractIncomingMessage):
-    async with message.process():
-        try:
-            data = json.loads(message.body.decode())
-            telemetry_in = DroneTelemetryIngest(**data["payload"])
-            drone_id_str = telemetry_in.drone_id
-            
-            async with get_session() as session:
-                statement = select(models.Drone).where(models.Drone.drone_id_str == drone_id_str)
-                drone = (await session.exec(statement)).first()
-                if not drone:
-                    logging.error(f"Received telemetry for unknown drone: {drone_id_str}")
-                    return
+logger = logging.getLogger(__name__)
 
-                db_telemetry = models.DroneTelemetry(
-                    drone_id=drone.id,
-                    mission_id_str=telemetry_in.mission_id_str,
-                    timestamp=telemetry_in.timestamp,
-                    lat=telemetry_in.lat,
-                    lon=telemetry_in.lon,
-                    alt_m=telemetry_in.alt_m,
-                    speed_m_s=telemetry_in.ground_speed_m_s,
-                    battery_pct=telemetry_in.battery_pct,
-                    flight_mode=telemetry_in.flight_mode,
-                )
-                session.add(db_telemetry)
+async def _process_telemetry_message(db, payload: dict):
+    
+    telemetry_in = DroneTelemetryIngest(**payload)
+    drone_id_str = telemetry_in.drone_id
+    
+    drone = (await db.exec(
+        select(models.Drone).where(models.Drone.drone_id_str == drone_id_str)
+    )).first()
+    
+    if not drone:
+        logger.warning(f"Skipping telemetry: Drone {drone_id_str} not found in DB")
+        return
 
-                drone.current_lat = telemetry_in.lat
-                drone.current_lon = telemetry_in.lon
-                drone.current_battery_pct = telemetry_in.battery_pct
-                drone.last_seen = telemetry_in.timestamp
+    db_telemetry = models.DroneTelemetry(
+        drone_id=drone.id,
+        mission_id_str=telemetry_in.mission_id_str,
+        timestamp=telemetry_in.timestamp,
+        lat=telemetry_in.lat,
+        lon=telemetry_in.lon,
+        alt_m=telemetry_in.alt_m,
+        speed_m_s=telemetry_in.ground_speed_m_s,
+        battery_pct=telemetry_in.battery_pct,
+        flight_mode=telemetry_in.flight_mode,
+    )
+    db.add(db_telemetry)
 
-                if telemetry_in.flight_mode in ["AUTO", "MISSION", "OFFBOARD"] and drone.status != models.DroneStatus.IN_MISSION:
-                    drone.status = models.DroneStatus.IN_MISSION
-                elif telemetry_in.flight_mode == "RTL" and drone.status != models.DroneStatus.RETURNING:
-                    drone.status = models.DroneStatus.RETURNING
-                elif telemetry_in.flight_mode == "LAND" and drone.status != models.DroneStatus.LANDING:
-                    drone.status = models.DroneStatus.LANDING
+    drone.current_lat = telemetry_in.lat
+    drone.current_lon = telemetry_in.lon
+    drone.current_battery_pct = telemetry_in.battery_pct
+    drone.last_seen = telemetry_in.timestamp
+
+    if telemetry_in.flight_mode in ["AUTO", "MISSION", "OFFBOARD"] and drone.status != models.DroneStatus.IN_MISSION:
+        drone.status = models.DroneStatus.IN_MISSION
+    elif telemetry_in.flight_mode == "RTL" and drone.status != models.DroneStatus.RETURNING:
+        drone.status = models.DroneStatus.RETURNING
+    elif telemetry_in.flight_mode == "LAND" and drone.status != models.DroneStatus.LANDING:
+        drone.status = models.DroneStatus.LANDING
+    
+    session.add(drone)
+    await db.commit()
+    logger.debug(f"Telemetry processed for drone {drone_id_str}")
+
+
+def get_telemetry_handler(app_dependencies: dict):
+    async def handle_telemetry(message: AbstractIncomingMessage):
+        async with message.process():
+            try:
+                data = json.loads(message.body.decode())
+                payload = data.get("payload")
                 
-                session.add(drone)
-                await session.commit()
+                if not payload:
+                     logger.warning("Received telemetry message without 'payload' field.")
+                     return
 
-        except json.JSONDecodeError:
-            logging.error("Failed to decode telemetry JSON")
-        except Exception as e:
-            logging.error(f"Failed to process telemetry message: {e}")
+                async with SessionLocal() as db:
+                    await _process_telemetry_message(db, payload)
+            except json.JSONDecodeError:
+                logger.error("Failed to decode telemetry JSON")
+            except Exception as e:
+                logger.error(f"Error processing telemetry message: {e}", exc_info=True)
 
-async def consume_telemetry(connection_pool):
-    logging.info("Starting Telemetry Consumer...")
-    async with connection_pool.acquire() as connection:
-        channel = await connection.channel()
-        queue = await channel.get_queue(settings.QUEUE_TELEMETRY)
-        await queue.bind(settings.EXCHANGE_TELEMETRY, routing_key="drone.*")
-        await queue.consume(process_telemetry_message)
-        logging.info("Telemetry Consumer is consuming.")
-        try:
-            await asyncio.Future()
-        except asyncio.CancelledError:
-            logging.info("Telemetry Consumer stopped.")
+    return handle_telemetry
