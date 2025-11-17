@@ -1,5 +1,6 @@
 # apps/api/app/services/ai_nlu_service.py
 
+import asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from app.services.ai_commerce_engine import AICommerceEngine
@@ -21,7 +22,7 @@ class AINLUService:
     async def _handle_initial_suggestions(self, user_id: int):
         statement = select(Product).order_by(Product.rating.desc()).limit(5)
         products = (await self.db.exec(statement)).all()
-
+        
         await self.rabbitmq.publish(
             {
                 "user_id": user_id,
@@ -36,12 +37,15 @@ class AINLUService:
     async def _send_add_success_prompt(self, user_id: int, product_name: str):
         await self.rabbitmq.publish(
             {
-                "user_id": user_id,
-                "content": f"**{product_name}** added! You've got great taste.",
+                "user_id": user_id, 
+                "content": f"**{product_name}** added! You've got great taste.", 
                 "type": "success_text"
             },
             "airdeliver.ai.response.out",
         )
+        
+        await asyncio.sleep(0.01)
+
         await self.rabbitmq.publish(
             {
                 "user_id": user_id,
@@ -55,17 +59,17 @@ class AINLUService:
     async def _send_remove_success_text(self, user_id: int, product_name: str):
         await self.rabbitmq.publish(
             {
-                "user_id": user_id,
-                "content": f"Acknowledged. The **{product_name}** has been removed from your cart.",
+                "user_id": user_id, 
+                "content": f"Acknowledged. The **{product_name}** has been removed from your cart.", 
                 "type": "success_text"
             },
             "airdeliver.ai.response.out",
         )
-
+        
     async def _handle_secondary_suggestions(self, user_id: int):
         statement = select(Product).order_by(Product.price.desc()).limit(3)
         products = (await self.db.exec(statement)).all()
-
+        
         await self.rabbitmq.publish(
             {
                 "user_id": user_id,
@@ -80,7 +84,7 @@ class AINLUService:
     async def process_message(self, message_payload: dict):
         user_id = message_payload["user_id"]
         message = message_payload["message"]
-
+        
         if message == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
             await self._handle_initial_suggestions(user_id)
             return
@@ -89,7 +93,7 @@ class AINLUService:
             try:
                 product_id_str = message.split(":")[1]
                 product_id = int(product_id_str)
-
+                
                 await self.rabbitmq.publish(
                     {"user_id": user_id, "product_id": product_id, "quantity": 1},
                     "airdeliver.ai.intent.add_to_cart",
@@ -99,7 +103,7 @@ class AINLUService:
                 if product:
                     await self._send_add_success_prompt(user_id, product.name)
                     await self._handle_secondary_suggestions(user_id)
-
+                
                 return
             except Exception as e:
                 await self.rabbitmq.publish(
@@ -112,12 +116,12 @@ class AINLUService:
             try:
                 product_id_str = message.split(":")[1]
                 product_id = int(product_id_str)
-
+                
                 await self.rabbitmq.publish(
                     {"user_id": user_id, "product_id": product_id, "action": "remove_by_id"},
                     "airdeliver.ai.intent.remove_from_cart",
                 )
-
+                
                 return
             except Exception as e:
                 await self.rabbitmq.publish(
@@ -156,19 +160,19 @@ class AINLUService:
                     {**response_payload, "product_id": products[0].id, "quantity": entities.get("quantity", 1)},
                     "airdeliver.ai.intent.add_to_cart",
                 )
-
+        
         elif intent == "REMOVE_FROM_CART":
             await self.rabbitmq.publish(
                 {**response_payload, "product_name": message},
                 "airdeliver.ai.intent.remove_from_cart",
             )
-
+        
         elif intent == "CONFIRM_ORDER":
              await self.rabbitmq.publish(
                 {**response_payload, **message_payload},
                 "airdeliver.ai.intent.confirm_order",
             )
-
+        
         elif intent == "SEARCH_PRODUCT":
             if products:
                 await self.rabbitmq.publish(

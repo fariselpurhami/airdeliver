@@ -35,7 +35,7 @@ describe('HomePage', () => {
 
   it('renders the main action buttons', () => {
     render(<HomePage />);
-    expect(screen.getByRole('button', { name: /Order with AI/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Order with air/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Explore Products/i })).toBeInTheDocument();
   });
 
@@ -46,9 +46,9 @@ describe('HomePage', () => {
     expect(screen.getByRole('heading', { name: /Trusted by Innovators/i })).toBeInTheDocument();
   });
 
-  it('calls the AI ordering store when "Order with AI" is clicked', () => {
+  it('calls the AI ordering store when "Order with air" is clicked', () => {
     render(<HomePage />);
-    const orderButton = screen.getByRole('button', { name: /Order with AI/i });
+    const orderButton = screen.getByRole('button', { name: /Order with air/i });
     fireEvent.click(orderButton);
     expect(mockSetOverlayVisible).toHaveBeenCalledTimes(1);
     expect(mockSetOverlayVisible).toHaveBeenCalledWith(true);
