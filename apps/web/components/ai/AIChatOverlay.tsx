@@ -115,7 +115,12 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect }: { message:
                         <p className="whitespace-pre-wrap mb-3 text-base">{message.content}</p>
                         <div className="flex flex-wrap gap-2">
                             {(message.options as string[])?.map((option: string) => (
-                                <motion.button key={option} whileHover={{ scale: 1.05 }} onClick={() => onSend(option)} className="text-sm bg-cyan-500/20 text-cyan-300 px-3 py-1.5 rounded-full border border-cyan-500/50">
+                                <motion.button
+                                    key={option}
+                                    whileHover={{ scale: 1.05 }}
+                                    onClick={() => onSend(option)}
+                                    className="text-sm bg-cyan-500/20 text-cyan-300 px-3 py-1.5 rounded-lg border border-cyan-500/50" // تم تغيير rounded-full إلى rounded-lg لتطابق الشكل الأصلي
+                                >
                                     {option}
                                 </motion.button>
                             ))}
