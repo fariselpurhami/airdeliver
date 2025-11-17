@@ -67,7 +67,7 @@ const initialWelcomeMessage: Message = {
 const getWebSocketURL = () => {
 
   const apiURL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-  const url = new URL(apiURL, window.location.origin);
+  const url = new URL(apiURL, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
 
   url.protocol = url.protocol.replace('http', 'ws');
 
@@ -110,7 +110,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     };
 
     socket.onclose = () => {
-      set({ socket: null, isLoading: false });
+      set({ socket: null, isLoading: false, isProcessing: false });
     };
 
     socket.onerror = (error) => {
@@ -128,7 +128,6 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     set(produce((state: AIOrderingState) => {
       state.messages = state.messages.filter(m => m.contentType !== 'typing');
       state.isLoading = false;
-      state.isProcessing = false;
 
       const aiMessage: Message = {
         id: messageId++,
@@ -140,6 +139,19 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
         ai_notes: response.ai_notes,
       };
 
+      const typesThatEndProcessing = [
+          'payment_intent',
+          'ORDER_CANCELLED',
+          'error',
+          'success_text',
+          'confirmation_prompt',
+          'proactive_suggestion',
+      ];
+
+      if (typesThatEndProcessing.includes(response.type)) {
+          state.isProcessing = false;
+      }
+
       if (response.type === 'payment_intent') {
         state.paymentDetails = response.content as PaymentDetails;
         aiMessage.contentType = 'text';
@@ -148,12 +160,8 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
 
       if (response.type === 'ORDER_CANCELLED') {
         state.paymentDetails = null;
-        state.isProcessing = false;
         aiMessage.contentType = 'text';
         aiMessage.content = response.content;
-      }
-
-      if (response.type === 'cart_preview') {
       }
 
       state.messages.push(aiMessage);

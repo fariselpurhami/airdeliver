@@ -18,30 +18,7 @@ class AINLUService:
         self.search_engine = search_engine
         self.rabbitmq = rabbitmq
 
-    async def _send_add_success_prompt(self, user_id: int, product_name: str):
-        # 1. إرسال رسالة نص النجاح (Great! I've added...)
-        await self.rabbitmq.publish(
-            {
-                "user_id": user_id,
-                "content": f"Great! I've added {product_name} to your cart.",
-                "type": "success_text"
-            },
-            "airdeliver.ai.response.out",
-        )
-
-        # 2. إرسال طلب التأكيد (Confirm Order / Clear Cart)
-        await self.rabbitmq.publish(
-            {
-                "user_id": user_id,
-                "content": "Shall we confirm the order or clear the cart?",
-                "type": "confirmation_prompt",
-                "options": ["Confirm Order", "Clear Cart"],
-            },
-            "airdeliver.ai.response.out",
-        )
-
     async def _handle_initial_suggestions(self, user_id: int):
-        # هذا المنطق مخصص للاقتراحات الأولية (Initial Suggestions)
         statement = select(Product).order_by(Product.rating.desc()).limit(5)
         products = (await self.db.exec(statement)).all()
 
@@ -51,7 +28,51 @@ class AINLUService:
                 "content": "Here are some popular items you might like:",
                 "type": "proactive_suggestion",
                 "products": [p.model_dump() for p in products],
-                "reason": "Displaying top-rated products to start your order."
+                "reason": "Displaying top-rated products to start your order with world-class efficiency."
+            },
+            "airdeliver.ai.response.out",
+        )
+
+    async def _send_add_success_prompt(self, user_id: int, product_name: str):
+        await self.rabbitmq.publish(
+            {
+                "user_id": user_id,
+                "content": f"**{product_name}** added! You've got great taste.",
+                "type": "success_text"
+            },
+            "airdeliver.ai.response.out",
+        )
+        await self.rabbitmq.publish(
+            {
+                "user_id": user_id,
+                "content": "Anything else?",
+                "type": "confirmation_prompt",
+                "options": ["Confirm Order", "Clear Cart"],
+            },
+            "airdeliver.ai.response.out",
+        )
+
+    async def _send_remove_success_text(self, user_id: int, product_name: str):
+        await self.rabbitmq.publish(
+            {
+                "user_id": user_id,
+                "content": f"Acknowledged. The **{product_name}** has been removed from your cart.",
+                "type": "success_text"
+            },
+            "airdeliver.ai.response.out",
+        )
+
+    async def _handle_secondary_suggestions(self, user_id: int):
+        statement = select(Product).order_by(Product.price.desc()).limit(3)
+        products = (await self.db.exec(statement)).all()
+
+        await self.rabbitmq.publish(
+            {
+                "user_id": user_id,
+                "content": "You might also like these:",
+                "type": "proactive_suggestion",
+                "products": [p.model_dump() for p in products],
+                "reason": "Displaying complementary items based on your cart for bundle discount eligibility."
             },
             "airdeliver.ai.response.out",
         )
@@ -60,9 +81,6 @@ class AINLUService:
         user_id = message_payload["user_id"]
         message = message_payload["message"]
 
-        # -----------------------------------------------------
-        # 💡 إصلاح 1: معالجة الأوامر الداخلية والعودة المبكرة (Early Return)
-        # -----------------------------------------------------
         if message == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
             await self._handle_initial_suggestions(user_id)
             return
@@ -72,24 +90,41 @@ class AINLUService:
                 product_id_str = message.split(":")[1]
                 product_id = int(product_id_str)
 
-                # إرسال الأمر لخدمة السلة
                 await self.rabbitmq.publish(
                     {"user_id": user_id, "product_id": product_id, "quantity": 1},
                     "airdeliver.ai.intent.add_to_cart",
                 )
 
-                # إرسال الرد المتوقع مباشرة (لتفادي التعليق)
                 product = await self.db.get(Product, product_id)
                 if product:
                     await self._send_add_success_prompt(user_id, product.name)
+                    await self._handle_secondary_suggestions(user_id)
 
-                return # 👈 الأهم: إنهاء التنفيذ ومنع الوصول إلى محرك البحث المنهار
+                return
             except Exception as e:
                 await self.rabbitmq.publish(
                     {"user_id": user_id, "content": f"Error adding item: {e}", "type": "error"},
                     "airdeliver.ai.response.out",
                 )
-                return # 👈 إنهاء التنفيذ عند الفشل
+                return
+
+        if message.startswith("__INTERNAL_REMOVE_BY_ID__:") and user_id:
+            try:
+                product_id_str = message.split(":")[1]
+                product_id = int(product_id_str)
+
+                await self.rabbitmq.publish(
+                    {"user_id": user_id, "product_id": product_id, "action": "remove_by_id"},
+                    "airdeliver.ai.intent.remove_from_cart",
+                )
+
+                return
+            except Exception as e:
+                await self.rabbitmq.publish(
+                    {"user_id": user_id, "content": f"Error removing item: {e}", "type": "error"},
+                    "airdeliver.ai.response.out",
+                )
+                return
 
         if message_payload.get("type") == "CANCEL_INTENT":
             await self.rabbitmq.publish(
@@ -98,9 +133,6 @@ class AINLUService:
             )
             return
 
-        # -----------------------------------------------------
-        # ⚠️ منطق البحث (يتم تنفيذه فقط إذا لم يكن الأمر داخليًا)
-        # -----------------------------------------------------
         products, entities = await self.search_engine.find_products_from_message(
             db=self.db, message=message, user_id=user_id
         )

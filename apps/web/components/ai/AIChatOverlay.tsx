@@ -20,21 +20,12 @@ const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
         return relativePath || '/images/default.jpeg';
     }
 
-    // 1. تحديد جذر API بشكل صريح (مثال: http://localhost:8000)
-    //    هذا يضمن أننا نضرب البورت 8000 بشكل صحيح.
-    const apiBase = process.env.NEXT_PUBLIC_API_URL 
-        ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '') 
+    const apiBase = process.env.NEXT_PUBLIC_API_URL
+        ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '')
         : 'http://localhost:8000';
-    
-    // 2. ضمان أن المسار النسبي يبدأ بـ / لربطه بشكل صحيح.
+
     const normalizedPath = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
-    
-    // 3. التحقق من أن المسار يبدو معقولاً قبل الإرجاع (مثلاً: /static/...)
-    // ملاحظة: إذا كان product.image_url يحتوي بالفعل على /apps/images/، فهذا خطأ في البيانات الخلفية.
-    // نفترض أن الخادم يخدم الصور من مسار /static/ كما هو مُعد في main.py.
-    
-    // الحل: يجب أن تكون النتيجة http://localhost:8000/static/images/wallet.jpg
-    // إذا كانت قاعدة البيانات تُرجع المسار الصحيح (e.g., /static/images/wallet.jpg)، فهذا الكود سيجمعه بشكل صحيح:
+
     return `${apiBase}${normalizedPath}`;
 };
 
@@ -274,7 +265,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
 AIChatSidebar.displayName = 'AIChatSidebar';
 
 const ChatInput = React.memo(
-  ({ onSend, isTyping }: { onSend: (text: string) => void; isTyping: boolean }) => {
+  ({ onSend, isTyping, isProcessing }: { onSend: (text: string) => void; isTyping: boolean; isProcessing: boolean }) => {
     const [value, setValue] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const wasTypingRef = useRef<boolean>(isTyping);
@@ -286,9 +277,11 @@ const ChatInput = React.memo(
       wasTypingRef.current = isTyping;
     }, [isTyping]);
 
+    const isDisabled = isTyping || isProcessing;
+
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      if (value.trim() && !isTyping) {
+      if (value.trim() && !isDisabled) {
         onSend(value);
         setValue('');
       }
@@ -302,13 +295,13 @@ const ChatInput = React.memo(
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder={isTyping ? 'AI is thinking...' : 'Ask AI to order anything...'}
-            disabled={isTyping}
+            placeholder={isDisabled ? 'AI is processing your request...' : 'Ask AI to order anything...'}
+            disabled={isDisabled}
             className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-full py-3 pr-14 pl-5 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-400 focus:outline-none transition-all"
           />
           <button
             type="submit"
-            disabled={isTyping}
+            disabled={isDisabled}
             onClick={(e) => e.stopPropagation()}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-600 transition-colors"
           >
@@ -335,7 +328,7 @@ const TypingIndicator = () => (
       </div>
       <div className="flex items-center gap-1.5 px-4 py-3 bg-black/20 rounded-lg">
         <motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }} />
-        <motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -3, 0]} } transition={{ duration: 0.8, delay: 0.1, repeat: Infinity, ease: 'easeInOut' }} />
+        <motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ duration: 0.8, delay: 0.1, repeat: Infinity, ease: 'easeInOut' }} />
         <motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ duration: 0.8, delay: 0.2, repeat: Infinity, ease: 'easeInOut' }} />
       </div>
     </motion.div>
@@ -585,7 +578,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                             {isLoading && <TypingIndicator />}
                                             <div ref={chatEndRef} />
                                         </div>
-                                        <ChatInput onSend={handleSendMessage} isTyping={isLoading || (messages.length > 0 && messages[messages.length - 1].contentType === 'success_text')} />
+                                        <ChatInput onSend={handleSendMessage} isTyping={isLoading} isProcessing={isProcessing} />
                                     </motion.div>
                                 )}
                             </AnimatePresence>
