@@ -5,7 +5,7 @@ from pydantic import AnyUrl, Field, computed_field
 import os
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Airdeliver C2 Gateway"
+    PROJECT_NAME: str = "airdeliver C2 Gateway"
     API_V1_STR: str = "/api/v1"
     
     BACKEND_CORS_ORIGINS: list[str] = Field(default=[], env="BACKEND_CORS_ORIGINS")

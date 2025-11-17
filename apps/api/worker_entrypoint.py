@@ -32,7 +32,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def main():
-    logger.info("--- Starting AirDeliver Worker Service ---")
+    logger.info("--- Starting airdeliver Worker Service ---")
     settings = get_core_settings()
     worker_type = os.environ.get("WORKER_TYPE", "AI")
 

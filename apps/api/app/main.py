@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
     logger.info("--- Lifespan: Services disconnected ---")
 
 app = FastAPI(
-    title="AirDeliver API",
+    title="airdeliver API",
     openapi_url=f"{get_core_settings().API_V1_STR}/openapi.json",
     lifespan=lifespan,
 )
@@ -159,4 +159,4 @@ async def get_all_routes():
 
 @app.get("/")
 def read_root():
-    return {"message": "AirDeliver API", "env": get_core_settings().APP_ENV}
+    return {"message": "airdeliver API", "env": get_core_settings().APP_ENV}
