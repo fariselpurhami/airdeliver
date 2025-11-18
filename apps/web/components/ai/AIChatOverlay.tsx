@@ -30,12 +30,13 @@ const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
 };
 
 
-const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, onSelect: (product: any) => void, totalItems: number }) => {
+const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, totalItems: number }) => {
 
     const mdWidthClass = totalItems === 2 ? "md:flex-[0_0_50%]" : "md:flex-[0_0_40%]";
     const slideWidthClass = `flex-[0_0_65%] sm:flex-[0_0_50%] ${mdWidthClass}`;
 
     const imageUrl = getAbsoluteImageUrl(product.image_url);
+    const elementId = `product-carousel-img-${product.id}`;
 
     return (
         <div className={`embla__slide ${slideWidthClass} px-2`}>
@@ -44,7 +45,14 @@ const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, 
                 whileHover={{ scale: 1.03, z: 10 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
-                <Image src={imageUrl} alt={product.name} width={120} height={120} className="w-full h-24 object-contain mb-3 rounded-md"/>
+                <Image 
+                    id={elementId}
+                    src={imageUrl} 
+                    alt={product.name} 
+                    width={120} 
+                    height={120} 
+                    className="w-full h-24 object-contain mb-3 rounded-md"
+                />
                 <h4 className="text-sm font-bold text-white">{product.name}</h4>
                 <p className="text-lg font-bold text-white mb-2">${product.price.toFixed(2)}</p>
                 <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">
@@ -54,7 +62,7 @@ const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, 
                     <span>🚀 {product.delivery_eta || '15 Min'} Delivery</span>
                 </div>
                 <motion.button
-                    onClick={() => onSelect(product)}
+                    onClick={() => onSelect(product, elementId)}
                     whileHover={{ scale: 1.05 }}
                     className="w-full mt-3 text-sm bg-cyan-500/30 text-cyan-200 py-2 rounded-lg border border-cyan-500/50"
                 >
@@ -65,7 +73,7 @@ const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, 
     );
 };
 
-const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (product: any) => void }) => {
+const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (product: any, elementId: string) => void }) => {
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start' });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
@@ -100,7 +108,13 @@ const AIReasoning = ({ text }: { text: string }) => (
     </motion.div>
 );
 
-const ChatMessage = React.memo(({ message, onSend, onProductSelect }: { message: Message, onSend: (text: string) => void, onProductSelect: (product: any) => void }) => {
+const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrder, onClearCart }: { 
+    message: Message, 
+    onSend: (text: string) => void, 
+    onProductSelect: (product: any, elementId: string) => void,
+    onConfirmOrder: () => void,
+    onClearCart: () => void
+}) => {
     const isAI = message.sender === 'ai';
 
     const MessageContent = () => {
@@ -118,8 +132,16 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect }: { message:
                                 <motion.button
                                     key={option}
                                     whileHover={{ scale: 1.05 }}
-                                    onClick={() => onSend(option)}
-                                    className="text-sm bg-cyan-500/20 text-cyan-300 px-3 py-1.5 rounded-lg border border-cyan-500/50" // تم تغيير rounded-full إلى rounded-lg لتطابق الشكل الأصلي
+                                    onClick={() => {
+                                        if (option === 'Confirm Order') {
+                                            onConfirmOrder();
+                                        } else if (option === 'Clear Cart') {
+                                            onClearCart();
+                                        } else {
+                                            onSend(option);
+                                        }
+                                    }}
+                                    className="text-sm bg-cyan-500/20 text-cyan-300 px-3 py-1.5 rounded-lg border border-cyan-500/50"
                                 >
                                     {option}
                                 </motion.button>
@@ -134,7 +156,7 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect }: { message:
                         <p className="whitespace-pre-wrap mb-2 text-base">{message.content}</p>
                         <ProductCarousel products={message.products || []} onSelect={onProductSelect} />
                         {message.reason && <AIReasoning text={message.reason} />}
-                        {message.ai_notes && <AIReasoning text={message.ai_notes} />}
+                        {message.ai_notes && !message.reason && <AIReasoning text={message.ai_notes} />}
                     </div>
                 );
             default: return null;
@@ -180,11 +202,10 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
     const aiNote = lastAINoteMessage ? (lastAINoteMessage.ai_notes || lastAINoteMessage.reason) : "AI reasoning will appear here.";
 
     return (
-
         <div className="hidden lg:flex w-1/3 bg-black/20 border-l border-cyan-400/30 rounded-r-2xl flex-col overflow-hidden">
             <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
                 <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                    <ShoppingCart size={18} /> Order Summary
+                    <ShoppingCart size={18} id="order-summary-cart-icon" /> Order Summary
                 </h3>
                 <div className="space-y-2 flex-grow">
                     <AnimatePresence>
@@ -240,16 +261,16 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                     <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
                         <motion.div
                             animate={{
-                            filter: [
-                                'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))',
-                                'drop-shadow(0 0 8px rgba(0, 198, 255, 0.8))',
-                                'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))'
-                            ]
+                                filter: [
+                                    'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))',
+                                    'drop-shadow(0 0 8px rgba(0, 198, 255, 0.8))',
+                                    'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))'
+                                ]
                             }}
                             transition={{
-                            duration: 3,
-                            repeat: Infinity,
-                            ease: "easeInOut"
+                                duration: 3,
+                                repeat: Infinity,
+                                ease: "easeInOut"
                             }}
                         >
                             <Cpu size={18} className="text-cyan-400"/>
@@ -339,42 +360,73 @@ const TypingIndicator = () => (
     </motion.div>
 );
 
-const FlyingItemAnimator = ({ imageUrl }: { imageUrl: string }) => {
-    const { flyToCartItem, setOverlayVisible } = useAIOrderingStore((state) => ({
-        flyToCartItem: state.flyToCartItem,
-        setOverlayVisible: state.setOverlayVisible,
-    }));
+const FlyToCartAnimator = () => {
+  const flyToCartItem = useAIOrderingStore((state) => state.flyToCartItem);
+  const [item, setItem] = useState(flyToCartItem);
 
-    const onAnimationComplete = () => {
-        useAIOrderingStore.setState({ flyToCartItem: null });
-    };
+  useEffect(() => {
+    if (flyToCartItem) {
+      setItem(flyToCartItem);
+    }
+  }, [flyToCartItem]);
 
-    return (
+  const getStartPosition = () => {
+    if (!item) return { x: 0, y: 0, width: 0, height: 0 };
+    const el = document.getElementById(item.startElementId);
+    if (el) {
+      return el.getBoundingClientRect();
+    }
+    return { x: window.innerWidth / 2, y: window.innerHeight / 2, width: 100, height: 100 };
+  };
+
+  const getEndPosition = () => {
+    const el = document.getElementById('order-summary-cart-icon');
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      return {
+        top: rect.top + rect.height / 2,
+        left: rect.left + rect.width / 2,
+      };
+    }
+    return { top: 100, left: window.innerWidth - 100 };
+  };
+
+  const startRect = getStartPosition();
+  const endPos = getEndPosition();
+
+  return (
+    <AnimatePresence>
+      {item && startRect.width > 0 && (
         <motion.div
-            className="absolute z-[999] p-1 bg-white/10 rounded-lg border border-cyan-400/50"
-            style={{
-                top: '50%',
-                left: '30%',
-                transform: 'translate(-50%, -50%)',
-            }}
-            initial={{
-                opacity: 1,
-                scale: 0.8,
-                x: 0,
-                y: 0,
-            }}
-            animate={{
-                x: '100vh',
-                y: '-30vh',
-                opacity: 0,
-                scale: 0.1,
-            }}
-            transition={{ duration: 0.8, ease: "easeIn" }}
-            onAnimationComplete={onAnimationComplete}
+          key={item.id}
+          className="fixed z-[9999] rounded-lg overflow-hidden border border-cyan-500/50"
+          initial={{
+            top: startRect.top,
+            left: startRect.left,
+            width: startRect.width,
+            height: startRect.height,
+            opacity: 1,
+            rotate: 0,
+          }}
+          animate={{
+            top: endPos.top,
+            left: endPos.left,
+            width: 20,
+            height: 20,
+            opacity: 0.5,
+            rotate: 720,
+            filter: 'blur(4px)',
+            scale: 0.2,
+          }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
+          onAnimationComplete={() => useAIOrderingStore.setState({ flyToCartItem: null })}
         >
-            <Image src={imageUrl} alt="Flying item" width={60} height={60} className="object-contain" />
+          <Image src={getAbsoluteImageUrl(item.image)} alt="product" width={100} height={100} className="w-full h-full object-cover" />
         </motion.div>
-    );
+      )}
+    </AnimatePresence>
+  );
 };
 
 
@@ -384,7 +436,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         messages, isLoading, sendMessage, addProductById,
         paymentDetails, setOverlayVisible, glowingProductId,
         flyToCartItem, resetChat, removeProductById,
-        cancelPaymentIntent, isProcessing
+        cancelPaymentIntent, isProcessing,
+        confirmCurrentOrder, clearCart
     } = useAIOrderingStore();
 
     const socket = useAIOrderingStore((state) => state.socket);
@@ -430,7 +483,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
     const handleSendMessage = useCallback((text: string) => {
         if (status === 'authenticated' && socket) {
-            sendMessage(text);
+            sendMessage(text, false);
         } else if (status === 'authenticated' && !socket) {
             useAIOrderingStore.getState().addSocketAIMessage({
                 type: 'error',
@@ -458,9 +511,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         }
     }, [sendMessage, status, socket]);
 
-    const handleProductSelect = useCallback((product: any) => {
+    const handleProductSelect = useCallback((product: any, elementId: string) => {
         if (status === 'authenticated' && socket) {
-            addProductById(product);
+            addProductById(product, elementId);
         } else if (status === 'authenticated' && !socket) {
             useAIOrderingStore.getState().addSocketAIMessage({
                 type: 'error',
@@ -508,7 +561,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                     onClick={handleClose}
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex justify-center items-center p-4"
                 >
-                    {flyToCartItem && <FlyingItemAnimator imageUrl={flyToCartItem} />}
+                    <FlyToCartAnimator />
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0, y: 50 }}
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } }}
@@ -521,16 +574,16 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                 <motion.span
                                     className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-600"
                                     animate={{
-                                    filter: [
-                                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))',
-                                        'drop-shadow(0 0 8px rgba(0, 198, 255, 0.8))',
-                                        'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))'
-                                    ]
+                                        filter: [
+                                            'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))',
+                                            'drop-shadow(0 0 8px rgba(0, 198, 255, 0.8))',
+                                            'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))'
+                                        ]
                                     }}
                                     transition={{
-                                    duration: 3,
-                                    repeat: Infinity,
-                                    ease: "easeInOut"
+                                        duration: 3,
+                                        repeat: Infinity,
+                                        ease: "easeInOut"
                                     }}
                                 >
                                     {paymentDetails ? 'Secure Checkout' : 'Order with air'}
@@ -578,7 +631,16 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                     >
                                         <div className="flex-grow p-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
                                             <AnimatePresence>
-                                                {messages.map((msg) => <ChatMessage key={msg.id} message={msg} onSend={handleSendMessage} onProductSelect={handleProductSelect} />)}
+                                                {messages.map((msg) => (
+                                                    <ChatMessage
+                                                        key={msg.id}
+                                                        message={msg}
+                                                        onSend={handleSendMessage}
+                                                        onProductSelect={handleProductSelect}
+                                                        onConfirmOrder={confirmCurrentOrder}
+                                                        onClearCart={clearCart}
+                                                    />
+                                                ))}
                                             </AnimatePresence>
                                             {isLoading && <TypingIndicator />}
                                             <div ref={chatEndRef} />

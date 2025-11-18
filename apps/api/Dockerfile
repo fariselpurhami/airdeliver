@@ -24,6 +24,8 @@ COPY poetry.lock pyproject.toml ./
 
 RUN poetry install --no-root --without dev
 
+RUN pip install --no-cache-dir psycopg2-binary
+
 FROM python:3.11-slim AS final
 
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -51,7 +53,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --chown=airdeliver:airdeliver ./app ./app
 COPY --chown=airdeliver:airdeliver ./alembic.ini ./
 COPY --chown=airdeliver:airdeliver ./alembic ./alembic
-COPY --chown=airdeliver:airdeliver ./seed.py ./
+COPY --chown=airdeliver:airdeliver ./seed_data.json ./
 
 RUN mkdir -p /app/static/avatars \
     && mkdir -p $SENTENCE_TRANSFORMERS_HOME \

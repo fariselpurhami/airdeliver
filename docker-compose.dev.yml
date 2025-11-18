@@ -91,7 +91,14 @@ services:
       - POSTGRES_SERVER=postgres
       - REDIS_HOST=redis
       - RABBITMQ_HOST=mq
-    command: ["alembic", "upgrade", "head"]
+
+    volumes:
+      - ./apps/api:/app
+
+    command: >
+      sh -c "alembic upgrade head && 
+             python -m app.db.initial_data"
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,6 +125,8 @@ services:
     volumes:
       - ./apps/api:/app
       - api-static-data:/app/static
+    
+
     depends_on:
       api-migrator:
         condition: service_completed_successfully

@@ -2,7 +2,7 @@
 
 import asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, func
 from app.services.ai_commerce_engine import AICommerceEngine
 from app.services.rabbitmq_service import RabbitMQService
 from app.models.product import Product
@@ -45,9 +45,6 @@ class AINLUService:
         )
         
         await asyncio.sleep(0.01)
-        
-        statement = select(Product).order_by(Product.price.desc()).limit(3)
-        secondary_products = (await self.db.exec(statement)).all()
 
         await self.rabbitmq.publish(
             {
@@ -55,8 +52,6 @@ class AINLUService:
                 "content": "Anything else?",
                 "type": "confirmation_prompt",
                 "options": ["Confirm Order", "Clear Cart"],
-                "secondary_suggestions": [p.model_dump() for p in secondary_products],
-                "reason": "Displaying complementary items for bundle eligibility."
             },
             "airdeliver.ai.response.out",
         )
@@ -67,6 +62,32 @@ class AINLUService:
                 "user_id": user_id, 
                 "content": f"Acknowledged. The **{product_name}** has been removed from your cart.", 
                 "type": "success_text"
+            },
+            "airdeliver.ai.response.out",
+        )
+        
+    async def _handle_secondary_suggestions(self, user_id: int):
+        initial_stmt = select(Product.id).order_by(Product.rating.desc()).limit(5)
+        initial_products_result = await self.db.exec(initial_stmt)
+        excluded_ids = initial_products_result.scalars().all()
+
+        statement = select(Product).where(
+            Product.id.notin_(excluded_ids)
+        ).order_by(func.random()).limit(3)
+
+        products = (await self.db.exec(statement)).all()
+        
+        if not products:
+            statement = select(Product).order_by(func.random()).limit(3)
+            products = (await self.db.exec(statement)).all()
+
+        await self.rabbitmq.publish(
+            {
+                "user_id": user_id,
+                "content": "You might also like these:",
+                "type": "proactive_suggestion",
+                "products": [p.model_dump() for p in products],
+                "reason": "Displaying complementary items to enhance your order."
             },
             "airdeliver.ai.response.out",
         )
@@ -106,6 +127,7 @@ class AINLUService:
                 product = await self.db.get(Product, product_id)
                 if product:
                     await self._send_add_success_prompt(user_id, product.name)
+                    await self._handle_secondary_suggestions(user_id)
                 
                 return
             except Exception as e:
@@ -173,7 +195,7 @@ class AINLUService:
         elif intent == "CONFIRM_ORDER":
              await self.rabbitmq.publish(
                 {**response_payload, **message_payload},
-                "airdeliver.ai.response.out",
+                "airdeliver.ai.intent.confirm_order",
             )
         
         elif intent == "CLEAR_CART":

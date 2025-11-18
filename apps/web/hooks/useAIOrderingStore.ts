@@ -45,13 +45,14 @@ interface AIOrderingState {
   disconnectSocket: () => void;
   setOverlayVisible: (isVisible: boolean) => void;
   setSuggestedProductIds: (ids: number[] | null) => void;
-  sendMessage: (text: string) => void;
+  sendMessage: (text: string, isButtonCommand?: boolean) => void;
   addProductById: (product: any, startElementId: string) => void;
   removeProductById: (productId: number) => void;
   addSocketAIMessage: (message: any) => void;
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
   clearCart: () => void;
+  confirmCurrentOrder: () => void;
   resetChat: () => void;
   cancelPaymentIntent: () => Promise<void>;
   _sendInternalCommand: (command: string, payload?: any) => void;
@@ -67,7 +68,6 @@ const initialWelcomeMessage: Message = {
 };
 
 const getWebSocketURL = () => {
-
   const apiURL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
   const url = new URL(apiURL, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
 
@@ -82,7 +82,6 @@ const getWebSocketURL = () => {
 
   return url.href;
 };
-
 
 export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   messages: [initialWelcomeMessage],
@@ -103,7 +102,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
 
     socket.onopen = () => {
       set({ socket });
-      get()._sendInternalCommand("__INTERNAL_RESET_SESSION__");
+      get()._sendInternalCommand('__INTERNAL_RESET_SESSION__');
       get().fetchInitialSuggestions();
     };
 
@@ -117,7 +116,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     };
 
     socket.onerror = (error) => {
-      console.error("WebSocket Error:", error);
+      console.error('WebSocket Error:', error);
       get().addSocketAIMessage({ contentType: 'error', content: 'Connection error. Please reconnect.' });
     };
   },
@@ -145,16 +144,16 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
       };
 
       const typesThatEndProcessing = [
-          'payment_intent',
-          'ORDER_CANCELLED',
-          'error',
-          'success_text',
-          'confirmation_prompt',
-          'proactive_suggestion',
+        'payment_intent',
+        'ORDER_CANCELLED',
+        'error',
+        'success_text',
+        'confirmation_prompt',
+        'proactive_suggestion',
       ];
 
       if (typesThatEndProcessing.includes(response.type)) {
-          state.isProcessing = false;
+        state.isProcessing = false;
       }
 
       if (response.type === 'payment_intent') {
@@ -186,9 +185,13 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   clearPayment: () => {
     set({ paymentDetails: null });
   },
-  
+
   clearCart: () => {
-    get()._sendInternalCommand("__INTERNAL_CLEAR_CART__");
+    get()._sendInternalCommand('__INTERNAL_CLEAR_CART__');
+  },
+  
+  confirmCurrentOrder: () => {
+    get().sendMessage('Confirm Order', true);
   },
 
   resetChat: () => {
@@ -210,14 +213,14 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     set({ isLoading: true, isProcessing: true, suggestedProductIds: null });
 
     socket.send(JSON.stringify({
-      type: "CHAT_MESSAGE",
+      type: 'CHAT_MESSAGE',
       message: command,
       ...payload
     }));
   },
 
   fetchInitialSuggestions: () => {
-    get()._sendInternalCommand("__INTERNAL_GET_INITIAL_SUGGESTIONS__");
+    get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__');
   },
 
   addProductById: async (product, startElementId) => {
@@ -242,7 +245,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     set({ isProcessing: true });
 
     socket.send(JSON.stringify({
-      type: "CANCEL_INTENT",
+      type: 'CANCEL_INTENT',
       message: { orderId: paymentDetails.orderId }
     }));
   },
@@ -251,21 +254,25 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     get()._sendInternalCommand(`__INTERNAL_REMOVE_BY_ID__:${productId}`);
   },
 
-  sendMessage: (text) => {
+  sendMessage: (text, isButtonCommand = false) => {
     if (!text || get().isLoading || !get().socket) return;
 
-    const userMessage: Message = { id: messageId++, sender: 'user', contentType: 'text', content: text };
     const typingIndicator: Message = { id: messageId++, sender: 'ai', contentType: 'typing', content: null };
 
-    set((state) => ({
-      messages: [...state.messages.filter(m => m.contentType !== 'typing'), userMessage, typingIndicator],
-      isLoading: true,
-      isProcessing: true,
-      suggestedProductIds: null,
+    set(produce((state: AIOrderingState) => {
+      state.messages = state.messages.filter(m => m.contentType !== 'typing');
+      if (!isButtonCommand) {
+        const userMessage: Message = { id: messageId++, sender: 'user', contentType: 'text', content: text };
+        state.messages.push(userMessage);
+      }
+      state.messages.push(typingIndicator);
+      state.isLoading = true;
+      state.isProcessing = true;
+      state.suggestedProductIds = null;
     }));
 
     get().socket?.send(JSON.stringify({
-      type: "CHAT_MESSAGE",
+      type: 'CHAT_MESSAGE',
       message: text
     }));
   },

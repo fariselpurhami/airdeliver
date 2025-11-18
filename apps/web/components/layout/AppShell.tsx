@@ -1,16 +1,16 @@
+// apps/web/components/layout/AppShell.tsx
+
 'use client'; 
 
 import React from 'react';
 import Header from '@/components/layout/Header';
-import Footer from "@/components/layout/Footer"; // 🚀 FIX 1: (f سمول)
-import AIChatOverlay from '@/components/ai/AIChatOverlay';
-import dynamic from 'next/dynamic'; // 🚀 FIX 2: (استخدام Dynamic)
+import Footer from "@/components/layout/Footer";
+import dynamic from 'next/dynamic';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
+import AIChatOverlay from '@/components/ai/AIChatOverlay';
 
-// 🚀 FIX 2: (استدعاء الشات بوت بطريقة ديناميكية لكسر الدايرة)
 const Chatbot = dynamic(() => import('@/components/ai/chatbot'), {
   ssr: false,
-  loading: () => <p>Loading...</p>
 });
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -31,7 +31,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         onClose={() => setOverlayVisible(false)} 
       />
       
-      {/* 🚀 FIX 2: (استدعاء الشات بوت هنا فقط) */}
       <Chatbot />
     </>
   );

@@ -1,8 +1,9 @@
+// apps/web/components/AIPaymentForm.tsx
+
 import React, { useState } from 'react';
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { motion } from 'framer-motion';
 import { Lock } from 'lucide-react';
-import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 
 interface AIPaymentFormProps {
   orderId: number;
@@ -14,7 +15,6 @@ interface AIPaymentFormProps {
 export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, items, onPaymentSuccess }) => {
   const stripe = useStripe();
   const elements = useElements();
-  const resetChat = useAIOrderingStore((state) => state.resetChat);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
