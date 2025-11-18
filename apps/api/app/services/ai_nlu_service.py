@@ -7,6 +7,9 @@ from app.services.ai_commerce_engine import AICommerceEngine
 from app.services.rabbitmq_service import RabbitMQService
 from app.models.product import Product
 from typing import List, Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AINLUService:
     def __init__(
@@ -96,6 +99,15 @@ class AINLUService:
         user_id = message_payload["user_id"]
         message = message_payload["message"]
         
+        if not message:
+            logger.warning("Received empty message payload.")
+            return
+
+        if isinstance(message, dict):
+            logger.warning(f"Received dict message, converting to string: {message}")
+            message = str(message)
+
+
         if message == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
             await self._handle_initial_suggestions(user_id)
             return
@@ -161,9 +173,14 @@ class AINLUService:
             )
             return
 
-        products, entities = await self.search_engine.find_products_from_message(
-            db=self.db, message=message, user_id=user_id
-        )
+        try:
+            products, entities = await self.search_engine.find_products_from_message(
+                db=self.db, message=message, user_id=user_id
+            )
+        except Exception as e:
+            logger.error(f"Search engine failed: {e}")
+        
+            products, entities = ([], {"intent": "SEARCH_PRODUCT"})
 
         intent = entities.get("intent", "SEARCH_PRODUCT")
         response_payload = {"user_id": user_id, "original_message": message}

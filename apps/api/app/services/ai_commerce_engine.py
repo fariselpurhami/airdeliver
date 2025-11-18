@@ -13,6 +13,9 @@ from pymilvus import MilvusClient
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from app.core.config import get_core_settings, CoreSettings
+import logging
+
+logger = logging.getLogger(__name__)
 
 MILVUS_DB_PATH = "/data/storage/milvus_in_memory.db"
 
@@ -97,8 +100,27 @@ class AICommerceEngine:
             (hit.id, hit.distance) for hit in results[0]
         ]
 
+
+    async def _search_milvus(self, vector: List[float]) -> List[Tuple[str, float]]:
+        search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
+        try:
+            results = self.milvus_client.search(
+                collection_name=self.milvus_collection,
+                data=[vector],
+                limit=20,
+                search_params=search_params,
+            )
+            return [
+                (hit.id, hit.distance) for hit in results[0]
+            ]
+        except Exception as e:
+    
+            logger.warning(f"Milvus search failed (Collection might be empty): {e}")
+            return []
+
     async def find_products_from_message(
         self, db: AsyncSession, message: str, user_id: int
+
     ) -> Tuple[List[Product], Dict[str, Any]]:
         normalized_message = self._normalize_message(message)
         intent, cleaned_message = self._classify_intent(normalized_message)

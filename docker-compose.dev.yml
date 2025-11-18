@@ -191,7 +191,7 @@ services:
       sh -c "mkdir -p /data/storage/models_cache/huggingface &&
              mkdir -p /data/storage/models_cache/sentence_transformers &&
              chown -R airdeliver:airdeliver /data/storage && 
-             su -s /bin/sh airdeliver -c \"watchfiles 'python /app/worker_entrypoint.py' /app\""
+             su -s /bin/sh airdeliver -c \"watchfiles 'python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'\""
 
   opensearch:
     image: opensearchproject/opensearch:2.11.1
