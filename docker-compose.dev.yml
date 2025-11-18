@@ -167,6 +167,8 @@ services:
       - LOG_LEVEL=debug
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
+      - HF_HOME=/data/storage/models_cache/huggingface
+      - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
   
     volumes:
       - ./apps/api:/app
@@ -186,7 +188,8 @@ services:
       - airdeliver-net
 
     command: >
-      sh -c "mkdir -p /data/storage && 
+      sh -c "mkdir -p /data/storage/models_cache/huggingface &&
+             mkdir -p /data/storage/models_cache/sentence_transformers &&
              chown -R airdeliver:airdeliver /data/storage && 
              su -s /bin/sh airdeliver -c \"watchfiles 'python /app/worker_entrypoint.py' /app\""
 
