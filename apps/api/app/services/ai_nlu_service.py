@@ -34,7 +34,7 @@ class AINLUService:
             "airdeliver.ai.response.out",
         )
 
-    async def _send_add_success_prompt(self, user_id: int, product_name: str):
+    async def _send_add_success_text(self, user_id: int, product_name: str):
         await self.rabbitmq.publish(
             {
                 "user_id": user_id, 
@@ -43,9 +43,9 @@ class AINLUService:
             },
             "airdeliver.ai.response.out",
         )
-        
-        await asyncio.sleep(0.01)
 
+    async def _send_confirmation_prompt(self, user_id: int):
+        await asyncio.sleep(0.01)
         await self.rabbitmq.publish(
             {
                 "user_id": user_id,
@@ -66,31 +66,31 @@ class AINLUService:
             "airdeliver.ai.response.out",
         )
         
-    async def _handle_secondary_suggestions(self, user_id: int):
-        initial_stmt = select(Product.id).order_by(Product.rating.desc()).limit(5)
-        initial_products_result = await self.db.exec(initial_stmt)
-        excluded_ids = initial_products_result.scalars().all()
-
+    async def _handle_secondary_suggestions(self, user_id: int, added_product_id: int):
+        await asyncio.sleep(0.02)
+        
         statement = select(Product).where(
-            Product.id.notin_(excluded_ids)
+            Product.id != added_product_id
         ).order_by(func.random()).limit(3)
 
         products = (await self.db.exec(statement)).all()
         
-        if not products:
-            statement = select(Product).order_by(func.random()).limit(3)
-            products = (await self.db.exec(statement)).all()
+        if products:
+            await self.rabbitmq.publish(
+                {
+                    "user_id": user_id,
+                    "content": "You might also like these:",
+                    "type": "proactive_suggestion",
+                    "products": [p.model_dump() for p in products],
+                    "reason": "Displaying complementary items to enhance your order."
+                },
+                "airdeliver.ai.response.out",
+            )
 
-        await self.rabbitmq.publish(
-            {
-                "user_id": user_id,
-                "content": "You might also like these:",
-                "type": "proactive_suggestion",
-                "products": [p.model_dump() for p in products],
-                "reason": "Displaying complementary items to enhance your order."
-            },
-            "airdeliver.ai.response.out",
-        )
+    async def _handle_add_to_cart_success(self, user_id: int, product: Product):
+        await self._send_add_success_text(user_id, product.name)
+        await self._send_confirmation_prompt(user_id)
+        await self._handle_secondary_suggestions(user_id, product.id)
 
     async def process_message(self, message_payload: dict):
         user_id = message_payload["user_id"]
@@ -126,8 +126,7 @@ class AINLUService:
 
                 product = await self.db.get(Product, product_id)
                 if product:
-                    await self._send_add_success_prompt(user_id, product.name)
-                    await self._handle_secondary_suggestions(user_id)
+                    await self._handle_add_to_cart_success(user_id, product)
                 
                 return
             except Exception as e:
@@ -181,10 +180,12 @@ class AINLUService:
                     "airdeliver.ai.response.out",
                 )
             else:
+                added_product = products[0]
                 await self.rabbitmq.publish(
-                    {**response_payload, "product_id": products[0].id, "quantity": entities.get("quantity", 1)},
+                    {**response_payload, "product_id": added_product.id, "quantity": entities.get("quantity", 1)},
                     "airdeliver.ai.intent.add_to_cart",
                 )
+                await self._handle_add_to_cart_success(user_id, added_product)
         
         elif intent == "REMOVE_FROM_CART":
             await self.rabbitmq.publish(
