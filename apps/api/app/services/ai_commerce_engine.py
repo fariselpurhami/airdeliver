@@ -14,7 +14,7 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 from app.core.config import get_core_settings, CoreSettings
 
-MILVUS_DB_PATH = "/app/storage/milvus_in_memory.db"
+MILVUS_DB_PATH = "/data/storage/milvus_in_memory.db"
 
 class HybridSearchReranker:
     def __init__(self, k: int = 60):

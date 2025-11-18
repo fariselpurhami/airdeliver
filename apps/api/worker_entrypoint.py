@@ -5,7 +5,10 @@ import json
 import logging
 import os
 from aio_pika.abc import AbstractIncomingMessage
-from app.core.config import get_core_settings, CoreSettings
+from app.core.config import (
+    get_core_settings, CoreSettings,
+    get_stripe_settings, get_paypal_settings, get_mpesa_settings
+)
 from app.db.session import SessionLocal
 from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
 from app.services.cache_service import RedisCacheClient, IAsyncCacheClient, get_cache_client
@@ -62,9 +65,16 @@ async def main():
         logger.info("Hybrid Search Engine initialized.")
         app_dependencies["ai_engine"] = ai_commerce_engine
 
-        stripe_gw = StripeGateway(settings)
-        paypal_gw = PayPalGateway(settings, cache_client)
-        mpesa_gw = MpesaGateway(settings, cache_client)
+        logger.info("Initializing Payment Gateways with specialized settings...")
+        stripe_settings = get_stripe_settings()
+        paypal_settings = get_paypal_settings()
+        mpesa_settings = get_mpesa_settings()
+
+        stripe_gw = StripeGateway(stripe_settings)
+        paypal_gw = PayPalGateway(paypal_settings, cache_client)
+        mpesa_gw = MpesaGateway(mpesa_settings, cache_client)
+        # -----------------------------------------------
+        
         payment_orchestrator = PaymentOrchestrator(stripe_gw, paypal_gw, mpesa_gw)
         logger.info("Payment Orchestrator initialized.")
         app_dependencies["payment_orchestrator"] = payment_orchestrator

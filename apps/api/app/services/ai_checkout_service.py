@@ -104,6 +104,19 @@ class AICheckoutService:
             self.db.add(order)
             await self.db.commit()
             await self.rabbitmq.publish(
-                {"user_id": payload["user_id"], "content": "Order cancelled.", "type": "text"},
+                {
+                    "user_id": payload["user_id"], 
+                    "content": "Order successfully cancelled.", 
+                    "type": "ORDER_CANCELLED" 
+                },
+                "airdeliver.ai.response.out",
+            )
+        else:
+            await self.rabbitmq.publish(
+                {
+                    "user_id": payload["user_id"], 
+                    "content": "Order could not be cancelled.", 
+                    "type": "ORDER_CANCELLED" 
+                },
                 "airdeliver.ai.response.out",
             )

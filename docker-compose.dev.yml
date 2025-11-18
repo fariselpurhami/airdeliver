@@ -156,6 +156,7 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     env_file: .env
+    user: root
     restart: always
     environment:
       - DATABASE_URI=${DATABASE_URL_ASYNC}
@@ -169,7 +170,7 @@ services:
   
     volumes:
       - ./apps/api:/app
-      - api-storage-data:/app/storage
+      - api-storage-data:/data/storage
     depends_on:
       api-migrator:
         condition: service_completed_successfully
@@ -183,7 +184,11 @@ services:
         condition: service_healthy
     networks:
       - airdeliver-net
-    command: python /app/worker_entrypoint.py
+
+    command: >
+      sh -c "mkdir -p /data/storage && 
+             chown -R airdeliver:airdeliver /data/storage && 
+             su -s /bin/sh airdeliver -c \"watchfiles 'python /app/worker_entrypoint.py' /app\""
 
   opensearch:
     image: opensearchproject/opensearch:2.11.1
