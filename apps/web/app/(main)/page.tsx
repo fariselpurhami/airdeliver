@@ -98,7 +98,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
             className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-black bg-white rounded-full shadow-lg transition-transform duration-300 hover:scale-105 overflow-hidden"
           >
             <span className="absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <span className="relative flex items-center">Order with air <Bot className="ml-2 h-5 w-5" /></span>
+            <span className="relative flex items-center" style={{ fontFamily: "'Quattrocento Sans', sans-serif" }}>order with air <Bot className="ml-2 h-5 w-5" /></span>
           </button>
 
           <button
@@ -168,7 +168,7 @@ const Starfield = (props: any) => {
 };
 
 // ============================================================================
-// --- 3. HOW IT WORKS SECTION (Definition) ---
+// --- 3. HOW IT WORKS SECTION ---
 // ============================================================================
 
 const VIEWBOX_WIDTH = 850;
@@ -178,7 +178,7 @@ const timelineSteps = [
   {
     icon: Bot,
     step: 1,
-    title: "Order with air",
+    title: "order with air",
     description: "Simply tell our AI what you need. It understands natural language to start your order instantly."
   },
   {
@@ -376,8 +376,8 @@ const HowItWorksSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.5 }}
           transition={{ duration: 0.8 }}
-          className="text-center text-5xl md:text-6xl font-bold text-white mb-32"
-          style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
+          className="text-center text-9xl md:text-7xl text-white mb-32"
+          style={{ fontFamily: "'Questrial', sans-serif", fontWeight: 600 }}
         >
           HOW IT WORKS
         </motion.h2>
