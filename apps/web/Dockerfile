@@ -5,6 +5,7 @@ WORKDIR /app
 RUN corepack enable
 
 FROM base AS deps
+RUN apk add --no-cache vips-dev vips
 COPY package.json pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile
 
