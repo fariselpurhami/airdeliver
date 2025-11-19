@@ -1,6 +1,5 @@
 # apps/api/app/services/ai_nlu_service.py
 
-import asyncio
 import logging
 from typing import List, Dict, Any
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -48,7 +47,6 @@ class AINLUService:
         )
 
     async def _send_confirmation_prompt(self, user_id: int):
-        await asyncio.sleep(0.01)
         await self.rabbitmq.publish(
             {
                 "user_id": user_id,
@@ -70,7 +68,6 @@ class AINLUService:
         )
         
     async def _handle_secondary_suggestions(self, user_id: int, added_product_id: int):
-        await asyncio.sleep(0.02)
         
         statement = select(Product).where(
             Product.id != added_product_id
@@ -91,8 +88,11 @@ class AINLUService:
             )
 
     async def _handle_add_to_cart_success(self, user_id: int, product: Product):
+    
         await self._send_add_success_text(user_id, product.name)
+        
         await self._send_confirmation_prompt(user_id)
+        
         await self._handle_secondary_suggestions(user_id, product.id)
 
     async def process_message(self, message_payload: dict):
@@ -104,7 +104,6 @@ class AINLUService:
             return
 
         if message_text == "__INTERNAL_SAVE_FOR_LATER__":
-             
             await self.rabbitmq.publish(
                 {
                     "user_id": user_id,
@@ -113,16 +112,14 @@ class AINLUService:
                 },
                 "airdeliver.ai.response.out",
             )
-
             await self.rabbitmq.publish(
-
-                {"user_id": user_id, "notify_user": False}, 
+                {"user_id": user_id, "notify_user": False},
                 "airdeliver.ai.intent.clear_cart",
             )
             return
 
         if message_text == "__INTERNAL_INITIATE_RECOVERY__":
-            return
+            return 
 
         if message_text == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
             await self._handle_initial_suggestions(user_id)
@@ -145,7 +142,6 @@ class AINLUService:
         if message_payload.get("type") == "CANCEL_INTENT":
             order_id = None
             reason = None
-            
             if isinstance(raw_message, dict):
                 order_id = raw_message.get("orderId") or raw_message.get("order_id")
                 reason = raw_message.get("reason")
@@ -172,8 +168,9 @@ class AINLUService:
                 
                 return
             except Exception as e:
+                logger.error(f"Error processing ADD_BY_ID: {e}")
                 await self.rabbitmq.publish(
-                    {"user_id": user_id, "content": f"Error adding item: {e}", "type": "error"},
+                    {"user_id": user_id, "content": "Error adding item.", "type": "error"},
                     "airdeliver.ai.response.out",
                 )
                 return
@@ -187,11 +184,10 @@ class AINLUService:
                     {"user_id": user_id, "product_id": product_id, "action": "remove_by_id"},
                     "airdeliver.ai.intent.remove_from_cart",
                 )
-                
                 return
             except Exception as e:
                 await self.rabbitmq.publish(
-                    {"user_id": user_id, "content": f"Error removing item: {e}", "type": "error"},
+                    {"user_id": user_id, "content": "Error removing item.", "type": "error"},
                     "airdeliver.ai.response.out",
                 )
                 return
