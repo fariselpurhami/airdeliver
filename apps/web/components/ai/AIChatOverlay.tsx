@@ -29,19 +29,16 @@ const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
     return `${apiBase}${normalizedPath}`;
 };
 
-
 const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, totalItems: number }) => {
-
     const mdWidthClass = totalItems === 2 ? "md:flex-[0_0_50%]" : "md:flex-[0_0_40%]";
     const slideWidthClass = `flex-[0_0_65%] sm:flex-[0_0_50%] ${mdWidthClass}`;
-
     const imageUrl = getAbsoluteImageUrl(product.image_url);
     const elementId = `product-carousel-img-${product.id}`;
 
     return (
         <div className={`embla__slide ${slideWidthClass} px-2`}>
             <motion.div
-                className="flex flex-col  p-4 bg-black/90 rounded-lg border border-cyan-400/20 h-full text-left"
+                className="flex flex-col p-4 bg-black/90 rounded-lg border border-cyan-400/20 h-full text-left"
                 whileHover={{ scale: 1.03, z: 10 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
@@ -131,24 +128,31 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                     <div>
                         <p className="whitespace-pre-wrap mb-3 text-base">{message.content}</p>
                         <div className="flex flex-wrap gap-2">
-                            {(message.options as string[])?.map((option: string) => (
-                                <motion.button
-                                    key={option}
-                                    whileHover={{ scale: 1.05 }}
-                                    onClick={() => {
-                                        if (option === 'Confirm Order') {
-                                            onConfirmOrder();
-                                        } else if (option === 'Clear Cart') {
-                                            onClearCart();
-                                        } else {
-                                            onSend(option);
-                                        }
-                                    }}
-                                    className="text-sm bg-cyan-500/20 text-cyan-300 px-3 py-1.5 rounded-lg border border-cyan-500/50"
-                                >
-                                    {option}
-                                </motion.button>
-                            ))}
+                            {(message.options as string[])?.map((option: string) => {
+                                const isConfirm = option === 'Confirm Order';
+                                const buttonStyle = isConfirm
+                                    ? "bg-purple-500/20 text-purple-300 border-purple-500/50 hover:bg-purple-500/30"
+                                    : "bg-cyan-500/20 text-cyan-300 border-cyan-500/50 hover:bg-cyan-500/30";
+
+                                return (
+                                    <motion.button
+                                        key={option}
+                                        whileHover={{ scale: 1.05 }}
+                                        onClick={() => {
+                                            if (option === 'Confirm Order') {
+                                                onConfirmOrder();
+                                            } else if (option === 'Clear Cart') {
+                                                onClearCart();
+                                            } else {
+                                                onSend(option);
+                                            }
+                                        }}
+                                        className={`text-sm px-3 py-1.5 rounded-lg border ${buttonStyle} transition-all`}
+                                    >
+                                        {option}
+                                    </motion.button>
+                                );
+                            })}
                         </div>
                     </div>
                 );
@@ -164,36 +168,36 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                 );
             case 'recovery_prompt':
                 return (
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2 text-amber-400 mb-1">
                             <AlertCircle size={16} />
                             <span className="font-bold text-sm">Order Paused</span>
                         </div>
-                        <p className="whitespace-pre-wrap text-base text-gray-200">{message.content}</p>
-
-                        <div className="flex flex-wrap gap-2 mt-2">
+                        <p className="whitespace-pre-wrap text-base text-gray-200 mb-1">{message.content}</p>
+                        
+                        <div className="flex flex-wrap gap-2 mt-1">
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 onClick={onRestore}
-                                className="flex items-center gap-2 text-sm bg-cyan-500/20 text-cyan-300 px-4 py-2 rounded-lg border border-cyan-500/50 hover:bg-cyan-500/30 transition-all"
+                                className="flex items-center gap-2 text-xs font-medium bg-cyan-500/20 text-cyan-300 px-3 py-2 rounded-lg border border-cyan-500/50 hover:bg-cyan-500/30 transition-all"
                             >
-                                <Undo2 size={16} /> Restore Checkout
+                                <Undo2 size={14} /> Restore
                             </motion.button>
 
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 onClick={onSave}
-                                className="flex items-center gap-2 text-sm bg-purple-500/20 text-purple-300 px-4 py-2 rounded-lg border border-purple-500/50 hover:bg-purple-500/30 transition-all"
+                                className="flex items-center gap-2 text-xs font-medium bg-purple-500/20 text-purple-300 px-3 py-2 rounded-lg border border-purple-500/50 hover:bg-purple-500/30 transition-all"
                             >
-                                <Save size={16} /> Save for Later
+                                <Save size={14} /> Save
                             </motion.button>
 
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 onClick={onCancel}
-                                className="flex items-center gap-2 text-sm bg-red-500/20 text-red-300 px-4 py-2 rounded-lg border border-red-500/50 hover:bg-red-500/30 transition-all"
+                                className="flex items-center gap-2 text-xs font-medium bg-red-500/20 text-red-300 px-3 py-2 rounded-lg border border-red-500/50 hover:bg-red-500/30 transition-all"
                             >
-                                <Trash2 size={16} /> Cancel Order
+                                <Trash2 size={14} /> Cancel
                             </motion.button>
                         </div>
                     </div>
@@ -378,7 +382,6 @@ const ChatInput = React.memo(
   }
 );
 ChatInput.displayName = 'ChatInput';
-
 
 const TypingIndicator = () => (
     <motion.div
@@ -570,7 +573,6 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         }
     }, [addProductById, status, socket]);
 
-
     const stripeOptions: StripeElementsOptions | undefined = paymentDetails?.gateways.find(g => g.provider === 'stripe' && g.clientSecret)
         ? {
             clientSecret: paymentDetails.gateways.find(g => g.provider === 'stripe')!.clientSecret,
@@ -592,7 +594,6 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
-
 
     return (
         <AnimatePresence>
