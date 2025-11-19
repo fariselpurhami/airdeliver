@@ -1,17 +1,15 @@
-# apps/api/app/services/ai_commerce_engine.py
+# //** apps/api/app/services/ai_commerce_engine.py **//
 
 import re
 import asyncio
 from fastapi import Depends
-from sqlmodel import select, or_
+from sqlmodel import select, or_, func, and_, col
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.product import Product
 from typing import List, Dict, Any, Tuple, Optional, AsyncGenerator
-from sqlalchemy import case, cast, String, and_
 from opensearchpy import AsyncOpenSearch
 from pymilvus import MilvusClient
 from sentence_transformers import SentenceTransformer
-import numpy as np
 from app.core.config import get_core_settings, CoreSettings
 import logging
 
@@ -43,147 +41,156 @@ class AICommerceEngine:
         self.embedding_model = embedding_model
         self.reranker = HybridSearchReranker()
         self.milvus_collection = "airdeliver_products"
-        self.intent_keywords = {
-            "ADD_TO_CART": ["add", "buy", "get", "purchase", "i want", "i need"],
-            "REMOVE_FROM_CART": ["remove", "delete", "take off"],
-            "SEARCH_PRODUCT": ["find", "search", "show me", "do you have"],
-            "CONFIRM_ORDER": ["confirm", "checkout", "pay", "ready to pay", "confirm order"],
-            "CLEAR_CART": ["clear cart", "empty cart", "reset order", "start over"],
+        
+        self.intent_patterns = {
+            "ADD_TO_CART": [r"add (.*) to (cart|bag)", r"buy (.*)", r"i want (.*)", r"get (.*)", r"purchase (.*)"],
+            "REMOVE_FROM_CART": [r"remove (.*)", r"delete (.*)", r"take off (.*)"],
+            "SEARCH_PRODUCT": [r"find (.*)", r"search for (.*)", r"show me (.*)", r"do you have (.*)", r"looking for (.*)", r"need (.*)", r"suggest (.*)", r"recommend (.*)"],
+             "CONFIRM_ORDER": [r"confirm", r"checkout", r"pay", r"finish"],
+             "CLEAR_CART": [r"clear cart", r"empty cart", r"reset"],
         }
-        self.stop_words = ["a", "an", "the", "for", "me", "item", "product"]
 
     def _normalize_message(self, message: str) -> str:
-        message = message.lower()
-        message = re.sub(r"[^\w\s]", "", message)
-        return message
+        return re.sub(r"[^\w\s]", "", message.lower())
 
-    def _classify_intent(self, normalized_message: str) -> Tuple[str, str]:
-        for intent, keywords in self.intent_keywords.items():
-            for keyword in keywords:
-                if normalized_message.startswith(keyword + " "):
-                    cleaned_message = normalized_message[len(keyword) :].strip()
-                    return intent, cleaned_message
-                elif normalized_message == keyword:
-                     return intent, ""
-        return "SEARCH_PRODUCT", normalized_message
+    def _extract_intent_and_entity(self, message: str) -> Tuple[str, str]:
+        normalized = self._normalize_message(message)
+        
+        if normalized in ["confirm order", "checkout", "confirm"]: return "CONFIRM_ORDER", ""
+        if normalized in ["clear cart", "empty cart"]: return "CLEAR_CART", ""
+
+        for intent, patterns in self.intent_patterns.items():
+            for pattern in patterns:
+                match = re.search(pattern, normalized)
+                if match:
+                    return intent, match.group(1).strip() if match.groups() else ""
+        
+        return "SEARCH_PRODUCT", normalized
 
     def _get_query_embedding(self, query: str) -> List[float]:
-        vector = self.embedding_model.encode(query, convert_to_numpy=True)
-        return vector.tolist()
+        try:
+            vector = self.embedding_model.encode(query, convert_to_numpy=True)
+            return vector.tolist()
+        except Exception:
+            return []
 
-    async def _search_opensearch(self, query: str) -> List[Tuple[str, float]]:
+    async def _search_opensearch(self, query: str, limit: int = 20) -> List[Tuple[str, float]]:
         opensearch_query = {
             "query": {
                 "multi_match": {
                     "query": query,
-                    "fields": ["name^3", "description", "tags^2", "category"],
+                    "fields": ["name^4", "description^2", "category^3", "tags"],
+                    "fuzziness": "AUTO" 
                 }
             },
-            "size": 20,
+            "size": limit,
         }
-        response = await self.opensearch_client.search(
-            index="airdeliver_products", body=opensearch_query
-        )
-        return [
-            (hit["_id"], hit["_score"]) for hit in response["hits"]["hits"]
-        ]
-
-    async def _search_milvus(self, vector: List[float]) -> List[Tuple[str, float]]:
-        search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
-        results = self.milvus_client.search(
-            collection_name=self.milvus_collection,
-            data=[vector],
-            limit=20,
-            search_params=search_params,
-        )
-        return [
-            (hit.id, hit.distance) for hit in results[0]
-        ]
-
-
-    async def _search_milvus(self, vector: List[float]) -> List[Tuple[str, float]]:
-        search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
         try:
+            response = await self.opensearch_client.search(
+                index="airdeliver_products", body=opensearch_query
+            )
+            return [(hit["_id"], hit["_score"]) for hit in response["hits"]["hits"]]
+        except Exception:
+            return []
+
+    async def _search_milvus(self, vector: List[float], limit: int = 20, exclude_id: Optional[int] = None) -> List[Tuple[str, float]]:
+        if not vector: return []
+        search_params = {"metric_type": "L2", "params": {"nprobe": 20}}
+        try:
+            expr = f"id != {exclude_id}" if exclude_id else ""
             results = self.milvus_client.search(
                 collection_name=self.milvus_collection,
                 data=[vector],
-                limit=20,
+                limit=limit,
+                filter=expr,
                 search_params=search_params,
             )
-            return [
-                (hit.id, hit.distance) for hit in results[0]
-            ]
-        except Exception as e:
-    
-            logger.warning(f"Milvus search failed (Collection might be empty): {e}")
+            return [(str(hit.id), 1.0 / (1.0 + hit.distance)) for hit in results[0]]
+        except Exception:
             return []
+
+    async def _fallback_sql_search(self, db: AsyncSession, query: str, limit: int = 20) -> List[Product]:
+        clean_query = query.replace("%", "")
+        statement = select(Product).where(
+            or_(
+                col(Product.name).ilike(f"%{clean_query}%"),
+                col(Product.description).ilike(f"%{clean_query}%"),
+                col(Product.category).ilike(f"%{clean_query}%")
+            )
+        ).limit(limit)
+        return (await db.exec(statement)).all()
 
     async def find_products_from_message(
         self, db: AsyncSession, message: str, user_id: int
-
     ) -> Tuple[List[Product], Dict[str, Any]]:
-        normalized_message = self._normalize_message(message)
-        intent, cleaned_message = self._classify_intent(normalized_message)
+        intent, entity = self._extract_intent_and_entity(message)
 
-        if intent not in ["ADD_TO_CART", "SEARCH_PRODUCT"]:
-            return [], {"intent": intent}
+        if intent == "CONFIRM_ORDER": return [], {"intent": "CONFIRM_ORDER"}
+        if intent == "CLEAR_CART": return [], {"intent": "CLEAR_CART"}
 
-        if not cleaned_message:
-            return [], {"intent": intent}
+        if not entity:
+             # If just "search", return random popular items
+             statement = select(Product).order_by(func.random()).limit(10)
+             return (await db.exec(statement)).all(), {"intent": intent}
 
-        query_vector = self._get_query_embedding(cleaned_message)
-
+        # 1. Vector & Keyword Search
+        query_vector = self._get_query_embedding(entity)
+        
         opensearch_results, milvus_results = await asyncio.gather(
-            self._search_opensearch(cleaned_message),
-            self._search_milvus(query_vector)
+            self._search_opensearch(entity, limit=30),
+            self._search_milvus(query_vector, limit=30)
         )
 
         all_results = opensearch_results + milvus_results
         reranked_scores = self.reranker.rerank(all_results)
+        sorted_ids = sorted(reranked_scores, key=reranked_scores.get, reverse=True)[:20]
 
-        sorted_ids = sorted(
-            reranked_scores, key=reranked_scores.get, reverse=True
-        )[:5]
+        products = []
+        if sorted_ids:
+            product_ids_int = [int(pid) for pid in sorted_ids]
+            statement = select(Product).where(Product.id.in_(product_ids_int))
+            products = (await db.exec(statement)).all()
+            product_map = {p.id: p for p in products}
+            products = [product_map[pid] for pid in product_ids_int if pid in product_map]
 
-        if not sorted_ids:
-            return [], {"intent": intent}
+        if not products:
+            products = await self._fallback_sql_search(db, entity)
 
-        product_ids_int = [int(pid) for pid in sorted_ids]
+        return products, {"intent": intent, "quantity": 1}
 
-        statement = select(Product).where(Product.id.in_(product_ids_int))
+    async def find_complementary_products(
+        self, db: AsyncSession, anchor_product: Product, limit: int = 20
+    ) -> List[Product]:
+        rich_text = f"{anchor_product.category} accessories for {anchor_product.name} {anchor_product.description}"
+        vector = self._get_query_embedding(rich_text)
+
+        milvus_results = await self._search_milvus(vector, limit=50, exclude_id=anchor_product.id)
+        
+        if not milvus_results:
+            statement = select(Product).where(
+                and_(Product.category == anchor_product.category, Product.id != anchor_product.id)
+            ).limit(limit)
+            return (await db.exec(statement)).all()
+
+        related_ids = [int(pid) for pid, score in milvus_results]
+        statement = select(Product).where(Product.id.in_(related_ids))
         products = (await db.exec(statement)).all()
-
-        product_map = {str(p.id): p for p in products}
-        sorted_products = [product_map[pid] for pid in sorted_ids if pid in product_map]
-
-        return sorted_products, {"intent": intent, "quantity": 1}
+        
+        product_map = {p.id: p for p in products}
+        ordered_products = [product_map[pid] for pid in related_ids if pid in product_map]
+        
+        return ordered_products[:limit]
 
 def get_embedding_model() -> SentenceTransformer:
-    return SentenceTransformer(
-        "all-MiniLM-L6-v2"
-    )
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
 def get_milvus_client() -> MilvusClient:
     return MilvusClient(uri=MILVUS_DB_PATH)
 
-async def get_opensearch_client(
-    settings: CoreSettings = Depends(get_core_settings),
-) -> AsyncGenerator[AsyncOpenSearch, None]:
-
+async def get_opensearch_client(settings: CoreSettings = Depends(get_core_settings)) -> AsyncGenerator[AsyncOpenSearch, None]:
     hosts = [{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}]
-    auth = None
-
-    if settings.APP_ENV == "production":
-        auth = (settings.OPENSEARCH_USER, settings.OPENSEARCH_PASS)
-
-    client = AsyncOpenSearch(
-        hosts=hosts,
-        http_auth=auth,
-        use_ssl=False,
-        verify_certs=False,
-        ssl_assert_hostname=False,
-        ssl_show_warn=False
-    )
+    auth = (settings.OPENSEARCH_USER, settings.OPENSEARCH_PASS) if settings.APP_ENV == "production" else None
+    client = AsyncOpenSearch(hosts=hosts, http_auth=auth, use_ssl=False, verify_certs=False, ssl_assert_hostname=False, ssl_show_warn=False)
     yield client
     await client.close()
 
@@ -192,8 +199,4 @@ def get_ai_commerce_engine(
     milvus_client: MilvusClient = Depends(get_milvus_client),
     embedding_model: SentenceTransformer = Depends(get_embedding_model),
 ) -> AICommerceEngine:
-    return AICommerceEngine(
-        opensearch_client=opensearch_client,
-        milvus_client=milvus_client,
-        embedding_model=embedding_model,
-    )
+    return AICommerceEngine(opensearch_client, milvus_client, embedding_model)

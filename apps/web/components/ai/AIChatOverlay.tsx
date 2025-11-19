@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle } from 'lucide-react';
+import { Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, ShoppingBag } from 'lucide-react';
 import { useAIOrderingStore, Message } from '@/hooks/useAIOrderingStore';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
@@ -29,48 +29,82 @@ const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
     return `${apiBase}${normalizedPath}`;
 };
 
-const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, totalItems: number }) => {
+const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, totalItems: number }) => {
     const mdWidthClass = totalItems === 2 ? "md:flex-[0_0_50%]" : "md:flex-[0_0_40%]";
     const slideWidthClass = `flex-[0_0_65%] sm:flex-[0_0_50%] ${mdWidthClass}`;
-    const imageUrl = getAbsoluteImageUrl(product.image_url);
+    
+    const rawImagePath = product.image_url || product.image;
+    const imageUrl = getAbsoluteImageUrl(rawImagePath);
     const elementId = `product-carousel-img-${product.id}`;
 
+    const handleSelect = useCallback(() => {
+        const normalizedProduct = {
+            ...product,
+            image: rawImagePath
+        };
+        onSelect(normalizedProduct, elementId);
+    }, [product, rawImagePath, elementId, onSelect]);
+
     return (
-        <div className={`embla__slide ${slideWidthClass} px-2`}>
+        <div className={`embla__slide ${slideWidthClass} px-3 py-2`}>
             <motion.div
-                className="flex flex-col p-4 bg-black/90 rounded-lg border border-cyan-400/20 h-full text-left"
-                whileHover={{ scale: 1.03, z: 10 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                className="flex flex-col p-5 bg-black/80 backdrop-blur-md rounded-2xl border border-cyan-500/20 h-full text-left shadow-lg shadow-cyan-900/10 group relative"
+                whileHover={{ 
+                    scale: 1.02, 
+                    zIndex: 50,
+                    borderColor: "rgba(6, 182, 212, 0.5)",
+                    boxShadow: "0 0 20px rgba(6, 182, 212, 0.15)"
+                }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             >
-                <Image
-                    id={elementId}
-                    src={imageUrl}
-                    alt={product.name}
-                    width={120}
-                    height={120}
-                    className="w-full h-24 object-contain mb-3 rounded-md"
-                />
-                <h4 className="text-sm font-bold text-white">{product.name}</h4>
-                <p className="text-lg font-bold text-white mb-2">${product.price.toFixed(2)}</p>
-                <div className="text-xs text-gray-400 flex items-center gap-2 mb-2">
-                    <span>⭐ {product.rating || '4.5'} ({product.reviews || '1.2'}k)</span> | <span className="text-green-400">{product.stock_status || 'In Stock'}</span>
+                <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
+
+                <div className="relative z-10 flex-grow flex flex-col">
+                    <div className="relative h-32 mb-4 w-full flex items-center justify-center bg-white/5 rounded-xl p-2 group-hover:bg-white/10 transition-colors">
+                        <Image
+                            id={elementId}
+                            src={imageUrl}
+                            alt={product.name}
+                            width={150}
+                            height={150}
+                            className="w-full h-full object-contain drop-shadow-xl group-hover:scale-110 transition-transform duration-500 ease-out"
+                        />
+                    </div>
+                    
+                    <h4 className="text-base font-bold text-white mb-1 line-clamp-1">{product.name}</h4>
+                    
+                    <div className="flex items-end gap-2 mb-3">
+                        <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400">
+                            ${product.price.toFixed(2)}
+                        </span>
+                        {product.rating && (
+                            <span className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                                ⭐ {product.rating} <span className="text-gray-600">|</span> {product.stock_status || 'In Stock'}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="mt-auto">
+                        <motion.button
+                            onClick={handleSelect}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="w-full relative group/btn overflow-hidden rounded-xl bg-cyan-950/30 border border-cyan-500/30 p-[1px]"
+                        >
+                            <div className="relative px-4 py-3 bg-black/50 backdrop-blur-xl rounded-[10px] flex items-center justify-center gap-2 transition-all duration-300 group-hover/btn:bg-cyan-500 group-hover/btn:text-black">
+                                <ShoppingBag size={18} className="text-cyan-400 group-hover/btn:text-black transition-colors" />
+                                <span className="font-bold text-sm text-cyan-100 group-hover/btn:text-black">Add to Cart</span>
+                            </div>
+                        </motion.button>
+                    </div>
                 </div>
-                <div className="text-xs text-gray-400 flex items-center gap-2 mt-auto">
-                    <span>🚀 {product.delivery_eta || '15 Min'} Delivery</span>
-                </div>
-                <motion.button
-                    onClick={() => onSelect(product, elementId)}
-                    whileHover={{ scale: 1.05 }}
-                    className="w-full mt-3 text-sm bg-cyan-500/30 text-cyan-200 py-2 rounded-lg border border-cyan-500/50"
-                >
-                    Add to Cart
-                </motion.button>
             </motion.div>
         </div>
     );
-};
+});
+CarouselProductCard.displayName = 'CarouselProductCard';
 
-const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (product: any, elementId: string) => void }) => {
+const ProductCarousel = React.memo(({ products, onSelect }: { products: any[], onSelect: (product: any, elementId: string) => void }) => {
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start' });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
@@ -78,23 +112,24 @@ const ProductCarousel = ({ products, onSelect }: { products: any[], onSelect: (p
     const canScroll = totalItems > 2;
 
     return (
-        <div className="relative my-4">
+        <div className="relative my-4 px-1">
             <div className="overflow-hidden" ref={emblaRef}>
-                <div className="flex">
+                <div className="flex -ml-3">
                     {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} totalItems={totalItems} />)}
                 </div>
             </div>
             {canScroll && (
                 <>
-                    <button onClick={scrollPrev} className="absolute top-1/2 -translate-y-1/2 -left-3 p-1 bg-white/10 rounded-full z-10 hover:bg-white/20"><ChevronLeft size={16}/></button>
-                    <button onClick={scrollNext} className="absolute top-1/2 -translate-y-1/2 -right-3 p-1 bg-white/10 rounded-full z-10 hover:bg-white/20"><ChevronRight size={16}/></button>
+                    <button onClick={scrollPrev} className="absolute top-1/2 -translate-y-1/2 -left-2 p-1.5 bg-black/50 backdrop-blur border border-white/10 rounded-full z-10 hover:bg-cyan-500 hover:text-black transition-all"><ChevronLeft size={18}/></button>
+                    <button onClick={scrollNext} className="absolute top-1/2 -translate-y-1/2 -right-2 p-1.5 bg-black/50 backdrop-blur border border-white/10 rounded-full z-10 hover:bg-cyan-500 hover:text-black transition-all"><ChevronRight size={18}/></button>
                 </>
             )}
         </div>
     );
-};
+});
+ProductCarousel.displayName = 'ProductCarousel';
 
-const AIReasoning = ({ text }: { text: string }) => (
+const AIReasoning = React.memo(({ text }: { text: string }) => (
     <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -103,7 +138,8 @@ const AIReasoning = ({ text }: { text: string }) => (
         <Cpu size={16} className="text-cyan-400 flex-shrink-0 glowing-icon"/>
         <p className="text-xs text-cyan-300/80 italic">{text}</p>
     </motion.div>
-);
+));
+AIReasoning.displayName = 'AIReasoning';
 
 const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: {
     message: Message,
@@ -174,7 +210,7 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                             <span className="font-bold text-base">Order Paused</span>
                         </div>
                         <p className="whitespace-pre-wrap text-base text-gray-200 mb-1">{message.content}</p>
-
+                        
                         <div className="grid grid-cols-3 gap-2 w-full mt-2">
                             <motion.button
                                 whileHover={{ scale: 1.03 }}
@@ -386,7 +422,7 @@ const ChatInput = React.memo(
 );
 ChatInput.displayName = 'ChatInput';
 
-const TypingIndicator = () => (
+const TypingIndicator = React.memo(() => (
     <motion.div
         layout
         initial={{ opacity: 0, y: 10 }}
@@ -403,9 +439,10 @@ const TypingIndicator = () => (
         <motion.div className="w-2 h-2 bg-cyan-400 rounded-full" animate={{ y: [0, -3, 0] }} transition={{ duration: 0.8, delay: 0.2, repeat: Infinity, ease: 'easeInOut' }} />
       </div>
     </motion.div>
-);
+));
+TypingIndicator.displayName = 'TypingIndicator';
 
-const FlyToCartAnimator = () => {
+const FlyToCartAnimator = React.memo(() => {
   const flyQueue = useAIOrderingStore((state) => state.flyQueue);
   const removeFlyItem = useAIOrderingStore((state) => state.removeFlyItem);
 
@@ -436,6 +473,7 @@ const FlyToCartAnimator = () => {
     <AnimatePresence>
       {flyQueue.map((item) => {
           const startRect = getStartPosition(item.startElementId);
+          const imageSource = getAbsoluteImageUrl(item.image || item.image_url);
 
           if (!startRect || startRect.width === 0) return null;
 
@@ -465,13 +503,14 @@ const FlyToCartAnimator = () => {
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} 
               onAnimationComplete={() => removeFlyItem(item.animationId)}
             >
-              <Image src={getAbsoluteImageUrl(item.image)} alt="product" width={100} height={100} className="w-full h-full object-cover" />
+              <Image src={imageSource} alt="product" width={100} height={100} className="w-full h-full object-cover" priority />
             </motion.div>
           );
       })}
     </AnimatePresence>
   );
-};
+});
+FlyToCartAnimator.displayName = 'FlyToCartAnimator';
 
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
 
