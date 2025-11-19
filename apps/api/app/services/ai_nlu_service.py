@@ -41,7 +41,7 @@ class AINLUService:
         await self.rabbitmq.publish(
             {
                 "user_id": user_id, 
-                "content": f"**{product_name}** added! You've got great taste.", 
+                "content": f"**{product_name}** added! 🔥 You've got great taste.", 
                 "type": "success_text"
             },
             "airdeliver.ai.response.out",
@@ -101,6 +101,24 @@ class AINLUService:
         message_text = str(raw_message) if raw_message else ""
         
         if not raw_message:
+            return
+
+        if message_text == "__INTERNAL_SAVE_FOR_LATER__":
+             
+            await self.rabbitmq.publish(
+                {
+                    "user_id": user_id,
+                    "content": "Got it 👌, I've moved these items to your profile. You can find them whenever you're ready.",
+                    "type": "success_text"
+                },
+                "airdeliver.ai.response.out",
+            )
+
+            await self.rabbitmq.publish(
+
+                {"user_id": user_id, "notify_user": False}, 
+                "airdeliver.ai.intent.clear_cart",
+            )
             return
 
         if message_text == "__INTERNAL_INITIATE_RECOVERY__":

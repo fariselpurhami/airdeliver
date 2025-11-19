@@ -385,14 +385,10 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
 
   saveForLater: () => {
     const { recoveryOrderDetails, recoveryReason } = get();
-    if (!recoveryOrderDetails) return;
-
-    get()._sendInternalCommand('__INTERNAL_SAVE_FOR_LATER__', {
-        orderId: recoveryOrderDetails.orderId,
-        reason: recoveryReason,
-    });
-
-    set({ recoveryMode: false, recoveryOrderDetails: null });
+  
+    get()._sendInternalCommand('__INTERNAL_SAVE_FOR_LATER__');
+    get().clearCart(); 
+    set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
   },
 
   hardCancelOrder: (reason: string) => {
