@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, Request, Header, HTTPException, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 import stripe
-from app.core.config import get_stripe_settings, StripeSettings
+from app.core.config import settings
 from app.db.session import get_session
 from app.models.order import Order
 from app.models.enums import OrderStatus
@@ -20,16 +20,13 @@ async def stripe_webhook(
     stripe_signature: str = Header(None),
     session: AsyncSession = Depends(get_session),
     rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
-    stripe_settings: StripeSettings = Depends(get_stripe_settings),
 ):
     """
     Production-Grade Webhook Handler for Stripe.
-    1. Verifies Security Signature.
-    2. Updates Order State (Idempotent).
-    3. Triggers Async Events (Notification + Drone Mission).
     """
-    
-    if not stripe_settings.STRIPE_WEBHOOK_SECRET:
+    webhook_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    if not webhook_secret:
         logger.critical("Stripe webhook secret is missing in configuration.")
         raise HTTPException(status_code=500, detail="Webhook configuration error.")
 
@@ -40,7 +37,7 @@ async def stripe_webhook(
         event = stripe.Webhook.construct_event(
             payload=payload,
             sig_header=stripe_signature,
-            secret=stripe_settings.STRIPE_WEBHOOK_SECRET,
+            secret=webhook_secret,
         )
     except ValueError as e:
         logger.error(f"Invalid payload: {e}")
@@ -59,16 +56,9 @@ async def stripe_webhook(
 
 
 async def _handle_payment_success(event, session: AsyncSession, rabbitmq: RabbitMQService):
-    """
-    Handles successful payments:
-    - Updates DB to PROCESSING.
-    - Notifies User via WebSocket.
-    - Triggers Mission Planning via Event Bus.
-    """
     payment_intent = event["data"]["object"]
     order_id = payment_intent.get("metadata", {}).get("order_id")
-    user_id = payment_intent.get("metadata", {}).get("user_id") 
-
+    
     if not order_id:
         logger.warning("Payment succeeded but missing order_id in metadata.")
         return
@@ -79,12 +69,12 @@ async def _handle_payment_success(event, session: AsyncSession, rabbitmq: Rabbit
         return
 
     if order.status in [OrderStatus.PENDING, OrderStatus.SAVED_FOR_LATER]:
-        order.status = OrderStatus.PROCESSING 
+        order.status = OrderStatus.PROCESSING
         session.add(order)
         await session.commit()
         await session.refresh(order)
         
-        logger.info(f"💰 Order {order_id} paid successfully. Amount: {order.total_price}")
+        logger.info(f"💰 Order {order_id} paid successfully.")
 
         await rabbitmq.publish(
             body={
@@ -106,10 +96,8 @@ async def _handle_payment_success(event, session: AsyncSession, rabbitmq: Rabbit
                 }
             },
             routing_key="airdeliver.events.order.paid",
-            exchange_name="drone.events" 
+            exchange_name="drone.events"
         )
-    else:
-        logger.info(f"Order {order_id} already processed (Status: {order.status}). Skipping.")
 
 
 async def _handle_payment_failure(event, session: AsyncSession, rabbitmq: RabbitMQService):
