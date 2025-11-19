@@ -1,13 +1,13 @@
 # apps/api/app/services/ai_nlu_service.py
 
 import asyncio
+import logging
+from typing import List, Dict, Any
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, func
 from app.services.ai_commerce_engine import AICommerceEngine
 from app.services.rabbitmq_service import RabbitMQService
 from app.models.product import Product
-from typing import List, Dict, Any
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -97,39 +97,47 @@ class AINLUService:
 
     async def process_message(self, message_payload: dict):
         user_id = message_payload.get("user_id")
-        raw_message = message_payload.get("message") # <-- نحتفظ بالبيانات الأصلية هنا
-        message = raw_message # <-- المتغير الذي سنقوم بتحويله (إذا
+        raw_message = message_payload.get("message")
+        message_text = str(raw_message) if raw_message else ""
         
-        if not message:
-            logger.warning("Received empty message payload.")
+        if not raw_message:
             return
 
-        if isinstance(message, dict):
-            logger.warning(f"Received dict message, converting to string: {message}")
-            message = str(message)
-
-
-        if message == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
+        if message_text == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
             await self._handle_initial_suggestions(user_id)
             return
 
-        if message == "__INTERNAL_RESET_SESSION__":
+        if message_text == "__INTERNAL_RESET_SESSION__":
             await self.rabbitmq.publish(
                 {"user_id": user_id, "notify_user": False},
                 "airdeliver.ai.intent.clear_cart",
             )
             return
             
-        if message == "__INTERNAL_CLEAR_CART__":
+        if message_text == "__INTERNAL_CLEAR_CART__":
             await self.rabbitmq.publish(
                 {"user_id": user_id, "notify_user": True},
                 "airdeliver.ai.intent.clear_cart",
             )
             return
+        
+        if message_payload.get("type") == "CANCEL_INTENT":
+            order_id = None
+            reason = None
+            
+            if isinstance(raw_message, dict):
+                order_id = raw_message.get("orderId") or raw_message.get("order_id")
+                reason = raw_message.get("reason")
+            
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "order_id": order_id, "reason": reason},
+                "airdeliver.ai.intent.cancel_order",
+            )
+            return
 
-        if message.startswith("__INTERNAL_ADD_BY_ID__:") and user_id:
+        if message_text.startswith("__INTERNAL_ADD_BY_ID__:") and user_id:
             try:
-                product_id_str = message.split(":")[1]
+                product_id_str = message_text.split(":")[1]
                 product_id = int(product_id_str)
                 
                 await self.rabbitmq.publish(
@@ -149,9 +157,9 @@ class AINLUService:
                 )
                 return
 
-        if message.startswith("__INTERNAL_REMOVE_BY_ID__:") and user_id:
+        if message_text.startswith("__INTERNAL_REMOVE_BY_ID__:") and user_id:
             try:
-                product_id_str = message.split(":")[1]
+                product_id_str = message_text.split(":")[1]
                 product_id = int(product_id_str)
                 
                 await self.rabbitmq.publish(
@@ -167,34 +175,21 @@ class AINLUService:
                 )
                 return
 
-        if message_payload.get("type") == "CANCEL_INTENT":
-
-            order_id = None
-            if isinstance(raw_message, dict):
-                order_id = raw_message.get("orderId")
-
-            await self.rabbitmq.publish(
-                {"user_id": user_id, "order_id": message.get("orderId")},
-                "airdeliver.ai.intent.cancel_order",
-            )
-            return
-
         try:
             products, entities = await self.search_engine.find_products_from_message(
-                db=self.db, message=message, user_id=user_id
+                db=self.db, message=message_text, user_id=user_id
             )
         except Exception as e:
             logger.error(f"Search engine failed: {e}")
-        
             products, entities = ([], {"intent": "SEARCH_PRODUCT"})
 
         intent = entities.get("intent", "SEARCH_PRODUCT")
-        response_payload = {"user_id": user_id, "original_message": message}
+        response_payload = {"user_id": user_id, "original_message": message_text}
 
         if intent == "ADD_TO_CART":
             if not products:
                 await self.rabbitmq.publish(
-                    {**response_payload, "content": f"I couldn't find '{message}'.", "type": "error"},
+                    {**response_payload, "content": f"I couldn't find '{message_text}'.", "type": "error"},
                     "airdeliver.ai.response.out",
                 )
             elif len(products) > 1:
@@ -212,7 +207,7 @@ class AINLUService:
         
         elif intent == "REMOVE_FROM_CART":
             await self.rabbitmq.publish(
-                {**response_payload, "product_name": message},
+                {**response_payload, "product_name": message_text},
                 "airdeliver.ai.intent.remove_from_cart",
             )
         
