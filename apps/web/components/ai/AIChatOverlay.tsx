@@ -116,10 +116,6 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
     onCancel: () => void
 }) => {
     const isAI = message.sender === 'ai';
-
-    // ARCHITECTURAL FIX: Adaptive Width Logic
-    // Only force 'w-full' for complex layouts like Carousel or the Grid System.
-    // For text and confirmation prompts, use 'w-auto' to shrink-wrap content elegantly.
     const isFullWidthLayout = ['recovery_prompt', 'product_carousel'].includes(message.contentType);
     const containerWidthClass = isFullWidthLayout ? 'w-full' : 'w-auto';
 
@@ -639,7 +635,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         ease: "easeInOut"
                                     }}
                                 >
-                                    {paymentDetails ? 'Secure Checkout' : 'Order with air'}
+                                    {paymentDetails ? 'Secure Checkout' : 'order with air'}
                                 </motion.span>
                             </h3>
                             <button
