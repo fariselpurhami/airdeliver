@@ -18,10 +18,17 @@ type PaymentDetails = {
   gateways: PaymentGateway[];
 };
 
+type FlyItem = {
+  animationId: string;
+  productId: number;
+  image: string;
+  startElementId: string;
+};
+
 export interface Message {
   id: number;
   sender: 'user' | 'ai';
-  contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'payment_intent' | 'success_text' | 'ORDER_CANCELLED' | 'recovery_prompt';
+  contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'payment_intent' | 'success_text' | 'ORDER_CANCELLED' | 'recovery_prompt' | 'reset_prompt';
   content: any;
   options?: string[];
   products?: any[];
@@ -41,21 +48,23 @@ interface AIOrderingState {
   recoveryReason: string;
   suggestedProductIds: number[] | null;
   glowingProductId: number | null;
-  flyToCartItem: { id: number; image: string; startElementId: string } | null;
+  flyQueue: FlyItem[];
   socket: WebSocket | null;
-
   connectSocket: (token: string) => void;
   disconnectSocket: () => void;
   setOverlayVisible: (isVisible: boolean) => void;
   setSuggestedProductIds: (ids: number[] | null) => void;
   sendMessage: (text: string, isButtonCommand?: boolean) => void;
   addProductById: (product: any, startElementId: string) => void;
+  removeFlyItem: (animationId: string) => void; 
   removeProductById: (productId: number) => void;
   addSocketAIMessage: (message: any) => void;
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
   clearCart: () => void;
   confirmCurrentOrder: () => void;
+  triggerResetConfirmation: () => void;
+  cancelReset: () => void;
   resetChat: () => void;
   initiateCheckoutRecovery: () => void;
   restoreCheckout: () => void;
@@ -102,7 +111,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   recoveryOrderDetails: null,
   recoveryReason: 'price',
   glowingProductId: null,
-  flyToCartItem: null,
+  flyQueue: [],
   socket: null,
 
   connectSocket: (token) => {
@@ -113,8 +122,15 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
 
     socket.onopen = () => {
       set({ socket });
-      get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
-      get().fetchInitialSuggestions();
+      
+      const hasHistory = get().messages.length > 1;
+
+      if (!hasHistory) {
+         get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
+         get().fetchInitialSuggestions();
+      } else {
+         console.log("Resuming in-memory session...");
+      }
     };
 
     socket.onmessage = (event) => {
@@ -217,6 +233,27 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     get().sendMessage('Confirm Order', true);
   },
 
+  triggerResetConfirmation: () => {
+    set(produce((state: AIOrderingState) => {
+        if (state.messages[state.messages.length - 1]?.contentType === 'reset_prompt') return;
+        state.messages = state.messages.filter(m => m.contentType !== 'typing');
+        state.messages.push({
+            id: Date.now(),
+            sender: 'ai',
+            contentType: 'reset_prompt',
+            content: "Are you sure you want to start a new session? This will clear your current cart and chat history."
+        });
+        state.isProcessing = true;
+    }));
+  },
+
+  cancelReset: () => {
+      set(produce((state: AIOrderingState) => {
+          state.messages = state.messages.filter(m => m.contentType !== 'reset_prompt');
+          state.isProcessing = false;
+      }));
+  },
+
   resetChat: () => {
     get().clearCart();
     set({
@@ -226,9 +263,10 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
       paymentDetails: null,
       recoveryMode: false,
       recoveryOrderDetails: null,
+      flyQueue: [],
     });
     messageId = 1;
-
+    
     get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
     get().fetchInitialSuggestions();
   },
@@ -258,22 +296,46 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   },
 
   addProductById: async (product, startElementId) => {
+    const { recoveryMode, messages } = get();
+
+    if (recoveryMode) {
+       
+        const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+        const previousItems = lastCartMessage?.content?.items || [];
+
+        set({
+          recoveryMode: false,
+          paymentDetails: null,
+          recoveryOrderDetails: null,
+        });
+
+        previousItems.forEach((item: any) => {
+             get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${item.product_id}`, {}, true);
+        });
+    } else {
+
+        set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
+    }
+
     set({
-      recoveryMode: false,
-      paymentDetails: null,
-      recoveryOrderDetails: null,
-      flyToCartItem: {
-        id: product.id,
-        image: product.image_url,
-        startElementId: startElementId,
-      },
+      flyQueue: [
+        ...get().flyQueue,
+        {
+            animationId: `${product.id}-${Date.now()}-${Math.random()}`,
+            productId: product.id,
+            image: product.image_url,
+            startElementId: startElementId,
+        }
+      ]
     });
 
     get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${product.id}`);
+  },
 
-    setTimeout(() => {
-      set({ flyToCartItem: null });
-    }, 1000);
+  removeFlyItem: (animationId: string) => {
+    set((state) => ({
+      flyQueue: state.flyQueue.filter((item) => item.animationId !== animationId)
+    }));
   },
 
   removeProductById: async (productId) => {
@@ -377,4 +439,3 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     }));
   },
 }));
-

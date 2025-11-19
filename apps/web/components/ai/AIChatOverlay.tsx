@@ -116,8 +116,6 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
     onCancel: () => void
 }) => {
     const isAI = message.sender === 'ai';
-    const isFullWidthLayout = ['recovery_prompt', 'product_carousel'].includes(message.contentType);
-    const containerWidthClass = isFullWidthLayout ? 'w-full' : 'w-auto';
 
     const MessageContent = () => {
         switch (message.contentType) {
@@ -176,7 +174,7 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                             <span className="font-bold text-base">Order Paused</span>
                         </div>
                         <p className="whitespace-pre-wrap text-base text-gray-200 mb-1">{message.content}</p>
-                        
+
                         <div className="grid grid-cols-3 gap-2 w-full mt-2">
                             <motion.button
                                 whileHover={{ scale: 1.03 }}
@@ -225,7 +223,7 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                     <Bot size={16} className="text-cyan-400" />
                 </div>
             )}
-            <div className={`${containerWidthClass} max-w-lg px-4 py-3 rounded-xl ${isAI ? 'bg-black/20 border border-cyan-400/30 text-gray-200' : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white'}`}>
+            <div className={`w-auto max-w-lg px-3 py-2 rounded-xl ${isAI ? 'bg-black/20 border border-cyan-400/30 text-gray-200' : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white'}`}>
                 <MessageContent />
             </div>
             {!isAI && (
@@ -408,18 +406,12 @@ const TypingIndicator = () => (
 );
 
 const FlyToCartAnimator = () => {
-  const flyToCartItem = useAIOrderingStore((state) => state.flyToCartItem);
-  const [item, setItem] = useState(flyToCartItem);
+  const flyQueue = useAIOrderingStore((state) => state.flyQueue);
+  const removeFlyItem = useAIOrderingStore((state) => state.removeFlyItem);
 
-  useEffect(() => {
-    if (flyToCartItem) {
-      setItem(flyToCartItem);
-    }
-  }, [flyToCartItem]);
-
-  const getStartPosition = () => {
-    if (!item) return { x: 0, y: 0, width: 0, height: 0 };
-    const el = document.getElementById(item.startElementId);
+  const getStartPosition = (startElementId: string) => {
+    if (!startElementId) return { x: window.innerWidth / 2, y: window.innerHeight / 2, width: 0, height: 0 };
+    const el = document.getElementById(startElementId);
     if (el) {
       return el.getBoundingClientRect();
     }
@@ -438,40 +430,45 @@ const FlyToCartAnimator = () => {
     return { top: 100, left: window.innerWidth - 100 };
   };
 
-  const startRect = getStartPosition();
   const endPos = getEndPosition();
 
   return (
     <AnimatePresence>
-      {item && startRect.width > 0 && (
-        <motion.div
-          key={item.id}
-          className="fixed z-[9999] rounded-lg overflow-hidden border border-cyan-500/50"
-          initial={{
-            top: startRect.top,
-            left: startRect.left,
-            width: startRect.width,
-            height: startRect.height,
-            opacity: 1,
-            rotate: 0,
-          }}
-          animate={{
-            top: endPos.top,
-            left: endPos.left,
-            width: 20,
-            height: 20,
-            opacity: 0.5,
-            rotate: 720,
-            filter: 'blur(4px)',
-            scale: 0.2,
-          }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.8, ease: [0.76, 0, 0.24, 1] }}
-          onAnimationComplete={() => useAIOrderingStore.setState({ flyToCartItem: null })}
-        >
-          <Image src={getAbsoluteImageUrl(item.image)} alt="product" width={100} height={100} className="w-full h-full object-cover" />
-        </motion.div>
-      )}
+      {flyQueue.map((item) => {
+          const startRect = getStartPosition(item.startElementId);
+
+          if (!startRect || startRect.width === 0) return null;
+
+          return (
+            <motion.div
+              key={item.animationId} 
+              className="fixed z-[9999] rounded-lg overflow-hidden border border-cyan-500/50"
+              initial={{
+                top: startRect.top,
+                left: startRect.left,
+                width: startRect.width,
+                height: startRect.height,
+                opacity: 1,
+                rotate: 0,
+              }}
+              animate={{
+                top: endPos.top,
+                left: endPos.left,
+                width: 20,
+                height: 20,
+                opacity: 0.5,
+                rotate: 720,
+                filter: 'blur(4px)',
+                scale: 0.2,
+              }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} 
+              onAnimationComplete={() => removeFlyItem(item.animationId)}
+            >
+              <Image src={getAbsoluteImageUrl(item.image)} alt="product" width={100} height={100} className="w-full h-full object-cover" />
+            </motion.div>
+          );
+      })}
     </AnimatePresence>
   );
 };
@@ -635,7 +632,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         ease: "easeInOut"
                                     }}
                                 >
-                                    {paymentDetails ? 'Secure Checkout' : 'order with air'}
+                                    {paymentDetails ? 'Secure Checkout' : 'Order with air'}
                                 </motion.span>
                             </h3>
                             <button
