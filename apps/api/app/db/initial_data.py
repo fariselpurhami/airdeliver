@@ -29,7 +29,7 @@ def create_superuser(session: Session, settings):
         logger.info(f"Creating default superuser: {admin_email}")
         user = models.User(
             email=admin_email,
-            full_name="Admin User",
+            full_name="Admin",
             hashed_password=get_password_hash(admin_password),
             is_superuser=True, 
             role="admin",
