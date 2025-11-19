@@ -62,7 +62,8 @@ interface AIOrderingState {
   hardCancelOrder: (reason: string) => void;
   setRecoveryReason: (reason: string) => void;
   cancelPaymentIntent: () => Promise<void>;
-  _sendInternalCommand: (command: string, payload?: any) => void;
+  // FIX 1: Add 'silent' parameter to prevent loading indicator
+  _sendInternalCommand: (command: string, payload?: any, silent?: boolean) => void; 
 }
 
 let messageId = 1;
@@ -222,11 +223,13 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
     get().fetchInitialSuggestions();
   },
 
-  _sendInternalCommand: (command: string, payload: any = {}) => {
+  _sendInternalCommand: (command: string, payload: any = {}, silent: boolean = false) => {
     const { socket } = get();
     if (!socket) return;
 
-    set({ isLoading: true, isProcessing: true, suggestedProductIds: null });
+    if (!silent) {
+        set({ isLoading: true, isProcessing: true, suggestedProductIds: null });
+    }
 
     socket.send(JSON.stringify({
       type: 'CHAT_MESSAGE',
@@ -240,16 +243,33 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   },
 
   addProductById: async (product, startElementId) => {
+    const { recoveryMode, messages } = get();
+
+    if (recoveryMode) {
+        const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+        const previousItems = lastCartMessage?.content?.items || [];
+
+        set({
+          recoveryMode: false,
+          paymentDetails: null,
+          recoveryOrderDetails: null,
+        });
+
+        previousItems.forEach((item: any) => {
+             get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${item.product_id}`, {}, true);
+        });
+    } else {
+        set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
+    }
+
     set({
-      recoveryMode: false,
-      paymentDetails: null,
-      recoveryOrderDetails: null,
       flyToCartItem: {
         id: product.id,
         image: product.image_url,
         startElementId: startElementId,
       },
     });
+
     get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${product.id}`);
 
     setTimeout(() => {
@@ -274,7 +294,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
         options: ["Restore Checkout", "Save for Later", "Cancel Order"]
     });
 
-    get()._sendInternalCommand('__INTERNAL_INITIATE_RECOVERY__', { orderId: paymentDetails.orderId });
+    get()._sendInternalCommand('__INTERNAL_INITIATE_RECOVERY__', { orderId: paymentDetails.orderId }, true);
   },
 
   restoreCheckout: () => {
@@ -326,7 +346,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
 
     get().clearCart();
 
-    set({ recoveryMode: false, recoveryOrderDetails: null });
+    set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
   },
 
   cancelPaymentIntent: async () => {
