@@ -117,6 +117,12 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
 }) => {
     const isAI = message.sender === 'ai';
 
+    // ARCHITECTURAL FIX: Adaptive Width Logic
+    // Only force 'w-full' for complex layouts like Carousel or the Grid System.
+    // For text and confirmation prompts, use 'w-auto' to shrink-wrap content elegantly.
+    const isFullWidthLayout = ['recovery_prompt', 'product_carousel'].includes(message.contentType);
+    const containerWidthClass = isFullWidthLayout ? 'w-full' : 'w-auto';
+
     const MessageContent = () => {
         switch (message.contentType) {
             case 'text':
@@ -168,36 +174,39 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                 );
             case 'recovery_prompt':
                 return (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-3 w-full">
                         <div className="flex items-center gap-2 text-amber-400 mb-1">
-                            <AlertCircle size={16} />
-                            <span className="font-bold text-sm">Order Paused</span>
+                            <AlertCircle size={18} />
+                            <span className="font-bold text-base">Order Paused</span>
                         </div>
                         <p className="whitespace-pre-wrap text-base text-gray-200 mb-1">{message.content}</p>
                         
-                        <div className="flex flex-wrap gap-2 mt-1">
+                        <div className="grid grid-cols-3 gap-2 w-full mt-2">
                             <motion.button
-                                whileHover={{ scale: 1.05 }}
+                                whileHover={{ scale: 1.03 }}
                                 onClick={onRestore}
-                                className="flex items-center gap-2 text-xs font-medium bg-cyan-500/20 text-cyan-300 px-3 py-2 rounded-lg border border-cyan-500/50 hover:bg-cyan-500/30 transition-all"
+                                className="flex flex-col items-center justify-center gap-1.5 text-xs font-bold bg-cyan-500/20 text-cyan-300 py-3 px-1 rounded-lg border border-cyan-500/50 hover:bg-cyan-500/30 transition-all h-full w-full text-center"
                             >
-                                <Undo2 size={14} /> Restore
+                                <Undo2 size={20} />
+                                <span className="whitespace-nowrap">Restore Checkout</span>
                             </motion.button>
 
                             <motion.button
-                                whileHover={{ scale: 1.05 }}
+                                whileHover={{ scale: 1.03 }}
                                 onClick={onSave}
-                                className="flex items-center gap-2 text-xs font-medium bg-purple-500/20 text-purple-300 px-3 py-2 rounded-lg border border-purple-500/50 hover:bg-purple-500/30 transition-all"
+                                className="flex flex-col items-center justify-center gap-1.5 text-xs font-bold bg-purple-500/20 text-purple-300 py-3 px-1 rounded-lg border border-purple-500/50 hover:bg-purple-500/30 transition-all h-full w-full text-center"
                             >
-                                <Save size={14} /> Save
+                                <Save size={20} />
+                                <span className="whitespace-nowrap">Save for Later</span>
                             </motion.button>
 
                             <motion.button
-                                whileHover={{ scale: 1.05 }}
+                                whileHover={{ scale: 1.03 }}
                                 onClick={onCancel}
-                                className="flex items-center gap-2 text-xs font-medium bg-red-500/20 text-red-300 px-3 py-2 rounded-lg border border-red-500/50 hover:bg-red-500/30 transition-all"
+                                className="flex flex-col items-center justify-center gap-1.5 text-xs font-bold bg-red-500/20 text-red-300 py-3 px-1 rounded-lg border border-red-500/50 hover:bg-red-500/30 transition-all h-full w-full text-center"
                             >
-                                <Trash2 size={14} /> Cancel
+                                <Trash2 size={20} />
+                                <span className="whitespace-nowrap">Cancel Order</span>
                             </motion.button>
                         </div>
                     </div>
@@ -220,7 +229,7 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                     <Bot size={16} className="text-cyan-400" />
                 </div>
             )}
-            <div className={`w-auto max-w-lg px-3 py-2 rounded-xl ${isAI ? 'bg-black/20 border border-cyan-400/30 text-gray-200' : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white'}`}>
+            <div className={`${containerWidthClass} max-w-lg px-4 py-3 rounded-xl ${isAI ? 'bg-black/20 border border-cyan-400/30 text-gray-200' : 'bg-gradient-to-r from-blue-600 to-violet-600 text-white'}`}>
                 <MessageContent />
             </div>
             {!isAI && (
