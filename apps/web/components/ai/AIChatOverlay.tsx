@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle } from 'lucide-react';
 import { useAIOrderingStore, Message } from '@/hooks/useAIOrderingStore';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
@@ -45,12 +45,12 @@ const CarouselProductCard = ({ product, onSelect, totalItems }: { product: any, 
                 whileHover={{ scale: 1.03, z: 10 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
-                <Image 
+                <Image
                     id={elementId}
-                    src={imageUrl} 
-                    alt={product.name} 
-                    width={120} 
-                    height={120} 
+                    src={imageUrl}
+                    alt={product.name}
+                    width={120}
+                    height={120}
                     className="w-full h-24 object-contain mb-3 rounded-md"
                 />
                 <h4 className="text-sm font-bold text-white">{product.name}</h4>
@@ -108,12 +108,15 @@ const AIReasoning = ({ text }: { text: string }) => (
     </motion.div>
 );
 
-const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrder, onClearCart }: { 
-    message: Message, 
-    onSend: (text: string) => void, 
+const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: {
+    message: Message,
+    onSend: (text: string) => void,
     onProductSelect: (product: any, elementId: string) => void,
     onConfirmOrder: () => void,
-    onClearCart: () => void
+    onClearCart: () => void,
+    onRestore: () => void,
+    onSave: () => void,
+    onCancel: () => void
 }) => {
     const isAI = message.sender === 'ai';
 
@@ -157,6 +160,42 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                         <ProductCarousel products={message.products || []} onSelect={onProductSelect} />
                         {message.reason && <AIReasoning text={message.reason} />}
                         {message.ai_notes && !message.reason && <AIReasoning text={message.ai_notes} />}
+                    </div>
+                );
+            case 'recovery_prompt':
+                return (
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 text-amber-400 mb-1">
+                            <AlertCircle size={16} />
+                            <span className="font-bold text-sm">Order Paused</span>
+                        </div>
+                        <p className="whitespace-pre-wrap text-base text-gray-200">{message.content}</p>
+
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                onClick={onRestore}
+                                className="flex items-center gap-2 text-sm bg-cyan-500/20 text-cyan-300 px-4 py-2 rounded-lg border border-cyan-500/50 hover:bg-cyan-500/30 transition-all"
+                            >
+                                <Undo2 size={16} /> Restore Checkout
+                            </motion.button>
+
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                onClick={onSave}
+                                className="flex items-center gap-2 text-sm bg-purple-500/20 text-purple-300 px-4 py-2 rounded-lg border border-purple-500/50 hover:bg-purple-500/30 transition-all"
+                            >
+                                <Save size={16} /> Save for Later
+                            </motion.button>
+
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                onClick={onCancel}
+                                className="flex items-center gap-2 text-sm bg-red-500/20 text-red-300 px-4 py-2 rounded-lg border border-red-500/50 hover:bg-red-500/30 transition-all"
+                            >
+                                <Trash2 size={16} /> Cancel Order
+                            </motion.button>
+                        </div>
                     </div>
                 );
             default: return null;
@@ -429,15 +468,15 @@ const FlyToCartAnimator = () => {
   );
 };
 
-
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
 
     const {
         messages, isLoading, sendMessage, addProductById,
         paymentDetails, setOverlayVisible, glowingProductId,
         flyToCartItem, resetChat, removeProductById,
-        cancelPaymentIntent, isProcessing,
-        confirmCurrentOrder, clearCart
+        initiateCheckoutRecovery, isProcessing,
+        confirmCurrentOrder, clearCart,
+        restoreCheckout, saveForLater, hardCancelOrder
     } = useAIOrderingStore();
 
     const socket = useAIOrderingStore((state) => state.socket);
@@ -469,10 +508,14 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
     const handleClose = () => {
         if (paymentDetails && !isProcessing) {
-            cancelPaymentIntent();
+            initiateCheckoutRecovery();
         } else if (!paymentDetails) {
             onClose();
         }
+    };
+
+    const handleChatCancel = () => {
+        hardCancelOrder('changed_mind');
     };
 
     const handlePaymentSuccess = () => {
@@ -639,6 +682,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                         onProductSelect={handleProductSelect}
                                                         onConfirmOrder={confirmCurrentOrder}
                                                         onClearCart={clearCart}
+                                                        onRestore={restoreCheckout}
+                                                        onSave={saveForLater}
+                                                        onCancel={handleChatCancel}
                                                     />
                                                 ))}
                                             </AnimatePresence>
@@ -657,7 +703,6 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                  />
                             )}
                         </div>
-
                     </motion.div>
                 </motion.div>
             )}

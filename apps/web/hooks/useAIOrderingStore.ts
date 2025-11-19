@@ -1,9 +1,8 @@
-// apps/web/hooks/useAIOrderingStore.ts
+//** apps/web/hooks/useAIOrderingStore.ts **//
 
 'use client';
 
 import { create } from 'zustand';
-import { api } from '@/lib/api';
 import { produce } from 'immer';
 
 type PaymentGateway = {
@@ -22,7 +21,7 @@ type PaymentDetails = {
 export interface Message {
   id: number;
   sender: 'user' | 'ai';
-  contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'payment_intent' | 'success_text' | 'ORDER_CANCELLED';
+  contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'payment_intent' | 'success_text' | 'ORDER_CANCELLED' | 'recovery_prompt';
   content: any;
   options?: string[];
   products?: any[];
@@ -36,8 +35,11 @@ interface AIOrderingState {
   isLoading: boolean;
   isProcessing: boolean;
   isOverlayVisible: boolean;
-  suggestedProductIds: number[] | null;
   paymentDetails: PaymentDetails | null;
+  recoveryMode: boolean;
+  recoveryOrderDetails: PaymentDetails | null;
+  recoveryReason: string;
+  suggestedProductIds: number[] | null;
   glowingProductId: number | null;
   flyToCartItem: { id: number; image: string; startElementId: string } | null;
   socket: WebSocket | null;
@@ -54,6 +56,11 @@ interface AIOrderingState {
   clearCart: () => void;
   confirmCurrentOrder: () => void;
   resetChat: () => void;
+  initiateCheckoutRecovery: () => void;
+  restoreCheckout: () => void;
+  saveForLater: () => void;
+  hardCancelOrder: (reason: string) => void;
+  setRecoveryReason: (reason: string) => void;
   cancelPaymentIntent: () => Promise<void>;
   _sendInternalCommand: (command: string, payload?: any) => void;
 }
@@ -90,6 +97,9 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   isOverlayVisible: false,
   suggestedProductIds: null,
   paymentDetails: null,
+  recoveryMode: false,
+  recoveryOrderDetails: null,
+  recoveryReason: 'price',
   glowingProductId: null,
   flyToCartItem: null,
   socket: null,
@@ -150,6 +160,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
         'success_text',
         'confirmation_prompt',
         'proactive_suggestion',
+        'recovery_prompt',
       ];
 
       if (typesThatEndProcessing.includes(response.type)) {
@@ -158,16 +169,19 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
 
       if (response.type === 'payment_intent') {
         state.paymentDetails = response.content as PaymentDetails;
+        state.recoveryMode = false;
         aiMessage.contentType = 'text';
         aiMessage.content = "Great! I've prepared your order. Please complete the secure payment to finalize.";
       }
 
       if (response.type === 'ORDER_CANCELLED') {
         state.paymentDetails = null;
+        state.recoveryOrderDetails = null;
+        state.recoveryMode = false;
         aiMessage.contentType = 'text';
         aiMessage.content = response.content;
       }
-      
+
       if (response.type === 'cart_preview' && response.content?.items?.length === 0) {
           state.messages = state.messages.filter(m => m.contentType !== 'confirmation_prompt');
       }
@@ -189,7 +203,7 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
   clearCart: () => {
     get()._sendInternalCommand('__INTERNAL_CLEAR_CART__');
   },
-  
+
   confirmCurrentOrder: () => {
     get().sendMessage('Confirm Order', true);
   },
@@ -201,6 +215,8 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
       isLoading: false,
       isProcessing: false,
       paymentDetails: null,
+      recoveryMode: false,
+      recoveryOrderDetails: null,
     });
     messageId = 1;
     get().fetchInitialSuggestions();
@@ -232,22 +248,84 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
       },
     });
     get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${product.id}`);
-    
+
     setTimeout(() => {
       set({ flyToCartItem: null });
     }, 1000);
   },
 
-  cancelPaymentIntent: async () => {
-    const { paymentDetails, isProcessing, socket } = get();
-    if (!paymentDetails || isProcessing || !socket) return;
+  initiateCheckoutRecovery: () => {
+    const { paymentDetails, isProcessing } = get();
+    if (!paymentDetails || isProcessing) return;
+
+    set({
+      isOverlayVisible: true,
+      paymentDetails: null,
+      recoveryOrderDetails: paymentDetails,
+      recoveryMode: true
+    });
+
+    get().addSocketAIMessage({
+        type: 'recovery_prompt',
+        content: "Wait! Your order isn't confirmed yet. Do you want to:",
+        options: ["Restore Checkout", "Save for Later", "Cancel Order"]
+    });
+
+    get()._sendInternalCommand('__INTERNAL_INITIATE_RECOVERY__', { orderId: paymentDetails.orderId });
+  },
+
+  restoreCheckout: () => {
+    const { recoveryOrderDetails } = get();
+    if (!recoveryOrderDetails) return;
+
+    set({
+      isOverlayVisible: true,
+      recoveryMode: false,
+      paymentDetails: recoveryOrderDetails,
+      recoveryOrderDetails: null,
+    });
+
+    get().addSocketAIMessage({
+        type: 'success_text',
+        content: "Done! Checkout restored. Let's finish your order."
+    });
+  },
+
+  setRecoveryReason: (reason: string) => {
+    set({ recoveryReason: reason });
+  },
+
+  saveForLater: () => {
+    const { recoveryOrderDetails, recoveryReason } = get();
+    if (!recoveryOrderDetails) return;
+
+    get()._sendInternalCommand('__INTERNAL_SAVE_FOR_LATER__', {
+        orderId: recoveryOrderDetails.orderId,
+        reason: recoveryReason,
+    });
+
+    set({ recoveryMode: false, recoveryOrderDetails: null });
+  },
+
+  hardCancelOrder: (reason: string) => {
+    const { recoveryOrderDetails, socket } = get();
+    if (!recoveryOrderDetails || !socket) return;
 
     set({ isProcessing: true });
 
     socket.send(JSON.stringify({
       type: 'CANCEL_INTENT',
-      message: { orderId: paymentDetails.orderId }
+      message: {
+          orderId: recoveryOrderDetails.orderId,
+          reason: reason,
+      }
     }));
+
+    set({ recoveryMode: false, recoveryOrderDetails: null });
+  },
+
+  cancelPaymentIntent: async () => {
+    get().hardCancelOrder(get().recoveryReason);
   },
 
   removeProductById: async (productId) => {

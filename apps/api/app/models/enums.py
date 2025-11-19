@@ -13,18 +13,19 @@ class OrderStatus(str, Enum):
     ASSIGNED = "assigned"
     IN_TRANSIT = "in_transit"
     DELIVERED = "delivered"
-    CANCELLED = "cancelled" 
+    CANCELLED = "cancelled"
     FAILED = "failed"
+    SAVED_FOR_LATER = "saved_for_later"
 
 class DroneStatus(str, Enum):
     IDLE = "idle"
     CHARGING = "charging"
-    PREPARING = "preparing" 
-    READY = "ready"     
-    IN_MISSION = "in_mission" 
+    PREPARING = "preparing"
+    READY = "ready"
+    IN_MISSION = "in_mission"
     RETURNING = "returning"
     MAINTENANCE = "maintenance"
-    OFFLINE = "offline" 
+    OFFLINE = "offline"
 
 class MissionStatus(str, Enum):
     CREATED = "created"
@@ -48,9 +49,9 @@ class MissionStatus(str, Enum):
     FAILED_EMERGENCY_LANDING = "failed_emergency_landing"
 
 class NotificationType(str, Enum):
-    ORDER_UPDATE = "order_update" 
-    DRONE_STATUS = "drone_status" 
-    SYSTEM_ALERT = "system_alert" 
+    ORDER_UPDATE = "order_update"
+    DRONE_STATUS = "drone_status"
+    SYSTEM_ALERT = "system_alert"
     SECURITY = "security"
     PROMOTION = "promotion"
 
@@ -63,3 +64,10 @@ class EventType(str, Enum):
     LANDED = "landed"
     MISSION_COMPLETED = "mission_completed"
     EMERGENCY_LANDING = "emergency_landing"
+
+class CancellationReason(str, Enum):
+    PRICE = "price"
+    PAYMENT_METHOD = "payment_method"
+    SHIPPING = "shipping"
+    CHANGED_MIND = "changed_mind"
+    OTHER = "other"

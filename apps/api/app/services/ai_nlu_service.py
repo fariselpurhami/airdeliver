@@ -96,8 +96,9 @@ class AINLUService:
         await self._handle_secondary_suggestions(user_id, product.id)
 
     async def process_message(self, message_payload: dict):
-        user_id = message_payload["user_id"]
-        message = message_payload["message"]
+        user_id = message_payload.get("user_id")
+        raw_message = message_payload.get("message") # <-- نحتفظ بالبيانات الأصلية هنا
+        message = raw_message # <-- المتغير الذي سنقوم بتحويله (إذا
         
         if not message:
             logger.warning("Received empty message payload.")
@@ -167,6 +168,11 @@ class AINLUService:
                 return
 
         if message_payload.get("type") == "CANCEL_INTENT":
+
+            order_id = None
+            if isinstance(raw_message, dict):
+                order_id = raw_message.get("orderId")
+
             await self.rabbitmq.publish(
                 {"user_id": user_id, "order_id": message.get("orderId")},
                 "airdeliver.ai.intent.cancel_order",

@@ -1,8 +1,8 @@
-"""Initial Schema
+"""full_schema_refresh
 
-Revision ID: 160ffd759577
+Revision ID: ddc4c9ef8bf7
 Revises: 
-Create Date: 2025-11-18 02:08:08.132013
+Create Date: 2025-11-19 00:08:54.277124
 
 """
 from alembic import op
@@ -11,7 +11,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision = '160ffd759577'
+revision = 'ddc4c9ef8bf7'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -126,7 +126,7 @@ def upgrade() -> None:
     op.create_table('orders',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED', 'FAILED', name='orderstatus', native_enum=False), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED', 'FAILED', 'SAVED_FOR_LATER', name='orderstatus', native_enum=False), nullable=False),
     sa.Column('total_price', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -134,10 +134,13 @@ def upgrade() -> None:
     sa.Column('delivery_lat', sa.Float(), nullable=False),
     sa.Column('delivery_lon', sa.Float(), nullable=False),
     sa.Column('drone_id', sa.Integer(), nullable=True),
+    sa.Column('cancellation_reason', sa.Enum('PRICE', 'PAYMENT_METHOD', 'SHIPPING', 'CHANGED_MIND', 'OTHER', name='cancellation_reason_enum', native_enum=False), nullable=True),
+    sa.Column('recovery_token', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.ForeignKeyConstraint(['drone_id'], ['drones.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_orders_recovery_token'), 'orders', ['recovery_token'], unique=False)
     op.create_table('user_activities',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -227,6 +230,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_user_activities_user_id'), table_name='user_activities')
     op.drop_index(op.f('ix_user_activities_activity_type'), table_name='user_activities')
     op.drop_table('user_activities')
+    op.drop_index(op.f('ix_orders_recovery_token'), table_name='orders')
     op.drop_table('orders')
     op.drop_index(op.f('ix_notification_subscriptions_user_id'), table_name='notification_subscriptions')
     op.drop_table('notification_subscriptions')

@@ -3,23 +3,25 @@
 import json
 from pywebpush import webpush
 from typing import List
-from sqlmodel import Session, select
+from sqlmodel import select
 from app.core.config import settings
 from app.models.notification_subscription import NotificationSubscription
+from sqlmodel.ext.asyncio.session import AsyncSession
 
-VAPID_PRIVATE_KEY = settings.VAPID_PRIVATE_KEY 
-VAPID_PUBLIC_KEY = settings.VAPID_PUBLIC_KEY 
+VAPID_PRIVATE_KEY = settings.VAPID_PRIVATE_KEY
+VAPID_PUBLIC_KEY = settings.VAPID_PUBLIC_KEY
 VAPID_CLAIMS = {"sub": "mailto:admin@airdeliver.com"}
 
 class NotificationService:
-    def send_web_push(self, db: Session, user_id: int, title: str, body: str):
-        subscriptions = db.exec(
+    async def send_web_push(self, db: AsyncSession, user_id: int, title: str, body: str):
+        result = await db.exec(
             select(NotificationSubscription).where(NotificationSubscription.user_id == user_id)
-        ).all()
+        )
+        subscriptions = result.all()
 
         for sub in subscriptions:
             try:
-                subscription_info = json.loads(sub.subscription_info_json)
+                subscription_info = sub.subscription_info_json
                 webpush(
                     subscription_info=subscription_info,
                     data=json.dumps({"title": title, "body": body}),
@@ -41,5 +43,5 @@ class NotificationService:
         print(f"SENDING SMS to {phone_number}")
         print(f"Message: {message}")
         print("-" * 20)
-        
+
 notification_service = NotificationService()

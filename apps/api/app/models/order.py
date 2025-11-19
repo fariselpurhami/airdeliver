@@ -6,7 +6,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime
-from .enums import OrderStatus
+from .enums import OrderStatus, CancellationReason
 
 if TYPE_CHECKING:
     from .user import User
@@ -38,6 +38,15 @@ class Order(SQLModel, table=True):
     delivery_lon: float = Field(default=0.0)
 
     drone_id: Optional[int] = Field(default=None, foreign_key="drones.id")
+
+    cancellation_reason: Optional[CancellationReason] = Field(
+        sa_column=Column(
+            SAEnum(CancellationReason, name="cancellation_reason_enum", native_enum=False),
+            nullable=True
+        ),
+        default=None,
+    )
+    recovery_token: Optional[str] = Field(default=None, index=True, nullable=True)
 
     user: Mapped["User"] = Relationship(
         sa_relationship=relationship("User", back_populates="orders")
