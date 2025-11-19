@@ -1,6 +1,7 @@
 # //** apps/api/app/services/ai_nlu_service.py **//
 
 import logging
+import random
 from typing import List, Dict, Any
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, func
@@ -37,13 +38,18 @@ class AINLUService:
         )
 
     async def _send_add_success_text(self, user_id: int, product_name: str):
+        success_messages = [
+            f"**{product_name}** added! 🔥 You've got great taste.",
+            f"**{product_name}** added! ⚡ Smooth and sharp selection.",
+            f"**{product_name}** added! 🚀 Perfect choice that one never disappoints.",
+        ]
+        
+        selected_content = random.choice(success_messages)
+
         await self.rabbitmq.publish(
             {
                 "user_id": user_id, 
-                "content": f"**{product_name}** added! 🔥 You've got great taste.", 
-                "content": f"**{product_name}** added! ⚡ Smooth and sharp selection.",
-                "content": f"**{product_name}** added! 🚀 Solid choice — that one never disappoints.",
-                "content": f"**{product_name}** added! 💎 You clearly know what you’re doing.",
+                "content": selected_content, 
                 "type": "success_text"
             },
             "airdeliver.ai.response.out",
@@ -53,7 +59,7 @@ class AINLUService:
         await self.rabbitmq.publish(
             {
                 "user_id": user_id,
-                "content": "Ready to checkout?",
+                "content": "Systems ready. Move to checkout?",
                 "type": "confirmation_prompt",
                 "options": ["Confirm Order", "Clear Cart"],
             },
