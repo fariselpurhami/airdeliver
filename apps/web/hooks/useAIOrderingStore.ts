@@ -71,7 +71,7 @@ const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
-  content: 'Autonomous Order with air activated. Your order is ready for deployment.',
+  content: 'order with air manages your entire purchasing journey—preparation, tracking, and execution—fully automated.',
 };
 
 const getWebSocketURL = () => {
@@ -241,6 +241,9 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
 
   addProductById: async (product, startElementId) => {
     set({
+      recoveryMode: false,
+      paymentDetails: null,
+      recoveryOrderDetails: null,
       flyToCartItem: {
         id: product.id,
         image: product.image_url,
@@ -320,6 +323,8 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
           reason: reason,
       }
     }));
+
+    get().clearCart();
 
     set({ recoveryMode: false, recoveryOrderDetails: null });
   },

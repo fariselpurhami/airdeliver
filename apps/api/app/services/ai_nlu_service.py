@@ -103,6 +103,9 @@ class AINLUService:
         if not raw_message:
             return
 
+        if message_text == "__INTERNAL_INITIATE_RECOVERY__":
+            return
+
         if message_text == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
             await self._handle_initial_suggestions(user_id)
             return

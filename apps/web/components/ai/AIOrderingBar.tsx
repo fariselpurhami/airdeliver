@@ -17,10 +17,10 @@ export const AIOrderingBar = ({ onClick }: AIOrderingBarProps) => {
         className="flex items-center gap-2 px-6 py-3 bg-foreground text-background rounded-full shadow-lg hover:bg-foreground/80 transition-colors"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        aria-label="Order with air"
+        aria-label="order with air"
       >
         <FiZap />
-        <span>Order with air</span>
+        <span>order with air</span>
       </motion.button>
     </div>
   );
