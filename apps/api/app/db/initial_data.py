@@ -83,14 +83,6 @@ def init_db():
     logger.info("--- Initializing Service Data (Synchronous) ---")
     settings = get_core_settings()
     
-    # -----------------------------------------------------------------
-    # 🚀 [الحل المعماري العالمي]
-    # 1. اقرأ سلسلة الاتصال (التي تحتوي على 'asyncpg' الخاطئ).
-    # 2. قم بـ "فرض" (Force) استبدال برنامج التشغيل غير المتزامن ('asyncpg')
-    #    ببرنامج تشغيل متزامن ('psycopg2').
-    # 3. هذا يجعل السكريبت مرنًا (Resilient) ضد أخطاء .env.
-    # -----------------------------------------------------------------
-    
     sync_uri = str(settings.DATABASE_URI).replace(
         "postgresql+asyncpg", "postgresql+psycopg2"
     )

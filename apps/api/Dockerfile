@@ -8,7 +8,9 @@ ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=false \
     POETRY_VIRTUALENVS_CREATE=false \
     POETRY_CACHE_DIR=/tmp/poetry_cache \
-    POETRY_VERSION=1.8.3
+    POETRY_VERSION=1.8.3 \
+    PIP_DEFAULT_TIMEOUT=3000 \
+    POETRY_REQUESTS_TIMEOUT=3000
 
 RUN addgroup --system --gid 1001 airdeliver \
     && adduser --system --uid 1001 --gid 1001 --home /home/airdeliver airdeliver
@@ -22,7 +24,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY poetry.lock pyproject.toml ./
 
-RUN poetry install --no-root --without dev
+RUN poetry config installer.max-workers 1 \
+    && poetry install --no-root --without dev --no-interaction
 
 RUN pip install --no-cache-dir psycopg2-binary
 
@@ -64,11 +67,13 @@ RUN mkdir -p /app/static/avatars \
 
 USER $APP_USER
 
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+RUN python -c "import os; from sentence_transformers import SentenceTransformer; \
+    os.makedirs(os.environ['SENTENCE_TRANSFORMERS_HOME'], exist_ok=True); \
+    SentenceTransformer('all-MiniLM-L6-v2', cache_folder=os.environ['SENTENCE_TRANSFORMERS_HOME'])"
 
-HEALTHCHECK --interval=5s --timeout=3s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
 EXPOSE 8000
 
-CMD ["gunicorn", "app.main:app", "-w", "${WEB_CONCURRENCY:-4}", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+CMD ["gunicorn", "app.main:app", "-w", "${WEB_CONCURRENCY:-4}", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--timeout", "120"]

@@ -1,4 +1,4 @@
-# apps/api/pyproject.toml
+# apps/api/pyproject.toml   
 
 [tool.poetry]
 name = "airdeliver-api"
@@ -36,22 +36,19 @@ aio-pika = "^9.4.1"
 structlog = "^24.3.0"
 opensearch-py = "==2.4.2"
 aiohttp = "^3.9.5"
+
+[tool.poetry.group.ai.dependencies]
 sentence-transformers = "^2.7.0"
 milvus-lite = "^2.4.1"
 pymilvus = "^2.4.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
-httpx = "^0.27.0" 
-alembic = "^1.16.5"
 trio = "^0.31.0"
-
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-pythonpath = [
-  "."
-]
+pythonpath = ["."]
