@@ -66,7 +66,7 @@ class NeuralCoreService:
         self.tools = ToolService()
         self.SIMPLE_RESPONSE_MAP = {
             "SOCIAL_CHECK_IN": [
-                "I’m doing great, thanks for asking �� How about you?",
+                "I’m doing great, thanks for asking 🫶 How about you?",
                 "All systems running perfectly — and you? Feeling good today?",
             ],
             "SOCIAL_RESPONSE": [
@@ -306,7 +306,7 @@ class NeuralCoreService:
         entities_list = [v for v in entities_dict.values() if v is not None]
 
         if intent == "GREETING":
-            text_response = "Hey There 👋, air intelligence activated. Ready to track orders, connect you directly to our team or check prices."
+            text_response = "Hey 👋, I'm air intelligence. I help you track orders, check prices, and connect you to our teams."
             action_payload = PresentOptionsAction(
                 action="present_options",
                 payload={

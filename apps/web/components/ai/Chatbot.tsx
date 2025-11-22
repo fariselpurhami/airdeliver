@@ -203,7 +203,7 @@ export default function Chatbot() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.9 }}
                         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                        className="fixed bottom-24 right-2 z-50 w-[90vw] max-w-sm h-[70vh] max-h-[600px] flex flex-col bg-black/90 backdrop-blur-2xl border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden"
+                        className="fixed bottom-24 right-2 z-50 w-[90vw] max-w-sm h-[75vh] max-h-[650px] flex flex-col bg-black/90 backdrop-blur-2xl border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden"
                     >
                         <header className="p-4 border-b border-cyan-400/30 flex justify-between items-center flex-shrink-0">
                             <h3 className="font-normal text-base text-white normal-case" style={{ fontFamily: "'Orbitron', sans-serif" }}>
