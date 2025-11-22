@@ -466,7 +466,6 @@ PaymentFatalError.displayName = 'PaymentFatalError';
 
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     
-    // --- Architectural Fix: Initialization moved inside component for client-side execution ---
     const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
     const stripePromise: Promise<Stripe | null> | null = useMemo(() => {
         if (STRIPE_PUBLISHABLE_KEY) {
@@ -484,8 +483,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
              setIsStripePromiseResolved(true);
         }
     }, [stripePromise]);
-    // --- End Fix ---
-
+    
     const messages = useAIOrderingStore(state => state.messages);
     const isLoading = useAIOrderingStore(state => state.isLoading);
     const isProcessing = useAIOrderingStore(state => state.isProcessing);
@@ -643,7 +641,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                     }}
                                     transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                                 >
-                                    {paymentDetails ? 'Secure Checkout' : 'Order with air'}
+                                    {paymentDetails ? 'Secure Checkout' : 'order with air'}
                                 </motion.span>
                             </h3>
                             <button onClick={handleClose} className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors">

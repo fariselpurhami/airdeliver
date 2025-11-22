@@ -97,10 +97,9 @@ async def main():
         opensearch_client = await anext(opensearch_client_gen)
         
         milvus_client = get_milvus_client()
-        # --- CALL THE ROBUST FIX HERE ---
-        ensure_milvus_schema(milvus_client) 
-        # --------------------------------
 
+        ensure_milvus_schema(milvus_client) 
+    
         embedding_model = get_embedding_model()
         
         ai_commerce_engine = AICommerceEngine(
