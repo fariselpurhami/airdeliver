@@ -5,7 +5,7 @@
 import { ShieldCheck, Lock, Clock } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
 import ProductOverlay from '@/components/products/ProductOverlay';
-import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
+import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 import AIChatOverlay from '@/components/ai/AIChatOverlay'; 
 import Link from 'next/link';
 import Autoplay from 'embla-carousel-autoplay';

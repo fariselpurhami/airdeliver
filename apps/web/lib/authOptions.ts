@@ -1,61 +1,64 @@
 //** apps/web/lib/authOptions.ts **//
 
-import { NextAuthOptions } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
+import type { NextAuthConfig, User } from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
 import { jwtDecode } from 'jwt-decode';
 
 interface DecodedToken {
   sub: string;
-  role: string; 
+  role: string;
   exp: number;
+}
+
+interface ExtendedUser extends User {
+  role?: string;
+  accessToken?: string;
 }
 
 const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://api:8000/api/v1';
 
-export const authOptions: NextAuthOptions = {
+export const authOptions: NextAuthConfig = {
   providers: [
-    CredentialsProvider({
+    Credentials({
       name: 'Credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials) return null;
+        if (!credentials?.email || !credentials?.password) return null;
+        
         try {
+          const loginUrl = `${INTERNAL_API_URL}/auth/token`;
           
-          const loginUrl = `${INTERNAL_API_URL}/auth/token`; 
-
-          console.log(`Authorize attempting to fetch from: ${loginUrl}`);
-
           const res = await fetch(loginUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ username: credentials.email, password: credentials.password }),
+            body: new URLSearchParams({ 
+              username: credentials.email as string, 
+              password: credentials.password as string 
+            }),
           });
 
-          console.log(`Authorize response status: ${res.status}`);
-
           if (!res.ok) {
-            console.error('Failed to authorize with API', res.status, await res.text());
-            return null; 
+            return null;
           }
 
           const data = await res.json();
+          
           if (data && data.access_token) {
             const decoded: DecodedToken = jwtDecode(data.access_token);
             
             return {
-              id: decoded.sub, 
+              id: decoded.sub,
               email: decoded.sub,
-              name: decoded.sub, 
-              role: decoded.role, 
+              name: decoded.sub,
+              role: decoded.role,
               accessToken: data.access_token,
-            };
+            } as ExtendedUser;
           }
           return null;
         } catch (error) {
-          console.error('Authorize Error during fetch:', error);
           return null;
         }
       },
@@ -63,37 +66,32 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      
       if (user) {
-        token.accessToken = (user as any).accessToken;
-        token.role = (user as any).role;
+        token.accessToken = (user as ExtendedUser).accessToken;
+        token.role = (user as ExtendedUser).role;
+        token.sub = user.id;
       }
       return token;
     },
 
     async session({ session, token }) {
-      
-      session.accessToken = token.accessToken as string;
-
-     
-      if (session.user) {
+      if (token) {
+        session.accessToken = token.accessToken as string;
         
-        if (token.role) {
-            session.user.role = (token.role as string).toLowerCase();
+        if (session.user) {
+          session.user.id = token.sub as string;
+          session.user.role = (token.role as string)?.toLowerCase();
         }
-        
-        session.user.id = token.sub as string;
       }
-      
       return session;
     },
   },
   pages: {
-    signIn: '/login', 
-    error: '/login', 
+    signIn: '/login',
+    error: '/login',
   },
   session: {
-    strategy: 'jwt', 
+    strategy: 'jwt',
   },
-  secret: process.env.NEXTAUTH_SECRET, 
+  secret: process.env.NEXTAUTH_SECRET,
 };

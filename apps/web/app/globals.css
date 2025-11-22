@@ -4,23 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: hsl(var(--background));
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.3);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #06b6d4;
-}
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -43,13 +26,8 @@
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
     --radius: 0.5rem;
-
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    scroll-behavior: smooth;
+    --scroll-thumb: 128 128 128;
+    --scroll-track: var(--background);
   }
 
   .dark {
@@ -81,10 +59,21 @@
     padding: 0;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    -moz-tab-size: 4;
+    tab-size: 4;
+    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-smoothing: antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     width: 100%;
     min-height: 100vh;
     overflow-x: hidden;
@@ -92,15 +81,23 @@
   }
 }
 
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer components {
   .glowing-button {
     background: linear-gradient(90deg, #00c6ff, #7F00FF);
     box-shadow: 0 0 15px 5px rgba(0, 198, 255, 0.3), 0 0 20px 7px rgba(127, 0, 255, 0.2);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     transform: translateZ(0);
     backface-visibility: hidden;
-    perspective: 1000px;
-    will-change: transform, box-shadow;
   }
 
   .glowing-button:hover {
@@ -115,7 +112,6 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     transform: translateZ(0);
     backface-visibility: hidden;
-    will-change: transform, box-shadow, border-color;
   }
 
   .glowing-button-outline:hover {
@@ -126,12 +122,12 @@
   }
 
   .glowing-text {
-    text-shadow: 0 0 8px #22d3ee;
+    text-shadow: 0 0 8px rgba(34, 211, 238, 0.8);
     transform: translateZ(0);
   }
 
   .glowing-icon {
-    filter: drop-shadow(0 0 5px #22d3ee);
+    filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.8));
     transform: translateZ(0);
   }
 
@@ -143,21 +139,17 @@
       linear-gradient(to bottom, rgba(30, 41, 59, 0.2) 1px, transparent 1px);
     background-size: 3rem 3rem;
     animation: subtle-grid 15s linear infinite;
-    will-change: background-position;
     content-visibility: auto;
-    transform: translateZ(0);
+    contain: paint;
   }
 
   .animate-spin-slow {
     animation: spin-slow 20s linear infinite;
-    will-change: transform;
   }
 }
 
 .pulse-glow-animation {
   animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  will-change: opacity, transform;
-  transform: translateZ(0);
 }
 
 .glow-line-animation {
@@ -167,7 +159,7 @@
   width: 100%;
   height: 2px;
   overflow: hidden;
-  transform: translateZ(0);
+  pointer-events: none;
 }
 
 .glow-line-animation::after {
@@ -178,8 +170,6 @@
   background: linear-gradient(90deg, transparent, #06b6d4, transparent);
   animation: move-glow 5s linear infinite;
   opacity: 0.8;
-  will-change: left;
-  transform: translateZ(0);
 }
 
 @keyframes subtle-grid {
@@ -204,10 +194,33 @@
 }
 
 @keyframes move-glow {
-  0% {
-    left: -100%;
-  }
-  50%, 100% {
-    left: 100%;
+  0% { left: -100%; }
+  50%, 100% { left: 100%; }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #06b6d4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

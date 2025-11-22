@@ -1,38 +1,25 @@
 # docker-compose.drone.yml
 
-services:
-  px4-sitl:
-    container_name: airdeliver-px4-sitl
-    build:
-      context: ./docker/px4-sitl
-      dockerfile: Dockerfile
-    networks:
-      - airdeliver-net
-    environment:
-      - PX4_SIM_SPEED_FACTOR=1
-      - PX4_HOME_LAT=30.0444
-      - PX4_HOME_LON=31.2357
-      - PX4_HOME_ALT=100
-    volumes:
-      - px4-source-data:/root/PX4-Autopilot
-    deploy:
-      resources:
-        limits:
-          memory: 8192m
-        reservations:
-          memory: 4096m
-    healthcheck:
-      test: ["CMD-SHELL", "netstat -upln | grep 14540 || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
-    restart: on-failure
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "5"
 
+x-deploy-client: &default-client-deploy
+  restart_policy:
+    condition: any
+    delay: 5s
+    window: 120s
+  resources:
+    limits:
+      cpus: '1.0'
+      memory: 1G
+    reservations:
+      cpus: '0.25'
+      memory: 256M
+
+services:
   companion:
     container_name: airdeliver-companion-sim
     build:
@@ -46,17 +33,23 @@ services:
     secrets:
       - drone_auth_token
     networks:
-      - airdeliver-net
-    depends_on:
-      px4-sitl:
-        condition: service_healthy
-      c2_gateway:
-        condition: service_healthy
-    restart: unless-stopped
+      - simulation-net
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python drone-control.py' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+    deploy: *default-client-deploy
     stdin_open: true
     tty: true
 
+networks:
+  simulation-net:
+    external: true
+    name: airdeliver-simulation
 
-volumes:
-  px4-source-data:
-    driver: local
+secrets:
+  drone_auth_token:
+    file: ./secrets/drone_auth_token

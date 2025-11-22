@@ -1,12 +1,16 @@
 # apps/api/app/services/notification_service.py
 
 import json
-from pywebpush import webpush
+import logging
+import asyncio
+from pywebpush import webpush, WebPushException
 from typing import List
 from sqlmodel import select
 from app.core.config import settings
 from app.models.notification_subscription import NotificationSubscription
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 VAPID_PRIVATE_KEY = settings.VAPID_PRIVATE_KEY
 VAPID_PUBLIC_KEY = settings.VAPID_PUBLIC_KEY
@@ -14,34 +18,55 @@ VAPID_CLAIMS = {"sub": "mailto:admin@airdeliver.com"}
 
 class NotificationService:
     async def send_web_push(self, db: AsyncSession, user_id: int, title: str, body: str):
-        result = await db.exec(
-            select(NotificationSubscription).where(NotificationSubscription.user_id == user_id)
-        )
-        subscriptions = result.all()
 
-        for sub in subscriptions:
-            try:
-                subscription_info = sub.subscription_info_json
-                webpush(
-                    subscription_info=subscription_info,
-                    data=json.dumps({"title": title, "body": body}),
-                    vapid_private_key=VAPID_PRIVATE_KEY,
-                    vapid_claims=VAPID_CLAIMS.copy()
-                )
-            except Exception as e:
-                print(f"Error sending push notification: {e}")
+        try:
+            result = await db.exec(
+                select(NotificationSubscription).where(NotificationSubscription.user_id == user_id)
+            )
+            subscriptions = result.all()
+
+            if not subscriptions:
+                return
+
+            loop = asyncio.get_running_loop()
+            
+            payload = json.dumps({"title": title, "body": body})
+
+            for sub in subscriptions:
+                try:
+                    subscription_info = sub.subscription_info_json
+                    await loop.run_in_executor(
+                        None, 
+                        lambda: self._safe_webpush(subscription_info, payload)
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to schedule push for user {user_id}: {e}")
+
+        except Exception as e:
+             logger.error(f"Error in notification service flow: {e}")
+
+    def _safe_webpush(self, subscription_info, payload):
+
+        try:
+            webpush(
+                subscription_info=subscription_info,
+                data=payload,
+                vapid_private_key=VAPID_PRIVATE_KEY,
+                vapid_claims=VAPID_CLAIMS.copy(),
+                timeout=5 
+            )
+        except WebPushException as e:
+            logger.warning(f"WebPush failed: {e}")
+
+        except Exception as e:
+             logger.error(f"Unexpected WebPush error: {e}")
 
     def send_email(self, email_address: str, subject: str, content: str):
-        print("-" * 20)
-        print(f"SENDING EMAIL to {email_address}")
-        print(f"Subject: {subject}")
-        print(f"Content: {content}")
-        print("-" * 20)
+
+        logger.info(f"📧 [MOCK EMAIL] To: {email_address} | Subject: {subject}")
 
     def send_sms(self, phone_number: str, message: str):
-        print("-" * 20)
-        print(f"SENDING SMS to {phone_number}")
-        print(f"Message: {message}")
-        print("-" * 20)
+
+        logger.info(f"📱 [MOCK SMS] To: {phone_number} | Msg: {message}")
 
 notification_service = NotificationService()

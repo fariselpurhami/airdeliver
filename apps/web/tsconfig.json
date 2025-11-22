@@ -1,6 +1,4 @@
-//** apps/web/tsconfig.json  **//
-
-{
+/** apps/web/tsconfig.json **/{
   "compilerOptions": {
     "lib": [
       "dom",
@@ -25,16 +23,26 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
-    }
+      "@/*": [
+        "./*"
+      ]
+    },
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": false,
+    "target": "ES2022"
   },
   "include": [
     "next-env.d.ts",
     ".next/types/**/*.ts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "coverage"
   ]
 }

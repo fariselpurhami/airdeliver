@@ -1,32 +1,27 @@
-//** apps/web/components/ai/AIChatOverlay.tsx **//
+// apps/web/components/ai/AIChatOverlay.tsx
 
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, ShoppingBag } from 'lucide-react';
-import { useAIOrderingStore, Message } from '@/hooks/useAIOrderingStore';
+import { Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, ShoppingBag, ShieldOff } from 'lucide-react';
+import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
-import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
+import { loadStripe, StripeElementsOptions, Stripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { AIPaymentForm } from './AIPaymentForm';
 import { useSession } from "next-auth/react";
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+import { useShallow } from 'zustand/react/shallow';
 
 const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
     if (!relativePath || relativePath.startsWith('http')) {
         return relativePath || '/images/default.jpeg';
     }
-
     const apiBase = process.env.NEXT_PUBLIC_API_URL
         ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '')
         : 'http://localhost:8000';
-
-    const normalizedPath = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
-
-    return `${apiBase}${normalizedPath}`;
+    return `${apiBase}${relativePath.startsWith('/') ? relativePath : `/${relativePath}`}`;
 };
 
 const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, totalItems: number }) => {
@@ -34,14 +29,11 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
     const slideWidthClass = `flex-[0_0_65%] sm:flex-[0_0_50%] ${mdWidthClass}`;
     
     const rawImagePath = product.image_url || product.image;
-    const imageUrl = getAbsoluteImageUrl(rawImagePath);
+    const imageUrl = useMemo(() => getAbsoluteImageUrl(rawImagePath), [rawImagePath]);
     const elementId = `product-carousel-img-${product.id}`;
 
     const handleSelect = useCallback(() => {
-        const normalizedProduct = {
-            ...product,
-            image: rawImagePath
-        };
+        const normalizedProduct = { ...product, image: rawImagePath };
         onSelect(normalizedProduct, elementId);
     }, [product, rawImagePath, elementId, onSelect]);
 
@@ -58,7 +50,6 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             >
                 <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
-
                 <div className="relative z-10 flex-grow flex flex-col">
                     <div className="relative h-32 mb-4 w-full flex items-center justify-center bg-white/5 rounded-xl p-2 group-hover:bg-white/10 transition-colors">
                         <Image
@@ -70,9 +61,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
                             className="w-full h-full object-contain drop-shadow-xl group-hover:scale-110 transition-transform duration-500 ease-out"
                         />
                     </div>
-                    
                     <h4 className="text-base font-bold text-white mb-1 line-clamp-1">{product.name}</h4>
-                    
                     <div className="flex items-end gap-2 mb-3">
                         <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400">
                             ${product.price.toFixed(2)}
@@ -83,7 +72,6 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
                             </span>
                         )}
                     </div>
-
                     <div className="mt-auto">
                         <motion.button
                             onClick={handleSelect}
@@ -141,16 +129,7 @@ const AIReasoning = React.memo(({ text }: { text: string }) => (
 ));
 AIReasoning.displayName = 'AIReasoning';
 
-const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: {
-    message: Message,
-    onSend: (text: string) => void,
-    onProductSelect: (product: any, elementId: string) => void,
-    onConfirmOrder: () => void,
-    onClearCart: () => void,
-    onRestore: () => void,
-    onSave: () => void,
-    onCancel: () => void
-}) => {
+const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
     const isAI = message.sender === 'ai';
 
     const MessageContent = () => {
@@ -169,19 +148,14 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                                 const buttonStyle = isConfirm
                                     ? "bg-purple-500/20 text-purple-300 border-purple-500/50 hover:bg-purple-500/30"
                                     : "bg-cyan-500/20 text-cyan-300 border-cyan-500/50 hover:bg-cyan-500/30";
-
                                 return (
                                     <motion.button
                                         key={option}
                                         whileHover={{ scale: 1.05 }}
                                         onClick={() => {
-                                            if (option === 'Confirm Order') {
-                                                onConfirmOrder();
-                                            } else if (option === 'Clear Cart') {
-                                                onClearCart();
-                                            } else {
-                                                onSend(option);
-                                            }
+                                            if (option === 'Confirm Order') onConfirmOrder();
+                                            else if (option === 'Clear Cart') onClearCart();
+                                            else onSend(option);
                                         }}
                                         className={`text-sm px-3 py-1.5 rounded-lg border ${buttonStyle} transition-all`}
                                     >
@@ -210,33 +184,15 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                             <span className="font-bold text-base">Order Paused</span>
                         </div>
                         <p className="whitespace-pre-wrap text-base text-gray-200 mb-1">{message.content}</p>
-                        
                         <div className="grid grid-cols-3 gap-2 w-full mt-2">
-                            <motion.button
-                                whileHover={{ scale: 1.03 }}
-                                onClick={onRestore}
-                                className="flex flex-col items-center justify-center gap-1.5 text-xs font-bold bg-cyan-500/20 text-cyan-300 py-3 px-1 rounded-lg border border-cyan-500/50 hover:bg-cyan-500/30 transition-all h-full w-full text-center"
-                            >
-                                <Undo2 size={20} />
-                                <span className="whitespace-nowrap">Restore Checkout</span>
+                            <motion.button whileHover={{ scale: 1.03 }} onClick={onRestore} className="flex flex-col items-center justify-center gap-1.5 text-xs font-bold bg-cyan-500/20 text-cyan-300 py-3 px-1 rounded-lg border border-cyan-500/50 hover:bg-cyan-500/30 transition-all h-full w-full text-center">
+                                <Undo2 size={20} /> <span className="whitespace-nowrap">Restore Checkout</span>
                             </motion.button>
-
-                            <motion.button
-                                whileHover={{ scale: 1.03 }}
-                                onClick={onSave}
-                                className="flex flex-col items-center justify-center gap-1.5 text-xs font-bold bg-purple-500/20 text-purple-300 py-3 px-1 rounded-lg border border-purple-500/50 hover:bg-purple-500/30 transition-all h-full w-full text-center"
-                            >
-                                <Save size={20} />
-                                <span className="whitespace-nowrap">Save for Later</span>
+                            <motion.button whileHover={{ scale: 1.03 }} onClick={onSave} className="flex flex-col items-center justify-center gap-1.5 text-xs font-bold bg-purple-500/20 text-purple-300 py-3 px-1 rounded-lg border border-purple-500/50 hover:bg-purple-500/30 transition-all h-full w-full text-center">
+                                <Save size={20} /> <span className="whitespace-nowrap">Save for Later</span>
                             </motion.button>
-
-                            <motion.button
-                                whileHover={{ scale: 1.03 }}
-                                onClick={onCancel}
-                                className="flex flex-col items-center justify-center gap-1.5 text-xs font-bold bg-red-500/20 text-red-300 py-3 px-1 rounded-lg border border-red-500/50 hover:bg-red-500/30 transition-all h-full w-full text-center"
-                            >
-                                <Trash2 size={20} />
-                                <span className="whitespace-nowrap">Cancel Order</span>
+                            <motion.button whileHover={{ scale: 1.03 }} onClick={onCancel} className="flex flex-col items-center justify-center gap-1.5 text-xs font-bold bg-red-500/20 text-red-300 py-3 px-1 rounded-lg border border-red-500/50 hover:bg-red-500/30 transition-all h-full w-full text-center">
+                                <Trash2 size={20} /> <span className="whitespace-nowrap">Cancel Order</span>
                             </motion.button>
                         </div>
                     </div>
@@ -277,11 +233,15 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
     glowingProductId: number | null,
     onRemoveItem: (productId: number) => void
 }) => {
-    const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
-    const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
-
-    const lastAINoteMessage = [...messages].reverse().find(m => m.sender === 'ai' && (m.ai_notes || m.reason));
-    const aiNote = lastAINoteMessage ? (lastAINoteMessage.ai_notes || lastAINoteMessage.reason) : "AI reasoning will appear here.";
+   
+    const { cart, aiNote } = useMemo(() => {
+        const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+        const lastAINoteMessage = [...messages].reverse().find(m => m.sender === 'ai' && (m.ai_notes || m.reason));
+        return {
+            cart: lastCartMessage ? lastCartMessage.content : { items: [], total: 0 },
+            aiNote: lastAINoteMessage ? (lastAINoteMessage.ai_notes || lastAINoteMessage.reason) : "AI reasoning will appear here."
+        };
+    }, [messages]);
 
     return (
         <div className="hidden lg:flex w-1/3 bg-black/20 border-l border-cyan-400/30 rounded-r-2xl flex-col overflow-hidden">
@@ -349,11 +309,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                                     'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))'
                                 ]
                             }}
-                            transition={{
-                                duration: 3,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                            }}
+                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                         >
                             <Cpu size={18} className="text-cyan-400"/>
                         </motion.div>
@@ -443,15 +399,14 @@ const TypingIndicator = React.memo(() => (
 TypingIndicator.displayName = 'TypingIndicator';
 
 const FlyToCartAnimator = React.memo(() => {
+ 
   const flyQueue = useAIOrderingStore((state) => state.flyQueue);
   const removeFlyItem = useAIOrderingStore((state) => state.removeFlyItem);
 
   const getStartPosition = (startElementId: string) => {
     if (!startElementId) return { x: window.innerWidth / 2, y: window.innerHeight / 2, width: 0, height: 0 };
     const el = document.getElementById(startElementId);
-    if (el) {
-      return el.getBoundingClientRect();
-    }
+    if (el) return el.getBoundingClientRect();
     return { x: window.innerWidth / 2, y: window.innerHeight / 2, width: 100, height: 100 };
   };
 
@@ -459,10 +414,7 @@ const FlyToCartAnimator = React.memo(() => {
     const el = document.getElementById('order-summary-cart-icon');
     if (el) {
       const rect = el.getBoundingClientRect();
-      return {
-        top: rect.top + rect.height / 2,
-        left: rect.left + rect.width / 2,
-      };
+      return { top: rect.top + rect.height / 2, left: rect.left + rect.width / 2 };
     }
     return { top: 100, left: window.innerWidth - 100 };
   };
@@ -473,32 +425,15 @@ const FlyToCartAnimator = React.memo(() => {
     <AnimatePresence>
       {flyQueue.map((item) => {
           const startRect = getStartPosition(item.startElementId);
-          const imageSource = getAbsoluteImageUrl(item.image || item.image_url);
-
+          const imageSource = getAbsoluteImageUrl(item.image);
           if (!startRect || startRect.width === 0) return null;
 
           return (
             <motion.div
               key={item.animationId} 
               className="fixed z-[9999] rounded-lg overflow-hidden border border-cyan-500/50"
-              initial={{
-                top: startRect.top,
-                left: startRect.left,
-                width: startRect.width,
-                height: startRect.height,
-                opacity: 1,
-                rotate: 0,
-              }}
-              animate={{
-                top: endPos.top,
-                left: endPos.left,
-                width: 20,
-                height: 20,
-                opacity: 0.5,
-                rotate: 720,
-                filter: 'blur(4px)',
-                scale: 0.2,
-              }}
+              initial={{ top: startRect.top, left: startRect.left, width: startRect.width, height: startRect.height, opacity: 1, rotate: 0 }}
+              animate={{ top: endPos.top, left: endPos.left, width: 20, height: 20, opacity: 0.5, rotate: 720, filter: 'blur(4px)', scale: 0.2 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} 
               onAnimationComplete={() => removeFlyItem(item.animationId)}
@@ -512,37 +447,82 @@ const FlyToCartAnimator = React.memo(() => {
 });
 FlyToCartAnimator.displayName = 'FlyToCartAnimator';
 
+const PaymentFatalError = React.memo(({ keyMissing }: { keyMissing: boolean }) => (
+    <div className="w-full h-full flex flex-col items-center justify-center p-10 text-center bg-black/50 rounded-2xl">
+        <ShieldOff size={48} className="text-red-400 mb-4" />
+        <h3 className="text-xl font-bold text-white mb-2">Secure Checkout Unavailable</h3>
+        {keyMissing ? (
+            <p className="text-gray-400">
+                The Stripe Public Key is missing from the environment variables. Please check NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY configuration.
+            </p>
+        ) : (
+            <p className="text-gray-400">
+                A critical error occurred while loading the payment processor.
+            </p>
+        )}
+    </div>
+));
+PaymentFatalError.displayName = 'PaymentFatalError';
+
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-
-    const {
-        messages, isLoading, sendMessage, addProductById,
-        paymentDetails, setOverlayVisible, glowingProductId,
-        flyToCartItem, resetChat, removeProductById,
-        initiateCheckoutRecovery, isProcessing,
-        confirmCurrentOrder, clearCart,
-        restoreCheckout, saveForLater, hardCancelOrder
-    } = useAIOrderingStore();
-
-    const socket = useAIOrderingStore((state) => state.socket);
-    const connectSocket = useAIOrderingStore((state) => state.connectSocket);
-    const disconnectSocket = useAIOrderingStore((state) => state.disconnectSocket);
-
-    const { data: session, status } = useSession();
+    
+    // --- Architectural Fix: Initialization moved inside component for client-side execution ---
+    const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+    const stripePromise: Promise<Stripe | null> | null = useMemo(() => {
+        if (STRIPE_PUBLISHABLE_KEY) {
+            return loadStripe(STRIPE_PUBLISHABLE_KEY);
+        }
+        return null;
+    }, [STRIPE_PUBLISHABLE_KEY]);
+    
+    const [isStripePromiseResolved, setIsStripePromiseResolved] = useState(false);
 
     useEffect(() => {
-        if (isOpen && status === 'authenticated' && !socket && session?.accessToken) {
-            connectSocket(session.accessToken);
+        if (stripePromise) {
+            stripePromise.then(() => setIsStripePromiseResolved(true));
+        } else {
+             setIsStripePromiseResolved(true);
         }
+    }, [stripePromise]);
+    // --- End Fix ---
 
-        return () => {
-            if (!isOpen) {
-                disconnectSocket();
-            }
-        };
-    }, [isOpen, status, session, connectSocket, disconnectSocket, socket]);
+    const messages = useAIOrderingStore(state => state.messages);
+    const isLoading = useAIOrderingStore(state => state.isLoading);
+    const isProcessing = useAIOrderingStore(state => state.isProcessing);
+    const paymentDetails = useAIOrderingStore(state => state.paymentDetails);
+    const glowingProductId = useAIOrderingStore(state => state.glowingProductId);
+    const socketStatus = useAIOrderingStore(state => state.socketStatus);
+    
+    const actions = useAIOrderingStore(
+        useShallow((state) => ({
+            sendMessage: state.sendMessage,
+            addProductById: state.addProductById,
+            setOverlayVisible: state.setOverlayVisible,
+            resetChat: state.resetChat,
+            removeProductById: state.removeProductById,
+            initiateCheckoutRecovery: state.initiateCheckoutRecovery,
+            confirmCurrentOrder: state.confirmCurrentOrder,
+            clearCart: state.clearCart,
+            restoreCheckout: state.restoreCheckout,
+            saveForLater: state.saveForLater,
+            hardCancelOrder: state.hardCancelOrder,
+            addSocketAIMessage: state.addSocketAIMessage,
+            connectSocket: state.connectSocket,
+            disconnectSocket: state.disconnectSocket
+	}))
+    );
 
-
+    const { data: session, status } = useSession();
     const chatEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isOpen && status === 'authenticated' && session?.accessToken) {
+            actions.connectSocket(session.accessToken);
+        }
+        return () => {
+            if (!isOpen) actions.disconnectSocket();
+        };
+    }, [isOpen, status, session, actions.connectSocket, actions.disconnectSocket]);
 
     useEffect(() => {
         if (chatEndRef.current) {
@@ -550,73 +530,62 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         }
     }, [messages, isLoading]);
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         if (paymentDetails && !isProcessing) {
-            initiateCheckoutRecovery();
+            actions.initiateCheckoutRecovery();
         } else if (!paymentDetails) {
             onClose();
         }
-    };
+    }, [paymentDetails, isProcessing, onClose, actions.initiateCheckoutRecovery]);
 
-    const handleChatCancel = () => {
-        hardCancelOrder('changed_mind');
-    };
-
-    const handlePaymentSuccess = () => {
-        setOverlayVisible(false);
+    const handleChatCancel = useCallback(() => actions.hardCancelOrder('changed_mind'), [actions.hardCancelOrder]);
+    
+    const handlePaymentSuccess = useCallback(() => {
+        actions.setOverlayVisible(false);
         onClose();
-        resetChat();
-    };
+        actions.resetChat();
+    }, [onClose, actions.setOverlayVisible, actions.resetChat]);
 
     const handleSendMessage = useCallback((text: string) => {
-        if (status === 'authenticated' && socket) {
-            sendMessage(text, false);
-        } else if (status === 'authenticated' && !socket) {
-            useAIOrderingStore.getState().addSocketAIMessage({
+        if (status === 'authenticated' && socketStatus === 'connected') {
+            actions.sendMessage(text, false);
+        } else if (status === 'authenticated' && socketStatus !== 'connected') {
+           
+            actions.addSocketAIMessage({
                 type: 'error',
-                content: "Autonomous Engine connection is not yet ready. Please wait a moment and try again.",
+                content: "Connecting to Autonomous Engine... please wait.",
             });
         } else {
-            const userMessage: Message = {
-                id: Date.now(),
-                sender: 'user',
-                contentType: 'text',
-                content: text,
-            };
-            useAIOrderingStore.setState((state) => ({
-                messages: [...state.messages, userMessage],
-                isLoading: true,
+         
+             useAIOrderingStore.setState(state => ({
+                messages: [...state.messages, { id: Date.now(), sender: 'user', contentType: 'text', content: text }],
+                isLoading: true
             }));
-
             setTimeout(() => {
-                useAIOrderingStore.getState().addSocketAIMessage({
+                actions.addSocketAIMessage({
                     type: 'confirmation_prompt',
                     content: "Access to Autonomous Commerce is personalized. Sign in to unlock instant AI ordering.",
                     options: ["Sign In", "Create Account"],
                 });
             }, 500);
         }
-    }, [sendMessage, status, socket]);
+    }, [status, socketStatus, actions.sendMessage, actions.addSocketAIMessage]);
 
     const handleProductSelect = useCallback((product: any, elementId: string) => {
-        if (status === 'authenticated' && socket) {
-            addProductById(product, elementId);
-        } else if (status === 'authenticated' && !socket) {
-            useAIOrderingStore.getState().addSocketAIMessage({
-                type: 'error',
-                content: "Autonomous Engine connection is not yet ready. Please wait a moment and try again.",
-            });
+        if (status === 'authenticated' && socketStatus === 'connected') {
+            actions.addProductById(product, elementId);
+        } else if (status === 'authenticated') {
+             actions.addSocketAIMessage({ type: 'error', content: "Engine warming up..." });
         } else {
-             useAIOrderingStore.getState().addSocketAIMessage({
-                type: 'error',
-                content: "Please sign in to add items.",
-            });
+             actions.addSocketAIMessage({ type: 'error', content: "Please sign in to add items." });
         }
-    }, [addProductById, status, socket]);
+    }, [status, socketStatus, actions.addProductById, actions.addSocketAIMessage]);
 
-    const stripeOptions: StripeElementsOptions | undefined = paymentDetails?.gateways.find(g => g.provider === 'stripe' && g.clientSecret)
-        ? {
-            clientSecret: paymentDetails.gateways.find(g => g.provider === 'stripe')!.clientSecret,
+    const stripeOptions = useMemo<StripeElementsOptions | undefined>(() => {
+        const stripeGateway = paymentDetails?.gateways.find(g => g.provider === 'stripe');
+        if (!stripeGateway?.clientSecret) return undefined;
+        return {
+            clientSecret: stripeGateway.clientSecret,
             appearance: {
                 theme: 'night',
                 labels: 'floating',
@@ -630,11 +599,16 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                   borderRadius: '6px',
                 }
             },
-          }
-        : undefined;
+        };
+    }, [paymentDetails]);
 
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
-    const cart = lastCartMessage ? lastCartMessage.content : { items: [], total: 0 };
+    const cartItems = lastCartMessage?.content?.items || [];
+    
+    const isPaymentMode = paymentDetails && stripeOptions;
+    const isKeyMissing = !STRIPE_PUBLISHABLE_KEY;
+    const showPaymentError = isPaymentMode && isKeyMissing;
+
 
     return (
         <AnimatePresence>
@@ -646,7 +620,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                     onClick={handleClose}
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex justify-center items-center p-4"
                 >
-                    <FlyToCartAnimator />
+                  
+                    <FlyToCartAnimator /> 
+
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0, y: 50 }}
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } }}
@@ -665,46 +641,43 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                             'drop-shadow(0 0 2px rgba(0, 198, 255, 0.4))'
                                         ]
                                     }}
-                                    transition={{
-                                        duration: 3,
-                                        repeat: Infinity,
-                                        ease: "easeInOut"
-                                    }}
+                                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                                 >
                                     {paymentDetails ? 'Secure Checkout' : 'Order with air'}
                                 </motion.span>
                             </h3>
-                            <button
-                                onClick={handleClose}
-                                className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
-                            >
+                            <button onClick={handleClose} className="p-2 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
                         </header>
 
                         <div className="flex-grow flex overflow-hidden relative">
-                            <AnimatePresence>
-                                {paymentDetails && stripeOptions ? (
+                            <AnimatePresence mode="wait">
+                                {isPaymentMode ? (
                                     <motion.div
                                         key="payment"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0, transition: { duration: 0.1 } }}
                                         className="w-full h-full flex items-center justify-center overflow-y-auto"
-                                        style={{ position: 'absolute', top: 0, left: 0 }}
+                                        style={{ position: 'absolute', top: 0, left: 0, zIndex: 20 }}
                                     >
-                                        <Elements
-                                            key={stripeOptions.clientSecret}
-                                            stripe={stripePromise}
-                                            options={stripeOptions}
-                                        >
-                                            <AIPaymentForm
-                                                orderId={paymentDetails.orderId}
-                                                total={paymentDetails.total}
-                                                items={cart.items}
-                                                onPaymentSuccess={handlePaymentSuccess}
-                                            />
-                                        </Elements>
+                                        {showPaymentError ? (
+                                            <PaymentFatalError keyMissing={true} />
+                                        ) : !isStripePromiseResolved ? (
+                                             <div className="w-full h-full flex items-center justify-center">
+                                                <div className="w-8 h-8 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                                             </div>
+                                        ) : (
+                                            <Elements key={stripeOptions!.clientSecret} stripe={stripePromise} options={stripeOptions}>
+                                                <AIPaymentForm
+                                                    orderId={paymentDetails!.orderId}
+                                                    total={paymentDetails!.total}
+                                                    items={cartItems}
+                                                    onPaymentSuccess={handlePaymentSuccess}
+                                                />
+                                            </Elements>
+                                        )}
                                     </motion.div>
                                 ) : (
                                     <motion.div
@@ -712,21 +685,21 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                                        className="w-full lg:w-2/3 flex flex-col"
+                                        className="w-full lg:w-2/3 flex flex-col relative z-10"
                                     >
                                         <div className="flex-grow p-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-400/30 scrollbar-track-transparent">
-                                            <AnimatePresence>
+                                            <AnimatePresence initial={false}> 
                                                 {messages.map((msg) => (
                                                     <ChatMessage
                                                         key={msg.id}
                                                         message={msg}
                                                         onSend={handleSendMessage}
                                                         onProductSelect={handleProductSelect}
-                                                        onConfirmOrder={confirmCurrentOrder}
-                                                        onClearCart={clearCart}
-                                                        onRestore={restoreCheckout}
-                                                        onSave={saveForLater}
-                                                        onCancel={handleChatCancel}
+                                                        onConfirmOrder={actions.confirmCurrentOrder}
+                                                        onClearCart={actions.clearCart}
+                                                        onRestore={actions.restoreCheckout}
+                                                        onSave={actions.saveForLater}
+                                                        onCancel={actions.hardCancelOrder}
                                                     />
                                                 ))}
                                             </AnimatePresence>
@@ -737,11 +710,12 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                     </motion.div>
                                 )}
                             </AnimatePresence>
-                            {!(paymentDetails && stripeOptions) && (
+                            
+                            {!(isPaymentMode) && (
                                  <AIChatSidebar
                                     messages={messages}
                                     glowingProductId={glowingProductId}
-                                    onRemoveItem={removeProductById}
+                                    onRemoveItem={actions.removeProductById}
                                  />
                             )}
                         </div>

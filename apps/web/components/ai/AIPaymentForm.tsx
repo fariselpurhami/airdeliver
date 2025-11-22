@@ -1,9 +1,9 @@
-// apps/web/components/AIPaymentForm.tsx
+// apps/web/components/ai/AIPaymentForm.tsx
 
 import React, { useState } from 'react';
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { motion } from 'framer-motion';
-import { Lock } from 'lucide-react';
+import { Lock, AlertTriangle } from 'lucide-react';
 
 interface AIPaymentFormProps {
   orderId: number;
@@ -19,10 +19,13 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const isStripeReady = stripe && elements; 
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
+    if (!isStripeReady) {
+      setErrorMessage("Payment processor is initializing. Please wait.");
       return;
     }
 
@@ -31,21 +34,39 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
     
     const return_url = `${window.location.origin}/profile?payment_success=true&order_id=${orderId}`;
 
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: return_url,
-      },
-    });
+    try {
+        const { error, paymentIntent } = await stripe.confirmPayment({
+          elements,
+          confirmParams: {
+            return_url: return_url,
+          },
+          redirect: 'if_required' 
+        });
 
-    if (error.type === "card_error" || error.type === "validation_error") {
-      setErrorMessage(error.message || "An error occurred.");
-    } else if (error) {
-      setErrorMessage("An unexpected error occurred. Please try again.");
+        if (error) {
+          if (error.type === "card_error" || error.type === "validation_error") {
+            setErrorMessage(error.message || "Payment details invalid.");
+          } else {
+            setErrorMessage("Payment processing failed. Please try again.");
+          }
+        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+            onPaymentSuccess();
+        }
+    } catch (e) {
+        setErrorMessage("An unexpected network error occurred.");
     }
     
     setIsLoading(false);
   };
+
+  if (!isStripeReady) {
+    return (
+        <div className="w-full h-full flex items-center justify-center p-10">
+             <div className="w-8 h-8 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
+  }
+  // 👆👆👆 End Fix 👆👆👆
 
   return (
     <motion.div 
@@ -65,24 +86,24 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
       </div>
 
       <div className="mb-6 space-y-2 p-4 bg-black/20 border border-cyan-400/20 rounded-lg">
-        {items && items.length > 0 ? (
-          items.map((item: any) => (
-            <div key={item.product_id} className="flex justify-between items-center text-sm">
-              <span className="text-gray-300">{item.name} (x{item.quantity})</span>
-              <span className="text-white font-medium">${(item.price * item.quantity).toFixed(2)}</span>
-            </div>
-          ))
-        ) : (
-          <p className="text-gray-400 text-sm italic text-center">No items in order.</p>
-        )}
+        <div className="max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-900">
+            {items && items.length > 0 ? (
+            items.map((item: any, idx: number) => (
+                <div key={item.product_id || idx} className="flex justify-between items-center text-sm mb-1">
+                <span className="text-gray-300">{item.name} <span className="text-gray-500">x{item.quantity}</span></span>
+                <span className="text-white font-medium">${(item.price * item.quantity).toFixed(2)}</span>
+                </div>
+            ))
+            ) : (
+            <p className="text-gray-400 text-sm italic text-center">Order details encrypted.</p>
+            )}
+        </div>
         
         <div className="!mt-4 pt-4 border-t border-cyan-400/20 flex justify-between items-center">
-            <span className="text-white font-bold text-lg">Total</span>
+            <span className="text-white font-bold text-lg">Total Amount</span>
             <motion.p 
               className="text-3xl font-extrabold text-cyan-300"
               style={{ fontFamily: "'Orbitron', sans-serif", filter: 'drop-shadow(0 0 10px rgba(6, 182, 212, 0.5))' }}
-              animate={{ filter: ['drop-shadow(0 0 10px rgba(6, 182, 212, 0.5))', 'drop-shadow(0 0 15px rgba(6, 182, 212, 0.8))', 'drop-shadow(0 0 10px rgba(6, 182, 212, 0.5))'] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             >
               ${total.toFixed(2)}
             </motion.p>
@@ -90,22 +111,27 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="p-4 bg-black/40 rounded-xl border border-cyan-400/30 backdrop-blur-sm">
-          <PaymentElement />
+        <div className="p-4 bg-black/40 rounded-xl border border-cyan-400/30 backdrop-blur-sm transition-all focus-within:border-cyan-400/80 focus-within:shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+          <PaymentElement options={{ layout: 'tabs' }} />
         </div>
         
         {errorMessage && (
-          <div className="text-red-400 text-sm text-center p-3 rounded-lg bg-red-900/40 border border-red-500/50">
-            {errorMessage}
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 text-red-300 text-sm p-3 rounded-lg bg-red-900/20 border border-red-500/30"
+          >
+            <AlertTriangle size={16} />
+            <span>{errorMessage}</span>
+          </motion.div>
         )}
 
         <motion.button
-          disabled={isLoading || !stripe || !elements}
+          disabled={isLoading || !isStripeReady}
           type="submit"
-          className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-cyan-500/40 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
           style={{ fontFamily: "'Orbitron', sans-serif", letterSpacing: '0.05em' }}
-          whileHover={{ scale: 1.03, shadow: '0 0 20px rgba(6, 182, 212, 0.6)' }}
+          whileHover={{ scale: 1.02, shadow: '0 0 20px rgba(6, 182, 212, 0.6)' }}
           whileTap={{ scale: 0.98 }}
         >
           {isLoading ? (
@@ -113,7 +139,7 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
           ) : (
             <Lock size={16} />
           )}
-          <span>{isLoading ? 'Authorizing...' : 'Authorize & Pay Securely'}</span>
+          <span>{isLoading ? 'Processing Securely...' : 'Authorize Transaction'}</span>
         </motion.button>
       </form>
     </motion.div>

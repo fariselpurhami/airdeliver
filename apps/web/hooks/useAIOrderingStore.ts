@@ -1,9 +1,10 @@
-//** apps/web/hooks/useAIOrderingStore.ts **//
+// apps/web/hooks/useAIOrderingStore.ts
 
 'use client';
 
 import { create } from 'zustand';
 import { produce } from 'immer';
+// import { devtools } from 'zustand/middleware'; 
 
 type PaymentGateway = {
   provider: string;
@@ -35,29 +36,36 @@ export interface Message {
   secondary_suggestions?: any[];
   reason?: string;
   ai_notes?: string;
+  timestamp?: number; 
 }
 
 interface AIOrderingState {
+ 
   messages: Message[];
+  paymentDetails: PaymentDetails | null;
+  recoveryOrderDetails: PaymentDetails | null;
+  suggestedProductIds: number[] | null;
+  
   isLoading: boolean;
   isProcessing: boolean;
   isOverlayVisible: boolean;
-  paymentDetails: PaymentDetails | null;
   recoveryMode: boolean;
-  recoveryOrderDetails: PaymentDetails | null;
   recoveryReason: string;
-  suggestedProductIds: number[] | null;
   glowingProductId: number | null;
   flyQueue: FlyItem[];
+ 
   socket: WebSocket | null;
+  socketStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+  
   connectSocket: (token: string) => void;
   disconnectSocket: () => void;
-  setOverlayVisible: (isVisible: boolean) => void;
-  setSuggestedProductIds: (ids: number[] | null) => void;
   sendMessage: (text: string, isButtonCommand?: boolean) => void;
+  
+  setOverlayVisible: (isVisible: boolean) => void;
   addProductById: (product: any, startElementId: string) => void;
   removeFlyItem: (animationId: string) => void; 
   removeProductById: (productId: number) => void;
+
   addSocketAIMessage: (message: any) => void;
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
@@ -69,216 +77,225 @@ interface AIOrderingState {
   initiateCheckoutRecovery: () => void;
   restoreCheckout: () => void;
   saveForLater: () => void;
-  hardCancelOrder: (reason: string) => void;
+  hardCancelOrder: (reason: any) => void; 
   setRecoveryReason: (reason: string) => void;
   cancelPaymentIntent: () => Promise<void>;
+  
   _sendInternalCommand: (command: string, payload?: any, silent?: boolean) => void;
 }
 
-let messageId = 1;
+let messageIdCounter = 1;
+const generateMessageId = () => Date.now() + messageIdCounter++;
 
 const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
   content: 'Hey 👋, order with air: from cart to door, fast and easy.',
+  timestamp: Date.now(),
 };
 
 const getWebSocketURL = () => {
+  if (typeof window === 'undefined') return ''; 
   const apiURL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-  const url = new URL(apiURL, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
-
+  const url = new URL(apiURL, window.location.origin);
   url.protocol = url.protocol.replace('http', 'ws');
-
+  
   let pathname = url.pathname;
-  if (pathname.endsWith('/')) {
-    pathname = pathname.slice(0, -1);
-  }
-
+  if (pathname.endsWith('/')) pathname = pathname.slice(0, -1);
   url.pathname = `${pathname}/ai-ordering/chat`;
-
+  
   return url.href;
 };
 
-export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
-  messages: [initialWelcomeMessage],
-  isLoading: false,
-  isProcessing: false,
-  isOverlayVisible: false,
-  suggestedProductIds: null,
-  paymentDetails: null,
-  recoveryMode: false,
-  recoveryOrderDetails: null,
-  recoveryReason: 'price',
-  glowingProductId: null,
-  flyQueue: [],
-  socket: null,
+export const useAIOrderingStore = create<AIOrderingState>()(
+  (set, get) => ({ 
+    
+    messages: [initialWelcomeMessage],
+    paymentDetails: null,
+    recoveryOrderDetails: null,
+    suggestedProductIds: null,
+    isLoading: false,
+    isProcessing: false,
+    isOverlayVisible: false,
+    recoveryMode: false,
+    recoveryReason: 'price',
+    glowingProductId: null,
+    flyQueue: [],
+    socket: null,
+    socketStatus: 'disconnected',
 
-  connectSocket: (token) => {
-    if (get().socket?.readyState === WebSocket.OPEN) return;
+    connectSocket: (token) => {
+      const currentSocket = get().socket;
+      if (currentSocket?.readyState === WebSocket.OPEN || get().socketStatus === 'connecting') return;
 
-    const wsUrl = `${getWebSocketURL()}?token=${token}`;
-    const socket = new WebSocket(wsUrl);
+      set({ socketStatus: 'connecting' });
 
-    socket.onopen = () => {
-      set({ socket });
-      
-      const hasHistory = get().messages.length > 1;
+      const wsUrl = `${getWebSocketURL()}?token=${token}`;
+      const socket = new WebSocket(wsUrl);
 
-      if (!hasHistory) {
-         get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
-         get().fetchInitialSuggestions();
-      } else {
-         console.log("Resuming in-memory session...");
-      }
-    };
-
-    socket.onmessage = (event) => {
-      const response = JSON.parse(event.data);
-      get().addSocketAIMessage(response);
-    };
-
-    socket.onclose = () => {
-      set({ socket: null, isLoading: false, isProcessing: false });
-    };
-
-    socket.onerror = (error) => {
-      console.error('WebSocket Error:', error);
-      if (!get().socket) {
-          get().addSocketAIMessage({ contentType: 'error', content: 'Connection interrupted. Reconnecting...' });
-      }
-    };
-  },
-
-  disconnectSocket: () => {
-    get().socket?.close();
-    set({ socket: null });
-  },
-
-  addSocketAIMessage: (response) => {
-    set(produce((state: AIOrderingState) => {
-      state.messages = state.messages.filter(m => m.contentType !== 'typing');
-      state.isLoading = false;
-
-      const aiMessage: Message = {
-        id: messageId++,
-        sender: 'ai',
-        contentType: response.type,
-        content: response.content,
-        products: response.products,
-        secondary_suggestions: response.secondary_suggestions,
-        options: response.options,
-        reason: response.reason,
-        ai_notes: response.ai_notes,
+      socket.onopen = () => {
+        set({ socket, socketStatus: 'connected' });
+        
+        const hasHistory = get().messages.length > 1;
+        if (!hasHistory) {
+           get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
+           get().fetchInitialSuggestions();
+        } else {
+           console.log("[AI Engine] Resuming session state...");
+        }
       };
 
-      const typesThatEndProcessing = [
-        'payment_intent',
-        'ORDER_CANCELLED',
-        'error',
-        'success_text',
-        'confirmation_prompt',
-        'proactive_suggestion',
-        'recovery_prompt',
-      ];
+      socket.onmessage = (event) => {
+        try {
+            const response = JSON.parse(event.data);
+            get().addSocketAIMessage(response);
+        } catch (e) {
+            console.error("Failed to parse incoming AI message", e);
+        }
+      };
 
-      if (typesThatEndProcessing.includes(response.type)) {
-        state.isProcessing = false;
-      }
+      socket.onclose = (event) => {
+        set({ socket: null, socketStatus: 'disconnected', isLoading: false, isProcessing: false });
+        if (!event.wasClean) {
+           
+            console.warn("[AI Engine] Socket connection lost unexpectedly.");
+        }
+      };
 
-      if (response.type === 'payment_intent') {
-        state.paymentDetails = response.content as PaymentDetails;
-        state.recoveryMode = false;
-        aiMessage.contentType = 'text';
-        aiMessage.content = "Great! I've prepared your order. Please complete the secure payment to finalize.";
-      }
+      socket.onerror = (error) => {
+        console.error('[AI Engine] WebSocket Error:', error);
+        set({ socketStatus: 'error' });
+        if (!get().socket) {
+            get().addSocketAIMessage({ 
+                type: 'error', 
+                content: 'Connection interrupted. Attempting to restore uplink...' 
+            });
+        }
+      };
+    },
 
-      if (response.type === 'ORDER_CANCELLED') {
-        state.paymentDetails = null;
-        state.recoveryOrderDetails = null;
-        state.recoveryMode = false;
-        aiMessage.contentType = 'text';
-        aiMessage.content = response.content;
-      }
+    disconnectSocket: () => {
+      get().socket?.close();
+      set({ socket: null, socketStatus: 'disconnected' });
+    },
 
-      if (response.type === 'cart_preview') {
-          const lastMsg = state.messages[state.messages.length - 1];
-          if (lastMsg && lastMsg.contentType === 'cart_preview' && JSON.stringify(lastMsg.content) === JSON.stringify(response.content)) {
-              return;
-          }
-          if (response.content?.items?.length === 0) {
-            state.messages = state.messages.filter(m => m.contentType !== 'confirmation_prompt');
-          }
-      }
-
-      state.messages.push(aiMessage);
-    }));
-  },
-
-  setOverlayVisible: (isVisible) => {
-    set({ isOverlayVisible: isVisible });
-  },
-
-  setSuggestedProductIds: (ids) => set({ suggestedProductIds: ids }),
-
-  clearPayment: () => {
-    set({ paymentDetails: null });
-  },
-
-  clearCart: () => {
-    get()._sendInternalCommand('__INTERNAL_CLEAR_CART__');
-  },
-
-  confirmCurrentOrder: () => {
-    get().sendMessage('Confirm Order', true);
-  },
-
-  triggerResetConfirmation: () => {
-    set(produce((state: AIOrderingState) => {
-        if (state.messages[state.messages.length - 1]?.contentType === 'reset_prompt') return;
-        state.messages = state.messages.filter(m => m.contentType !== 'typing');
-        state.messages.push({
-            id: Date.now(),
-            sender: 'ai',
-            contentType: 'reset_prompt',
-            content: "Are you sure you want to start a new session? This will clear your current cart and chat history."
-        });
-        state.isProcessing = true;
-    }));
-  },
-
-  cancelReset: () => {
+    addSocketAIMessage: (response) => {
       set(produce((state: AIOrderingState) => {
-          state.messages = state.messages.filter(m => m.contentType !== 'reset_prompt');
+        state.messages = state.messages.filter(m => m.contentType !== 'typing');
+        state.isLoading = false;
+
+        const aiMessage: Message = {
+          id: generateMessageId(),
+          sender: 'ai',
+          contentType: response.type,
+          content: response.content,
+          products: response.products,
+          secondary_suggestions: response.secondary_suggestions,
+          options: response.options,
+          reason: response.reason,
+          ai_notes: response.ai_notes,
+          timestamp: Date.now(),
+        };
+
+        const typesThatEndProcessing = [
+          'payment_intent', 'ORDER_CANCELLED', 'error', 
+          'success_text', 'confirmation_prompt', 'proactive_suggestion', 'recovery_prompt'
+        ];
+
+        if (typesThatEndProcessing.includes(response.type)) {
           state.isProcessing = false;
+        }
+
+        if (response.type === 'payment_intent') {
+          state.paymentDetails = response.content as PaymentDetails;
+          state.recoveryMode = false;
+          aiMessage.contentType = 'text';
+          aiMessage.content = "Great! I've prepared your order. Please complete the secure payment to finalize.";
+        }
+
+        if (response.type === 'ORDER_CANCELLED') {
+          state.paymentDetails = null;
+          state.recoveryOrderDetails = null;
+          state.recoveryMode = false;
+          aiMessage.contentType = 'text';
+          aiMessage.content = response.content;
+        }
+
+        if (response.type === 'cart_preview') {
+            const lastMsg = state.messages[state.messages.length - 1];
+            const isDuplicate = lastMsg && 
+                                lastMsg.contentType === 'cart_preview' && 
+                                JSON.stringify(lastMsg.content) === JSON.stringify(response.content);
+            
+            if (isDuplicate) return; 
+
+            if (response.content?.items?.length === 0) {
+              state.messages = state.messages.filter(m => m.contentType !== 'confirmation_prompt');
+            }
+        }
+
+        state.messages.push(aiMessage);
       }));
-  },
+    },
 
-  resetChat: () => {
-    get().clearCart();
-    set({
-      messages: [initialWelcomeMessage],
-      isLoading: false,
-      isProcessing: false,
-      paymentDetails: null,
-      recoveryMode: false,
-      recoveryOrderDetails: null,
-      flyQueue: [],
-    });
-    messageId = 1;
-    
-    get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
-    get().fetchInitialSuggestions();
-  },
+    sendMessage: (text, isButtonCommand = false) => {
+      if (!text || !get().socket) return;
 
-  _sendInternalCommand: (command: string, payload: any = {}, silent: boolean = false) => {
-    const { socket } = get();
-    if (socket?.readyState === WebSocket.OPEN) {
+      if (get().isLoading && !isButtonCommand) return; 
+
+      const typingIndicator: Message = { 
+          id: generateMessageId(), 
+          sender: 'ai', 
+          contentType: 'typing', 
+          content: null,
+          timestamp: Date.now() 
+      };
+
+      set(produce((state: AIOrderingState) => {
+        state.messages = state.messages.filter(m => m.contentType !== 'typing');
+        
+        if (!isButtonCommand) {
+          const userMessage: Message = { 
+              id: generateMessageId(), 
+              sender: 'user', 
+              contentType: 'text', 
+              content: text,
+              timestamp: Date.now() 
+          };
+          state.messages.push(userMessage);
+        }
+        
+        state.messages.push(typingIndicator);
+        state.isLoading = true;
+        state.isProcessing = true;
+        state.suggestedProductIds = null;
+      }));
+
+      get().socket?.send(JSON.stringify({
+        type: 'CHAT_MESSAGE',
+        message: text
+      }));
+    },
+
+    _sendInternalCommand: (command, payload: any = {}, silent: boolean = false) => {
+        const { socket } = get();
+        
+        if (!socket || socket.readyState !== 1) { 
+            console.warn("WebSocket not ready (State: " + socket?.readyState + "). Command not sent.");
+            return;
+        }
+
         if (!silent) {
             set({ isLoading: true, isProcessing: true, suggestedProductIds: null });
             set(produce((state: AIOrderingState) => {
                 state.messages = state.messages.filter(m => m.contentType !== 'typing');
-                state.messages.push({ id: messageId++, sender: 'ai', contentType: 'typing', content: null });
+                state.messages.push({ 
+                    id: generateMessageId(), 
+                    sender: 'ai', 
+                    contentType: 'typing', 
+                    content: null 
+                });
             }));
         }
         socket.send(JSON.stringify({
@@ -286,152 +303,176 @@ export const useAIOrderingStore = create<AIOrderingState>((set, get) => ({
             message: command,
             ...payload
         }));
-    } else {
-        console.warn("Socket not ready for command:", command);
-    }
-  },
+    }, 
 
-  fetchInitialSuggestions: () => {
-    get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__');
-  },
+    setOverlayVisible: (isVisible) => set({ isOverlayVisible: isVisible }),
 
-  addProductById: async (product, startElementId) => {
-    const { recoveryMode, messages } = get();
+    setSuggestedProductIds: (ids) => set({ suggestedProductIds: ids }),
 
-    if (recoveryMode) {
+    addProductById: (product, startElementId) => {
+        const { recoveryMode, messages } = get();
+
+        if (recoveryMode) {
+            const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+            const previousItems = lastCartMessage?.content?.items || [];
+            
+            set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
+            
+            previousItems.forEach((item: any) => {
+                 get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${item.product_id}`, {}, true);
+            });
+        } else {
+            set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
+        }
+
+        const newFlyItem: FlyItem = {
+            animationId: `${product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            productId: product.id,
+            image: product.image_url || product.image,
+            startElementId: startElementId,
+        };
+
+        set(produce((state: AIOrderingState) => {
+            state.flyQueue.push(newFlyItem);
+        }));
+
+        get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${product.id}`);
+    },
+
+    removeFlyItem: (animationId) => {
+        set(produce((state: AIOrderingState) => {
+            const index = state.flyQueue.findIndex(i => i.animationId === animationId);
+            if (index !== -1) state.flyQueue.splice(index, 1);
+        }));
+    },
+
+    removeProductById: (productId) => {
        
-        const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
-        const previousItems = lastCartMessage?.content?.items || [];
+        get()._sendInternalCommand(`__INTERNAL_REMOVE_BY_ID__:${productId}`);
+    },
+
+    clearPayment: () => set({ paymentDetails: null }),
+    
+    clearCart: () => get()._sendInternalCommand('__INTERNAL_CLEAR_CART__'),
+
+    confirmCurrentOrder: () => get().sendMessage('Confirm Order', true),
+
+    triggerResetConfirmation: () => {
+        set(produce((state: AIOrderingState) => {
+            if (state.messages[state.messages.length - 1]?.contentType === 'reset_prompt') return;
+            state.messages = state.messages.filter(m => m.contentType !== 'typing');
+            state.messages.push({
+                id: generateMessageId(),
+                sender: 'ai',
+                contentType: 'reset_prompt',
+                content: "Are you sure you want to start a new session? This will clear your current cart and chat history."
+            });
+            state.isProcessing = true;
+        }));
+    },
+
+    cancelReset: () => {
+        set(produce((state: AIOrderingState) => {
+            state.messages = state.messages.filter(m => m.contentType !== 'reset_prompt');
+            state.isProcessing = false;
+        }));
+    },
+
+    resetChat: () => {
+        get().clearCart();
+        set({
+            messages: [initialWelcomeMessage],
+            isLoading: false,
+            isProcessing: false,
+            paymentDetails: null,
+            recoveryMode: false,
+            recoveryOrderDetails: null,
+            flyQueue: [],
+        });
+        messageIdCounter = 1;
+        
+        get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
+        get().fetchInitialSuggestions();
+    },
+
+    fetchInitialSuggestions: () => {
+        get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__');
+    },
+
+    initiateCheckoutRecovery: () => {
+        const { paymentDetails, isProcessing } = get();
+        if (!paymentDetails || isProcessing) return;
 
         set({
-          recoveryMode: false,
-          paymentDetails: null,
-          recoveryOrderDetails: null,
+            isOverlayVisible: true,
+            paymentDetails: null,
+            recoveryOrderDetails: paymentDetails,
+            recoveryMode: true
         });
 
-        previousItems.forEach((item: any) => {
-             get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${item.product_id}`, {}, true);
+        get().addSocketAIMessage({
+            type: 'recovery_prompt',
+            content: "Wait! Your order isn't confirmed yet. Do you want to:",
+            options: ["Restore Checkout", "Save for Later", "Cancel Order"]
         });
-    } else {
 
-        set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
-    }
+        get()._sendInternalCommand('__INTERNAL_INITIATE_RECOVERY__', { orderId: paymentDetails.orderId }, true);
+    },
 
-    set({
-      flyQueue: [
-        ...get().flyQueue,
-        {
-            animationId: `${product.id}-${Date.now()}-${Math.random()}`,
-            productId: product.id,
-            image: product.image_url,
-            startElementId: startElementId,
+    restoreCheckout: () => {
+        const { recoveryOrderDetails } = get();
+        if (!recoveryOrderDetails) return;
+
+        set({
+            isOverlayVisible: true,
+            recoveryMode: false,
+            paymentDetails: recoveryOrderDetails,
+            recoveryOrderDetails: null,
+        });
+
+        get().addSocketAIMessage({
+            type: 'success_text',
+            content: "Done! Checkout restored. Let's finish your order."
+        });
+    },
+
+    setRecoveryReason: (reason) => set({ recoveryReason: reason }),
+
+    saveForLater: () => {
+        get()._sendInternalCommand('__INTERNAL_SAVE_FOR_LATER__');
+        get().clearCart(); 
+        set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
+    },
+
+    hardCancelOrder: (reason) => {
+        const { recoveryOrderDetails, socket } = get();
+        
+        const sanitizedReason = (typeof reason === 'string' && reason) ? reason : 'changed_mind';
+        
+        if (!recoveryOrderDetails || !socket || socket.readyState !== 1) { 
+            if (!socket || socket.readyState !== 1) {
+                console.warn("Cannot cancel: WebSocket connection is lost or closing.");
+                get().addSocketAIMessage({ type: 'error', content: 'Connection lost. Please refresh or try again later.' });
+            }
+            return;
         }
-      ]
-    });
 
-    get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${product.id}`);
-  },
+        set({ isProcessing: true });
 
-  removeFlyItem: (animationId: string) => {
-    set((state) => ({
-      flyQueue: state.flyQueue.filter((item) => item.animationId !== animationId)
-    }));
-  },
+        socket.send(JSON.stringify({
+            type: 'CANCEL_INTENT',
+            message: {
+                orderId: recoveryOrderDetails.orderId,
+                reason: sanitizedReason,
+            }
+        }));
+    
+        set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
+    },
 
-  removeProductById: async (productId) => {
-    get()._sendInternalCommand(`__INTERNAL_REMOVE_BY_ID__:${productId}`);
-  },
+    cancelPaymentIntent: async () => {
+        get().hardCancelOrder(get().recoveryReason);
+    },
 
-  initiateCheckoutRecovery: () => {
-    const { paymentDetails, isProcessing } = get();
-    if (!paymentDetails || isProcessing) return;
-
-    set({
-      isOverlayVisible: true,
-      paymentDetails: null,
-      recoveryOrderDetails: paymentDetails,
-      recoveryMode: true
-    });
-
-    get().addSocketAIMessage({
-        type: 'recovery_prompt',
-        content: "Wait! Your order isn't confirmed yet. Do you want to:",
-        options: ["Restore Checkout", "Save for Later", "Cancel Order"]
-    });
-
-    get()._sendInternalCommand('__INTERNAL_INITIATE_RECOVERY__', { orderId: paymentDetails.orderId }, true);
-  },
-
-  restoreCheckout: () => {
-    const { recoveryOrderDetails } = get();
-    if (!recoveryOrderDetails) return;
-
-    set({
-      isOverlayVisible: true,
-      recoveryMode: false,
-      paymentDetails: recoveryOrderDetails,
-      recoveryOrderDetails: null,
-    });
-
-    get().addSocketAIMessage({
-        type: 'success_text',
-        content: "Done! Checkout restored. Let's finish your order."
-    });
-  },
-
-  setRecoveryReason: (reason: string) => {
-    set({ recoveryReason: reason });
-  },
-
-  saveForLater: () => {
-    const { recoveryOrderDetails, recoveryReason } = get();
-  
-    get()._sendInternalCommand('__INTERNAL_SAVE_FOR_LATER__');
-    get().clearCart(); 
-    set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
-  },
-
-  hardCancelOrder: (reason: string) => {
-    const { recoveryOrderDetails, socket } = get();
-    if (!recoveryOrderDetails || !socket) return;
-
-    set({ isProcessing: true });
-
-    socket.send(JSON.stringify({
-        type: 'CANCEL_INTENT',
-        message: {
-            orderId: recoveryOrderDetails.orderId,
-            reason: reason,
-        }
-    }));
-    get().clearCart();
-    set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
-  },
-
-  cancelPaymentIntent: async () => {
-    get().hardCancelOrder(get().recoveryReason);
-  },
-
-  sendMessage: (text, isButtonCommand = false) => {
-    if (!text || get().isLoading || !get().socket) return;
-
-    const typingIndicator: Message = { id: messageId++, sender: 'ai', contentType: 'typing', content: null };
-
-    set(produce((state: AIOrderingState) => {
-      state.messages = state.messages.filter(m => m.contentType !== 'typing');
-      if (!isButtonCommand) {
-        const userMessage: Message = { id: messageId++, sender: 'user', contentType: 'text', content: text };
-        state.messages.push(userMessage);
-      }
-      state.messages.push(typingIndicator);
-      state.isLoading = true;
-      state.isProcessing = true;
-      state.suggestedProductIds = null;
-    }));
-
-    get().socket?.send(JSON.stringify({
-      type: 'CHAT_MESSAGE',
-      message: text
-    }));
-  },
-}));
+  })
+);

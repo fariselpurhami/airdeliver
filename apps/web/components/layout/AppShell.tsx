@@ -6,8 +6,8 @@ import React from 'react';
 import Header from '@/components/layout/Header';
 import Footer from "@/components/layout/Footer";
 import dynamic from 'next/dynamic';
-import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
-import AIChatOverlay from '@/components/ai/AIChatOverlay';
+import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
+import AIChatOverlay from '../ai/AIChatOverlay';
 
 const Chatbot = dynamic(() => import('@/components/ai/chatbot'), {
   ssr: false,

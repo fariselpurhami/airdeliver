@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AirDeliver C2 Gateway",
+    title="airdeliver C2 Gateway",
     openapi_url="/api/v1/openapi.json",
     lifespan=lifespan,
 )
@@ -80,4 +80,4 @@ async def health_check():
 
 @app.get("/")
 def read_root():
-    return {"message": "AirDeliver C2 Gateway"}
+    return {"message": "airdeliver C2 Gateway"}

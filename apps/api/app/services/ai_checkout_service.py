@@ -1,15 +1,20 @@
 # apps/api/app/services/ai_checkout_service.py
 
+import logging
+import uuid
+
+from decimal import Decimal
+from typing import Optional
+from sqlmodel.ext.asyncio.session import AsyncSession
 from app.services.cache_service import IAsyncCacheClient
 from app.services.rabbitmq_service import RabbitMQService
 from app.services.payment_orchestrator import PaymentOrchestrator
 from app.models.order import Order, OrderItem
 from app.models.enums import OrderStatus, CancellationReason
-from sqlmodel.ext.asyncio.session import AsyncSession
-from decimal import Decimal
 from app.services.notification_service import NotificationService
 from app.models.user import User
-import uuid
+
+logger = logging.getLogger(__name__)
 
 class AICheckoutService:
     def __init__(
@@ -30,40 +35,54 @@ class AICheckoutService:
         return f"ai_cart:{user_id}"
 
     async def handle_confirm_order(self, payload: dict):
-        user_id = payload["user_id"]
+        user_id = payload.get("user_id")
+        if not user_id: return
+
         cart_key = self._get_cart_key(user_id)
         cart = await self.cache.get_json(cart_key)
 
-        if not cart or not cart["items"]:
+        if not cart or not cart.get("items"):
             await self.rabbitmq.publish(
                 {"user_id": user_id, "content": "Your cart is empty.", "type": "error"},
                 "airdeliver.ai.response.out",
             )
             return
 
-        total = Decimal(str(cart["total"]))
+        total = Decimal(str(cart.get("total", "0.00")))
         delivery_addr = payload.get("address", "Default Address")
 
-        new_order = Order(
-            user_id=user_id,
-            status=OrderStatus.PENDING,
-            total_price=float(total),
-            delivery_address=delivery_addr,
-        )
-        self.db.add(new_order)
+        try:
+            new_order = Order(
+                user_id=user_id,
+                status=OrderStatus.PENDING,
+                total_price=float(total),
+                delivery_address=delivery_addr,
+            )
+            self.db.add(new_order)
+            
+            await self.db.flush() 
 
-        order_items_to_create = [
-            OrderItem(
-                product_id=item["product_id"],
-                quantity=item["quantity"],
-                price_per_unit=item["price"],
-                order=new_order
-            ) for item in cart["items"]
-        ]
-        self.db.add_all(order_items_to_create)
+            order_items_to_create = [
+                OrderItem(
+                    product_id=item["product_id"],
+                    quantity=item["quantity"],
+                    price_per_unit=item["price"],
+                    order_id=new_order.id
+                ) for item in cart["items"]
+            ]
+            self.db.add_all(order_items_to_create)
 
-        await self.db.commit()
-        await self.db.refresh(new_order)
+            await self.db.commit()
+            await self.db.refresh(new_order)
+            
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Failed to create order transaction: {e}")
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "content": "System error creating order. Please try again.", "type": "error"},
+                "airdeliver.ai.response.out",
+            )
+            return
 
         payment_metadata = {
             "order_id": str(new_order.id),
@@ -72,22 +91,29 @@ class AICheckoutService:
             "phone_number": payload.get("phone"),
         }
 
-        payment_options = await self.orchestrator.process_payment(
-            amount=float(total),
-            currency="usd",
-            region=payload.get("country", "US"),
-            metadata=payment_metadata
-        )
+        try:
+            payment_options = await self.orchestrator.process_payment(
+                amount=float(total),
+                currency="usd",
+                region=payload.get("country", "US"),
+                metadata=payment_metadata
+            )
+        except Exception as e:
+            logger.error(f"Payment Orchestration failed: {e}")
+            payment_options = {"status": "failure", "error": "Payment service unavailable"}
 
         if payment_options.get("status") == "failure":
+            # Mark order as failed
             new_order.status = OrderStatus.FAILED
             self.db.add(new_order)
             await self.db.commit()
+            
             await self.rabbitmq.publish(
-                {"user_id": user_id, "content": payment_options.get("error", "Payment failed"), "type": "error"},
+                {"user_id": user_id, "content": payment_options.get("error", "Payment initialization failed"), "type": "error"},
                 "airdeliver.ai.response.out",
             )
         else:
+    
             await self.rabbitmq.publish(
                 {
                     "user_id": user_id,
@@ -100,18 +126,24 @@ class AICheckoutService:
                 },
                 "airdeliver.ai.response.out",
             )
+
             await self.cache.delete(cart_key)
 
     async def handle_cancel_order(self, payload: dict):
-        order = await self.db.get(Order, payload["order_id"])
-        if order and order.user_id == payload["user_id"] and order.status == OrderStatus.PENDING:
+        order_id = payload.get("order_id")
+        user_id = payload.get("user_id")
+        
+        if not order_id: return
+
+        order = await self.db.get(Order, order_id)
+        if order and order.user_id == user_id and order.status == OrderStatus.PENDING:
             order.status = OrderStatus.CANCELLED
             self.db.add(order)
             await self.db.commit()
             await self.rabbitmq.publish(
                 {
-                    "user_id": payload["user_id"],
-                    "content": "Order successfully cancelled.",
+                    "user_id": user_id,
+                    "content": "Your order is canceled",
                     "type": "ORDER_CANCELLED"
                 },
                 "airdeliver.ai.response.out",
@@ -119,8 +151,8 @@ class AICheckoutService:
         else:
             await self.rabbitmq.publish(
                 {
-                    "user_id": payload["user_id"],
-                    "content": "Order could not be cancelled.",
+                    "user_id": user_id,
+                    "content": "Order could not be cancelled (already processed or not found).",
                     "type": "ORDER_CANCELLED"
                 },
                 "airdeliver.ai.response.out",
@@ -144,9 +176,8 @@ class AICheckoutService:
 
             self.db.add(order)
             await self.db.commit()
-            await self.db.refresh(order)
-
-            await self._schedule_smart_reminder(order.id, order.recovery_token, order.user_id)
+            
+            asyncio.create_task(self._schedule_smart_reminder(order.id, order.recovery_token, user_id))
 
             await self.rabbitmq.publish(
                 {"user_id": user_id, "content": "Order saved to wishlist. We will remind you later!", "type": "success_text"},
@@ -168,7 +199,6 @@ class AICheckoutService:
         if order and order.user_id == user_id:
             order.status = OrderStatus.CANCELLED
             order.cancellation_reason = reason
-
             self.db.add(order)
             await self.db.commit()
 
@@ -176,25 +206,19 @@ class AICheckoutService:
                 {"user_id": user_id, "content": "Order canceled. Want me to suggest cheaper alternatives?", "type": "ORDER_CANCELLED"},
                 "airdeliver.ai.response.out",
             )
-        else:
-             await self.rabbitmq.publish(
-                {"user_id": user_id, "content": "Error: Order not found or already processed.", "type": "ORDER_CANCELLED"},
-                "airdeliver.ai.response.out",
-            )
 
     async def _schedule_smart_reminder(self, order_id: int, token: str, user_id: int):
-        user = await self.db.get(User, user_id)
-        if not user: return
+        """Run in background, resilient to failure"""
+        try:
+            user = await self.db.get(User, user_id)
+            if not user: return
 
-        await self.notification_service.send_web_push(
-            db=self.db,
-            user_id=user_id,
-            title="Don't miss out!",
-            body="Your saved order is still waiting. Click to restore it now!"
-        )
+            await self.notification_service.send_web_push(
+                db=self.db,
+                user_id=user_id,
+                title="Don't miss out!",
+                body="Your saved order is still waiting. Click to restore it now!"
+            )
 
-        self.notification_service.send_email(
-            email_address=user.email,
-            subject=f"Restore your order #{order_id}",
-            content=f"Your items are ready. Restore using link: /recover/{token}"
-        )
+        except Exception as e:
+            logger.warning(f"Failed to schedule reminder for order {order_id}: {e}")

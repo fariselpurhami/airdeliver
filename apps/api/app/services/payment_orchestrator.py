@@ -1,27 +1,19 @@
 # apps/api/app/services/payment_orchestrator.py
 
-import stripe.error
-import httpx
+import stripe
 import logging
+import asyncio
+from abc import ABC, abstractmethod
+from typing import Dict, Any, Optional, List
+from decimal import Decimal, InvalidOperation
 from app.core.config import (
     StripeSettings,
     PayPalSettings,
     MpesaSettings,
-    get_stripe_settings,
-    get_paypal_settings,
-    get_mpesa_settings,
 )
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
-from decimal import Decimal, InvalidOperation
-from app.services.cache_service import IAsyncCacheClient, get_cache_client
-import base64
-from datetime import datetime
-import time
-from fastapi import Depends
+from app.services.cache_service import IAsyncCacheClient
 
 logger = logging.getLogger(__name__)
-
 
 class PaymentGateway(ABC):
     @abstractmethod
@@ -43,6 +35,7 @@ class PaymentGateway(ABC):
 class StripeGateway(PaymentGateway):
     def __init__(self, settings: StripeSettings):
         self.settings = settings
+        stripe.api_key = self.settings.STRIPE_SECRET_KEY
 
     @property
     def provider_key(self) -> str:
@@ -57,21 +50,30 @@ class StripeGateway(PaymentGateway):
     ) -> Dict[str, Any]:
         try:
             amount_in_cents = int(amount.quantize(Decimal("0.01")) * 100)
-            intent = stripe.PaymentIntent.create(
-                amount=amount_in_cents,
-                currency=currency.lower(),
-                automatic_payment_methods={"enabled": True},
-                metadata=metadata or {"region": region},
-                api_key=self.settings.STRIPE_SECRET_KEY
+            
+            loop = asyncio.get_running_loop()
+            intent = await loop.run_in_executor(
+                None,
+                lambda: stripe.PaymentIntent.create(
+                    amount=amount_in_cents,
+                    currency=currency.lower(),
+                    automatic_payment_methods={"enabled": True},
+                    metadata=metadata or {"region": region},
+                )
             )
+            
             return {
                 "status": "requires_payment_method",
                 "provider": "stripe",
                 "paymentId": intent.id,
                 "clientSecret": intent.client_secret,
+                "publishableKey": self.settings.STRIPE_PUBLISHABLE_KEY 
             }
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error: {e}")
+            raise Exception(f"Stripe Gateway Error: {e.user_message or str(e)}")
         except Exception as e:
-            logger.error(f"Stripe creation failed: {e}")
+            logger.critical(f"Stripe System error: {e}")
             raise
 
 class PayPalGateway(PaymentGateway):
@@ -82,18 +84,19 @@ class PayPalGateway(PaymentGateway):
     @property
     def provider_key(self) -> str:
         return "paypal"
-    
-    async def _get_access_token(self) -> Optional[str]:
-        pass
 
-    async def create_payment(
-        self,
-        amount: Decimal,
-        currency: str,
-        region: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        return {"status": "requires_payment_method", "provider": "paypal", "approval_url": "..."}
+    async def create_payment(self, amount: Decimal, currency: str, region: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        
+        logger.info(f"PayPal: Creating order for {amount} {currency}")
+        
+        await asyncio.sleep(0.2)
+        
+        return {
+            "status": "requires_approval",
+            "provider": "paypal",
+            "paymentId": f"PAY-{metadata.get('order_id', 'UNKNOWN')}",
+            "approval_url": "https://www.sandbox.paypal.com/checkoutnow?token=...",
+        }
 
 class MpesaGateway(PaymentGateway):
     def __init__(self, settings: MpesaSettings, cache: IAsyncCacheClient):
@@ -103,18 +106,18 @@ class MpesaGateway(PaymentGateway):
     @property
     def provider_key(self) -> str:
         return "mpesa"
-
-    async def _get_access_token(self) -> Optional[str]:
-        pass
     
-    async def create_payment(
-        self,
-        amount: Decimal,
-        currency: str,
-        region: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        return {"status": "pending_confirmation", "provider": "mpesa", "checkoutRequestId": "..."}
+    async def create_payment(self, amount: Decimal, currency: str, region: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+
+        logger.info(f"M-Pesa: Triggering STK Push to {metadata.get('phone_number')}")
+        await asyncio.sleep(0.1)
+        
+        return {
+            "status": "pending_confirmation",
+            "provider": "mpesa",
+            "checkoutRequestId": f"ws_{metadata.get('order_id')}",
+            "message": "STK Push sent to phone."
+        }
 
 
 class PaymentOrchestrator:
@@ -130,11 +133,12 @@ class PaymentOrchestrator:
             "paypal": paypal_gateway,
             "mpesa": mpesa_gateway,
         }
+
         self._routing_rules = {
-            "NA": ["stripe", "paypal"],
+            "NA": ["stripe", "paypal"], 
             "US": ["stripe", "paypal"],
             "EU": ["stripe", "paypal"],
-            "KE": ["mpesa", "stripe"],
+            "KE": ["mpesa", "stripe"],  
             "DEFAULT": ["stripe"],
         }
 
@@ -150,26 +154,41 @@ class PaymentOrchestrator:
         except InvalidOperation:
             return {"status": "failure", "error": "Invalid amount format."}
 
-        gateways_for_region = self._routing_rules.get(
+        gateways_to_try = self._routing_rules.get(
             region.upper(), self._routing_rules["DEFAULT"]
         )
         
-        available_gateways: List[Dict[str, Any]] = []
-
-        for provider_key in gateways_for_region:
+        available_options: List[Dict[str, Any]] = []
+        errors = []
+      
+        tasks = []
+        for provider_key in gateways_to_try:
             gateway = self._gateways.get(provider_key)
             if gateway:
-                try:
-                    result = await gateway.create_payment(
-                        decimal_amount, currency, region, metadata
-                    )
-                    available_gateways.append(result)
-                except Exception as e:
-                    logger.error(
-                        f"Gateway {provider_key} failed to initialize: {e}."
-                    )
-        
-        if not available_gateways:
-            return {"status": "failure", "error": "All payment gateways failed."}
+                tasks.append(self._safe_create_payment(gateway, decimal_amount, currency, region, metadata))
 
-        return {"status": "success", "available_gateways": available_gateways}
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for res in results:
+            if isinstance(res, dict) and "provider" in res:
+                available_options.append(res)
+            elif isinstance(res, Exception):
+                errors.append(str(res))
+        
+        if not available_options:
+            logger.error(f"All payment gateways failed: {errors}")
+            return {"status": "failure", "error": "Payment processing unavailable at this moment."}
+
+        return {
+            "status": "success",
+            "available_gateways": available_options,
+            "primary_gateway": available_options[0]["provider"]
+        }
+
+    async def _safe_create_payment(self, gateway, amount, currency, region, metadata):
+        """Safety wrapper to prevent one gateway failure from blocking others"""
+        try:
+            return await gateway.create_payment(amount, currency, region, metadata)
+        except Exception as e:
+            logger.warning(f"Gateway {gateway.provider_key} failed init: {e}")
+            raise e

@@ -1,20 +1,59 @@
 # docker-compose.dev.yml
 
-volumes:
-  postgres-data:
-  rabbitmq-data:
-  redis-data:
-  api-storage-data:
-  opensearch-data:
-  api-static-data:
-  px4-source-data:
-    driver: local
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "5"
 
-networks:
-  airdeliver-net:
-    driver: bridge
+x-deploy-core: &default-core-deploy
+  restart_policy:
+    condition: on-failure
+    delay: 5s
+    window: 120s
+  resources:
+    limits:
+      memory: 2G
+    reservations:
+      memory: 1G
+
+x-deploy-app: &default-app-deploy
+  restart_policy:
+    condition: on-failure
+    delay: 5s
+    window: 120s
+  resources:
+    limits:
+      memory: 1G
+    reservations:
+      memory: 256M
 
 services:
+  reverse-proxy:
+    image: traefik:v3.0
+    container_name: airdeliver-reverse-proxy
+    restart: always
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http3"
+    ports:
+      - "80:80"
+      - "8080:8080"
+      - "443:443/udp"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - public-net
+    logging: *default-logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+
   postgres:
     image: postgres:16-alpine
     container_name: airdeliver-db
@@ -25,16 +64,16 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    command: postgres -c shared_buffers=512MB -c effective_cache_size=1536MB -c maintenance_work_mem=128MB -c checkpoint_completion_target=0.9 -c wal_buffers=16MB -c default_statistics_target=100 -c random_page_cost=1.1 -c effective_io_concurrency=200 -c work_mem=4MB
     networks:
-      - airdeliver-net
+      - backend-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 45s
+    logging: *default-logging
+    deploy: *default-core-deploy
 
   mq:
     image: rabbitmq:3.13-management-alpine
@@ -48,37 +87,67 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    networks:
+      - backend-net
+      - simulation-net
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget --no-verbose --spider --tries=1 --timeout=10 \"http://${RABBITMQ_USER}:${RABBITMQ_PASS}@127.0.0.1:15672/api/aliveness-test/%2F\""
-        ]
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
       interval: 10s
       timeout: 10s
-      retries: 5
-      start_period: 60s
-
-    networks:
-      - airdeliver-net
+      retries: 10
+    logging: *default-logging
+    deploy: *default-core-deploy
 
   redis:
     image: redis:7-alpine
     container_name: airdeliver-redis
     restart: always
-    command: redis-server --save 60 1 --loglevel warning
-    ports:
-      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 1gb --maxmemory-policy allkeys-lru --io-threads 4 --io-threads-do-reads yes
     volumes:
       - redis-data:/data
     networks:
-      - airdeliver-net
+      - backend-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
-      start_period: 15s
+    logging: *default-logging
+    deploy: *default-core-deploy
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    container_name: airdeliver-opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      - "DISABLE_SECURITY_PLUGIN=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend-net
+    logging: *default-logging
+    deploy: *default-core-deploy
 
   api-migrator:
     container_name: airdeliver-api-migrator
@@ -91,20 +160,18 @@ services:
       - POSTGRES_SERVER=postgres
       - REDIS_HOST=redis
       - RABBITMQ_HOST=mq
-
     volumes:
-      - ./apps/api:/app
-
+      - ./apps/api:/app:delegated
     command: >
-      sh -c "alembic upgrade head && 
+      sh -c "python -m alembic upgrade head &&
              python -m app.db.initial_data"
-
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - airdeliver-net
+      - backend-net
     restart: 'no'
+    deploy: *default-app-deploy
 
   api:
     container_name: airdeliver-api
@@ -113,8 +180,6 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     restart: always
-    ports:
-      - "8000:8000"
     environment:
       - DATABASE_URI=${DATABASE_URL_ASYNC}
       - POSTGRES_SERVER=postgres
@@ -122,11 +187,10 @@ services:
       - REDIS_HOST=redis
       - APP_ENV=development
       - LOG_LEVEL=debug
+      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     volumes:
-      - ./apps/api:/app
+      - ./apps/api:/app:delegated
       - api-static-data:/app/static
-    
-
     depends_on:
       api-migrator:
         condition: service_completed_successfully
@@ -137,18 +201,20 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - airdeliver-net
-
+      - backend-net
+      - public-net
     healthcheck:
        test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health || exit 1"]
        interval: 10s
        timeout: 5s
-       retries: 10
-       start_period: 60s
-  
-
+       retries: 5
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
+    logging: *default-logging
+    deploy: *default-app-deploy
 
   api-worker:
     container_name: airdeliver-api-worker
@@ -163,65 +229,28 @@ services:
       - POSTGRES_SERVER=postgres
       - RABBITMQ_HOST=mq
       - REDIS_HOST=redis
-      - APP_ENV=development
-      - LOG_LEVEL=debug
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - HF_HOME=/data/storage/models_cache/huggingface
       - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
-  
+      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     volumes:
-      - ./apps/api:/app
+      - ./apps/api:/app:delegated
       - api-storage-data:/data/storage
     depends_on:
-      api-migrator:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      mq:
-        condition: service_healthy
-      redis:
+      api:
         condition: service_healthy
       opensearch:
         condition: service_healthy
     networks:
-      - airdeliver-net
-
+      - backend-net
     command: >
       sh -c "mkdir -p /data/storage/models_cache/huggingface &&
              mkdir -p /data/storage/models_cache/sentence_transformers &&
-             chown -R airdeliver:airdeliver /data/storage && 
+             chown -R airdeliver:airdeliver /data/storage &&
              su -s /bin/sh airdeliver -c \"watchfiles 'python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'\""
-
-  opensearch:
-    image: opensearchproject/opensearch:2.11.1
-    container_name: airdeliver-opensearch
-    environment:
-      - discovery.type=single-node
-      - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" 
-      - "DISABLE_INSTALL_DEMO_CONFIG=true"
-      - "DISABLE_SECURITY_PLUGIN=true"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-    volumes:
-      - opensearch-data:/usr/share/opensearch/data
-    ports:
-      - "9200:9200"
-      - "9600:9600"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9200"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-    networks:
-      - airdeliver-net 
+    logging: *default-logging
+    deploy: *default-app-deploy
 
   c2_gateway:
     container_name: airdeliver-c2-gateway
@@ -230,21 +259,25 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     restart: always
-    ports:
-      - "8001:8001"
     environment:
       - RABBITMQ_HOST=mq
       - API_BASE_URL=http://api:8000/api/v1
     volumes:
-      - ./apps/c2-gateway:/app
+      - ./apps/c2-gateway:/app:delegated
     depends_on:
       mq:
         condition: service_healthy
       api:
         condition: service_healthy
     networks:
-      - airdeliver-net
+      - backend-net
+      - simulation-net
+      - public-net
+    ports:
+       - "8001:8001"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    logging: *default-logging
+    deploy: *default-app-deploy
 
   web:
     container_name: airdeliver-web
@@ -256,24 +289,29 @@ services:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     restart: always
-    ports:
-      - "3000:3000"
-
-    entrypoint: []
-
-    command: pnpm dev
     environment:
       - NEXTAUTH_URL=http://localhost:3000
       - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - HOSTNAME=0.0.0.0
     volumes:
-      - ./apps/web:/app
+      - ./apps/web:/app:delegated
       - /app/node_modules
       - /app/.next
     depends_on:
       api:
         condition: service_healthy
+    ports:
+        - "3000:3000"
     networks:
-      - airdeliver-net
+      - public-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`localhost`)"
+      - "traefik.http.services.web.loadbalancer.server.port=3000"
+    command: pnpm dev -H 0.0.0.0 -p 3000
+    logging: *default-logging
+    deploy: *default-app-deploy
 
   px4-sitl:
     container_name: airdeliver-px4-sitl
@@ -281,7 +319,7 @@ services:
       context: ./docker/px4-sitl
       dockerfile: Dockerfile
     networks:
-      - airdeliver-net
+      - simulation-net
     environment:
       - PX4_SIM_SPEED_FACTOR=1
       - PX4_HOME_LAT=30.0444
@@ -290,30 +328,37 @@ services:
     volumes:
       - px4-source-data:/root/PX4-Autopilot
     healthcheck:
-      test: ["CMD-SHELL", "ps -ef | grep px4 | grep -v grep"]
+      test: ["CMD-SHELL", "pgrep -x px4 || exit 1"]
       interval: 10s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
+      timeout: 5s
+      retries: 5
     restart: on-failure
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
 
-  companion:
-    container_name: airdeliver-companion-sim
-    build:
-      context: ./drone_client
-      dockerfile: Dockerfile
-    environment:
-      - DRONE_ID=SIM-001
-      - WEBSOCKET_URI=ws://c2_gateway:8001/drones/SIM-001
-      - MAVLINK_CONNECTION=udp:px4-sitl:14540
-      - AUTH_TOKEN=${DRONE_AUTH_TOKEN}
-    networks:
-      - airdeliver-net
-    depends_on:
-      px4-sitl:
-        condition: service_healthy
-      c2_gateway:
-        condition: service_healthy
-    restart: unless-stopped
-    stdin_open: true
-    tty: true
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  redis-data:
+  api-storage-data:
+  opensearch-data:
+  api-static-data:
+  px4-source-data:
+    driver: local
+
+networks:
+  public-net:
+    driver: bridge
+    name: airdeliver-public   
+  backend-net:
+    driver: bridge
+    internal: true
+    name: airdeliver-backend      
+  simulation-net:
+    driver: bridge
+    name: airdeliver-simulation

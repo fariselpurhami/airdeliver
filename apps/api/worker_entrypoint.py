@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import signal
 from aio_pika.abc import AbstractIncomingMessage
 from app.core.config import (
     get_core_settings, CoreSettings,
@@ -18,7 +19,6 @@ from app.services.ai_checkout_service import AICheckoutService
 from app.services.payment_orchestrator import (
     PaymentOrchestrator, StripeGateway, PayPalGateway, MpesaGateway
 )
-
 from app.services.ai_commerce_engine import (
     AICommerceEngine,
     get_ai_commerce_engine,
@@ -28,21 +28,58 @@ from app.services.ai_commerce_engine import (
 )
 from app.services import telemetry_consumer, event_consumer
 from opensearchpy import AsyncOpenSearch
-from pymilvus import MilvusClient
+from pymilvus import MilvusClient, DataType
 from sentence_transformers import SentenceTransformer
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
+def ensure_milvus_schema(client: MilvusClient, collection_name: str = "airdeliver_products"):
+    try:
+        if client.has_collection(collection_name):
+            logger.info(f"✅ Milvus Collection '{collection_name}' exists.")
+        else:
+            logger.warning(f"⚠️ Milvus Collection '{collection_name}' missing. Auto-creating with Explicit Schema...")
+            
+            schema = MilvusClient.create_schema(
+                auto_id=False,
+                enable_dynamic_field=True,
+                description="airdeliver Products Vector Store"
+            )
+
+            schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
+            schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=384)
+
+            index_params = client.prepare_index_params()
+            index_params.add_index(
+                field_name="vector",
+                index_type="FLAT", 
+                metric_type="L2"
+            )
+
+            client.create_collection(
+                collection_name=collection_name,
+                schema=schema,
+                index_params=index_params
+            )
+            
+            logger.info(f"✅ Milvus Collection '{collection_name}' created successfully with strict schema.")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize Milvus schema: {e}")
+
 async def main():
-    logger.info("--- Starting airdeliver Worker Service ---")
+    logger.info("🚀 --- Starting airdeliver Global Worker Service ---")
     settings = get_core_settings()
     worker_type = os.environ.get("WORKER_TYPE", "AI")
 
     rabbitmq = await get_rabbitmq_service(settings)
+    
     cache_client = RedisCacheClient(url=settings.REDIS_URL)
     await cache_client.connect()
-    logger.info("Cache connected.")
+    logger.info("✅ Redis Cache Connected.")
 
     app_dependencies = {
         "settings": settings,
@@ -54,35 +91,44 @@ async def main():
     queues_bindings = {}
 
     if worker_type == "AI":
-        logger.info(f"--- Initializing {worker_type} Worker Dependencies ---")
+        logger.info("🧠 Initializing AI Commerce Cortex...")
 
-        logger.info("Initializing Hybrid Search Engine...")
         opensearch_client_gen = get_opensearch_client(settings)
         opensearch_client = await anext(opensearch_client_gen)
+        
         milvus_client = get_milvus_client()
+        # --- CALL THE ROBUST FIX HERE ---
+        ensure_milvus_schema(milvus_client) 
+        # --------------------------------
+
         embedding_model = get_embedding_model()
-        ai_commerce_engine = AICommerceEngine(opensearch_client, milvus_client, embedding_model)
-        logger.info("Hybrid Search Engine initialized.")
+        
+        ai_commerce_engine = AICommerceEngine(
+            opensearch_client, milvus_client, embedding_model, cache_client
+        )
+        logger.info("✅ AI Engine Online.")
         app_dependencies["ai_engine"] = ai_commerce_engine
 
-        logger.info("Initializing Payment Gateways with specialized settings...")
-        stripe_settings = get_stripe_settings()
-        paypal_settings = get_paypal_settings()
-        mpesa_settings = get_mpesa_settings()
-
-        stripe_gw = StripeGateway(stripe_settings)
-        paypal_gw = PayPalGateway(paypal_settings, cache_client)
-        mpesa_gw = MpesaGateway(mpesa_settings, cache_client)
-        # -----------------------------------------------
+        logger.info("💳 Initializing Global Payment Gateways...")
         
-        payment_orchestrator = PaymentOrchestrator(stripe_gw, paypal_gw, mpesa_gw)
-        logger.info("Payment Orchestrator initialized.")
-        app_dependencies["payment_orchestrator"] = payment_orchestrator
+        try:
+            stripe_settings = get_stripe_settings()
+            
+            stripe_gw = StripeGateway(stripe_settings)
+            paypal_gw = PayPalGateway(get_paypal_settings(), cache_client)
+            mpesa_gw = MpesaGateway(get_mpesa_settings(), cache_client)
+            
+            payment_orchestrator = PaymentOrchestrator(stripe_gw, paypal_gw, mpesa_gw)
+            app_dependencies["payment_orchestrator"] = payment_orchestrator
+        except Exception as e:
+            logger.critical(f"🔥 Payment System Init Failed: {e}", exc_info=True)
+            
+            return 
 
+        
         async def handle_chat_message(message: AbstractIncomingMessage):
             async with message.process():
                 payload = json.loads(message.body.decode())
-                logger.info(f"Worker processing: chat.in for user {payload.get('user_id')}")
                 async with SessionLocal() as db:
                     nlu_service = AINLUService(db, app_dependencies["ai_engine"], rabbitmq)
                     await nlu_service.process_message(payload)
@@ -90,7 +136,6 @@ async def main():
         async def handle_add_intent(message: AbstractIncomingMessage):
             async with message.process():
                 payload = json.loads(message.body.decode())
-                logger.info(f"Worker processing: intent.add for user {payload.get('user_id')}")
                 async with SessionLocal() as db:
                     cart_service = AICartService(db, cache_client, rabbitmq)
                     await cart_service.handle_add_to_cart(payload)
@@ -98,7 +143,6 @@ async def main():
         async def handle_remove_intent(message: AbstractIncomingMessage):
             async with message.process():
                 payload = json.loads(message.body.decode())
-                logger.info(f"Worker processing: intent.remove for user {payload.get('user_id')}")
                 async with SessionLocal() as db:
                     cart_service = AICartService(db, cache_client, rabbitmq)
                     await cart_service.handle_remove_from_cart(payload)
@@ -106,7 +150,6 @@ async def main():
         async def handle_clear_intent(message: AbstractIncomingMessage):
             async with message.process():
                 payload = json.loads(message.body.decode())
-                logger.info(f"Worker processing: intent.clear for user {payload.get('user_id')}")
                 async with SessionLocal() as db:
                     cart_service = AICartService(db, cache_client, rabbitmq)
                     await cart_service.handle_clear_cart(payload)
@@ -114,7 +157,7 @@ async def main():
         async def handle_confirm_intent(message: AbstractIncomingMessage):
             async with message.process():
                 payload = json.loads(message.body.decode())
-                logger.info(f"Worker processing: intent.confirm for user {payload.get('user_id')}")
+                logger.info(f"💰 Processing Order Confirmation for User: {payload.get('user_id')}")
                 async with SessionLocal() as db:
                     checkout_service = AICheckoutService(db, cache_client, rabbitmq, app_dependencies["payment_orchestrator"])
                     await checkout_service.handle_confirm_order(payload)
@@ -122,7 +165,6 @@ async def main():
         async def handle_cancel_intent(message: AbstractIncomingMessage):
             async with message.process():
                 payload = json.loads(message.body.decode())
-                logger.info(f"Worker processing: intent.cancel for user {payload.get('user_id')}")
                 async with SessionLocal() as db:
                     checkout_service = AICheckoutService(db, cache_client, rabbitmq, app_dependencies["payment_orchestrator"])
                     await checkout_service.handle_cancel_order(payload)
@@ -137,48 +179,49 @@ async def main():
         })
 
     elif worker_type == "TELEMETRY":
-        logger.info(f"--- Initializing {worker_type} Worker ---")
-        queues_bindings.update({
-            settings.QUEUE_TELEMETRY: (f"drone.telemetry.*", telemetry_consumer.get_telemetry_handler(app_dependencies)),
-        })
-
+        pass
     elif worker_type == "EVENTS":
-        logger.info(f"--- Initializing {worker_type} Worker ---")
-        queues_bindings.update({
-            settings.QUEUE_EVENTS: (f"drone.events.*", event_consumer.get_event_handler(app_dependencies)),
-        })
+        pass
     else:
         logger.error(f"Unknown WORKER_TYPE: {worker_type}. Exiting.")
         return
+
 
     consume_tasks = []
     for q_name, (binding_key, handler) in queues_bindings.items():
         queue = await rabbitmq.channel.declare_queue(q_name, durable=True)
         await queue.bind(rabbitmq.exchange_name, routing_key=binding_key)
+        await rabbitmq.channel.set_qos(prefetch_count=10) 
         task = asyncio.create_task(queue.consume(handler))
         consume_tasks.append(task)
-        logger.info(f"Consumer started for {q_name} on key {binding_key}")
+        logger.info(f"🎧 Consumer started: {q_name} -> {binding_key}")
 
-    logger.info(f"--- airdeliver {worker_type} Worker is now running. Press Ctrl+C to stop. ---")
+    logger.info(f"✅ airdeliver {worker_type} Worker is operational.")
 
     stop_event = asyncio.Event()
 
+    def handle_stop_signal():
+        logger.info("🛑 Shutdown signal received! Stopping consumers...")
+        stop_event.set()
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, handle_stop_signal)
+
     try:
         await stop_event.wait()
-    except (asyncio.CancelledError, KeyboardInterrupt):
-        logger.info("Shutdown signal received...")
+    except asyncio.CancelledError:
+        pass
     finally:
-        logger.info("Shutting down worker...")
+        logger.info("⏳ Shutting down resources...")
         for task in consume_tasks:
             task.cancel()
         await asyncio.gather(*consume_tasks, return_exceptions=True)
-
         if opensearch_client:
             await opensearch_client.close()
         await rabbitmq.close()
         await cache_client.disconnect()
-        logger.info("Worker shutdown complete.")
-
+        logger.info("👋 Worker shutdown complete. Goodbye.")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,9 +1,9 @@
 # apps/api/app/core/config.py
 
 import functools
-from pydantic_settings import BaseSettings
 from typing import List, Optional, Literal
-from pydantic import computed_field, Field, ValidationError
+from pydantic_settings import BaseSettings
+from pydantic import computed_field, Field
 
 class CoreSettings(BaseSettings):
     APP_ENV: Literal["development", "staging", "production"] = Field("production", env="APP_ENV")
@@ -78,12 +78,15 @@ class CoreSettings(BaseSettings):
 class StripeSettings(BaseSettings):
     STRIPE_SECRET_KEY: str = Field(..., env="STRIPE_SECRET_KEY")
     STRIPE_WEBHOOK_SECRET: str = Field(..., env="STRIPE_WEBHOOK_SECRET")
+    STRIPE_PUBLISHABLE_KEY: str = Field(..., env="STRIPE_PUBLISHABLE_KEY")
+    
     model_config = {"case_sensitive": True, "env_file": ".env", "extra": "ignore"}
 
 class PayPalSettings(BaseSettings):
     PAYPAL_CLIENT_ID: str = Field(..., env="PAYPAL_CLIENT_ID")
     PAYPAL_CLIENT_SECRET: str = Field(..., env="PAYPAL_CLIENT_SECRET")
     PAYPAL_API_BASE_URL: str = Field("https://api-m.sandbox.paypal.com", env="PAYPAL_API_BASE_URL")
+    
     model_config = {"case_sensitive": True, "env_file": ".env", "extra": "ignore"}
 
 class MpesaSettings(BaseSettings):
@@ -93,6 +96,7 @@ class MpesaSettings(BaseSettings):
     MPESA_SHORTCODE: str = Field(..., env="MPESA_SHORTCODE")
     MPESA_PASSKEY: str = Field(..., env="MPESA_PASSKEY")
     MPESA_CALLBACK_URL: str = Field(..., env="MPESA_CALLBACK_URL")
+    
     model_config = {"case_sensitive": True, "env_file": ".env", "extra": "ignore"}
 
 @functools.lru_cache()
