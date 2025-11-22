@@ -27,6 +27,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       
       <AIChatOverlay 
+
         isOpen={isOverlayVisible} 
         onClose={() => setOverlayVisible(false)} 
       />
