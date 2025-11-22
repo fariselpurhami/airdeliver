@@ -1,14 +1,16 @@
 # apps/api/app/api/v1/endpoints/webhooks.py
 
-import logging
-from fastapi import APIRouter, Request, Header, HTTPException, Depends
-from sqlmodel.ext.asyncio.session import AsyncSession
 import stripe
-from app.core.config import settings
-from app.db.session import get_session
+import logging
+from fastapi import APIRouter, Request, Header, HTTPException, Depends, status
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select
+from app.core.config import get_core_settings, CoreSettings
+from app.api.deps import get_session
 from app.models.order import Order
 from app.models.enums import OrderStatus
 from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
+from app.services.payment_completion_service import PaymentCompletionService
 
 logger = logging.getLogger(__name__)
 
@@ -18,17 +20,16 @@ router = APIRouter()
 async def stripe_webhook(
     request: Request,
     stripe_signature: str = Header(None),
+    settings: CoreSettings = Depends(get_core_settings),
     session: AsyncSession = Depends(get_session),
     rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
 ):
-    """
-    Production-Grade Webhook Handler for Stripe.
-    """
+
     webhook_secret = settings.STRIPE_WEBHOOK_SECRET
 
     if not webhook_secret:
-        logger.critical("Stripe webhook secret is missing in configuration.")
-        raise HTTPException(status_code=500, detail="Webhook configuration error.")
+        logger.critical("🚨 Security Risk: Stripe webhook secret is missing.")
+        raise HTTPException(status_code=500, detail="Configuration Error")
 
     payload = await request.body()
     event = None
@@ -39,87 +40,74 @@ async def stripe_webhook(
             sig_header=stripe_signature,
             secret=webhook_secret,
         )
-    except ValueError as e:
-        logger.error(f"Invalid payload: {e}")
-        raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError as e:
-        logger.error(f"Invalid signature: {e}")
-        raise HTTPException(status_code=400, detail="Invalid signature")
+    except ValueError:
+        logger.warning("⚠️ Webhook Error: Invalid payload received.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        logger.warning("🚨 Security Alert: Invalid Stripe signature detected.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature")
 
-    if event["type"] == "payment_intent.succeeded":
-        await _handle_payment_success(event, session, rabbitmq)
+    event_type = event["type"]
+    data_object = event["data"]["object"]
+
+    if event_type == "payment_intent.succeeded":
+        await _delegate_payment_success(data_object, session, rabbitmq)
     
-    elif event["type"] == "payment_intent.payment_failed":
-        await _handle_payment_failure(event, session, rabbitmq)
+    elif event_type == "payment_intent.payment_failed":
+        await _delegate_payment_failure(data_object, session, rabbitmq)
 
     return {"status": "success"}
 
 
-async def _handle_payment_success(event, session: AsyncSession, rabbitmq: RabbitMQService):
-    payment_intent = event["data"]["object"]
-    order_id = payment_intent.get("metadata", {}).get("order_id")
+async def _delegate_payment_success(payment_intent: dict, session: AsyncSession, rabbitmq: RabbitMQService):
+
+    metadata = payment_intent.get("metadata", {})
+    order_id = metadata.get("order_id")
+    user_id = metadata.get("user_id")
+    transaction_id = payment_intent.get("id")
+
+    if not order_id or not user_id:
+        logger.error(f"❌ Missing metadata in PaymentIntent {transaction_id}")
+        return
+
+    completion_service = PaymentCompletionService(session, rabbitmq)
     
-    if not order_id:
-        logger.warning("Payment succeeded but missing order_id in metadata.")
+    try:
+        await completion_service.finalize_successful_payment(
+            order_id=int(order_id),
+            user_id=int(user_id),
+            transaction_id=transaction_id
+        )
+    except Exception as e:
+        logger.error(f"Failed to process success for Order {order_id}: {e}")
+
+async def _delegate_payment_failure(payment_intent: dict, session: AsyncSession, rabbitmq: RabbitMQService):
+
+    metadata = payment_intent.get("metadata", {})
+    order_id = metadata.get("order_id")
+    user_id = metadata.get("user_id")
+    
+    if not order_id: 
         return
 
-    order = await session.get(Order, int(order_id))
-    if not order:
-        logger.error(f"Order {order_id} not found for successful payment.")
-        return
-
-    if order.status in [OrderStatus.PENDING, OrderStatus.SAVED_FOR_LATER]:
-        order.status = OrderStatus.PROCESSING
-        session.add(order)
-        await session.commit()
-        await session.refresh(order)
+    try:
+        order = await session.get(Order, int(order_id))
         
-        logger.info(f"💰 Order {order_id} paid successfully.")
+        if order and order.status == OrderStatus.PENDING:
+            order.status = OrderStatus.FAILED
+            session.add(order)
+            await session.commit()
+            
+            logger.warning(f"❌ Payment declined for Order {order_id}. Reason: {payment_intent.get('last_payment_error')}")
 
-        await rabbitmq.publish(
-            body={
-                "user_id": order.user_id,
-                "content": f"**Payment Authorized!** 💳\nOrder #{order_id} is confirmed. Initializing drone mission sequence...",
-                "type": "success_text"
-            },
-            routing_key="airdeliver.ai.response.out"
-        )
-
-        await rabbitmq.publish(
-            body={
-                "event": "ORDER_PAID",
-                "order_id": order.id,
-                "user_id": order.user_id,
-                "location": {
-                    "lat": order.delivery_lat,
-                    "lon": order.delivery_lon
-                }
-            },
-            routing_key="airdeliver.events.order.paid",
-            exchange_name="drone.events"
-        )
-
-
-async def _handle_payment_failure(event, session: AsyncSession, rabbitmq: RabbitMQService):
-    payment_intent = event["data"]["object"]
-    order_id = payment_intent.get("metadata", {}).get("order_id")
-
-    if not order_id:
-        return
-
-    order = await session.get(Order, int(order_id))
-    if order and order.status == OrderStatus.PENDING:
-        order.status = OrderStatus.FAILED
-        session.add(order)
-        await session.commit()
-        
-        logger.warning(f"❌ Payment failed for Order {order_id}.")
-
-        await rabbitmq.publish(
-            body={
-                "user_id": order.user_id,
-                "content": "Payment authorization failed. Please check your card details or try a different method.",
-                "type": "error"
-            },
-            routing_key="airdeliver.ai.response.out"
-        )
+            if user_id:
+                await rabbitmq.publish(
+                    body={
+                        "user_id": int(user_id),
+                        "content": "Payment authorization failed. Please check your card or funds.",
+                        "type": "error"
+                    },
+                    routing_key="airdeliver.ai.response.out"
+                )
+    except Exception as e:
+        logger.error(f"Database error while handling failure for Order {order_id}: {e}")

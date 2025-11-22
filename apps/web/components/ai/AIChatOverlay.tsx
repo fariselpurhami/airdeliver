@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, ShoppingBag, ShieldOff } from 'lucide-react';
+import { Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, ShoppingBag, ShieldOff, Loader2 } from 'lucide-react';
 import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
@@ -535,8 +535,6 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
             onClose();
         }
     }, [paymentDetails, isProcessing, onClose, actions.initiateCheckoutRecovery]);
-
-    const handleChatCancel = useCallback(() => actions.hardCancelOrder('changed_mind'), [actions.hardCancelOrder]);
     
     const handlePaymentSuccess = useCallback(() => {
         actions.setOverlayVisible(false);
@@ -603,10 +601,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cartItems = lastCartMessage?.content?.items || [];
     
-    const isPaymentMode = paymentDetails && stripeOptions;
+    const isPaymentMode = !!paymentDetails; 
     const isKeyMissing = !STRIPE_PUBLISHABLE_KEY;
-    const showPaymentError = isPaymentMode && isKeyMissing;
-
 
     return (
         <AnimatePresence>
@@ -660,14 +656,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         className="w-full h-full flex items-center justify-center overflow-y-auto"
                                         style={{ position: 'absolute', top: 0, left: 0, zIndex: 20 }}
                                     >
-                                        {showPaymentError ? (
-                                            <PaymentFatalError keyMissing={true} />
-                                        ) : !isStripePromiseResolved ? (
-                                             <div className="w-full h-full flex items-center justify-center">
-                                                <div className="w-8 h-8 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                                             </div>
-                                        ) : (
-                                            <Elements key={stripeOptions!.clientSecret} stripe={stripePromise} options={stripeOptions}>
+                                        {stripeOptions && isStripePromiseResolved ? (
+                                            <Elements key={stripeOptions.clientSecret} stripe={stripePromise} options={stripeOptions}>
                                                 <AIPaymentForm
                                                     orderId={paymentDetails!.orderId}
                                                     total={paymentDetails!.total}
@@ -675,6 +665,12 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                     onPaymentSuccess={handlePaymentSuccess}
                                                 />
                                             </Elements>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-4">
+                                                 <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
+                                                 <p className="text-cyan-300 font-mono text-sm">Initializing Secure Gateway...</p>
+                                                 {isKeyMissing && <PaymentFatalError keyMissing={true} />}
+                                            </div>
                                         )}
                                     </motion.div>
                                 ) : (
