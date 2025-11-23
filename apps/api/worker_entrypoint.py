@@ -58,7 +58,6 @@ async def main():
     worker_type = os.environ.get("WORKER_TYPE", "AI")
 
     rabbitmq = await get_rabbitmq_service(settings)
-    
     cache_client = RedisCacheClient(url=settings.REDIS_URL)
     await cache_client.connect()
     logger.info("✅ Redis Cache Connected.")
@@ -77,14 +76,13 @@ async def main():
         opensearch_client_gen = get_opensearch_client(settings)
         opensearch_client = await anext(opensearch_client_gen)
         milvus_client = get_milvus_client()
-        ensure_milvus_schema(milvus_client) 
+        ensure_milvus_schema(milvus_client)
         embedding_model = get_embedding_model()
-        
+
         ai_commerce_engine = AICommerceEngine(opensearch_client, milvus_client, embedding_model, cache_client)
         logger.info("✅ AI Engine Online.")
         app_dependencies["ai_engine"] = ai_commerce_engine
 
-        logger.info("�� Initializing Global Payment Gateways...")
         try:
             stripe_gw = StripeGateway(get_stripe_settings())
             paypal_gw = PayPalGateway(get_paypal_settings(), cache_client)
@@ -93,13 +91,12 @@ async def main():
             app_dependencies["payment_orchestrator"] = payment_orchestrator
         except Exception as e:
             logger.critical(f"🔥 Payment System Init Failed: {e}", exc_info=True)
-            return 
+            return
 
         async def handle_chat_message(message: AbstractIncomingMessage):
             async with message.process():
                 payload = json.loads(message.body.decode())
                 async with SessionLocal() as db:
-                    # Injected cache_client here for ultra-fast suggestions
                     nlu_service = AINLUService(db, app_dependencies["ai_engine"], rabbitmq, cache_client)
                     await nlu_service.process_message(payload)
 
@@ -116,7 +113,14 @@ async def main():
                 async with SessionLocal() as db:
                     cart_service = AICartService(db, cache_client, rabbitmq)
                     await cart_service.handle_remove_from_cart(payload)
-        
+
+        async def handle_removal_recovery(message: AbstractIncomingMessage):
+            async with message.process():
+                payload = json.loads(message.body.decode())
+                async with SessionLocal() as db:
+                    nlu_service = AINLUService(db, app_dependencies["ai_engine"], rabbitmq, cache_client)
+                    await nlu_service.process_removal_recovery(payload)
+
         async def handle_clear_intent(message: AbstractIncomingMessage):
             async with message.process():
                 payload = json.loads(message.body.decode())
@@ -127,7 +131,6 @@ async def main():
         async def handle_confirm_intent(message: AbstractIncomingMessage):
             async with message.process():
                 payload = json.loads(message.body.decode())
-                logger.info(f"💰 Processing Order Confirmation for User: {payload.get('user_id')}")
                 async with SessionLocal() as db:
                     checkout_service = AICheckoutService(db, cache_client, rabbitmq, app_dependencies["payment_orchestrator"])
                     await checkout_service.handle_confirm_order(payload)
@@ -143,6 +146,7 @@ async def main():
             "q.ai.chat": ("airdeliver.ai.chat.in", handle_chat_message),
             "q.ai.intent.add": ("airdeliver.ai.intent.add_to_cart", handle_add_intent),
             "q.ai.intent.remove": ("airdeliver.ai.intent.remove_from_cart", handle_remove_intent),
+            "q.ai.intent.recovery": ("airdeliver.ai.intent.removal_recovery", handle_removal_recovery),
             "q.ai.intent.clear": ("airdeliver.ai.intent.clear_cart", handle_clear_intent),
             "q.ai.intent.confirm": ("airdeliver.ai.intent.confirm_order", handle_confirm_intent),
             "q.ai.intent.cancel": ("airdeliver.ai.intent.cancel_order", handle_cancel_intent),
@@ -152,7 +156,7 @@ async def main():
     for q_name, (binding_key, handler) in queues_bindings.items():
         queue = await rabbitmq.channel.declare_queue(q_name, durable=True)
         await queue.bind(rabbitmq.exchange_name, routing_key=binding_key)
-        await rabbitmq.channel.set_qos(prefetch_count=10) 
+        await rabbitmq.channel.set_qos(prefetch_count=10)
         task = asyncio.create_task(queue.consume(handler))
         consume_tasks.append(task)
         logger.info(f"🎧 Consumer started: {q_name} -> {binding_key}")
@@ -161,7 +165,6 @@ async def main():
 
     stop_event = asyncio.Event()
     def handle_stop_signal():
-        logger.info("🛑 Shutdown signal received! Stopping consumers...")
         stop_event.set()
 
     loop = asyncio.get_running_loop()
@@ -173,15 +176,11 @@ async def main():
     except asyncio.CancelledError:
         pass
     finally:
-        logger.info("⏳ Shutting down resources...")
-        for task in consume_tasks:
-            task.cancel()
+        for task in consume_tasks: task.cancel()
         await asyncio.gather(*consume_tasks, return_exceptions=True)
-        if opensearch_client:
-            await opensearch_client.close()
+        if opensearch_client: await opensearch_client.close()
         await rabbitmq.close()
         await cache_client.disconnect()
-        logger.info("👋 Worker shutdown complete. Goodbye.")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,10 +1,9 @@
-// apps/web/hooks/useAIOrderingStore.ts
+//** apps/web/hooks/useAIOrderingStore.ts **//
 
 'use client';
 
 import { create } from 'zustand';
 import { produce } from 'immer';
-// import { devtools } from 'zustand/middleware'; 
 
 type PaymentGateway = {
   provider: string;
@@ -36,16 +35,15 @@ export interface Message {
   secondary_suggestions?: any[];
   reason?: string;
   ai_notes?: string;
-  timestamp?: number; 
+  timestamp?: number;
 }
 
 interface AIOrderingState {
- 
   messages: Message[];
   paymentDetails: PaymentDetails | null;
   recoveryOrderDetails: PaymentDetails | null;
   suggestedProductIds: number[] | null;
-  
+
   isLoading: boolean;
   isProcessing: boolean;
   isOverlayVisible: boolean;
@@ -53,17 +51,18 @@ interface AIOrderingState {
   recoveryReason: string;
   glowingProductId: number | null;
   flyQueue: FlyItem[];
- 
+
   socket: WebSocket | null;
   socketStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
-  
-  connectSocket: (token: string) => void;
+  reconnectAttempts: number;
+
+  connectSocket: (token: string) => Promise<void>;
   disconnectSocket: () => void;
   sendMessage: (text: string, isButtonCommand?: boolean) => void;
-  
+
   setOverlayVisible: (isVisible: boolean) => void;
   addProductById: (product: any, startElementId: string) => void;
-  removeFlyItem: (animationId: string) => void; 
+  removeFlyItem: (animationId: string) => void;
   removeProductById: (productId: number) => void;
 
   addSocketAIMessage: (message: any) => void;
@@ -77,10 +76,10 @@ interface AIOrderingState {
   initiateCheckoutRecovery: () => void;
   restoreCheckout: () => void;
   saveForLater: () => void;
-  hardCancelOrder: (reason: any) => void; 
+  hardCancelOrder: (reason: any) => void;
   setRecoveryReason: (reason: string) => void;
   cancelPaymentIntent: () => Promise<void>;
-  
+
   _sendInternalCommand: (command: string, payload?: any, silent?: boolean) => void;
 }
 
@@ -96,21 +95,20 @@ const initialWelcomeMessage: Message = {
 };
 
 const getWebSocketURL = () => {
-  if (typeof window === 'undefined') return ''; 
+  if (typeof window === 'undefined') return '';
   const apiURL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
   const url = new URL(apiURL, window.location.origin);
   url.protocol = url.protocol.replace('http', 'ws');
-  
+
   let pathname = url.pathname;
   if (pathname.endsWith('/')) pathname = pathname.slice(0, -1);
   url.pathname = `${pathname}/ai-ordering/chat`;
-  
+
   return url.href;
 };
 
 export const useAIOrderingStore = create<AIOrderingState>()(
-  (set, get) => ({ 
-    
+  (set, get) => ({
     messages: [initialWelcomeMessage],
     paymentDetails: null,
     recoveryOrderDetails: null,
@@ -124,60 +122,94 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     flyQueue: [],
     socket: null,
     socketStatus: 'disconnected',
+    reconnectAttempts: 0,
 
-    connectSocket: (token) => {
-      const currentSocket = get().socket;
-      if (currentSocket?.readyState === WebSocket.OPEN || get().socketStatus === 'connecting') return;
+    connectSocket: async (token) => {
+      const { socket, socketStatus } = get();
+      if (socket?.readyState === WebSocket.OPEN || socketStatus === 'connecting') return;
 
       set({ socketStatus: 'connecting' });
 
-      const wsUrl = `${getWebSocketURL()}?token=${token}`;
-      const socket = new WebSocket(wsUrl);
+      try {
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+        const ticketRes = await fetch(`${apiBase}/ai-ordering/ticket`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
 
-      socket.onopen = () => {
-        set({ socket, socketStatus: 'connected' });
-        
-        const hasHistory = get().messages.length > 1;
-        if (!hasHistory) {
-           get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
-           get().fetchInitialSuggestions();
-        } else {
-           console.log("[AI Engine] Resuming session state...");
+        if (!ticketRes.ok) {
+            set({ socketStatus: 'error' });
+            return;
         }
-      };
 
-      socket.onmessage = (event) => {
-        try {
-            const response = JSON.parse(event.data);
-            get().addSocketAIMessage(response);
-        } catch (e) {
-            console.error("Failed to parse incoming AI message", e);
-        }
-      };
+        const { ticket } = await ticketRes.json();
+        const wsUrl = `${getWebSocketURL()}?ticket=${ticket}`;
+        const newSocket = new WebSocket(wsUrl);
 
-      socket.onclose = (event) => {
-        set({ socket: null, socketStatus: 'disconnected', isLoading: false, isProcessing: false });
-        if (!event.wasClean) {
-           
-            console.warn("[AI Engine] Socket connection lost unexpectedly.");
-        }
-      };
+        newSocket.onopen = () => {
+            set({ socket: newSocket, socketStatus: 'connected', reconnectAttempts: 0 });
 
-      socket.onerror = (error) => {
-        console.error('[AI Engine] WebSocket Error:', error);
-        set({ socketStatus: 'error' });
-        if (!get().socket) {
-            get().addSocketAIMessage({ 
-                type: 'error', 
-                content: 'Connection interrupted. Attempting to restore uplink...' 
-            });
-        }
-      };
+            const hasHistory = get().messages.length > 1;
+            if (!hasHistory) {
+               get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
+               get().fetchInitialSuggestions();
+            }
+        };
+
+        newSocket.onmessage = (event) => {
+            try {
+                const response = JSON.parse(event.data);
+                get().addSocketAIMessage(response);
+            } catch (e) {
+                console.error(e);
+            }
+        };
+
+        newSocket.onclose = (event) => {
+            set({ socket: null, socketStatus: 'disconnected', isLoading: false, isProcessing: false });
+
+            if (!event.wasClean) {
+                const { reconnectAttempts } = get();
+                const maxAttempts = 5;
+
+                if (reconnectAttempts < maxAttempts) {
+                    const timeout = Math.min(1000 * (2 ** reconnectAttempts), 10000);
+                    set({ reconnectAttempts: reconnectAttempts + 1 });
+
+                    setTimeout(() => {
+                        if (get().isOverlayVisible) {
+                            get().connectSocket(token);
+                        }
+                    }, timeout);
+                } else {
+                    set({ socketStatus: 'error' });
+                    get().addSocketAIMessage({
+                        type: 'error',
+                        content: 'Connection lost. Please refresh the page to reconnect.'
+                    });
+                }
+            }
+        };
+
+        newSocket.onerror = () => {
+            set({ socketStatus: 'error' });
+        };
+
+      } catch (e) {
+          set({ socketStatus: 'error' });
+      }
     },
 
     disconnectSocket: () => {
-      get().socket?.close();
-      set({ socket: null, socketStatus: 'disconnected' });
+      const { socket } = get();
+      if (socket) {
+          socket.onclose = null;
+          socket.close();
+      }
+      set({ socket: null, socketStatus: 'disconnected', reconnectAttempts: 0 });
     },
 
     addSocketAIMessage: (response) => {
@@ -199,7 +231,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         };
 
         const typesThatEndProcessing = [
-          'payment_intent', 'ORDER_CANCELLED', 'error', 
+          'payment_intent', 'ORDER_CANCELLED', 'error',
           'success_text', 'confirmation_prompt', 'proactive_suggestion', 'recovery_prompt'
         ];
 
@@ -224,11 +256,11 @@ export const useAIOrderingStore = create<AIOrderingState>()(
 
         if (response.type === 'cart_preview') {
             const lastMsg = state.messages[state.messages.length - 1];
-            const isDuplicate = lastMsg && 
-                                lastMsg.contentType === 'cart_preview' && 
+            const isDuplicate = lastMsg &&
+                                lastMsg.contentType === 'cart_preview' &&
                                 JSON.stringify(lastMsg.content) === JSON.stringify(response.content);
-            
-            if (isDuplicate) return; 
+
+            if (isDuplicate) return;
 
             if (response.content?.items?.length === 0) {
               state.messages = state.messages.filter(m => m.contentType !== 'confirmation_prompt');
@@ -240,70 +272,53 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     },
 
     sendMessage: (text, isButtonCommand = false) => {
-      if (!text || !get().socket) return;
-
-      if (get().isLoading && !isButtonCommand) return; 
-
-      const typingIndicator: Message = { 
-          id: generateMessageId(), 
-          sender: 'ai', 
-          contentType: 'typing', 
-          content: null,
-          timestamp: Date.now() 
-      };
+      if (!text) return;
+      if (get().isLoading && !isButtonCommand) return;
 
       set(produce((state: AIOrderingState) => {
         state.messages = state.messages.filter(m => m.contentType !== 'typing');
-        
+
         if (!isButtonCommand) {
-          const userMessage: Message = { 
-              id: generateMessageId(), 
-              sender: 'user', 
-              contentType: 'text', 
+          state.messages.push({
+              id: generateMessageId(),
+              sender: 'user',
+              contentType: 'text',
               content: text,
-              timestamp: Date.now() 
-          };
-          state.messages.push(userMessage);
+              timestamp: Date.now()
+          });
         }
-        
-        state.messages.push(typingIndicator);
+
+        state.messages.push({
+            id: generateMessageId(),
+            sender: 'ai',
+            contentType: 'typing',
+            content: null,
+            timestamp: Date.now()
+        });
+
         state.isLoading = true;
         state.isProcessing = true;
         state.suggestedProductIds = null;
       }));
 
-      get().socket?.send(JSON.stringify({
-        type: 'CHAT_MESSAGE',
-        message: text
-      }));
+      get()._sendInternalCommand(text, {}, true);
     },
 
     _sendInternalCommand: (command, payload: any = {}, silent: boolean = false) => {
         const { socket } = get();
-        
-        if (!socket || socket.readyState !== 1) { 
-            console.warn("WebSocket not ready (State: " + socket?.readyState + "). Command not sent.");
-            return;
-        }
+
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
         if (!silent) {
             set({ isLoading: true, isProcessing: true, suggestedProductIds: null });
-            set(produce((state: AIOrderingState) => {
-                state.messages = state.messages.filter(m => m.contentType !== 'typing');
-                state.messages.push({ 
-                    id: generateMessageId(), 
-                    sender: 'ai', 
-                    contentType: 'typing', 
-                    content: null 
-                });
-            }));
         }
+
         socket.send(JSON.stringify({
             type: 'CHAT_MESSAGE',
             message: command,
             ...payload
         }));
-    }, 
+    },
 
     setOverlayVisible: (isVisible) => set({ isOverlayVisible: isVisible }),
 
@@ -315,9 +330,9 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         if (recoveryMode) {
             const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
             const previousItems = lastCartMessage?.content?.items || [];
-            
+
             set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
-            
+
             previousItems.forEach((item: any) => {
                  get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${item.product_id}`, {}, true);
             });
@@ -347,12 +362,11 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     },
 
     removeProductById: (productId) => {
-       
         get()._sendInternalCommand(`__INTERNAL_REMOVE_BY_ID__:${productId}`);
     },
 
     clearPayment: () => set({ paymentDetails: null }),
-    
+
     clearCart: () => get()._sendInternalCommand('__INTERNAL_CLEAR_CART__'),
 
     confirmCurrentOrder: () => get().sendMessage('Confirm Order', true),
@@ -390,7 +404,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
             flyQueue: [],
         });
         messageIdCounter = 1;
-        
+
         get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
         get().fetchInitialSuggestions();
     },
@@ -440,18 +454,16 @@ export const useAIOrderingStore = create<AIOrderingState>()(
 
     saveForLater: () => {
         get()._sendInternalCommand('__INTERNAL_SAVE_FOR_LATER__');
-        get().clearCart(); 
+        get().clearCart();
         set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
     },
 
     hardCancelOrder: (reason) => {
         const { recoveryOrderDetails, socket } = get();
-        
         const sanitizedReason = (typeof reason === 'string' && reason) ? reason : 'changed_mind';
-        
-        if (!recoveryOrderDetails || !socket || socket.readyState !== 1) { 
-            if (!socket || socket.readyState !== 1) {
-                console.warn("Cannot cancel: WebSocket connection is lost or closing.");
+
+        if (!recoveryOrderDetails || !socket || socket.readyState !== WebSocket.OPEN) {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
                 get().addSocketAIMessage({ type: 'error', content: 'Connection lost. Please refresh or try again later.' });
             }
             return;
@@ -466,13 +478,12 @@ export const useAIOrderingStore = create<AIOrderingState>()(
                 reason: sanitizedReason,
             }
         }));
-    
+
         set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
     },
 
     cancelPaymentIntent: async () => {
         get().hardCancelOrder(get().recoveryReason);
     },
-
   })
 );

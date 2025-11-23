@@ -4,8 +4,8 @@ import stripe
 import logging
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
-from decimal import Decimal, InvalidOperation
+from typing import Dict, Any, Optional, List, Union
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from app.core.config import (
     StripeSettings,
     PayPalSettings,
@@ -49,7 +49,10 @@ class StripeGateway(PaymentGateway):
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         try:
-            amount_in_cents = int(amount.quantize(Decimal("0.01")) * 100)
+            # Critical Safety: Quantize ensures we have exactly 2 decimal places
+            # ROUND_HALF_UP is the standard banking rounding method
+            safe_amount = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            amount_in_cents = int(safe_amount * 100)
             
             loop = asyncio.get_running_loop()
             intent = await loop.run_in_executor(
@@ -86,8 +89,9 @@ class PayPalGateway(PaymentGateway):
         return "paypal"
 
     async def create_payment(self, amount: Decimal, currency: str, region: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        
-        logger.info(f"PayPal: Creating order for {amount} {currency}")
+        # Ensure strict string representation for PayPal APIs which often require it
+        amount_str = str(amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+        logger.info(f"PayPal: Creating order for {amount_str} {currency}")
         
         await asyncio.sleep(0.2)
         
@@ -95,7 +99,7 @@ class PayPalGateway(PaymentGateway):
             "status": "requires_approval",
             "provider": "paypal",
             "paymentId": f"PAY-{metadata.get('order_id', 'UNKNOWN')}",
-            "approval_url": "https://www.sandbox.paypal.com/checkoutnow?token=...",
+            "approval_url": "https://www.sandbox.paypal.com/checkoutnow?token=PLACEHOLDER",
         }
 
 class MpesaGateway(PaymentGateway):
@@ -108,7 +112,7 @@ class MpesaGateway(PaymentGateway):
         return "mpesa"
     
     async def create_payment(self, amount: Decimal, currency: str, region: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-
+        # M-Pesa usually expects integer amounts (no decimals) for KES, but we treat as Decimal for consistency
         logger.info(f"M-Pesa: Triggering STK Push to {metadata.get('phone_number')}")
         await asyncio.sleep(0.1)
         
@@ -144,14 +148,25 @@ class PaymentOrchestrator:
 
     async def process_payment(
         self,
-        amount: float,
+        amount: Union[float, str, Decimal],
         currency: str,
         region: str,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+        # Architectural Safety: Force conversion to string first to avoid float precision issues
         try:
-            decimal_amount = Decimal(str(amount))
-        except InvalidOperation:
+            if isinstance(amount, float):
+                # Convert float to string first to preserve visual value (e.g. 19.99 -> "19.99")
+                # Direct float->Decimal conversion can result in 19.989999999...
+                decimal_amount = Decimal(str(amount))
+            else:
+                decimal_amount = Decimal(amount)
+                
+            # Normalize scaling (force 2 decimal places for standard fiat)
+            decimal_amount = decimal_amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            
+        except (InvalidOperation, TypeError, ValueError):
+            logger.error(f"Invalid payment amount received: {amount}")
             return {"status": "failure", "error": "Invalid amount format."}
 
         gateways_to_try = self._routing_rules.get(

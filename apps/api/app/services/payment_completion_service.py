@@ -28,6 +28,7 @@ class PaymentCompletionService:
 
         try:
             order.status = OrderStatus.PROCESSING
+            order.payment_transaction_id = transaction_id
             self.db.add(order)
             await self.db.commit()
             await self.db.refresh(order)

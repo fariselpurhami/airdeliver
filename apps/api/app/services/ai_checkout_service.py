@@ -47,6 +47,7 @@ class AICheckoutService:
         total = Decimal(str(cart.get("total", "0.00")))
         delivery_addr = payload.get("address", "Default Address")
 
+        # TRANSACTION SAFETY: Create Order Record FIRST (PENDING)
         try:
             new_order = Order(
                 user_id=user_id,
@@ -81,6 +82,7 @@ class AICheckoutService:
             "user_id": str(user_id),
             "user_email": payload.get("email"),
             "phone_number": payload.get("phone"),
+            # IDEMPOTENCY KEY: Ensures no double charge
             "idempotency_key": str(uuid.uuid4())
         }
 
@@ -120,7 +122,6 @@ class AICheckoutService:
             order.status = OrderStatus.FAILED
             self.db.add(order)
             await self.db.commit()
-
             await self._send_error(order.user_id, reason)
         except Exception as e:
             logger.critical(f"Double Fault: Failed to update failed order status {order.id}: {e}")
@@ -133,7 +134,6 @@ class AICheckoutService:
 
     async def handle_cancel_order(self, payload: dict):
         user_id = payload.get("user_id")
-
         raw_msg = payload.get("message")
         order_id = None
 
@@ -154,26 +154,16 @@ class AICheckoutService:
             await self.db.commit()
 
             await self.rabbitmq.publish(
-                {
-                    "user_id": user_id,
-                    "content": "Your order has been securely cancelled.",
-                    "type": "ORDER_CANCELLED"
-                },
+                {"user_id": user_id, "content": "Your order has been securely cancelled.", "type": "ORDER_CANCELLED"},
                 "airdeliver.ai.response.out",
             )
-
             await self.rabbitmq.publish(
                 {"user_id": user_id, "content": {"items": [], "total": 0.0}, "type": "cart_preview"},
                 "airdeliver.ai.response.out",
             )
-
         else:
             await self.rabbitmq.publish(
-                {
-                    "user_id": user_id,
-                    "content": "Order cannot be cancelled at this stage.",
-                    "type": "ORDER_CANCELLED"
-                },
+                {"user_id": user_id, "content": "Order cannot be cancelled at this stage.", "type": "ORDER_CANCELLED"},
                 "airdeliver.ai.response.out",
             )
 
@@ -202,7 +192,6 @@ class AICheckoutService:
                 {"user_id": user_id, "content": "Order saved to wishlist. We will remind you later!", "type": "success_text"},
                 "airdeliver.ai.response.out",
             )
-
             await self.rabbitmq.publish(
                 {"user_id": user_id, "content": {"items": [], "total": 0.0}, "type": "cart_preview"},
                 "airdeliver.ai.response.out",
@@ -230,7 +219,6 @@ class AICheckoutService:
                 {"user_id": user_id, "content": "Order canceled. Want me to suggest cheaper alternatives?", "type": "ORDER_CANCELLED"},
                 "airdeliver.ai.response.out",
             )
-
             await self.rabbitmq.publish(
                 {"user_id": user_id, "content": {"items": [], "total": 0.0}, "type": "cart_preview"},
                 "airdeliver.ai.response.out",
@@ -240,12 +228,8 @@ class AICheckoutService:
         try:
             user = await self.db.get(User, user_id)
             if not user: return
-
             await self.notification_service.send_web_push(
-                db=self.db,
-                user_id=user_id,
-                title="Don't miss out!",
-                body="Your saved order is still waiting. Click to restore it now!"
+                db=self.db, user_id=user_id, title="Don't miss out!", body="Your saved order is still waiting. Click to restore it now!"
             )
         except Exception as e:
             logger.warning(f"Failed to schedule reminder for order {order_id}: {e}")

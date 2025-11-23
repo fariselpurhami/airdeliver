@@ -51,7 +51,6 @@ class AICartService:
             return
 
         cart = await self._get_cart_from_redis(user_id)
-
         existing_item = next((item for item in cart["items"] if item["product_id"] == product_id), None)
 
         if existing_item:
@@ -63,6 +62,7 @@ class AICartService:
                 "quantity": quantity,
                 "price": product.price,
                 "image_url": product.image_url,
+                "category": product.category
             })
 
         await self._update_cart_in_redis(user_id, cart)
@@ -70,9 +70,9 @@ class AICartService:
     async def handle_remove_from_cart(self, payload: dict):
         user_id = payload["user_id"]
         product_id_to_remove = payload.get("product_id")
+        action_source = payload.get("action")
 
         cart = await self._get_cart_from_redis(user_id)
-
         item_to_remove = None
 
         if product_id_to_remove:
@@ -81,15 +81,28 @@ class AICartService:
             product_name = payload.get("product_name", "")
             item_to_remove = next((item for item in cart["items"] if product_name.lower() in item["name"].lower()), None)
 
-
         if item_to_remove:
             cart["items"] = [item for item in cart["items"] if item["product_id"] != item_to_remove["product_id"]]
+            await self._update_cart_in_redis(user_id, cart)
+
+            if action_source == "remove_by_id":
+                return
 
             await self.rabbitmq.publish(
-                {"user_id": user_id, "content": f"Removed {item_to_remove['name']} from cart successfully!", "type": "success_text"},
+                {"user_id": user_id, "content": f"Removed {item_to_remove['name']}.", "type": "success_text"},
                 "airdeliver.ai.response.out",
             )
-            await self._update_cart_in_redis(user_id, cart)
+
+            # TRIGGER AUTONOMOUS INCIDENT HANDLING
+            await self.rabbitmq.publish(
+                {
+                    "user_id": user_id,
+                    "removed_product_id": item_to_remove["product_id"],
+                    "removed_product_name": item_to_remove["name"],
+                    "category": item_to_remove.get("category", "general")
+                },
+                "airdeliver.ai.intent.removal_recovery"
+            )
         else:
             await self.rabbitmq.publish(
                 {"user_id": user_id, "content": f"Couldn't find item to remove.", "type": "error"},
@@ -99,17 +112,17 @@ class AICartService:
     async def handle_clear_cart(self, payload: dict):
         user_id = payload["user_id"]
         cart_key = self._get_cart_key(user_id)
-        
+
         await self.cache.delete(cart_key)
-        
+
         empty_cart = {"items": [], "total": 0.0}
         await self.rabbitmq.publish(
             {"user_id": user_id, "content": empty_cart, "type": "cart_preview"},
             "airdeliver.ai.response.out",
         )
-        
+
         if payload.get("notify_user", False):
             await self.rabbitmq.publish(
-                {"user_id": user_id, "content": "Cart cleared successfully.", "type": "success_text"},
+                {"user_id": user_id, "content": "Cart cleared.", "type": "success_text"},
                 "airdeliver.ai.response.out",
             )

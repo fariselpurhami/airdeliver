@@ -1,14 +1,18 @@
 # apps/api/app/services/cache_service.py
 
-import json
 import logging
 from typing import Optional, Any, Set
 from abc import ABC, abstractmethod
 import redis.asyncio as aioredis
 from redis.asyncio.client import Redis
 from redis.exceptions import RedisError
-from fastapi import Request
+from starlette.requests import HTTPConnection
 from app.core.config import settings
+
+try:
+    import orjson
+except ImportError:
+    import json as orjson 
 
 logger = logging.getLogger(__name__)
 
@@ -42,22 +46,23 @@ class IAsyncCacheClient(ABC):
 
 class RedisCacheClient(IAsyncCacheClient):
     def __init__(self, url: str):
+
         self._redis: Redis = aioredis.from_url(
             url,
             decode_responses=True,
-            socket_timeout=5,
+            socket_timeout=settings.REDIS_TIMEOUT if hasattr(settings, 'REDIS_TIMEOUT') else 5,
             socket_connect_timeout=5,
             retry_on_timeout=True,
             health_check_interval=30,
-            max_connections=100
+            max_connections=settings.REDIS_MAX_CONNECTIONS if hasattr(settings, 'REDIS_MAX_CONNECTIONS') else 100
         )
 
     async def connect(self) -> None:
         try:
             await self._redis.ping()
-            logger.info(f"Redis connection verified to {settings.REDIS_HOST}")
+            logger.info(f"✅ Redis connection verified to {settings.REDIS_HOST}")
         except Exception as e:
-            logger.error(f"Initial Redis ping failed: {e}")
+            logger.error(f"❌ Initial Redis ping failed: {e}")
             raise e
 
     async def disconnect(self) -> None:
@@ -84,14 +89,21 @@ class RedisCacheClient(IAsyncCacheClient):
             logger.error(f"Redis DELETE error: {e}")
 
     async def set_json(self, key: str, value: dict, ttl: Optional[int] = None) -> None:
-        await self.set(key, json.dumps(value), ttl=ttl)
+        
+        try:
+            json_bytes = orjson.dumps(value)
+            await self.set(key, json_bytes.decode('utf-8'), ttl=ttl)
+        except Exception as e:
+             logger.error(f"Serialization error for key {key}: {e}")
 
     async def get_json(self, key: str) -> Optional[dict]:
         data = await self.get(key)
         if data:
             try:
-                return json.loads(data)
-            except json.JSONDecodeError:
+    
+                return orjson.loads(data)
+            except Exception:
+                logger.warning(f"Failed to decode JSON for key {key}")
                 return None
         return None
 
@@ -143,7 +155,7 @@ class NoOpCacheClient(IAsyncCacheClient):
     @property
     def client(self) -> Any: return None
 
-async def get_cache_client(request: Request) -> IAsyncCacheClient:
-    if not hasattr(request.app.state, "cache"):
+async def get_cache_client(conn: HTTPConnection) -> IAsyncCacheClient:
+    if not hasattr(conn.app.state, "cache"):
         return NoOpCacheClient()
-    return request.app.state.cache
+    return conn.app.state.cache
