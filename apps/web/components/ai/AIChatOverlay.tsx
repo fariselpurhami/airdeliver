@@ -1,5 +1,3 @@
-// apps/web/components/ai/AIChatOverlay.tsx
-
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -474,13 +472,22 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         return null;
     }, [STRIPE_PUBLISHABLE_KEY]);
     
-    const [isStripePromiseResolved, setIsStripePromiseResolved] = useState(false);
+    const [stripeObj, setStripeObj] = useState<Stripe | null>(null);
+    const [isStripeError, setIsStripeError] = useState(false);
 
     useEffect(() => {
         if (stripePromise) {
-            stripePromise.then(() => setIsStripePromiseResolved(true));
+            stripePromise
+                .then((stripe) => {
+                    setStripeObj(stripe);
+                    setIsStripeError(false);
+                })
+                .catch((err) => {
+                    console.error("Stripe Load Error:", err);
+                    setIsStripeError(true);
+                });
         } else {
-             setIsStripePromiseResolved(true);
+            setIsStripeError(true);
         }
     }, [stripePromise]);
     
@@ -603,6 +610,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     
     const isPaymentMode = !!paymentDetails; 
     const isKeyMissing = !STRIPE_PUBLISHABLE_KEY;
+    const isReadyToRender = stripeObj && stripeOptions && !isStripeError;
 
     return (
         <AnimatePresence>
@@ -656,8 +664,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         className="w-full h-full flex items-center justify-center overflow-y-auto"
                                         style={{ position: 'absolute', top: 0, left: 0, zIndex: 20 }}
                                     >
-                                        {stripeOptions && isStripePromiseResolved ? (
-                                            <Elements key={stripeOptions.clientSecret} stripe={stripePromise} options={stripeOptions}>
+                                        {isReadyToRender ? (
+                                            <Elements key={stripeOptions.clientSecret} stripe={stripeObj} options={stripeOptions}>
                                                 <AIPaymentForm
                                                     orderId={paymentDetails!.orderId}
                                                     total={paymentDetails!.total}
@@ -667,9 +675,14 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                             </Elements>
                                         ) : (
                                             <div className="flex flex-col items-center gap-4">
-                                                 <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
-                                                 <p className="text-cyan-300 font-mono text-sm">Initializing Secure Gateway...</p>
-                                                 {isKeyMissing && <PaymentFatalError keyMissing={true} />}
+                                                {isStripeError || isKeyMissing ? (
+                                                     <PaymentFatalError keyMissing={isKeyMissing} />
+                                                ) : (
+                                                    <>
+                                                        <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
+                                                        <p className="text-cyan-300 font-mono text-sm">Initializing Secure Gateway...</p>
+                                                    </>
+                                                )}
                                             </div>
                                         )}
                                     </motion.div>
