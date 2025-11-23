@@ -3,9 +3,9 @@
 import logging
 import random
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, func
 from app.services.ai_commerce_engine import AICommerceEngine
 from app.services.rabbitmq_service import RabbitMQService
 from app.services.cache_service import IAsyncCacheClient
@@ -19,53 +19,128 @@ class AINLUService:
         db: AsyncSession,
         search_engine: AICommerceEngine,
         rabbitmq: RabbitMQService,
-        cache: IAsyncCacheClient, 
+        cache: IAsyncCacheClient,
     ):
         self.db = db
         self.search_engine = search_engine
         self.rabbitmq = rabbitmq
         self.cache = cache
+        self.seen_cache_ttl = 3600
 
-    async def _handle_initial_suggestions(self, user_id: int):
+    def _get_seen_key(self, user_id: int) -> str:
+        return f"ai_session:{user_id}:seen_products"
+
+    async def _get_seen_product_ids(self, user_id: int) -> Set[int]:
+        key = self._get_seen_key(user_id)
+        try:
+            members = await self.cache.smembers(key)
+            return {int(m) for m in members} if members else set()
+        except Exception:
+            return set()
+
+    async def _mark_products_as_seen(self, user_id: int, products: List[Dict[str, Any]]):
+        if not products: return
+        key = self._get_seen_key(user_id)
+        ids = [str(p['id']) for p in products]
+        try:
+            await self.cache.sadd(key, *ids)
+            await self.cache.expire(key, self.seen_cache_ttl)
+        except Exception: pass
+
+    async def _get_global_backup_products(self) -> List[Dict[str, Any]]:
         cache_key = "global:trending_products:v1"
-        
-        # 1. Try Fast Path (Redis)
         cached_products = await self.cache.get_json(cache_key)
 
         if cached_products:
-            # Randomize selection to keep it fresh, but serve HEAVY load (50 items)
-            selected = random.sample(cached_products, min(len(cached_products), 50))
+            return cached_products
+
+        statement = select(Product).order_by(Product.rating.desc()).limit(200)
+        products = (await self.db.exec(statement)).all()
+
+        if products:
+            products_data = [p.model_dump(mode='json') for p in products]
+            await self.cache.set_json(cache_key, products_data, ttl=600)
+            return products_data
+
+        return []
+
+    async def _filter_candidates(self, user_id: int, candidates: List[Dict[str, Any]], limit: int = 10) -> List[Dict[str, Any]]:
+        seen_ids = await self._get_seen_product_ids(user_id)
+        fresh_candidates = [p for p in candidates if p['id'] not in seen_ids]
+
+        if len(fresh_candidates) >= limit:
+            return random.sample(fresh_candidates, limit)
+
+        if fresh_candidates:
+            return fresh_candidates
+
+        return []
+
+    async def _handle_initial_suggestions(self, user_id: int):
+        backup_pool = await self._get_global_backup_products()
+        final_selection = await self._filter_candidates(user_id, backup_pool, limit=10)
+
+        if not final_selection:
+            await self.cache.delete(self._get_seen_key(user_id))
+            final_selection = random.sample(backup_pool, min(len(backup_pool), 10)) if backup_pool else []
+
+        if final_selection:
+            await self._mark_products_as_seen(user_id, final_selection)
             await self.rabbitmq.publish(
                 {
                     "user_id": user_id,
-                    "content": "Welcome! Here are the top 50 trending items worldwide:",
+                    "content": "Welcome! Here are the top trending items tailored for you:",
                     "type": "proactive_suggestion",
-                    "products": selected,
+                    "products": final_selection,
                     "reason": "Global trending items selected for you."
                 },
                 "airdeliver.ai.response.out",
             )
-            return
 
-        # 2. Slow Path (DB) - Only once per 10 minutes
-        statement = select(Product).order_by(Product.rating.desc()).limit(200)
-        products = (await self.db.exec(statement)).all()
-        
-        if products:
-            products_data = [p.model_dump(mode='json') for p in products]
-            
-            # Cache for 10 minutes to offload DB
-            await self.cache.set_json(cache_key, products_data, ttl=600)
+    async def _handle_secondary_suggestions(self, user_id: int, added_product: Product):
+        final_products = []
+        suggestion_reason = ""
 
-            selected_objs = random.sample(products_data, min(len(products_data), 50))
-            
+        try:
+            complementary_products = await self.search_engine.find_complementary_products(
+                db=self.db, anchor_product=added_product, limit=20
+            )
+            complementary_data = [p.model_dump(mode='json') for p in complementary_products]
+            final_products = await self._filter_candidates(user_id, complementary_data, limit=5)
+
+            if final_products:
+                suggestion_reason = f"Perfect matches for your **{added_product.name}**:"
+        except Exception as e:
+            logger.error(f"Semantic search error: {e}")
+
+        if len(final_products) < 5:
+            backup_pool = await self._get_global_backup_products()
+            needed = 5 - len(final_products)
+
+            backup_candidates = await self._filter_candidates(user_id, backup_pool, limit=50)
+            unique_backups = [p for p in backup_candidates if p['id'] not in {x['id'] for x in final_products}]
+
+            fillers = unique_backups[:needed]
+            final_products.extend(fillers)
+
+            if not suggestion_reason:
+                suggestion_reason = "You might also like these popular picks:"
+
+        if not final_products:
+            statement = select(Product).where(Product.id != added_product.id).order_by(func.random()).limit(5)
+            emergency_products = (await self.db.exec(statement)).all()
+            final_products = [p.model_dump(mode='json') for p in emergency_products]
+            suggestion_reason = "Discover more form our collection:"
+
+        if final_products:
+            await self._mark_products_as_seen(user_id, final_products)
             await self.rabbitmq.publish(
                 {
                     "user_id": user_id,
-                    "content": "Welcome! Here are the top 50 trending items worldwide:",
+                    "content": suggestion_reason,
                     "type": "proactive_suggestion",
-                    "products": selected_objs,
-                    "reason": "Global trending items selected for you."
+                    "products": final_products,
+                    "reason": "Smart curation based on your cart."
                 },
                 "airdeliver.ai.response.out",
             )
@@ -92,41 +167,21 @@ class AINLUService:
             },
             "airdeliver.ai.response.out",
         )
-        
-    async def _handle_secondary_suggestions(self, user_id: int, added_product: Product):
-        try:
-            # Cross-Selling Intelligence: Fetch up to 10 complementary items
-            products = await self.search_engine.find_complementary_products(
-                db=self.db, anchor_product=added_product, limit=10
-            )
-            if products:
-                await self.rabbitmq.publish(
-                    {
-                        "user_id": user_id,
-                        "content": f"Complete the look! Customers who bought **{added_product.name}** also grabbed these:",
-                        "type": "proactive_suggestion",
-                        "products": [p.model_dump(mode='json') for p in products],
-                        "reason": f"Curated matching items just for you."
-                    },
-                    "airdeliver.ai.response.out",
-                )
-        except Exception as e:
-            logger.error(f"Secondary suggestion failed: {e}")
-            
+
     async def _handle_add_to_cart_success(self, user_id: int, product: Product):
         await self._send_add_success_text(user_id, product.name)
-        await self._send_confirmation_prompt(user_id)
         await self._handle_secondary_suggestions(user_id, product)
+        await self._send_confirmation_prompt(user_id)
 
     async def process_message(self, message_payload: dict):
         user_id = message_payload.get("user_id")
         raw_message = message_payload.get("message")
-        
+
         if isinstance(raw_message, dict):
-             message_text = "" 
+             message_text = ""
         else:
              message_text = str(raw_message).strip() if raw_message else ""
-        
+
         if not raw_message: return
 
         if message_text.startswith("__INTERNAL_"):
@@ -140,14 +195,14 @@ class AINLUService:
                 "airdeliver.ai.intent.confirm_order",
             )
             return
-            
+
         if lower_msg in ["clear cart", "empty cart"]:
             await self.rabbitmq.publish(
                 {"user_id": user_id, "notify_user": True},
                 "airdeliver.ai.intent.clear_cart",
             )
             return
-        
+
         if message_payload.get("type") == "CANCEL_INTENT":
             order_id = None
             reason = None
@@ -174,7 +229,7 @@ class AINLUService:
                         **response_payload,
                         "content": f"I couldn't find exactly '{message_text}', but check these out:",
                         "type": "product_carousel",
-                        "products": [] 
+                        "products": []
                     }, "airdeliver.ai.response.out")
             elif len(products) > 1:
                  await self.rabbitmq.publish({
@@ -187,7 +242,7 @@ class AINLUService:
                 added_product = products[0]
                 await self.rabbitmq.publish({**response_payload, "product_id": added_product.id, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
                 await self._handle_add_to_cart_success(user_id, added_product)
-        
+
         elif intent == "SEARCH_PRODUCT":
             if products:
                 intro_text = "Found these for you:"
@@ -198,7 +253,7 @@ class AINLUService:
                     **response_payload,
                     "content": intro_text,
                     "type": "product_carousel",
-                    "products": [p.model_dump(mode='json') for p in products] 
+                    "products": [p.model_dump(mode='json') for p in products]
                 }, "airdeliver.ai.response.out")
             else:
                 await self.rabbitmq.publish({**response_payload, "content": f"I couldn't find anything matching '{message_text}'. Try generic terms like 'phones' or 'shoes'.", "type": "error"}, "airdeliver.ai.response.out")
@@ -211,15 +266,16 @@ class AINLUService:
             )
             await self.rabbitmq.publish({"user_id": user_id, "notify_user": False}, "airdeliver.ai.intent.clear_cart")
             return
-        
+
         if command == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
             await self._handle_initial_suggestions(user_id)
             return
-            
+
         if command == "__INTERNAL_RESET_SESSION__":
+            await self.cache.delete(self._get_seen_key(user_id))
             await self.rabbitmq.publish({"user_id": user_id, "notify_user": False}, "airdeliver.ai.intent.clear_cart")
             return
-            
+
         if command == "__INTERNAL_CLEAR_CART__":
             await self.rabbitmq.publish({"user_id": user_id, "notify_user": True}, "airdeliver.ai.intent.clear_cart")
             return

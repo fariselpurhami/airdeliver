@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Optional, Any
+from typing import Optional, Any, Set
 from abc import ABC, abstractmethod
 import redis.asyncio as aioredis
 from redis.asyncio.client import Redis
@@ -29,6 +29,16 @@ class IAsyncCacheClient(ABC):
     async def get_json(self, key: str) -> Optional[dict]: ...
     @abstractmethod
     async def ping(self) -> bool: ...
+    @abstractmethod
+    async def sadd(self, key: str, *values: Any) -> None: ...
+    @abstractmethod
+    async def smembers(self, key: str) -> Set[str]: ...
+    @abstractmethod
+    async def expire(self, key: str, ttl: int) -> None: ...
+
+    @property
+    @abstractmethod
+    def client(self) -> Any: ...
 
 class RedisCacheClient(IAsyncCacheClient):
     def __init__(self, url: str):
@@ -92,6 +102,31 @@ class RedisCacheClient(IAsyncCacheClient):
             logger.error(f"Redis PING check failed: {str(e)}")
             return False
 
+    async def sadd(self, key: str, *values: Any) -> None:
+        try:
+            if values:
+                await self._redis.sadd(key, *values)
+        except RedisError as e:
+            logger.error(f"Redis SADD error: {e}")
+
+    async def smembers(self, key: str) -> Set[str]:
+        try:
+            members = await self._redis.smembers(key)
+            return set(members) if members else set()
+        except RedisError as e:
+            logger.error(f"Redis SMEMBERS error: {e}")
+            return set()
+
+    async def expire(self, key: str, ttl: int) -> None:
+        try:
+            await self._redis.expire(key, ttl)
+        except RedisError as e:
+            logger.error(f"Redis EXPIRE error: {e}")
+
+    @property
+    def client(self) -> Redis:
+        return self._redis
+
 class NoOpCacheClient(IAsyncCacheClient):
     async def connect(self) -> None: pass
     async def disconnect(self) -> None: pass
@@ -101,6 +136,12 @@ class NoOpCacheClient(IAsyncCacheClient):
     async def set_json(self, key: str, value: dict, ttl: Optional[int] = None) -> None: pass
     async def get_json(self, key: str) -> Optional[dict]: return None
     async def ping(self) -> bool: return True
+    async def sadd(self, key: str, *values: Any) -> None: pass
+    async def smembers(self, key: str) -> Set[str]: return set()
+    async def expire(self, key: str, ttl: int) -> None: pass
+
+    @property
+    def client(self) -> Any: return None
 
 async def get_cache_client(request: Request) -> IAsyncCacheClient:
     if not hasattr(request.app.state, "cache"):

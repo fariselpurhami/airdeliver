@@ -4,7 +4,7 @@ import re
 import asyncio
 import logging
 from fastapi import Depends
-from sqlmodel import select, or_, func, and_
+from sqlmodel import select, or_, func, and_, col
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.product import Product
 from typing import List, Dict, Any, Tuple, Optional, AsyncGenerator
@@ -36,7 +36,7 @@ class AICommerceEngine:
         opensearch_client: AsyncOpenSearch,
         milvus_client: MilvusClient,
         embedding_model: SentenceTransformer,
-        cache_client: Optional[IAsyncCacheClient] = None 
+        cache_client: Optional[IAsyncCacheClient] = None
     ):
         self.opensearch_client = opensearch_client
         self.milvus_client = milvus_client
@@ -44,7 +44,7 @@ class AICommerceEngine:
         self.cache_client = cache_client
         self.reranker = HybridSearchReranker()
         self.milvus_collection = "airdeliver_products"
-        
+
         self.intent_patterns = {
             "ADD_TO_CART": [re.compile(p) for p in [r"add (.*) to (cart|bag)", r"buy (.*)", r"i want (.*)", r"get (.*)", r"purchase (.*)"]],
             "REMOVE_FROM_CART": [re.compile(p) for p in [r"remove (.*)", r"delete (.*)", r"take off (.*)"]],
@@ -60,7 +60,7 @@ class AICommerceEngine:
 
     def _extract_intent_and_entity(self, message: str) -> Tuple[str, str]:
         normalized = self._normalize_message(message)
-        
+
         if normalized in self.direct_confirm: return "CONFIRM_ORDER", ""
         if normalized in self.direct_clear: return "CLEAR_CART", ""
 
@@ -69,7 +69,7 @@ class AICommerceEngine:
                 match = pattern.search(normalized)
                 if match:
                     return intent, match.group(1).strip() if match.groups() else ""
-        
+
         return "SEARCH_PRODUCT", normalized
 
     def _get_query_embedding(self, query: str) -> List[float]:
@@ -86,11 +86,11 @@ class AICommerceEngine:
                 "multi_match": {
                     "query": query,
                     "fields": ["name^4", "description^2", "category^3", "tags"],
-                    "fuzziness": "AUTO" 
+                    "fuzziness": "AUTO"
                 }
             },
             "size": limit,
-            "_source": False 
+            "_source": False
         }
         try:
             response = await self.opensearch_client.search(
@@ -108,7 +108,7 @@ class AICommerceEngine:
             expr = f"id != {exclude_id}" if exclude_id else ""
             loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(
-                None, 
+                None,
                 lambda: self.milvus_client.search(
                     collection_name=self.milvus_collection,
                     data=[vector],
@@ -146,7 +146,7 @@ class AICommerceEngine:
              return (await db.exec(statement)).all(), {"intent": intent}
 
         query_vector = self._get_query_embedding(entity)
-        
+
         opensearch_results, milvus_results = await asyncio.gather(
             self._search_opensearch(entity, limit=50),
             self._search_milvus(query_vector, limit=50),
@@ -163,10 +163,10 @@ class AICommerceEngine:
         products = []
         if sorted_ids:
             product_ids_int = [int(pid) for pid in sorted_ids]
-        
+
             statement = select(Product).where(Product.id.in_(product_ids_int))
             products_db = (await db.exec(statement)).all()
-            
+
             product_map = {p.id: p for p in products_db}
             products = [product_map[pid] for pid in product_ids_int if pid in product_map]
 
@@ -178,42 +178,34 @@ class AICommerceEngine:
     async def find_complementary_products(
         self, db: AsyncSession, anchor_product: Product, limit: int = 20
     ) -> List[Product]:
-        
-        # Semantic Expansion: Construct a query that targets compatible items, not identical ones.
-        # For "Dress" -> "shoes, bag, jewelry, perfume"
-        # For "iPhone" -> "case, charger, airpods"
-        semantic_query = f"compatible accessories, matching essentials, and style complements for {anchor_product.name} {anchor_product.category}"
-        
+
+        semantic_query = f"compatible accessories, essential add-ons, matching items, and complementary supplies for {anchor_product.name} in category {anchor_product.category}"
+
         vector = self._get_query_embedding(semantic_query)
 
-        # Increase search radius to capture diverse categories
         milvus_results = await self._search_milvus(vector, limit=100, exclude_id=anchor_product.id)
-        
+
         if not milvus_results:
-            # Fallback: Same category but different items
             statement = select(Product).where(
-                and_(Product.category == anchor_product.category, Product.id != anchor_product.id)
-            ).limit(limit)
+                Product.id != anchor_product.id
+            ).order_by(func.random()).limit(limit)
             return (await db.exec(statement)).all()
 
         related_ids = [int(pid) for pid, score in milvus_results]
         statement = select(Product).where(Product.id.in_(related_ids))
         products = (await db.exec(statement)).all()
-        
+
         product_map = {p.id: p for p in products}
         ordered_products = []
-        
-        # Diversity Filter: Avoid showing 10 items of the exact same type if possible
         seen_names = set()
-        
+
         for pid in related_ids:
             if pid in product_map:
                 p = product_map[pid]
-                # Simple heuristic to encourage diversity
                 if p.name not in seen_names:
                     ordered_products.append(p)
                     seen_names.add(p.name)
-        
+
         return ordered_products[:limit]
 
 def get_embedding_model() -> SentenceTransformer:
