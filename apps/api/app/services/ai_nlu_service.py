@@ -1,43 +1,70 @@
-# //** apps/api/app/services/ai_nlu_service.py **//
+# apps/api/app/services/ai_nlu_service.py
 
 import logging
 import random
-import asyncio
+import json
 from typing import List, Dict, Any, Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, func
+from sqlmodel import select
 from app.services.ai_commerce_engine import AICommerceEngine
 from app.services.rabbitmq_service import RabbitMQService
+from app.services.cache_service import IAsyncCacheClient
 from app.models.product import Product
 
 logger = logging.getLogger(__name__)
 
 class AINLUService:
-
     def __init__(
         self,
         db: AsyncSession,
         search_engine: AICommerceEngine,
         rabbitmq: RabbitMQService,
+        cache: IAsyncCacheClient, 
     ):
         self.db = db
         self.search_engine = search_engine
         self.rabbitmq = rabbitmq
+        self.cache = cache
 
     async def _handle_initial_suggestions(self, user_id: int):
+        cache_key = "global:trending_products:v1"
         
-        statement = select(Product).order_by(Product.rating.desc()).limit(20)
-        products = (await self.db.exec(statement)).all()
-        
-        if products:
-    
-            selected = random.sample(products, min(len(products), 10))
+        # 1. Try Fast Path (Redis)
+        cached_products = await self.cache.get_json(cache_key)
+
+        if cached_products:
+            # Randomize selection to keep it fresh, but serve HEAVY load (50 items)
+            selected = random.sample(cached_products, min(len(cached_products), 50))
             await self.rabbitmq.publish(
                 {
                     "user_id": user_id,
-                    "content": "Here are the top picks trending worldwide right now:",
+                    "content": "Welcome! Here are the top 50 trending items worldwide:",
                     "type": "proactive_suggestion",
-                    "products": [p.model_dump() for p in selected],
+                    "products": selected,
+                    "reason": "Global trending items selected for you."
+                },
+                "airdeliver.ai.response.out",
+            )
+            return
+
+        # 2. Slow Path (DB) - Only once per 10 minutes
+        statement = select(Product).order_by(Product.rating.desc()).limit(200)
+        products = (await self.db.exec(statement)).all()
+        
+        if products:
+            products_data = [p.model_dump(mode='json') for p in products]
+            
+            # Cache for 10 minutes to offload DB
+            await self.cache.set_json(cache_key, products_data, ttl=600)
+
+            selected_objs = random.sample(products_data, min(len(products_data), 50))
+            
+            await self.rabbitmq.publish(
+                {
+                    "user_id": user_id,
+                    "content": "Welcome! Here are the top 50 trending items worldwide:",
+                    "type": "proactive_suggestion",
+                    "products": selected_objs,
                     "reason": "Global trending items selected for you."
                 },
                 "airdeliver.ai.response.out",
@@ -45,9 +72,9 @@ class AINLUService:
 
     async def _send_add_success_text(self, user_id: int, product_name: str):
         success_messages = [
-            f"**{product_name}** added! 🚀 You've got great taste.",
-            f"**{product_name}** added! ✨ Smooth and sharp selection.",
-            f"**{product_name}** added! 💎 Perfect choice that one never disappoints.",
+            f"**{product_name}** added! 🚀 Excellent choice.",
+            f"**{product_name}** added! ✨ This will look great.",
+            f"**{product_name}** added! 📦 Secured in your cart.",
         ]
         selected_content = random.choice(success_messages)
         await self.rabbitmq.publish(
@@ -59,7 +86,7 @@ class AINLUService:
         await self.rabbitmq.publish(
             {
                 "user_id": user_id,
-                "content": "Systems ready. Move to checkout?",
+                "content": "I'm ready when you are. Proceed to checkout?",
                 "type": "confirmation_prompt",
                 "options": ["Confirm Order", "Clear Cart"],
             },
@@ -67,18 +94,18 @@ class AINLUService:
         )
         
     async def _handle_secondary_suggestions(self, user_id: int, added_product: Product):
-        
         try:
+            # Cross-Selling Intelligence: Fetch up to 10 complementary items
             products = await self.search_engine.find_complementary_products(
-                db=self.db, anchor_product=added_product, limit=5
+                db=self.db, anchor_product=added_product, limit=10
             )
             if products:
                 await self.rabbitmq.publish(
                     {
                         "user_id": user_id,
-                        "content": f"People who bought **{added_product.name}** also loved these:",
+                        "content": f"Complete the look! Customers who bought **{added_product.name}** also grabbed these:",
                         "type": "proactive_suggestion",
-                        "products": [p.model_dump() for p in products],
+                        "products": [p.model_dump(mode='json') for p in products],
                         "reason": f"Curated matching items just for you."
                     },
                     "airdeliver.ai.response.out",
@@ -87,7 +114,6 @@ class AINLUService:
             logger.error(f"Secondary suggestion failed: {e}")
             
     async def _handle_add_to_cart_success(self, user_id: int, product: Product):
-        
         await self._send_add_success_text(user_id, product.name)
         await self._send_confirmation_prompt(user_id)
         await self._handle_secondary_suggestions(user_id, product)
@@ -151,15 +177,13 @@ class AINLUService:
                         "products": [] 
                     }, "airdeliver.ai.response.out")
             elif len(products) > 1:
-                 # Ambiguity Resolution
                  await self.rabbitmq.publish({
                         **response_payload,
                         "content": f"I found a few items matching '{message_text}'. Which one?",
                         "type": "proactive_suggestion",
-                        "products": [p.model_dump() for p in products[:10]]
+                        "products": [p.model_dump(mode='json') for p in products[:10]]
                     }, "airdeliver.ai.response.out")
             else:
-    
                 added_product = products[0]
                 await self.rabbitmq.publish({**response_payload, "product_id": added_product.id, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
                 await self._handle_add_to_cart_success(user_id, added_product)
@@ -167,7 +191,6 @@ class AINLUService:
         elif intent == "SEARCH_PRODUCT":
             if products:
                 intro_text = "Found these for you:"
-
                 if "wedding" in lower_msg: intro_text = "Looking sharp! Here are some elegant options:"
                 if "iphone" in lower_msg: intro_text = "Here are the latest models and accessories:"
 
@@ -175,13 +198,12 @@ class AINLUService:
                     **response_payload,
                     "content": intro_text,
                     "type": "product_carousel",
-                    "products": [p.model_dump() for p in products] 
+                    "products": [p.model_dump(mode='json') for p in products] 
                 }, "airdeliver.ai.response.out")
             else:
                 await self.rabbitmq.publish({**response_payload, "content": f"I couldn't find anything matching '{message_text}'. Try generic terms like 'phones' or 'shoes'.", "type": "error"}, "airdeliver.ai.response.out")
 
     async def _process_internal_command(self, user_id: int, command: str):
-        """Handles system commands securely"""
         if command == "__INTERNAL_SAVE_FOR_LATER__":
             await self.rabbitmq.publish(
                 {"user_id": user_id, "content": "Got it 💾, saved to your wishlist.", "type": "success_text"},
@@ -205,20 +227,16 @@ class AINLUService:
         if command.startswith("__INTERNAL_ADD_BY_ID__:") and user_id:
             try:
                 product_id = int(command.split(":")[1])
-                
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": product_id, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
-                
                 product = await self.db.get(Product, product_id)
                 if product:
                     await self._handle_add_to_cart_success(user_id, product)
-            except Exception: 
-                pass
+            except Exception: pass
             return
 
         if command.startswith("__INTERNAL_REMOVE_BY_ID__:") and user_id:
             try:
                 product_id = int(command.split(":")[1])
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": product_id, "action": "remove_by_id"}, "airdeliver.ai.intent.remove_from_cart")
-            except Exception: 
-                pass
+            except Exception: pass
             return

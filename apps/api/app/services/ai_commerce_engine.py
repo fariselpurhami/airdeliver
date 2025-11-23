@@ -1,11 +1,10 @@
-# //** apps/api/app/services/ai_commerce_engine.py **//
+# apps/api/app/services/ai_commerce_engine.py
 
 import re
 import asyncio
 import logging
-import json
 from fastapi import Depends
-from sqlmodel import select, or_, func, and_, col
+from sqlmodel import select, or_, func, and_
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.product import Product
 from typing import List, Dict, Any, Tuple, Optional, AsyncGenerator
@@ -20,7 +19,6 @@ logger = logging.getLogger(__name__)
 MILVUS_DB_PATH = "/data/storage/milvus_in_memory.db"
 
 class HybridSearchReranker:
-
     def __init__(self, k: int = 60):
         self.k = k
 
@@ -58,7 +56,6 @@ class AICommerceEngine:
         self.direct_clear = {"clear cart", "empty cart"}
 
     def _normalize_message(self, message: str) -> str:
-    
         return re.sub(r"[^\w\s]", "", message.lower())
 
     def _extract_intent_and_entity(self, message: str) -> Tuple[str, str]:
@@ -83,7 +80,7 @@ class AICommerceEngine:
             logger.error(f"Embedding generation failed: {e}")
             return []
 
-    async def _search_opensearch(self, query: str, limit: int = 20) -> List[Tuple[str, float]]:
+    async def _search_opensearch(self, query: str, limit: int = 50) -> List[Tuple[str, float]]:
         opensearch_query = {
             "query": {
                 "multi_match": {
@@ -104,7 +101,7 @@ class AICommerceEngine:
             logger.warning(f"OpenSearch failed: {e}")
             return []
 
-    async def _search_milvus(self, vector: List[float], limit: int = 20, exclude_id: Optional[int] = None) -> List[Tuple[str, float]]:
+    async def _search_milvus(self, vector: List[float], limit: int = 50, exclude_id: Optional[int] = None) -> List[Tuple[str, float]]:
         if not vector: return []
         search_params = {"metric_type": "L2", "params": {"nprobe": 20}}
         try:
@@ -126,7 +123,6 @@ class AICommerceEngine:
             return []
 
     async def _fallback_sql_search(self, db: AsyncSession, query: str, limit: int = 20) -> List[Product]:
-
         clean_query = query.replace("%", "")
         statement = select(Product).where(
             or_(
@@ -146,15 +142,14 @@ class AICommerceEngine:
         if intent == "CLEAR_CART": return [], {"intent": "CLEAR_CART"}
 
         if not entity:
-
-             statement = select(Product).order_by(func.random()).limit(10)
+             statement = select(Product).order_by(func.random()).limit(50)
              return (await db.exec(statement)).all(), {"intent": intent}
 
         query_vector = self._get_query_embedding(entity)
         
         opensearch_results, milvus_results = await asyncio.gather(
-            self._search_opensearch(entity, limit=30),
-            self._search_milvus(query_vector, limit=30),
+            self._search_opensearch(entity, limit=50),
+            self._search_milvus(query_vector, limit=50),
             return_exceptions=True
         )
 
@@ -163,7 +158,7 @@ class AICommerceEngine:
 
         all_results = opensearch_results + milvus_results
         reranked_scores = self.reranker.rerank(all_results)
-        sorted_ids = sorted(reranked_scores, key=reranked_scores.get, reverse=True)[:20]
+        sorted_ids = sorted(reranked_scores, key=reranked_scores.get, reverse=True)[:50]
 
         products = []
         if sorted_ids:
@@ -176,7 +171,6 @@ class AICommerceEngine:
             products = [product_map[pid] for pid in product_ids_int if pid in product_map]
 
         if not products:
-            logger.info(f"Hybrid search yielded 0 results for '{entity}'. Falling back to SQL.")
             products = await self._fallback_sql_search(db, entity)
 
         return products, {"intent": intent, "quantity": 1}
@@ -184,12 +178,19 @@ class AICommerceEngine:
     async def find_complementary_products(
         self, db: AsyncSession, anchor_product: Product, limit: int = 20
     ) -> List[Product]:
-        rich_text = f"{anchor_product.category} accessories for {anchor_product.name} {anchor_product.description}"
-        vector = self._get_query_embedding(rich_text)
+        
+        # Semantic Expansion: Construct a query that targets compatible items, not identical ones.
+        # For "Dress" -> "shoes, bag, jewelry, perfume"
+        # For "iPhone" -> "case, charger, airpods"
+        semantic_query = f"compatible accessories, matching essentials, and style complements for {anchor_product.name} {anchor_product.category}"
+        
+        vector = self._get_query_embedding(semantic_query)
 
-        milvus_results = await self._search_milvus(vector, limit=50, exclude_id=anchor_product.id)
+        # Increase search radius to capture diverse categories
+        milvus_results = await self._search_milvus(vector, limit=100, exclude_id=anchor_product.id)
         
         if not milvus_results:
+            # Fallback: Same category but different items
             statement = select(Product).where(
                 and_(Product.category == anchor_product.category, Product.id != anchor_product.id)
             ).limit(limit)
@@ -200,12 +201,22 @@ class AICommerceEngine:
         products = (await db.exec(statement)).all()
         
         product_map = {p.id: p for p in products}
-        ordered_products = [product_map[pid] for pid in related_ids if pid in product_map]
+        ordered_products = []
+        
+        # Diversity Filter: Avoid showing 10 items of the exact same type if possible
+        seen_names = set()
+        
+        for pid in related_ids:
+            if pid in product_map:
+                p = product_map[pid]
+                # Simple heuristic to encourage diversity
+                if p.name not in seen_names:
+                    ordered_products.append(p)
+                    seen_names.add(p.name)
         
         return ordered_products[:limit]
 
 def get_embedding_model() -> SentenceTransformer:
-
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 def get_milvus_client() -> MilvusClient:
@@ -224,6 +235,5 @@ def get_ai_commerce_engine(
     opensearch_client: AsyncOpenSearch = Depends(get_opensearch_client),
     milvus_client: MilvusClient = Depends(get_milvus_client),
     embedding_model: SentenceTransformer = Depends(get_embedding_model),
-
 ) -> AICommerceEngine:
     return AICommerceEngine(opensearch_client, milvus_client, embedding_model)
