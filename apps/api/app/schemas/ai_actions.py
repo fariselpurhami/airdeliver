@@ -2,12 +2,10 @@
 
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal, List, Optional, Union, Dict, Any
-import json
+import orjson
 
-def to_utf8(v: Any) -> Any:
-    if isinstance(v, str):
-        return v.encode('utf-8').decode('utf-8')
-    return v
+def orjson_dumps(v, *, default):
+    return orjson.dumps(v, default=default).decode()
 
 class CartActionPayload(BaseModel):
     userId: str
@@ -73,5 +71,5 @@ class NeuralCoreResponse(BaseModel):
     telemetry: Telemetry
 
     model_config = ConfigDict(
-        json_serializer=lambda v: json.dumps(v, ensure_ascii=False)
+        json_serializer=orjson_dumps
     )

@@ -1,8 +1,8 @@
-# apps/api/.dockerignore
-
 .git
 .gitignore
+.dockerignore
 
+# Python Cache
 __pycache__
 *.pyc
 *.pyo
@@ -12,35 +12,42 @@ env/
 venv/
 .venv/
 
+# Build Artifacts
 build/
 dist/
 *.egg-info/
 
+# IDE Settings
 .idea/
 .vscode/
 *.swp
 *.swo
 
+# Logs
+*.log
 pip-log.txt
-pip-delete-this-directory.txt
 
+# Testing & Coverage (Don't copy to Prod Image)
 .tox/
 .coverage
 .coverage.*
+htmlcov/
 .cache
 nosetests.xml
 coverage.xml
-*.cover
-*.log
 .mypy_cache/
 .pytest_cache/
+tests/ 
 
+# OS Files
 .DS_Store
 Thumbs.db
 
+# Environment Variables (Security Risk if copied)
 .env
 .env.*
 
+# Local Data & Models (We mount these or download them, don't COPY them from context)
 data/
 models_cache/
 static/

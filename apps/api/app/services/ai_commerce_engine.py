@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.product import Product
 from typing import List, Dict, Any, Tuple, Optional, AsyncGenerator
 from opensearchpy import AsyncOpenSearch
-from pymilvus import MilvusClient, DataType, MilvusException
+from pymilvus import MilvusClient, DataType
 from sentence_transformers import SentenceTransformer
 from app.core.config import get_core_settings, CoreSettings
 from app.services.cache_service import IAsyncCacheClient
@@ -93,6 +93,7 @@ class AICommerceEngine:
 
             self.milvus_client.insert(collection_name=self.intent_collection, data=data_rows)
             self.milvus_client.flush(collection_name=self.intent_collection)
+            # Load collection is critical for search performance
             self.milvus_client.load_collection(collection_name=self.intent_collection)
 
             logger.info(f"✅ Intent Knowledge Base Ready with {len(data_rows)} semantic anchors.")
@@ -183,6 +184,7 @@ class AICommerceEngine:
                     search_params=search_params,
                 )
             )
+            if not results: return []
             return [(str(hit.id), 1.0 / (1.0 + hit.distance)) for hit in results[0]]
         except Exception as e:
             logger.warning(f"Milvus search failed: {e}")
@@ -204,18 +206,22 @@ class AICommerceEngine:
     ) -> Tuple[List[Product], Dict[str, Any]]:
         intent, entity = self._extract_intent_and_entity(message)
 
-        if intent == "CONFIRM_ORDER": return [], {"intent": "CONFIRM_ORDER"}
-        if intent == "CLEAR_CART": return [], {"intent": "CLEAR_CART"}
+        base_metadata = {"intent": intent, "entities": [entity] if entity else [], "query": message}
+
+        if intent == "CONFIRM_ORDER": return [], base_metadata
+        if intent == "CLEAR_CART": return [], base_metadata
 
         if intent == "ADD_TO_CART":
             remove_words = ["add", "to", "cart", "buy", "get", "purchase", "i", "want"]
             for word in remove_words:
                 entity = re.sub(r'\b' + word + r'\b', '', entity, flags=re.IGNORECASE)
             entity = entity.strip()
+            
+            base_metadata["entities"] = [entity] if entity else []
 
         if not entity:
              statement = select(Product).order_by(func.random()).limit(50)
-             return (await db.exec(statement)).all(), {"intent": intent}
+             return (await db.exec(statement)).all(), base_metadata
 
         query_vector = self._get_query_embedding(entity)
 
@@ -243,7 +249,8 @@ class AICommerceEngine:
         if not products:
             products = await self._fallback_sql_search(db, entity)
 
-        return products, {"intent": intent, "quantity": 1}
+        base_metadata["quantity"] = 1
+        return products, base_metadata
 
     async def find_complementary_products(
         self, db: AsyncSession, anchor_product: Product, limit: int = 20
@@ -301,15 +308,18 @@ class AICommerceEngine:
 
 
 def get_embedding_model() -> SentenceTransformer:
-
     return SentenceTransformer("all-MiniLM-L6-v2")
 
-def get_milvus_client() -> MilvusClient:
+def get_milvus_client(settings: CoreSettings = Depends(get_core_settings)) -> MilvusClient:
 
-    milvus_uri = os.environ.get("MILVUS_URI", "http://milvus:19530")
+    if not isinstance(settings, CoreSettings):
+        settings = get_core_settings()
+
+    milvus_uri = settings.MILVUS_URI
     try:
         client = MilvusClient(uri=milvus_uri)
         return client
+
     except Exception as e:
         logger.critical(f"🔥 Failed to connect to Milvus at {milvus_uri}: {e}")
         raise e

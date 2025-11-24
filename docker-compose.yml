@@ -1,43 +1,29 @@
-# docker-compose.yml
-
-x-logging: &default-logging
-  driver: "json-file"
-  options:
-    max-size: "50m"
-    max-file: "10"
-
-x-deploy-core: &default-core-deploy
-  restart_policy:
-    condition: any
-    delay: 5s
-    window: 120s
-  resources:
-    limits:
-      cpus: '2.0'
-      memory: 4G
-    reservations:
-      cpus: '1.0'
-      memory: 2G
-
-x-deploy-app: &default-app-deploy
-  restart_policy:
-    condition: any
-    delay: 5s
-    window: 120s
-  resources:
-    limits:
-      cpus: '1.0'
-      memory: 1G
-    reservations:
-      cpus: '0.5'
-      memory: 512M
+# docker-compose.yml 
 
 services:
+  setup-fs:
+    image: alpine:3.19
+    container_name: airdeliver-setup-fs
+    user: root
+    command: >
+      sh -c "
+      mkdir -p /data/storage/models_cache/huggingface &&
+      mkdir -p /data/storage/models_cache/sentence_transformers &&
+      chown -R 1001:1001 /data/storage
+      "
+    volumes:
+      - api-storage-data:/data/storage
+    logging: *default-logging
+    deploy:
+      restart_policy:
+        condition: on-failure
+
   reverse-proxy:
     image: traefik:v3.0
     container_name: airdeliver-reverse-proxy
+    restart: always
     command:
-      - "--api.dashboard=true"
+      - "--api.dashboard=false"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=airdeliver-public"
@@ -60,28 +46,87 @@ services:
       - traefik-letsencrypt-data:/letsencrypt
     networks:
       - public-net
-    restart: always
+      - monitoring-net
     logging: *default-logging
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=airdeliver-public"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.airdeliver.com`)"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=auth,compress-all,security-headers"
-      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_DASHBOARD_USER}:${TRAEFIK_DASHBOARD_PASS_HASH}"
-      - "traefik.http.middlewares.compress-all.compress=true"
-      - "traefik.http.middlewares.security-headers.headers.sslredirect=true"
-      - "traefik.http.middlewares.security-headers.headers.stsseconds=31536000"
-      - "traefik.http.middlewares.security-headers.headers.browserxssfilter=true"
-      - "traefik.http.middlewares.security-headers.headers.contenttypenosniff=true"
+
+
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: airdeliver-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring-net
+    deploy: *default-core-deploy
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: airdeliver-promtail
+    volumes:
+      - ./monitoring/promtail.yaml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml -config.expand-env=true
+    networks:
+      - monitoring-net
+    deploy: *default-app-deploy
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: airdeliver-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+    networks:
+      - monitoring-net
+      - backend-net
+    deploy: *default-core-deploy
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: airdeliver-cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - monitoring-net
+    deploy: *default-app-deploy
+    devices:
+      - /dev/kmsg
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: airdeliver-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - monitoring-net
+      - public-net
+    deploy: *default-core-deploy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=airdeliver-public"
+      - "traefik.http.routers.grafana.rule=Host(`monitor.airdeliver.com`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.routers.grafana.middlewares=auth-monitor"
+      - "traefik.http.middlewares.auth-monitor.basicauth.users=${TRAEFIK_DASHBOARD_USER}:${TRAEFIK_DASHBOARD_PASS_HASH}"
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-bullseye
     container_name: airdeliver-db
     restart: always
-    command: postgres -c shared_buffers=512MB -c effective_cache_size=1536MB -c maintenance_work_mem=128MB -c checkpoint_completion_target=0.9 -c wal_buffers=16MB -c default_statistics_target=100 -c random_page_cost=1.1 -c effective_io_concurrency=200 -c work_mem=4MB -c min_wal_size=1GB -c max_wal_size=4GB -c max_worker_processes=8 -c max_parallel_workers_per_gather=4 -c max_parallel_workers=8
+    command: postgres -c shared_buffers=1024MB -c effective_cache_size=3072MB -c maintenance_work_mem=256MB -c checkpoint_completion_target=0.9 -c wal_buffers=16MB -c default_statistics_target=100 -c random_page_cost=1.1 -c effective_io_concurrency=200 -c work_mem=4MB -c min_wal_size=1GB -c max_wal_size=4GB -c max_worker_processes=8 -c max_parallel_workers_per_gather=4 -c max_parallel_workers=8
     environment:
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
@@ -103,8 +148,33 @@ services:
     logging: *default-logging
     deploy: *default-core-deploy
 
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local
+    container_name: airdeliver-db-backup
+    restart: always
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB_FILE=/run/secrets/postgres_db
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+      - SCHEDULE=@daily
+      - BACKUP_KEEP_DAYS=7
+      - BACKUP_KEEP_WEEKS=4
+      - BACKUP_KEEP_MONTHS=6
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
+    volumes:
+      - postgres-backups:/backups
+    networks:
+      - backend-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   mq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:3.13-management
     container_name: airdeliver-mq
     restart: always
     volumes:
@@ -126,17 +196,9 @@ services:
       - backend-net
     logging: *default-logging
     deploy: *default-core-deploy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=airdeliver-public"
-      - "traefik.http.routers.mq.rule=Host(`mq.airdeliver.com`)"
-      - "traefik.http.routers.mq.entrypoints=websecure"
-      - "traefik.http.routers.mq.tls.certresolver=letsencrypt"
-      - "traefik.http.services.mq.loadbalancer.server.port=15672"
-      - "traefik.http.routers.mq.middlewares=auth"
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-bullseye
     container_name: airdeliver-redis
     restart: always
     command: redis-server --save 60 1 --loglevel warning --maxmemory 1gb --maxmemory-policy allkeys-lru --io-threads 4 --io-threads-do-reads yes
@@ -161,7 +223,7 @@ services:
       - bootstrap.memory_lock=true
       - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"
       - "DISABLE_INSTALL_DEMO_CONFIG=true"
-      - "DISABLE_SECURITY_PLUGIN=true"
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-REMOVED_COMMITTED_SECRET}
     ulimits:
       memlock:
         soft: -1
@@ -174,11 +236,70 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:9200"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 60s
+    logging: *default-logging
+    deploy: *default-core-deploy
+  
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: airdeliver-etcd
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: 1000
+      ETCD_QUOTA_BACKEND_BYTES: 4294967296
+      ETCD_SNAPSHOT_COUNT: 50000
+    volumes:
+      - etcd-data:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - backend-net
+    logging: *default-logging
+    deploy: *default-core-deploy
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: airdeliver-minio
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio-data:/minio_data
+    command: minio server /minio_data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    logging: *default-logging
+    deploy: *default-app-deploy
+
+  milvus:
+    image: milvusdb/milvus:v2.3.13
+    container_name: airdeliver-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - milvus-data:/var/lib/milvus
+    depends_on:
+      - etcd
+      - minio
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
     logging: *default-logging
     deploy: *default-core-deploy
 
@@ -223,18 +344,22 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     restart: always
+    stop_grace_period: 125s
     environment:
       - POSTGRES_SERVER=postgres
       - RABBITMQ_HOST=mq
       - REDIS_HOST=redis
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
+      - OPENSEARCH_USER=admin
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-REMOVED_COMMITTED_SECRET}
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
       - RABBITMQ_USER_FILE=/run/secrets/rabbitmq_user
       - RABBITMQ_PASS_FILE=/run/secrets/rabbitmq_pass
       - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      - WEB_CONCURRENCY=5
     secrets:
       - postgres_user
       - postgres_password
@@ -254,6 +379,8 @@ services:
         condition: service_healthy
       opensearch:
         condition: service_healthy
+      milvus:
+        condition: service_healthy
     networks:
       - backend-net
       - public-net
@@ -263,7 +390,7 @@ services:
        timeout: 2s
        retries: 10
        start_period: 30s
-    command: gunicorn app.main:app -w ${WEB_CONCURRENCY:-8} -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --keep-alive 120 --timeout 120
+    command: gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --keep-alive 120 --timeout 120
     logging: *default-logging
     deploy: *default-core-deploy
     labels:
@@ -281,13 +408,19 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+    user: airdeliver
     restart: always
+    stop_grace_period: 125s
     environment:
       - POSTGRES_SERVER=postgres
       - RABBITMQ_HOST=mq
       - REDIS_HOST=redis
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
+      - OPENSEARCH_USER=admin
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-REMOVED_COMMITTED_SECRET}
+      # INTEGRATION: Milvus URI added for production parity
+      - MILVUS_URI=http://milvus:19530
       - HF_HOME=/data/storage/models_cache/huggingface
       - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
@@ -305,19 +438,19 @@ services:
     volumes:
       - api-storage-data:/data/storage
     depends_on:
+      setup-fs:
+        condition: service_completed_successfully
       api:
         condition: service_healthy
       opensearch:
+        condition: service_healthy
+      milvus:
         condition: service_healthy
     networks:
       - backend-net
     logging: *default-logging
     deploy: *default-core-deploy
-    command: >
-      sh -c "mkdir -p /data/storage/models_cache/huggingface &&
-             mkdir -p /data/storage/models_cache/sentence_transformers &&
-             chown -R airdeliver:airdeliver /data/storage &&
-             su -s /bin/sh airdeliver -c \"python /app/worker_entrypoint.py\""
+    command: python /app/worker_entrypoint.py
 
   c2_gateway:
     container_name: airdeliver-c2-gateway
@@ -325,11 +458,13 @@ services:
       context: ./apps/c2-gateway
       dockerfile: Dockerfile
     restart: always
+    stop_grace_period: 70s
     environment:
       - RABBITMQ_HOST=mq
       - API_BASE_URL=http://api:8000/api/v1
       - RABBITMQ_USER_FILE=/run/secrets/rabbitmq_user
       - RABBITMQ_PASS_FILE=/run/secrets/rabbitmq_pass
+      - WEB_CONCURRENCY=3
     secrets:
       - rabbitmq_user
       - rabbitmq_pass
@@ -348,7 +483,7 @@ services:
       timeout: 2s
       retries: 5
       start_period: 30s
-    command: gunicorn app.main:app -w ${WEB_CONCURRENCY:-4} -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8001 --keep-alive 60
+    command: gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8001 --keep-alive 60
     logging: *default-logging
     deploy: *default-app-deploy
     labels:
@@ -365,6 +500,7 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
+      target: runner
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
@@ -378,10 +514,10 @@ services:
     networks:
       - public-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
-      interval: 10s
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
     logging: *default-logging
     deploy: *default-app-deploy
@@ -395,14 +531,50 @@ services:
       - "traefik.http.middlewares.compress-web.compress=true"
       - "traefik.http.routers.web.middlewares=compress-web,security-headers"
 
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-deploy-core: &default-core-deploy
+  restart_policy:
+    condition: any
+    delay: 5s
+    window: 120s
+  resources:
+    limits:
+      cpus: '2.0'
+      memory: 4G
+    reservations:
+      cpus: '1.0'
+      memory: 2G
+
+x-deploy-app: &default-app-deploy
+  restart_policy:
+    condition: any
+    delay: 5s
+    window: 120s
+  resources:
+    limits:
+      cpus: '1.0'
+      memory: 1G
+    reservations:
+      cpus: '0.5'
+      memory: 512M
+
 volumes:
   postgres-data:
+  postgres-backups:
   rabbitmq-data:
   redis-data:
   api-static-data:
   api-storage-data:
   opensearch-data:
   traefik-letsencrypt-data:
+  etcd-data:
+  minio-data:
+  milvus-data:
 
 networks:
   public-net:
@@ -415,6 +587,9 @@ networks:
   simulation-net:
     driver: bridge
     name: airdeliver-simulation
+  monitoring-net:
+    driver: bridge
+    name: airdeliver-monitoring
 
 secrets:
   postgres_user:

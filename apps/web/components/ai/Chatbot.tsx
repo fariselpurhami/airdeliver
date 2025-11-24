@@ -1,24 +1,40 @@
-//** apps/web/components/ai/chatbot **//
+//** apps/web/components/ai/chatbot.tsx **//
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Bot, Cpu, User, Loader2 } from 'lucide-react';
 import { useAISupportStore, type ChatMessage } from '@/hooks/useAISupportStore';
 
-const ExplainabilityChip = ({ text }: { text: string }) => (
-    <motion.div 
-        initial={{ opacity: 0, y: 5 }} 
-        animate={{ opacity: 1, y: 0 }} 
+interface ActionOption {
+    title: string;
+    payload: string;
+}
+
+interface ExplainabilityChipProps {
+    text: string;
+}
+
+const ExplainabilityChip = memo(({ text }: ExplainabilityChipProps) => (
+    <motion.div
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
         className="flex items-center gap-2 self-start ml-10 -mt-2 mb-2 p-1.5 bg-gray-500/10 border border-gray-500/20 rounded-full"
     >
         <Cpu size={12} className="text-gray-400"/>
         <p className="text-xs text-gray-400 italic">{text}</p>
     </motion.div>
-);
+));
 
-const MessageBubble = ({ message, onSend }: { message: ChatMessage, onSend: (text: string) => void }) => {
+ExplainabilityChip.displayName = 'ExplainabilityChip';
+
+interface MessageBubbleProps {
+    message: ChatMessage;
+    onSend: (text: string) => void;
+}
+
+const MessageBubble = memo(({ message, onSend }: MessageBubbleProps) => {
     const isUser = message.sender === 'user';
     const action = message.data.action;
 
@@ -44,32 +60,34 @@ const MessageBubble = ({ message, onSend }: { message: ChatMessage, onSend: (tex
                     </div>
                 )}
             </div>
-            
+
             {!isUser && action && action.action === 'present_options' && (
-                <motion.div 
+                <motion.div
                     layout
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0, transition: { delay: 0.3 } }}
                     className="flex flex-wrap gap-2 ml-10 mt-2"
                 >
-                    {action.payload.options.map((option: any) => (
+                    {(action.payload.options as ActionOption[]).map((option, idx) => (
                         <motion.button
-                            key={option.payload}
+                            key={`${option.payload}-${idx}`}
                             onClick={() => onSend(option.payload)}
                             className="text-sm bg-cyan-500/20 text-cyan-300 px-3 py-1.5 rounded-full border border-cyan-500/50"
                             whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                         >
                             {option.title}
                         </motion.button>
                     ))}
                 </motion.div>
             )}
-
         </motion.div>
     );
-};
+});
 
-const TypingIndicator = () => (
+MessageBubble.displayName = 'MessageBubble';
+
+const TypingIndicator = memo(() => (
     <motion.div
       layout
       initial={{ opacity: 0, y: 10 }}
@@ -98,23 +116,27 @@ const TypingIndicator = () => (
         />
       </div>
     </motion.div>
-  );
+));
 
-const ChatInput = ({ onSend, isTyping }: { onSend: (text: string) => void; isTyping: boolean }) => {
+TypingIndicator.displayName = 'TypingIndicator';
+
+interface ChatInputProps {
+    onSend: (text: string) => void;
+    isTyping: boolean;
+}
+
+const ChatInput = memo(({ onSend, isTyping }: ChatInputProps) => {
     const [value, setValue] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const wasTypingRef = useRef<boolean>(isTyping);
 
     useEffect(() => {
-        
         if (wasTypingRef.current === true && isTyping === false) {
-            
             inputRef.current?.focus();
         }
-       
         wasTypingRef.current = isTyping;
     }, [isTyping]);
-    
+
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (value.trim() && !isTyping) {
@@ -122,12 +144,12 @@ const ChatInput = ({ onSend, isTyping }: { onSend: (text: string) => void; isTyp
         setValue('');
       }
     };
-  
+
     return (
       <form onSubmit={handleSubmit} className="p-4 border-t border-cyan-400/30 flex-shrink-0">
         <div className="relative">
           <input
-	    ref={inputRef}
+            ref={inputRef}
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
@@ -149,7 +171,9 @@ const ChatInput = ({ onSend, isTyping }: { onSend: (text: string) => void; isTyp
         </div>
       </form>
     );
-  };
+});
+
+ChatInput.displayName = 'ChatInput';
 
 export default function Chatbot() {
     const { isOpen, setIsOpen, messages, sendMessage, isLoading } = useAISupportStore();
@@ -159,19 +183,19 @@ export default function Chatbot() {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
 
-    const handleSend = (input: string) => {
+    const handleSend = useCallback((input: string) => {
         sendMessage(input);
-    };
+    }, [sendMessage]);
 
     return (
         <>
             <motion.button
                 onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 right-6 z-40 p-4 rounded-full 
-                           bg-gradient-to-br from-cyan-500 to-purple-600 
-                           text-white shadow-lg shadow-cyan-500/40 
-                           flex items-center justify-center 
-                           focus:outline-none focus:ring-4 focus:ring-cyan-400/50 
+                className="fixed bottom-6 right-6 z-40 p-4 rounded-full
+                           bg-gradient-to-br from-cyan-500 to-purple-600
+                           text-white shadow-lg shadow-cyan-500/40
+                           flex items-center justify-center
+                           focus:outline-none focus:ring-4 focus:ring-cyan-400/50
                            hover:scale-110 transition-all duration-300 ease-in-out group"
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 whileTap={{ scale: 0.95 }}

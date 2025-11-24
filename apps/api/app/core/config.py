@@ -24,7 +24,7 @@ class CoreSettings(BaseSettings):
     POSTGRES_DB: str = Field(..., env="POSTGRES_DB")
 
     USE_REDIS: bool = Field(default=False, env="USE_REDIS")
-    REDIS_HOST: str = Field(default="localhost", env="REDIS_HOST")
+    REDIS_HOST: str = Field(default="redis", env="REDIS_HOST")
     REDIS_PORT: int = Field(default=6379, env="REDIS_PORT")
     REDIS_PASSWORD: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
     REDIS_DB: int = Field(default=0, env="REDIS_DB")
@@ -45,10 +45,12 @@ class CoreSettings(BaseSettings):
     VAPID_PRIVATE_KEY: str
     AI_CHAT_STATE_TTL_SECONDS: int = 900
 
-    OPENSEARCH_HOST: str = Field("localhost", env="OPENSEARCH_HOST")
+    OPENSEARCH_HOST: str = Field("opensearch", env="OPENSEARCH_HOST")
     OPENSEARCH_PORT: int = Field(9200, env="OPENSEARCH_PORT")
     OPENSEARCH_USER: Optional[str] = Field(None, env="OPENSEARCH_USER")
     OPENSEARCH_PASS: Optional[str] = Field(None, env="OPENSEARCH_PASS")
+
+    MILVUS_URI: str = Field("http://milvus:19530", env="MILVUS_URI")
 
     @computed_field
     @property

@@ -15,7 +15,7 @@ x-deploy-core: &default-core-deploy
     limits:
       memory: 2G
     reservations:
-      memory: 1G
+      memory: 512M
 
 x-deploy-app: &default-app-deploy
   restart_policy:
@@ -29,6 +29,20 @@ x-deploy-app: &default-app-deploy
       memory: 256M
 
 services:
+  setup-fs:
+    image: alpine:3.19
+    container_name: airdeliver-setup-fs
+    user: root
+    command: >
+      sh -c "
+      mkdir -p /data/storage/models_cache/huggingface &&
+      mkdir -p /data/storage/models_cache/sentence_transformers &&
+      chown -R 1001:1001 /data/storage
+      "
+    volumes:
+      - ./data/storage:/data/storage
+    logging: *default-logging
+
   reverse-proxy:
     image: traefik:v3.0
     container_name: airdeliver-reverse-proxy
@@ -39,74 +53,41 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.websecure.http3"
     ports:
       - "80:80"
       - "8080:8080"
-      - "443:443/udp"
+      - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - public-net
     logging: *default-logging
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
-      - "traefik.http.routers.dashboard.service=api@internal"
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-bullseye
     container_name: airdeliver-db
     restart: always
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-airdeliver}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    command: postgres -c shared_buffers=512MB -c effective_cache_size=1536MB -c maintenance_work_mem=128MB -c checkpoint_completion_target=0.9 -c wal_buffers=16MB -c default_statistics_target=100 -c random_page_cost=1.1 -c effective_io_concurrency=200 -c work_mem=4MB
+    command: postgres -c shared_buffers=512MB -c effective_cache_size=1536MB -c work_mem=4MB
     networks:
       - backend-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-airdeliver}"]
       interval: 5s
       timeout: 5s
       retries: 10
     logging: *default-logging
     deploy: *default-core-deploy
 
-  mq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: airdeliver-mq
-    restart: always
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq/
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-    networks:
-      - backend-net
-      - simulation-net
-    healthcheck:
-      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-    logging: *default-logging
-    deploy: *default-core-deploy
-
   redis:
-    image: redis:7-alpine
+    image: redis:7-bullseye
     container_name: airdeliver-redis
     restart: always
-    command: redis-server --save 60 1 --loglevel warning --maxmemory 1gb --maxmemory-policy allkeys-lru --io-threads 4 --io-threads-do-reads yes
     volumes:
       - redis-data:/data
     networks:
@@ -119,15 +100,39 @@ services:
     logging: *default-logging
     deploy: *default-core-deploy
 
+  mq:
+    image: rabbitmq:3.13-management
+    container_name: airdeliver-mq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq/
+    networks:
+      - backend-net
+      - simulation-net
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    logging: *default-logging
+    deploy: *default-core-deploy
+
   opensearch:
     image: opensearchproject/opensearch:2.11.1
     container_name: airdeliver-opensearch
     environment:
       - discovery.type=single-node
       - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
-      - "DISABLE_INSTALL_DEMO_CONFIG=true"
-      - "DISABLE_SECURITY_PLUGIN=true"
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
     ulimits:
       memlock:
         soft: -1
@@ -137,15 +142,13 @@ services:
         hard: 65536
     volumes:
       - opensearch-data:/usr/share/opensearch/data
-    ports:
-      - "9200:9200"
+    networks:
+      - backend-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9200"]
       interval: 10s
       timeout: 5s
       retries: 10
-    networks:
-      - backend-net
     logging: *default-logging
     deploy: *default-core-deploy
 
@@ -153,13 +156,13 @@ services:
     image: quay.io/coreos/etcd:v3.5.5
     container_name: airdeliver-etcd
     environment:
-      - ETCD_AUTO_COMPACTION_MODE=revision
-      - ETCD_AUTO_COMPACTION_RETENTION=1000
-      - ETCD_QUOTA_BACKEND_BYTES=4294967296
-      - ETCD_SNAPSHOT_COUNT=50000
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: 1000
+      ETCD_QUOTA_BACKEND_BYTES: 4294967296
+      ETCD_SNAPSHOT_COUNT: 50000
     volumes:
       - etcd-data:/etcd
-    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     networks:
       - backend-net
     logging: *default-logging
@@ -193,12 +196,9 @@ services:
       MINIO_SECRET_ACCESS_KEY: minioadmin
     volumes:
       - milvus-data:/var/lib/milvus
-    ports:
-      - "19530:19530"
-      - "9091:9091"
     depends_on:
-      - "etcd"
-      - "minio"
+      - etcd
+      - minio
     networks:
       - backend-net
     healthcheck:
@@ -216,21 +216,19 @@ services:
     env_file: .env
     environment:
       - DATABASE_URI=${DATABASE_URL_SYNC}
-      - POSTGRES_SERVER=postgres
-      - REDIS_HOST=redis
-      - RABBITMQ_HOST=mq
-    volumes:
-      - ./apps/api:/app:delegated
     command: >
-      sh -c "python -m alembic upgrade head &&
+      sh -c "alembic upgrade head &&
              python -m app.db.initial_data"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - backend-net
-    restart: 'no'
     deploy: *default-app-deploy
+    develop:
+      watch:
+        - action: rebuild
+          path: ./apps/api/pyproject.toml
 
   api:
     container_name: airdeliver-api
@@ -239,14 +237,18 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     restart: always
+    stop_grace_period: 30s
     environment:
       - DATABASE_URI=${DATABASE_URL_ASYNC}
       - POSTGRES_SERVER=postgres
       - RABBITMQ_HOST=mq
       - REDIS_HOST=redis
       - APP_ENV=development
-      - LOG_LEVEL=debug
+      - LOG_LEVEL=info
       - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      - OPENSEARCH_HOST=opensearch
+      - OPENSEARCH_PORT=9200
+      - MILVUS_URI=http://milvus:19530
     volumes:
       - ./apps/api:/app:delegated
       - api-static-data:/app/static
@@ -271,18 +273,28 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: /opt/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     logging: *default-logging
     deploy: *default-app-deploy
+    develop:
+      watch:
+        - action: rebuild
+          path: ./apps/api/pyproject.toml
+        - action: rebuild
+          path: ./apps/api/poetry.lock
 
   api-worker:
     container_name: airdeliver-api-worker
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     env_file: .env
-    user: root
+    user: airdeliver
     restart: always
+    stop_grace_period: 30s
     environment:
       - DATABASE_URI=${DATABASE_URL_ASYNC}
       - POSTGRES_SERVER=postgres
@@ -298,21 +310,22 @@ services:
       - ./apps/api:/app:delegated
       - ./data/storage:/data/storage
     depends_on:
+      setup-fs:
+        condition: service_completed_successfully
       api:
-        condition: service_healthy
-      opensearch:
-        condition: service_healthy
-      milvus:
         condition: service_healthy
     networks:
       - backend-net
     command: >
-      sh -c "mkdir -p /data/storage/models_cache/huggingface &&
-             mkdir -p /data/storage/models_cache/sentence_transformers &&
-             chown -R airdeliver:airdeliver /data/storage &&
-             su -s /bin/sh airdeliver -c \"watchfiles 'python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'\""
+      sh -c "/opt/venv/bin/watchfiles '/opt/venv/bin/python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'"
     logging: *default-logging
     deploy: *default-app-deploy
+    develop:
+      watch:
+        - action: rebuild
+          path: ./apps/api/pyproject.toml
+        - action: rebuild
+          path: ./apps/api/poetry.lock
 
   c2_gateway:
     container_name: airdeliver-c2-gateway
@@ -337,9 +350,15 @@ services:
       - public-net
     ports:
        - "8001:8001"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    command: /opt/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     logging: *default-logging
     deploy: *default-app-deploy
+    develop:
+      watch:
+        - action: rebuild
+          path: ./apps/c2-gateway/pyproject.toml
+        - action: rebuild
+          path: ./apps/c2-gateway/poetry.lock
 
   web:
     container_name: airdeliver-web
@@ -374,6 +393,12 @@ services:
     command: pnpm dev -H 0.0.0.0 -p 3000
     logging: *default-logging
     deploy: *default-app-deploy
+    develop:
+      watch:
+        - action: rebuild
+          path: ./apps/web/package.json
+        - action: rebuild
+          path: ./apps/web/pnpm-lock.yaml
 
   px4-sitl:
     container_name: airdeliver-px4-sitl
@@ -401,7 +426,7 @@ services:
         limits:
           memory: 4G
         reservations:
-          memory: 1G
+          memory: 2G
 
 volumes:
   postgres-data:
@@ -421,10 +446,10 @@ networks:
     name: airdeliver-public   
   backend-net:
     driver: bridge
-    internal: false 
+    internal: true
     name: airdeliver-backend
     driver_opts:
-      com.docker.network.driver.mtu: 1400
+      com.docker.network.driver.mtu: "1400"
   simulation-net:
     driver: bridge
     name: airdeliver-simulation

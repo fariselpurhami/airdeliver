@@ -1,57 +1,56 @@
-# apps/c2-gateway/Dockerfile
+# apps/c2-gateway/Dockerfile 
 
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim-bookworm AS base
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    POETRY_VERSION=1.8.3 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_NO_INTERACTION=1 \
+    VIRTUAL_ENV="/opt/venv" \
+    PATH="/opt/poetry/bin:/opt/venv/bin:$PATH"
 
+FROM base AS builder
 WORKDIR /app
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    curl && \
+    rm -rf /var/lib/apt/lists/*
 
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=false \
-    POETRY_VIRTUALENVS_CREATE=false \
-    POETRY_CACHE_DIR=/tmp/poetry_cache \
-    POETRY_VERSION=1.8.3
+RUN curl -sSL https://install.python-poetry.org | python3 -
 
-RUN addgroup --system --gid 1001 airdeliver \
-    && adduser --system --uid 1001 --gid 1001 airdeliver
+RUN python -m venv $VIRTUAL_ENV
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
-    && rm -rf /var/lib/apt/lists/*
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --no-root --only main
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir "poetry==${POETRY_VERSION}"
-
-COPY poetry.lock pyproject.toml ./
-
-RUN poetry install --no-root --without dev
-
-FROM python:3.11-slim AS final
-
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV APP_USER=airdeliver
-ENV APP_GROUP=airdeliver
-ENV APP_UID=1001
-ENV APP_GID=1001
-
-RUN addgroup --system --gid $APP_GID $APP_GROUP \
-    && adduser --system --uid $APP_UID --gid $APP_GID $APP_USER
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
-
+FROM base AS production
 WORKDIR /app
+ARG APP_USER=airdeliver
+ARG APP_UID=1001
+ARG APP_GID=1001
 
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+RUN pip install --no-cache-dir watchfiles
 
-COPY --chown=airdeliver:airdeliver ./app ./app
+RUN existing_group=$(getent group $APP_GID | cut -d: -f1) && \
+    if [ -n "$existing_group" ]; then groupdel $existing_group; fi && \
+    groupadd -g $APP_GID $APP_USER && \
+    useradd -u $APP_UID -g $APP_GID -d /home/$APP_USER -s /bin/bash -m $APP_USER && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl && \
+    rm -rf /var/lib/apt/lists/*
+
+
+COPY --from=builder --chown=$APP_USER:$APP_USER $VIRTUAL_ENV $VIRTUAL_ENV
+COPY --chown=$APP_USER:$APP_USER ./app ./app
 
 USER $APP_USER
-
-HEALTHCHECK --interval=5s --timeout=3s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:8001/ws/health || exit 1
-
 EXPOSE 8001
 
-CMD ["gunicorn", "app.main:app", "-w", "${WEB_CONCURRENCY:-2}", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8001"]
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8001/ws/health || exit 1
+
+CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8001", "--timeout", "60", "--access-logfile", "-", "--error-logfile", "-"]

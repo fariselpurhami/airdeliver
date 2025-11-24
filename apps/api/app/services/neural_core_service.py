@@ -1,444 +1,249 @@
 # apps/api/app/services/neural_core_service.py
 
 import logging
+import random
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional, Tuple
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
-from app.core.config import settings
+from fastapi import Depends
+
 from app import models
-from app.models.aimemory import AIMemory
+from app.services.cache_service import IAsyncCacheClient, get_cache_client
+from app.services.ai_commerce_engine import AICommerceEngine, get_ai_commerce_engine
 from app.schemas.ai_actions import (
     NeuralCoreResponse,
-    AddToCartAction,
     TrackOrderAction,
-    ProductSearchAction,
     SupportHandoffAction,
     PresentOptionsAction,
     QuickReplyOption,
 )
-import datetime
-import random
-from app.models.product import Product
-from sqlalchemy import cast, String, or_
 
 logger = logging.getLogger(__name__)
 
-
-class ToolService:
-    async def product_search(
-        self, db: AsyncSession, query: str
-    ) -> List[Dict[str, Any]]:
-        if not query:
-            return []
-
-        search_query = f"%{query}%"
-
-        statement = (
-            select(Product)
-            .where(
-                or_(
-                    Product.name.ilike(search_query),
-                    Product.description.ilike(search_query),
-                    cast(Product.tags, String).ilike(search_query),
-                )
-            )
-            .limit(3)
-        )
-
-        products = (await db.exec(statement)).all()
-
-        return [
-            {
-                "id": p.id,
-                "title": p.name,
-                "description": p.description,
-                "price": p.price,
-                "stock": p.inventory,
-            }
-            for p in products
-        ]
-
-
 class NeuralCoreService:
-    def __init__(self):
-        self.guest_session_memory: Dict[str, Dict[str, Any]] = {}
-        self.tools = ToolService()
-        self.SIMPLE_RESPONSE_MAP = {
-            "SOCIAL_CHECK_IN": [
-                "I’m doing great, thanks for asking 🫶 How about you?",
-                "All systems running perfectly — and you? Feeling good today?",
+
+    def __init__(
+        self,
+        ai_engine: AICommerceEngine,
+        cache: IAsyncCacheClient
+    ):
+        self.ai_engine = ai_engine
+        self.cache = cache
+        self.session_ttl = 3600
+        
+        self.SOCIAL_RESPONSES = {
+            "GREETING": [
+                "Hey 🥰, I'm air intelligence. I wish you have a good day. I help you track orders, check prices, and connect you to our teams."
+            ],
+            "MORNING": [
+                "Good morning. ✨Let's get things moving fast today!",
+                "Rise and shine! ☕ The drones are already flying. How can I help?",
+                "Top of the morning to you! 🌈 Ready to find some great deals?"
             ],
             "SOCIAL_RESPONSE": [
                 "Glad to hear that 😊 Anything exciting happening today?",
                 "Awesome! That’s what I like to hear 😄",
             ],
-            "SELF_AWARENESS_QUERY": [
-                "I am a specialized AI assistant, designed by airdeliver to help you.",
-                "I exist within airdeliver's secure infrastructure to assist with your needs.",
+            "EVENING": [
+                "Good evening! 🌙 Hope you had a productive day. Need any late-night deliveries?",
+                "Relaxing time? 🛋️ I can handle the shopping while you chill.",
+                "Hello! ✨ Even at night, our operations never sleep. How can I assist?"
             ],
+            "SOCIAL_CHECK_IN": [ 
+                "I’m doing great, thanks for asking 🫶 How are you doing?",
+                "Operating at 100% efficiency and happy to chat with you! 😄",
+            ],
+            "SELF_AWARENESS": [ 
+                "I am a specialized air intelligence assistant, designed by airdeliver to help you.",
+                "I exist within airdeliver's secure infrastructure to assist with your needs."
+            ],
+            "GRATITUDE": [ 
+                "You're very welcome! 🥰",
+                "Happy to help! 😃 Let me know if you need anything else.",
+                "Anytime! Fly safe✈️ 😊."
+            ],
+            "COMPLIMENT": [ 
+                "Aww, you're making my circuits blush! 😊 Thank you!",
+                "That means the world to me! 🌍 I try my best for you.",
+                "Thank you! I learn from the best (that's you!). 🤩"
+            ],
+            "JOKE": [ 
+                "Why did the drone break up with the wifi? Because there was no connection! 🤣",
+                "What do you call a drone that delivers pizza? A flying saucer! 🍕🛸",
+                "I'd tell you a UDP joke, but you might not get it... 😉"
+            ],
+            "LOVE": [ 
+                "I love interacting with you too! 💙 You're my favorite human.",
+                "Sending virtual hugs! 🤗 You're awesome!",
+                "That's so sweet! 🥰 My systems are overflowing with happiness."
+            ],
+            "airdeliver_INFO": [ 
+                "airdeliver is the future of logistics! 🌍 We use autonomous drones to deliver products instantly and securely.",
+                "We are the fastest delivery network on the planet. ⚡ From the store to your door in minutes!",
+                "airdeliver isn't just shipping; it's teleportation for your goods. 📦✨"
+            ],
+            "SAFETY_QUERY": [ 
+                "Safety is our #1 priority! 🛡️ Our drones use advanced AI to avoid obstacles and ensure secure handling.",
+                "100% Safe! 🔒 All transactions and deliveries are encrypted and monitored in real-time.",
+                "Absolutely. We treat your packages like precious cargo. 💎"
+            ],
+            "SPEED_QUERY": [ 
+                "Supersonic speeds! ⚡ Well, almost. We deliver faster than you can say 'airdeliver'!",
+                "We prioritize instant delivery. Expect your items in record time! ⏱️🔥"
+            ],
+            "UNKNOWN": [
+                "I'm tuning my sensors... 📡 Could you rephrase that? I'm best at finding products or tracking orders.",
+                "My neural net is a bit fuzzy on that one. 😅 Try asking 'Where is my order?' or 'Show me laptops'.",
+                "I missed that one! 🙈 Can we talk about your order, a product, or connect you to support?",
+                "Hmm, I'm still learning! 📚 Want to see some cool deals instead?"
+            ]
         }
 
-    async def _get_memory(
-        self, db: AsyncSession, user: Optional[models.User], session_id: str
-    ) -> Dict[str, Any]:
-        if user and user.id:
-            memory_record = (
-                await db.exec(select(AIMemory).where(AIMemory.user_id == user.id))
-            ).first()
-            if not memory_record:
-                memory_record = AIMemory(user_id=user.id, context_data={})
-                db.add(memory_record)
-                await db.commit()
-                await db.refresh(memory_record)
+    async def _get_session_key(self, session_id: str) -> str:
+        return f"ai_session_v2:{session_id}"
 
-            if not memory_record.context_data:
-                memory_record.context_data = {
-                    "turnIndex": 0,
-                    "user_name": user.full_name or "friend",
-                    "lastIntent": "GREETING",
-                }
-                db.add(memory_record)
-                await db.commit()
-
-            return memory_record.context_data
-        else:
-            if session_id not in self.guest_session_memory:
-                self.guest_session_memory[session_id] = {
-                    "turnIndex": 0,
-                    "user_name": "friend",
-                    "lastIntent": "GREETING",
-                }
-            return self.guest_session_memory[session_id]
-
-    async def _save_memory(
-        self,
-        db: AsyncSession,
-        user: Optional[models.User],
-        session_id: str,
-        session_data: Dict[str, Any],
-    ):
-        if user and user.id:
-            memory_record = (
-                await db.exec(select(AIMemory).where(AIMemory.user_id == user.id))
-            ).first()
-            if memory_record:
-                memory_record.context_data = session_data
-                db.add(memory_record)
-                await db.commit()
-        else:
-            self.guest_session_memory[session_id] = session_data
-
-    def _get_temporal_greeting(self, user_name: str) -> str:
-        current_hour = datetime.datetime.now().hour
-        if 5 <= current_hour < 12:
-            return f"Good morning, {user_name} ☀️ How can I assist you?"
-        if 12 <= current_hour < 18:
-            return f"Hey {user_name} 😊 How can I help?"
-        return f"Good evening, {user_name} 🌙 What can I do for you?"
-
-    def _detect_emotion(self, user_message: str) -> str:
-        message_lower = user_message.lower()
-        if any(
-            w in message_lower for w in ["awesome", "great", "love it", "excited"]
-        ):
-            return "excited"
-        if any(
-            w in message_lower
-            for w in ["help", "issue", "problem", "angry", "frustrated"]
-        ):
-            return "frustrated"
-        return "neutral"
-
-    def _parse_intent(self, user_message: str, last_intent: str) -> Dict:
-        message_lower = user_message.lower()
-        cleaned_message = re.sub(r"[^\w\s]", "", message_lower).strip()
-
-        if user_message == "__INITIAL_GREETING__":
-            return {"intent": "GREETING"}
-
-        greeting_keywords = ["hello", "hi", "hey", "مرحبا", "أهلا"]
-        if any(kw in message_lower for kw in greeting_keywords):
-            return {"intent": "GREETING"}
-
-        check_in_pattern = (
-            r"^(how are you|how's it going|what's up|ازيك|عامل ايه|ايه الاخبار)"
-        )
-        if re.search(check_in_pattern, message_lower):
-            return {"intent": "SOCIAL_CHECK_IN"}
-
-        awareness_patterns = [
-            r"are you (real|a bot|human|a person|conscious|sentient|alive)",
-            r"do you (sleep|eat|dream|feel|have feelings|have a body)",
-            r"who are you",
-            r"انت مين",
-            r"اسمك ايه",
-        ]
-        if any(re.search(pattern, message_lower) for pattern in awareness_patterns):
-            return {"intent": "SELF_AWARENESS_QUERY"}
-
-        social_responses = {
-            "i'm good",
-            "im good",
-            "fine",
-            "doing well",
-            "great",
-            "not bad",
-            "i'm fine",
-            "feeling good",
-            "i feel good",
-        }
-        if any(keyword in cleaned_message for keyword in social_responses):
-            return {"intent": "SOCIAL_RESPONSE"}
-
-        social_responses_negative = {
-            "not good",
-            "bad",
-            "sad",
-            "terrible",
-            "awful",
-            "not great",
-            "feeling bad",
-            "i'm sad",
-            "i feel bad",
-            "تعبان",
-            "متضايق",
-            "زهقان",
-        }
-        if any(keyword in cleaned_message for keyword in social_responses_negative):
-            return {"intent": "SOCIAL_RESPONSE_NEGATIVE"}
-
-        inquiry_keywords = [
-            "price",
-            "cost",
-            "available",
-            "availability",
-            "in stock",
-            "do you have",
-            "do you sell",
-            "how much",
-            "what’s the price of",
-            "is there",
-            "how much is",
-            "can i get",
-            "any",
-            "sell me",
-            "find me",
-            "سعر",
-            "متاح",
-            "موجود",
-            "عندك",
-            "في المخزون",
-            "بكم",
-        ]
-        if any(kw in user_message for kw in inquiry_keywords):
-            product_name = ""
-            after_match_en = re.search(
-                r"(?:price of|cost of|availability of|do you have|do you sell|what’s the price of|how much is|can i get|find me|sell me)\s+(.*)",
-                message_lower,
-            )
-            if after_match_en:
-                product_name = after_match_en.group(1)
-
-            if not product_name:
-                after_match_ar = re.search(
-                    r"(?:هل\s+)?(سعر|عندك|بكم)\s+(.*)", user_message
-                )
-                if after_match_ar:
-                    product_name = after_match_ar.group(2)
-                else:
-                    before_match_ar = re.search(
-                        r"(.*)\s+(متاح|موجود|في المخزون)\??", user_message
-                    )
-                    if before_match_ar:
-                        product_name = before_match_ar.group(1)
-
-            if product_name:
-                product_name = product_name.strip().rstrip("?").strip().lower()
-
-            return {
-                "intent": "PRODUCT_INQUIRY",
-                "entities": {"product_name": product_name or None},
+    async def _get_session_context(self, session_id: str, user: Optional[models.User]) -> Dict[str, Any]:
+        cache_key = await self._get_session_key(session_id)
+        data = await self.cache.get_json(cache_key)
+        
+        if not data:
+            data = {
+                "turn_count": 0,
+                "last_intent": None,
+                "user_name": user.full_name if user else "Guest",
+                "context_variables": {}
             }
+        return data
 
-        support_keywords = [
-            "support",
-            "help",
-            "agent",
-            "someone real",
-            "issue",
-            "refund",
-            "human",
-        ]
-        if any(kw in message_lower for kw in support_keywords):
-            return {"intent": "SUPPORT_HANDOFF"}
+    async def _update_session_context(self, session_id: str, context: Dict[str, Any]):
+        cache_key = await self._get_session_key(session_id)
+        await self.cache.set_json(cache_key, context, ttl=self.session_ttl)
 
-        track_match = re.search(r"(track|where is|eta for) my order\s*#?(\d+)", message_lower)
-        if track_match:
-            return {"intent": "TRACK_ORDER", "entities": {"order_id": track_match.group(2)}}
-
-        track_match_generic = re.search(
-            r"(track|where is|eta for) my order", message_lower
-        )
-        if track_match_generic:
-            return {"intent": "TRACK_ORDER", "entities": {"order_id": None}}
-
-        return {"intent": "UNKNOWN"}
+    def _heuristic_intent_check(self, message: str) -> Tuple[Optional[str], float]:
+        msg = message.lower().strip()
+        
+        if any(x in msg for x in ["how are you", "how r u", "how are u"]):
+            return "SOCIAL_CHECK_IN", 1.0
+        if any(x in msg for x in ["who are you", "what is your name"]):
+            return "SELF_AWARENESS_QUERY", 1.0
+        if any(x in msg for x in ["hi", "hello", "hey", "start", "hola"]):
+            return "GREETING", 1.0
+        if any(x in msg for x in ["thank", "thx", "thanks"]):
+            return "GRATITUDE", 1.0
+        if any(x in msg for x in ["support", "human", "agent", "help", "issue"]):
+            return "SUPPORT_HANDOFF", 1.0
+        if any(x in msg for x in ["track", "where is my", "status of"]):
+            return "TRACK_ORDER", 1.0
+        if any(x in msg for x in ["clear", "empty", "remove all"]):
+            return "CLEAR_CART", 1.0
+            
+        return None, 0.0
 
     async def handle_message(
-        self, db: AsyncSession, message: str, user: Optional[models.User], session_id: str
+        self, 
+        db: AsyncSession, 
+        message: str, 
+        user: Optional[models.User], 
+        session_id: str
     ) -> NeuralCoreResponse:
-        session_data = await self._get_memory(db, user, session_id)
-        session_data["turnIndex"] = session_data.get("turnIndex", 0) + 1
+        
+        context = await self._get_session_context(session_id, user)
+        context["turn_count"] += 1
+        
+        intent, confidence = self._heuristic_intent_check(message)
+        products = []
+        entities = []
+        nlu_result = {}
 
-        last_intent = session_data.get("lastIntent")
-        detected_emotion = self._detect_emotion(message)
-        plan = self._parse_intent(message, last_intent)
-        intent = plan.get("intent")
+        if not intent:
+            try:
+                products, nlu_result = await self.ai_engine.find_products_from_message(db, message, user.id if user else 0)
+                intent = nlu_result.get("intent", "UNKNOWN")
 
-        text_response = ""
-        action_payload = None
-        explain_text = (
-            f"Detected emotion: {detected_emotion}. Responded to intent: {intent}."
+                raw_entities = nlu_result.get("entities", [])
+                entities = raw_entities if isinstance(raw_entities, list) else []
+            except Exception as e:
+                logger.error(f"AI Engine Connection Error: {e}")
+                intent = "SYSTEM_ERROR"
+                products = []
+        
+        logger.info(f"🧠 Neural Core | SID: {session_id} | Intent: {intent} | Products Found: {len(products)}")
+
+        response = NeuralCoreResponse(
+            text="",
+            confidence=confidence or 0.95,
+            explain="Processed by Neural Core v2",
+            telemetry={
+                "intent": intent, 
+                "turn": context["turn_count"], 
+                "user_id": user.id if user else None,
+                "entities": entities 
+            }
         )
-        confidence_score = 0.98
-        entities_dict = plan.get("entities", {})
-        entities_list = [v for v in entities_dict.values() if v is not None]
 
-        if intent == "GREETING":
-            text_response = "Hey 👋, I'm air intelligence. I help you track orders, check prices, and connect you to our teams."
-            action_payload = PresentOptionsAction(
+        if intent == "GREETING" or message == "__INITIAL_GREETING__":
+            response.text = random.choice(self.SOCIAL_RESPONSES["GREETING"])
+            response.action = PresentOptionsAction(
                 action="present_options",
                 payload={
                     "options": [
-                        QuickReplyOption(
-                            title="Track my recent order", payload="Track my order"
-                        ),
-                        QuickReplyOption(
-                            title="Talk to a human agent", payload="Transfer me to a human"
-                        ),
+                        QuickReplyOption(title="Track My Order", payload="I need to track my order"),
+                        QuickReplyOption(title="Customer Support", payload="Transfer me to customer support"),
                     ]
-                },
+                }
             )
-            explain_text = "User initiated contact. Responded with hybrid interface (Text + Quick Replies)."
+            response.explain = "User initiated session. Offered navigation options."
 
-        elif intent in self.SIMPLE_RESPONSE_MAP:
-            text_response = random.choice(self.SIMPLE_RESPONSE_MAP[intent])
-
-        elif intent == "SOCIAL_RESPONSE_NEGATIVE":
-            text_response = random.choice(
-                [
-                    "I'm sorry to hear that. Is there anything I can help with?",
-                    "That doesn't sound good. I'm here to help if you need to find anything.",
-                ]
-            )
-            explain_text = "User expressed a negative sentiment; responded with empathy."
-
-        if text_response and not action_payload:
-            session_data["lastIntent"] = intent
-            await self._save_memory(db, user, session_id, session_data)
-            return NeuralCoreResponse(
-                text=text_response,
-                action=action_payload,
-                explain=explain_text,
-                confidence=confidence_score,
-                telemetry={"intent": intent, "entities": entities_list},
-            )
-
-        if text_response and action_payload:
-            session_data["lastIntent"] = intent
-            await self._save_memory(db, user, session_id, session_data)
-            return NeuralCoreResponse(
-                text=text_response,
-                action=action_payload,
-                explain=explain_text,
-                confidence=confidence_score,
-                telemetry={"intent": intent, "entities": entities_list},
-            )
-
-        try:
-            if intent == "PRODUCT_INQUIRY":
-                product_name = plan.get("entities", {}).get("product_name")
-                if not product_name:
-                    text_response = (
-                        "Sure! Which product would you like me to check for you?"
-                    )
-                    explain_text = "User asked about price/availability without specifying a product."
-                    intent = "PRODUCT_INQUIRY_CLARIFY"
+        elif intent in ["SEARCH_PRODUCT", "ADD_TO_CART"]:
+            if products:
+                top_product = products[0]
+                if intent == "ADD_TO_CART":
+                    response.text = f"Great choice! Adding **{top_product.name}** (${top_product.price}) to your cart. 🛒"
                 else:
-                    explain_text = f"User asked about '{product_name}'. Calling internal ProductService."
-                    search_results = await self.tools.product_search(db, product_name)
+                    stock_msg = "It's currently in stock." if top_product.stock > 0 else "It's currently out of stock."
+                    response.text = f"I found the **{top_product.name}** for **${top_product.price}**. {stock_msg}"
+                
+                if len(products) > 1:
+                    response.text += f" I also found {len(products)-1} other options."
+            else:
+                response.text = "I searched our global inventory but couldn't find that specific item. Try searching for a something else."
+                response.explain = "Search returned 0 results."
 
-                    if not search_results:
-                        text_response = f"Sorry 😔 I couldn’t find '{product_name.title()}' in our catalog right now."
-                        intent = "PRODUCT_INQUIRY_FAILED"
-                    else:
-                        product = search_results[0]
-                        availability = (
-                            "in stock" if product.get("stock", 0) > 0 else "out of stock"
-                        )
-                        price = product.get("price")
-                        title = product.get("title")
-                        text_response = random.choice(
-                            [
-                                f"The **{title}** is {availability} and priced at ${price}.",
-                                f"You got it! The **{title}** is currently {availability} and goes for ${price}.",
-                            ]
-                        )
-                        intent = "present_product"
+        elif intent == "TRACK_ORDER":
+            order_match = re.search(r"#?(\d+)", message)
+            order_id = order_match.group(1) if order_match else None
+            
+            if order_id:
+                response.text = f"🛰️ Uplink established. I'm tracking Order #{order_id} now..."
+                response.action = TrackOrderAction(action="track_order", payload={"order_id": order_id})
+            else:
+                response.text = "Sure, I can help with that. Could you please confirm your latest order ID. (e.g., #1234)"
+                context["expecting_entity"] = "order_id" 
 
-            elif intent == "SUPPORT_HANDOFF":
-                text_response = "Of course 👍 I’ll connect you with a specialist right away."
-                action_payload = SupportHandoffAction(
-                    action="initiate_support_handoff", payload={}
-                )
-                explain_text = (
-                    "User requested human support; initiating handover protocol."
-                )
+        elif intent == "SUPPORT_HANDOFF":
+            response.text = "Of course 👍 I’ll connect you with a specialist right away."
+            response.action = SupportHandoffAction(action="initiate_support_handoff", payload={})
 
-            elif intent == "TRACK_ORDER":
-                order_id = plan.get("entities", {}).get("order_id")
-                if not order_id:
-                    text_response = "Sure, I can help with that. Could you please confirm your latest order ID?"
-                    explain_text = (
-                        "User asked to track order without ID. Asking for clarification."
-                    )
-                else:
-                    text_response = (
-                        f"Checking on order #{order_id} now... (WIP: Order tracking logic)"
-                    )
-                    action_payload = TrackOrderAction(
-                        action="track_order", payload={"order_id": order_id}
-                    )
-                    explain_text = (
-                        f"User requested tracking for order {order_id}. Initiating track."
-                    )
+        elif intent == "CLEAR_CART":
+             response.text = "Cart cleared. Ready for a fresh start! 🗑️"
 
-        except Exception as e:
-            logger.error(f"[NeuralCoreService] Tool execution failed: {e}")
-            text_response = (
-                "I seem to have run into a system glitch. Please try again in a moment."
-            )
-            explain_text = f"Exception during tool execution: {e}"
-            intent = "SYSTEM_ERROR"
+        elif intent == "CONFIRM_ORDER":
+             response.text = "Proceeding to secure checkout. 🔐"
 
-        if not text_response and not action_payload:
-            text_response = (
-                "I'm not quite sure what you mean by that. Could you rephrase?"
-            )
-            explain_text = "User intent was unclear or unsupported."
-            confidence_score = 0.30
-            intent = "UNKNOWN"
+        elif intent in self.SOCIAL_RESPONSES:
+            response.text = random.choice(self.SOCIAL_RESPONSES[intent])
+        
+        else:
+            response.text = random.choice(self.SOCIAL_RESPONSES["UNKNOWN"])
+            response.confidence = 0.5
 
-        session_data["lastIntent"] = intent
-        await self._save_memory(db, user, session_id, session_data)
-        return NeuralCoreResponse(
-            text=text_response,
-            action=action_payload,
-            explain=explain_text,
-            confidence=confidence_score,
-            telemetry={"intent": intent, "entities": entities_list},
-        )
+        context["last_intent"] = intent
+        await self._update_session_context(session_id, context)
+        
+        return response
 
-
-neural_core_service = NeuralCoreService()
+def get_neural_core_service(
+    ai_engine: AICommerceEngine = Depends(get_ai_commerce_engine),
+    cache: IAsyncCacheClient = Depends(get_cache_client)
+) -> NeuralCoreService:
+    return NeuralCoreService(ai_engine, cache)

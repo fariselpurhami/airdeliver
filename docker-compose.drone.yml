@@ -1,4 +1,4 @@
-# docker-compose.drone.yml
+# docker-compose.drone.yml 
 
 x-logging: &default-logging
   driver: "json-file"
@@ -26,8 +26,8 @@ services:
       context: ./drone_client
       dockerfile: Dockerfile
     environment:
-      - DRONE_ID=SIM-001
-      - WEBSOCKET_URI=ws://c2_gateway:8001/drones/SIM-001
+      - DRONE_ID=${DRONE_ID:-SIM-001}
+      - WEBSOCKET_URI=${WEBSOCKET_URI:-ws://c2_gateway:8001/drones/SIM-001}
       - MAVLINK_CONNECTION=udp:px4-sitl:14540
       - AUTH_TOKEN_FILE=/run/secrets/drone_auth_token
     secrets:
@@ -44,6 +44,16 @@ services:
     deploy: *default-client-deploy
     stdin_open: true
     tty: true
+    develop:
+      watch:
+        - action: sync
+          path: ./drone_client
+          target: /app
+          ignore:
+            - ./drone_client/__pycache__
+            - ./drone_client/.venv
+        - action: rebuild
+          path: ./drone_client/requirements.txt
 
 networks:
   simulation-net:
