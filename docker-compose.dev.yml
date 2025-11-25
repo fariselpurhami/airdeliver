@@ -235,6 +235,9 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     env_file: .env
     restart: always
     stop_grace_period: 30s
@@ -391,9 +394,20 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`localhost`)"
       - "traefik.http.services.web.loadbalancer.server.port=3000"
-    command: pnpm dev -H 0.0.0.0 -p 3000
+    command: pnpm dev --turbo -H 0.0.0.0 -p 3000
     logging: *default-logging
-    deploy: *default-app-deploy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        window: 120s
+      resources:
+        limits:
+          cpus: '2.0'    
+          memory: 4G     
+        reservations:
+          memory: 1G
+
     develop:
       watch:
         - action: rebuild
@@ -447,7 +461,6 @@ networks:
     name: airdeliver-public   
   backend-net:
     driver: bridge
-    internal: true
     name: airdeliver-backend
     driver_opts:
       com.docker.network.driver.mtu: "1400"
