@@ -1,50 +1,46 @@
-// file: apps/web/lib/api.ts
+// apps/web/lib/api.ts
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { getSession, signOut } from 'next-auth/react';
+import { getSession } from 'next-auth/react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const isServer = typeof window === 'undefined';
+const baseURL = isServer 
+
+  ? (process.env.API_URL || 'http://api:8000/api/v1') 
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1');
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15000, 
+  baseURL,
+  timeout: 20000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
+  withCredentials: true,
 });
 
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    try {
+      const session = await getSession();
+      if (session?.accessToken && config.headers) {
+        config.headers.Authorization = `Bearer ${session.accessToken}`;
+      }
+    } catch (error) {
    
-    const session = await getSession();
-    if (session?.accessToken && config.headers) {
-      config.headers.Authorization = `Bearer ${session.accessToken}`;
+      if (isServer) console.warn('[API] Failed to get session on server side:', error);
     }
     return config;
   },
-  (error) => {
-    console.error('[API Request Error]:', error);
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
-  (response) => {
-    
-    return response;
-  },
+  (response) => response,
   async (error: AxiosError) => {
-    
-    if (error.response?.status === 401) {
-
-        console.warn('[API] Unauthorized access detected.');
+    if (error.code === 'ECONNREFUSED') {
+        console.error(`�� [API FATAL] Connection Refused to ${baseURL}.`);
     }
-
-    if (error.response?.status && error.response.status >= 500) {
-        console.error('[API] Critical Server Error:', error.message);
-    }
-
     return Promise.reject(error);
   }
 );

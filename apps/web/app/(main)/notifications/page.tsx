@@ -5,7 +5,7 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import useSWR from 'swr';
-import { api } from '@/lib/api';
+import { api } from '@/lib/api'; 
 import {
     Shield,
     Loader,
@@ -13,7 +13,6 @@ import {
     Settings,
     CheckCheck,
     BellOff,
-    ListFilter,
     Package,
     Banknote,
     BrainCircuit,
@@ -30,9 +29,23 @@ import * as THREE from 'three';
 import { Notification, WebSocketNotification } from '@/types';
 
 const API_KEY = '/notifications';
-const fetcher = (url: string) => api.get(url).then(res => res.data);
-const getGroupTitle = (dateStr: string) => {
 
+const fetcher = async (url: string) => {
+    try {
+        const res = await api.get(url);
+        return res.data;
+    } catch (error: any) {
+     
+        if (error.response && error.response.status === 307) {
+             const res = await api.get(url + '/');
+             return res.data;
+        }
+        
+        throw error;
+    }
+};
+
+const getGroupTitle = (dateStr: string) => {
     const date = new Date(dateStr);
     const today = new Date();
     const yesterday = new Date(today);
@@ -81,7 +94,11 @@ export default function NotificationsPage() {
     const { data: initialNotifications, error, isLoading, mutate } = useSWR<Notification[]>(
         API_KEY,
         fetcher,
-        { revalidateOnFocus: false }
+        { 
+            revalidateOnFocus: false,
+            shouldRetryOnError: true,
+            errorRetryCount: 3
+        }
     );
 
     const [filter, setFilter] = useState('All');
@@ -90,7 +107,6 @@ export default function NotificationsPage() {
     const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleNewNotification = useCallback((newNotification: WebSocketNotification) => {
-
         const formattedNotification: Notification = {
             ...newNotification,
             id: newNotification.id || Date.now(),
@@ -100,14 +116,8 @@ export default function NotificationsPage() {
         };
 
         setLiveNotifications(prev => {
-
-            if (prev.some(n => n.id === formattedNotification.id)) {
-                return prev;
-            }
-
-            if (initialNotifications?.some(n => n.id === formattedNotification.id)) {
-
-            }
+            if (prev.some(n => n.id === formattedNotification.id)) return prev;
+            if (initialNotifications?.some(n => n.id === formattedNotification.id)) return prev;
             return [formattedNotification, ...prev];
         });
 
@@ -119,12 +129,10 @@ export default function NotificationsPage() {
     });
 
     const handleMarkAsRead = async (id: number) => {
-
         mutate((currentData = []) => currentData.map(n => (n.id === id ? { ...n, read: true } : n)), false);
         setLiveNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)));
-        try {
+        try {s
             await api.post(`/notifications/${id}/read`);
-
         } catch (e) {
             toast.error("Failed to mark as read. Reverting.");
             mutate();
@@ -147,25 +155,24 @@ export default function NotificationsPage() {
 
         if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
         setUndoItem({ ...itemToDismiss, originalIndex, source });
+        
         undoTimerRef.current = setTimeout(() => {
             api.delete(`/notifications/${id}`)
                 .then(() => setUndoItem(null))
                 .catch(() => {
-                    toast.error("Failed to dismiss notification. Reverting.");
+                    toast.error("Failed to dismiss notification.");
                     handleUndo();
                 });
         }, 5000);
     };
 
      const handleMarkAllAsRead = async () => {
-
         mutate((currentData = []) => currentData.map(n => ({ ...n, read: true })), false);
         setLiveNotifications(prev => prev.map(n => ({ ...n, read: true })));
         try {
              await api.post('/notifications/read-all');
-
         } catch (e) {
-             toast.error("Failed to mark all as read. Reverting.");
+             toast.error("Failed to mark all as read.");
              mutate();
              setLiveNotifications(prev => prev.map(n => ({ ...n, read: false })));
         }
@@ -175,17 +182,14 @@ export default function NotificationsPage() {
         if (!undoItem) return;
         clearTimeout(undoTimerRef.current!);
 
-
         if (undoItem.source === 'live') {
             setLiveNotifications(prev => {
                 const newArray = [undoItem, ...prev];
-
                 return newArray.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             });
         } else {
             mutate((currentData = []) => {
                 const newArray = [undoItem, ...(currentData || [])];
-
                 return newArray.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
             }, false);
         }
@@ -193,12 +197,10 @@ export default function NotificationsPage() {
     };
 
     useEffect(() => {
-
         return () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); };
     }, []);
 
     const allNotifications = useMemo(() => {
-
         const safeInitialNotifications = Array.isArray(initialNotifications) ? initialNotifications : [];
         const initialFiltered = safeInitialNotifications.filter(
             initial => !liveNotifications.some(live => live.id === initial.id)
@@ -207,7 +209,6 @@ export default function NotificationsPage() {
     }, [liveNotifications, initialNotifications]);
 
     const groupedNotifications = useMemo(() => {
-
         const filtered = allNotifications.filter(n => {
             if (filter === 'Unread') return !n.read;
             if (filter === 'Orders') return n.type === 'order_update';
@@ -229,14 +230,14 @@ export default function NotificationsPage() {
 
     if (isLoading && !initialNotifications) {
         return <LoadingSpinner />;
-     }
+    }
+    
     if (error) {
-         return <ErrorDisplay error={error} />;
+         return <ErrorDisplay error={error} retry={() => mutate()} />;
     }
 
     return (
         <div className="relative min-h-screen w-full text-white flex flex-col items-center justify-start p-4 bg-black">
-
             <div className="absolute inset-0 z-0 opacity-70">
                 <Canvas>
                     <Suspense fallback={null}>
@@ -246,7 +247,6 @@ export default function NotificationsPage() {
             </div>
 
             <div className="w-full max-w-6xl flex flex-col items-center relative z-10">
-
                 <ControlBar
                     unreadCount={unreadCount}
                     activeFilter={filter}
@@ -265,7 +265,6 @@ export default function NotificationsPage() {
                             transition={{ duration: 0.25, ease: 'easeInOut' }}
                             className="space-y-3"
                         >
-
                             {totalFilteredCount === 0 ? (
                                 <CinematicEmptyState />
                             ) : (
@@ -278,7 +277,6 @@ export default function NotificationsPage() {
                                             </h2>
                                             <div className="space-y-3">
                                                 {groupedNotifications[groupTitle].map((notification, index) => {
-
                                                     const source: 'live' | 'initial' = liveNotifications.some(n => n.id === notification.id) ? 'live' : 'initial';
                                                     return (
                                                         <NotificationItem
@@ -319,12 +317,14 @@ const typeConfig: { [key: string]: { icon: React.ElementType; color: string } } 
     ai_agent: { icon: BrainCircuit, color: 'text-purple-400' },
     default: { icon: Bell, color: 'text-gray-400' },
 };
+
 const getIcon = (type: string) => {
     const config = typeConfig[type] || typeConfig.default;
     return <config.icon className={`w-5 h-5 ${config.color}`} />;
 };
 
 const filters = ['All', 'Unread', 'Orders', 'Security'];
+
 const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead, isWebSocketConnected }: {
     unreadCount: number;
     activeFilter: string;
@@ -336,8 +336,6 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
 
   return (
     <div className="w-full grid grid-cols-1 sm:grid-cols-3 items-center py-4 sticky top-[72px] z-30 bg-black/30 backdrop-blur-lg rounded-b-lg gap-4 sm:gap-0">
-
-
       <div className="flex sm:justify-start justify-center">
           <div className="relative flex items-center gap-3 sm:ml-6">
              <span
@@ -361,7 +359,6 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
              )}
           </div>
       </div>
-
 
       <div className="flex items-center justify-center gap-2 flex-wrap">
          {filters.map((filter, index) => (
@@ -387,7 +384,6 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
           </React.Fragment>
         ))}
       </div>
-
 
       <div className="relative hidden sm:flex justify-end sm:mr-6">
          <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
@@ -552,10 +548,14 @@ const LoadingSpinner = () => (
         <Loader className="w-12 h-12 text-cyan-400 animate-spin" />
     </div>
 );
-const ErrorDisplay = ({ error }: { error: Error }) => (
-     <div className="flex flex-col items-center justify-center min-h-screen w-full text-red-400" style={{ backgroundColor: '#000000' }}>
-         <Shield size={48} className="mb-4" />
-        <h3 className="text-xl font-semibold">Error Loading Notifications</h3>
-        <p className="text-gray-500">{error.message}</p>
+
+const ErrorDisplay = ({ error, retry }: { error: Error, retry: () => void }) => (
+     <div className="flex flex-col items-center justify-center min-h-screen w-full text-red-400 bg-black gap-4 relative z-10">
+         <Shield size={48} className="mb-2" />
+        <h3 className="text-xl font-semibold">Signal Interrupted</h3>
+        <p className="text-gray-500 max-w-md text-center">{error.message || "Unable to fetch secure notifications."}</p>
+        <button onClick={retry} className="px-4 py-2 bg-red-900/20 border border-red-500/50 rounded text-red-300 hover:bg-red-900/40 transition-all">
+            Retry Connection
+        </button>
     </div>
 );

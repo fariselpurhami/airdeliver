@@ -372,7 +372,7 @@ services:
       dockerfile: Dockerfile
       target: development
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     restart: always
     environment:

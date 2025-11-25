@@ -27,13 +27,13 @@ def format_timestamp(dt: datetime) -> str:
         return f"{int(seconds / 60)} min ago"
     elif seconds < 86400:
         return f"{int(seconds / 3600)} hours ago"
-    elif seconds < 604800:  # 7 days
+    elif seconds < 604800:  
         return f"{int(seconds / 86400)} days ago"
     else:
         return dt.strftime("%Y-%m-%d")
 
 
-@router.get("/", response_model=List[NotificationRead])
+@router.get("", response_model=List[NotificationRead])
 async def get_notifications(
     *,
     session: AsyncSession = Depends(get_session),
@@ -70,7 +70,7 @@ async def mark_notification_as_read(
     if not notif:
         raise HTTPException(status_code=404, detail="Notification not found")
     if notif.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")  # Forbidden
+        raise HTTPException(status_code=403, detail="Not authorized")  
 
     notif.read = True
     session.add(notif)

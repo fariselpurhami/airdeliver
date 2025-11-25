@@ -331,8 +331,8 @@ def get_milvus_client(settings: CoreSettings = Depends(get_core_settings)) -> Mi
 
     milvus_uri = settings.MILVUS_URI
     
-    max_retries = 15
-    retry_delay = 4 
+    max_retries = 60
+    retry_delay = 3
 
     for attempt in range(max_retries):
         try:
