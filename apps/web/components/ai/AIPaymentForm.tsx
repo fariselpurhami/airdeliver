@@ -70,17 +70,17 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
 
   return (
     <motion.div 
-      className="w-full max-w-lg mx-auto p-8 bg-slate-900/95 backdrop-blur-xl rounded-3xl border border-cyan-500/30 shadow-2xl shadow-cyan-500/20 text-white"
+      className="w-full max-w-lg mx-auto p-8 rounded-3xl backdrop-blur-xl transition-colors duration-300 bg-slate-900/95 border border-cyan-500/30 text-white shadow-2xl shadow-cyan-500/20"
       initial={{ opacity: 0, scale: 0.95, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
       <div className="flex flex-col items-center mb-8">
-        <div className="w-12 h-12 bg-cyan-500/10 rounded-full flex items-center justify-center mb-3 border border-cyan-500/30">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors bg-cyan-500/10 border border-cyan-500/30">
             <ShieldCheck size={24} className="text-cyan-400" />
         </div>
         <h2 
-          className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500" 
+          className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500"
           style={{ fontFamily: "'Orbitron', sans-serif" }}
         >
           Secure Checkout
@@ -88,7 +88,7 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
         <p className="text-gray-400 text-sm mt-1">Encryption Level: AES-256 • Order #{orderId}</p>
       </div>
 
-      <div className="mb-8 space-y-3 p-5 bg-black/40 border border-white/10 rounded-2xl">
+      <div className="mb-8 space-y-3 p-5 rounded-2xl border transition-colors bg-black/40 border-white/10">
         <div className="flex items-center gap-2 text-gray-300 mb-2 pb-2 border-b border-white/10">
             <CreditCard size={16} />
             <span className="text-xs font-semibold uppercase tracking-wider">Transaction Summary</span>
@@ -162,3 +162,4 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
     </motion.div>
   );
 };
+

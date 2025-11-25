@@ -589,33 +589,42 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const stripeOptions = useMemo<StripeElementsOptions | undefined>(() => {
         const stripeGateway = paymentDetails?.gateways.find(g => g.provider === 'stripe');
         if (!stripeGateway?.clientSecret) return undefined;
+        
+	const darkThemeVars = {
+            colorPrimary: '#06b6d4', 
+            colorBackground: '#0F172A', 
+            colorText: '#ffffff',
+            colorDanger: '#ef4444',
+            fontFamily: 'system-ui, sans-serif',
+            spacingUnit: '4px',
+            borderRadius: '12px',
+            colorIcon: '#ffffff', 
+        };
+
         return {
             clientSecret: stripeGateway.clientSecret,
             appearance: {
-                theme: 'light',
+                theme: 'night',
                 labels: 'floating',
-                variables: {
-                  colorPrimary: '#06b6d4',
-                  colorBackground: '#0F172A',
-                  colorText: '#ffffff',
-                  colorDanger: '#ef4444',
-                  fontFamily: 'system-ui, sans-serif',
-                  spacingUnit: '4px',
-                  borderRadius: '6px',
-                },
-		rules: {
+                variables: darkThemeVars,
+                rules: {
                     '.Input': {
-                        backgroundColor: '#334155', 
-                        border: '1px solid #475569',
-                        color: '#ffffff'
+                        backgroundColor: '#1E293B', 
+                        border: '1px solid #475569', 
+                        color: '#ffffff', 
                     },
                     '.Label': {
-                        color: '#cbd5e1'
-		    }
-		} 
+                        color: '#cbd5e1', 
+                    },
+                    '.Input:focus': {
+                         border: '1px solid #06b6d4',
+                         boxShadow: '0 0 0 1px #06b6d4'
+                    }
+                }
             },
         };
     }, [paymentDetails]);
+            
 
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cartItems = lastCartMessage?.content?.items || [];
