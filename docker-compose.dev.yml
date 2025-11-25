@@ -249,9 +249,10 @@ services:
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - MILVUS_URI=http://milvus:19530
+      - EMBEDDING_MODEL_PATH=/data/storage/models_cache/sentence_transformers/all-MiniLM-L6-v2
     volumes:
       - ./apps/api:/app:delegated
-      - api-static-data:/app/static
+      - ${PWD}/api-static-data:/app/static
     depends_on:
       api-migrator:
         condition: service_completed_successfully
@@ -304,11 +305,11 @@ services:
       - OPENSEARCH_PORT=9200
       - MILVUS_URI=http://milvus:19530
       - HF_HOME=/data/storage/models_cache/huggingface
-      - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
+      - EMBEDDING_MODEL_PATH=/data/storage/models_cache/sentence_transformers/all-MiniLM-L6-v2
       - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     volumes:
       - ./apps/api:/app:delegated
-      - ./data/storage:/data/storage
+      - ${PWD}/data/storage:/data/storage
     depends_on:
       setup-fs:
         condition: service_completed_successfully

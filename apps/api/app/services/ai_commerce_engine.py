@@ -1,6 +1,7 @@
 # apps/api/app/services/ai_commerce_engine.py
 
 import re
+import time
 import os
 import asyncio
 import logging
@@ -308,7 +309,20 @@ class AICommerceEngine:
 
 
 def get_embedding_model() -> SentenceTransformer:
-    return SentenceTransformer("all-MiniLM-L6-v2")
+    
+    model_path = os.getenv("EMBEDDING_MODEL_PATH", "all-MiniLM-L6-v2")
+    
+    logger.info(f"🤖 Loading Embedding Model from: {model_path}")
+
+    if os.path.exists(model_path):
+        logger.info(f"✅ Path exists. Contents: {os.listdir(model_path)}")
+    
+        if not os.path.exists(os.path.join(model_path, "config.json")):
+             logger.warning("⚠️ config.json not found in path! Model loading might fail.")
+    else:
+        logger.warning(f"⚠️ Model path does not exist inside container: {model_path}")
+
+    return SentenceTransformer(model_path)
 
 def get_milvus_client(settings: CoreSettings = Depends(get_core_settings)) -> MilvusClient:
 
@@ -316,13 +330,21 @@ def get_milvus_client(settings: CoreSettings = Depends(get_core_settings)) -> Mi
         settings = get_core_settings()
 
     milvus_uri = settings.MILVUS_URI
-    try:
-        client = MilvusClient(uri=milvus_uri)
-        return client
+    
+    max_retries = 15
+    retry_delay = 4 
 
-    except Exception as e:
-        logger.critical(f"🔥 Failed to connect to Milvus at {milvus_uri}: {e}")
-        raise e
+    for attempt in range(max_retries):
+        try:
+            client = MilvusClient(uri=milvus_uri)
+            return client
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"⏳ Milvus not ready yet (Attempt {attempt+1}/{max_retries}). Retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+            else:
+                logger.critical(f"🔥 Failed to connect to Milvus at {milvus_uri} after {max_retries} attempts. Error: {e}")
+                raise e
 
 async def get_opensearch_client(settings: CoreSettings = Depends(get_core_settings)) -> AsyncGenerator[AsyncOpenSearch, None]:
     hosts = [{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}]

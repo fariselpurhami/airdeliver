@@ -45,6 +45,8 @@ class CoreSettings(BaseSettings):
     VAPID_PRIVATE_KEY: str
     AI_CHAT_STATE_TTL_SECONDS: int = 900
 
+    EMBEDDING_MODEL_PATH: str = Field("all-MiniLM-L6-v2", env="EMBEDDING_MODEL_PATH")
+
     OPENSEARCH_HOST: str = Field("opensearch", env="OPENSEARCH_HOST")
     OPENSEARCH_PORT: int = Field(9200, env="OPENSEARCH_PORT")
     OPENSEARCH_USER: Optional[str] = Field(None, env="OPENSEARCH_USER")
