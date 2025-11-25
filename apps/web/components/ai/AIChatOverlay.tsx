@@ -1,3 +1,5 @@
+//** apps/web/components/ai/AIChatOverlay.tsx **//
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -590,7 +592,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         return {
             clientSecret: stripeGateway.clientSecret,
             appearance: {
-                theme: 'night',
+                theme: 'light',
                 labels: 'floating',
                 variables: {
                   colorPrimary: '#06b6d4',
@@ -600,7 +602,17 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                   fontFamily: 'system-ui, sans-serif',
                   spacingUnit: '4px',
                   borderRadius: '6px',
-                }
+                },
+		rules: {
+                    '.Input': {
+                        backgroundColor: '#334155', 
+                        border: '1px solid #475569',
+                        color: '#ffffff'
+                    },
+                    '.Label': {
+                        color: '#cbd5e1'
+		    }
+		} 
             },
         };
     }, [paymentDetails]);

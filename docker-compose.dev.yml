@@ -255,7 +255,8 @@ services:
       - EMBEDDING_MODEL_PATH=/data/storage/models_cache/sentence_transformers/all-MiniLM-L6-v2
     volumes:
       - ./apps/api:/app:delegated
-      - ${PWD}/api-static-data:/app/static
+      - api-static-data:/app/static
+      - ${PWD}/data/storage:/data/storage
     depends_on:
       api-migrator:
         condition: service_completed_successfully
