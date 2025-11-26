@@ -8,11 +8,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, ValidationError
 from groq import AsyncGroq, APIConnectionError, RateLimitError
 
-# --- 🛡️ Enterprise Logging Strategy ---
-# Structured logging for observability tools like Grafana/Loki
 logger = logging.getLogger("airdeliver.services.llm")
-
-# --- 🏗️ Data Contracts (Strict Type Safety) ---
 
 class ProductContext(BaseModel):
     """
@@ -36,7 +32,7 @@ class AIReasoningResponse(BaseModel):
 
 class FreeLLMService:
     """
-    �� DIAMOND STANDARD ADAPTER (Groq / Llama 3).
+    💎 DIAMOND STANDARD ADAPTER (Groq / Llama 3).
     
     Architectural Features:
     - Thread-Safe Singleton Pattern.
@@ -62,10 +58,8 @@ class FreeLLMService:
             
         self.api_key = os.getenv("GROQ_API_KEY")
         
-        # 🚀 MODEL CONFIGURATION (LATEST STABLE VERSIONS)
-        # Heavy Reasoning: Llama 3.3 70B (The smartest open model)
         self.reasoning_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile") 
-        # Fast Utility: Llama 3.1 8B (Instant responses for extraction)
+    
         self.utility_model = "llama-3.1-8b-instant" 
         
         if not self.api_key:
@@ -96,7 +90,6 @@ class FreeLLMService:
         """
         if not self.client: return user_query
 
-        # The "Nuclear Prompt" for extraction
         system_prompt = """
         You are a Semantic Distiller API. 
         Your ONLY goal is to extract the CORE PHYSICAL OBJECT name from the user's query.
@@ -125,16 +118,14 @@ class FreeLLMService:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_query}
                 ],
-                model=self.utility_model, # Use the fast model
-                temperature=0.0, # Zero creativity = Maximum precision
+                model=self.utility_model, 
+                temperature=0.0, 
                 max_tokens=15
             )
             
-            # Defensive Cleaning
             clean_term = completion.choices[0].message.content.strip().lower()
             clean_term = clean_term.replace('"', '').replace("'", "").replace(".", "")
             
-            # Log the transformation for observability
             if clean_term != user_query:
                 logger.info(f"🔍 Query Distilled: '{user_query}' -> '{clean_term}'")
                 
@@ -142,7 +133,7 @@ class FreeLLMService:
 
         except Exception as e:
             logger.warning(f"⚠️ Query extraction bypass active due to error: {e}")
-            return user_query # Safe fallback
+            return user_query 
 
     async def filter_and_recommend(
         self, 
@@ -157,8 +148,6 @@ class FreeLLMService:
         if not self.client or not products:
             return None
 
-        # 1. Data Minimization (Optimization Layer)
-        # Strip heavy HTML descriptions, send only what matters for reasoning.
         try:
             context_products = [
                 ProductContext(**{k: v for k, v in p.items() if k in ProductContext.model_fields}).model_dump()
@@ -168,9 +157,8 @@ class FreeLLMService:
             logger.error(f"�� Data Serialization Error: {e}")
             return None
 
-        # 2. System Prompt Engineering (The Brain)
         system_prompt = f"""
-        You are 'Air', the proprietary AI core of the AirDeliver logistics network.
+        You are 'air', the proprietary AI core of the airdeliver logistics network.
         Persona: {persona} (Professional, Concise, Sophisticated).
         
         GOAL:
@@ -179,7 +167,7 @@ class FreeLLMService:
         
         RULES:
         1. RESPECT BUDGETS: If user says "$2000", prioritize high-value items. If "cheap", prioritize low price.
-        2. "intro_message": A futuristic acknowledgment (e.g., "Scanning inventory... Optimized matches found.").
+        2. "intro_message": A futuristic acknowledgment (e.g., "Based on your request ⚡").
         3. "reasoning": A micro-pitch (max 8 words) explaining the fit (e.g., "Best camera in your budget.").
         
         INVENTORY:
@@ -196,7 +184,6 @@ class FreeLLMService:
         }}
         """
 
-        # 3. Execution with Resilience (Retry Loop)
         max_retries = 2
         for attempt in range(max_retries + 1):
             try:
@@ -206,14 +193,13 @@ class FreeLLMService:
                         {"role": "user", "content": user_query}
                     ],
                     model=self.reasoning_model,
-                    temperature=0.3, # Low temperature for consistent JSON
+                    temperature=0.3, 
                     max_tokens=600,
-                    response_format={"type": "json_object"} # Force strict JSON
+                    response_format={"type": "json_object"} 
                 )
 
                 raw_content = chat_completion.choices[0].message.content
                 
-                # 4. Validation Layer (Pydantic)
                 parsed_data = json.loads(raw_content)
                 validated_response = AIReasoningResponse(**parsed_data)
                 
@@ -222,7 +208,7 @@ class FreeLLMService:
             except (APIConnectionError, RateLimitError) as e:
                 logger.warning(f"⚠️ AI Network Glitch (Attempt {attempt+1}/{max_retries+1}): {e}")
                 if attempt < max_retries:
-                    await asyncio.sleep(1 * (attempt + 1)) # Exponential backoff
+                    await asyncio.sleep(1 * (attempt + 1)) 
                 else:
                     logger.error("🔥 AI Service Unreachable.")
                     return None
