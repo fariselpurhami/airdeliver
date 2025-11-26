@@ -232,7 +232,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
 
         const typesThatEndProcessing = [
           'payment_intent', 'ORDER_CANCELLED', 'error',
-          'success_text', 'confirmation_prompt', 'proactive_suggestion', 'recovery_prompt'
+          'success_text', 'confirmation_prompt', 'proactive_suggestion', 'recovery_prompt', 'product_carousel'
         ];
 
         if (typesThatEndProcessing.includes(response.type)) {

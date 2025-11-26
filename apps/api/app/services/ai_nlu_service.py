@@ -8,27 +8,41 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Set
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, func, and_
+
+# Core Services
 from app.services.ai_commerce_engine import AICommerceEngine
 from app.services.rabbitmq_service import RabbitMQService
 from app.services.cache_service import IAsyncCacheClient
+from app.services.free_llm_service import FreeLLMService  # The New Brain
+
+# Models
 from app.models.product import Product
 
+# Enterprise Logging
 logger = logging.getLogger(__name__)
 
 class AINLUService:
+    """
+    The Orchestrator of User Intent.
+    Combines Vector Search (RAG) with Generative AI (Llama 3) for hyper-personalized commerce.
+    Features Smart Recovery for complex queries.
+    """
     def __init__(
         self,
         db: AsyncSession,
         search_engine: AICommerceEngine,
         rabbitmq: RabbitMQService,
         cache: IAsyncCacheClient,
+        llm_service: FreeLLMService, # Dependency Injection
     ):
         self.db = db
         self.search_engine = search_engine
         self.rabbitmq = rabbitmq
         self.cache = cache
+        self.llm_service = llm_service
         self.seen_cache_ttl = 3600
 
+        # Persona Anchors for Vector Similarity
         self.persona_anchors = {
             "LUXURY": self.search_engine.embedding_model.encode("expensive premium gold diamond luxury elegant exclusive high-end", convert_to_numpy=True),
             "TECH": self.search_engine.embedding_model.encode("technology computer electronics smart specs performance gadget innovation", convert_to_numpy=True),
@@ -36,6 +50,7 @@ class AINLUService:
             "CASUAL": self.search_engine.embedding_model.encode("simple basic home daily essentials standard cheap", convert_to_numpy=True)
         }
 
+    # --- Helper Methods ---
     def _get_seen_key(self, user_id: int) -> str:
         return f"ai_session:{user_id}:seen_products"
 
@@ -57,22 +72,20 @@ class AINLUService:
         except Exception: pass
 
     def _detect_persona(self, product: Product) -> str:
-        # Advanced Vector Persona Detection
+        """Detects product vibe using vector dot product against anchors."""
         product_text = f"{product.name} {product.description} {product.category} {' '.join(product.tags or [])}"
         product_vector = self.search_engine.embedding_model.encode(product_text, convert_to_numpy=True)
-
         best_persona = "CASUAL"
         max_score = -1.0
-
         for persona, anchor_vector in self.persona_anchors.items():
             score = np.dot(product_vector, anchor_vector) / (np.linalg.norm(product_vector) * np.linalg.norm(anchor_vector))
             if score > max_score:
                 max_score = score
                 best_persona = persona
-
         return best_persona
 
     def _get_contextual_message(self, persona: str, intent: str, product_name: str = "") -> str:
+        """Fallback rule-based responses for high-speed interactions."""
         hour = datetime.now().hour
         time_context = "morning" if 5 <= hour < 12 else "evening" if 17 <= hour < 23 else "day"
 
@@ -81,16 +94,13 @@ class AINLUService:
             elif persona == "TECH": return f"**{product_name}** added. High-performance specs secured. ⚡"
             elif persona == "FASHION": return f"**{product_name}** is stunning! You have a great eye for style. 👗"
             else: return f"**{product_name}** is in! Great pick for your {time_context}. 🚀"
-
         if intent == "BUNDLE":
             if persona == "LUXURY": return "Curated specifically for your taste, a complete experience:"
             elif persona == "TECH": return "Optimized ecosystem bundle detected. Maximize your setup:"
             else: return "Grab the complete combo and save time:"
-
         if intent == "RECOVERY":
             if persona == "TECH": return "Specs didn't match? Check these alternatives:"
             else: return f"Change of heart on **{product_name}**? Maybe these fit better:"
-
         return f"**{product_name}** added!"
 
     async def _get_global_backup_products(self) -> List[Dict[str, Any]]:
@@ -108,10 +118,11 @@ class AINLUService:
     async def _filter_candidates(self, user_id: int, candidates: List[Dict[str, Any]], limit: int = 10) -> List[Dict[str, Any]]:
         seen_ids = await self._get_seen_product_ids(user_id)
         fresh_candidates = [p for p in candidates if p['id'] not in seen_ids]
-
         if len(fresh_candidates) >= limit:
             return random.sample(fresh_candidates, limit)
         return fresh_candidates
+
+    # --- Core Logic Methods ---
 
     async def _handle_initial_suggestions(self, user_id: int):
         backup_pool = await self._get_global_backup_products()
@@ -124,7 +135,6 @@ class AINLUService:
             else: weighted_pool.append(p)
 
         final_selection = await self._filter_candidates(user_id, weighted_pool, limit=10)
-
         if not final_selection:
             await self.cache.delete(self._get_seen_key(user_id))
             final_selection = random.sample(backup_pool, min(len(backup_pool), 10)) if backup_pool else []
@@ -186,12 +196,6 @@ class AINLUService:
             final_products = await self._filter_candidates(user_id, backup_pool, limit=5)
             suggestion_reason = "You might also like these popular items:"
 
-        if not final_products:
-             statement = select(Product).where(Product.id != added_product.id).order_by(func.random()).limit(5)
-             emergency_products = (await self.db.exec(statement)).all()
-             final_products = [p.model_dump(mode='json') for p in emergency_products]
-             suggestion_reason = "Fresh picks just for you:"
-
         if final_products:
             await self._mark_products_as_seen(user_id, final_products)
             await self.rabbitmq.publish(
@@ -213,6 +217,8 @@ class AINLUService:
             "airdeliver.ai.response.out",
         )
 
+    # --- MAIN PROCESSOR (The Brain) ---
+
     async def process_message(self, message_payload: dict):
         user_id = message_payload.get("user_id")
         raw_message = message_payload.get("message")
@@ -223,10 +229,11 @@ class AINLUService:
             await self._process_internal_command(user_id, message_text)
             return
 
-        # SEMANTIC INTENT CLASSIFICATION (Using the new Vector Logic)
+        # 1. Semantic Intent Classification
         products, entities = await self.search_engine.find_products_from_message(self.db, message_text, user_id)
         intent = entities.get("intent", "SEARCH_PRODUCT")
 
+        # 2. Intent Routing
         if intent == "CONFIRM_ORDER":
             await self.rabbitmq.publish({**message_payload, "user_id": user_id}, "airdeliver.ai.intent.confirm_order")
             return
@@ -235,6 +242,12 @@ class AINLUService:
             return
 
         if intent == "ADD_TO_CART":
+            if not products:
+                 # --- SMART RECOVERY ATTEMPT (ADD INTENT) ---
+                 clean_query = await self.llm_service.extract_search_terms(message_text)
+                 if clean_query != message_text:
+                     products, _ = await self.search_engine.find_products_from_message(self.db, clean_query, user_id)
+
             if not products:
                  await self.rabbitmq.publish({"user_id": user_id, "content": f"I couldn't find exactly '{message_text}', but check these out:", "type": "product_carousel", "products": []}, "airdeliver.ai.response.out")
             elif len(products) > 1:
@@ -245,11 +258,54 @@ class AINLUService:
                 await self._handle_add_to_cart_success(user_id, added_product)
 
         elif intent == "SEARCH_PRODUCT":
-            if products:
-                await self._mark_products_as_seen(user_id, [p.model_dump(mode='json') for p in products])
-                await self.rabbitmq.publish({"user_id": user_id, "content": "Found these for you:", "type": "product_carousel", "products": [p.model_dump(mode='json') for p in products]}, "airdeliver.ai.response.out")
+            
+            # === ⚡ SMART RECOVERY LOGIC ===
+            if not products:
+                # If first search failed, AI attempts to simplify the query
+                logger.info(f"🔎 First pass failed for: '{message_text}'. Attempting AI Extraction...")
+                clean_query = await self.llm_service.extract_search_terms(message_text)
+                
+                if clean_query and clean_query.lower() != message_text.lower():
+                    logger.info(f"🔄 Smart Retry: '{clean_query}'")
+                    products, _ = await self.search_engine.find_products_from_message(self.db, clean_query, user_id)
+
+            if not products:
+                # If still failing, intelligent fallback
+                await self.rabbitmq.publish({"user_id": user_id, "content": f"I scanned the inventory for '{message_text}' but found no exact matches. Try browsing categories.", "type": "error"}, "airdeliver.ai.response.out")
+                return
+
+            # --- SMART AI FILTERING (Llama 3 Integration) ---
+            # We take the top 15 raw candidates and ask Llama 3 to pick the absolute best ones with reasoning.
+            candidate_pool = [p.model_dump(mode='json') for p in products[:15]]
+            
+            ai_reasoning = await self.llm_service.filter_and_recommend(
+                user_query=message_text,
+                products=candidate_pool
+            )
+
+            final_display_products = []
+            intro_message = "Found these for you:"
+
+            if ai_reasoning:
+                # Llama 3 Successful Response
+                intro_message = ai_reasoning.intro_message
+                for p in candidate_pool:
+                    if p['id'] in ai_reasoning.selected_ids:
+                        # Inject the AI's "Why" into the product data
+                        p['ai_notes'] = ai_reasoning.reasoning.get(p['id'], "Best Match")
+                        final_display_products.append(p)
             else:
-                await self.rabbitmq.publish({"user_id": user_id, "content": f"I couldn't find anything matching '{message_text}'. Try browsing categories.", "type": "error"}, "airdeliver.ai.response.out")
+                # Fallback to standard RAG if AI is busy/down
+                final_display_products = candidate_pool[:5]
+            
+            await self._mark_products_as_seen(user_id, final_display_products)
+            await self.rabbitmq.publish({
+                "user_id": user_id, 
+                "content": intro_message, 
+                "type": "product_carousel", 
+                "products": final_display_products,
+                "reason": "AI Optimized"
+            }, "airdeliver.ai.response.out")
 
     async def _process_internal_command(self, user_id: int, command: str):
         if command == "__INTERNAL_SAVE_FOR_LATER__":
