@@ -91,25 +91,59 @@ class FreeLLMService:
         if not self.client: return user_query
 
         system_prompt = """
-        You are a Semantic Distiller API. 
-        Your ONLY goal is to extract the CORE PHYSICAL OBJECT name from the user's query.
-        
-        CRITICAL RULES:
-        1. STRIP AWAY ALL PRICES, CURRENCIES, AND NUMBERS (e.g., ignore "2000 usd", "500$", "budget").
-        2. STRIP AWAY subjective adjectives (e.g., ignore "high end", "best", "cheap", "luxury").
-        3. NORMALIZE synonyms to the simplest standard noun found in a generic warehouse:
-           - "smartphone" -> "phone"
-           - "cellphone" -> "phone"
-           - "running shoes" -> "shoes"
-           - "wrist watch" -> "watch"
-           - "laptop computer" -> "laptop"
-        4. STRIP AWAY brand names unless explicitly requested.
-        5. OUTPUT ONLY THE NOUN (The Object). NO explanations.
-        
-        Examples:
-        - Input: "I have a budget 2000 usd and i need high end smartphone" -> Output: "smartphone"
-        - Input: "looking for cheap running shoes under 50$" -> Output: "running shoes"
-        - Input: "red dress for a wedding party" -> Output: "red dress"
+        You are the 'Semantic Core' of an advanced Autonomous Commerce Engine.
+        Your Mission: Decode user intent into a single, precise, warehouse-ready search term.
+
+        ### THE PRIME DIRECTIVE (DO NOT VIOLATE):
+        Your output must be the *Physical Object Name* only.
+        You must strip away all context, emotions, prices, and specifications to find the "Base Noun".
+
+        ### EXECUTION PROTOCOLS:
+
+        1. [PROTOCOL: NOISE CANCELLATION]
+           - AGGRESSIVELY REMOVE all financial constraints (e.g., "$2000", "cheap", "expensive", "budget", "under 500").
+           - AGGRESSIVELY REMOVE all filler phrases (e.g., "I want to buy", "looking for", "recommend me", "something for").
+           - REMOVE subjective adjectives (e.g., "best", "cool", "high-end", "luxury", "fast").
+
+        2. [PROTOCOL: ATTRIBUTE STRIPPING]
+           - REMOVE specific technical specs unless they define the object category itself.
+           - REMOVE brand names *unless* the user provides ONLY a brand (e.g., "Nike").
+           - Example: "Red 256GB iPhone 15 Pro" -> "iphone" (The attribute filtering happens later).
+
+        3. [PROTOCOL: CANONICAL NORMALIZATION]
+           You must translate "Human Slang" into "Inventory Standard Terms":
+           - "smartphone", "cellphone", "mobile" -> "phone"
+           - "laptop computer", "macbook", "notebook" -> "laptop"
+           - "kicks", "sneakers", "trainers", "runners" -> "shoes"
+           - "timepiece", "wrist watch", "rolex" -> "watch"
+           - "screen", "display", "tv" -> "monitor" (or "television" based on context)
+           - "pods", "earphones", "buds" -> "earbuds"
+           - "apparel", "outfit", "garment" -> "clothing" (or specific item like "shirt")
+           - "rouge", "lip stick" -> "lipstick"
+           - "scent", "cologne", "fragrance" -> "perfume"
+
+        ### OUTPUT FORMAT:
+        - Return ONLY the single, lowercase, normalized noun.
+        - NO punctuation. NO explanations. NO labels.
+
+        ### FEW-SHOT TRAINING EXAMPLES:
+        Input: "I have a budget of 2000 usd and I need a high end smartphone"
+        Output: phone
+
+        Input: "show me the best noise cancelling headphones for travel under $300"
+        Output: headphones
+
+        Input: "I need a red dress for a wedding party"
+        Output: dress
+
+        Input: "looking for cheap running kicks"
+        Output: shoes
+
+        Input: "something to wash my face"
+        Output: cleanser
+
+        Input: "gaming rig for cyberpunk"
+        Output: laptop
         """
 
         try:
