@@ -1,19 +1,19 @@
 # apps/api/app/api/v1/endpoints/ai_support.py
 
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import SQLModel
 from typing import Optional
-
 from app.api import deps
 from app import models
 from app.db.session import get_session
 from app.services.neural_core_service import NeuralCoreService, get_neural_core_service
 from app.schemas.ai_actions import NeuralCoreResponse
 
+logger = logging.getLogger("airdeliver.api.support")
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
 class SupportRequest(SQLModel):
     message: str
@@ -27,6 +27,10 @@ async def handle_support_chat(
     current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
     neural_service: NeuralCoreService = Depends(get_neural_core_service),
 ):
+    """
+    💎 Diamond Endpoint for air intelligence.
+    Handles conversational AI, support routing, and tracking requests via Neural Core.
+    """
     
     if not request_data.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
@@ -35,6 +39,7 @@ async def handle_support_chat(
         raise HTTPException(status_code=400, detail="Session ID is required.")
 
     try:
+    
         response_envelope = await neural_service.handle_message(
             db=db,
             message=request_data.message,
@@ -44,17 +49,17 @@ async def handle_support_chat(
         return response_envelope
 
     except Exception as e:
-        logger.error(
-            f"🔥 CRITICAL: Uncaught exception in Neural Core: {e}", exc_info=True
-        )
+        logger.critical(f"🔥 NEURAL CORE FAILURE: {e}", exc_info=True)
         return NeuralCoreResponse(
-            text="I'm currently optimizing my neural pathways. Please try again in a few seconds.",
+            text="My systems are recalibrating. Please try again in a moment.",
             action=None,
-            explain=f"System Exception: {str(e)}",
+            explain="System Exception Handled",
             confidence=0.0,
             telemetry={
                 "intent": "SYSTEM_ERROR", 
-                "error": str(e), 
-                "entities": [] 
-            },
+                "turn": 0,
+                "user_id": current_user.id if current_user else None,
+                "entities": [], 
+                "error": str(e)
+            }
         )
