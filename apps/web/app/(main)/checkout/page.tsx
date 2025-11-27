@@ -1,194 +1,267 @@
 'use client';
 
-import { CalendarDays, Route, CloudSun, Zap, Cpu, Lock, CreditCard, User, MapPin, Clock } from 'lucide-react';
-import React, { Suspense, useRef } from 'react';
+import React, { useState, Suspense, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/Button'; 
-import { Input } from '@/components/ui/input'; 
-import dynamic from 'next/dynamic';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars } from '@react-three/drei';
+import { 
+    CreditCard, MapPin, User, Calendar, Lock, 
+    Plane, ShieldCheck, Cpu, Wifi, Wind, Navigation, 
+    Rocket, Clock, ScanLine
+} from 'lucide-react';
 import * as THREE from 'three';
 
 // ============================================================================
-// --- 1. (New) Checkout Background Component ---
+// --- 1. THE HYPERDRIVE ENGINE (Background - New Design) ---
 // ============================================================================
-const CheckoutBackground = () => {
-    const light1Ref = useRef<THREE.PointLight>(null!);
-    const light2Ref = useRef<THREE.PointLight>(null!);
+
+const HyperdriveStars = () => {
+    const pointsRef = useRef<THREE.Points>(null!);
+    const particleCount = 10000;
+    const [positions, colors] = useMemo(() => {
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const color = new THREE.Color();
+
+        for (let i = 0; i < particleCount; i++) {
+            const x = (Math.random() - 0.5) * 400;
+            const y = (Math.random() - 0.5) * 400;
+            const z = (Math.random() - 0.5) * 400;
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
+            const shade = Math.random();
+            if (shade > 0.8) color.setHex(0xFFFFFF);
+            else if (shade > 0.5) color.setHex(0x00FFFF);
+            else color.setHex(0x0066FF);
+            colors[i * 3] = color.r;
+            colors[i * 3 + 1] = color.g;
+            colors[i * 3 + 2] = color.b;
+        }
+        return [positions, colors];
+    }, []);
 
     useFrame((state) => {
-        const time = state.clock.elapsedTime;
-        if (light1Ref.current) {
-            light1Ref.current.position.x = Math.sin(time * 0.5) * 15;
-            light1Ref.current.position.y = Math.cos(time * 0.5) * 15;
-            light1Ref.current.position.z = Math.cos(time * 0.5) * 10;
-        }
-        if (light2Ref.current) {
-            light2Ref.current.position.x = Math.sin(time * 0.3) * -15;
-            light2Ref.current.position.y = Math.cos(time * 0.3) * -15;
-            light2Ref.current.position.z = Math.sin(time * 0.3) * 5;
+        if (pointsRef.current) {
+            pointsRef.current.position.z += 0.5;
+            if (pointsRef.current.position.z > 100) pointsRef.current.position.z = -100;
+            pointsRef.current.rotation.z = state.clock.getElapsedTime() * 0.05;
         }
     });
 
     return (
-        <>
-            <fog attach="fog" args={['#000000', 10, 30]} />
-            <ambientLight intensity={1.0} />
-            <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
-            <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
-            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-        </>
+        <points ref={pointsRef}>
+            <bufferGeometry>
+                <bufferAttribute attach="attributes-position" count={particleCount} array={positions} itemSize={3} />
+                <bufferAttribute attach="attributes-color" count={particleCount} array={colors} itemSize={3} />
+            </bufferGeometry>
+            <pointsMaterial size={0.3} vertexColors transparent opacity={0.8} sizeAttenuation blending={THREE.AdditiveBlending} />
+        </points>
     );
 };
 
-const DynamicCheckoutBackground = dynamic(() => Promise.resolve(CheckoutBackground), { 
-    ssr: false,
-    loading: () => null
-});
-
-// ============================================================================
-// --- 2. (Re-styled) Sub-Components ---
-// ============================================================================
-const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>) => (
-    <div className="relative">
-        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">{icon}</div>
-        <Input 
-            {...props} 
-            className="w-full pl-11 pr-4 py-3 bg-black/20 border border-cyan-400/30 rounded-lg text-white placeholder-gray-500 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-0 focus-visible:ring-offset-black/10"
-        />
-    </div>
-);
-
-const FlightPlanItem = ({ icon, label, value, valueColor = 'text-cyan-300' }: {
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-    valueColor?: string;
-}) => (
-    <div className="flex justify-between items-center">
-        <span className="text-gray-400 flex items-center gap-2"><span className="opacity-70">{icon}</span> {label}</span> 
-        <span className={`font-semibold ${valueColor}`}>{value}</span>
-    </div>
+const BackgroundScene = () => (
+    <>
+        <fog attach="fog" args={['#000000', 50, 200]} />
+        <ambientLight intensity={0.5} />
+        <HyperdriveStars />
+    </>
 );
 
 // ============================================================================
-// --- 3. (Re-built) Main Page Component ---
+// --- 2. UI COMPONENTS (New Look) ---
 // ============================================================================
+
+const InputField = ({ icon: Icon, label, placeholder, type = "text", half = false }: any) => (
+    <div className={`flex flex-col gap-2 ${half ? 'col-span-1' : 'col-span-2'}`}>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 ml-1 whitespace-nowrap">
+            {label}
+        </label>
+        <div className="relative group w-full">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-cyan-400 transition-colors pointer-events-none">
+                <Icon size={18} />
+            </div>
+            <input 
+                type={type}
+                placeholder={placeholder}
+                className="w-full bg-black/50 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:bg-black/80 transition-all shadow-inner"
+            />
+        </div>
+    </div>
+);
+
+const TelemetryRow = ({ icon: Icon, label, value, status }: any) => {
+    const statusColor = status === 'active' ? 'text-cyan-400' : status === 'warning' ? 'text-yellow-400' : 'text-gray-300';
+    return (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 w-full">
+            <div className="flex items-center gap-3">
+                <Icon size={16} className="text-gray-500 flex-shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 truncate">{label}</span>
+            </div>
+            <span className={`text-sm font-mono font-bold ${statusColor} whitespace-nowrap ml-2`}>{value}</span>
+        </div>
+    );
+};
+
+// ============================================================================
+// --- 3. THE MAIN PAGE (Old Structure + New Design) ---
+// ============================================================================
+
 export default function CheckoutPage() {
-    
-   
-    const mockOrder = {
-        subtotal: 96.00,
-        drone: 'A.I.D.A. Mk. IV',
-        path: 'Calculating... (12.4km)',
-        weather: 'Clear / Optimal',
-        eta: '14 Minutes (Pending Auth.)'
+    const [isMounted, setIsMounted] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    useEffect(() => { setIsMounted(true); }, []);
+
+    const handleLaunch = () => {
+        setIsProcessing(true);
+        setTimeout(() => setIsProcessing(false), 4000);
     };
 
     return (
-        <main className="min-h-screen w-full bg-black text-gray-100 p-4 py-24 md:py-32" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            <div className="fixed inset-0 z-0 opacity-70">
-                <Canvas>
-                    <Suspense fallback={null}>
-                        <DynamicCheckoutBackground />
-                    </Suspense>
-                </Canvas>
+        // STABLE LAYOUT: Using min-h-screen and w-full like the old file
+        <div className="relative min-h-screen w-full bg-black text-gray-100 font-sans selection:bg-cyan-500/30 overflow-x-hidden">
+            
+            {/* Background Layer */}
+            <div className="fixed inset-0 z-0">
+                {isMounted && (
+                    <Canvas camera={{ position: [0, 0, 50], fov: 60 }} dpr={[1, 2]}>
+                        <Suspense fallback={null}>
+                            <BackgroundScene />
+                        </Suspense>
+                    </Canvas>
+                )}
             </div>
 
-            <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-                className="relative z-10 w-full max-w-6xl mx-auto"
-            >
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl md:text-5xl font-black text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        Launch Sequence
+            {/* Content Layer - STABLE STRUCTURE COPIED FROM OLD FILE */}
+            <main className="relative z-20 container mx-auto px-4 pt-24 pb-24">
+                
+                {/* Header */}
+                <motion.div 
+                    initial={{ opacity: 0, y: -20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ duration: 0.8 }}
+                    className="text-center mb-16 max-w-4xl mx-auto"
+                >
+                    <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full border border-cyan-500/30 bg-[#0a0a0a]/80 backdrop-blur-xl mb-6 shadow-[0_0_30px_rgba(6,182,212,0.15)]">
+                        <Rocket size={14} className="text-cyan-400" />
+                        <span className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-100">Orbital Launchpad</span>
+                    </div>
+                    <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tighter drop-shadow-2xl" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                        LAUNCH <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">SEQUENCE</span>
                     </h1>
-                    <p className="text-gray-400 mt-2 max-w-lg mx-auto">Authorize payment to deploy your autonomous fleet. Please confirm your flight plan.</p>
-                </div>
+                </motion.div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-
-                   
-                    <div className="lg:col-span-3">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
-                            className="relative p-6 md:p-8 bg-black/30 backdrop-blur-xl border border-cyan-400/30 rounded-2xl shadow-2xl shadow-cyan-500/10"
+                {/* THE GOLDEN GRID STRUCTURE (From Old File: 5 Columns) */}
+                <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-8">
+                    
+                    {/* LEFT SIDE (3/5 Columns) */}
+                    <div className="lg:col-span-3 space-y-6">
+                        
+                        {/* Shipping Module */}
+                        <motion.div 
+                            initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
+                            className="bg-[#0a0a0a]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden"
                         >
-                            <form className="space-y-6">
-                                <div>
-                                    <h2 className="text-lg font-semibold text-cyan-400 border-b border-white/10 pb-2 mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                                        1. Shipping Details
-                                    </h2>
-                                    <div className="space-y-4">
-                                        <FuturisticInput icon={<User size={18} />} type="text" placeholder="Full Name" />
-                                        <FuturisticInput icon={<MapPin size={18} />} type="text" placeholder="Delivery Address" />
-                                    </div>
+                            <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/50" />
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="p-3 bg-cyan-900/20 rounded-xl border border-cyan-500/20 text-cyan-400">
+                                    <MapPin size={24} />
                                 </div>
-                                
                                 <div>
-                                    <h2 className="text-lg font-semibold text-cyan-400 border-b border-white/10 pb-2 mb-4 pt-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                                        2. Payment Authorization
-                                    </h2>
-                                    <div className="space-y-4">
-                                        <FuturisticInput icon={<CreditCard size={18} />} type="text" placeholder="Card Number" />
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <FuturisticInput icon={<CalendarDays size={18} />} type="text" placeholder="MM / YY" />
-                                            <FuturisticInput icon={<Lock size={18} />} type="text" placeholder="CVC" />
-                                        </div>
-                                    </div>
+                                    <h2 className="text-xl font-bold text-white tracking-wide" style={{ fontFamily: "'Orbitron', sans-serif" }}>Target Coordinates</h2>
+                                    <p className="text-xs text-gray-500 uppercase tracking-widest">Delivery Vector</p>
                                 </div>
-                            </form>
+                            </div>
+                            <div className="grid grid-cols-2 gap-6 w-full">
+                                <InputField icon={User} label="Recipient ID" placeholder="Full Name" />
+                                <InputField icon={MapPin} label="Drop Zone" placeholder="Street Address" />
+                                <InputField icon={ScanLine} label="Postal Sector" placeholder="ZIP Code" half />
+                                <InputField icon={Wifi} label="Comm Link" placeholder="Phone Number" half type="tel" />
+                            </div>
                         </motion.div>
+
+                        {/* Payment Module */}
+                        <motion.div 
+                            initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
+                            className="bg-[#0a0a0a]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-1 h-full bg-green-500/50" />
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="p-3 bg-green-900/20 rounded-xl border border-green-500/20 text-green-400">
+                                    <ShieldCheck size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-white tracking-wide" style={{ fontFamily: "'Orbitron', sans-serif" }}>Authorization</h2>
+                                    <p className="text-xs text-gray-500 uppercase tracking-widest">Payment Protocol</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-6 w-full">
+                                <InputField icon={CreditCard} label="Card Sequence" placeholder="0000 0000 0000 0000" />
+                                <InputField icon={Calendar} label="Exp. Cycle" placeholder="MM / YY" half />
+                                <InputField icon={Lock} label="Security Key" placeholder="CVC" half type="password" />
+                            </div>
+                        </motion.div>
+
                     </div>
 
+                    {/* RIGHT SIDE (2/5 Columns) */}
                     <div className="lg:col-span-2">
-                         <div className="sticky top-24">
+                        <div className="sticky top-24">
                             <motion.div 
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.7, delay: 0.4, ease: "easeOut" }}
-                                className="p-6 bg-black/30 backdrop-blur-xl border border-cyan-400/30 rounded-2xl flex flex-col shadow-2xl shadow-cyan-500/10"
+                                initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
+                                className="bg-[#0a0a0a]/80 backdrop-blur-2xl border border-cyan-500/30 rounded-2xl p-6 md:p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full"
                             >
-                                <h2 className="text-2xl font-bold text-white mb-6 pb-4 border-b border-cyan-400/30 flex items-center gap-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                                    <Cpu size={20} className="text-cyan-400" />
-                                    Flight Plan
-                                </h2>
-                                
-                                <div className="flex-grow space-y-4 text-sm text-gray-300 mb-6">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-gray-400">Subtotal</span> 
-                                        <span className="text-white font-semibold text-base">${mockOrder.subtotal.toFixed(2)}</span>
+                                <div className="flex justify-between items-start mb-8">
+                                    <div>
+                                        <h2 className="text-xl font-bold text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>Flight Telemetry</h2>
+                                        <div className="flex items-center gap-2">
+                                            <span className="relative flex h-2 w-2">
+                                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                            </span>
+                                            <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">System Online</span>
+                                        </div>
                                     </div>
-                                    
-                                    <div className="w-full h-px bg-cyan-400/20 my-2" />
+                                    <Cpu size={24} className="text-cyan-500" />
+                                </div>
 
-                                    <FlightPlanItem icon={<Zap size={14} />} label="Drone Assigned" value={mockOrder.drone} />
-                                    <FlightPlanItem icon={<Route size={14} />} label="Flight Path" value={mockOrder.path} valueColor="text-cyan-300 animate-pulse" />
-                                    <FlightPlanItem icon={<CloudSun size={14} />} label="Weather" value={mockOrder.weather} valueColor="text-green-300" />
-                                    <FlightPlanItem icon={<Clock size={14} />} label="Estimated ETA" value={mockOrder.eta} />
+                                {/* Radar Visualization */}
+                                <div className="relative w-full h-40 bg-black rounded-2xl border border-cyan-900/30 mb-6 overflow-hidden flex items-center justify-center group">
+                                    <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[length:20px_20px] opacity-30" />
+                                    <div className="w-full h-px bg-cyan-500/20 absolute top-1/2" />
+                                    <div className="h-full w-px bg-cyan-500/20 absolute left-1/2" />
+                                    <Plane className="text-cyan-400 relative z-10 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]" size={32} />
+                                    <div className="absolute bottom-2 right-3 text-[9px] font-mono text-cyan-500">RADAR: ACTIVE</div>
                                 </div>
-                                
-                                <div className="mt-auto pt-6">
-                                    <motion.button
-                                        type="submit"
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.98 }}
-                                        className="w-full group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-black bg-white rounded-full shadow-lg transition-transform duration-300 overflow-hidden"
-                                    >
-                                        <span className="absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#7F00FF] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                        <span className="relative">Authorize & Launch Fleet</span>
-                                    </motion.button>
+
+                                {/* Stats */}
+                                <div className="space-y-3 mb-8 w-full">
+                                    <TelemetryRow icon={Plane} label="Unit ID" value="Interceptor-X1" status="active" />
+                                    <TelemetryRow icon={Wind} label="Wind" value="12 km/h (Stable)" status="active" />
+                                    <TelemetryRow icon={Navigation} label="Distance" value="4.2 km" status="neutral" />
+                                    <TelemetryRow icon={Clock} label="ETA" value="~14 min" status="warning" />
                                 </div>
+
+                                {/* Launch Button */}
+                                <button 
+                                    onClick={handleLaunch}
+                                    disabled={isProcessing}
+                                    className="group relative w-full overflow-hidden rounded-xl p-5 bg-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-cyan-500/20"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <div className="relative flex items-center justify-center gap-3 z-10">
+                                        {isProcessing ? (
+                                            <><div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /><span className="text-black font-black uppercase tracking-[0.2em] text-xs">INITIALIZING...</span></>
+                                        ) : (
+                                            <><span className="text-black font-black uppercase tracking-[0.2em] text-xs group-hover:text-white transition-colors">INITIATE LAUNCH</span><Rocket className="text-black group-hover:text-white transition-colors" size={18} /></>
+                                        )}
+                                    </div>
+                                </button>
                             </motion.div>
                         </div>
                     </div>
                 </div>
-            </motion.div>
-        </main>
+            </main>
+        </div>
     );
 }
