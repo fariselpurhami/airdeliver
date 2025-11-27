@@ -1,3 +1,5 @@
+//** apps/web/app/legal/terms-of-service/page.tsx **//
+
 'use client';
 
 import React, { useState, Suspense, useRef, useEffect } from 'react';
@@ -182,7 +184,6 @@ export default function TermsPage() {
     const { scrollYProgress } = useScroll();
     const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
-    // Scroll Spy Logic
     useEffect(() => {
         const handleScroll = () => {
             const sections = legalSections.map(s => document.getElementById(s.id));
@@ -201,10 +202,8 @@ export default function TermsPage() {
     return (
         <div className="min-h-screen w-full bg-black text-gray-100 selection:bg-cyan-500/30">
             
-            {/* Progress Bar */}
             <motion.div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 to-purple-600 origin-left z-50" style={{ scaleX }} />
 
-            {/* Background */}
             <div className="fixed inset-0 z-0 opacity-60 pointer-events-none">
                 <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
                     <Suspense fallback={null}>
@@ -214,7 +213,6 @@ export default function TermsPage() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
             </div>
 
-            {/* Hero Header */}
             <section className="relative z-10 pt-40 pb-20 px-4 text-center">
                 <motion.div 
                     initial={{ opacity: 0, y: 30 }} 
@@ -234,17 +232,14 @@ export default function TermsPage() {
                 </motion.div>
             </section>
 
-            {/* Main Interface */}
             <section className="relative z-10 container mx-auto px-4 max-w-7xl pb-32">
                 
-                {/* Mode Switcher */}
                 <div className="sticky top-24 z-30 mb-16 flex justify-center">
                     <ModeToggle mode={mode} setMode={setMode} />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                     
-                    {/* Left: Navigation Dock (Sticky) */}
                     <div className="hidden lg:block lg:col-span-4 xl:col-span-3">
                         <div className="sticky top-48 p-6 rounded-[30px] bg-white/5 backdrop-blur-xl border border-white/10">
                             <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-6 pl-2">Navigation</h4>
@@ -270,7 +265,6 @@ export default function TermsPage() {
                         </div>
                     </div>
 
-                    {/* Right: Content Monoliths */}
                     <div className="col-span-1 lg:col-span-8 xl:col-span-9">
                         <div className="space-y-2">
                             {legalSections.map((section) => (
@@ -278,7 +272,6 @@ export default function TermsPage() {
                             ))}
                         </div>
 
-                        {/* Agreement Footer */}
                         <div className="mt-16 text-center border-t border-white/10 pt-12">
                             <p className="text-gray-500 text-sm mb-6">
                                 By accessing the airdeliver network, you acknowledge these protocols.

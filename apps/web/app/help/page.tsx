@@ -1,3 +1,5 @@
+//** apps/web/app/help/page.tsx **//
+
 'use client';
 
 import React, { useState, Suspense, useRef } from 'react';
@@ -217,7 +219,6 @@ export default function HelpPage() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
             </div>
 
-            {/* Header Section */}
             <section className="relative z-10 pt-40 pb-20 px-4">
                 <div className="container mx-auto max-w-4xl text-center">
                     <motion.div 
@@ -243,7 +244,6 @@ export default function HelpPage() {
                 </div>
             </section>
 
-            {/* Contact Modules Grid */}
             <section className="relative z-10 container mx-auto px-4 max-w-7xl py-12">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {contactModules.map((mod, i) => (
@@ -252,7 +252,6 @@ export default function HelpPage() {
                 </div>
             </section>
 
-            {/* FAQ Section */}
             <section className="relative z-10 container mx-auto px-4 max-w-4xl py-24">
                 <div className="text-center mb-16">
                     <h2 className="text-3xl font-bold text-white mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>Knowledge Archive</h2>
@@ -275,12 +274,11 @@ export default function HelpPage() {
                 </div>
             </section>
 
-            {/* Footer Status */}
             <footer className="relative z-10 py-12 text-center border-t border-white/5 bg-black/40 backdrop-blur-lg">
                 <div className="flex flex-col md:flex-row justify-center items-center gap-6 text-xs text-gray-600 uppercase tracking-widest">
                     <span className="flex items-center gap-2"><Activity size={14} className="text-green-500" /> Support Systems Online</span>
                     <span className="flex items-center gap-2"><ShieldCheck size={14} className="text-cyan-500" /> Secure Connection</span>
-                    <span>© 2025 AIRDELIVER</span>
+                    <span>© 2025 airdeliver</span>
                 </div>
             </footer>
 

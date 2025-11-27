@@ -1,3 +1,5 @@
+//** apps/web/app/legal/privacy-policy/page.tsx **//
+
 'use client';
 
 import React, { useState, Suspense, useRef, useEffect } from 'react';
@@ -68,7 +70,6 @@ const PrivacyBackground = () => {
 
     useFrame((state) => {
         if (groupRef.current) {
-            // Slow, protective rotation
             groupRef.current.rotation.y = state.clock.getElapsedTime() * 0.03;
             groupRef.current.rotation.z = Math.sin(state.clock.getElapsedTime() * 0.1) * 0.05;
         }
@@ -78,7 +79,6 @@ const PrivacyBackground = () => {
         <group ref={groupRef}>
             <fog attach="fog" args={['#000000', 20, 80]} />
             <ambientLight intensity={0.3} />
-            {/* Greenish-Blue light for "Security" feel */}
             <pointLight position={[15, 15, 15]} intensity={2} color="#10B981" /> 
             <pointLight position={[-15, -10, 5]} intensity={1} color="#06B6D4" />
             <Stars radius={120} depth={40} count={6000} factor={4} saturation={0} fade speed={0.5} />
@@ -133,7 +133,6 @@ const ProtocolCard = ({ data, mode }: { data: typeof privacyProtocols[0], mode: 
             transition={{ duration: 0.6 }}
             className="group relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-[40px] p-8 md:p-12 mb-8 overflow-hidden transition-all hover:border-green-500/30"
         >
-            {/* Ambient Glow */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-green-500/10 rounded-full blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
             <div className="relative z-10 flex flex-col gap-6">
@@ -186,7 +185,6 @@ export default function PrivacyPage() {
     const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
     const [isMounted, setIsMounted] = useState(false);
 
-    // Scroll Spy Logic
     useEffect(() => {
         setIsMounted(true);
         const handleScroll = () => {
@@ -206,10 +204,8 @@ export default function PrivacyPage() {
     return (
         <div className="min-h-screen w-full bg-black text-gray-100 selection:bg-green-500/30">
             
-            {/* Progress Line */}
             <motion.div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-green-400 to-cyan-500 origin-left z-50" style={{ scaleX }} />
 
-            {/* 3D Background Layer */}
             <div className="fixed inset-0 z-0 opacity-60 pointer-events-none">
                 {isMounted && (
                     <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
@@ -221,7 +217,6 @@ export default function PrivacyPage() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
             </div>
 
-            {/* Header */}
             <section className="relative z-10 pt-40 pb-24 px-4 text-center">
                 <motion.div 
                     initial={{ opacity: 0, scale: 0.95 }} 
@@ -241,17 +236,14 @@ export default function PrivacyPage() {
                 </motion.div>
             </section>
 
-            {/* Main Content Grid */}
             <section className="relative z-10 container mx-auto px-4 max-w-7xl pb-32">
                 
-                {/* Central Toggle */}
                 <div className="sticky top-24 z-30 mb-16 flex justify-center">
                     <ToggleSwitch mode={mode} setMode={setMode} />
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                     
-                    {/* Left Dock: Navigation */}
                     <div className="hidden lg:block lg:col-span-4 xl:col-span-3">
                         <div className="sticky top-48 p-6 rounded-[30px] bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden">
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500/50 to-transparent" />
@@ -280,7 +272,6 @@ export default function PrivacyPage() {
                         </div>
                     </div>
 
-                    {/* Right Stream: Content */}
                     <div className="col-span-1 lg:col-span-8 xl:col-span-9">
                         <div className="space-y-4">
                             {privacyProtocols.map((protocol) => (
@@ -288,7 +279,6 @@ export default function PrivacyPage() {
                             ))}
                         </div>
 
-                        {/* Footer Info */}
                         <div className="mt-20 text-center pt-12 border-t border-white/10">
                             <p className="text-gray-500 text-sm mb-4">
                                 Need deeper access? Contact our Data Protection Officer at <span className="text-green-400 cursor-pointer hover:underline">privacy@airdeliver.global</span>
