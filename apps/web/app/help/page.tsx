@@ -3,163 +3,287 @@
 import React, { useState, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Point, Points } from '@react-three/drei';
-import { Bot, Mail, Phone, ChevronDown, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input'; 
+import { Stars } from '@react-three/drei';
+import { 
+    Bot, Mail, Phone, ChevronDown, Search, 
+    Zap, LifeBuoy, Box, ShieldCheck, Activity 
+} from 'lucide-react';
 import * as THREE from 'three';
+import dynamic from 'next/dynamic';
 
-const faqItems = [
+// ============================================================================
+// --- 1. DATA MATRIX (The Knowledge Base) ---
+// ============================================================================
+
+const faqCategories = [
     {
-        question: "How fast is the delivery?",
-        answer: "Our standard autonomous delivery is completed in under 30 minutes within city limits. Express Drone Mode can reduce this to as little as 10 minutes, depending on flight conditions and distance."
+        id: "operational",
+        title: "Operational Protocols",
+        items: [
+            {
+                q: "How fast is the autonomous fleet?",
+                a: "Our standard autonomous delivery is completed in under 30 minutes within designated city zones. Express Drone Mode can reduce this to as little as 10 minutes, subject to airspace clearance and atmospheric conditions."
+            },
+            {
+                q: "What implies 'AI Optimization'?",
+                a: "Our AI Core analyzes your cart, delivery coordinates, and real-time network traffic to calculate the most energy-efficient flight path. It dynamically reroutes to avoid congestion, ensuring maximum speed and sustainability."
+            }
+        ]
     },
     {
-        question: "How do I track my order?",
-        answer: "You can track your order in real-time through the 'Tracking' section of your profile. Our interface provides a live 3D map of your drone's flight path, estimated time of arrival, and current status."
-    },
-    {
-        question: "What is 'AI Optimization'?",
-        answer: "Our AI Core analyzes your cart, delivery location, and real-time network data to select the most efficient drone and flight path. This ensures maximum speed while minimizing energy consumption for a more sustainable delivery."
-    },
+        id: "logistics",
+        title: "Logistics & Tracking",
+        items: [
+            {
+                q: "How do I track my payload?",
+                a: "Access the 'Tracking' tracking module in your profile. Our interface renders a live 3D holographic map of your drone's vector, telemetry data, and estimated time of arrival (ETA) down to the second."
+            },
+            {
+                q: "Is the landing zone secure?",
+                a: "Yes. Our drones utilize LIDAR and computer vision to scan the drop zone for obstacles, pets, or humans. If a safety risk is detected, the drone will hover and request user confirmation or reroute to a secondary zone."
+            }
+        ]
+    }
 ];
 
-const NeuralLinesBackground = () => {
-    const linesRef = useRef<THREE.Group>(null!);
-    useFrame((state, delta) => {
-        if (linesRef.current) {
-            linesRef.current.rotation.y += delta * 0.05;
+const contactModules = [
+    {
+        icon: Bot,
+        title: "AI Neural Assistant",
+        desc: "Instant resolution via our core AI.",
+        action: "Initiate Chat",
+        color: "cyan"
+    },
+    {
+        icon: Phone,
+        title: "Human Override",
+        desc: "Direct line to mission control.",
+        action: "Request Callback",
+        color: "purple"
+    },
+    {
+        icon: Mail,
+        title: "Secure CommLink",
+        desc: "Detailed inquiries & logs.",
+        action: "Send Transmission",
+        color: "green"
+    }
+];
+
+// ============================================================================
+// --- 2. ARCHITECTURAL BACKGROUND (The Grid) ---
+// ============================================================================
+
+const NeuralBackground = () => {
+    const groupRef = useRef<THREE.Group>(null!);
+    
+    useFrame((state) => {
+        if (groupRef.current) {
+            groupRef.current.rotation.y = state.clock.getElapsedTime() * 0.05;
+            groupRef.current.rotation.x = Math.sin(state.clock.getElapsedTime() * 0.1) * 0.02;
         }
     });
+
     return (
-        <group ref={linesRef}>
-            {Array.from({ length: 100 }).map((_, i) => (
-                <mesh key={i}>
-                    <ringGeometry args={[i * 0.1, i * 0.1 + 0.01, 64]} />
-                    <meshBasicMaterial color="#00E6FF" transparent opacity={0.1} />
+        <group ref={groupRef}>
+            <fog attach="fog" args={['#000000', 30, 90]} />
+            <ambientLight intensity={0.2} />
+            <pointLight position={[10, 10, 10]} intensity={1.5} color="#00C6FF" />
+            <Stars radius={120} depth={50} count={6000} factor={4} saturation={0} fade speed={1} />
+            {/* Abstract Grid Lines representing support network */}
+            {Array.from({ length: 20 }).map((_, i) => (
+                <mesh key={i} rotation={[Math.random() * Math.PI, Math.random() * Math.PI, 0]}>
+                    <torusGeometry args={[30 + i * 2, 0.05, 16, 100]} />
+                    <meshBasicMaterial color="#00C6FF" transparent opacity={0.1} />
                 </mesh>
             ))}
         </group>
     );
 };
 
-const ContactCard = ({ icon, title, text, delay }: { icon: React.ReactNode, title: string, text: string, delay: number }) => (
-    <motion.div
-        variants={{ hidden: { opacity: 0, y: 50 }, visible: { opacity: 1, y: 0 } }}
-        transition={{ duration: 0.7, delay }}
-        whileHover={{ y: -10, scale: 1.03, transition: { type: 'spring', stiffness: 300 } }}
-        className="relative p-8 bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl text-center cursor-pointer overflow-hidden"
-    >
-        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="flex justify-center mb-4 text-cyan-400">{icon}</div>
-        <h3 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
-        <p className="text-gray-400">{text}</p>
-    </motion.div>
+const DynamicBackground = dynamic(() => Promise.resolve(NeuralBackground), { 
+    ssr: false,
+    loading: () => null
+});
+
+// ============================================================================
+// --- 3. UI COMPONENTS (The Interface) ---
+// ============================================================================
+
+const SearchMatrix = () => (
+    <div className="relative max-w-2xl mx-auto w-full group">
+        <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000" />
+        <div className="relative flex items-center bg-black/80 backdrop-blur-xl border border-white/10 rounded-full p-2 pl-6 shadow-2xl">
+            <Search className="text-gray-400 w-6 h-6 mr-4" />
+            <input 
+                type="text" 
+                placeholder="Query the Knowledge Base..." 
+                className="w-full bg-transparent text-white placeholder-gray-500 focus:outline-none font-medium text-lg"
+            />
+            <button className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-full font-bold uppercase tracking-wider text-xs transition-colors border border-white/5">
+                Scan
+            </button>
+        </div>
+    </div>
 );
 
-const FaqItem = ({ item, isOpen, onToggle }: { item: any, isOpen: boolean, onToggle: () => void }) => (
-    <motion.div layout className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
-        <motion.header layout className="flex justify-between items-center p-6 cursor-pointer" onClick={onToggle}>
-            <h4 className="font-semibold text-white">{item.question}</h4>
-            <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="text-cyan-400">
-                <ChevronDown />
-            </motion.div>
-        </motion.header>
-        <AnimatePresence>
-            {isOpen && (
-                <motion.section
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
-                >
-                    <div className="px-6 pb-6 text-gray-400 leading-relaxed" style={{ fontFamily: "'Inter', sans-serif" }}>
-                        <p>{item.answer}</p>
-                    </div>
-                </motion.section>
-            )}
-        </AnimatePresence>
-    </motion.div>
-);
-
-export default function HelpPage() {
-    const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
+const SupportModule = ({ data, index }: { data: typeof contactModules[0], index: number }) => {
+    const colors: Record<string, string> = {
+        cyan: "from-cyan-500/20 to-cyan-500/5 border-cyan-500/30 text-cyan-400",
+        purple: "from-purple-500/20 to-purple-500/5 border-purple-500/30 text-purple-400",
+        green: "from-green-500/20 to-green-500/5 border-green-500/30 text-green-400",
+    };
 
     return (
-        <div className="min-h-screen w-full bg-black text-white" style={{ fontFamily: "'Neue Montreal', sans-serif" }}>
-      
-            <section className="relative h-[80vh] w-full flex items-center justify-center text-center overflow-hidden">
-                <div className="absolute inset-0 z-0 opacity-40">
-                    <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-                        <Suspense fallback={null}>
-                            <NeuralLinesBackground />
-                            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-                        </Suspense>
-                    </Canvas>
-                </div>
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="z-10 px-4"
-                >
-                    <h1 className="text-5xl md:text-7xl font-black text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        Need Assistance?
-                    </h1>
-                    <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
-                        Our intelligent system and human team are available 24/7 to support your journey.
-                    </p>
-                    <motion.button
-                        whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(0, 230, 255, 0.5)" }}
-                        whileTap={{ scale: 0.95 }}
-                        className="mt-8 glowing-button rounded-full px-8 py-4 text-lg font-bold"
-                    >
-                        Start Live AI Chat
-                    </motion.button>
-                </motion.div>
-            </section>
-
-            <section className="py-24 px-4 container mx-auto">
-                <motion.div
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, amount: 0.2 }}
-                    className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto"
-                >
-                    <ContactCard icon={<Bot size={32} />} title="AI Chat Assistant" text="Get instant answers from our intelligent support system." delay={0} />
-                    <ContactCard icon={<Mail size={32} />} title="Email Support" text="Send a detailed inquiry to our human support specialists." delay={0.1} />
-                    <ContactCard icon={<Phone size={32} />} title="Human Callback" text="Request a scheduled call with a member of our team." delay={0.2} />
-                </motion.div>
-            </section>
-
-            <section className="py-24 px-4 bg-black bg-grid-white/[0.05]">
-                <div className="container mx-auto max-w-4xl text-center">
-                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-12" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        Knowledge Base
-                    </h2>
-                    <div className="relative mb-8">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
-                        <Input
-                            type="text"
-                            placeholder="Search our knowledge base with AI..."
-                            className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-full text-white placeholder-gray-500 focus-visible:ring-2 focus-visible:ring-cyan-400"
-                        />
+        <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: index * 0.1 }}
+            className={`relative p-8 rounded-[40px] bg-gradient-to-br ${colors[data.color]} border backdrop-blur-xl overflow-hidden group cursor-pointer`}
+        >
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-700">
+                <data.icon size={120} />
+            </div>
+            
+            <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="mb-8">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-black/40 border border-white/10 mb-6 text-${data.color}-400`}>
+                        <data.icon size={24} />
                     </div>
-                    <motion.div layout className="space-y-4 text-left">
-                        {faqItems.map((item, index) => (
-                            <FaqItem
-                                key={index}
-                                item={item}
-                                isOpen={expandedFaq === index}
-                                onToggle={() => setExpandedFaq(expandedFaq === index ? null : index)}
-                            />
-                        ))}
+                    <h3 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>{data.title}</h3>
+                    <p className="text-gray-300 font-light">{data.desc}</p>
+                </div>
+                
+                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-white group-hover:gap-4 transition-all">
+                    <span>{data.action}</span>
+                    <Zap size={14} className={`text-${data.color}-400`} fill="currentColor" />
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
+const FAQCapsule = ({ item }: { item: { q: string, a: string } }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <motion.div 
+            layout
+            onClick={() => setIsOpen(!isOpen)}
+            className={`group border border-white/5 rounded-3xl overflow-hidden transition-all duration-500 ${isOpen ? 'bg-white/10 border-cyan-500/30' : 'bg-white/5 hover:bg-white/10'}`}
+        >
+            <div className="p-6 flex justify-between items-center cursor-pointer">
+                <h4 className={`text-lg font-medium transition-colors ${isOpen ? 'text-cyan-400' : 'text-gray-200'}`}>
+                    {item.q}
+                </h4>
+                <div className={`p-2 rounded-full transition-all ${isOpen ? 'bg-cyan-500/20 text-cyan-400 rotate-180' : 'bg-white/5 text-gray-400'}`}>
+                    <ChevronDown size={20} />
+                </div>
+            </div>
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="px-6 pb-6"
+                    >
+                        <p className="text-gray-400 leading-relaxed border-t border-white/5 pt-4">
+                            {item.a}
+                        </p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
+    );
+};
+
+// ============================================================================
+// --- 4. MAIN PAGE (The Assembly) ---
+// ============================================================================
+
+export default function HelpPage() {
+    return (
+        <div className="min-h-screen w-full bg-black text-gray-100 selection:bg-cyan-500/30">
+            
+            {/* Background */}
+            <div className="fixed inset-0 z-0 opacity-60 pointer-events-none">
+                <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
+                    <Suspense fallback={null}>
+                        <DynamicBackground />
+                    </Suspense>
+                </Canvas>
+                <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
+            </div>
+
+            {/* Header Section */}
+            <section className="relative z-10 pt-40 pb-20 px-4">
+                <div className="container mx-auto max-w-4xl text-center">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ duration: 0.8 }}
+                    >
+                        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-cyan-500/30 bg-cyan-900/20 backdrop-blur-md mb-8">
+                            <LifeBuoy size={14} className="text-cyan-400" />
+                            <span className="text-xs font-bold uppercase tracking-widest text-cyan-300">Support Command Center</span>
+                        </span>
+                        
+                        <h1 className="text-5xl md:text-7xl font-black text-white mb-8 tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                            SYSTEM <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">ASSISTANCE</span>
+                        </h1>
+                        
+                        <p className="text-xl text-gray-400 max-w-2xl mx-auto font-light mb-12">
+                            Our autonomous agents and human specialists are standing by. How can we optimize your experience today?
+                        </p>
+
+                        <SearchMatrix />
                     </motion.div>
                 </div>
             </section>
-            
-            <footer className="py-20 px-4 text-center border-t border-white/10">
-                <p className="text-gray-400">airdeliver © 2025 – Intelligent Support, Powered by AI.</p>
+
+            {/* Contact Modules Grid */}
+            <section className="relative z-10 container mx-auto px-4 max-w-7xl py-12">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {contactModules.map((mod, i) => (
+                        <SupportModule key={i} data={mod} index={i} />
+                    ))}
+                </div>
+            </section>
+
+            {/* FAQ Section */}
+            <section className="relative z-10 container mx-auto px-4 max-w-4xl py-24">
+                <div className="text-center mb-16">
+                    <h2 className="text-3xl font-bold text-white mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>Knowledge Archive</h2>
+                    <p className="text-gray-500">Frequently accessed data points.</p>
+                </div>
+
+                <div className="space-y-12">
+                    {faqCategories.map((cat, i) => (
+                        <div key={cat.id}>
+                            <h3 className="text-lg font-bold text-cyan-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                <Box size={16} /> {cat.title}
+                            </h3>
+                            <div className="space-y-4">
+                                {cat.items.map((item, j) => (
+                                    <FAQCapsule key={j} item={item} />
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Footer Status */}
+            <footer className="relative z-10 py-12 text-center border-t border-white/5 bg-black/40 backdrop-blur-lg">
+                <div className="flex flex-col md:flex-row justify-center items-center gap-6 text-xs text-gray-600 uppercase tracking-widest">
+                    <span className="flex items-center gap-2"><Activity size={14} className="text-green-500" /> Support Systems Online</span>
+                    <span className="flex items-center gap-2"><ShieldCheck size={14} className="text-cyan-500" /> Secure Connection</span>
+                    <span>© 2025 AIRDELIVER</span>
+                </div>
             </footer>
+
         </div>
     );
 }
