@@ -1,6 +1,4 @@
-# apps/api/Dockerfile - Golden Enterprise Edition
-# Validated by Chief Software Architect
-# Final Version: Offline Model Support + Robust Worker Setup
+# apps/api/Dockerfile 
 
 # -----------------------------------------------------------------------------
 # STAGE 1: Base Configuration
@@ -35,26 +33,22 @@ RUN apt-get update && \
     git && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Poetry
 RUN curl -sSL https://install.python-poetry.org | python3 -
 
-# Create virtualenv
 RUN python -m venv $VIRTUAL_ENV
 
-# Install Dependencies
+ENV POETRY_HTTP_TIMEOUT=600 \
+    POETRY_INSTALLER_MAX_WORKERS=4 \
+    PIP_DEFAULT_TIMEOUT=600
+
 COPY pyproject.toml poetry.lock ./
-RUN poetry install --no-root --only main
+RUN poetry install --no-root --only main --no-cache
 
 # -----------------------------------------------------------------------------
 # STAGE 3: Model Placeholder (Offline Strategy)
 # -----------------------------------------------------------------------------
 FROM base AS model_downloader
 WORKDIR /models
-# ARCHITECTURAL NOTE: 
-# We skipped the 'RUN python -c download...' command here.
-# Since you downloaded the model locally to your host machine,
-# we will rely on the Docker Volume Mount to provide it at runtime.
-# This prevents build-time network timeouts.
 
 # -----------------------------------------------------------------------------
 # STAGE 4: Final Production Runtime
@@ -65,7 +59,6 @@ ARG APP_USER=airdeliver
 ARG APP_UID=1001
 ARG APP_GID=1001
 
-# 1. Robust User/Group Creation
 RUN existing_group=$(getent group $APP_GID | cut -d: -f1) && \
     if [ -n "$existing_group" ]; then groupdel $existing_group; fi && \
     groupadd -g $APP_GID $APP_USER && \
@@ -77,31 +70,23 @@ RUN existing_group=$(getent group $APP_GID | cut -d: -f1) && \
     curl && \
     rm -rf /var/lib/apt/lists/*
 
-# 2. Create directory structure
 RUN mkdir -p $HF_HOME && \
     mkdir -p $SENTENCE_TRANSFORMERS_HOME && \
     chown -R $APP_USER:$APP_USER $DATA_DIR
 
-# 3. Copy the Virtual Env (Libs) FIRST
 COPY --from=builder --chown=$APP_USER:$APP_USER $VIRTUAL_ENV $VIRTUAL_ENV
 
-# 4. CRITICAL FIX: Install 'watchfiles' AFTER copying the venv
-# This ensures the binary is not overwritten by the COPY command above
 RUN pip install --no-cache-dir watchfiles
 
-# 5. Copy Application Code
 COPY --chown=$APP_USER:$APP_USER ./alembic.ini ./
 COPY --chown=$APP_USER:$APP_USER ./alembic ./alembic
 COPY --chown=$APP_USER:$APP_USER ./seed_data.json ./
 COPY --chown=$APP_USER:$APP_USER ./app ./app
 
-# Set User
 USER $APP_USER
 EXPOSE 8000
 
-# Healthcheck
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-# Default Command (Will be overridden by docker-compose for Dev)
 CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

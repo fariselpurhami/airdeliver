@@ -3831,28 +3831,31 @@ test = ["Cython", "array-api-strict (>=2.3.1)", "asv", "gmpy2", "hypothesis (>=6
 
 [[package]]
 name = "sentence-transformers"
-version = "2.7.0"
-description = "Multilingual text embeddings"
+version = "3.4.1"
+description = "State-of-the-Art Text Embeddings"
 optional = false
-python-versions = ">=3.8.0"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "sentence_transformers-2.7.0-py3-none-any.whl", hash = "sha256:6a7276b05a95931581bbfa4ba49d780b2cf6904fa4a171ec7fd66c343f761c98"},
-    {file = "sentence_transformers-2.7.0.tar.gz", hash = "sha256:2f7df99d1c021dded471ed2d079e9d1e4fc8e30ecb06f957be060511b36f24ea"},
+    {file = "sentence_transformers-3.4.1-py3-none-any.whl", hash = "sha256:e026dc6d56801fd83f74ad29a30263f401b4b522165c19386d8bc10dcca805da"},
+    {file = "sentence_transformers-3.4.1.tar.gz", hash = "sha256:68daa57504ff548340e54ff117bd86c1d2f784b21e0fb2689cf3272b8937b24b"},
 ]
 
 [package.dependencies]
-huggingface-hub = ">=0.15.1"
-numpy = "*"
+huggingface-hub = ">=0.20.0"
 Pillow = "*"
 scikit-learn = "*"
 scipy = "*"
 torch = ">=1.11.0"
 tqdm = "*"
-transformers = ">=4.34.0,<5.0.0"
+transformers = ">=4.41.0,<5.0.0"
 
 [package.extras]
-dev = ["pre-commit", "pytest", "ruff (>=0.3.0)"]
+dev = ["accelerate (>=0.20.3)", "datasets", "peft", "pre-commit", "pytest", "pytest-cov"]
+onnx = ["optimum[onnxruntime] (>=1.23.1)"]
+onnx-gpu = ["optimum[onnxruntime-gpu] (>=1.23.1)"]
+openvino = ["optimum-intel[openvino] (>=1.20.0)"]
+train = ["accelerate (>=0.20.3)", "datasets"]
 
 [[package]]
 name = "setuptools"
@@ -5092,4 +5095,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "7dcc454cd851435f229a303475f5d79a4849ff3b1deb695191fd52f3d84e98f8"
+content-hash = "788258e0a42b64bef48b80e9b5c0372238477cabacc974628884ee24bd3607a0"

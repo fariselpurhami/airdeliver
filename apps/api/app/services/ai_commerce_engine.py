@@ -19,8 +19,64 @@ from app.services.cache_service import IAsyncCacheClient
 
 logger = logging.getLogger(__name__)
 
+# ============================================================================
+# --- 1. GLOBAL SINGLETON ARCHITECTURE (The Brain Manager) ---
+# ============================================================================
+
+class AIModelSingleton:
+    """
+    Architectural Singleton to hold the AI Model in RAM globally.
+    Ensures the model is loaded EXACTLY ONCE during the application lifecycle.
+    """
+    _instance = None
+    _model: Optional[SentenceTransformer] = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(AIModelSingleton, cls).__new__(cls)
+        return cls._instance
+
+    def load_model(self):
+        """Loads the model into memory if not already loaded."""
+        if self._model is not None:
+            return self._model
+
+        model_path = os.getenv("EMBEDDING_MODEL_PATH", "all-MiniLM-L6-v2")
+        logger.info(f"🏗️  GLOBAL ARCHITECTURE: Loading AI Brain into Shared Memory from: {model_path}...")
+        
+        try:
+        
+            if os.path.exists(model_path):
+                logger.info(f"📂 Model Path Check OK. Contents: {len(os.listdir(model_path))} files found.")
+            else:
+                logger.warning(f"⚠️ Model path not found locally, downloading from HuggingFace: {model_path}")
+
+            start_time = time.time()
+            self._model = SentenceTransformer(model_path)
+            self._model.encode(["warmup"]) 
+            elapsed = time.time() - start_time
+            
+            logger.info(f"✅ AI Brain Loaded Successfully in {elapsed:.2f}s. Ready for Millions of Requests.")
+        except Exception as e:
+            logger.critical(f"🔥 FATAL: Failed to load AI Model. System cannot function. Error: {e}")
+            raise e
+        
+        return self._model
+
+    def get_model(self) -> SentenceTransformer:
+        """Returns the cached model. Initializes if somehow missing."""
+        if self._model is None:
+            return self.load_model()
+        return self._model
+
+ai_manager = AIModelSingleton()
+
+
+# ============================================================================
+# --- 2. LOGIC ENGINE (Stateless Processor) ---
+# ============================================================================
+
 class HybridSearchReranker:
-    
     def __init__(self, k: int = 60):
         self.k = k
 
@@ -29,7 +85,6 @@ class HybridSearchReranker:
         for doc_id, score in results:
             if doc_id not in reranked_scores:
                 reranked_scores[doc_id] = 0.0
-
             reranked_scores[doc_id] += 1.0 / (self.k + score)
         return reranked_scores
 
@@ -43,7 +98,7 @@ class AICommerceEngine:
     ):
         self.opensearch_client = opensearch_client
         self.milvus_client = milvus_client
-        self.embedding_model = embedding_model
+        self.embedding_model = embedding_model 
         self.cache_client = cache_client
         self.reranker = HybridSearchReranker()
         
@@ -56,14 +111,13 @@ class AICommerceEngine:
         self._ensure_intent_knowledge_base()
 
     def _ensure_intent_knowledge_base(self):
-        
         try:
+            
             if self.milvus_client.has_collection(self.intent_collection):
-                logger.info("🧠 Semantic Intent Knowledge Base found.")
                 return
 
             logger.info("🚀 Hydrating Intent Vector Database (Cold Start)...")
-
+            
             schema = MilvusClient.create_schema(auto_id=True, enable_dynamic_field=True)
             schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
             schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=384)
@@ -87,17 +141,22 @@ class AICommerceEngine:
             }
 
             data_rows = []
+            all_phrases = []
+            phrase_labels = []
+            
             for label, phrases in intent_map.items():
-                vectors = self.embedding_model.encode(phrases, convert_to_numpy=True)
-                for vec in vectors:
-                    data_rows.append({"vector": vec, "intent_label": label})
+                all_phrases.extend(phrases)
+                phrase_labels.extend([label] * len(phrases))
+            
+            vectors = self.embedding_model.encode(all_phrases, convert_to_numpy=True)
+            
+            for i, vec in enumerate(vectors):
+                data_rows.append({"vector": vec, "intent_label": phrase_labels[i]})
 
             self.milvus_client.insert(collection_name=self.intent_collection, data=data_rows)
-            self.milvus_client.flush(collection_name=self.intent_collection)
-            # Load collection is critical for search performance
+        
             self.milvus_client.load_collection(collection_name=self.intent_collection)
-
-            logger.info(f"✅ Intent Knowledge Base Ready with {len(data_rows)} semantic anchors.")
+            logger.info(f"✅ Intent Knowledge Base Ready with {len(data_rows)} anchors.")
             
         except Exception as e:
             logger.error(f"❌ Failed to initialize Intent Knowledge Base: {e}")
@@ -118,13 +177,12 @@ class AICommerceEngine:
                 return "SEARCH_PRODUCT"
 
             top_match = results[0][0]
-            
-            if top_match['distance'] > 0.9:
+            if top_match['distance'] > 0.9: 
                 return "SEARCH_PRODUCT"
 
             return top_match['entity']['intent_label']
         except Exception as e:
-            logger.warning(f"Intent classification failed (using fallback): {e}")
+            logger.warning(f"Intent classification failed: {e}")
             return "SEARCH_PRODUCT"
 
     def _normalize_message(self, message: str) -> str:
@@ -137,7 +195,6 @@ class AICommerceEngine:
         if normalized in self.direct_clear: return "CLEAR_CART", ""
 
         intent = self._classify_intent_semantic(message)
-
         return intent, normalized
 
     def _get_query_embedding(self, query: str) -> List[float]:
@@ -217,7 +274,6 @@ class AICommerceEngine:
             for word in remove_words:
                 entity = re.sub(r'\b' + word + r'\b', '', entity, flags=re.IGNORECASE)
             entity = entity.strip()
-            
             base_metadata["entities"] = [entity] if entity else []
 
         if not entity:
@@ -256,7 +312,7 @@ class AICommerceEngine:
     async def find_complementary_products(
         self, db: AsyncSession, anchor_product: Product, limit: int = 20
     ) -> List[Product]:
-        semantic_query = f"compatible accessories, essential add-ons, matching items, and complementary supplies for {anchor_product.name} in category {anchor_product.category}"
+        semantic_query = f"compatible accessories, essential add-ons, matching items for {anchor_product.name}"
         vector = self._get_query_embedding(semantic_query)
         milvus_results = await self._search_milvus(vector, limit=100, exclude_id=anchor_product.id)
 
@@ -307,44 +363,26 @@ class AICommerceEngine:
 
         return bundle_items
 
+# ============================================================================
+# --- 3. DEPENDENCY INJECTION (Optimized) ---
+# ============================================================================
 
 def get_embedding_model() -> SentenceTransformer:
-    
-    model_path = os.getenv("EMBEDDING_MODEL_PATH", "all-MiniLM-L6-v2")
-    
-    logger.info(f"🤖 Loading Embedding Model from: {model_path}")
-
-    if os.path.exists(model_path):
-        logger.info(f"✅ Path exists. Contents: {os.listdir(model_path)}")
-    
-        if not os.path.exists(os.path.join(model_path, "config.json")):
-             logger.warning("⚠️ config.json not found in path! Model loading might fail.")
-    else:
-        logger.warning(f"⚠️ Model path does not exist inside container: {model_path}")
-
-    return SentenceTransformer(model_path)
+    """
+    Dependency to return the Pre-Loaded AI Model.
+    This executes in MICROSECONDS because the model is already in RAM.
+    """
+    return ai_manager.get_model()
 
 def get_milvus_client(settings: CoreSettings = Depends(get_core_settings)) -> MilvusClient:
-
+    """
+    Retries removed for request path. 
+    Ideally, connection should be established at startup, but MilvusClient is lightweight wrapper.
+    """
     if not isinstance(settings, CoreSettings):
         settings = get_core_settings()
-
-    milvus_uri = settings.MILVUS_URI
     
-    max_retries = 100
-    retry_delay = 3
-
-    for attempt in range(max_retries):
-        try:
-            client = MilvusClient(uri=milvus_uri)
-            return client
-        except Exception as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"⏳ Milvus not ready yet (Attempt {attempt+1}/{max_retries}). Retrying in {retry_delay}s...")
-                time.sleep(retry_delay)
-            else:
-                logger.critical(f"🔥 Failed to connect to Milvus at {milvus_uri} after {max_retries} attempts. Error: {e}")
-                raise e
+    return MilvusClient(uri=settings.MILVUS_URI)
 
 async def get_opensearch_client(settings: CoreSettings = Depends(get_core_settings)) -> AsyncGenerator[AsyncOpenSearch, None]:
     hosts = [{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}]
@@ -357,9 +395,7 @@ async def get_opensearch_client(settings: CoreSettings = Depends(get_core_settin
         verify_certs=False, 
         ssl_assert_hostname=False, 
         ssl_show_warn=False,
-        timeout=5,
-        max_retries=3,
-        retry_on_timeout=True
+        timeout=5
     )
     try:
         yield client
@@ -371,4 +407,8 @@ def get_ai_commerce_engine(
     milvus_client: MilvusClient = Depends(get_milvus_client),
     embedding_model: SentenceTransformer = Depends(get_embedding_model),
 ) -> AICommerceEngine:
+    """
+    Factory to create the Engine with dependencies injected.
+    The 'embedding_model' here is the GLOBAL SINGLETON instance.
+    """
     return AICommerceEngine(opensearch_client, milvus_client, embedding_model)
