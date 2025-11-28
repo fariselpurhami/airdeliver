@@ -1,3 +1,5 @@
+//** apps/web/components/layout/Footer.tsx **//
+
 'use client';
 
 import React, { useRef } from 'react';
@@ -12,13 +14,20 @@ const Tiktok = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 const socialLinks = [
-  { name: 'LinkedIn', href: '#', icon: Linkedin, hoverColor: '#00c6ff' },
+  { name: 'LinkedIn', href: '#', icon: Linkedin, hoverColor: '#0077b5' },
   { name: 'X (Twitter)', href: '#', icon: X, hoverColor: '#ffffff' },
   { name: 'YouTube', href: '#', icon: Youtube, hoverColor: '#ff0000' },
   { name: 'Facebook', href: '#', icon: Facebook, hoverColor: '#1877F2' },
   { name: 'Instagram', href: '#', icon: Instagram, hoverColor: '#E4405F' },
   { name: 'TikTok', href: '#', icon: Tiktok, hoverColor: '#00f2ea' },
 ];
+
+const FooterLink = ({ href, children }: { href: string, children: React.ReactNode }) => (
+    <Link href={href} className="group flex items-center gap-2 text-sm text-gray-400 hover:text-cyan-400 transition-colors duration-300">
+        <span className="h-px w-0 bg-cyan-400 group-hover:w-3 transition-all duration-300" />
+        {children}
+    </Link>
+);
 
 const Footer = () => {
     const footerRef = useRef<HTMLElement>(null);
@@ -29,94 +38,98 @@ const Footer = () => {
         [mouseX, mouseY],
         ([newX, newY]) => {
             const rect = footerRef.current?.getBoundingClientRect();
-            
-            if (!rect || newX === Infinity) {
-                return "radial-gradient(circle at 50% -200%, white 0%, black 100%)";
-            }
-            
+            if (!rect || newX === Infinity) return "radial-gradient(circle at 50% 100%, transparent 0%, transparent 100%)";
             const x = (newX as number) - rect.left;
             const y = (newY as number) - rect.top;
-            
-            return `radial-gradient(300px circle at ${x}px ${y}px, white 20%, transparent 100%)`;
+            return `radial-gradient(400px circle at ${x}px ${y}px, rgba(255,255,255,0.1), transparent 80%)`;
         }
     );
 
   return (
-    <>
-      <motion.footer
-        ref={footerRef}
-        onMouseMove={(e) => {
-            mouseX.set(e.clientX);
-            mouseY.set(e.clientY);
-        }}
-        onMouseLeave={() => {
-            mouseX.set(Infinity);
-            mouseY.set(Infinity);
-        }}
-        className="relative py-20 px-4 text-white overflow-hidden bg-ultra-black"
-      >
-        <div className="absolute inset-0 -z-20 bg-grid-white/[0.05]" />
+    <footer ref={footerRef} className="relative bg-black pt-24 pb-10 overflow-hidden" 
+        onMouseMove={(e) => { mouseX.set(e.clientX); mouseY.set(e.clientY); }}
+        onMouseLeave={() => { mouseX.set(Infinity); mouseY.set(Infinity); }}
+    >
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none" />
         <motion.div
-            className="absolute inset-0 -z-10 bg-gradient-to-t from-cyan-900/50 via-violet-900/30 to-ultra-black"
-            style={{
-                maskImage: maskImage,
-                WebkitMaskImage: maskImage,
-            }}
+            className="absolute inset-0 z-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+            style={{ maskImage, WebkitMaskImage: maskImage }}
         />
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
-        <div className="container mx-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-2 col-span-2 md:col-span-4">
-            <h2 className="text-2xl font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-              airdeliver
-            </h2>
-            <p className="mt-2 text-sm text-gray-400 max-w-xs italic">
-              We Soar In The Sky By Delivering Your Orders.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-bold mb-4 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Shop</h3>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/products" className="text-gray-400 hover:text-white transition-colors">All Products</Link></li>
-              <li><Link href="/products?category=accessories" className="text-gray-400 hover:text-white transition-colors">Accessories</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-bold mb-4 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Company</h3>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/about" className="text-gray-400 hover:text-white transition-colors">About Us</Link></li>
-              <li><Link href="/legal/terms-of-service" className="text-gray-400 hover:text-white transition-colors">Terms of Service</Link></li>
-              <li><Link href="/legal/privacy-policy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-bold mb-4 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Support</h3>
-            <ul className="space-y-2 text-sm">
-                <li><Link href="/help" className="text-gray-400 hover:text-white transition-colors">Contact Us</Link></li>
-            </ul>
-          </div>
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+
+        <div className="container mx-auto px-6 relative z-10">
+            
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-8 mb-20">
+                
+                <div className="md:col-span-5 lg:col-span-4 flex flex-col gap-6">
+                    <div className="relative inline-block">
+                        <h2 className="text-2xl font-bold text-white tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                            airdeliver
+                        </h2>
+                    </div>
+                    
+                    <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
+                        We Soar In The Sky By Delivering Your Orders.
+                    </p>
+                </div>
+
+                <div className="md:col-span-7 lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-8">
+                    <div className="flex flex-col gap-4">
+                        <h3 className="text-white font-bold uppercase tracking-widest text-xs flex items-center gap-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                            <span className="w-1.5 h-1.5 bg-purple-500 rounded-full" /> Shop
+                        </h3>
+                        <nav className="flex flex-col gap-3">
+                            <FooterLink href="/products">All Products</FooterLink>
+                            <FooterLink href="/products?category=accessories">Accessories</FooterLink>
+                        </nav>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                        <h3 className="text-white font-bold uppercase tracking-widest text-xs flex items-center gap-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                            <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full" /> Company
+                        </h3>
+                        <nav className="flex flex-col gap-3">
+                            <FooterLink href="/about">About Us</FooterLink>
+                            <FooterLink href="/legal/terms-of-service">Terms of Service</FooterLink>
+                            <FooterLink href="/legal/privacy-policy">Privacy Policy</FooterLink>
+                        </nav>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                        <h3 className="text-white font-bold uppercase tracking-widest text-xs flex items-center gap-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                            <span className="w-1.5 h-1.5 bg-white rounded-full" /> Support
+                        </h3>
+                        <nav className="flex flex-col gap-3">
+                            <FooterLink href="/help">Contact Us</FooterLink>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
+                <p className="font-mono text-[10px] tracking-widest uppercase">
+                    © {new Date().getFullYear()} airdeliver Inc. All rights reserved.
+                </p>
+
+                <div className="flex gap-6">
+                    {socialLinks.map((social) => (
+                        <motion.a
+                            key={social.name}
+                            href={social.href}
+                            whileHover={{ scale: 1.2, color: social.hoverColor, y: -2 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="text-gray-400 transition-colors duration-300"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={social.name}
+                        >
+                            <social.icon size={20} />
+                        </motion.a>
+                    ))}
+                </div>
+            </div>
         </div>
-        <div className="container mx-auto mt-16 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-sm">
-          <p className="text-gray-500 mb-4 md:mb-0">
-            © {new Date().getFullYear()} airdeliver Inc. All rights reserved.
-          </p>
-          <div className="flex gap-4">
-            {socialLinks.map((social) => (
-              <motion.a
-                key={social.name}
-                href={social.href}
-                aria-label={social.name}
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.2, color: social.hoverColor }}
-                className="text-gray-400"
-              >
-                <social.icon size={18} />
-              </motion.a>
-            ))}
-          </div>
-        </div>
-      </motion.footer>
-    </>
+    </footer>
   );
 };
 
