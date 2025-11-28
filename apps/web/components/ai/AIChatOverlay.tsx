@@ -1,3 +1,5 @@
+//** apps/web/components/ai/AIChatOverlay.tsx **//
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -17,7 +19,6 @@ import { AIPaymentForm } from './AIPaymentForm';
 import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
 
-// --- Utility Functions ---
 const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
     if (!relativePath || relativePath.startsWith('http')) {
         return relativePath || '/images/default.jpeg';
@@ -32,11 +33,9 @@ const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
 // --- 1. VISUAL COMPONENTS (The "Art" of the Interface) ---
 // ============================================================================
 
-// [NEW] مكون قياس الطيران (Telemetry Widget) - يحاكي بيانات الدرون الحية
 const DroneTelemetryWidget = React.memo(() => {
     const [stats, setStats] = useState({ speed: 45, alt: 120, bat: 98, stab: 100 });
 
-    // محاكاة بيانات حية
     useEffect(() => {
         const interval = setInterval(() => {
             setStats(prev => ({
@@ -59,7 +58,6 @@ const DroneTelemetryWidget = React.memo(() => {
                 <span className="text-lg font-mono font-bold text-white tracking-tight">{value.toFixed(1)}</span>
                 <span className="text-[9px] text-gray-400">{unit}</span>
             </div>
-            {/* Animated Bar */}
             <div className="w-full h-0.5 bg-gray-800 mt-2 rounded-full overflow-hidden">
                 <motion.div 
                     className={`h-full ${color.replace('text-', 'bg-')}`} 
@@ -107,7 +105,6 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
                 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             >
-                {/* Shine Effect */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                 
                 <div className="relative z-10 flex-grow flex flex-col">
@@ -247,7 +244,6 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                         </div>
                         <p className="whitespace-pre-wrap text-sm text-gray-300 mb-2">{message.content}</p>
                         <div className="grid grid-cols-3 gap-2 w-full">
-                            {/* Stylish Action Buttons */}
                             {[
                                 { icon: Undo2, label: "Resume", color: "cyan", action: onRestore },
                                 { icon: Save, label: "Save", color: "purple", action: onSave },
@@ -318,7 +314,6 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
 
     return (
         <div className="hidden lg:flex w-[35%] bg-black/40 backdrop-blur-2xl border-l border-white/5 flex-col overflow-hidden relative">
-            {/* Grid Pattern Background */}
             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none" />
             
             <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent relative z-10">
@@ -337,7 +332,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                         {cart.items.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-40 text-gray-600 gap-2 border border-dashed border-white/5 rounded-2xl">
                                 <ShoppingCart size={24} className="opacity-50" />
-                                <p className="text-xs uppercase tracking-wide">System Idle / Empty</p>
+                                <p className="text-xs uppercase tracking-wide">Cart / Empty</p>
                             </div>
                         ) : cart.items.map((item: any, index: number) => (
                             <motion.div
@@ -355,7 +350,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                             >
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
                                     <div className="w-10 h-10 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden">
-                                         {/* Placeholder or real image if available in cart item */}
+                                       
                                          <ShoppingBag size={14} className="text-gray-500" />
                                     </div>
                                     <div className="flex flex-col min-w-0">
@@ -383,11 +378,9 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                 </div>
             </div>
 
-            {/* HUD / Telemetry Section */}
             <div className="flex-shrink-0 p-6 border-t border-white/10 bg-black/60 backdrop-blur-xl space-y-5 relative z-20">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-1 bg-cyan-500/20 rounded-full" />
                 
-                {/* [NEW] Flight Telemetry Integration */}
                 <div>
                     <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                         <Signal size={12} /> Flight Telemetry
@@ -408,8 +401,8 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
 
                 <div className="flex justify-between items-end pt-2">
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest">Total Value</span>
-                        <span className="text-xs text-gray-400">Incl. Autonomous Fees</span>
+                        <span className="text-[10px] text-gray-500 uppercase tracking-widest">Total Price</span>
+                        <span className="text-xs text-gray-400">Inclusive of Premium Charges</span>
                     </div>
                     <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-cyan-200 font-mono tracking-tight">
                         ${cart.total.toFixed(2)}
@@ -452,7 +445,7 @@ const ChatInput = React.memo(
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder={isDisabled ? 'Systems processing...' : 'Initiate command or query...'}
+            placeholder={isDisabled ? 'Systems processing...' : 'Ask order with air...'}
             disabled={isDisabled}
             className="w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-full py-4 pr-14 pl-6 text-white placeholder-gray-600 focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50 focus:outline-none transition-all duration-300 font-medium"
           />
@@ -557,7 +550,6 @@ PaymentFatalError.displayName = 'PaymentFatalError';
 
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     
-    // --- Stripe & Store Logic (Preserved) ---
     const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
     const stripePromise: Promise<Stripe | null> | null = useMemo(() => {
         if (STRIPE_PUBLISHABLE_KEY) {
@@ -720,7 +712,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                     onClick={handleClose}
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 overflow-hidden"
                 >
-                    {/* Background Elements */}
+                   
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
                     <FlyToCartAnimator /> 
 
@@ -729,10 +721,10 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()}
-                        // [ARCHITECTURAL SIGNATURE] rounded-[40px]
+                       
                         className="w-full max-w-7xl h-[95vh] max-h-[1100px] flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-[0_0_50px_rgba(0,198,255,0.15)] overflow-hidden relative"
                     >
-                        {/* Decorative Corner Accents */}
+                       
                         <div className="absolute top-0 left-0 w-32 h-32 bg-cyan-500/5 blur-[60px] pointer-events-none" />
                         <div className="absolute bottom-0 right-0 w-32 h-32 bg-purple-500/5 blur-[60px] pointer-events-none" />
 
@@ -830,7 +822,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                 )}
                             </AnimatePresence>
                             
-                            {/* Desktop Sidebar with HUD */}
+                           
                             {!(isPaymentMode) && (
                                  <AIChatSidebar
                                     messages={messages}
