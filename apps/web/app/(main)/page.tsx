@@ -1,4 +1,4 @@
-//** apps/web/app/(main)/page.tsx **//
+///** apps/web/app/(main)/page.tsx **//
 
 'use client';
 
@@ -530,7 +530,7 @@ const GlobalScaleSection = () => {
 
                             <h2 className="text-5xl md:text-7xl font-black text-white mb-6 leading-[0.9] tracking-tighter drop-shadow-2xl" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 GLOBAL<br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-cyan-400 drop-shadow-[0_0_20px_rgba(168,85,247,0.8)] filter brightness-125">
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-purple-600 drop-shadow-[0_0_30px_rgba(6,182,212,0.4)]">
                                     SCALE
                                 </span>
                             </h2>
