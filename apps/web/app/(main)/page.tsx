@@ -376,10 +376,12 @@ const HowItWorksSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.5 }}
           transition={{ duration: 0.8 }}
-          className="text-center text-9xl md:text-7xl text-white mb-32"
-          style={{ fontFamily: "'Questrial', sans-serif", fontWeight: 600 }}
+          className="text-center text-5xl md:text-7xl font-black mb-32 tracking-tight"
+          style={{ fontFamily: "'Orbitron', sans-serif" }}
         >
-          HOW IT WORKS
+	  <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-blue-500 to-green-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+            HOW IT WORKS
+	  </span>
         </motion.h2>
 
         <div

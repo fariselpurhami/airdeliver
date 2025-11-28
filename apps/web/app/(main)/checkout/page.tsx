@@ -1,3 +1,5 @@
+//** apps/web/app/(main)/checkout/page.tsx **//
+
 'use client';
 
 import React, { useState, Suspense, useRef, useEffect, useMemo } from 'react';
@@ -11,7 +13,7 @@ import {
 import * as THREE from 'three';
 
 // ============================================================================
-// --- 1. THE HYPERDRIVE ENGINE (Background - New Design) ---
+// --- 1. THE HYPERDRIVE ENGINE (Background) ---
 // ============================================================================
 
 const HyperdriveStars = () => {
@@ -68,22 +70,22 @@ const BackgroundScene = () => (
 );
 
 // ============================================================================
-// --- 2. UI COMPONENTS (New Look) ---
+// --- 2. UI COMPONENTS (Refined for Silver Blur Glassmorphism) ---
 // ============================================================================
 
 const InputField = ({ icon: Icon, label, placeholder, type = "text", half = false }: any) => (
     <div className={`flex flex-col gap-2 ${half ? 'col-span-1' : 'col-span-2'}`}>
-        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 ml-1 whitespace-nowrap">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-1 whitespace-nowrap">
             {label}
         </label>
         <div className="relative group w-full">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-cyan-400 transition-colors pointer-events-none">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-cyan-400 transition-colors pointer-events-none">
                 <Icon size={18} />
             </div>
             <input 
                 type={type}
                 placeholder={placeholder}
-                className="w-full bg-black/50 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:bg-black/80 transition-all shadow-inner"
+                className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 focus:bg-white/10 transition-all shadow-inner"
             />
         </div>
     </div>
@@ -92,7 +94,8 @@ const InputField = ({ icon: Icon, label, placeholder, type = "text", half = fals
 const TelemetryRow = ({ icon: Icon, label, value, status }: any) => {
     const statusColor = status === 'active' ? 'text-cyan-400' : status === 'warning' ? 'text-yellow-400' : 'text-gray-300';
     return (
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 w-full">
+        // GLASS ROW
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 w-full">
             <div className="flex items-center gap-3">
                 <Icon size={16} className="text-gray-500 flex-shrink-0" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 truncate">{label}</span>
@@ -103,7 +106,7 @@ const TelemetryRow = ({ icon: Icon, label, value, status }: any) => {
 };
 
 // ============================================================================
-// --- 3. THE MAIN PAGE (Old Structure + New Design) ---
+// --- 3. THE MAIN PAGE ---
 // ============================================================================
 
 export default function CheckoutPage() {
@@ -118,10 +121,8 @@ export default function CheckoutPage() {
     };
 
     return (
-        // STABLE LAYOUT: Using min-h-screen and w-full like the old file
         <div className="relative min-h-screen w-full bg-black text-gray-100 font-sans selection:bg-cyan-500/30 overflow-x-hidden">
             
-            {/* Background Layer */}
             <div className="fixed inset-0 z-0">
                 {isMounted && (
                     <Canvas camera={{ position: [0, 0, 50], fov: 60 }} dpr={[1, 2]}>
@@ -132,17 +133,15 @@ export default function CheckoutPage() {
                 )}
             </div>
 
-            {/* Content Layer - STABLE STRUCTURE COPIED FROM OLD FILE */}
             <main className="relative z-20 container mx-auto px-4 pt-24 pb-24">
                 
-                {/* Header */}
                 <motion.div 
                     initial={{ opacity: 0, y: -20 }} 
                     animate={{ opacity: 1, y: 0 }} 
                     transition={{ duration: 0.8 }}
                     className="text-center mb-16 max-w-4xl mx-auto"
                 >
-                    <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full border border-cyan-500/30 bg-[#0a0a0a]/80 backdrop-blur-xl mb-6 shadow-[0_0_30px_rgba(6,182,212,0.15)]">
+                    <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-xl mb-6 shadow-[0_0_30px_rgba(6,182,212,0.15)]">
                         <Rocket size={14} className="text-cyan-400" />
                         <span className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-100">Orbital Launchpad</span>
                     </div>
@@ -151,20 +150,17 @@ export default function CheckoutPage() {
                     </h1>
                 </motion.div>
 
-                {/* THE GOLDEN GRID STRUCTURE (From Old File: 5 Columns) */}
                 <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-8">
                     
-                    {/* LEFT SIDE (3/5 Columns) */}
                     <div className="lg:col-span-3 space-y-6">
                         
-                        {/* Shipping Module */}
                         <motion.div 
                             initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
-                            className="bg-[#0a0a0a]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden"
+                            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[30px] p-6 md:p-8 shadow-2xl relative overflow-hidden"
                         >
                             <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/50" />
                             <div className="flex items-center gap-4 mb-8">
-                                <div className="p-3 bg-cyan-900/20 rounded-xl border border-cyan-500/20 text-cyan-400">
+                                <div className="p-3 bg-cyan-500/10 rounded-xl border border-cyan-500/20 text-cyan-400">
                                     <MapPin size={24} />
                                 </div>
                                 <div>
@@ -180,14 +176,13 @@ export default function CheckoutPage() {
                             </div>
                         </motion.div>
 
-                        {/* Payment Module */}
                         <motion.div 
                             initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-                            className="bg-[#0a0a0a]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden"
+                            className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[30px] p-6 md:p-8 shadow-2xl relative overflow-hidden"
                         >
                             <div className="absolute top-0 left-0 w-1 h-full bg-green-500/50" />
                             <div className="flex items-center gap-4 mb-8">
-                                <div className="p-3 bg-green-900/20 rounded-xl border border-green-500/20 text-green-400">
+                                <div className="p-3 bg-green-500/10 rounded-xl border border-green-500/20 text-green-400">
                                     <ShieldCheck size={24} />
                                 </div>
                                 <div>
@@ -204,12 +199,12 @@ export default function CheckoutPage() {
 
                     </div>
 
-                    {/* RIGHT SIDE (2/5 Columns) */}
                     <div className="lg:col-span-2">
                         <div className="sticky top-24">
+
                             <motion.div 
                                 initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
-                                className="bg-[#0a0a0a]/80 backdrop-blur-2xl border border-cyan-500/30 rounded-2xl p-6 md:p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full"
+                                className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[30px] p-6 md:p-8 shadow-[0_0_50px_rgba(0,0,0,0.3)] w-full"
                             >
                                 <div className="flex justify-between items-start mb-8">
                                     <div>
@@ -225,8 +220,7 @@ export default function CheckoutPage() {
                                     <Cpu size={24} className="text-cyan-500" />
                                 </div>
 
-                                {/* Radar Visualization */}
-                                <div className="relative w-full h-40 bg-black rounded-2xl border border-cyan-900/30 mb-6 overflow-hidden flex items-center justify-center group">
+                                <div className="relative w-full h-40 bg-black/40 rounded-2xl border border-white/10 mb-6 overflow-hidden flex items-center justify-center group">
                                     <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[length:20px_20px] opacity-30" />
                                     <div className="w-full h-px bg-cyan-500/20 absolute top-1/2" />
                                     <div className="h-full w-px bg-cyan-500/20 absolute left-1/2" />
@@ -234,7 +228,6 @@ export default function CheckoutPage() {
                                     <div className="absolute bottom-2 right-3 text-[9px] font-mono text-cyan-500">RADAR: ACTIVE</div>
                                 </div>
 
-                                {/* Stats */}
                                 <div className="space-y-3 mb-8 w-full">
                                     <TelemetryRow icon={Plane} label="Unit ID" value="Interceptor-X1" status="active" />
                                     <TelemetryRow icon={Wind} label="Wind" value="12 km/h (Stable)" status="active" />
@@ -242,7 +235,6 @@ export default function CheckoutPage() {
                                     <TelemetryRow icon={Clock} label="ETA" value="~14 min" status="warning" />
                                 </div>
 
-                                {/* Launch Button */}
                                 <button 
                                     onClick={handleLaunch}
                                     disabled={isProcessing}
