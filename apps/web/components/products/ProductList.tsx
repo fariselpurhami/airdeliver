@@ -1,4 +1,4 @@
-// apps/web/components/products/Productlist.tsx 
+//** apps/web/components/products/Productlist.tsx **//
 
 'use client';
 
@@ -7,12 +7,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ProductCard } from './ProductCard';
 import { ProductDetailsCard } from './ProductDetailsCard';
 import { type Product } from '@/types';
+
 const listVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.05, 
+      staggerChildren: 0.08, 
     },
   },
 };
@@ -36,7 +37,7 @@ export default function ProductList({ products }: { products: Product[] }) {
         variants={listVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8" 
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4" 
       >
         {products.map((product, index) => (
           <ProductCard
@@ -47,6 +48,7 @@ export default function ProductList({ products }: { products: Product[] }) {
           />
         ))}
       </motion.div>
+
       <AnimatePresence>
         {selectedProduct && (
           <motion.div
@@ -54,9 +56,9 @@ export default function ProductList({ products }: { products: Product[] }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-lg flex justify-center items-center p-4" 
+            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex justify-center items-center p-4 md:p-8 overflow-hidden" 
           >
-            <div onClick={(e) => e.stopPropagation()}>
+            <div onClick={(e) => e.stopPropagation()} className="w-full max-w-5xl h-full flex items-center justify-center">
               <ProductDetailsCard
                 product={selectedProduct}
                 onClose={handleClose}
