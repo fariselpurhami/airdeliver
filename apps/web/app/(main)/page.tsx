@@ -2,7 +2,7 @@
 
 'use client';
 
-import { ShieldCheck, Lock, Clock, MapIcon } from 'lucide-react';
+import { ShieldCheck, Lock, Clock, MapIcon, Quote } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
 import ProductOverlay from '@/components/products/ProductOverlay';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
@@ -548,140 +548,173 @@ const testimonials = [
   {
     name: 'Elena',
     title: 'CEO, Neo',
-    quote: "airdeliver isn't justa service; it's the future of logistics. The speed and autonomy are unparalleled.",
+    quote: "airdeliver isn't just a service; it's the future of logistics. The speed and autonomy are unparalleled.",
     rating: 5,
-    avatar: 'https://placehold.co/100x100/00C6FF/FFFFFF?text=E&font=orbitron'
+    avatar: 'E',
+    color: 'cyan'
   },
   {
     name: 'Kenji',
     title: 'Lead Futurist, QuantumLeap',
     quote: "The AI's efficiency in optimizing routes is something we thought was years away. It's here now.",
     rating: 5,
-    avatar: 'https://placehold.co/100x100/A855F7/FFFFFF?text=K&font=orbitron'
+    avatar: 'K',
+    color: 'purple'
   },
   {
     name: 'Fatima',
     title: 'Head of Innovation, EcoSpear',
     quote: "Sustainability is key for us. airdeliver's zero-emission network is a game-changer for green commerce.",
     rating: 5,
-    avatar: 'https://placehold.co/100x100/E879F9/FFFFFF?text=F&font=orbitron'
+    avatar: 'F',
+    color: 'green'
   },
 ];
 
-const TrustSignal = ({ icon, text, variants }: { icon: React.ReactNode; text: string; variants: any }) => (
+// --- COMPONENTS ---
+
+// [ARCHITECTURAL UPGRADE] The 4 "Power Cell" Cards
+const TrustSignalCard = ({ icon: Icon, title, description, delay }: { icon: any, title: string, description: string, delay: number }) => (
     <motion.div
-        variants={variants}
-        whileHover={{
-            scale: 1.05,
-            borderColor: 'rgba(0, 198, 255, 0.5)',
-            boxShadow: '0 0 20px rgba(0, 198, 255, 0.3)',
-        }}
-        className="flex flex-col items-center justify-center text-center gap-3 p-6 h-full w-full bg-black/40 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-xl shadow-cyan-500/10 transition-all duration-300"
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8, delay: delay }}
+        whileHover={{ scale: 1.05, y: -10 }}
+        className="relative group flex flex-col items-center text-center p-8 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[40px] overflow-hidden hover:border-cyan-500/30 transition-all duration-500 h-full"
     >
-        <div className="text-cyan-400 h-8 w-8 flex items-center justify-center">{icon}</div>
-        <span className="text-sm font-semibold tracking-wider uppercase text-white">{text}</span>
+        {/* Internal Glow */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute -inset-px bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-[40px] blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-500" />
+
+        {/* Icon Container */}
+        <div className="relative mb-6 p-4 rounded-2xl bg-white/5 border border-white/10 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/30 transition-colors duration-500 shadow-lg shadow-black/20">
+            <Icon size={32} className="text-gray-300 group-hover:text-cyan-400 transition-colors duration-500" />
+        </div>
+
+        <h3 className="text-xl font-bold text-white mb-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            {title}
+        </h3>
+
+        <p className="text-sm text-gray-400 leading-relaxed font-light">
+            {description}
+        </p>
     </motion.div>
 );
 
-const trustSignals = [
-    { name: 'Secure Payments', component: (props: any) => <TrustSignal icon={<Lock size={28} />} text="Secure Payments" {...props} /> },
-    { name: 'Eco-Friendly', component: (props: any) => <TrustSignal icon={<Leaf size={28} />} text="Eco-Friendly" {...props} /> },
-    { name: 'Insured', component: (props: any) => <TrustSignal icon={<ShieldCheck size={28} />} text="Insured & Reliable" {...props} /> },
-    { name: '24/7 Service', component: (props: any) => <TrustSignal icon={<Clock size={28} />} text="24/7 Service" {...props} /> },
-];
-
 const TestimonialCard = ({ testimonial }: { testimonial: typeof testimonials[0] }) => {
     return (
-        <motion.div
-            whileHover={{ scale: 1.05, zIndex: 10, y: -10 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            // [UPGRADE] تم تغيير الانحناء ليطابق "منحنى air-deliver"
-            className="flex-shrink-0 w-[80%] md:w-[40%] p-6 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-[40px] cursor-pointer shadow-lg shadow-cyan-500/10"
-        >
-            <div className="flex items-start gap-4">
-                <div className="relative">
-                    <img src={testimonial.avatar} alt={testimonial.name} className="w-14 h-14 rounded-full object-cover"
-                         onError={(e) => (e.currentTarget.src = 'https://placehold.co/100x100/333/FFF?text=?')}
-                    />
-                    <div className="absolute -inset-0.5 rounded-full border-2 border-[#00C6FF] blur-sm" />
+        <div className="flex-[0_0_85%] md:flex-[0_0_40%] min-w-0 pl-6">
+            <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="relative h-full p-10 rounded-[40px] bg-gradient-to-br from-white/5 to-transparent border border-white/10 flex flex-col group overflow-hidden"
+            >
+                {/* Visual Anchor */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:via-cyan-500/50 transition-all duration-500" />
+
+                <div className="flex items-center gap-4 mb-8">
+                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold text-black shadow-lg ${
+                        testimonial.color === 'purple' ? 'bg-purple-400 shadow-purple-500/20' :
+                        testimonial.color === 'green' ? 'bg-emerald-400 shadow-emerald-500/20' :
+                        'bg-cyan-400 shadow-cyan-500/20'
+                    }`}>
+                        {testimonial.avatar}
+                    </div>
+                    <div>
+                        <h4 className="text-xl font-bold text-white font-mono uppercase tracking-wide">{testimonial.name}</h4>
+                        <p className="text-xs text-cyan-500/80 uppercase tracking-widest font-semibold">{testimonial.title}</p>
+                    </div>
                 </div>
-                <div>
-                    <p className="font-bold text-white">{testimonial.name}</p>
-                    <p className="text-xs text-gray-400">{testimonial.title}</p>
+
+                <div className="relative z-10 flex-grow">
+                    <Quote size={48} className="absolute -top-4 -left-2 text-white/5 -z-10" />
+                    <p className="text-lg text-gray-300 font-light leading-relaxed italic pl-4 border-l-2 border-white/10">
+                        "{testimonial.quote}"
+                    </p>
                 </div>
-            </div>
-            <p className="text-gray-300 mt-4 text-sm">"{testimonial.quote}"</p>
-            <div className="flex mt-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                    <motion.div
-                        key={i}
-                        animate={{ scale: i < testimonial.rating ? [1, 1.2, 1] : 1 }}
-                        transition={{ duration: 1, repeat: Infinity, delay: i * 0.1 }}
-                    >
-                        <Star className={`w-4 h-4 ${i < testimonial.rating ? 'text-cyan-400 fill-cyan-400' : 'text-gray-600'}`} />
-                    </motion.div>
-                ))}
-            </div>
-        </motion.div>
+
+                <div className="flex items-center gap-1 mt-8">
+                    {[...Array(5)].map((_, i) => (
+                        <Star key={i} size={16} className="text-cyan-400 fill-cyan-400" />
+                    ))}
+                </div>
+            </motion.div>
+        </div>
     );
 };
 
-const TestimonialsSection = () => {
-  const [emblaRef] = useEmblaCarousel({ loop: true, align: 'start' }, [Autoplay({ delay: 4000 })]);
-
-  const partnerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
+export const TestimonialsSection = () => {
+  const [emblaRef] = useEmblaCarousel({ loop: true, align: 'center' }, [Autoplay({ delay: 6000, stopOnInteraction: false })]);
 
   return (
-    <section className="py-24 px-4 overflow-hidden relative">
+    <section className="py-32 px-4 relative bg-black overflow-hidden">
+        {/* Deep Space Background */}
+        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.04] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black pointer-events-none" />
 
-      <StarryBackground />
-      <div className="container mx-auto relative z-10">
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.5 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-12"
-        >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                Trusted by Innovators. Loved by Visionaries.
-            </h2>
-            <p className="max-w-2xl mx-auto text-gray-400">
-                From global tech leaders to first-time users — airdeliver is redefining what commerce feels like.
-            </p>
-        </motion.div>
+        <div className="container mx-auto relative z-10">
 
-        <div className="overflow-hidden" ref={emblaRef}>
-            <div className="flex gap-4">
-                {testimonials.map((t, i) => (
-                    <TestimonialCard key={i} testimonial={t} />
-                ))}
+            {/* --- 1. CENTERED HEADER --- */}
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8 }}
+                className="text-center mb-24 max-w-4xl mx-auto"
+            >
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6">
+                    <Zap size={12} className="text-yellow-400 fill-yellow-400" />
+                    <span className="text-[10px] font-mono text-gray-300 uppercase tracking-widest">Community Uplink</span>
+                </div>
+
+                <h2 className="text-5xl md:text-7xl font-black text-white mb-8 leading-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                    TRUSTED BY<br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-cyan-400 animate-gradient-x">
+                        VISIONARIES
+                    </span>
+                </h2>
+                <p className="text-xl text-gray-400 font-light leading-relaxed max-w-2xl mx-auto">
+                    From global tech leaders to first-time users — airdeliver is redefining the physics of commerce.
+                </p>
+            </motion.div>
+
+            {/* --- 2. THE 4 POWER CELLS (Trust Signals) --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-32">
+                <TrustSignalCard
+                    icon={Lock}
+                    title="Secure Payments"
+                    description="Quantum-resistant encryption for every transaction."
+                    delay={0.1}
+                />
+                <TrustSignalCard
+                    icon={Leaf}
+                    title="Eco-Friendly"
+                    description="100% electric fleet. Zero emissions. Pure efficiency."
+                    delay={0.2}
+                />
+                <TrustSignalCard
+                    icon={ShieldCheck}
+                    title="Insured & Reliable"
+                    description="Full cargo insurance and real-time anomaly detection."
+                    delay={0.3}
+                />
+                <TrustSignalCard
+                    icon={Clock}
+                    title="24/7 Service"
+                    description="Autonomous systems never sleep. Delivery at any hour."
+                    delay={0.4}
+                />
+            </div>
+
+            {/* --- 3. TESTIMONIALS CAROUSEL --- */}
+            <div className="overflow-hidden cursor-grab active:cursor-grabbing py-10" ref={emblaRef}>
+                <div className="flex -ml-6">
+                    {testimonials.map((t, i) => (
+                        <TestimonialCard key={i} testimonial={t} />
+                    ))}
+                </div>
             </div>
         </div>
-
-        <div className="mt-24">
-            <motion.div
-                variants={partnerVariants}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.2 }}
-                className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center"
-            >
-                {trustSignals.map((signal, i) => (
-                    <signal.component key={i} variants={partnerVariants} />
-                ))}
-            </motion.div>
-        </div>
-      </div>
     </section>
   );
 };
