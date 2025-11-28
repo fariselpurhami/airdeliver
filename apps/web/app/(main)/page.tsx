@@ -495,8 +495,8 @@ const GlobalScaleSection = () => {
                     <Stars
                         radius={100}
                         depth={100}
-                        count={40000} 
-                        factor={14}    
+                        count={54000} 
+                        factor={16}    
                         saturation={1}
                         fade
                         speed={0.2}  
