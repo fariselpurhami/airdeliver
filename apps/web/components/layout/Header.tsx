@@ -75,17 +75,20 @@ export default function Header() {
                 initial={{ y: -100 }}
                 animate={{ y: 0 }}
                 transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+               
                 className="fixed top-0 left-0 right-0 z-50 h-20 bg-black/60 backdrop-blur-2xl border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
             >
+               
                 <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
 
-                <div className="container mx-auto px-6 h-full flex justify-between items-center">
+                <div className="container mx-auto px-6 h-full flex justify-between items-center relative">
                     
-                    <Link href="/" className="group flex items-center gap-3">
+                    <Link href="/" className="group flex items-center gap-3 relative z-10">
                         <div className="relative">
                             <span className="text-2xl font-bold text-white tracking-tight group-hover:text-cyan-400 transition-colors duration-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 airdeliver
                             </span>
+                    
                             <span className="absolute top-0 left-0 -ml-[1px] text-2xl font-bold text-cyan-500 opacity-0 group-hover:opacity-50 group-hover:animate-pulse" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 airdeliver
                             </span>
@@ -103,7 +106,7 @@ export default function Header() {
                         </div>
                     </Link>
 
-                    <nav className="hidden md:flex items-center bg-white/5 border border-white/5 rounded-full p-1.5 backdrop-blur-md">
+                    <nav className="hidden md:flex items-center bg-white/5 border border-white/5 rounded-full p-1.5 backdrop-blur-md absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                         {navItems.map((item) => {
                             const isActive = pathname === item.href;
                             return (
@@ -126,7 +129,7 @@ export default function Header() {
                         })}
                     </nav>
 
-                    <div className="hidden md:flex items-center gap-3">
+                    <div className="hidden md:flex items-center gap-3 relative z-10">
                         <div className="flex items-center gap-1 bg-white/5 border border-white/5 rounded-full p-1.5">
                             <Link href="/cart" className="relative p-2.5 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all group" aria-label="Cart">
                                 <ShoppingCart size={18} />
@@ -151,7 +154,7 @@ export default function Header() {
                         </div>
                     </div>
                     
-                    <div className="md:hidden">
+                    <div className="md:hidden relative z-10">
                         <button 
                             onClick={() => setMobileMenuOpen(true)} 
                             className="p-2.5 text-white hover:bg-white/10 rounded-full transition-colors border border-transparent hover:border-white/10"
