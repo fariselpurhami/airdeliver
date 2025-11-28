@@ -2,12 +2,10 @@
 
 'use client';
 
-// [ARCHITECTURAL FIX] Removed 'StarryBackground' from lucide-react import
 import { ShieldCheck, Lock, Clock, MapIcon } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
 import ProductOverlay from '@/components/products/ProductOverlay';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
-// import AIChatOverlay from '@/components/ai/AIChatOverlay'; // Unused import commented out for cleanliness
 import Link from 'next/link';
 import Autoplay from 'embla-carousel-autoplay';
 import useEmblaCarousel from 'embla-carousel-react';
@@ -35,7 +33,6 @@ const Cleanup = () => {
 // --- COMPONENT DEFINITIONS (Locally Scoped) ---
 // ============================================================================
 
-// [ARCHITECTURAL FIX] Implemented local StarryBackground to replace missing import
 const StarryBackground = () => {
   return (
     <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
@@ -86,11 +83,11 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           className="w-full max-w-[90vw] mx-auto font-black uppercase leading-none" 
           style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
         >
-          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] lg:text-[8vw] leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-cyan-300 via-blue-500 to-blue-600 drop-shadow-[0_0_25px_rgba(0,198,255,0.5)]">
+          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] lg:text-[8vw] leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-cyan-400 via-cyan-400 to-white drop-shadow-[0_0_25px_rgba(0,198,255,0.3)]">
             COMMERCE.
           </span>
           
-          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] lg:text-[8vw] leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-blue-600 via-purple-500 to-purple-400 drop-shadow-[0_0_25px_rgba(168,85,247,0.5)]">
+          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] lg:text-[8vw] leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-white via-purple-300 to-purple-500 drop-shadow-[0_0_25px_rgba(168,85,247,0.3)]">
             TAKES FLIGHT.
           </span>
         </motion.h1>
