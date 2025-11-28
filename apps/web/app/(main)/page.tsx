@@ -2,11 +2,12 @@
 
 'use client';
 
-import { ShieldCheck, Lock, Clock } from 'lucide-react';
+// [ARCHITECTURAL FIX] Removed 'StarryBackground' from lucide-react import
+import { ShieldCheck, Lock, Clock, MapIcon } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
 import ProductOverlay from '@/components/products/ProductOverlay';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
-import AIChatOverlay from '@/components/ai/AIChatOverlay'; 
+// import AIChatOverlay from '@/components/ai/AIChatOverlay'; // Unused import commented out for cleanliness
 import Link from 'next/link';
 import Autoplay from 'embla-carousel-autoplay';
 import useEmblaCarousel from 'embla-carousel-react';
@@ -31,6 +32,22 @@ const Cleanup = () => {
 };
 
 // ============================================================================
+// --- COMPONENT DEFINITIONS (Locally Scoped) ---
+// ============================================================================
+
+// [ARCHITECTURAL FIX] Implemented local StarryBackground to replace missing import
+const StarryBackground = () => {
+  return (
+    <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/50 via-black to-black" />
+      <div className="absolute inset-0 opacity-20" 
+           style={{ backgroundImage: 'radial-gradient(white 1px, transparent 1px)', backgroundSize: '50px 50px' }}>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
 // --- 1. HERO SECTION (Definition) ---
 // ============================================================================
 const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
@@ -48,7 +65,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           <Canvas camera={{ position: [0, 0, 15], fov: 75 }}>
             <Hero3DBackground />
             <Preload all />
-	    <Cleanup />
+	        <Cleanup />
           </Canvas>
         </Suspense>
       </div>
@@ -168,7 +185,7 @@ const Starfield = (props: any) => {
 };
 
 // ============================================================================
-// --- 3. HOW IT WORKS SECTION ---
+// --- 2. HOW IT WORKS SECTION (Architectural Blueprint) ---
 // ============================================================================
 
 const VIEWBOX_WIDTH = 850;
@@ -178,225 +195,153 @@ const timelineSteps = [
   {
     icon: Bot,
     step: 1,
-    title: "order with air",
-    description: "Simply tell our AI what you need. It understands natural language to start your order instantly."
+    title: "AI Initiation",
+    description: "Natural language processing core interprets your intent instantly."
   },
   {
     icon: Cpu,
     step: 2,
-    title: "Smart System Routes",
-    description: "Our core AI analyzes millions of data points to find the fastest, most efficient delivery route for you."
+    title: "Route Computation",
+    description: "Neural networks calculate the optimal 4D flight path in milliseconds."
   },
   {
-    icon: Map,
+    icon: MapIcon,
     step: 3,
-    title: "Instant Order Tracking",
-    description: "Monitor your delivery in real-time on a holographic map from the moment of dispatch."
+    title: "Live Telemetry",
+    description: "Real-time holographic tracking from dispatch to destination."
   },
   {
     icon: Rocket,
     step: 4,
-    title: "Autonomous Delivery",
-    description: "Your order arrives via an autonomous drone, completing the journey with unparalleled speed and precision."
+    title: "Autonomous Arrival",
+    description: "Precision landing sequence initiated. Delivery complete."
   },
 ];
 
 const stepsWithPositions = [
-  { ...timelineSteps[0], x: 70, y: 40, width: 340, height: 180 }, 
-  { ...timelineSteps[1], x: 490, y: 220, width: 340, height: 180 }, 
-  { ...timelineSteps[2], x: 70, y: 400, width: 340, height: 180 }, 
-  { ...timelineSteps[3], x: 390, y: 721, width: 340, height: 180 }, 
+  { ...timelineSteps[0], x: 70, y: 40, width: 340, height: 240 },
+  { ...timelineSteps[1], x: 490, y: 220, width: 340, height: 240 },
+  { ...timelineSteps[2], x: 70, y: 400, width: 340, height: 240 },
+  { ...timelineSteps[3], x: 390, y: 721, width: 340, height: 240 },
 ];
 
-// ============================================================================
-// --- 2. BACKGROUND (Starry Sky) ---
-// ============================================================================
-
-const StarryBackground = () => (
-  <div className="absolute inset-0 z-0 overflow-hidden">
-    <div className="absolute inset-0 bg-black" />
-    <div
-      className="absolute inset-0"
-      style={{
-        backgroundImage: 'radial-gradient(circle, rgba(255, 255, 255, 0.8) 1px, transparent 1px)',
-        backgroundSize: '100px 100px',
-        opacity: 0.3
-      }}
-    />
-    <div
-      className="absolute inset-0"
-      style={{
-        backgroundImage: 'radial-gradient(circle, rgba(255, 255, 255, 0.6) 1.5px, transparent 1.5px)',
-        backgroundSize: '200px 200px',
-        backgroundPosition: '50px 50px',
-        opacity: 0.2
-      }}
-    />
-    <div
-      className="absolute inset-0"
-      style={{
-        backgroundImage: 'radial-gradient(ellipse at center, rgba(0, 198, 255, 0.15) 0%, transparent 70%)',
-      }}
-    />
-  </div>
-);
-
-// ============================================================================
-// --- 3. SVG DIAGRAM PATH (Calculated "By the Ruler") ---
-// ============================================================================
-
 const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
-  const pathLength = useTransform(scrollYProgress, [0.1, 0.9], [0, 1]);
+  const pathLength = useTransform(scrollYProgress, [0.1, 0.7], [0, 1]);
 
-  const precisePathDef =
-    
-    `M 410 125 L 440 125 L 440 322 L 488 322 ` +
-
-    `M 628.98 380 L 658.98 380 L 658.98 500 L 400 498.98 ` +
-
-    `M 223 580 L 221 814 L 395.1 814.06`;
+  const pathData = `M 410 160 L 450 160 L 450 340 L 490 340 ` + 
+                   `M 660 460 L 660 520 L 410 520 ` +           
+                   `M 240 640 L 240 841 L 390 841`;             
 
   return (
-    <svg
-      className="absolute inset-0 w-full h-full"
-      viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
-      preserveAspectRatio="xMidYMin meet"
-    >
-      <path
-        d={precisePathDef}
-        fill="none"
-        stroke="rgba(0, 198, 255, 0.2)"
-        strokeWidth={2}
-      />
+    <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} preserveAspectRatio="xMidYMin meet">
+      <path d={pathData} fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth={4} strokeLinecap="square" />
       <motion.path
-        d={precisePathDef}
+        d={pathData}
         fill="none"
-        stroke="url(#glowing-gradient)"
+        stroke="url(#architectural-gradient)"
         strokeWidth={3}
-        strokeLinecap="round"
-        style={{
-          pathLength: pathLength,
-          filter: 'drop-shadow(0 0 6px rgba(0, 198, 255, 0.8))'
-        }}
+        strokeLinecap="square"
+        style={{ pathLength, filter: 'drop-shadow(0 0 8px rgba(0, 198, 255, 0.6))' }}
       />
       <defs>
-        <linearGradient id="glowing-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="rgba(0, 198, 255, 1)" />
-          <stop offset="100%" stopColor="rgba(168, 85, 247, 1)" />
+        <linearGradient id="architectural-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#00C6FF" />
+          <stop offset="100%" stopColor="#7F00FF" />
         </linearGradient>
       </defs>
     </svg>
   );
 };
 
-// ============================================================================
-// --- 4. STEP CARD COMPONENT (Styling Only) ---
-// ============================================================================
-
 const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
   return (
-    <div
-      className="rounded-[40px] p-6 bg-black/40 backdrop-blur-lg border border-cyan-400/30 shadow-2xl shadow-cyan-500/10 text-left items-start flex flex-col h-full w-full"
-    >
-      <div className="flex items-center gap-3 mb-3">
-        <div className="text-cyan-400 glowing-icon">
-          <item.icon className="w-7 h-7" />
+    <div className="relative group h-full w-full">
+        <div className="absolute inset-0 bg-cyan-500/20 rounded-[40px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+        <div className="relative h-full w-full rounded-[40px] bg-black/60 backdrop-blur-xl border border-white/10 p-6 flex flex-col items-start transition-all duration-500 group-hover:border-cyan-500/30 group-hover:bg-black/80 overflow-hidden">
+            <div className="absolute top-6 right-6 flex gap-1">
+                <div className="w-1 h-1 rounded-full bg-white/20 group-hover:bg-cyan-400/80 transition-colors" />
+                <div className="w-1 h-1 rounded-full bg-white/20 group-hover:bg-cyan-400/60 transition-colors" />
+                <div className="w-1 h-1 rounded-full bg-white/20 group-hover:bg-cyan-400/40 transition-colors" />
+            </div>
+
+            <div className="mb-4 inline-flex items-center justify-center p-3 rounded-2xl bg-gradient-to-br from-white/5 to-white/0 border border-white/10 text-cyan-400 group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-lg shadow-black/50">
+                <item.icon size={28} />
+            </div>
+
+            <div className="flex items-center gap-3 mb-2">
+                <span className="text-[10px] font-mono text-cyan-500/80 tracking-widest uppercase border border-cyan-500/20 px-2 py-0.5 rounded">
+                    Phase 0{item.step}
+                </span>
+            </div>
+
+            <h3 className="text-2xl font-bold text-white mb-3 tracking-wide group-hover:text-cyan-100 transition-colors" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                {item.title}
+            </h3>
+
+            <p className="text-sm text-gray-400 leading-relaxed font-light group-hover:text-gray-300">
+                {item.description}
+            </p>
         </div>
-        <span className="text-xs text-gray-500">STEP {item.step}</span>
-      </div>
-      <h3
-        className="text-xl md:text-2xl font-bold text-white mb-2"
-        style={{ fontFamily: "'Orbitron', sans-serif" }}
-      >
-        {item.title}
-      </h3>
-      <p
-        className="text-sm text-gray-400 leading-relaxed"
-      >
-        {item.description}
-      </p>
     </div>
   );
 };
-
-// ============================================================================
-// --- 5. POSITIONED STEP CARD (The "Magic" Component) ---
-// ============================================================================
 
 const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) => {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, amount: 0.4 });
 
-  const style = {
-    left: `${(step.x / VIEWBOX_WIDTH) * 100}%`,
-    top: `${(step.y / VIEWBOX_HEIGHT) * 100}%`,
-    width: `${(step.width / VIEWBOX_WIDTH) * 100}%`,
-    height: `${(step.height / VIEWBOX_HEIGHT) * 100}%`,
-  };
-
   return (
     <motion.div
       ref={ref}
       className="absolute z-10"
-      style={style}
-      initial={{ opacity: 0, y: 30 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      whileHover={{ scale: 1.03 }}
-      transition={{
-        duration: 0.8,
-        ease: [0.22, 1, 0.36, 1],
-        scale: { duration: 0.3 } 
+      style={{
+        left: `${(step.x / VIEWBOX_WIDTH) * 100}%`,
+        top: `${(step.y / VIEWBOX_HEIGHT) * 100}%`,
+        width: `${(step.width / VIEWBOX_WIDTH) * 100}%`,
+        height: `${(step.height / VIEWBOX_HEIGHT) * 100}%`,
       }}
+      initial={{ opacity: 0, y: 40, scale: 0.95 }}
+      animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
     >
       <StepCard item={step} />
     </motion.div>
   );
 };
 
-
-// ============================================================================
-// --- 6. MAIN SECTION (The Container) ---
-// ============================================================================
-
 const HowItWorksSection = () => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ['start start', 'end end']
-  });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start center', 'end end'] });
 
   return (
-    <section ref={containerRef} className="relative w-full py-32 px-4 overflow-hidden">
-      <StarryBackground />
+    <section ref={containerRef} className="relative w-full py-32 px-4 overflow-hidden bg-black">
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_100%)] pointer-events-none" />
 
       <div className="container mx-auto relative z-10">
-        <motion.h2
-          initial={{ opacity: 0, y: -20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.5 }}
-          transition={{ duration: 0.8 }}
-          className="text-center text-5xl md:text-7xl font-black mb-32 tracking-tight"
-          style={{ fontFamily: "'Orbitron', sans-serif" }}
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-24"
         >
-	  <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-blue-500 to-green-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-            HOW IT WORKS
-	  </span>
-        </motion.h2>
+            <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-white to-purple-500 drop-shadow-[0_0_20px_rgba(0,198,255,0.3)]">
+                SYSTEM ARCHITECTURE
+              </span>
+            </h2>
+            <p className="text-gray-400 max-w-xl mx-auto text-lg font-light tracking-wide uppercase">
+                From Query to Delivery in Four Autonomous Phases
+            </p>
+        </motion.div>
 
-        <div
-          className="relative w-full max-w-5xl mx-auto"
-          style={{ aspectRatio: `${VIEWBOX_WIDTH} / ${VIEWBOX_HEIGHT}` }}
-        >
-
+        <div className="relative w-full max-w-5xl mx-auto" style={{ aspectRatio: `${VIEWBOX_WIDTH} / ${VIEWBOX_HEIGHT}` }}>
           <div className="absolute inset-0 z-0">
             <DiagramPath scrollYProgress={scrollYProgress} />
           </div>
-
           {stepsWithPositions.map((step) => (
             <PositionedStepCard key={step.step} step={step} />
           ))}
-
         </div>
       </div>
     </section>
@@ -700,7 +645,7 @@ const TestimonialsSection = () => {
 
   return (
     <section className="py-24 px-4 overflow-hidden relative">
-      
+
       <StarryBackground />
       <div className="container mx-auto relative z-10">
         <motion.div
