@@ -182,58 +182,93 @@ const Starfield = (props: any) => {
 };
 
 // ============================================================================
-// --- 2. HOW IT WORKS SECTION (Architectural Blueprint) ---
+// --- 2. HOW IT WORKS SECTION (Architectural Fix: Perfect Alignment) ---
 // ============================================================================
 
-const VIEWBOX_WIDTH = 850;
-const VIEWBOX_HEIGHT = 1100;
+// 1. تعريف مساحة الرسم (Canvas Size)
+const VIEWBOX_WIDTH = 900;
+const VIEWBOX_HEIGHT = 1200;
+
+// 2. تعريف أبعاد الكارت الموحدة (Standardized Card Size)
+const CARD_W = 420; // عرض كبير
+const CARD_H = 280; // ارتفاع مريح للنص
 
 const timelineSteps = [
   {
     icon: Bot,
     step: 1,
     title: "AI Initiation",
-    description: "Natural language processing core interprets your intent instantly."
+    description: "NLP core interprets intent instantly." // نص مختصر ومناسب
   },
   {
     icon: Cpu,
     step: 2,
-    title: "Route Computation",
-    description: "Neural networks calculate the optimal 4D flight path in milliseconds."
+    title: "Route Compute",
+    description: "Neural networks calc optimal 4D paths."
   },
   {
     icon: MapIcon,
     step: 3,
     title: "Live Telemetry",
-    description: "Real-time holographic tracking from dispatch to destination."
+    description: "Holographic tracking from dispatch to dest."
   },
   {
     icon: Rocket,
     step: 4,
-    title: "Autonomous Arrival",
-    description: "Precision landing sequence initiated. Delivery complete."
+    title: "Auto Arrival",
+    description: "Precision landing sequence initiated."
   },
 ];
 
+// 3. شبكة التوزيع الجديدة (The New Grid)
+// قمت بتوزيع الكروت بحيث يكون هناك مسافة كافية للخطوط
 const stepsWithPositions = [
-  { ...timelineSteps[0], x: 70, y: 40, width: 340, height: 240 },
-  { ...timelineSteps[1], x: 490, y: 220, width: 340, height: 240 },
-  { ...timelineSteps[2], x: 70, y: 400, width: 340, height: 240 },
-  { ...timelineSteps[3], x: 390, y: 721, width: 340, height: 240 },
+  // Card 1 (Top Left)
+  { ...timelineSteps[0], x: 20, y: 20, width: CARD_W, height: CARD_H },
+
+  // Card 2 (Top Right) - Shifted right & down
+  { ...timelineSteps[1], x: 480, y: 240, width: CARD_W, height: CARD_H },
+
+  // Card 3 (Bottom Left)
+  { ...timelineSteps[2], x: 20, y: 500, width: CARD_W, height: CARD_H },
+
+  // Card 4 (Bottom Right)
+  { ...timelineSteps[3], x: 450, y: 820, width: CARD_W, height: CARD_H },
 ];
 
+// 4. رسم الخطوط بدقة هندسية (Precision SVG Paths)
 const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
   const pathLength = useTransform(scrollYProgress, [0.1, 0.7], [0, 1]);
 
-  const pathData = `M 410 160 L 450 160 L 450 340 L 490 340 ` + 
-                   `M 660 460 L 660 520 L 410 520 ` +           
-                   `M 240 640 L 240 841 L 390 841`;             
+  // M = Move to (Start Point), L = Line to (End Point)
+  // حسبة الخطوط بناءً على أماكن الكروت الجديدة:
+
+  // Link 1 -> 2: يخرج من يمين كارت 1 ويدخل يسار كارت 2
+  // C1 Right Edge: 20 + 420 = 440 | Center Y: 20 + 140 = 160
+  // C2 Left Edge: 480 | Center Y: 240 + 140 = 380
+  const path1 = `M 440 160 L 460 160 L 460 380 L 480 380`;
+
+  // Link 2 -> 3: يخرج من أسفل كارت 2 ويرجع لكارت 3 (Flow)
+  // C2 Bottom: 480+210(x), 240+280(y)=520 -> C3 Top Right
+  // بس عشان الشكل يبقى أنظف، هنوصل 1 بـ 3، و 2 بـ 4 (Tree Structure)
+
+  // Link 1 -> 3: يخرج من أسفل كارت 1 ويدخل أعلى كارت 3
+  const path2 = `M 230 300 L 230 500`;
+
+  // Link 3 -> 4: يخرج من يمين كارت 3 ويدخل يسار كارت 4
+  // C3 Right: 440, Center Y: 640
+  // C4 Left: 450, Center Y: 960
+  const path3 = `M 440 640 L 445 640 L 445 960 L 450 960`;
+
+  const allPaths = `${path1} ${path2} ${path3}`;
 
   return (
     <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} preserveAspectRatio="xMidYMin meet">
-      <path d={pathData} fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth={4} strokeLinecap="square" />
+      {/* الخط الخلفي الشفاف */}
+      <path d={allPaths} fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth={4} strokeLinecap="square" />
+      {/* الخط الملون المتحرك */}
       <motion.path
-        d={pathData}
+        d={allPaths}
         fill="none"
         stroke="url(#architectural-gradient)"
         strokeWidth={3}
@@ -254,27 +289,34 @@ const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
   return (
     <div className="relative group h-full w-full">
         <div className="absolute inset-0 bg-cyan-500/20 rounded-[40px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-        <div className="relative h-full w-full rounded-[40px] bg-black/60 backdrop-blur-xl border border-white/10 p-6 flex flex-col items-start transition-all duration-500 group-hover:border-cyan-500/30 group-hover:bg-black/80 overflow-hidden">
-            <div className="absolute top-6 right-6 flex gap-1">
-                <div className="w-1 h-1 rounded-full bg-white/20 group-hover:bg-cyan-400/80 transition-colors" />
-                <div className="w-1 h-1 rounded-full bg-white/20 group-hover:bg-cyan-400/60 transition-colors" />
-                <div className="w-1 h-1 rounded-full bg-white/20 group-hover:bg-cyan-400/40 transition-colors" />
+
+        {/* Container */}
+        <div className="relative h-full w-full rounded-[40px] bg-black/80 backdrop-blur-xl border border-white/10 p-6 flex flex-col items-start justify-start pt-8 transition-all duration-500 group-hover:border-cyan-500/30 group-hover:bg-black/90 overflow-hidden">
+
+            {/* Dots Decoration */}
+            <div className="absolute top-6 right-6 flex gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-cyan-400/80 transition-colors" />
+                <div className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-cyan-400/60 transition-colors" />
             </div>
 
+            {/* Icon - Reduced Padding for Space */}
             <div className="mb-4 inline-flex items-center justify-center p-3 rounded-2xl bg-gradient-to-br from-white/5 to-white/0 border border-white/10 text-cyan-400 group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-lg shadow-black/50">
-                <item.icon size={28} />
+                <item.icon size={24} />
             </div>
 
-            <div className="flex items-center gap-3 mb-2">
+            {/* Phase Badge */}
+            <div className="flex items-center gap-3 mb-3">
                 <span className="text-[10px] font-mono text-cyan-500/80 tracking-widest uppercase border border-cyan-500/20 px-2 py-0.5 rounded">
                     Phase 0{item.step}
                 </span>
             </div>
 
+            {/* Title - Scaled Down to text-2xl */}
             <h3 className="text-2xl font-bold text-white mb-3 tracking-wide group-hover:text-cyan-100 transition-colors" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                 {item.title}
             </h3>
 
+            {/* Description - Scaled Down to text-sm */}
             <p className="text-sm text-gray-400 leading-relaxed font-light group-hover:text-gray-300">
                 {item.description}
             </p>
@@ -285,7 +327,7 @@ const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
 
 const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, amount: 0.4 });
+  const isInView = useInView(ref, { once: true, amount: 0.2 });
 
   return (
     <motion.div
@@ -297,9 +339,9 @@ const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) 
         width: `${(step.width / VIEWBOX_WIDTH) * 100}%`,
         height: `${(step.height / VIEWBOX_HEIGHT) * 100}%`,
       }}
-      initial={{ opacity: 0, y: 40, scale: 0.95 }}
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
       animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
     >
       <StepCard item={step} />
     </motion.div>
@@ -311,34 +353,66 @@ const HowItWorksSection = () => {
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start center', 'end end'] });
 
   return (
-    <section ref={containerRef} className="relative w-full py-32 px-4 overflow-hidden bg-black">
+    <section ref={containerRef} className="relative w-full min-h-screen py-24 px-4 overflow-hidden bg-black flex items-center">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_100%)] pointer-events-none" />
 
       <div className="container mx-auto relative z-10">
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-24"
-        >
-            <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-white to-purple-500 drop-shadow-[0_0_20px_rgba(0,198,255,0.3)]">
-                SYSTEM ARCHITECTURE
-              </span>
-            </h2>
-            <p className="text-gray-400 max-w-xl mx-auto text-lg font-light tracking-wide uppercase">
-                From Query to Delivery in Four Autonomous Phases
-            </p>
-        </motion.div>
 
-        <div className="relative w-full max-w-5xl mx-auto" style={{ aspectRatio: `${VIEWBOX_WIDTH} / ${VIEWBOX_HEIGHT}` }}>
-          <div className="absolute inset-0 z-0">
-            <DiagramPath scrollYProgress={scrollYProgress} />
-          </div>
-          {stepsWithPositions.map((step) => (
-            <PositionedStepCard key={step.step} step={step} />
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+
+            {/* Left: Diagram (Visuals) */}
+            <div className="relative w-full order-2 lg:order-1">
+                 {/* Increased Height Container for the bigger cards */}
+                 <div className="relative w-full max-w-xl mx-auto lg:mx-0" style={{ aspectRatio: `${VIEWBOX_WIDTH} / ${VIEWBOX_HEIGHT}` }}>
+                    <div className="absolute inset-0 z-0">
+                        <DiagramPath scrollYProgress={scrollYProgress} />
+                    </div>
+                    {stepsWithPositions.map((step) => (
+                        <PositionedStepCard key={step.step} step={step} />
+                    ))}
+                </div>
+            </div>
+
+            {/* Right: Text Narrative */}
+            <div className="order-1 lg:order-2 text-left lg:pl-8">
+                <motion.div
+                    initial={{ opacity: 0, x: 50 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8 }}
+                >
+                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8">
+                        <Cpu size={14} className="text-cyan-400" />
+                        <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Core Infrastructure</span>
+                    </div>
+
+                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-8 tracking-tighter text-white leading-none whitespace-nowrap" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                        SYSTEM<br />
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-white to-purple-500 drop-shadow-[0_0_20px_rgba(0,198,255,0.3)]">
+                            ARCHITECTURE
+                        </span>
+                    </h2>
+
+                    <p className="text-gray-400 text-lg md:text-xl font-light tracking-wide leading-relaxed mb-8 border-l-4 border-cyan-500/30 pl-6">
+                        From the moment you click order, our autonomous neural network takes control. Processing millions of data points to ensure the fastest, safest path to your doorstep.
+                    </p>
+
+                    <ul className="space-y-4 text-gray-400 font-mono text-sm">
+                        <li className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                            <span><strong className="text-white">Latencyless</strong> AI Processing</span>
+                        </li>
+                        <li className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
+                            <span><strong className="text-white">4D</strong> Spatial Mapping</span>
+                        </li>
+                        <li className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                            <span><strong className="text-white">End-to-End</strong> Encryption</span>
+                        </li>
+                    </ul>
+                </motion.div>
+            </div>
         </div>
       </div>
     </section>
@@ -382,7 +456,7 @@ const AnimatedCounter = ({ value, text, icon: Icon }: { value: number, text: str
 
 const Globe = () => {
     const globeRef = useRef<THREE.Group>(null!);
-  
+
     const points = useMemo(() => [
         { lat: 40.7128, lon: -74.0060 }, { lat: 51.5074, lon: -0.1278 },
         { lat: 35.6895, lon: 139.6917 }, { lat: 25.2048, lon: 55.2708 },
@@ -438,16 +512,16 @@ const Globe = () => {
 
     return (
         <group ref={globeRef}>
-            
+
             <mesh>
                 <sphereGeometry args={[5, 128, 128]} />
                 <meshPhysicalMaterial
-                    color="#1e3a8a" 
-                    emissive="#172554" 
+                    color="#1e3a8a"
+                    emissive="#172554"
                     emissiveIntensity={0.5}
                     roughness={0.4}
                     metalness={0.6}
-                    clearcoat={1} 
+                    clearcoat={1}
                     clearcoatRoughness={0.1}
                 />
             </mesh>
@@ -456,7 +530,7 @@ const Globe = () => {
                 <sphereGeometry args={[5, 64, 64]} />
                 <meshBasicMaterial color="#3b82f6" transparent opacity={0.15} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
             </mesh>
-          
+
             <mesh scale={[1.2, 1.2, 1.2]}>
                 <sphereGeometry args={[5, 64, 64]} />
                 <meshBasicMaterial color="#a855f7" transparent opacity={0.05} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
@@ -465,12 +539,12 @@ const Globe = () => {
             {paths.map((curve, i) => (
                 <group key={i}>
                      <mesh>
-                       
+
                         <tubeGeometry args={[curve, 64, 0.025, 8, false]} />
-                       
+
                         <meshBasicMaterial color="#d8b4fe" transparent opacity={0.8} blending={THREE.AdditiveBlending} />
                     </mesh>
-                  
+
                      <mesh ref={(el) => (pulseRefs.current[i] = el!)}>
                         <sphereGeometry args={[0.08, 16, 16]} />
                         <meshBasicMaterial color="#ffffff" toneMapped={false} />
@@ -489,17 +563,17 @@ const GlobalScaleSection = () => {
             <div className="absolute inset-0 z-0">
                 <Canvas camera={{ position: [0, 0, 17], fov: 35 }}>
                     <ambientLight intensity={0.4} />
-                    <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" /> 
-                    <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" /> 
+                    <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
+                    <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
 
                     <Stars
                         radius={100}
                         depth={100}
-                        count={54000} 
-                        factor={16}    
+                        count={54000}
+                        factor={16}
                         saturation={1}
                         fade
-                        speed={0.2}  
+                        speed={0.2}
                     />
 
                     <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
@@ -774,14 +848,14 @@ const FinalCTA = () => {
             <Link href="/profile" className="group relative px-12 py-6 bg-white text-black font-black text-xl rounded-full overflow-hidden transition-all duration-300 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)]">
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
               <span className="relative flex items-center gap-3">
-                SIGN UP 
+                SIGN UP
                 <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
               </span>
             </Link>
 
             <button className="px-12 py-6 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-2">
               <span className="flex flex-col items-start leading-none">
-               
+
                 <span>Get The App</span>
               </span>
             </button>
