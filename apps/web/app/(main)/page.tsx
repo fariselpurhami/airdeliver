@@ -109,15 +109,15 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
 
           <button
             onClick={onOrderClick}
-            className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-black bg-white rounded-full shadow-lg transition-transform duration-300 hover:scale-105 overflow-hidden"
+            className="group relative inline-flex items-center justify-center px-6 py-6 text-black font-black bg-white text-xl rounded-full shadow-lg transition-transform duration-300 hover:scale-105 overflow-hidden"
           >
             <span className="absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <span className="relative flex items-center" style={{ fontFamily: "'Quattrocento Sans', sans-serif" }}>order with air <Bot className="ml-2 h-5 w-5" /></span>
+            <span className="relative flex items-center font-black tracking-wide">order with air <Bot className="ml-2 h-5 w-5" /></span>
           </button>
 
           <button
 	    onClick={onExploreClick}
-	    className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-white bg-transparent border-2 border-white/20 rounded-full shadow-lg transition-all duration-300 hover:border-white/50 hover:bg-white/10">
+	    className="group relative inline-flex items-center justify-center px-6 py-6 text-base font-bold text-white bg-transparent border-2 border-white/20 rounded-full shadow-lg transition-all duration-300 hover:border-white/50 hover:bg-white/10">
             Explore Products <ArrowRight className="ml-2 h-5 w-5" />
           </button>
         </motion.div>
@@ -733,6 +733,71 @@ export const TestimonialsSection = () => {
 };
 
 // ============================================================================
+// --- 9. FINAL CTA (E-COMMERCE VERSION) ---
+// ============================================================================
+
+const FinalCTA = () => {
+  return (
+    <section className="relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
+
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="container mx-auto px-6 relative z-10 text-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 30 }}
+          whileInView={{ opacity: 1, scale: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="max-w-5xl mx-auto"
+        >
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8 ring-1 ring-cyan-500/20">
+            <Zap size={14} className="text-yellow-400 fill-yellow-400" />
+            <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Next-Gen Shopping Experience</span>
+          </div>
+
+          <h2 className="text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            YOUR ORDER.<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-400 drop-shadow-[0_0_40px_rgba(192,132,252,0.5)]">
+              IN THE SKY.
+            </span>
+          </h2>
+
+          <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
+            Don't wait for traffic. Shop thousands of products and watch them arrive from the clouds in minutes.
+          </p>
+
+          <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
+
+            <Link href="/profile" className="group relative px-12 py-6 bg-white text-black font-black text-xl rounded-full overflow-hidden transition-all duration-300 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)]">
+              <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+              <span className="relative flex items-center gap-3">
+                SIGN UP 
+                <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+
+            <button className="px-12 py-6 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-2">
+              <span className="flex flex-col items-start leading-none">
+               
+                <span>Get The App</span>
+              </span>
+            </button>
+          </div>
+
+          <p className="mt-12 text-[10px] text-gray-600 font-mono uppercase tracking-[0.2em]">
+            Instant Delivery • Live Tracking • 100% Autonomous
+          </p>
+
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+// ============================================================================
 // --- DYNAMIC LOADERS ---
 // ============================================================================
 
@@ -762,6 +827,7 @@ export default function Page() {
         <HowItWorksSection />
         <DynamicGlobalScaleSection />
         <TestimonialsSection />
+	<FinalCTA />
       </main>
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />
     </div>
