@@ -2,7 +2,7 @@
 
 'use client';
 
-import { ShieldCheck, Lock, Clock, MapIcon, Quote } from 'lucide-react';
+import { ShieldCheck, Lock, Clock, MapIcon, Quote, GlobeIcon, CheckCircle2 } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
 import ProductOverlay from '@/components/products/ProductOverlay';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
@@ -349,53 +349,48 @@ const HowItWorksSection = () => {
 // --- 7. GLOBAL SCALE SECTION (Definition) ---
 // ============================================================================
 
-const AnimatedCounter = ({ value, text }: { value: number, text: string }) => {
-  const ref = useRef<HTMLParagraphElement>(null);
+const AnimatedCounter = ({ value, text, icon: Icon }: { value: number, text: string, icon: any }) => {
+  const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: "0px 0px -50px 0px" });
   const motionValue = useMotionValue(0);
-  const springValue = useSpring(motionValue, { damping: 100, stiffness: 100 });
+  const springValue = useSpring(motionValue, { damping: 60, stiffness: 80 });
 
   useEffect(() => {
-    if (isInView) {
-      motionValue.set(value);
-    }
+    if (isInView) motionValue.set(value);
   }, [motionValue, isInView, value]);
 
   useEffect(() => {
-    const unsubscribe = springValue.on("change", (latest) => {
-      if (ref.current) {
-        ref.current.textContent = Intl.NumberFormat('en-US').format(Math.round(latest));
-      }
+    return springValue.on("change", (latest) => {
+      if (ref.current) ref.current.textContent = Intl.NumberFormat('en-US').format(Math.round(latest));
     });
-    return unsubscribe;
   }, [springValue]);
 
   return (
-    <>
-      <p ref={ref} className="text-4xl md:text-5xl font-bold text-white tabular-nums" style={{fontFamily: "'Orbitron', sans-serif"}}>
-        0
-      </p>
-      <p className="text-sm text-gray-400 uppercase tracking-widest mt-2">{text}</p>
-    </>
+    <motion.div
+        whileHover={{ scale: 1.05 }}
+        className="relative group flex flex-col items-center p-6 rounded-[30px] bg-black/60 backdrop-blur-xl border border-purple-500/30 hover:border-purple-400/80 transition-all duration-500 overflow-hidden text-center"
+    >
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="mb-4 p-3 rounded-full bg-purple-950/50 border border-purple-400/20 text-purple-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+            <Icon size={28} />
+        </div>
+        <span ref={ref} className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-2 drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" style={{fontFamily: "'Orbitron', sans-serif"}}>0</span>
+        <span className="text-sm text-purple-300/80 font-mono uppercase tracking-widest">{text}</span>
+    </motion.div>
   );
 };
 
 const Globe = () => {
     const globeRef = useRef<THREE.Group>(null!);
-    const texture = useTexture('/textures/dark_earth.jpg');
-
+  
     const points = useMemo(() => [
-        { lat: 40.7128, lon: -74.0060 },
-        { lat: 51.5074, lon: -0.1278 },
-        { lat: 35.6895, lon: 139.6917 },
-        { lat: 34.0522, lon: -118.2437 },
-        { lat: -33.8688, lon: 151.2093 },
+        { lat: 40.7128, lon: -74.0060 }, { lat: 51.5074, lon: -0.1278 },
+        { lat: 35.6895, lon: 139.6917 }, { lat: 25.2048, lon: 55.2708 },
+        { lat: 1.3521, lon: 103.8198 }, { lat: 30.0444, lon: 31.2357 },
     ], []);
 
     const [paths, setPaths] = useState<THREE.CatmullRomCurve3[]>([]);
-    const pulseRef = useRef<THREE.Mesh>(null!);
-    const pulseIndex = useRef(0);
-    const pulseProgress = useRef(0);
+    const pulseRefs = useRef<THREE.Mesh[]>([]);
 
     useEffect(() => {
         const radius = 5;
@@ -408,132 +403,159 @@ const Globe = () => {
                 radius * Math.sin(phi) * Math.sin(theta)
             );
         };
-        const routes = [
-            [points[0], points[1]],
-            [points[2], points[3]],
-            [points[3], points[4]],
-            [points[1], points[2]],
-        ];
+
+        const routes = [];
+        for (let i = 0; i < points.length; i++) {
+            for (let j = i + 1; j < points.length; j++) {
+                 routes.push([points[i], points[j]]);
+            }
+        }
+
         const curves = routes.map(([p1, p2]) => {
             const v1 = getPos(p1.lat, p1.lon);
             const v2 = getPos(p2.lat, p2.lon);
-            const midPoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5).normalize().multiplyScalar(radius * 1.2);
+            const dist = v1.distanceTo(v2);
+            const midPoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5).normalize().multiplyScalar(radius + (dist * 0.4));
             return new THREE.CatmullRomCurve3([v1, midPoint, v2]);
         });
         setPaths(curves);
+        pulseRefs.current = pulseRefs.current.slice(0, curves.length);
     }, [points]);
 
     useFrame((state, delta) => {
-        globeRef.current.rotation.y += delta * 0.1;
-
-        if (paths.length > 0 && pulseRef.current) {
-            pulseProgress.current += delta * 0.5;
-            if (pulseProgress.current >= 1) {
-                pulseProgress.current = 0;
-                pulseIndex.current = (pulseIndex.current + 1) % paths.length;
-            }
-            const currentPath = paths[pulseIndex.current];
-            currentPath.getPointAt(pulseProgress.current, pulseRef.current.position);
+        if(globeRef.current) {
+            globeRef.current.rotation.y += delta * 0.05;
         }
+        pulseRefs.current.forEach((mesh, i) => {
+             if (mesh && paths[i]) {
+                 const time = state.clock.elapsedTime;
+                 const loopTime = 6 + (i % 3);
+                 const t = (time % loopTime) / loopTime;
+                 paths[i].getPointAt(t, mesh.position);
+             }
+        });
     });
 
     return (
         <group ref={globeRef}>
+            
             <mesh>
+                <sphereGeometry args={[5, 128, 128]} />
+                <meshPhysicalMaterial
+                    color="#1e3a8a" 
+                    emissive="#172554" 
+                    emissiveIntensity={0.5}
+                    roughness={0.4}
+                    metalness={0.6}
+                    clearcoat={1} 
+                    clearcoatRoughness={0.1}
+                />
+            </mesh>
+
+            <mesh scale={[1.05, 1.05, 1.05]}>
                 <sphereGeometry args={[5, 64, 64]} />
-                <meshStandardMaterial map={texture} color="#666" emissive="#333" roughness={0.7} />
+                <meshBasicMaterial color="#3b82f6" transparent opacity={0.15} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
             </mesh>
+          
+            <mesh scale={[1.2, 1.2, 1.2]}>
+                <sphereGeometry args={[5, 64, 64]} />
+                <meshBasicMaterial color="#a855f7" transparent opacity={0.05} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
+            </mesh>
+
             {paths.map((curve, i) => (
-                <mesh key={i}>
-                    <tubeGeometry args={[curve, 64, 0.02]} />
-                    <meshBasicMaterial color="#7F00FF" toneMapped={false} />
-                </mesh>
+                <group key={i}>
+                     <mesh>
+                       
+                        <tubeGeometry args={[curve, 64, 0.025, 8, false]} />
+                       
+                        <meshBasicMaterial color="#d8b4fe" transparent opacity={0.8} blending={THREE.AdditiveBlending} />
+                    </mesh>
+                  
+                     <mesh ref={(el) => (pulseRefs.current[i] = el!)}>
+                        <sphereGeometry args={[0.08, 16, 16]} />
+                        <meshBasicMaterial color="#ffffff" toneMapped={false} />
+                        <pointLight color="#d8b4fe" intensity={1} distance={3} />
+                    </mesh>
+                </group>
             ))}
-            <mesh ref={pulseRef}>
-                <sphereGeometry args={[0.08, 8, 8]} />
-                <meshBasicMaterial color="#00C6FF" toneMapped={false} />
-            </mesh>
         </group>
     );
 };
 
-const GlobeScene = () => {
-    const light1Ref = useRef<THREE.PointLight>(null!);
-    const light2Ref = useRef<THREE.PointLight>(null!);
-
-    useFrame((state) => {
-        const time = state.clock.elapsedTime;
-        if (light1Ref.current) {
-          light1Ref.current.position.x = Math.sin(time * 0.5) * 10;
-          light1Ref.current.position.y = Math.cos(time * 0.5) * 10;
-          light1Ref.current.position.z = Math.cos(time * 0.5) * 10;
-        }
-        if (light2Ref.current) {
-          light2Ref.current.position.x = Math.sin(time * 0.3) * -10;
-          light2Ref.current.position.y = Math.cos(time * 0.3) * -10;
-          light2Ref.current.position.z = Math.sin(time * 0.3) * 5;
-        }
-    });
-
-    return (
-        <>
-            <fog attach="fog" args={['#000000', 10, 30]} />
-            <ambientLight intensity={0.4} />
-            <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
-            <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
-            <Starfield />
-            <Suspense fallback={null}>
-                <Globe />
-            </Suspense>
-            <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.4} />
-            <Cleanup />
-        </>
-    );
-}
-
 const GlobalScaleSection = () => {
     return (
-        <section className="relative h-screen w-full overflow-hidden bg-black">
-            <div className="absolute inset-0 z-0 opacity-70">
-                <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
-                    <GlobeScene />
+        <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
+
+            <div className="absolute inset-0 z-0">
+                <Canvas camera={{ position: [0, 0, 17], fov: 35 }}>
+                    <ambientLight intensity={0.4} />
+                    <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" /> 
+                    <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" /> 
+
+                    <Stars
+                        radius={100}
+                        depth={100}
+                        count={40000} 
+                        factor={14}    
+                        saturation={1}
+                        fade
+                        speed={0.2}  
+                    />
+
+                    <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
+                        <group position={[5.5, 0, 0]}>
+                            <Suspense fallback={null}><Globe /></Suspense>
+                        </group>
+                    </Float>
+                    <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.2} maxPolarAngle={Math.PI / 1.6} minPolarAngle={Math.PI / 3}/>
                 </Canvas>
+                <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent pointer-events-none" />
             </div>
 
-            <div className="relative z-10 container mx-auto h-full flex flex-col justify-between text-center py-24 px-4">
-                 <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.5 }}
-                    transition={{ duration: 0.8 }}
-                >
-                    <h2 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        GLOBAL SCALE
-                    </h2>
-                    <p className="max-w-xl mx-auto text-gray-400 mb-16">
-                        Powering the Autonomous Future. One Delivery at a Time.
-                    </p>
-                </motion.div>
+            <div className="relative z-10 container mx-auto px-6 pt-24 lg:pt-32 pointer-events-none grow flex items-center">
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 w-full">
+                     <div className="pointer-events-auto max-w-xl">
+                        <motion.div
+                            initial={{ opacity: 0, x: -50 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8 }}
+                        >
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+                                    <GlobeIcon className="text-purple-400" size={20} />
+                                </div>
+                                <span className="text-sm font-mono text-purple-400 uppercase tracking-[0.3em] drop-shadow-md">Planetary Operations</span>
+                            </div>
 
+                            <h2 className="text-5xl md:text-7xl font-black text-white mb-6 leading-[0.9] tracking-tighter drop-shadow-2xl" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                                GLOBAL<br />
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-cyan-400 drop-shadow-[0_0_20px_rgba(168,85,247,0.8)] filter brightness-125">
+                                    SCALE
+                                </span>
+                            </h2>
+
+                            <p className="text-lg text-gray-300 font-light leading-relaxed mb-6 border-l-4 border-purple-500/50 pl-6 drop-shadow-lg">
+                                A synchronized autonomous network spanning continents. <br />
+                                <span className="text-white font-medium">Zero Latency. Infinite Reach.</span>
+                            </p>
+                        </motion.div>
+                     </div>
+                     <div></div>
+                 </div>
+            </div>
+
+            <div className="relative z-10 container mx-auto px-6 mt-12 pointer-events-auto">
                 <motion.div
-                     initial={{ opacity: 0, y: 30 }}
-                     whileInView={{ opacity: 1, y: 0 }}
-                     viewport={{ once: true, amount: 0.5 }}
-                     transition={{ duration: 0.8, delay: 0.2 }}
-                     className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto w-full"
+                        initial={{ opacity: 0, y: 50 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.3, duration: 0.8 }}
+                        className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
                 >
-                    <div className="p-6 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-lg shadow-cyan-500/10">
-                        <Rocket className="h-8 w-8 text-cyan-400 mx-auto mb-3" />
-                        <AnimatedCounter value={1843} text="Drones in Flight" />
-                    </div>
-                     <div className="p-6 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-lg shadow-cyan-500/10">
-                        <Map className="h-8 w-8 text-cyan-400 mx-auto mb-3" />
-                        <AnimatedCounter value={212} text="Cities Connected" />
-                    </div>
-                     <div className="p-6 bg-black/30 backdrop-blur-lg border border-cyan-400/30 rounded-2xl shadow-lg shadow-cyan-500/10">
-                        <Zap className="h-8 w-8 text-cyan-400 mx-auto mb-3" />
-                        <AnimatedCounter value={947204} text="Orders Delivered" />
-                    </div>
+                    <AnimatedCounter value={1843} text="Active Drones" icon={Rocket} />
+                    <AnimatedCounter value={212} text="Connected Cities" icon={MapIcon} />
+                    <AnimatedCounter value={947204} text="Successful Drops" icon={CheckCircle2} />
                 </motion.div>
             </div>
         </section>
@@ -571,9 +593,6 @@ const testimonials = [
   },
 ];
 
-// --- COMPONENTS ---
-
-// [ARCHITECTURAL UPGRADE] The 4 "Power Cell" Cards
 const TrustSignalCard = ({ icon: Icon, title, description, delay }: { icon: any, title: string, description: string, delay: number }) => (
     <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -583,11 +602,9 @@ const TrustSignalCard = ({ icon: Icon, title, description, delay }: { icon: any,
         whileHover={{ scale: 1.05, y: -10 }}
         className="relative group flex flex-col items-center text-center p-8 bg-black/40 backdrop-blur-xl border border-white/10 rounded-[40px] overflow-hidden hover:border-cyan-500/30 transition-all duration-500 h-full"
     >
-        {/* Internal Glow */}
         <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <div className="absolute -inset-px bg-gradient-to-br from-cyan-500/20 to-purple-500/20 rounded-[40px] blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-500" />
 
-        {/* Icon Container */}
         <div className="relative mb-6 p-4 rounded-2xl bg-white/5 border border-white/10 group-hover:bg-cyan-500/10 group-hover:border-cyan-500/30 transition-colors duration-500 shadow-lg shadow-black/20">
             <Icon size={32} className="text-gray-300 group-hover:text-cyan-400 transition-colors duration-500" />
         </div>
@@ -609,7 +626,6 @@ const TestimonialCard = ({ testimonial }: { testimonial: typeof testimonials[0] 
                 whileHover={{ scale: 1.02 }}
                 className="relative h-full p-10 rounded-[40px] bg-gradient-to-br from-white/5 to-transparent border border-white/10 flex flex-col group overflow-hidden"
             >
-                {/* Visual Anchor */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover:via-cyan-500/50 transition-all duration-500" />
 
                 <div className="flex items-center gap-4 mb-8">
@@ -648,13 +664,12 @@ export const TestimonialsSection = () => {
 
   return (
     <section className="py-32 px-4 relative bg-black overflow-hidden">
-        {/* Deep Space Background */}
+
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.04] pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black pointer-events-none" />
 
         <div className="container mx-auto relative z-10">
 
-            {/* --- 1. CENTERED HEADER --- */}
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -678,7 +693,6 @@ export const TestimonialsSection = () => {
                 </p>
             </motion.div>
 
-            {/* --- 2. THE 4 POWER CELLS (Trust Signals) --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-32">
                 <TrustSignalCard
                     icon={Lock}
@@ -706,7 +720,6 @@ export const TestimonialsSection = () => {
                 />
             </div>
 
-            {/* --- 3. TESTIMONIALS CAROUSEL --- */}
             <div className="overflow-hidden cursor-grab active:cursor-grabbing py-10" ref={emblaRef}>
                 <div className="flex -ml-6">
                     {testimonials.map((t, i) => (
