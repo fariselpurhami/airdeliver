@@ -76,13 +76,21 @@ class AICartService:
         item_to_remove = None
 
         if product_id_to_remove:
-            item_to_remove = next((item for item in cart["items"] if item["product_id"] == product_id_to_remove), None)
+            
+            item_to_remove = next(
+                (item for item in cart["items"] if str(item["product_id"]) == str(product_id_to_remove)), 
+                None
+            )
         else:
             product_name = payload.get("product_name", "")
             item_to_remove = next((item for item in cart["items"] if product_name.lower() in item["name"].lower()), None)
 
         if item_to_remove:
-            cart["items"] = [item for item in cart["items"] if item["product_id"] != item_to_remove["product_id"]]
+            cart["items"] = [
+                item for item in cart["items"] 
+                if str(item["product_id"]) != str(item_to_remove["product_id"])
+            ]
+            
             await self._update_cart_in_redis(user_id, cart)
 
             if action_source == "remove_by_id":
@@ -93,7 +101,6 @@ class AICartService:
                 "airdeliver.ai.response.out",
             )
 
-            # TRIGGER AUTONOMOUS INCIDENT HANDLING
             await self.rabbitmq.publish(
                 {
                     "user_id": user_id,
@@ -104,6 +111,7 @@ class AICartService:
                 "airdeliver.ai.intent.removal_recovery"
             )
         else:
+            logger.warning(f"⚠️ Cart Mismatch: Tried to remove {product_id_to_remove} but cart has {[i['product_id'] for i in cart['items']]}")
             await self.rabbitmq.publish(
                 {"user_id": user_id, "content": f"Couldn't find item to remove.", "type": "error"},
                 "airdeliver.ai.response.out",
