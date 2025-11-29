@@ -86,7 +86,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                                         }}
                                         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                                     >
-                                        Global Inventory
+                                        Explore Products
                                     </motion.span>
                                 </h3>
                                 <div className="flex items-center gap-2 mt-1.5 ml-1">
