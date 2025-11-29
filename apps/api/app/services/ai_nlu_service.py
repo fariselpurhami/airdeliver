@@ -209,12 +209,15 @@ class AINLUService:
             "airdeliver.ai.response.out",
         )
 
-    
     async def process_message(self, message_payload: dict):
         user_id = message_payload.get("user_id")
         raw_message = message_payload.get("message")
+        
         message_text = str(raw_message).strip() if raw_message and not isinstance(raw_message, dict) else ""
-        if not message_text: return
+
+        if not message_text:
+            logger.warning(f"⚠️ Empty message received from user {user_id}")
+            return
 
         if message_text.startswith("__INTERNAL_"):
             await self._process_internal_command(user_id, message_text)
@@ -226,43 +229,99 @@ class AINLUService:
         if intent == "CONFIRM_ORDER":
             await self.rabbitmq.publish({**message_payload, "user_id": user_id}, "airdeliver.ai.intent.confirm_order")
             return
+
         if intent == "CLEAR_CART":
             await self.rabbitmq.publish({"user_id": user_id, "notify_user": True}, "airdeliver.ai.intent.clear_cart")
             return
 
         if intent == "ADD_TO_CART":
+        
             if not products:
-                 
                  clean_query = await self.llm_service.extract_search_terms(message_text)
                  if clean_query != message_text:
                      products, _ = await self.search_engine.find_products_from_message(self.db, clean_query, user_id)
 
             if not products:
                  await self.rabbitmq.publish({"user_id": user_id, "content": f"I couldn't find exactly '{message_text}', but check these out:", "type": "product_carousel", "products": []}, "airdeliver.ai.response.out")
+
             elif len(products) > 1:
-                 await self.rabbitmq.publish({"user_id": user_id, "content": f"Great choice ✨ I found a few different types of '{message_text}'. Which one catches?:", "type": "proactive_suggestion", "products": [p.model_dump(mode='json') for p in products[:10]]}, "airdeliver.ai.response.out")
+                 
+                 stop_words = ["i want to buy", "buy", "find", "search for", "looking for", "get me", "i need", "add", "to cart"]
+                 clean_product_name = message_text.lower()
+                 for word in stop_words:
+                     clean_product_name = clean_product_name.replace(word, "").strip()
+
+                 await self.rabbitmq.publish({
+                     "user_id": user_id,
+                     "content": f"Great choice! ✨ I've detected multiple editions for '{clean_product_name}'. Select your preferred model to initialize delivery:",
+                     "type": "proactive_suggestion",
+                     "products": [p.model_dump(mode='json') for p in products[:10]]
+                 }, "airdeliver.ai.response.out")
+                 
             else:
+                
                 added_product = products[0]
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": added_product.id, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
                 await self._handle_add_to_cart_success(user_id, added_product)
 
         elif intent == "SEARCH_PRODUCT":
-            
+
             if not products:
-                logger.info(f"🔎 First pass failed for: '{message_text}'. Attempting AI Extraction...")
+                logger.info(f"🔎 First pass failed for: '{message_text}'. Initiating Multi-Layer AI Recovery...")
+
                 clean_query = await self.llm_service.extract_search_terms(message_text)
                 
                 if clean_query and clean_query.lower() != message_text.lower():
-                    logger.info(f"🔄 Smart Retry: '{clean_query}'")
+                    logger.info(f"🔄 Layer 1 - Smart Retry: '{clean_query}'")
                     products, _ = await self.search_engine.find_products_from_message(self.db, clean_query, user_id)
 
             if not products:
+        
+                logger.info(f"🔄 Layer 2 - Initiating Semantic Pivot for '{message_text}'...")
                 
-                await self.rabbitmq.publish({"user_id": user_id, "content": f"I scanned the inventory for '{message_text}' but found no exact matches. Try browsing categories.", "type": "error"}, "airdeliver.ai.response.out")
+                pivot_query = f"What is the generic product category for: {message_text}? Return ONLY the category name."
+                generic_category = await self.llm_service.extract_search_terms(pivot_query)
+                
+                alternative_products = []
+                if generic_category and generic_category.lower() != message_text.lower():
+                    logger.info(f"💡 Semantic Pivot Result: '{message_text}' -> '{generic_category}'")
+                    alternative_products, _ = await self.search_engine.find_products_from_message(self.db, generic_category, user_id)
+
+                if alternative_products:
+        
+                    stop_phrases = ["i want to buy", "buy", "find", "search for", "looking for", "give me"]
+                    clean_display_term = message_text.lower()
+                    for phrase in stop_phrases:
+                        clean_display_term = clean_display_term.replace(phrase, "").strip()
+
+                    await self.rabbitmq.publish({
+                        "user_id": user_id, 
+                        "content": f"I currently don't have exact matches for '{clean_display_term}', but I found these top-rated **{generic_category}** for you:", 
+                        "type": "proactive_suggestion",
+                        "products": [p.model_dump(mode='json') for p in alternative_products[:5]]
+                    }, "airdeliver.ai.response.out")
+                    return 
+
+            if not products:
+                
+                stop_phrases = ["i want to buy", "buy", "find", "search for", "looking for", "get me", "show me"]
+                clean_failed_query = message_text.lower()
+                for word in stop_phrases:
+                    clean_failed_query = clean_failed_query.replace(word, "").strip()
+                
+                final_term = clean_failed_query if len(clean_failed_query) > 2 else message_text
+
+                await self.rabbitmq.publish({
+                    "user_id": user_id, 
+                    "content": f"I scanned the global inventory for '{final_term}' but found no exact matches. Try browsing our categories.", 
+                    "type": "error"
+                }, "airdeliver.ai.response.out")
                 return
+                        
+                
 
             candidate_pool = [p.model_dump(mode='json') for p in products[:15]]
-            
+
             ai_reasoning = await self.llm_service.filter_and_recommend(
                 user_query=message_text,
                 products=candidate_pool
@@ -272,30 +331,26 @@ class AINLUService:
             intro_message = "Found these for you:"
 
             if ai_reasoning and ai_reasoning.selected_ids:
-            
                 intro_message = ai_reasoning.intro_message
                 for p in candidate_pool:
                     if p['id'] in ai_reasoning.selected_ids:
-            
                         p['ai_notes'] = ai_reasoning.reasoning.get(p['id'], "Best Match")
                         final_display_products.append(p)
-
 
                 if not final_display_products:
                     logger.warning("⚠️ AI filtered out everything. Falling back to raw search.")
                     final_display_products = candidate_pool[:5]
                     intro_message = "Here are the best matches from our inventory:"
-
             else:
                 logger.info("ℹ️ Using Standard RAG Fallback (AI returned empty selection).")
                 final_display_products = candidate_pool[:5]
                 intro_message = "Found these items matching your specifications:"
-            
+
             await self._mark_products_as_seen(user_id, final_display_products)
             await self.rabbitmq.publish({
-                "user_id": user_id, 
-                "content": intro_message, 
-                "type": "product_carousel", 
+                "user_id": user_id,
+                "content": intro_message,
+                "type": "product_carousel",
                 "products": final_display_products,
                 "reason": "AI Optimized"
             }, "airdeliver.ai.response.out")
