@@ -3,6 +3,7 @@
 import logging
 import random
 import json
+import asyncio
 import numpy as np
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Set
@@ -18,9 +19,8 @@ logger = logging.getLogger(__name__)
 
 class AINLUService:
     """
-    The Orchestrator of User Intent.
-    Combines Vector Search (RAG) with Generative AI (Llama 3) for hyper-personalized commerce.
-    Features Smart Recovery for complex queries.
+    The Brain of the Operation.
+    Orchestrates Intent, Search, and Generative AI with High-Resilience Patterns.
     """
     def __init__(
         self,
@@ -43,8 +43,8 @@ class AINLUService:
             "FASHION": self.search_engine.embedding_model.encode("style clothes fashion trend wear outfit design aesthetic", convert_to_numpy=True),
             "CASUAL": self.search_engine.embedding_model.encode("simple basic home daily essentials standard cheap", convert_to_numpy=True)
         }
+        logger.info("✅ AI NLU Service Initialized with Pre-computed Persona Anchors.")
 
-    # --- Helper Methods ---
     def _get_seen_key(self, user_id: int) -> str:
         return f"ai_session:{user_id}:seen_products"
 
@@ -57,37 +57,52 @@ class AINLUService:
             return set()
 
     async def _mark_products_as_seen(self, user_id: int, products: List[Dict[str, Any]]):
+        """
+        [ARCHITECTURAL OPTIMIZATION] Fire-and-Forget Caching
+        We don't await this blocking the user response.
+        """
         if not products: return
-        key = self._get_seen_key(user_id)
-        ids = [str(p['id'] if isinstance(p, dict) else p.id) for p in products]
-        try:
-            await self.cache.sadd(key, *ids)
-            await self.cache.expire(key, self.seen_cache_ttl)
-        except Exception: pass
+        
+        async def _bg_task():
+            key = self._get_seen_key(user_id)
+            ids = [str(p['id'] if isinstance(p, dict) else p.id) for p in products]
+            try:
+                await self.cache.sadd(key, *ids)
+                await self.cache.expire(key, self.seen_cache_ttl)
+            except Exception as e:
+                logger.warning(f"Cache write failed (non-critical): {e}")
+
+        asyncio.create_task(_bg_task())
 
     def _detect_persona(self, product: Product) -> str:
-        """Detects product vibe using vector dot product against anchors."""
-        product_text = f"{product.name} {product.description} {product.category} {' '.join(product.tags or [])}"
-        product_vector = self.search_engine.embedding_model.encode(product_text, convert_to_numpy=True)
-        best_persona = "CASUAL"
-        max_score = -1.0
-        for persona, anchor_vector in self.persona_anchors.items():
-            score = np.dot(product_vector, anchor_vector) / (np.linalg.norm(product_vector) * np.linalg.norm(anchor_vector))
-            if score > max_score:
-                max_score = score
-                best_persona = persona
-        return best_persona
+        """Detects product vibe using vector dot product against pre-computed anchors."""
+        try:
+            product_text = f"{product.name} {product.description} {product.category} {' '.join(product.tags or [])}"
+            product_vector = self.search_engine.embedding_model.encode(product_text, convert_to_numpy=True)
+            
+            best_persona = "CASUAL"
+            max_score = -1.0
+            
+            for persona, anchor_vector in self.persona_anchors.items():
+                score = np.dot(product_vector, anchor_vector) / (np.linalg.norm(product_vector) * np.linalg.norm(anchor_vector))
+                if score > max_score:
+                    max_score = score
+                    best_persona = persona
+            return best_persona
+        except Exception as e:
+            logger.error(f"Persona detection failed: {e}")
+            return "CASUAL"
 
     def _get_contextual_message(self, persona: str, intent: str, product_name: str = "") -> str:
-        """Fallback rule-based responses for high-speed interactions."""
+        """Micro-Copy Engine for Personality"""
         hour = datetime.now().hour
         time_context = "morning" if 5 <= hour < 12 else "evening" if 17 <= hour < 23 else "day"
 
         if intent == "ADD":
-            if persona == "LUXURY": return f"An exquisite choice. **{product_name}** defines elegance. ✨"
-            elif persona == "TECH": return f"**{product_name}** added. High-performance specs secured. ⚡"
-            elif persona == "FASHION": return f"**{product_name}** is stunning! You have a great eye for style. 👗"
-            else: return f"**{product_name}** is in! Great pick for your {time_context}. 🚀"
+            if persona == "LUXURY": return f"An exquisite choice. '{product_name}' defines elegance. ✨"
+            elif persona == "TECH": return f"'{product_name}' added. High-performance specs secured. ⚡"
+            elif persona == "FASHION": return f"'{product_name}' is stunning! You have a great eye for style. 👗"
+            else: return f"'{product_name}' is in! Great pick for your {time_context}. 🚀"
         if intent == "BUNDLE":
             if persona == "LUXURY": return "Curated specifically for your taste, a complete experience:"
             elif persona == "TECH": return "Optimized ecosystem bundle detected. Maximize your setup:"
@@ -95,14 +110,16 @@ class AINLUService:
         if intent == "RECOVERY":
             if persona == "TECH": return "Specs didn't match? Check these alternatives:"
             else: return f"Change of heart on **{product_name}**? Maybe these fit better:"
-        return f"**{product_name}** added!"
+        return f"'{product_name}' added!"
 
     async def _get_global_backup_products(self) -> List[Dict[str, Any]]:
         cache_key = "global:trending_products:v1"
         cached_products = await self.cache.get_json(cache_key)
         if cached_products: return cached_products
+        
         statement = select(Product).order_by(Product.rating.desc()).limit(200)
         products = (await self.db.exec(statement)).all()
+        
         if products:
             products_data = [p.model_dump(mode='json') for p in products]
             await self.cache.set_json(cache_key, products_data, ttl=600)
@@ -120,6 +137,7 @@ class AINLUService:
         backup_pool = await self._get_global_backup_products()
         hour = datetime.now().hour
         weighted_pool = []
+        
         for p in backup_pool:
             cat = p.get('category', '').lower()
             if 6 <= hour < 11 and 'coffee' in cat: weighted_pool.extend([p]*3)
@@ -127,6 +145,7 @@ class AINLUService:
             else: weighted_pool.append(p)
 
         final_selection = await self._filter_candidates(user_id, weighted_pool, limit=10)
+        
         if not final_selection:
             await self.cache.delete(self._get_seen_key(user_id))
             final_selection = random.sample(backup_pool, min(len(backup_pool), 10)) if backup_pool else []
@@ -142,14 +161,17 @@ class AINLUService:
         user_id = payload["user_id"]
         removed_id = payload.get("removed_product_id")
         removed_name = payload.get("removed_product_name", "item")
+        
         await self._mark_products_as_seen(user_id, [{"id": removed_id}])
 
         removed_product = await self.db.get(Product, removed_id)
         if not removed_product: return
 
         persona = self._detect_persona(removed_product)
+        
         statement = select(Product).where(and_(Product.category == removed_product.category, Product.id != removed_id)).limit(10)
         alternatives = (await self.db.exec(statement)).all()
+        
         alt_data = [p.model_dump(mode='json') for p in alternatives]
         final_selection = await self._filter_candidates(user_id, alt_data, limit=3)
 
@@ -180,7 +202,7 @@ class AINLUService:
                 comp_data = [p.model_dump(mode='json') for p in complementary]
                 final_products = await self._filter_candidates(user_id, comp_data, limit=5)
                 if final_products:
-                    suggestion_reason = f"Perfect matches for your **{added_product.name}**:"
+                    suggestion_reason = f"Perfect matches for your '{added_product.name}':"
             except Exception: pass
 
         if not final_products:
@@ -199,17 +221,27 @@ class AINLUService:
         await self._mark_products_as_seen(user_id, [{"id": product.id}])
         persona = self._detect_persona(product)
         msg = self._get_contextual_message(persona, "ADD", product.name)
+        
         await self.rabbitmq.publish({"user_id": user_id, "content": msg, "type": "success_text"}, "airdeliver.ai.response.out")
-        await self._handle_secondary_suggestions(user_id, product)
-        await self._send_confirmation_prompt(user_id)
+        
+        asyncio.create_task(self._handle_secondary_suggestions(user_id, product))
+        asyncio.create_task(self._send_confirmation_prompt(user_id))
 
     async def _send_confirmation_prompt(self, user_id: int):
+        
+        await asyncio.sleep(0.5)
         await self.rabbitmq.publish(
             {"user_id": user_id, "content": "I'm ready when you are. Proceed to checkout?", "type": "confirmation_prompt", "options": ["Confirm Order", "Clear Cart"]},
             "airdeliver.ai.response.out",
         )
 
     async def process_message(self, message_payload: dict):
+        """
+        The Core Logic:
+        - Sanitized Inputs
+        - Multi-Layered AI Fallback
+        - Professional Responses
+        """
         user_id = message_payload.get("user_id")
         raw_message = message_payload.get("message")
         
@@ -235,17 +267,18 @@ class AINLUService:
             return
 
         if intent == "ADD_TO_CART":
-        
+            
             if not products:
                  clean_query = await self.llm_service.extract_search_terms(message_text)
                  if clean_query != message_text:
                      products, _ = await self.search_engine.find_products_from_message(self.db, clean_query, user_id)
 
             if not products:
-                 await self.rabbitmq.publish({"user_id": user_id, "content": f"I couldn't find exactly '{message_text}', but check these out:", "type": "product_carousel", "products": []}, "airdeliver.ai.response.out")
+            
+                 pass 
 
             elif len(products) > 1:
-                 
+                 # Ambiguity Handling
                  stop_words = ["i want to buy", "buy", "find", "search for", "looking for", "get me", "i need", "add", "to cart"]
                  clean_product_name = message_text.lower()
                  for word in stop_words:
@@ -257,103 +290,103 @@ class AINLUService:
                      "type": "proactive_suggestion",
                      "products": [p.model_dump(mode='json') for p in products[:10]]
                  }, "airdeliver.ai.response.out")
+                 return
                  
             else:
-                
+
                 added_product = products[0]
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": added_product.id, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
                 await self._handle_add_to_cart_success(user_id, added_product)
-
-        elif intent == "SEARCH_PRODUCT":
-
-            if not products:
-                logger.info(f"🔎 First pass failed for: '{message_text}'. Initiating Multi-Layer AI Recovery...")
-
-                clean_query = await self.llm_service.extract_search_terms(message_text)
-                
-                if clean_query and clean_query.lower() != message_text.lower():
-                    logger.info(f"🔄 Layer 1 - Smart Retry: '{clean_query}'")
-                    products, _ = await self.search_engine.find_products_from_message(self.db, clean_query, user_id)
-
-            if not products:
+                return
         
-                logger.info(f"🔄 Layer 2 - Initiating Semantic Pivot for '{message_text}'...")
-                
-                pivot_query = f"What is the generic product category for: {message_text}? Return ONLY the category name."
-                generic_category = await self.llm_service.extract_search_terms(pivot_query)
-                
-                alternative_products = []
-                if generic_category and generic_category.lower() != message_text.lower():
-                    logger.info(f"💡 Semantic Pivot Result: '{message_text}' -> '{generic_category}'")
-                    alternative_products, _ = await self.search_engine.find_products_from_message(self.db, generic_category, user_id)
+        if not products:
+            logger.info(f"🔎 First pass failed for: '{message_text}'. Initiating Multi-Layer AI Recovery...")
 
-                if alternative_products:
-        
-                    stop_phrases = ["i want to buy", "buy", "find", "search for", "looking for", "give me"]
-                    clean_display_term = message_text.lower()
-                    for phrase in stop_phrases:
-                        clean_display_term = clean_display_term.replace(phrase, "").strip()
+            clean_query = await self.llm_service.extract_search_terms(message_text)
+            
+            if clean_query and clean_query.lower() != message_text.lower():
+                logger.info(f"🔄 Layer 1 - Smart Retry: '{clean_query}'")
+                products, _ = await self.search_engine.find_products_from_message(self.db, clean_query, user_id)
 
-                    await self.rabbitmq.publish({
-                        "user_id": user_id, 
-                        "content": f"I currently don't have exact matches for '{clean_display_term}', but I found these top-rated **{generic_category}** for you:", 
-                        "type": "proactive_suggestion",
-                        "products": [p.model_dump(mode='json') for p in alternative_products[:5]]
-                    }, "airdeliver.ai.response.out")
-                    return 
+        if not products:
+            logger.info(f"🔄 Layer 2 - Initiating Semantic Pivot for '{message_text}'...")
+            
+            pivot_query = f"What is the generic product category for: {message_text}? Return ONLY the category name."
+            
+            try:
+                generic_category = await asyncio.wait_for(self.llm_service.extract_search_terms(pivot_query), timeout=5.0)
+            except asyncio.TimeoutError:
+                generic_category = None
+                logger.error("LLM Pivot Timeout")
 
-            if not products:
-                
-                stop_phrases = ["i want to buy", "buy", "find", "search for", "looking for", "get me", "show me"]
-                clean_failed_query = message_text.lower()
-                for word in stop_phrases:
-                    clean_failed_query = clean_failed_query.replace(word, "").strip()
-                
-                final_term = clean_failed_query if len(clean_failed_query) > 2 else message_text
+            alternative_products = []
+            if generic_category and generic_category.lower() != message_text.lower():
+                logger.info(f"💡 Semantic Pivot Result: '{message_text}' -> '{generic_category}'")
+                alternative_products, _ = await self.search_engine.find_products_from_message(self.db, generic_category, user_id)
+
+            if alternative_products:
+                stop_phrases = ["i want to buy", "buy", "find", "search for", "looking for"]
+                clean_display_term = message_text.lower()
+                for phrase in stop_phrases:
+                    clean_display_term = clean_display_term.replace(phrase, "").strip()
 
                 await self.rabbitmq.publish({
                     "user_id": user_id, 
-                    "content": f"I scanned the global inventory for '{final_term}' but found no exact matches. Try browsing our categories.", 
-                    "type": "error"
+                    "content": f"I currently don't have exact matches for '{clean_display_term}', but I found these top-rated **{generic_category}** for you:", 
+                    "type": "proactive_suggestion",
+                    "products": [p.model_dump(mode='json') for p in alternative_products[:5]]
                 }, "airdeliver.ai.response.out")
-                return
-                        
-                
+                return 
 
-            candidate_pool = [p.model_dump(mode='json') for p in products[:15]]
+        if not products:
+            stop_phrases = ["i want to buy", "buy", "find", "search for", "looking for", "get me", "show me"]
+            clean_failed_query = message_text.lower()
+            for word in stop_phrases:
+                clean_failed_query = clean_failed_query.replace(word, "").strip()
+            
+            final_term = clean_failed_query if len(clean_failed_query) > 2 else message_text
 
-            ai_reasoning = await self.llm_service.filter_and_recommend(
-                user_query=message_text,
-                products=candidate_pool
-            )
-
-            final_display_products = []
-            intro_message = "Found these for you:"
-
-            if ai_reasoning and ai_reasoning.selected_ids:
-                intro_message = ai_reasoning.intro_message
-                for p in candidate_pool:
-                    if p['id'] in ai_reasoning.selected_ids:
-                        p['ai_notes'] = ai_reasoning.reasoning.get(p['id'], "Best Match")
-                        final_display_products.append(p)
-
-                if not final_display_products:
-                    logger.warning("⚠️ AI filtered out everything. Falling back to raw search.")
-                    final_display_products = candidate_pool[:5]
-                    intro_message = "Here are the best matches from our inventory:"
-            else:
-                logger.info("ℹ️ Using Standard RAG Fallback (AI returned empty selection).")
-                final_display_products = candidate_pool[:5]
-                intro_message = "Found these items matching your specifications:"
-
-            await self._mark_products_as_seen(user_id, final_display_products)
             await self.rabbitmq.publish({
-                "user_id": user_id,
-                "content": intro_message,
-                "type": "product_carousel",
-                "products": final_display_products,
-                "reason": "AI Optimized"
+                "user_id": user_id, 
+                "content": f"I scanned the global inventory for '{final_term}' but found no exact matches. Try browsing our categories.", 
+                "type": "error"
             }, "airdeliver.ai.response.out")
+            return
+                    
+        candidate_pool = [p.model_dump(mode='json') for p in products[:15]]
+
+        ai_reasoning = await self.llm_service.filter_and_recommend(
+            user_query=message_text,
+            products=candidate_pool
+        )
+
+        final_display_products = []
+        intro_message = "Found these for you:"
+
+        if ai_reasoning and ai_reasoning.selected_ids:
+            intro_message = ai_reasoning.intro_message
+            for p in candidate_pool:
+                if p['id'] in ai_reasoning.selected_ids:
+                    p['ai_notes'] = ai_reasoning.reasoning.get(p['id'], "Best Match")
+                    final_display_products.append(p)
+
+            if not final_display_products:
+                logger.warning("⚠️ AI filtered out everything. Falling back to raw search.")
+                final_display_products = candidate_pool[:5]
+                intro_message = "Here are the best matches from our inventory:"
+        else:
+            logger.info("ℹ️ Using Standard RAG Fallback (AI returned empty selection).")
+            final_display_products = candidate_pool[:5]
+            intro_message = "Found these items matching your specifications:"
+
+        await self._mark_products_as_seen(user_id, final_display_products)
+        await self.rabbitmq.publish({
+            "user_id": user_id,
+            "content": intro_message,
+            "type": "product_carousel",
+            "products": final_display_products,
+            "reason": "AI Optimized"
+        }, "airdeliver.ai.response.out")
 
     async def _process_internal_command(self, user_id: int, command: str):
         if command == "__INTERNAL_SAVE_FOR_LATER__":
