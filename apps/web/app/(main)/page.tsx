@@ -316,7 +316,7 @@ const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
             </div>
 
             <div className="relative z-30 mb-3 inline-flex items-center justify-center p-2 rounded-lg bg-cyan-950/50 border border-cyan-500/30 text-cyan-400 group-hover:text-white group-hover:bg-cyan-600 group-hover:scale-105 transition-all duration-500 shadow-lg shadow-black/50">
-                <item.icon size={16} strokeWidth={1.5} />
+                <item.icon size={37} strokeWidth={1.5} />
             </div>
 
             <div className="flex items-center gap-2 mb-2 relative z-20">
@@ -325,7 +325,7 @@ const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
                 </span>
             </div>
 
-            <h3 className="text-base font-bold text-white mb-2 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all relative z-20" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            <h3 className="text-xl font-bold text-white mb-2 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all relative z-20" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                 {item.title}
             </h3>
 
