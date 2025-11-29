@@ -185,20 +185,18 @@ const Starfield = (props: any) => {
 // --- 2. HOW IT WORKS SECTION (Architectural Fix: Perfect Alignment) ---
 // ============================================================================
 
-// 1. تعريف مساحة الرسم (Canvas Size)
 const VIEWBOX_WIDTH = 900;
 const VIEWBOX_HEIGHT = 1200;
 
-// 2. تعريف أبعاد الكارت الموحدة (Standardized Card Size)
-const CARD_W = 420; // عرض كبير
-const CARD_H = 280; // ارتفاع مريح للنص
+const CARD_W = 420; 
+const CARD_H = 280; 
 
 const timelineSteps = [
   {
     icon: Bot,
     step: 1,
     title: "AI Initiation",
-    description: "NLP core interprets intent instantly." // نص مختصر ومناسب
+    description: "NLP core interprets intent instantly." 
   },
   {
     icon: Cpu,
@@ -220,53 +218,33 @@ const timelineSteps = [
   },
 ];
 
-// 3. شبكة التوزيع الجديدة (The New Grid)
-// قمت بتوزيع الكروت بحيث يكون هناك مسافة كافية للخطوط
 const stepsWithPositions = [
-  // Card 1 (Top Left)
+  
   { ...timelineSteps[0], x: 20, y: 20, width: CARD_W, height: CARD_H },
 
-  // Card 2 (Top Right) - Shifted right & down
   { ...timelineSteps[1], x: 480, y: 240, width: CARD_W, height: CARD_H },
 
-  // Card 3 (Bottom Left)
   { ...timelineSteps[2], x: 20, y: 500, width: CARD_W, height: CARD_H },
 
-  // Card 4 (Bottom Right)
   { ...timelineSteps[3], x: 450, y: 820, width: CARD_W, height: CARD_H },
 ];
 
-// 4. رسم الخطوط بدقة هندسية (Precision SVG Paths)
 const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
   const pathLength = useTransform(scrollYProgress, [0.1, 0.7], [0, 1]);
 
-  // M = Move to (Start Point), L = Line to (End Point)
-  // حسبة الخطوط بناءً على أماكن الكروت الجديدة:
-
-  // Link 1 -> 2: يخرج من يمين كارت 1 ويدخل يسار كارت 2
-  // C1 Right Edge: 20 + 420 = 440 | Center Y: 20 + 140 = 160
-  // C2 Left Edge: 480 | Center Y: 240 + 140 = 380
   const path1 = `M 440 160 L 460 160 L 460 380 L 480 380`;
 
-  // Link 2 -> 3: يخرج من أسفل كارت 2 ويرجع لكارت 3 (Flow)
-  // C2 Bottom: 480+210(x), 240+280(y)=520 -> C3 Top Right
-  // بس عشان الشكل يبقى أنظف، هنوصل 1 بـ 3، و 2 بـ 4 (Tree Structure)
-
-  // Link 1 -> 3: يخرج من أسفل كارت 1 ويدخل أعلى كارت 3
   const path2 = `M 230 300 L 230 500`;
 
-  // Link 3 -> 4: يخرج من يمين كارت 3 ويدخل يسار كارت 4
-  // C3 Right: 440, Center Y: 640
-  // C4 Left: 450, Center Y: 960
   const path3 = `M 440 640 L 445 640 L 445 960 L 450 960`;
 
   const allPaths = `${path1} ${path2} ${path3}`;
 
   return (
     <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} preserveAspectRatio="xMidYMin meet">
-      {/* الخط الخلفي الشفاف */}
+      
       <path d={allPaths} fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth={4} strokeLinecap="square" />
-      {/* الخط الملون المتحرك */}
+      
       <motion.path
         d={allPaths}
         fill="none"
@@ -290,33 +268,33 @@ const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
     <div className="relative group h-full w-full">
         <div className="absolute inset-0 bg-cyan-500/20 rounded-[40px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
-        {/* Container */}
+       
         <div className="relative h-full w-full rounded-[40px] bg-black/80 backdrop-blur-xl border border-white/10 p-6 flex flex-col items-start justify-start pt-8 transition-all duration-500 group-hover:border-cyan-500/30 group-hover:bg-black/90 overflow-hidden">
 
-            {/* Dots Decoration */}
+           
             <div className="absolute top-6 right-6 flex gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-cyan-400/80 transition-colors" />
                 <div className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-cyan-400/60 transition-colors" />
             </div>
 
-            {/* Icon - Reduced Padding for Space */}
+           
             <div className="mb-4 inline-flex items-center justify-center p-3 rounded-2xl bg-gradient-to-br from-white/5 to-white/0 border border-white/10 text-cyan-400 group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-lg shadow-black/50">
                 <item.icon size={24} />
             </div>
 
-            {/* Phase Badge */}
+           
             <div className="flex items-center gap-3 mb-3">
                 <span className="text-[10px] font-mono text-cyan-500/80 tracking-widest uppercase border border-cyan-500/20 px-2 py-0.5 rounded">
                     Phase 0{item.step}
                 </span>
             </div>
 
-            {/* Title - Scaled Down to text-2xl */}
+            
             <h3 className="text-2xl font-bold text-white mb-3 tracking-wide group-hover:text-cyan-100 transition-colors" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                 {item.title}
             </h3>
 
-            {/* Description - Scaled Down to text-sm */}
+           
             <p className="text-sm text-gray-400 leading-relaxed font-light group-hover:text-gray-300">
                 {item.description}
             </p>
@@ -360,9 +338,9 @@ const HowItWorksSection = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
 
-            {/* Left: Diagram (Visuals) */}
+          
             <div className="relative w-full order-2 lg:order-1">
-                 {/* Increased Height Container for the bigger cards */}
+                 
                  <div className="relative w-full max-w-xl mx-auto lg:mx-0" style={{ aspectRatio: `${VIEWBOX_WIDTH} / ${VIEWBOX_HEIGHT}` }}>
                     <div className="absolute inset-0 z-0">
                         <DiagramPath scrollYProgress={scrollYProgress} />
@@ -373,7 +351,7 @@ const HowItWorksSection = () => {
                 </div>
             </div>
 
-            {/* Right: Text Narrative */}
+           
             <div className="order-1 lg:order-2 text-left lg:pl-8">
                 <motion.div
                     initial={{ opacity: 0, x: 50 }}
@@ -872,6 +850,57 @@ const FinalCTA = () => {
 };
 
 // ============================================================================
+// --- 3. PARTNERS SECTION (Infinite Trust Loop) ---
+// ============================================================================
+
+const companies = [
+  "NEXUS LOGISTICS", "QUANTUM AI", "AERO DYNAMICS", "CYBER CORE", "VELOCITY INC", "ECO SYSTEMS", "FUTURE TECH"
+];
+
+const TrustedBySection = () => {
+  return (
+    <section className="py-12 bg-black border-y border-white/5 overflow-hidden relative">
+      <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none" />
+
+      <div className="container mx-auto px-4 mb-6 text-center relative z-10">
+        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Trusted by Industry Leaders</p>
+      </div>
+
+      <div className="relative flex overflow-x-hidden group">
+
+        <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-black to-transparent z-10" />
+        <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-black to-transparent z-10" />
+
+        <div className="flex gap-16 animate-marquee whitespace-nowrap items-center">
+          {[...companies, ...companies, ...companies, ...companies].map((company, index) => (
+            <span
+              key={index}
+              className="text-xl md:text-2xl font-bold text-gray-800 uppercase tracking-tighter hover:text-cyan-400 transition-colors duration-500 cursor-default select-none"
+              style={{ fontFamily: "'Orbitron', sans-serif" }}
+            >
+              {company}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+          animation: marquee 40s linear infinite;
+        }
+        .animate-marquee:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+    </section>
+  );
+};
+
+// ============================================================================
 // --- DYNAMIC LOADERS ---
 // ============================================================================
 
@@ -902,6 +931,7 @@ export default function Page() {
         <DynamicGlobalScaleSection />
         <TestimonialsSection />
 	<FinalCTA />
+	<TrustedBySection />
       </main>
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />
     </div>
