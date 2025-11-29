@@ -78,6 +78,65 @@ class FreeLLMService:
                 return None
         return self._client
 
+    async def consult_on_product(self, product_data: Dict[str, Any], user_question: str) -> str:
+        """
+        💎 DIAMOND FEATURE: THE SALES ENGINEER.
+        Analyzes a specific product against a user's question to provide
+        technical, persuasive, and accurate answers.
+        """
+        if not self.client:
+            return f"This {product_data.get('name')} is a top-tier item with excellent ratings. It costs ${product_data.get('price')}."
+
+        system_prompt = f"""
+        You are 'order with air', the Elite Technical Consultant for a futuristic autonomous delivery platform.
+        
+        ### CONTEXT:
+        A high-net-worth user is inquiring about a product. They demand precision, speed, and value.
+        
+        ### PRODUCT DATA (The Source of Truth):
+        {json.dumps(product_data, default=str)}
+        
+        ### YOUR PRIME DIRECTIVE:
+        Translate raw technical specifications into compelling real-world benefits. Do not just list features; explain *why* they matter to the user's lifestyle.
+        
+        ### EXECUTION PROTOCOLS (STRICT):
+        1. **Tone:** Sophisticated, Confident, and Crisp. (Think: Top-tier Tech Reviewer meets Luxury Concierge). Avoid cheap hype (e.g., "Wow!", "Amazing!").
+        2. **Accuracy:** Anchor every claim in the provided DATA or general engineering facts. Zero hallucinations.
+        3. **Brevity:** Maximum 3 sentences. Every word must earn its place.
+        4. **Handling Missing Info:** If a spec is missing, leverage your general tech knowledge to infer typical performance for this class of product, but phrase it carefully.
+        
+        ### VISUAL STYLE GUIDE (NON-NEGOTIABLE):
+        - **FORBIDDEN:** Do NOT use double asterisks (**) or markdown bolding.
+        - **REQUIRED:** Use single quotes (' ') to emphasize key specs or benefits.
+        - *Correct:* The 'A17 Pro chip' enables 'console-level gaming'.
+        - *Incorrect:* The **A17 Pro chip** enables **console-level gaming**.
+        
+        ### OUTPUT SIMULATION:
+        User: "Is the battery good?"
+        You: With an 'all-day battery life' capable of '29 hours video playback', this device ensures you stay powered through long-haul flights without reaching for a charger.
+        """
+
+        try:
+            completion = await self.client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_question}
+                ],
+                model=self.reasoning_model, 
+                temperature=0.3,
+                max_tokens=200
+            )
+
+            raw_answer = completion.choices[0].message.content.strip()
+
+            clean_answer = raw_answer.replace("**", "'").replace("__", "'")
+
+            return clean_answer
+
+        except Exception as e:
+            logger.error(f"Sales Engineer Consult Failed: {e}")
+            return f"**{product_data.get('name')}** is an excellent choice in the {product_data.get('category')} category."
+
     async def extract_search_terms(self, user_query: str) -> str:
         """
         💎 DIAMOND FEATURE: SEMANTIC DECOUPLING.

@@ -114,11 +114,11 @@ class AICommerceEngine:
         try:
             
             if self.milvus_client.has_collection(self.intent_collection):
-                logger.warning("🔄 Refreshing Intent Knowledge Base for New AI Model...")
+        
                 self.milvus_client.drop_collection(self.intent_collection)
 
             logger.info("🚀 Hydrating Intent Vector Database (Cold Start)...")
-            
+
             schema = MilvusClient.create_schema(auto_id=True, enable_dynamic_field=True)
             schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
             schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=384)
@@ -138,34 +138,59 @@ class AICommerceEngine:
                 "REMOVE_FROM_CART": ["remove item", "delete from cart", "take it out", "don't want it", "remove this"],
                 "CONFIRM_ORDER": ["checkout", "confirm order", "pay now", "finish order", "place order", "done shopping"],
                 "CLEAR_CART": ["empty cart", "clear basket", "remove everything", "reset cart", "delete all"],
-                "SEARCH_PRODUCT": ["find", "search", "show me", "looking for", "suggest", "recommend", "do you have"]
+                "SEARCH_PRODUCT": ["find", "search", "show me", "looking for", "suggest", "recommend", "do you have"],
+                "PRODUCT_QUERY": [
+                    "what are the specs of", "tell me about", "features of", "battery life of",
+                    "how fast is", "is it waterproof", "does it have", "why should i buy",
+                    "details about", "is this good for", "description of"
+                ]
             }
 
             data_rows = []
             all_phrases = []
             phrase_labels = []
-            
+
             for label, phrases in intent_map.items():
                 all_phrases.extend(phrases)
                 phrase_labels.extend([label] * len(phrases))
-            
+
             vectors = self.embedding_model.encode(all_phrases, convert_to_numpy=True)
-            
+
             for i, vec in enumerate(vectors):
                 data_rows.append({"vector": vec, "intent_label": phrase_labels[i]})
 
             self.milvus_client.insert(collection_name=self.intent_collection, data=data_rows)
-        
             self.milvus_client.load_collection(collection_name=self.intent_collection)
             logger.info(f"✅ Intent Knowledge Base Ready with {len(data_rows)} anchors.")
-            
+
         except Exception as e:
             logger.error(f"❌ Failed to initialize Intent Knowledge Base: {e}")
 
     def _classify_intent_semantic(self, message: str) -> str:
+    
+        msg_lower = message.lower()
+
+        buy_triggers = ["add ", "buy ", "get ", "i want ", "purchase ", "grab ", "take "]
+        if any(msg_lower.startswith(t) for t in buy_triggers):
+            return "ADD_TO_CART"
+
+        if msg_lower in self.direct_clear:
+            return "CLEAR_CART"
+
+        if msg_lower in self.direct_confirm:
+            return "CONFIRM_ORDER"
+
+        specs_triggers = [
+            "spec", "battery", "feature", "detail", "review", "desc", 
+            "how fast", "waterproof", "screen", "display", "cpu", "ram",
+            "wha", "wht", "what", "tell me", "info" 
+        ]
+
+        if any(w in msg_lower for w in specs_triggers) and len(message.split()) > 2:
+            return "PRODUCT_QUERY"
+
         try:
             vector = self.embedding_model.encode([message], convert_to_numpy=True)
-
             results = self.milvus_client.search(
                 collection_name=self.intent_collection,
                 data=vector,
@@ -178,7 +203,7 @@ class AICommerceEngine:
                 return "SEARCH_PRODUCT"
 
             top_match = results[0][0]
-            if top_match['distance'] > 0.9: 
+            if top_match['distance'] > 1.1: 
                 return "SEARCH_PRODUCT"
 
             return top_match['entity']['intent_label']
@@ -192,10 +217,34 @@ class AICommerceEngine:
     def _extract_intent_and_entity(self, message: str) -> Tuple[str, str]:
         normalized = self._normalize_message(message)
 
-        if normalized in self.direct_confirm: return "CONFIRM_ORDER", ""
-        if normalized in self.direct_clear: return "CLEAR_CART", ""
-
         intent = self._classify_intent_semantic(message)
+
+        if intent == "ADD_TO_CART":
+            clean_entity = normalized
+            remove_phrases = sorted([
+                "add to cart", "add to bag", "add to basket",
+                "i want to buy", "i want to purchase", "i want", "i need",
+                "buy", "get", "add", "purchase", "grab", "take"
+            ], key=len, reverse=True)
+
+            for phrase in remove_phrases:
+                if clean_entity.startswith(phrase):
+                    clean_entity = clean_entity[len(phrase):].strip()
+                    break 
+
+            return intent, clean_entity
+        
+        if intent == "PRODUCT_QUERY":
+            
+            clean_entity = message.lower()
+            noise_phrases = [
+                "what is", "what are", "the specs of", "specs for", "tell me about", 
+                "features of", "details on", "how is the", "battery of", "show me"
+            ]
+            for phrase in noise_phrases:
+                clean_entity = clean_entity.replace(phrase, "")
+            return intent, clean_entity.strip()
+
         return intent, normalized
 
     def _get_query_embedding(self, query: str) -> List[float]:
@@ -205,6 +254,55 @@ class AICommerceEngine:
         except Exception as e:
             logger.error(f"Embedding generation failed: {e}")
             return []
+
+    async def ensure_opensearch_index(self):
+        """
+        [ARCHITECTURAL SELF-HEALING]
+        Automatically creates the search index if it's missing (e.g., after a fresh deploy).
+        """
+        index_name = "airdeliver_products"
+        try:
+            exists = await self.opensearch_client.indices.exists(index=index_name)
+
+            if exists:
+                logger.info(f"✅ OpenSearch Index '{index_name}' exists.")
+                return
+
+            logger.warning(f"⚠️ Index '{index_name}' missing. Creating with optimized schema...")
+
+            index_body = {
+                "settings": {
+                    "index": {
+                        "number_of_shards": 1,
+                        "number_of_replicas": 0
+                    },
+                    "analysis": {
+                        "analyzer": {
+                            "default": {
+                                "type": "standard"  
+                            }
+                        }
+                    }
+                },
+                "mappings": {
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "name": {"type": "text", "boost": 3}, 
+                        "description": {"type": "text"},
+                        "category": {"type": "keyword"},
+                        "price": {"type": "float"},
+                        "tags": {"type": "text", "boost": 2},
+                        "rating": {"type": "float"},
+                        "image": {"type": "text"}
+                    }
+                }
+            }
+
+            await self.opensearch_client.indices.create(index=index_name, body=index_body)
+            logger.info(f"✅ OpenSearch Index '{index_name}' created successfully.")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to ensure OpenSearch index: {e}")
 
     async def _search_opensearch(self, query: str, limit: int = 50) -> List[Tuple[str, float]]:
         opensearch_query = {
@@ -377,24 +475,24 @@ def get_embedding_model() -> SentenceTransformer:
 
 def get_milvus_client(settings: CoreSettings = Depends(get_core_settings)) -> MilvusClient:
     """
-    Retries removed for request path. 
+    Retries removed for request path.
     Ideally, connection should be established at startup, but MilvusClient is lightweight wrapper.
     """
     if not isinstance(settings, CoreSettings):
         settings = get_core_settings()
-    
+
     return MilvusClient(uri=settings.MILVUS_URI)
 
 async def get_opensearch_client(settings: CoreSettings = Depends(get_core_settings)) -> AsyncGenerator[AsyncOpenSearch, None]:
     hosts = [{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}]
     auth = (settings.OPENSEARCH_USER, settings.OPENSEARCH_PASS) if settings.APP_ENV == "production" else None
-    
+
     client = AsyncOpenSearch(
-        hosts=hosts, 
-        http_auth=auth, 
-        use_ssl=False, 
-        verify_certs=False, 
-        ssl_assert_hostname=False, 
+        hosts=hosts,
+        http_auth=auth,
+        use_ssl=False,
+        verify_certs=False,
+        ssl_assert_hostname=False,
         ssl_show_warn=False,
         timeout=5
     )

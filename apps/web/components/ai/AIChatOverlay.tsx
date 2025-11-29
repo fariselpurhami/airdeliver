@@ -743,7 +743,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                 >
                                     {paymentDetails ? 'secure_checkout' : 'order with air'}
                                 </motion.span>
-                                <span className="ml-2 text-[10px] text-cyan-500/50 font-mono align-top">BETA v2.0</span>
+                                <span className="ml-2 text-[10px] text-cyan-500/50 font-mono align-top">BETA v5.0</span>
                             </h3>
                             <button 
                                 onClick={handleClose} 

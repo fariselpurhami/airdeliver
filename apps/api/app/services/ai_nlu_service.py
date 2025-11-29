@@ -278,7 +278,7 @@ class AINLUService:
                  pass 
 
             elif len(products) > 1:
-                 # Ambiguity Handling
+                
                  stop_words = ["i want to buy", "buy", "find", "search for", "looking for", "get me", "i need", "add", "to cart"]
                  clean_product_name = message_text.lower()
                  for word in stop_words:
@@ -332,11 +332,36 @@ class AINLUService:
 
                 await self.rabbitmq.publish({
                     "user_id": user_id, 
-                    "content": f"I currently don't have exact matches for '{clean_display_term}', but I found these top-rated **{generic_category}** for you:", 
+                    "content": f"I couldn't find '{clean_display_term}', but I found a similar top-rated '{generic_category}' for you:", 
                     "type": "proactive_suggestion",
                     "products": [p.model_dump(mode='json') for p in alternative_products[:5]]
                 }, "airdeliver.ai.response.out")
-                return 
+                return
+
+        if intent == "PRODUCT_QUERY":
+
+            logger.info(f"🧠 Sales Engineer Activated for: '{message_text}'")
+            
+            if not products:
+                 clean_query = await self.llm_service.extract_search_terms(message_text)
+                 if clean_query != message_text:
+                     products, _ = await self.search_engine.find_products_from_message(self.db, clean_query, user_id)
+            
+            if products:
+                target_product = products[0]
+                product_data = target_product.model_dump(mode='json')
+                
+                answer = await self.llm_service.consult_on_product(product_data, message_text)
+                
+                await self.rabbitmq.publish({
+                    "user_id": user_id,
+                    "content": answer,
+                    "type": "proactive_suggestion",
+                    "products": [product_data]
+                }, "airdeliver.ai.response.out")
+                return
+
+            logger.info("⚠️ Sales Engineer couldn't identify product. Falling back to search recovery.")
 
         if not products:
             stop_phrases = ["i want to buy", "buy", "find", "search for", "looking for", "get me", "show me"]

@@ -95,6 +95,7 @@ async def main():
         embedding_model = get_embedding_model()
 
         ai_commerce_engine = AICommerceEngine(opensearch_client, milvus_client, embedding_model, cache_client)
+        await ai_commerce_engine.ensure_opensearch_index()
         logger.info("✅ AI RAG Engine Online.")
         app_dependencies["ai_engine"] = ai_commerce_engine
 
