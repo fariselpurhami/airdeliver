@@ -114,7 +114,8 @@ class AICommerceEngine:
         try:
             
             if self.milvus_client.has_collection(self.intent_collection):
-                return
+                logger.warning("🔄 Refreshing Intent Knowledge Base for New AI Model...")
+                self.milvus_client.drop_collection(self.intent_collection)
 
             logger.info("🚀 Hydrating Intent Vector Database (Cold Start)...")
             

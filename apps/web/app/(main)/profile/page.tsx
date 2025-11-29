@@ -1,3 +1,5 @@
+//** apps/web/app/(main)/profile/page.tsx **//
+
 'use client';
 
 import React, { useMemo, useRef, useEffect, useState, Suspense } from 'react';
@@ -288,7 +290,7 @@ export default function ProfilePage() {
                                         onClick={handleOpenOrdersModal}
                                         className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-2 group"
                                     >
-                                        View Full History <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                        View all Orders <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                     </button>
                                 </div>
                             </SectionContainer>
@@ -319,7 +321,7 @@ export default function ProfilePage() {
                                     onClick={() => signOut({ callbackUrl: '/login' })}
                                     className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all group"
                                 >
-                                    <span className="font-medium">Terminate Session</span>
+                                    <span className="font-medium">Log Out</span>
                                     <LogOut size={18} className="group-hover:translate-x-1 transition-transform" />
                                 </button>
                             </div>
