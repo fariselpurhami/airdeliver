@@ -195,26 +195,26 @@ const timelineSteps = [
   {
     icon: Bot,
     step: 1,
-    title: "AI Initiation",
-    description: "NLP core interprets intent instantly. Analyzing user patterns to predict delivery requirements before confirmation."
+    title: "order with air",
+    description: "Core intelligence parses your request in real time, cross-checking behavioral signals and product context to predict delivery intent with high accuracy."
   },
   {
     icon: Cpu,
     step: 2,
-    title: "Route Compute",
-    description: "Neural networks calculate optimal 4D paths, accounting for traffic, weather, and vertical airspace restrictions."
+    title: "Auto Compute",
+    description: "Multimodal neural models generate an adaptive 4D flight plan—factoring weather layers, airspace corridors, energy usage, and real-time city topology."
   },
   {
     icon: MapIcon,
     step: 3,
-    title: "Live Telemetry",
-    description: "Holographic tracking from dispatch to destination with sub-millisecond latency updates via satellite uplink."
+    title: " Live airaero X",
+    description: "Continuous telemetry sync streams through low-latency mesh nodes. The drone updates position, stability, and power stats in real time with centimeter precision."
   },
   {
     icon: Rocket,
     step: 4,
-    title: "Auto Arrival",
-    description: "Precision landing sequence initiated. Drone negotiates final approach vector for safe, contactless handover."
+    title: "airaero X Drop",
+    description:  "Autonomous landing protocol takes over. The drone aligns approach vectors, stabilizes micro-thrusters, and completes a contactless, self-verified handoff."
   },
 ];
 
@@ -421,7 +421,7 @@ const HowItWorksSection = () => {
                     transition={{ delay: 0.2 }}
                     className="text-xl text-gray-400 border-l-4 border-cyan-500/50 pl-6 mb-12 leading-relaxed"
                 >
-                    From the moment you click order, our autonomous neural network takes control. Processing millions of data points to ensure the fastest, safest path to your doorstep.
+                    From the moment you tap order with air, our autonomous AI network takes over — analyzing millions of signals in real time to chart the fastest, safest aerial route straight to your doorstep.
                 </motion.p>
 
                 <motion.ul

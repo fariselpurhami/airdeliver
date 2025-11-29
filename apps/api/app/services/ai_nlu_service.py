@@ -240,7 +240,7 @@ class AINLUService:
             if not products:
                  await self.rabbitmq.publish({"user_id": user_id, "content": f"I couldn't find exactly '{message_text}', but check these out:", "type": "product_carousel", "products": []}, "airdeliver.ai.response.out")
             elif len(products) > 1:
-                 await self.rabbitmq.publish({"user_id": user_id, "content": f"Multiple matches found for '{message_text}'. Select the best fit:", "type": "proactive_suggestion", "products": [p.model_dump(mode='json') for p in products[:10]]}, "airdeliver.ai.response.out")
+                 await self.rabbitmq.publish({"user_id": user_id, "content": f"Great choice ✨ I found a few different types of '{message_text}'. Which one catches?:", "type": "proactive_suggestion", "products": [p.model_dump(mode='json') for p in products[:10]]}, "airdeliver.ai.response.out")
             else:
                 added_product = products[0]
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": added_product.id, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
