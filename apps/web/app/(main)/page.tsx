@@ -2,7 +2,7 @@
 
 'use client';
 
-import { ShieldCheck, Lock, Clock, MapIcon, Quote, GlobeIcon, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Lock, Clock, MapIcon, Quote, GlobeIcon, CheckCircle2, Activity } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
 import ProductOverlay from '@/components/products/ProductOverlay';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
@@ -185,78 +185,114 @@ const Starfield = (props: any) => {
 // --- 2. HOW IT WORKS SECTION (Architectural Fix: Perfect Alignment) ---
 // ============================================================================
 
-const VIEWBOX_WIDTH = 900;
-const VIEWBOX_HEIGHT = 1200;
+const VIEWBOX_WIDTH = 1450;
+const VIEWBOX_HEIGHT = 2100;
 
-const CARD_W = 420; 
-const CARD_H = 280; 
+const CARD_W = 600;
+const CARD_H = 400;
 
 const timelineSteps = [
   {
     icon: Bot,
     step: 1,
     title: "AI Initiation",
-    description: "NLP core interprets intent instantly." 
+    description: "NLP core interprets intent instantly. Analyzing user patterns to predict delivery requirements before confirmation."
   },
   {
     icon: Cpu,
     step: 2,
     title: "Route Compute",
-    description: "Neural networks calc optimal 4D paths."
+    description: "Neural networks calculate optimal 4D paths, accounting for traffic, weather, and vertical airspace restrictions."
   },
   {
     icon: MapIcon,
     step: 3,
     title: "Live Telemetry",
-    description: "Holographic tracking from dispatch to dest."
+    description: "Holographic tracking from dispatch to destination with sub-millisecond latency updates via satellite uplink."
   },
   {
     icon: Rocket,
     step: 4,
     title: "Auto Arrival",
-    description: "Precision landing sequence initiated."
+    description: "Precision landing sequence initiated. Drone negotiates final approach vector for safe, contactless handover."
   },
 ];
 
 const stepsWithPositions = [
-  
-  { ...timelineSteps[0], x: 20, y: 20, width: CARD_W, height: CARD_H },
+ 
+  { ...timelineSteps[0], id: 'card-1', x: 50, y: 50, width: CARD_W, height: CARD_H },
 
-  { ...timelineSteps[1], x: 480, y: 240, width: CARD_W, height: CARD_H },
+  { ...timelineSteps[1], id: 'card-2', x: 800, y: 550, width: CARD_W, height: CARD_H },
 
-  { ...timelineSteps[2], x: 20, y: 500, width: CARD_W, height: CARD_H },
+  { ...timelineSteps[2], id: 'card-3', x: 50, y: 1050, width: CARD_W, height: CARD_H },
 
-  { ...timelineSteps[3], x: 450, y: 820, width: CARD_W, height: CARD_H },
+  { ...timelineSteps[3], id: 'card-4', x: 800, y: 1550, width: CARD_W, height: CARD_H },
 ];
 
+const getConnectorPoints = (fromCard: any, toCard: any, type: 'vertical' | 'horizontal-z') => {
+    const fromCenter = { x: fromCard.x + fromCard.width / 2, y: fromCard.y + fromCard.height / 2 };
+
+    if (type === 'vertical') {
+        const start = { x: fromCenter.x, y: fromCard.y + fromCard.height };
+        const end = { x: fromCenter.x, y: toCard.y };
+        return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+    }
+
+    if (type === 'horizontal-z') {
+       
+        const start = { x: fromCard.x + fromCard.width, y: fromCard.y + (fromCard.height * 0.5) };
+        
+        if (fromCard.x < toCard.x) {
+             const midX = fromCard.x + fromCard.width + (toCard.x - (fromCard.x + fromCard.width)) / 2;
+             return `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${toCard.y + toCard.height/2} L ${toCard.x} ${toCard.y + toCard.height/2}`;
+        }
+
+        const startBottom = { x: fromCard.x + fromCard.width/2, y: fromCard.y + fromCard.height };
+        const endTop = { x: toCard.x + toCard.width/2, y: toCard.y };
+        const midY = startBottom.y + (endTop.y - startBottom.y) / 2;
+
+        return `M ${startBottom.x} ${startBottom.y} L ${startBottom.x} ${midY} L ${endTop.x} ${midY} L ${endTop.x} ${endTop.y}`;
+    }
+    return '';
+};
+
 const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
-  const pathLength = useTransform(scrollYProgress, [0.1, 0.7], [0, 1]);
+  const pathLength = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
 
-  const path1 = `M 440 160 L 460 160 L 460 380 L 480 380`;
+  const path1 = getConnectorPoints(stepsWithPositions[0], stepsWithPositions[1], 'horizontal-z');
 
-  const path2 = `M 230 300 L 230 500`;
+  const path2 = getConnectorPoints(stepsWithPositions[1], stepsWithPositions[2], 'horizontal-z');
 
-  const path3 = `M 440 640 L 445 640 L 445 960 L 450 960`;
+  const path3 = getConnectorPoints(stepsWithPositions[2], stepsWithPositions[3], 'horizontal-z');
 
   const allPaths = `${path1} ${path2} ${path3}`;
 
   return (
-    <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} preserveAspectRatio="xMidYMin meet">
-      
-      <path d={allPaths} fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth={4} strokeLinecap="square" />
-      
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} preserveAspectRatio="xMidYMin meet">
+      <path d={allPaths} fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth={6} strokeLinecap="square" />
       <motion.path
         d={allPaths}
         fill="none"
         stroke="url(#architectural-gradient)"
-        strokeWidth={3}
+        strokeWidth={4}
         strokeLinecap="square"
-        style={{ pathLength, filter: 'drop-shadow(0 0 8px rgba(0, 198, 255, 0.6))' }}
+        style={{ pathLength, filter: 'drop-shadow(0 0 10px rgba(0, 240, 255, 0.5))' }}
       />
+
+      <circle cx={stepsWithPositions[0].x + CARD_W} cy={stepsWithPositions[0].y + CARD_H/2} r="8" fill="#00C6FF" />
+      <circle cx={stepsWithPositions[1].x} cy={stepsWithPositions[1].y + CARD_H/2} r="8" fill="#00C6FF" />
+
+      <circle cx={stepsWithPositions[1].x + CARD_W/2} cy={stepsWithPositions[1].y + CARD_H} r="8" fill="#7F00FF" />
+      <circle cx={stepsWithPositions[2].x + CARD_W/2} cy={stepsWithPositions[2].y} r="8" fill="#7F00FF" />
+
+      <circle cx={stepsWithPositions[2].x + CARD_W} cy={stepsWithPositions[2].y + CARD_H/2} r="8" fill="#FF00AA" />
+      <circle cx={stepsWithPositions[3].x} cy={stepsWithPositions[3].y + CARD_H/2} r="8" fill="#FF00AA" />
+
       <defs>
-        <linearGradient id="architectural-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient id="architectural-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#00C6FF" />
-          <stop offset="100%" stopColor="#7F00FF" />
+          <stop offset="50%" stopColor="#7F00FF" />
+          <stop offset="100%" stopColor="#FF00AA" />
         </linearGradient>
       </defs>
     </svg>
@@ -266,38 +302,40 @@ const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number>
 const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
   return (
     <div className="relative group h-full w-full">
-        <div className="absolute inset-0 bg-cyan-500/20 rounded-[40px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-
        
-        <div className="relative h-full w-full rounded-[40px] bg-black/80 backdrop-blur-xl border border-white/10 p-6 flex flex-col items-start justify-start pt-8 transition-all duration-500 group-hover:border-cyan-500/30 group-hover:bg-black/90 overflow-hidden">
+        <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/0 via-cyan-500/50 to-purple-500/0 rounded-[32px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-sm" />
+        <div className="absolute inset-0 bg-cyan-900/10 rounded-[30px] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-700" />
 
-           
-            <div className="absolute top-6 right-6 flex gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-cyan-400/80 transition-colors" />
-                <div className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-cyan-400/60 transition-colors" />
+        <div className="relative h-full w-full rounded-[30px] bg-[#050505]/95 backdrop-blur-xl border border-white/10 p-5 flex flex-col items-start justify-start transition-all duration-500 group-hover:border-cyan-500/40 group-hover:translate-y-[-4px] group-hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] overflow-hidden z-20">
+
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20" />
+
+            <div className="absolute top-5 right-5 flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/50 group-hover:bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)] transition-all duration-500" />
+                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500/20 border border-cyan-500/50 group-hover:bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)] transition-all duration-500 delay-75" />
             </div>
 
-           
-            <div className="mb-4 inline-flex items-center justify-center p-3 rounded-2xl bg-gradient-to-br from-white/5 to-white/0 border border-white/10 text-cyan-400 group-hover:text-white group-hover:scale-110 transition-all duration-500 shadow-lg shadow-black/50">
-                <item.icon size={24} />
+            <div className="relative z-30 mb-3 inline-flex items-center justify-center p-2 rounded-lg bg-cyan-950/50 border border-cyan-500/30 text-cyan-400 group-hover:text-white group-hover:bg-cyan-600 group-hover:scale-105 transition-all duration-500 shadow-lg shadow-black/50">
+                <item.icon size={16} strokeWidth={1.5} />
             </div>
 
-           
-            <div className="flex items-center gap-3 mb-3">
-                <span className="text-[10px] font-mono text-cyan-500/80 tracking-widest uppercase border border-cyan-500/20 px-2 py-0.5 rounded">
+            <div className="flex items-center gap-2 mb-2 relative z-20">
+                <span className="text-[9px] font-mono text-cyan-400/80 tracking-[0.2em] uppercase border border-cyan-500/20 px-2 py-0.5 rounded bg-cyan-950/30">
                     Phase 0{item.step}
                 </span>
             </div>
 
-            
-            <h3 className="text-2xl font-bold text-white mb-3 tracking-wide group-hover:text-cyan-100 transition-colors" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            <h3 className="text-base font-bold text-white mb-2 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all relative z-20" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                 {item.title}
             </h3>
 
-           
-            <p className="text-sm text-gray-400 leading-relaxed font-light group-hover:text-gray-300">
-                {item.description}
-            </p>
+            <div className="relative z-20">
+                <p className="text-[9px] text-gray-300 leading-relaxed font-light max-w-[95%]">
+                    {item.description}
+                </p>
+            </div>
+
+            <div className="absolute bottom-5 left-5 w-8 h-[1px] bg-white/10 group-hover:w-16 group-hover:bg-cyan-500/50 transition-all duration-700" />
         </div>
     </div>
   );
@@ -305,7 +343,7 @@ const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
 
 const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, amount: 0.2 });
+  const isInView = useInView(ref, { once: true, amount: 0.1 });
 
   return (
     <motion.div
@@ -317,9 +355,9 @@ const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) 
         width: `${(step.width / VIEWBOX_WIDTH) * 100}%`,
         height: `${(step.height / VIEWBOX_HEIGHT) * 100}%`,
       }}
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-      transition={{ duration: 0.6, ease: "easeOut" }}
+      initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
+      animate={isInView ? { opacity: 1, scale: 1, filter: "blur(0px)" } : {}}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
     >
       <StepCard item={step} />
     </motion.div>
@@ -328,20 +366,19 @@ const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) 
 
 const HowItWorksSection = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start center', 'end end'] });
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
 
   return (
-    <section ref={containerRef} className="relative w-full min-h-screen py-24 px-4 overflow-hidden bg-black flex items-center">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_100%)] pointer-events-none" />
+    <section ref={containerRef} className="relative w-full min-h-screen bg-black flex flex-col justify-center overflow-hidden">
 
-      <div className="container mx-auto relative z-10">
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000000_90%)] pointer-events-none" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+      <div className="container mx-auto relative z-10 px-4 py-12 lg:py-24">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start lg:items-center">
 
-          
-            <div className="relative w-full order-2 lg:order-1">
-                 
-                 <div className="relative w-full max-w-xl mx-auto lg:mx-0" style={{ aspectRatio: `${VIEWBOX_WIDTH} / ${VIEWBOX_HEIGHT}` }}>
+            <div className="lg:col-span-7 w-full order-2 lg:order-1">
+                 <div className="relative w-full" style={{ aspectRatio: `${VIEWBOX_WIDTH} / ${VIEWBOX_HEIGHT}` }}>
                     <div className="absolute inset-0 z-0">
                         <DiagramPath scrollYProgress={scrollYProgress} />
                     </div>
@@ -351,51 +388,87 @@ const HowItWorksSection = () => {
                 </div>
             </div>
 
-           
-            <div className="order-1 lg:order-2 text-left lg:pl-8">
-                <motion.div
-                    initial={{ opacity: 0, x: 50 }}
+            <div className="lg:col-span-5 w-full order-1 lg:order-2 flex flex-col items-start lg:pl-12 sticky top-24">
+
+                 <motion.div
+                    initial={{ opacity: 0, x: 20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.8 }}
-                >
-                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8">
-                        <Cpu size={14} className="text-cyan-400" />
-                        <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Core Infrastructure</span>
-                    </div>
-
-                    <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-8 tracking-tighter text-white leading-none whitespace-nowrap" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        SYSTEM<br />
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-white to-purple-500 drop-shadow-[0_0_20px_rgba(0,198,255,0.3)]">
-                            ARCHITECTURE
-                        </span>
-                    </h2>
-
-                    <p className="text-gray-400 text-lg md:text-xl font-light tracking-wide leading-relaxed mb-8 border-l-4 border-cyan-500/30 pl-6">
-                        From the moment you click order, our autonomous neural network takes control. Processing millions of data points to ensure the fastest, safest path to your doorstep.
-                    </p>
-
-                    <ul className="space-y-4 text-gray-400 font-mono text-sm">
-                        <li className="flex items-center gap-3">
-                            <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                            <span><strong className="text-white">Latencyless</strong> AI Processing</span>
-                        </li>
-                        <li className="flex items-center gap-3">
-                            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
-                            <span><strong className="text-white">4D</strong> Spatial Mapping</span>
-                        </li>
-                        <li className="flex items-center gap-3">
-                            <div className="w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
-                            <span><strong className="text-white">End-to-End</strong> Encryption</span>
-                        </li>
-                    </ul>
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8"
+                 >
+                    <Activity size={16} className="text-cyan-400 animate-pulse" />
+                    <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">System Architecture v2.1</span>
                 </motion.div>
+
+                <motion.h2
+                    initial={{ opacity: 0, x: 20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.1 }}
+                    className="text-5xl md:text-7xl font-black mb-6 tracking-tighter text-white leading-[0.9]"
+                    style={{ fontFamily: "'Orbitron', sans-serif" }}
+                >
+                    NEURAL<br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500">
+                        NETWORK FLOW
+                    </span>
+                </motion.h2>
+
+                <motion.p
+                    initial={{ opacity: 0, x: 20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.2 }}
+                    className="text-xl text-gray-400 border-l-4 border-cyan-500/50 pl-6 mb-12 leading-relaxed"
+                >
+                    From the moment you click order, our autonomous neural network takes control. Processing millions of data points to ensure the fastest, safest path to your doorstep.
+                </motion.p>
+
+                <motion.ul
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.3 }}
+                    className="space-y-6 w-full"
+                >
+                    <li className="flex items-center gap-4 group cursor-pointer">
+                        <div className="relative">
+                            <div className="w-3 h-3 rounded-full bg-cyan-400 z-10 relative" />
+                            <div className="absolute inset-0 bg-cyan-400 blur-sm group-hover:blur-md transition-all duration-300" />
+                        </div>
+                        <span className="font-mono text-sm text-cyan-100/70 tracking-widest uppercase group-hover:text-cyan-400 transition-colors">
+                            Latencyless AI Processing
+                        </span>
+                    </li>
+
+                    <li className="flex items-center gap-4 group cursor-pointer">
+                         <div className="relative">
+                            <div className="w-3 h-3 rounded-full bg-purple-500 z-10 relative" />
+                            <div className="absolute inset-0 bg-purple-500 blur-sm group-hover:blur-md transition-all duration-300" />
+                        </div>
+                        <span className="font-mono text-sm text-purple-100/70 tracking-widest uppercase group-hover:text-purple-400 transition-colors">
+                            4D Spatial Mapping
+                        </span>
+                    </li>
+
+                    <li className="flex items-center gap-4 group cursor-pointer">
+                         <div className="relative">
+                            <div className="w-3 h-3 rounded-full bg-white z-10 relative" />
+                            <div className="absolute inset-0 bg-white blur-sm group-hover:blur-md transition-all duration-300" />
+                        </div>
+                        <span className="font-mono text-sm text-gray-400 tracking-widest uppercase group-hover:text-white transition-colors">
+                            End-to-End Encryption
+                        </span>
+                    </li>
+                </motion.ul>
+
             </div>
+
         </div>
       </div>
     </section>
   );
-};
+}
 
 // ============================================================================
 // --- 7. GLOBAL SCALE SECTION (Definition) ---
