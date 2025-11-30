@@ -288,7 +288,7 @@ const BlueEnergyStars = () => {
                 />
             </bufferGeometry>
             <pointsMaterial
-                size={0.19}
+                size={0.18}
 		map={starTexture}
                 color="#3b82f6"     
                 transparent
@@ -296,7 +296,6 @@ const BlueEnergyStars = () => {
                 sizeAttenuation={true}
                 depthWrite={false}
                 blending={THREE.AdditiveBlending}
-		alphaTest={0.01}
             />
         </points>
     );
@@ -1165,4 +1164,3 @@ export default function Page() {
     </div>
   );
 }
-
