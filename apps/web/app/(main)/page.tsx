@@ -72,7 +72,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.5 }}
-          className="mb-4 text-sm font-light tracking-[0.3em] text-gray-50 uppercase"
+          className="mb-4 text-sm font-light tracking-[0.3em] text-white uppercase relative z-20" 
         >
           AI. AUTONOMY. REDEFINING E-COMMERCE.
         </motion.p>
@@ -95,7 +95,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 1.2 }}
-          className="mt-6 max-w-2xl text-base md:text-lg text-gray-300"
+          className="mt-6 max-w-2xl text-base md:text-lg text-white"
         >
           Experience the World’s First AI-Driven Delivery Infrastructure — Faster, Smarter, and Fully Autonomous.
         </motion.p>
