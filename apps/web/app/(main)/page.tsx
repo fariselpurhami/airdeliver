@@ -236,22 +236,42 @@ const stepsWithPositions = [
 const BlueEnergyStars = () => {
     const ref = useRef<THREE.Points>(null!);
 
+    const starTexture = useMemo(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const context = canvas.getContext('2d');
+
+        if (context) {
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.4, 'rgba(255,255,255,0.9)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 32, 32);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.premultiplyAlpha = true;
+        return texture;
+    }, []);
+
     useFrame((state, delta) => {
         if (ref.current) {
-            // Smooth rotation simulating cosmic flight
             ref.current.rotation.y -= delta * 0.05;
             ref.current.rotation.x += delta * 0.01;
         }
     });
 
     const stars = useMemo(() => {
-        const count = 45000;
+        const count = 90000;
         const positions = new Float32Array(count * 3);
 
         for (let i = 0; i < count; i++) {
-            // Spatial spread for full coverage
-            positions[i * 3] = (Math.random() - 0.5) * 40;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 40;
+           
+            positions[i * 3] = (Math.random() - 0.5) * 100;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 80;
             positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
         }
         return positions;
@@ -268,17 +288,23 @@ const BlueEnergyStars = () => {
                 />
             </bufferGeometry>
             <pointsMaterial
-                size={0.04}
-                color="#3b82f6"          // Electric Blue (Matching the Globe)
+                size={0.19}
+		map={starTexture}
+                color="#3b82f6"     
                 transparent
-                opacity={0.6}
+                opacity={1.0}
                 sizeAttenuation={true}
                 depthWrite={false}
                 blending={THREE.AdditiveBlending}
+		alphaTest={0.01}
             />
         </points>
     );
 };
+
+// ============================================================================
+// --- 3. HELPER COMPONENTS (Paths, Cards) ---
+// ============================================================================
 
 const getConnectorPoints = (fromCard: any, toCard: any, type: 'vertical' | 'horizontal-z') => {
     const fromCenter = { x: fromCard.x + fromCard.width / 2, y: fromCard.y + fromCard.height / 2 };
