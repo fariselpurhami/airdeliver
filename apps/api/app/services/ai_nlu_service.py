@@ -74,24 +74,26 @@ class AINLUService:
 
         asyncio.create_task(_bg_task())
 
-    def _detect_persona(self, product: Product) -> str:
+    async def _detect_persona(self, product: Product) -> str:
         """Detects product vibe using vector dot product against pre-computed anchors."""
-        try:
-            product_text = f"{product.name} {product.description} {product.category} {' '.join(product.tags or [])}"
-            product_vector = self.search_engine.embedding_model.encode(product_text, convert_to_numpy=True)
+        def _blocking_logic():
+            try:
+                product_text = f"{product.name} {product.description} {product.category} {' '.join(product.tags or [])}"
+                product_vector = self.search_engine.embedding_model.encode(product_text, convert_to_numpy=True)
             
-            best_persona = "CASUAL"
-            max_score = -1.0
+                best_persona = "CASUAL"
+                max_score = -1.0
             
-            for persona, anchor_vector in self.persona_anchors.items():
-                score = np.dot(product_vector, anchor_vector) / (np.linalg.norm(product_vector) * np.linalg.norm(anchor_vector))
-                if score > max_score:
-                    max_score = score
-                    best_persona = persona
-            return best_persona
-        except Exception as e:
-            logger.error(f"Persona detection failed: {e}")
-            return "CASUAL"
+                for persona, anchor_vector in self.persona_anchors.items():
+                    score = np.dot(product_vector, anchor_vector) / (np.linalg.norm(product_vector) * np.linalg.norm(anchor_vector))
+                    if score > max_score:
+                        max_score = score
+                        best_persona = persona
+                return best_persona
+            except Exception as e:
+                logger.error(f"Persona detection failed: {e}")
+                return "CASUAL"
+        return await asyncio.to_thread(_blocking_logic)
 
     def _get_contextual_message(self, persona: str, intent: str, product_name: str = "") -> str:
         """Micro-Copy Engine for Personality"""
@@ -167,7 +169,7 @@ class AINLUService:
         removed_product = await self.db.get(Product, removed_id)
         if not removed_product: return
 
-        persona = self._detect_persona(removed_product)
+        persona = await self._detect_persona(removed_product)
         
         statement = select(Product).where(and_(Product.category == removed_product.category, Product.id != removed_id)).limit(10)
         alternatives = (await self.db.exec(statement)).all()
@@ -186,7 +188,7 @@ class AINLUService:
     async def _handle_secondary_suggestions(self, user_id: int, added_product: Product):
         final_products = []
         suggestion_reason = ""
-        persona = self._detect_persona(added_product)
+        persona = await self._detect_persona(added_product)
 
         if added_product.price > 100:
             bundle_items = await self.search_engine.generate_smart_bundle(self.db, added_product)
@@ -219,7 +221,7 @@ class AINLUService:
 
     async def _handle_add_to_cart_success(self, user_id: int, product: Product):
         await self._mark_products_as_seen(user_id, [{"id": product.id}])
-        persona = self._detect_persona(product)
+        persona = await self._detect_persona(product)
         msg = self._get_contextual_message(persona, "ADD", product.name)
         
         await self.rabbitmq.publish({"user_id": user_id, "content": msg, "type": "success_text"}, "airdeliver.ai.response.out")

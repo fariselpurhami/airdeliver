@@ -40,6 +40,7 @@ class RabbitMQService:
                     self.connection = await aio_pika.connect_robust(
                         self.connection_uri,
                         timeout=10,
+                        heartbeat=600,
                         client_properties={"connection_name": "airdeliver-backend-service"}
                     )
                     
