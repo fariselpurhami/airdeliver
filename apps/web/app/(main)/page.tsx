@@ -220,13 +220,13 @@ const timelineSteps = [
 
 const stepsWithPositions = [
  
-  { ...timelineSteps[0], id: 'card-1', x: 50, y: 50, width: CARD_W, height: CARD_H },
+  { ...timelineSteps[0], id: 'card-1', x: 50, y: 160, width: CARD_W, height: CARD_H },
 
   { ...timelineSteps[1], id: 'card-2', x: 800, y: 550, width: CARD_W, height: CARD_H },
 
   { ...timelineSteps[2], id: 'card-3', x: 50, y: 1050, width: CARD_W, height: CARD_H },
 
-  { ...timelineSteps[3], id: 'card-4', x: 800, y: 1550, width: CARD_W, height: CARD_H },
+  { ...timelineSteps[3], id: 'card-4', x: 800, y: 1440, width: CARD_W, height: CARD_H },
 ];
 
 const getConnectorPoints = (fromCard: any, toCard: any, type: 'vertical' | 'horizontal-z') => {
@@ -612,7 +612,7 @@ const GlobalScaleSection = () => {
         <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
 
             <div className="absolute inset-0 z-0">
-                <Canvas camera={{ position: [0, 0, 17], fov: 35 }}>
+                <Canvas camera={{ position: [0, 0, 19], fov: 35 }}>
                     <ambientLight intensity={0.4} />
                     <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
                     <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
