@@ -779,7 +779,7 @@ const GlobalScaleSection = () => {
 
 const testimonials = [
   {
-    name: 'Elena',
+    name: 'Sara',
     title: 'CEO, Neo',
     quote: "airdeliver isn't just a service; it's the future of logistics. The speed and autonomy are unparalleled.",
     rating: 5,
@@ -787,7 +787,7 @@ const testimonials = [
     color: 'cyan'
   },
   {
-    name: 'Kenji',
+    name: 'Jana',
     title: 'Lead Futurist, QuantumLeap',
     quote: "The AI's efficiency in optimizing routes is something we thought was years away. It's here now.",
     rating: 5,
@@ -795,7 +795,7 @@ const testimonials = [
     color: 'purple'
   },
   {
-    name: 'Fatima',
+    name: 'Dina',
     title: 'Head of Innovation, EcoSpear',
     quote: "Sustainability is key for us. airdeliver's zero-emission network is a game-changer for green commerce.",
     rating: 5,
@@ -803,6 +803,66 @@ const testimonials = [
     color: 'green'
   },
 ];
+
+const PurpleEnergyStars = () => {
+    const ref = useRef<THREE.Points>(null!);
+
+    const starTexture = useMemo(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const context = canvas.getContext('2d');
+        if (context) {
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.5, 'rgba(255,255,255,0.9)');
+            gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 32, 32);
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.premultiplyAlpha = true;
+        return texture;
+    }, []);
+
+    useFrame((state, delta) => {
+        if (ref.current) {
+            ref.current.rotation.y -= delta * 0.05;
+            ref.current.rotation.x += delta * 0.01;
+        }
+    });
+
+    const stars = useMemo(() => {
+
+        const count = 90000;
+        const positions = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+            
+            positions[i * 3] = (Math.random() - 0.5) * 100;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 80;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
+        }
+        return positions;
+    }, []);
+
+    return (
+        <points ref={ref}>
+            <bufferGeometry>
+                <bufferAttribute attach="attributes-position" count={stars.length / 3} array={stars} itemSize={3} />
+            </bufferGeometry>
+            <pointsMaterial
+                size={0.18}
+                map={starTexture}
+                color="#c084fc" 
+                transparent
+                opacity={1.0}
+                sizeAttenuation={true}
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+            />
+        </points>
+    );
+};
 
 const TrustSignalCard = ({ icon: Icon, title, description, delay }: { icon: any, title: string, description: string, delay: number }) => (
     <motion.div
@@ -875,6 +935,15 @@ export const TestimonialsSection = () => {
 
   return (
     <section className="py-32 px-4 relative bg-black overflow-hidden">
+        <div className="absolute inset-0 z-0">
+            <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
+                <Suspense fallback={null}>
+                    <ambientLight intensity={0.5} />
+                    <PurpleEnergyStars /> 
+                </Suspense>
+            </Canvas>
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/60 pointer-events-none" />
+        </div>
 
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.04] pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black pointer-events-none" />
@@ -1096,3 +1165,4 @@ export default function Page() {
     </div>
   );
 }
+
