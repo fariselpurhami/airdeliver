@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, Suspense, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Canvas, useFrame } from '@react-three/fiber';
@@ -133,7 +133,9 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
                 setError('Invalid credentials. Access Denied.');
                 setIsLoading(false);
             } else if (result?.ok) {
-                window.location.href = '/'; 
+
+                router.refresh();
+		router.push('/');
             }
         } catch (err) {
             setError('System Error. Please try again.');
@@ -215,6 +217,8 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
 
 const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const callbackUrl = searchParams.get('callbackUrl') || '/';
     const [isLoading, setIsLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -237,9 +241,9 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
                 setError('Invalid credentials. Access Denied.');
                 setIsLoading(false);
             } else if (result?.ok) {
-             
-                router.push('/profile');
+         
                 router.refresh();
+		router.push('/');
             }
         } catch (err) {
             setError('System Error. Please try again.');
