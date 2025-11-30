@@ -229,6 +229,57 @@ const stepsWithPositions = [
   { ...timelineSteps[3], id: 'card-4', x: 800, y: 1440, width: CARD_W, height: CARD_H },
 ];
 
+// ============================================================================
+// --- 2. 3D BACKGROUND COMPONENT (BlueEnergyStars) ---
+// ============================================================================
+
+const BlueEnergyStars = () => {
+    const ref = useRef<THREE.Points>(null!);
+
+    useFrame((state, delta) => {
+        if (ref.current) {
+            // Smooth rotation simulating cosmic flight
+            ref.current.rotation.y -= delta * 0.05;
+            ref.current.rotation.x += delta * 0.01;
+        }
+    });
+
+    const stars = useMemo(() => {
+        const count = 45000;
+        const positions = new Float32Array(count * 3);
+
+        for (let i = 0; i < count; i++) {
+            // Spatial spread for full coverage
+            positions[i * 3] = (Math.random() - 0.5) * 40;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * 40;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
+        }
+        return positions;
+    }, []);
+
+    return (
+        <points ref={ref}>
+            <bufferGeometry>
+                <bufferAttribute
+                    attach="attributes-position"
+                    count={stars.length / 3}
+                    array={stars}
+                    itemSize={3}
+                />
+            </bufferGeometry>
+            <pointsMaterial
+                size={0.04}
+                color="#3b82f6"          // Electric Blue (Matching the Globe)
+                transparent
+                opacity={0.6}
+                sizeAttenuation={true}
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+            />
+        </points>
+    );
+};
+
 const getConnectorPoints = (fromCard: any, toCard: any, type: 'vertical' | 'horizontal-z') => {
     const fromCenter = { x: fromCard.x + fromCard.width / 2, y: fromCard.y + fromCard.height / 2 };
 
@@ -370,6 +421,15 @@ const HowItWorksSection = () => {
 
   return (
     <section ref={containerRef} className="relative w-full min-h-screen bg-black flex flex-col justify-center overflow-hidden">
+      <div className="absolute inset-0 z-0">
+          <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
+              <Suspense fallback={null}>
+                  <ambientLight intensity={0.5} />
+                  <BlueEnergyStars /> 
+              </Suspense>
+      </Canvas>
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
+  </div>
 
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000000_90%)] pointer-events-none" />
