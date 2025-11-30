@@ -400,9 +400,9 @@ export default function AuthPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1.2 }}
-                    className="text-center text-gray-600 text-[10px] mt-8 uppercase tracking-widest"
+                    className="text-center text-gray-600 text-[10px] mt-8 tracking-widest"
                 >
-                    &copy; 2025 airdeliver systems. operating globally.
+                    &copy; 2025 airdeliver systems. Operating globally.
                 </motion.p>
             </div>
         </main>

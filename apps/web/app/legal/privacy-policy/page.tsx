@@ -281,7 +281,7 @@ export default function PrivacyPage() {
 
                         <div className="mt-20 text-center pt-12 border-t border-white/10">
                             <p className="text-gray-500 text-sm mb-4">
-                                Need deeper access? Contact our Data Protection Officer at <span className="text-green-400 cursor-pointer hover:underline">privacy@airdeliver.global</span>
+                                Need deeper access? Contact our Data Protection Officer at <span className="text-green-400 cursor-pointer hover:underline">privacy@airdeliver.com</span>
                             </p>
                             <p className="text-[10px] text-gray-700 uppercase tracking-widest">
                                 Protocol Version 4.1 | Last Encrypted Update: Nov 2025

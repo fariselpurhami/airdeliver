@@ -208,7 +208,7 @@ export default function AboutPage() {
                 </div>
                 
                 <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                    ABOUT <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">AIRDELIVER</span>
+                    ABOUT <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">US</span>
                 </h1>
                 
                 <p className="text-xl text-gray-400 max-w-2xl mx-auto font-light leading-relaxed">
