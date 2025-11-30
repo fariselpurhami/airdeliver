@@ -1,0 +1,118 @@
+# infra/k8s/02-api-deployment.yml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airdeliver-api
+  namespace: airdeliver
+  labels:
+    app: airdeliver-api
+    version: "v1.0.0"
+spec:
+  replicas: 3 
+  revisionHistoryLimit: 5 
+  selector:
+    matchLabels:
+      app: airdeliver-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%     
+      maxUnavailable: 25% 
+  template:
+    metadata:
+      labels:
+        app: airdeliver-api
+      annotations:
+        checksum/config: "${CONFIG_CHECKSUM}"
+    spec:
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: airdeliver-api
+
+      containers:
+      - name: api
+        image: yourregistry/airdeliver-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+
+        envFrom:
+          - configMapRef:
+              name: airdeliver-config
+          - secretRef:
+              name: airdeliver-secrets
+
+        resources:
+          requests:
+            cpu: "500m"   
+            memory: "512Mi" 
+          limits:
+            cpu: "2000m"   
+            memory: "2Gi"  
+
+        startupProbe: 
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          failureThreshold: 30
+          periodSeconds: 10
+
+        livenessProbe: 
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+
+        readinessProbe: 
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"] 
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: airdeliver-api-hpa
+  namespace: airdeliver
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: airdeliver-api
+  minReplicas: 3
+  maxReplicas: 100 
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

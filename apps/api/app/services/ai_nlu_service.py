@@ -202,7 +202,7 @@ class AINLUService:
                 comp_data = [p.model_dump(mode='json') for p in complementary]
                 final_products = await self._filter_candidates(user_id, comp_data, limit=5)
                 if final_products:
-                    suggestion_reason = f"Perfect matches for your '{added_product.name}':"
+                    suggestion_reason = f"Enhance Your Experience with '{added_product.name}' Essentials:"
             except Exception: pass
 
         if not final_products:

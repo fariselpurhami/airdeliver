@@ -1,0 +1,38 @@
+# infra/k8s/03-ingress.yml
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: airdeliver-ingress
+  namespace: airdeliver
+  annotations:
+    kubernetes.io/ingress.class: nginx
+
+    nginx.ingress.kubernetes.io/use-gzip: "true"
+
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+    nginx.ingress.kubernetes.io/limit-rps: "100" 
+
+spec:
+  tls:
+  - hosts:
+    - api.airdeliver.com
+    secretName: airdeliver-api-tls
+  rules:
+  - host: api.airdeliver.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: airdeliver-api-service
+            port:
+              number: 80

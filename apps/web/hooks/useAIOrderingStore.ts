@@ -90,7 +90,7 @@ const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
-  content: 'Hey 👋, order with air: from cart to door, fast and easy.',
+  content: 'order with air, From cart to door. Easy and Effortless.',
   timestamp: Date.now(),
 };
 

@@ -251,7 +251,7 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-8">
                             
-                            <SectionContainer title="Personal Intelligence" icon={<User className="text-cyan-400" />}>
+                            <SectionContainer title="Personal Information" icon={<User className="text-cyan-400" />}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <InfoField label="Full Identity" value={profileData?.full_name} />
                                     <InfoField label="Contact Email" value={profileData?.email} />
@@ -275,7 +275,7 @@ export default function ProfilePage() {
                                 />
                             </div>
 
-                            <SectionContainer title="Recent Operations" icon={<Package className="text-cyan-400" />}>
+                            <SectionContainer title="Recent Orders" icon={<Package className="text-cyan-400" />}>
                                 {isLoadingOrders ? (
                                     <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-cyan-500" /></div>
                                 ) : recentOrders.length > 0 ? (
@@ -310,8 +310,8 @@ export default function ProfilePage() {
                                 />
                                 <ControlAction 
                                     icon={<KeyRound size={18} />} 
-                                    label="Security Protocol" 
-                                    desc="Change access password"
+                                    label="Update Password" 
+                                    desc="Change your password"
                                     onClick={handleOpenPasswordModal} 
                                 />
                                 

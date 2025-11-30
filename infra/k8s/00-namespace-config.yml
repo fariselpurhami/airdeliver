@@ -1,0 +1,36 @@
+# infra/k8s/00-namespace-config.yml
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: airdeliver
+  labels:
+    name: airdeliver
+    environment: production
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airdeliver-config
+  namespace: airdeliver
+data:
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  WORKER_CLASS: "uvicorn.workers.UvicornWorker"
+  DB_POOL_SIZE: "20"
+  DB_MAX_OVERFLOW: "10"
+  LOG_LEVEL: "INFO"
+  ENVIRONMENT: "production"
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: airdeliver-secrets
+  namespace: airdeliver
+type: Opaque
+data:
+
+  DATABASE_URL: "cG9zdGdyZXNxbDovL3VzZXI6cGFzcw==" 
+  RABBITMQ_URL: "YW1xcDovL3VzZXI6cGFzcw==" 
+  REDIS_URL: "cmVkaXM6Ly9yZWRpcw==" 

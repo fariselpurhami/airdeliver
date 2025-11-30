@@ -392,8 +392,8 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
 
                 {aiNote && (
                     <div className="bg-cyan-900/10 border border-cyan-500/10 p-3 rounded-xl">
-                        <h3 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-1 flex items-center gap-2">
-                            <BrainCircuit size={12} /> Optimization Node
+                        <h3 className="text-[10px] font-light text-cyan-400 tracking-widest mb-1 flex items-center gap-2">
+                            <BrainCircuit size={12} /> VISION INSIGHTS
                         </h3>
                         <p className="text-xs text-cyan-100/70 italic leading-relaxed">{aiNote}</p>
                     </div>
@@ -404,7 +404,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                         <span className="text-[10px] text-gray-500 uppercase tracking-widest">Total Price</span>
                         <span className="text-xs text-gray-400">Inclusive of Premium Charges</span>
                     </div>
-                    <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-cyan-200 font-mono tracking-tight">
+                    <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white font-mono tracking-tight">
                         ${cart.total.toFixed(2)}
                     </span>
                 </div>
