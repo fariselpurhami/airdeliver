@@ -173,7 +173,7 @@ class NeuralCoreService:
         )
 
         if intent == "GREETING":
-            response.text = f"Hey {context['user_name']}! 👋 I'm air intelligence. I'm happy to see you."
+            response.text = f"Hey {context['user_name']}! 😊 I'm air intelligence. I'm happy to help — feel free to ask me anything."
             response.action = PresentOptionsAction(
                 action="present_options",
                 payload={"options": self.GREETING_OPTIONS}

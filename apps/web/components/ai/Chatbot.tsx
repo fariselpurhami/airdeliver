@@ -72,13 +72,13 @@ const MessageBubble = memo(({ message, onSend }: MessageBubbleProps) => {
                     layout
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0, transition: { delay: 0.3 } }}
-                    className="flex flex-wrap gap-2 ml-11 mt-2"
+                    className="grid grid-cols-2 gap-2 ml-11 mt-2 w-fit"
                 >
                     {(action.payload.options as ActionOption[]).map((option, idx) => (
                         <motion.button
                             key={`${option.payload}-${idx}`}
                             onClick={() => onSend(option.payload)}
-                            className="text-xs font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-300 px-3 py-2 rounded-lg border border-cyan-500/30 hover:bg-cyan-500 hover:text-black transition-all duration-300"
+                            className="text-[9px] font-bold uppercase tracking-widest bg-cyan-500/10 text-cyan-300 px-5 py-2 rounded-full border border-cyan-500/30 hover:bg-cyan-500 hover:text-black hover:scale-105 hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all duration-300"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                         >
@@ -224,7 +224,7 @@ export default function Chatbot() {
                         exit={{ opacity: 0, y: 50, scale: 0.9, filter: "blur(10px)" }}
                         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
        
-                        className="fixed bottom-24 right-4 z-50 w-[95vw] max-w-sm h-[75vh] max-h-[700px] flex flex-col bg-black/90 backdrop-blur-3xl border border-white/10 rounded-[32px] shadow-[0_0_50px_rgba(0,198,255,0.15)] overflow-hidden"
+                        className="fixed bottom-24 right-4 z-50 w-[95vw] max-w-sm h-[75vh] max-h-[700px] flex flex-col bg-black border border-white/10 rounded-[32px] shadow-[0_0_50px_rgba(0,198,255,0.15)] overflow-hidden"
                     >
                         <div className="absolute top-0 left-0 w-24 h-24 bg-cyan-500/10 blur-[40px] pointer-events-none" />
                         <div className="absolute bottom-0 right-0 w-24 h-24 bg-purple-500/10 blur-[40px] pointer-events-none" />
