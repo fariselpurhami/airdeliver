@@ -1,14 +1,15 @@
 // apps/web/components/ClientOnly.tsx
 
-"use client";
+'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 
 interface ClientOnlyProps {
-  children: React.ReactNode;
+  children: ReactNode;
+  fallback?: ReactNode; 
 }
 
-export default function ClientOnly({ children }: ClientOnlyProps) {
+export default function ClientOnly({ children, fallback = null }: ClientOnlyProps) {
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -16,8 +17,8 @@ export default function ClientOnly({ children }: ClientOnlyProps) {
   }, []);
 
   if (!hasMounted) {
-    return null; 
+    return <>{fallback}</>;
   }
 
-  return <>{children}</>; 
+  return <>{children}</>;
 }

@@ -18,6 +18,7 @@ import { Bot, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map } from 'luci
 import { X } from 'lucide-react'; 
 import * as THREE from 'three';
 import dynamic from 'next/dynamic';
+import ClientOnly from '@/components/ClientOnly';
 
 const Cleanup = () => {
   const { gl } = useThree();
@@ -694,7 +695,7 @@ const Globe = () => {
 
 const GlobalScaleSection = () => {
     return (
-        <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
+        <section className="render-lazy relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
 
             <div className="absolute inset-0 z-0">
                 <Canvas camera={{ position: [0, 0, 19], fov: 35 }}>
@@ -933,7 +934,7 @@ export const TestimonialsSection = () => {
   const [emblaRef] = useEmblaCarousel({ loop: true, align: 'center' }, [Autoplay({ delay: 6000, stopOnInteraction: false })]);
 
   return (
-    <section className="py-32 px-4 relative bg-black overflow-hidden">
+    <section className="render-lazy py-32 px-4 relative bg-black overflow-hidden">
         <div className="absolute inset-0 z-0">
             <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
                 <Suspense fallback={null}>
@@ -1017,7 +1018,7 @@ export const TestimonialsSection = () => {
 
 const FinalCTA = () => {
   return (
-    <section className="relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
+    <section className="render-lazy relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
 
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20" />
@@ -1086,7 +1087,7 @@ const companies = [
 
 const TrustedBySection = () => {
   return (
-    <section className="py-12 bg-black border-y border-white/5 overflow-hidden relative">
+    <section className="render-lazy py-12 bg-black border-y border-white/5 overflow-hidden relative">
       <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none" />
 
       <div className="container mx-auto px-4 mb-6 text-center relative z-10">
@@ -1098,7 +1099,7 @@ const TrustedBySection = () => {
         <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-black to-transparent z-10" />
         <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-black to-transparent z-10" />
 
-        <div className="flex gap-16 animate-marquee whitespace-nowrap items-center">
+        <div className="flex gap-16 animate-marquee whitespace-nowrap items-center hover:[animation-play-state:paused]">
           {[...companies, ...companies, ...companies, ...companies].map((company, index) => (
             <span
               key={index}
@@ -1110,19 +1111,6 @@ const TrustedBySection = () => {
           ))}
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes marquee {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-marquee {
-          animation: marquee 40s linear infinite;
-        }
-        .animate-marquee:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
     </section>
   );
 };

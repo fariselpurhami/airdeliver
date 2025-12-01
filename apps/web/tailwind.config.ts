@@ -71,6 +71,10 @@ const config: Config = {
         }
       },
       keyframes: {
+	marquee: {
+          '0%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(-50%)' }, 
+        },
         ripple: {
           '0%, 100%': {
             transform: 'scale(1)',
@@ -101,6 +105,7 @@ const config: Config = {
         },
       },
       animation: {
+	marquee: 'marquee 40s linear infinite',
         ripple: 'ripple 1s ease-out',
         bounce: 'bounce 1s infinite',
         "accordion-down": "accordion-down 0.2s ease-out",

@@ -87,6 +87,7 @@ services:
   redis:
     image: redis:7-bullseye
     container_name: airdeliver-redis
+    command: redis-server --save "" --appendonly no
     restart: always
     volumes:
       - redis-data:/data
@@ -379,7 +380,7 @@ services:
     environment:
       - NEXTAUTH_URL=http://localhost:3000
       - NODE_ENV=development
-      - WATCHPACK_POLLING=true
+      - WATCHPACK_POLLING=false
       - HOSTNAME=0.0.0.0
     volumes:
       - ./apps/web:/app:delegated

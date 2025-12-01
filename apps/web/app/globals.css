@@ -89,6 +89,18 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  gpu-accelerated {
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform, opacity;
+  }
+
+  .render-lazy {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 500px;
+  }
 }
 
 @layer components {
