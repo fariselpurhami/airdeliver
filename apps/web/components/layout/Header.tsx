@@ -83,7 +83,7 @@ export default function Header() {
 
                 <div className="container mx-auto px-6 h-full flex justify-between items-center relative">
                     
-                    <Link href="/" className="group flex items-center gap-3 relative z-10">
+                    <Link href="/" prefetch={true} className="group flex items-center gap-3 relative z-10">
                         <div className="relative">
                             <span className="text-2xl font-bold text-white tracking-tight group-hover:text-cyan-400 transition-colors duration-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 airdeliver
@@ -112,7 +112,8 @@ export default function Header() {
                             return (
                                 <Link 
                                     key={item.href} 
-                                    href={item.href} 
+                                    href={item.href}
+				    prefetch={true} 
                                     className={`relative px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 ${isActive ? 'text-black' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     <span className="relative z-10">{item.label}</span>
@@ -194,6 +195,7 @@ export default function Header() {
                                     <Link 
                                         key={item.href} 
                                         href={item.href} 
+					prefetch={true}
                                         onClick={() => setMobileMenuOpen(false)} 
                                         className={`flex items-center gap-4 p-4 rounded-xl text-sm font-bold uppercase tracking-wider transition-all ${
                                             pathname === item.href 
