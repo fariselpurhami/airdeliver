@@ -164,7 +164,7 @@ const Starfield = (props: any) => {
     if (starsRef.current) {
       starsRef.current.rotation.x = 0; 
       starsRef.current.rotation.y = 0; 
-      starsRef.current.rotation.z += delta * 0.05
+      starsRef.current.rotation.z += delta * 0.05;
     }
   });
 
