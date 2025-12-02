@@ -380,12 +380,12 @@ services:
     environment:
       - NEXTAUTH_URL=http://localhost:3000
       - NODE_ENV=development
-      - WATCHPACK_POLLING=false
+      - WATCHPACK_POLLING=true
       - HOSTNAME=0.0.0.0
     volumes:
       - ./apps/web:/app:delegated
       - /app/node_modules
-      - /app/.next
+      - web_build_cache:/app/.next
     depends_on:
       api:
         condition: service_healthy
@@ -397,7 +397,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`localhost`)"
       - "traefik.http.services.web.loadbalancer.server.port=3000"
-    command: pnpm dev --turbo -H 0.0.0.0 -p 3000
+    command: pnpm dev -H 0.0.0.0 -p 3000
     logging: *default-logging
     deploy:
       restart_policy:
@@ -457,6 +457,7 @@ volumes:
   milvus-data:
   px4-source-data:
     driver: local
+  web_build_cache:
 
 networks:
   public-net:

@@ -65,6 +65,7 @@ const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.I
         </div>
         <input
             {...props}
+	    suppressHydrationWarning={true}
             className="w-full bg-black/40 border border-white/10 rounded-full py-4 pl-12 pr-6 text-white placeholder-gray-600 
                        focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none 
                        transition-all duration-300 hover:border-white/20 hover:bg-black/60"

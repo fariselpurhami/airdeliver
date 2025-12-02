@@ -10,17 +10,16 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://api:8000';
 
 /** @type {import('next').NextConfig} */
-
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
-
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
-
   compress: true,
+  reactCompiler: true,
 
   outputFileTracingRoot: path.join(__dirname, '../../'),
+
   transpilePackages: [
     'recharts',
     'react-smooth',
@@ -32,28 +31,6 @@ const nextConfig = {
   ],
 
   experimental: {
-
-    reactCompiler: true,
-
-    turbo: {
-      rules: {
-        '*.glsl': {
-          loaders: ['raw-loader'],
-          as: '*.js',
-        },
-        '*.vs': {
-          loaders: ['raw-loader'],
-          as: '*.js',
-        },
-        '*.fs': {
-          loaders: ['raw-loader'],
-          as: '*.js',
-        },
-      },
-      resolveAlias: {
-      },
-    },
-    
     optimizePackageImports: [
       'lucide-react',
       'date-fns',
@@ -61,21 +38,20 @@ const nextConfig = {
       'framer-motion',
       'recharts',
       '@headlessui/react',
-      '@react-three/fiber', 
+      '@react-three/fiber',
       '@react-three/drei'
     ],
-    
     serverActions: {
       bodySizeLimit: '2mb',
     },
-    
     webpackBuildWorker: true,
     parallelServerCompiles: true,
-
     parallelServerBuildTraces: true,
-    optimizeCss: true, 
+    turbo: {
+      resolveAlias: {
+      },
+    }
   },
-
   logging: {
     fetches: {
       fullUrl: true,
@@ -84,15 +60,12 @@ const nextConfig = {
 
   images: {
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 31536000, 
+    minimumCacheTTL: 31536000,
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
-      { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/**' },
-      { protocol: 'http', hostname: 'api', port: '8000', pathname: '/**' },
-      { protocol: 'https', hostname: 'api.airdeliver.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'ui-avatars.com', pathname: '/api/**' },
-      { protocol: 'https', hostname: 'placehold.co', pathname: '/**' },
+      { protocol: 'http', hostname: '**' },
+      { protocol: 'https', hostname: '**' },
     ],
   },
 
@@ -104,29 +77,24 @@ const nextConfig = {
     });
 
     if (!dev && !isServer) {
-        config.optimization.splitChunks.cacheGroups = {
-            ...config.optimization.splitChunks.cacheGroups,
-            three: {
-            test: /[\\/]node_modules[\\/](three|@react-three|@react-three\/fiber|drei)[\\/]/,
-            name: 'three-vendor',
-            chunks: 'all',
-            priority: 30, 
-            reuseExistingChunk: true,
-            enforce: true,
-            },
-            commons: {
-                name: 'commons',
-                chunks: 'all',
-                minChunks: 2,
-                priority: 20,
-            },
-        };
+      config.optimization.splitChunks.cacheGroups = {
+        ...config.optimization.splitChunks.cacheGroups,
+        three: {
+          test: /[\\/]node_modules[\\/](three|@react-three|@react-three\/fiber|drei)[\\/]/,
+          name: 'three-vendor',
+          chunks: 'all',
+          priority: 30,
+          reuseExistingChunk: true,
+          enforce: true,
+        },
+        commons: {
+          name: 'commons',
+          chunks: 'all',
+          minChunks: 2,
+          priority: 20,
+        },
+      };
     }
-
-    config.module.rules.push({
-      test: /\.(glsl|vs|fs|vert|frag)$/,
-      use: ['raw-loader', 'glslify-loader'],
-    });
 
     return config;
   },
@@ -142,10 +110,9 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'X-XSS-Protection', value: '1; mode=block' },
           { key: 'Referrer-Policy', value: 'origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' } 
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' }
         ]
       },
-
       {
         source: '/:all*(svg|jpg|png|webp|avif|ico|woff|woff2)',
         locale: false,

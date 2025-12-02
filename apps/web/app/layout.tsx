@@ -98,7 +98,9 @@ export default function RootLayout({
       <body className="min-h-screen bg-background font-sans antialiased selection:bg-cyan-500/30">
         <Providers>
           <AppShell>
+	    <div className="container mx-auto px-6 md:px-8">
             {children}
+	    </div>
           </AppShell>
           <Toaster
             position="bottom-right"
