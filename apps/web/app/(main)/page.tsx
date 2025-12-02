@@ -2,6 +2,7 @@
 
 'use client';
 
+import CinematicBackground from '@/components/ui/CinematicBackground';
 import { ShieldCheck, Lock, Clock, MapIcon, Quote, GlobeIcon, CheckCircle2, Activity } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
 import ProductOverlay from '@/components/products/ProductOverlay';
@@ -162,8 +163,8 @@ const Starfield = (props: any) => {
 
   useFrame((_, delta) => {
     if (starsRef.current) {
-      starsRef.current.rotation.x = 0; 
-      starsRef.current.rotation.y = 0; 
+      starsRef.current.rotation.x = 0;
+      starsRef.current.rotation.y = 0;
       starsRef.current.rotation.z += delta * 0.05;
     }
   });
@@ -174,10 +175,10 @@ const Starfield = (props: any) => {
         radius={100}
         depth={100}
         count={45000}
-        factor={18}
+        factor={30}
         saturation={0}
         fade
-        speed={0.3}
+        speed={0.1}
       />
     </group>
   );
@@ -696,7 +697,7 @@ const Globe = () => {
 
 const GlobalScaleSection = () => {
     return (
-        <section className="render-lazy relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
+        <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
 
             <div className="absolute inset-0 z-0">
                 <Canvas camera={{ position: [0, 0, 19], fov: 35 }}>
@@ -935,7 +936,7 @@ export const TestimonialsSection = () => {
   const [emblaRef] = useEmblaCarousel({ loop: true, align: 'center' }, [Autoplay({ delay: 6000, stopOnInteraction: false })]);
 
   return (
-    <section className="render-lazy py-32 px-4 relative bg-black overflow-hidden">
+    <section className="py-32 px-4 relative bg-black overflow-hidden">
         <div className="absolute inset-0 z-0">
             <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
                 <Suspense fallback={null}>
@@ -1019,7 +1020,7 @@ export const TestimonialsSection = () => {
 
 const FinalCTA = () => {
   return (
-    <section className="render-lazy relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
+    <section className="relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
 
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20" />
@@ -1088,7 +1089,7 @@ const companies = [
 
 const TrustedBySection = () => {
   return (
-    <section className="render-lazy py-12 bg-black border-y border-white/5 overflow-hidden relative">
+    <section className="py-12 bg-black border-y border-white/5 overflow-hidden relative">
       <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none" />
 
       <div className="container mx-auto px-4 mb-6 text-center relative z-10">
@@ -1148,6 +1149,7 @@ export default function Page() {
         <TestimonialsSection />
 	<FinalCTA />
 	<TrustedBySection />
+	<CinematicBackground />
       </main>
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />
     </div>

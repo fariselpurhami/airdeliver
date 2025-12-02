@@ -9,20 +9,13 @@ import * as THREE from 'three';
 
 const BackgroundLogic = () => {
     const lightRef = useRef<THREE.PointLight>(null!);
-    const light2Ref = useRef<THREE.PointLight>(null!);
 
     useFrame(({ clock }) => {
         if (lightRef.current) {
           
-            lightRef.current.position.x = Math.sin(clock.elapsedTime * 0.5) * 20;
-            lightRef.current.position.z = Math.cos(clock.elapsedTime * 0.5) * 20;
-	    lightRef.current.position.y = Math.cos(clock.elapsedTime * 0.5) * 15;
+            lightRef.current.position.x = Math.sin(clock.elapsedTime * 0.5) * 10;
+            lightRef.current.position.z = Math.cos(clock.elapsedTime * 0.5) * 10;
         }
-	if (light2Ref.current) {
-            light2Ref.current.position.x = Math.sin(clock.elapsedTime * 0.3) * 20;
-	    light2Ref.current.position.z = Math.cos(clock.elapsedTime * 0.3) * 20;
-	    light2Ref.current.position.y = Math.cos(clock.elapsedTime * 0.3) * 15;
-	}
     });
 
     return (
@@ -30,9 +23,7 @@ const BackgroundLogic = () => {
             <fog attach="fog" args={['#000000', 15, 50]} /> 
             
             <ambientLight intensity={0.8} />
-            <pointLight ref={lightRef} position={[10, 10, 10]} intensity={300} color="#00C6FF" distance={50} />
-	    <pointLight ref={lightRef} position={[-10, -10, 5]} intensity={200} color="#7F00FF" distance={50} />
-          
+            <pointLight ref={lightRef} position={[10, 10, 10]} intensity={1.5} color="#00C6FF" />
         </>
     );
 };
