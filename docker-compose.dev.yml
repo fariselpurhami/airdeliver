@@ -380,7 +380,6 @@ services:
     environment:
       - NEXTAUTH_URL=http://localhost:3000
       - NODE_ENV=development
-      - WATCHPACK_POLLING=true
       - HOSTNAME=0.0.0.0
     volumes:
       - ./apps/web:/app:delegated
@@ -406,10 +405,11 @@ services:
         window: 120s
       resources:
         limits:
-          cpus: '2.0'    
-          memory: 4G     
+          cpus: '5.0'    
+          memory: 7G     
         reservations:
-          memory: 1G
+          cpus: '3.0'
+          memory: 3G
 
     develop:
       watch:

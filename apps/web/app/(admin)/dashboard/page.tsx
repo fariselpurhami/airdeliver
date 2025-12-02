@@ -26,7 +26,6 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars, Float } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- TYPES ---
 interface Stats {
     total_revenue: number;
     total_orders: number;
@@ -49,7 +48,6 @@ interface PaginatedOrdersResponse {
 interface RevenueData { name: string; revenue: number; }
 interface ActivityEvent { id: string; icon: React.ReactNode; description: string; time: string; color: string; }
 
-// --- MOCK DATA ---
 const mockRevenueData: RevenueData[] = [
     { name: '00:00', revenue: 420 }, { name: '04:00', revenue: 350 }, { name: '08:00', revenue: 900 },
     { name: '12:00', revenue: 1200 }, { name: '16:00', revenue: 1500 }, { name: '20:00', revenue: 1100 },
@@ -63,8 +61,6 @@ const mockActivityData: ActivityEvent[] = [
 ];
 
 const fetcher = async (url: string) => {
-    // Simulated fetcher for demo purposes if backend isn't ready
-    // logic remains same as original
     return {
         total_revenue: 124500,
         total_orders: 843,
@@ -122,7 +118,6 @@ const AnimatedCounter = ({ value, prefix = "" }: { value: number, prefix?: strin
     return <span ref={ref} className="tabular-nums tracking-tight">0</span>;
 };
 
-// [ARCHITECTURAL UPGRADE] Sensor Pod Stat Card
 const StatCard = ({ title, value, icon: Icon, color = "cyan", delay = 0 }: any) => (
     <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -131,7 +126,6 @@ const StatCard = ({ title, value, icon: Icon, color = "cyan", delay = 0 }: any) 
         whileHover={{ y: -5 }}
         className="group relative overflow-hidden rounded-[32px] bg-black/40 backdrop-blur-xl border border-white/10 p-6 flex flex-col justify-between h-40"
     >
-        {/* Glow Effect */}
         <div className={`absolute -right-4 -top-4 w-24 h-24 bg-${color}-500/10 blur-[40px] rounded-full group-hover:bg-${color}-500/20 transition-colors`} />
 
         <div className="flex justify-between items-start relative z-10">
@@ -151,12 +145,10 @@ const StatCard = ({ title, value, icon: Icon, color = "cyan", delay = 0 }: any) 
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{title}</p>
         </div>
 
-        {/* Bottom Accent Line */}
         <div className={`absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-${color}-500/50 to-transparent opacity-50 group-hover:opacity-100 transition-opacity`} />
     </motion.div>
 );
 
-// [ARCHITECTURAL UPGRADE] Cyberpunk Chart Container
 const RevenueChart = ({ data }: { data: RevenueData[] }) => {
     return (
         <div className="relative h-full w-full">
@@ -210,7 +202,6 @@ const RevenueChart = ({ data }: { data: RevenueData[] }) => {
     );
 };
 
-// [ARCHITECTURAL UPGRADE] Holographic List
 const ActivityTimeline = ({ events }: { events: ActivityEvent[] }) => {
     return (
         <div className="space-y-4">
@@ -230,7 +221,6 @@ const ActivityTimeline = ({ events }: { events: ActivityEvent[] }) => {
 
 function DashboardContent() {
     const { data: statsData } = useSWR<Stats>('/api/v1/admin/stats', fetcher);
-    // Mock data fallback
     const stats = statsData || {
         total_revenue: 124500, total_orders: 843, total_products: 156,
         active_drones: 42, pending_deliveries: 12, active_users_today: 890
@@ -239,7 +229,6 @@ function DashboardContent() {
     return (
         <div className="w-full max-w-[1600px] mx-auto p-6 md:p-10 space-y-8 mt-20 relative z-10">
 
-            {/* Header Module */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -263,7 +252,6 @@ function DashboardContent() {
                 </div>
             </motion.div>
 
-            {/* Grid Layout */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard title="Total Revenue" value={stats.total_revenue} icon={DollarSign} color="cyan" delay={0.1} />
                 <StatCard title="Active Drones" value={stats.active_drones} icon={Wifi} color="purple" delay={0.2} />
@@ -273,7 +261,6 @@ function DashboardContent() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                {/* Main Chart Module */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -298,7 +285,6 @@ function DashboardContent() {
                     </div>
                 </motion.div>
 
-                {/* Activity Feed Module */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -329,16 +315,12 @@ export default function AdminDashboardPage() {
         return <div className="min-h-screen w-full bg-black flex items-center justify-center"><Loader2 className="w-10 h-10 text-cyan-400 animate-spin" /></div>;
     }
 
-    // Uncomment for production auth check
-    /*
     if (status === 'unauthenticated' || session?.user?.role !== 'admin') {
         return <div className="min-h-screen bg-black flex items-center justify-center text-red-500"><Lock className="mr-2" /> Access Restricted</div>;
     }
-    */
 
     return (
         <div className="min-h-screen w-full bg-black text-gray-100 relative overflow-y-auto overflow-x-hidden selection:bg-cyan-500/30" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            {/* Architectural Grid */}
             <div className="fixed inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none z-0" />
             
             <div className="fixed inset-0 z-0 opacity-60 pointer-events-none">
