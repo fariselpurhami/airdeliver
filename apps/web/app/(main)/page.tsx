@@ -2,6 +2,7 @@
 
 'use client';
 
+import CinematicBackground from '@/components/ui/CinematicBackground';
 import { ShieldCheck, Lock, Clock, MapIcon, Quote, GlobeIcon, CheckCircle2, Activity } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
 import ProductOverlay from '@/components/products/ProductOverlay';
@@ -1147,6 +1148,7 @@ export default function Page() {
         <TestimonialsSection />
 	<FinalCTA />
 	<TrustedBySection />
+	<CinematicBackground />
       </main>
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />
     </div>
