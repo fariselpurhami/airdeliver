@@ -2,7 +2,6 @@
 
 'use client';
 
-import CinematicBackground from '@/components/ui/CinematicBackground';
 import { ShieldCheck, Lock, Clock, MapIcon, Quote, GlobeIcon, CheckCircle2, Activity } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
 import ProductOverlay from '@/components/products/ProductOverlay';
@@ -163,8 +162,9 @@ const Starfield = (props: any) => {
 
   useFrame((_, delta) => {
     if (starsRef.current) {
-      starsRef.current.rotation.x += delta * 0.01;
-      starsRef.current.rotation.y += delta * 0.02;
+      starsRef.current.rotation.x = 0; 
+      starsRef.current.rotation.y = 0; 
+      starsRef.current.rotation.z += delta * 0.05
     }
   });
 
@@ -174,17 +174,17 @@ const Starfield = (props: any) => {
         radius={100}
         depth={100}
         count={45000}
-        factor={20}
+        factor={18}
         saturation={0}
         fade
-        speed={1.5}
+        speed={0.3}
       />
     </group>
   );
 };
 
 // ============================================================================
-// --- 2. HOW IT WORKS SECTION (Architectural Fix: Perfect Alignment) ---
+// --- 2. HOW IT WORKS SECTION  ---
 // ============================================================================
 
 const VIEWBOX_WIDTH = 1450;
@@ -1148,7 +1148,6 @@ export default function Page() {
         <TestimonialsSection />
 	<FinalCTA />
 	<TrustedBySection />
-	<CinematicBackground />
       </main>
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />
     </div>
