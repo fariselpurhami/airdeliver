@@ -17,16 +17,16 @@ from sentence_transformers import SentenceTransformer
 from app.core.config import get_core_settings, CoreSettings
 from app.services.cache_service import IAsyncCacheClient
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("airdeliver.engine")
 
 # ============================================================================
-# --- 1. GLOBAL SINGLETON ARCHITECTURE (The Brain Manager) ---
+# --- 1. GLOBAL SINGLETON ARCHITECTURE (The Multilingual Brain) ---
 # ============================================================================
 
 class AIModelSingleton:
     """
-    Architectural Singleton to hold the AI Model in RAM globally.
-    Ensures the model is loaded EXACTLY ONCE during the application lifecycle.
+    Architectural Singleton.
+    Upgraded to support GLOBAL MULTILINGUAL EMBEDDINGS (50+ Languages).
     """
     _instance = None
     _model: Optional[SentenceTransformer] = None
@@ -37,34 +37,26 @@ class AIModelSingleton:
         return cls._instance
 
     def load_model(self):
-        """Loads the model into memory if not already loaded."""
         if self._model is not None:
             return self._model
 
-        model_path = os.getenv("EMBEDDING_MODEL_PATH", "all-MiniLM-L6-v2")
-        logger.info(f"🏗️  GLOBAL ARCHITECTURE: Loading AI Brain into Shared Memory from: {model_path}...")
+        model_name = os.getenv("EMBEDDING_MODEL_NAME", "paraphrase-multilingual-MiniLM-L12-v2")
+        logger.info(f"🏗️  GLOBAL ARCHITECTURE: Loading Multilingual Brain ({model_name})...")
         
         try:
-        
-            if os.path.exists(model_path):
-                logger.info(f"📂 Model Path Check OK. Contents: {len(os.listdir(model_path))} files found.")
-            else:
-                logger.warning(f"⚠️ Model path not found locally, downloading from HuggingFace: {model_path}")
-
             start_time = time.time()
-            self._model = SentenceTransformer(model_path)
-            self._model.encode(["warmup"]) 
+            self._model = SentenceTransformer(model_name)
+            self._model.encode(["warmup", "تجربة", "test", "prueba"], convert_to_numpy=True)
             elapsed = time.time() - start_time
             
-            logger.info(f"✅ AI Brain Loaded Successfully in {elapsed:.2f}s. Ready for Millions of Requests.")
+            logger.info(f"✅ Multilingual Brain Loaded in {elapsed:.2f}s. Ready for Global Traffic.")
         except Exception as e:
-            logger.critical(f"🔥 FATAL: Failed to load AI Model. System cannot function. Error: {e}")
+            logger.critical(f"🔥 FATAL: Failed to load AI Model. Error: {e}")
             raise e
         
         return self._model
 
     def get_model(self) -> SentenceTransformer:
-        """Returns the cached model. Initializes if somehow missing."""
         if self._model is None:
             return self.load_model()
         return self._model
@@ -77,6 +69,10 @@ ai_manager = AIModelSingleton()
 # ============================================================================
 
 class HybridSearchReranker:
+    """
+    Reciprocal Rank Fusion (RRF) Algorithm.
+    Combines Keyword Scores (OpenSearch) with Vector Scores (Milvus) fairly.
+    """
     def __init__(self, k: int = 60):
         self.k = k
 
@@ -103,21 +99,24 @@ class AICommerceEngine:
         self.reranker = HybridSearchReranker()
         
         self.milvus_collection = "airdeliver_products"
-        self.intent_collection = "airdeliver_intents"
+        self.intent_collection = "airdeliver_intents_v2" 
         
-        self.direct_confirm = {"confirm order", "checkout", "confirm", "pay"}
-        self.direct_clear = {"clear cart", "empty cart"}
+        self.direct_confirm = {"confirm order", "checkout", "pay", "تأكيد الطلب", "دفع", "انهاء الشراء", "شراء"}
+        self.direct_clear = {"clear cart", "empty cart", "تفريغ السلة", "مسح الكارت", "حذف الكل"}
 
         self._ensure_intent_knowledge_base()
 
     def _ensure_intent_knowledge_base(self):
+        """
+        Hydrates the Vector DB with Multilingual Intent Anchors.
+        Ensures 'اشتري' maps to the same mathematical point as 'Buy'.
+        """
         try:
-            
             if self.milvus_client.has_collection(self.intent_collection):
-        
-                self.milvus_client.drop_collection(self.intent_collection)
+                
+                return
 
-            logger.info("🚀 Hydrating Intent Vector Database (Cold Start)...")
+            logger.info("🚀 Hydrating Multilingual Intent Vector Database...")
 
             schema = MilvusClient.create_schema(auto_id=True, enable_dynamic_field=True)
             schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
@@ -134,15 +133,35 @@ class AICommerceEngine:
             )
 
             intent_map = {
-                "ADD_TO_CART": ["add to cart", "buy this", "i want to purchase", "get it", "add to bag", "grab this", "need this"],
-                "REMOVE_FROM_CART": ["remove item", "delete from cart", "take it out", "don't want it", "remove this"],
-                "CONFIRM_ORDER": ["checkout", "confirm order", "pay now", "finish order", "place order", "done shopping"],
-                "CLEAR_CART": ["empty cart", "clear basket", "remove everything", "reset cart", "delete all"],
-                "SEARCH_PRODUCT": ["find", "search", "show me", "looking for", "suggest", "recommend", "do you have"],
+                "ADD_TO_CART": [
+                    "add to cart", "buy this", "get it", "purchase", 
+                    "ضيف للسلة", "اشتري ده", "عايز اشتري", "حط في الكارت", "شراء",
+                    "ajouter au panier", "acheter", "añadir al carrito", "comprar"
+                ],
+                "REMOVE_FROM_CART": [
+                    "remove item", "delete", "take it out", 
+                    "امسح ده", "شيل من السلة", "احذف", "مش عايزه",
+                    "retirer", "supprimer", "eliminar"
+                ],
+                "CONFIRM_ORDER": [
+                    "checkout", "confirm order", "pay now", 
+                    "دفع", "تأكيد الطلب", "خلاص اشتري", "حاسب",
+                    "payer", "commander", "pagar", "confirmar"
+                ],
+                "CLEAR_CART": [
+                    "empty cart", "clear all", 
+                    "فضي السلة", "مسح الكل", "ريست",
+                    "vider le panier", "vaciar carrito"
+                ],
+                "SEARCH_PRODUCT": [
+                    "find", "search", "show me", 
+                    "ابحث عن", "وريني", "عايز اشوف", "عندك",
+                    "trouver", "chercher", "buscar"
+                ],
                 "PRODUCT_QUERY": [
-                    "what are the specs of", "tell me about", "features of", "battery life of",
-                    "how fast is", "is it waterproof", "does it have", "why should i buy",
-                    "details about", "is this good for", "description of"
+                    "specs", "features", "details", "is it good", 
+                    "مواصفات", "تفاصيل", "هل ده كويس", "ينفع لـ", "مميزات", "عيوب",
+                    "spécifications", "caractéristiques", "detalles"
                 ]
             }
 
@@ -161,33 +180,18 @@ class AICommerceEngine:
 
             self.milvus_client.insert(collection_name=self.intent_collection, data=data_rows)
             self.milvus_client.load_collection(collection_name=self.intent_collection)
-            logger.info(f"✅ Intent Knowledge Base Ready with {len(data_rows)} anchors.")
+            logger.info(f"✅ Multilingual Intent Base Ready ({len(data_rows)} anchors).")
 
         except Exception as e:
             logger.error(f"❌ Failed to initialize Intent Knowledge Base: {e}")
 
     def _classify_intent_semantic(self, message: str) -> str:
-    
-        msg_lower = message.lower()
+        msg_lower = message.lower().strip()
 
-        buy_triggers = ["add ", "buy ", "get ", "i want ", "purchase ", "grab ", "take "]
-        if any(msg_lower.startswith(t) for t in buy_triggers):
+        if any(w in msg_lower for w in ["add", "buy", "ضيف", "اشتري", "هات", "شراء"]):
             return "ADD_TO_CART"
-
-        if msg_lower in self.direct_clear:
-            return "CLEAR_CART"
-
         if msg_lower in self.direct_confirm:
             return "CONFIRM_ORDER"
-
-        specs_triggers = [
-            "spec", "battery", "feature", "detail", "review", "desc", 
-            "how fast", "waterproof", "screen", "display", "cpu", "ram",
-            "wha", "wht", "what", "tell me", "info" 
-        ]
-
-        if any(w in msg_lower for w in specs_triggers) and len(message.split()) > 2:
-            return "PRODUCT_QUERY"
 
         try:
             vector = self.embedding_model.encode([message], convert_to_numpy=True)
@@ -203,7 +207,8 @@ class AICommerceEngine:
                 return "SEARCH_PRODUCT"
 
             top_match = results[0][0]
-            if top_match['distance'] > 1.1: 
+            
+            if top_match['distance'] > 1.3: 
                 return "SEARCH_PRODUCT"
 
             return top_match['entity']['intent_label']
@@ -211,100 +216,66 @@ class AICommerceEngine:
             logger.warning(f"Intent classification failed: {e}")
             return "SEARCH_PRODUCT"
 
-    def _normalize_message(self, message: str) -> str:
-        return re.sub(r"[^\w\s]", "", message.lower())
-
     def _extract_intent_and_entity(self, message: str) -> Tuple[str, str]:
-        normalized = self._normalize_message(message)
-
         intent = self._classify_intent_semantic(message)
-
-        if intent == "ADD_TO_CART":
-            clean_entity = normalized
-            remove_phrases = sorted([
-                "add to cart", "add to bag", "add to basket",
-                "i want to buy", "i want to purchase", "i want", "i need",
-                "buy", "get", "add", "purchase", "grab", "take"
-            ], key=len, reverse=True)
-
-            for phrase in remove_phrases:
-                if clean_entity.startswith(phrase):
-                    clean_entity = clean_entity[len(phrase):].strip()
-                    break 
-
-            return intent, clean_entity
         
-        if intent == "PRODUCT_QUERY":
+        clean_entity = message
+        
+        if intent == "ADD_TO_CART":
             
-            clean_entity = message.lower()
-            noise_phrases = [
-                "what is", "what are", "the specs of", "specs for", "tell me about", 
-                "features of", "details on", "how is the", "battery of", "show me"
+            triggers = [
+                "add to cart", "buy", "get", "purchase", 
+                "ضيف", "اشتري", "عايز", "هات", 
+                "ajouter", "acheter", "comprar"
             ]
-            for phrase in noise_phrases:
-                clean_entity = clean_entity.replace(phrase, "")
-            return intent, clean_entity.strip()
+            for t in triggers:
+                clean_entity = re.sub(t, "", clean_entity, flags=re.IGNORECASE)
+        
+        elif intent == "PRODUCT_QUERY":
+            triggers = ["specs", "details", "mowasfat", "مواصفات", "تفاصيل", "info"]
+            for t in triggers:
+                clean_entity = re.sub(t, "", clean_entity, flags=re.IGNORECASE)
 
-        return intent, normalized
+        return intent, clean_entity.strip()
 
     def _get_query_embedding(self, query: str) -> List[float]:
         try:
             vector = self.embedding_model.encode(query, convert_to_numpy=True)
             return vector.tolist()
-        except Exception as e:
-            logger.error(f"Embedding generation failed: {e}")
+        except Exception:
             return []
 
     async def ensure_opensearch_index(self):
-        """
-        [ARCHITECTURAL SELF-HEALING]
-        Automatically creates the search index if it's missing (e.g., after a fresh deploy).
-        """
+        """Self-healing index creation with standard analyzer"""
         index_name = "airdeliver_products"
         try:
             exists = await self.opensearch_client.indices.exists(index=index_name)
-
-            if exists:
-                logger.info(f"✅ OpenSearch Index '{index_name}' exists.")
-                return
-
-            logger.warning(f"⚠️ Index '{index_name}' missing. Creating with optimized schema...")
+            if exists: return
 
             index_body = {
                 "settings": {
-                    "index": {
-                        "number_of_shards": 1,
-                        "number_of_replicas": 0
-                    },
-                    "analysis": {
-                        "analyzer": {
-                            "default": {
-                                "type": "standard"  
-                            }
-                        }
-                    }
+                    "index": { "number_of_shards": 1, "number_of_replicas": 0 }
                 },
                 "mappings": {
                     "properties": {
                         "id": {"type": "integer"},
-                        "name": {"type": "text", "boost": 3}, 
+                        "name": {"type": "text", "boost": 3},
                         "description": {"type": "text"},
                         "category": {"type": "keyword"},
                         "price": {"type": "float"},
                         "tags": {"type": "text", "boost": 2},
                         "rating": {"type": "float"},
-                        "image": {"type": "text"}
+                        "image_url": {"type": "text"}
                     }
                 }
             }
-
             await self.opensearch_client.indices.create(index=index_name, body=index_body)
-            logger.info(f"✅ OpenSearch Index '{index_name}' created successfully.")
-
+            logger.info(f"✅ OpenSearch Index '{index_name}' created.")
         except Exception as e:
             logger.error(f"❌ Failed to ensure OpenSearch index: {e}")
 
     async def _search_opensearch(self, query: str, limit: int = 50) -> List[Tuple[str, float]]:
+        
         opensearch_query = {
             "query": {
                 "multi_match": {
@@ -321,8 +292,7 @@ class AICommerceEngine:
                 index="airdeliver_products", body=opensearch_query
             )
             return [(hit["_id"], hit["_score"]) for hit in response["hits"]["hits"]]
-        except Exception as e:
-            logger.warning(f"OpenSearch query failed: {e}")
+        except Exception:
             return []
 
     async def _search_milvus(self, vector: List[float], limit: int = 50, exclude_id: Optional[int] = None) -> List[Tuple[str, float]]:
@@ -343,8 +313,7 @@ class AICommerceEngine:
             )
             if not results: return []
             return [(str(hit.id), 1.0 / (1.0 + hit.distance)) for hit in results[0]]
-        except Exception as e:
-            logger.warning(f"Milvus search failed: {e}")
+        except Exception:
             return []
 
     async def _fallback_sql_search(self, db: AsyncSession, query: str, limit: int = 20) -> List[Product]:
@@ -361,19 +330,19 @@ class AICommerceEngine:
     async def find_products_from_message(
         self, db: AsyncSession, message: str, user_id: int
     ) -> Tuple[List[Product], Dict[str, Any]]:
+        """
+        GLOBAL SEARCH ROUTER.
+        1. Identifies Intent (in any language).
+        2. Extracts Entity (Product Name).
+        3. Performs Hybrid Search (Vector + Text).
+        4. Reranks results.
+        """
         intent, entity = self._extract_intent_and_entity(message)
-
+        
         base_metadata = {"intent": intent, "entities": [entity] if entity else [], "query": message}
 
-        if intent == "CONFIRM_ORDER": return [], base_metadata
-        if intent == "CLEAR_CART": return [], base_metadata
-
-        if intent == "ADD_TO_CART":
-            remove_words = ["add", "to", "cart", "buy", "get", "purchase", "i", "want"]
-            for word in remove_words:
-                entity = re.sub(r'\b' + word + r'\b', '', entity, flags=re.IGNORECASE)
-            entity = entity.strip()
-            base_metadata["entities"] = [entity] if entity else []
+        if intent in ["CONFIRM_ORDER", "CLEAR_CART"]: 
+            return [], base_metadata
 
         if not entity:
              statement = select(Product).order_by(func.random()).limit(50)
@@ -399,6 +368,7 @@ class AICommerceEngine:
             product_ids_int = [int(pid) for pid in sorted_ids]
             statement = select(Product).where(Product.id.in_(product_ids_int))
             products_db = (await db.exec(statement)).all()
+            
             product_map = {p.id: p for p in products_db}
             products = [product_map[pid] for pid in product_ids_int if pid in product_map]
 
@@ -408,82 +378,59 @@ class AICommerceEngine:
         base_metadata["quantity"] = 1
         return products, base_metadata
 
-    async def find_complementary_products(
-        self, db: AsyncSession, anchor_product: Product, limit: int = 20
-    ) -> List[Product]:
-        semantic_query = f"compatible accessories, essential add-ons, matching items for {anchor_product.name}"
-        vector = self._get_query_embedding(semantic_query)
-        milvus_results = await self._search_milvus(vector, limit=100, exclude_id=anchor_product.id)
+    async def find_complementary_products(self, db: AsyncSession, anchor_product: Product, limit: int = 20) -> List[Product]:
+         semantic_query = f"accessories for {anchor_product.name}" 
+         vector = self._get_query_embedding(semantic_query)
+         milvus_results = await self._search_milvus(vector, limit=100, exclude_id=anchor_product.id)
+         
+         if not milvus_results: return []
+         
+         related_ids = [int(pid) for pid, score in milvus_results]
+         statement = select(Product).where(Product.id.in_(related_ids))
+         products = (await db.exec(statement)).all()
+         return products[:limit]
 
-        if not milvus_results:
-            statement = select(Product).where(Product.id != anchor_product.id).order_by(func.random()).limit(limit)
-            return (await db.exec(statement)).all()
-
-        related_ids = [int(pid) for pid, score in milvus_results]
-        statement = select(Product).where(Product.id.in_(related_ids))
-        products = (await db.exec(statement)).all()
-
-        product_map = {p.id: p for p in products}
-        ordered_products = []
-        seen_names = set()
-
-        for pid in related_ids:
-            if pid in product_map:
-                p = product_map[pid]
-                if p.name not in seen_names:
-                    ordered_products.append(p)
-                    seen_names.add(p.name)
-
-        return ordered_products[:limit]
-
-    async def generate_smart_bundle(
-        self, db: AsyncSession, anchor_product: Product
-    ) -> List[Product]:
-        bundle_query = f"best value accessories and addons for {anchor_product.name}"
+    async def generate_smart_bundle(self, db: AsyncSession, anchor_product: Product) -> List[Product]:
+        bundle_query = f"best addons for {anchor_product.name}"
         vector = self._get_query_embedding(bundle_query)
         milvus_results = await self._search_milvus(vector, limit=50, exclude_id=anchor_product.id)
-
-        if not milvus_results:
-            return []
+        
+        if not milvus_results: return []
 
         related_ids = [int(pid) for pid, score in milvus_results]
         statement = select(Product).where(Product.id.in_(related_ids))
         products = (await db.exec(statement)).all()
-
-        product_map = {p.id: p for p in products}
+        
         bundle_items = []
-
+        product_map = {p.id: p for p in products}
+        
         for pid in related_ids:
             if pid in product_map:
                 p = product_map[pid]
                 if p.price < anchor_product.price * 0.7:
                     bundle_items.append(p)
                     if len(bundle_items) >= 3: break
-
         return bundle_items
 
 # ============================================================================
-# --- 3. DEPENDENCY INJECTION (Optimized) ---
+# --- 3. DEPENDENCY INJECTION ---
 # ============================================================================
 
 def get_embedding_model() -> SentenceTransformer:
-    """
-    Dependency to return the Pre-Loaded AI Model.
-    This executes in MICROSECONDS because the model is already in RAM.
-    """
     return ai_manager.get_model()
 
 def get_milvus_client(settings: CoreSettings = Depends(get_core_settings)) -> MilvusClient:
-    """
-    Retries removed for request path.
-    Ideally, connection should be established at startup, but MilvusClient is lightweight wrapper.
-    """
+
     if not isinstance(settings, CoreSettings):
         settings = get_core_settings()
 
     return MilvusClient(uri=settings.MILVUS_URI)
 
 async def get_opensearch_client(settings: CoreSettings = Depends(get_core_settings)) -> AsyncGenerator[AsyncOpenSearch, None]:
+
+    if not isinstance(settings, CoreSettings):
+        settings = get_core_settings()
+
     hosts = [{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}]
     auth = (settings.OPENSEARCH_USER, settings.OPENSEARCH_PASS) if settings.APP_ENV == "production" else None
 
@@ -506,8 +453,4 @@ def get_ai_commerce_engine(
     milvus_client: MilvusClient = Depends(get_milvus_client),
     embedding_model: SentenceTransformer = Depends(get_embedding_model),
 ) -> AICommerceEngine:
-    """
-    Factory to create the Engine with dependencies injected.
-    The 'embedding_model' here is the GLOBAL SINGLETON instance.
-    """
     return AICommerceEngine(opensearch_client, milvus_client, embedding_model)
