@@ -1,10 +1,19 @@
-# Python / Backend
+# .gitignore
+
 apps/api/__pycache__/
 apps/api/.venv
 
-# Node / Frontend
 apps/web/node_modules
 apps/web/.next
 
-data/storage/models_cache/
-apps/api/storage/models_cache/
+echo "data/storage/models_cache/" >> .gitignore
+echo "apps/api/storage/models_cache/" >> .gitignore
+
+git rm -r --cached data/storage/models_cache
+git rm -r --cached apps/api/storage/models_cache
+
+git add .gitignore
+
+git commit -m "remove model cache directories and update .gitignore"
+
+git push
