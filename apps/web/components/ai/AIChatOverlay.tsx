@@ -667,16 +667,10 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
              actions.addSocketAIMessage({ type: 'error', content: "Authentication required for cart operations." });
         }
     }, [status, socketStatus, actions.addProductById, actions.addSocketAIMessage]);
-
-    const stripeOptions = useMemo<StripeElementsOptions | undefined>(() => {
-        const stripeGateway = paymentDetails?.gateways.find(g => g.provider === 'stripe');
-        if (!stripeGateway?.clientSecret) return undefined;
         
-        return {
-            clientSecret: stripeGateway.clientSecret,
-            appearance: {
+            const stripeAppearance = useMemo(() => ({
                 theme: 'night',
-                labels: 'floating',
+                labels: 'floating' as const,
                 variables: {
                     colorPrimary: '#06b6d4', 
                     colorBackground: '#0F172A', 
@@ -689,11 +683,21 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                 },
                 rules: {
                     '.Input': { backgroundColor: '#1E293B', border: '1px solid #334155' },
-                    '.Input:focus': { border: '1px solid #06b6d4', boxShadow: '0 0 0 1px #06b6d4' }
-                }
-            },
-        };
-    }, [paymentDetails]);
+                    '.Input:focus': { border: '1px solid #06b6d4', boxShadow: '0 0 0 1px #06b6d4' },
+		    '.Tab': { backgroundColor: '#1E293B', color: '#ffffff' }, 
+                    '.Tab--selected': { backgroundColor: '#06b6d4', color: '#000000' },
+		}
+            }), []);
+
+            const stripeOptions = useMemo<StripeElementsOptions | undefined>(() => {
+                const stripeGateway = paymentDetails?.gateways.find(g => g.provider === 'stripe');
+                if (!stripeGateway?.clientSecret) return undefined;
+
+                return {
+                    clientSecret: stripeGateway.clientSecret,
+                    appearance: stripeAppearance, // Use the stabilized appearance
+                };
+            }, [paymentDetails, stripeAppearance]);
 
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     const cartItems = lastCartMessage?.content?.items || [];
@@ -711,6 +715,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                     exit={{ opacity: 0 }}
                     onClick={handleClose}
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 overflow-hidden"
+		    style={{ colorScheme: 'dark' }}
                 >
                    
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
@@ -722,7 +727,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()}
                        
-                        className="w-full max-w-7xl h-[95vh] max-h-[1100px] flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-[0_0_50px_rgba(0,198,255,0.15)] overflow-hidden relative"
+                        className="w-full max-w-7xl h-[95vh] max-h-[1100px] flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-[0_0_50px_rgba(0,198,255,0.15)] overflow-hidden relative dark"
                     >
                        
                         <div className="absolute top-0 left-0 w-32 h-32 bg-cyan-500/5 blur-[60px] pointer-events-none" />
@@ -762,6 +767,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
                                         className="w-full h-full flex items-center justify-center overflow-y-auto relative z-20"
+					style={{ isolation: 'isolate' }}
                                     >
                                         {isReadyToRender ? (
                                             <Elements key={stripeOptions.clientSecret} stripe={stripeObj} options={stripeOptions}>

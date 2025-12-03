@@ -70,6 +70,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
       </div>
 
       <motion.div style={{ y: parallaxY }} className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
+        
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

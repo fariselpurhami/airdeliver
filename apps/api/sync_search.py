@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 import sys
+import os
 from typing import List, Dict, Any
 from sqlmodel import select, func, col
 from opensearchpy import AsyncOpenSearch, helpers
@@ -36,7 +37,12 @@ class DiamondSearchSynchronizer:
         self.fetch_batch_size = 5000   
         self.upload_chunk_size = 2000  
         self.concurrent_workers = 5    
-        self.queue_size = 20           
+        self.queue_size = 20  
+
+        os_host = os.getenv("OPENSEARCH_HOST", "opensearch")
+        os_port = int(os.getenv("OPENSEARCH_PORT", 9200))
+
+        logger.info(f"🔌 Connecting to OpenSearch at: {os_host}:{os_port}")
 
         self.client = AsyncOpenSearch(
             hosts=[{"host": self.settings.OPENSEARCH_HOST, "port": self.settings.OPENSEARCH_PORT}],
@@ -194,7 +200,7 @@ class DiamondSearchSynchronizer:
                 index=self.index_name, 
                 body={"index": {"refresh_interval": "1s", "number_of_replicas": 0}} # Keep 0 replicas for dev
             )
-            await self.client.indices.force_merge(index=self.index_name, max_num_segments=1)
+            await self.client.indices.forcemerge(index=self.index_name, max_num_segments=1)
             await self.client.indices.refresh(index=self.index_name)
 
             duration = time.time() - overall_start

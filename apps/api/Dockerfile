@@ -82,6 +82,7 @@ COPY --chown=$APP_USER:$APP_USER ./alembic.ini ./
 COPY --chown=$APP_USER:$APP_USER ./alembic ./alembic
 COPY --chown=$APP_USER:$APP_USER ./seed_data.json ./
 COPY --chown=$APP_USER:$APP_USER ./app ./app
+COPY --chown=$APP_USER:$APP_USER ./*.py ./
 
 USER $APP_USER
 EXPOSE 8000

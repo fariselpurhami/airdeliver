@@ -334,6 +334,33 @@ services:
         - action: rebuild
           path: ./apps/api/poetry.lock
 
+  api-seeder:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: production
+    container_name: airdeliver-seeder
+    command: python /app/init_data.py
+    env_file: .env
+    environment:
+      - SEED_TARGET_COUNT=100000
+      - SEED_BATCH_SIZE=5000
+      - APP_ENV=development
+      - POSTGRES_SERVER=postgres
+      - OPENSEARCH_HOST=opensearch
+      - REDIS_URL=redis://redis:6379/0
+    network_mode: service:api
+
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres: 
+        condition: service_healthy
+      opensearch:
+        condition: service_started
+    restart: "no"
+    profiles: ["tools"]
+
   c2_gateway:
     container_name: airdeliver-c2-gateway
     build:
