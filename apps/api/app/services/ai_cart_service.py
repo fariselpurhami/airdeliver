@@ -5,7 +5,6 @@ from app.services.rabbitmq_service import RabbitMQService
 from app.models.product import Product
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
-import random 
 
 class AICartService:
     def __init__(
@@ -132,8 +131,6 @@ class AICartService:
 
         if payload.get("notify_user", False):
             await self.rabbitmq.publish(
-                {"user_id": user_id, "content": "Done! Your cart has been cleared.", "type": "success_text"},
-                {"user_id": user_id, "content": "Clean slate! Your cart has been fully cleared.", "type": "success_text"},
-                {"user_id": user_id, "content": "All clear! Your cart is wiped clean.", "type": "success_text"},
+                {"user_id": user_id, "content": "Done! Your cart is wiped clean.", "type": "success_text"},
                 "airdeliver.ai.response.out",
             )

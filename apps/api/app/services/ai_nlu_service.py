@@ -155,7 +155,7 @@ class AINLUService:
         if final_selection:
             await self._mark_products_as_seen(user_id, final_selection)
             await self.rabbitmq.publish(
-                {"user_id": user_id, "content": "Welcome! Based on your style, here are today's top picks:", "type": "proactive_suggestion", "products": final_selection, "reason": "AI Prediction"},
+                {"user_id": user_id, "content": "Welcome! Here are today's top picks:", "type": "proactive_suggestion", "products": final_selection, "reason": "AI Prediction"},
                 "airdeliver.ai.response.out",
             )
 
