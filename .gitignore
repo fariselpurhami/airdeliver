@@ -5,3 +5,6 @@ apps/api/.venv
 # Node / Frontend
 apps/web/node_modules
 apps/web/.next
+
+data/storage/models_cache/
+apps/api/storage/models_cache/
