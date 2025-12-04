@@ -1,9 +1,8 @@
 [tool.poetry]
 name = "airdeliver-api"
 version = "1.0.0"
-description = "Backend API for airdeliver"
-authors = ["Faris Elpurhami"]
-
+description = "airdeliver-API"
+authors = ["airdeliver Holding"]
 packages = [
     {include = "app"},
 ]
