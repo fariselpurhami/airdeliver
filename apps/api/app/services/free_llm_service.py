@@ -8,6 +8,7 @@ import re
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from groq import AsyncGroq
+from duckduckgo_search import DDGS  # 🛠️ New Research Tool Integration
 
 logger = logging.getLogger("airdeliver.services.cognitive_core")
 
@@ -73,6 +74,85 @@ class FreeLLMService:
         content = content.strip()
         json_match = re.search(r'\{.*\}', content, re.DOTALL)
         return json_match.group(0) if json_match else content
+
+    # --- 🌍 EXTERNAL RESEARCH ENGINE (The New Power) ---
+    async def _perform_web_search(self, query: str) -> str:
+        """
+        Executes a live web search to find missing specs using DuckDuckGo.
+        Runs in a separate thread to ensure non-blocking async execution.
+        """
+        try:
+            logger.info(f"🌍 Initiating Deep Research for: {query}")
+            loop = asyncio.get_running_loop()
+            # DuckDuckGo is blocking, so we offload it to an executor
+            results = await loop.run_in_executor(None, lambda: DDGS().text(query, max_results=3))
+            
+            if not results: return "No external data found."
+            
+            summary = "\n".join([f"- {r['title']}: {r['body']}" for r in results])
+            return summary
+        except Exception as e:
+            logger.warning(f"⚠️ Research failed: {e}")
+            return "External research unavailable."
+
+    # --- 🧠 HYBRID CONSULTANT (Updated Logic) ---
+    async def consult_on_product(self, product_data: Dict[str, Any], user_question: str) -> str:
+        """
+        Answers product questions using a Hybrid RAG approach:
+        1. Internal DB Data (Primary).
+        2. External Web Search (Secondary - if needed).
+        """
+        if not self.client:
+            return f"The {product_data.get('name')} is a premium selection from our {product_data.get('category')} collection."
+
+        # 1. Analyze Context & Need for Research
+        internal_context = json.dumps(product_data, default=str)
+        
+        # Heuristic: If description is short OR question asks for complex details, trigger search
+        needs_research = len(str(product_data.get('description', ''))) < 50 or \
+                         any(x in user_question.lower() for x in ['review', 'vs', 'compare', 'ingredients', 'specs', 'battery', 'released', 'warranty'])
+
+        external_knowledge = ""
+        if needs_research:
+            # Smart Query Generation
+            search_query = f"{product_data.get('name')} {product_data.get('category')} specs details reviews"
+            external_knowledge = await self._perform_web_search(search_query)
+
+        # 2. The Grand Synthesis Prompt
+        system_core = f"""
+        IDENTITY: 'order with air' Chief Product Expert.
+        MISSION: Provide an authoritative, factual answer to the user's question about the product.
+
+        --- DATA SOURCES ---
+        [INTERNAL DATABASE]: {internal_context}
+        [EXTERNAL WEB RESEARCH]: {external_knowledge}
+
+        --- PROTOCOL ---
+        1. PRIORITY: Rely on Internal Database first.
+        2. AUGMENT: Use External Research to fill missing technical specs or reviews.
+        3. FACTUALITY: Do NOT hallucinate. If specs are missing in both, admit it gracefully.
+        4. TONE: Professional, concise, and helpful. 
+        5. LANGUAGE: Respond in the EXACT language/dialect of the User Question.
+
+        Output only the answer. Max 3 sentences.
+        """
+
+        try:
+            completion = await self._safe_execute(
+                self.client.chat.completions.create,
+                messages=[
+                    {"role": "system", "content": system_core},
+                    {"role": "user", "content": user_question}
+                ],
+                model=self.brain_model,
+                temperature=0.3, # Low temperature for factual accuracy
+                max_tokens=400
+            )
+            return completion.choices[0].message.content.strip()
+        except Exception:
+            return f"This {product_data.get('name')} is highly rated. Please check the product details for more info."
+
+    # --- ORIGINAL METHODS (PRESERVED) ---
 
     async def strategize_search(self, user_query: str) -> SearchStrategy:
         if not self.client:
@@ -140,41 +220,6 @@ class FreeLLMService:
                 response_tone="Fallback", 
                 direct_answer_prefix="Found these matches:"
             )
-
-    async def consult_on_product(self, product_data: Dict[str, Any], user_question: str) -> str:
-        if not self.client:
-            return f"This {product_data.get('name')} is a premium selection."
-
-        system_core = f"""
-        IDENTITY: 'order with air' - The Definitive Global Commerce Interface.
-        TARGET: Provide an executive summary of the product strictly related to the user's need.
-        
-        DATA: {json.dumps(product_data, default=str)}
-        
-        PROTOCOL:
-        1. LANGUAGE: Respond in the EXACT language/dialect of the User Question.
-        2. PERSONA ADAPTATION:
-           - Tech: Senior Engineer.
-           - Fashion/Gift: Personal Stylist.
-           - Beauty/Health: Clinical Specialist.
-        3. NO FLUFF: Maximum 2 sentences. High impact.
-        4. FACTUALITY: Do not hallucinate features not present in data.
-        """
-
-        try:
-            completion = await self._safe_execute(
-                self.client.chat.completions.create,
-                messages=[
-                    {"role": "system", "content": system_core},
-                    {"role": "user", "content": user_question}
-                ],
-                model=self.brain_model,
-                temperature=0.3,
-                max_tokens=300
-            )
-            return completion.choices[0].message.content.strip()
-        except Exception:
-            return f"Excellent choice. The {product_data.get('name')} stands out in its category."
 
     async def extract_search_terms(self, user_query: str) -> str:
         # Kept for legacy fallback, but strategize_search is now primary
