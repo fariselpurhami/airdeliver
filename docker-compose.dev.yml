@@ -74,7 +74,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     command: postgres -c shared_buffers=512MB -c effective_cache_size=1536MB -c work_mem=4MB
-    ports:             
+    ports:
       - "5432:5432"
     networks:
       - backend-net
@@ -119,7 +119,7 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq/
     ports:
-      - "5672:5672"    
+      - "5672:5672"
       - "15672:15672"
     networks:
       - backend-net
@@ -206,12 +206,12 @@ services:
       MINIO_SECRET_ACCESS_KEY: minioadmin
     volumes:
       - milvus-data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
     depends_on:
       - etcd
       - minio
-    ports:
-      - "19530:19530"  
-      - "9091:9091"
     networks:
       - backend-net
     healthcheck:
@@ -229,6 +229,8 @@ services:
     env_file: .env
     environment:
       - DATABASE_URI=${DATABASE_URL_SYNC}
+    volumes:
+      - poetry-cache:/opt/venv
     command: >
       sh -c "alembic upgrade head &&
              python -m app.db.initial_data"
@@ -266,10 +268,12 @@ services:
       - OPENSEARCH_PORT=9200
       - MILVUS_URI=http://milvus:19530
       - EMBEDDING_MODEL_PATH=/data/storage/models_cache/sentence_transformers/all-MiniLM-L6-v2
+
     volumes:
       - ./apps/api:/app:delegated
       - api-static-data:/app/static
       - ${PWD}/data/storage:/data/storage
+      - poetry-cache:/opt/venv
     depends_on:
       api-migrator:
         condition: service_completed_successfully
@@ -292,6 +296,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
+
     command: /opt/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     logging: *default-logging
     deploy: *default-app-deploy
@@ -325,9 +330,11 @@ services:
       - HF_HOME=/data/storage/models_cache/huggingface
       - EMBEDDING_MODEL_PATH=/data/storage/models_cache/sentence_transformers/all-MiniLM-L6-v2
       - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+    
     volumes:
       - ./apps/api:/app:delegated
       - ${PWD}/data/storage:/data/storage
+      - poetry-cache:/opt/venv
     depends_on:
       setup-fs:
         condition: service_completed_successfully
@@ -335,8 +342,11 @@ services:
         condition: service_healthy
     networks:
       - backend-net
+    
     command: >
-      sh -c "/opt/venv/bin/watchfiles '/opt/venv/bin/python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'"
+      sh -c "
+      /opt/venv/bin/watchfiles '/opt/venv/bin/python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'
+      "
     logging: *default-logging
     deploy: *default-app-deploy
     develop:
@@ -383,8 +393,10 @@ services:
     environment:
       - RABBITMQ_HOST=mq
       - API_BASE_URL=http://api:8000/api/v1
+
     volumes:
       - ./apps/c2-gateway:/app:delegated
+      - poetry-cache:/opt/venv
     depends_on:
       mq:
         condition: service_healthy
@@ -396,6 +408,7 @@ services:
       - public-net
     ports:
        - "8001:8001"
+    # 👇 --reload مفعلة
     command: /opt/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     logging: *default-logging
     deploy: *default-app-deploy
@@ -497,6 +510,7 @@ volumes:
   px4-source-data:
     driver: local
   web_build_cache:
+  poetry-cache:
 
 networks:
   public-net:

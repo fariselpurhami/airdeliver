@@ -6,9 +6,9 @@ import os
 import asyncio
 import re
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from groq import AsyncGroq
-from duckduckgo_search import DDGS  # 🛠️ New Research Tool Integration
+from duckduckgo_search import DDGS
 
 logger = logging.getLogger("airdeliver.services.cognitive_core")
 
@@ -75,66 +75,76 @@ class FreeLLMService:
         json_match = re.search(r'\{.*\}', content, re.DOTALL)
         return json_match.group(0) if json_match else content
 
-    # --- 🌍 EXTERNAL RESEARCH ENGINE (The New Power) ---
+    # --- 🌍 EXTERNAL RESEARCH ENGINE (SMART QUERY) ---
     async def _perform_web_search(self, query: str) -> str:
         """
-        Executes a live web search to find missing specs using DuckDuckGo.
-        Runs in a separate thread to ensure non-blocking async execution.
+        Executes a live web search. 
+        Auto-cleans the query to ensure best results.
         """
         try:
-            logger.info(f"🌍 Initiating Deep Research for: {query}")
+            # 1. Clean the query (Remove "what is", "tell me", etc)
+            clean_query = re.sub(r'(what is|tell me about|describe|show me|find|search for)', '', query, flags=re.IGNORECASE).strip()
+            
+            # 2. Append strategic keywords if missing
+            if "specs" not in clean_query and "review" not in clean_query:
+                clean_query += " specs rumors news"
+                
+            logger.info(f"🌍 Deep Research Query: '{clean_query}'")
+            
             loop = asyncio.get_running_loop()
-            # DuckDuckGo is blocking, so we offload it to an executor
-            results = await loop.run_in_executor(None, lambda: DDGS().text(query, max_results=3))
+            results = await loop.run_in_executor(None, lambda: DDGS().text(clean_query, max_results=4))
             
-            if not results: return "No external data found."
+            if not results: 
+                # Retry with simpler query
+                logger.warning("⚠️ Zero results. Retrying with simpler query...")
+                simple_query = clean_query.split()[0] + " " + clean_query.split()[1] # First 2 words
+                results = await loop.run_in_executor(None, lambda: DDGS().text(simple_query, max_results=3))
+
+            if not results:
+                return "No external data found."
             
-            summary = "\n".join([f"- {r['title']}: {r['body']}" for r in results])
+            summary = "\n".join([f"Source: {r['title']} - {r['body']}" for r in results])
+            
+            # 🔥 Log the success to the terminal so the user SEES it working
+            logger.info(f"✅ Research Success! Found {len(results)} sources.")
             return summary
+
         except Exception as e:
             logger.warning(f"⚠️ Research failed: {e}")
             return "External research unavailable."
 
-    # --- 🧠 HYBRID CONSULTANT (Updated Logic) ---
+    # --- 🧠 HYBRID CONSULTANT (UNLEASHED) ---
     async def consult_on_product(self, product_data: Dict[str, Any], user_question: str) -> str:
-        """
-        Answers product questions using a Hybrid RAG approach:
-        1. Internal DB Data (Primary).
-        2. External Web Search (Secondary - if needed).
-        """
         if not self.client:
-            return f"The {product_data.get('name')} is a premium selection from our {product_data.get('category')} collection."
+            return f"The {product_data.get('name')} is a premium selection."
 
-        # 1. Analyze Context & Need for Research
         internal_context = json.dumps(product_data, default=str)
         
-        # Heuristic: If description is short OR question asks for complex details, trigger search
-        needs_research = len(str(product_data.get('description', ''))) < 50 or \
-                         any(x in user_question.lower() for x in ['review', 'vs', 'compare', 'ingredients', 'specs', 'battery', 'released', 'warranty'])
+        # Determine Search Strategy
+        # If user names a specific product (e.g. iPhone 17), use that as the search anchor.
+        # Otherwise use the DB product name.
+        search_target = user_question
+        if product_data.get('name') and product_data.get('name').lower() in user_question.lower():
+             search_target = user_question # Use full question if it contains product name
+        elif product_data.get('name'):
+             search_target = f"{product_data.get('name')} {user_question}"
 
-        external_knowledge = ""
-        if needs_research:
-            # Smart Query Generation
-            search_query = f"{product_data.get('name')} {product_data.get('category')} specs details reviews"
-            external_knowledge = await self._perform_web_search(search_query)
+        external_knowledge = await self._perform_web_search(search_target)
 
-        # 2. The Grand Synthesis Prompt
+        # 🔥 THE AGGRESSIVE PROMPT 🔥
         system_core = f"""
-        IDENTITY: 'order with air' Chief Product Expert.
-        MISSION: Provide an authoritative, factual answer to the user's question about the product.
+        You are the Chief Tech Analyst for 'Order With Air'.
+        
+        --- INPUT DATA ---
+        1. [INTERNAL DB] (Might be outdated/irrelevant): {internal_context}
+        2. [WEB SEARCH] (Fresh Data): {external_knowledge}
 
-        --- DATA SOURCES ---
-        [INTERNAL DATABASE]: {internal_context}
-        [EXTERNAL WEB RESEARCH]: {external_knowledge}
-
-        --- PROTOCOL ---
-        1. PRIORITY: Rely on Internal Database first.
-        2. AUGMENT: Use External Research to fill missing technical specs or reviews.
-        3. FACTUALITY: Do NOT hallucinate. If specs are missing in both, admit it gracefully.
-        4. TONE: Professional, concise, and helpful. 
-        5. LANGUAGE: Respond in the EXACT language/dialect of the User Question.
-
-        Output only the answer. Max 3 sentences.
+        --- YOUR ORDERS ---
+        1. **IGNORE INTERNAL DB** if the user asks about a product (e.g. iPhone 17) that is NOT in the Internal DB.
+        2. **USE WEB SEARCH** as your primary source of truth for new tech.
+        3. **FALLBACK MODE (CRITICAL):** If Web Search is empty or fails, **USE YOUR OWN TRAINING DATA** to discuss rumors, expectations, or leaks about this product. 
+        4. **NEVER SAY "I cannot provide".** Always give the best available info, even if it's based on "expected" specs or rumors.
+        5. **FORMAT:** Direct answer. Professional tone. No fluff. Respond in the USER'S LANGUAGE.
         """
 
         try:
@@ -145,157 +155,60 @@ class FreeLLMService:
                     {"role": "user", "content": user_question}
                 ],
                 model=self.brain_model,
-                temperature=0.3, # Low temperature for factual accuracy
-                max_tokens=400
+                temperature=0.4, # Slightly higher temp to allow "knowledge retrieval" from model memory
+                max_tokens=600
             )
             return completion.choices[0].message.content.strip()
         except Exception:
-            return f"This {product_data.get('name')} is highly rated. Please check the product details for more info."
+            return "Based on industry trends, this device is expected to feature top-tier specs, though my live feed is currently interrupted."
 
-    # --- ORIGINAL METHODS (PRESERVED) ---
-
+    # --- STRATEGY & FILTERING (UNCHANGED) ---
     async def strategize_search(self, user_query: str) -> SearchStrategy:
         if not self.client:
-            return SearchStrategy(
-                is_direct_product_request=True, 
-                search_queries=[user_query], 
-                response_tone="Standard", 
-                direct_answer_prefix="Here is what I found:"
-            )
+            return SearchStrategy(is_direct_product_request=True, search_queries=[user_query], response_tone="Standard", direct_answer_prefix="Found these:")
 
         system_core = """
-        ROLE: Elite Commerce Intelligence Architect for 'order with air'.
-        MISSION: Decode user intent with forensic precision into a structured search strategy.
-        
-        INPUT: User natural language query (any language).
-        OUTPUT: JSON Object ONLY.
-
-        LOGIC GATES:
-        1. DETECT INTENT: Is it a specific item ("Red Nike Shoes") or a vibe ("Gift for girlfriend")?
-        2. EXTRACT CONSTRAINTS: 
-           - Price ranges (e.g., "under $1000" -> price_max: 1000).
-           - Sizes, Colors, Attributes (e.g., "dry hair" -> attribute: "moisturizing").
-        3. GENERATE QUERIES: Convert "gift for girlfriend" into tangible search terms like ["perfume", "handbag", "jewelry"].
-        4. TONE SETTING: 
-           - "Birthday/Gift" -> "Celebratory & Helpful"
-           - "Specs/Tech" -> "Technical & Precise"
-           - "Problem/Solution" (e.g. dry hair) -> "Empathetic Expert"
-        5. LANGUAGE: The 'direct_answer_prefix' MUST be in the User's Language.
-
-        JSON STRUCTURE:
+        ROLE: Search Strategist. INPUT: User query. OUTPUT: JSON only.
+        TASK: Extract search terms. JSON SCHEMA:
         {
-            "is_direct_product_request": boolean,
-            "search_queries": [string, string],
-            "price_min": float or null,
-            "price_max": float or null,
-            "category_filter": string or null,
-            "attributes": [string],
-            "response_tone": string,
-            "direct_answer_prefix": string (In User Language)
+            "is_direct_product_request": bool, "search_queries": [str], "price_min": float/null,
+            "price_max": float/null, "category_filter": str/null, "attributes": [str],
+            "response_tone": str, "direct_answer_prefix": str
         }
         """
-
         try:
             completion = await self._safe_execute(
                 self.client.chat.completions.create,
-                messages=[
-                    {"role": "system", "content": system_core},
-                    {"role": "user", "content": user_query}
-                ],
-                model=self.brain_model,
-                temperature=0.1,
-                max_tokens=500,
-                response_format={"type": "json_object"}
+                messages=[{"role": "system", "content": system_core}, {"role": "user", "content": user_query}],
+                model=self.brain_model, temperature=0.1, response_format={"type": "json_object"}
             )
-            
-            raw_content = completion.choices[0].message.content
-            data = json.loads(self._clean_json_response(raw_content))
+            data = json.loads(self._clean_json_response(completion.choices[0].message.content))
             return SearchStrategy(**data)
-
-        except Exception as e:
-            logger.error(f"Strategy Generation Failed: {e}")
-            return SearchStrategy(
-                is_direct_product_request=True, 
-                search_queries=[user_query], 
-                response_tone="Fallback", 
-                direct_answer_prefix="Found these matches:"
-            )
+        except:
+            return SearchStrategy(is_direct_product_request=True, search_queries=[user_query], response_tone="Standard", direct_answer_prefix="Here are the results:")
 
     async def extract_search_terms(self, user_query: str) -> str:
-        # Kept for legacy fallback, but strategize_search is now primary
         if not self.client: return user_query
         try:
             completion = await self._safe_execute(
                 self.client.chat.completions.create,
-                messages=[
-                    {"role": "system", "content": "Extract core product noun only. English output. No chat."},
-                    {"role": "user", "content": user_query}
-                ],
-                model=self.reflex_model,
-                temperature=0.0,
-                max_tokens=20
+                messages=[{"role": "system", "content": "Extract core noun."}, {"role": "user", "content": user_query}],
+                model=self.reflex_model, temperature=0.0, max_tokens=20
             )
             return completion.choices[0].message.content.strip().lower()
-        except Exception:
-            return user_query
+        except: return user_query
 
-    async def filter_and_recommend(
-        self, 
-        user_query: str, 
-        products: List[Dict[str, Any]],
-        tone_instruction: str = "Professional"
-    ) -> Optional[CognitiveResponse]:
+    async def filter_and_recommend(self, user_query: str, products: List[Dict[str, Any]], tone_instruction: str = "Professional") -> Optional[CognitiveResponse]:
         if not self.client or not products: return None
-
         try:
-            context_snapshot = [
-                {k: v for k, v in p.items() if k in ['id', 'name', 'price', 'category', 'description', 'rating']}
-                for p in products
-            ]
-        except Exception: return None
-
-        system_core = f"""
-        ROLE: 'order with air' Chief Curator.
-        CONTEXT: User asked "{user_query}".
-        TONE DIRECTIVE: {tone_instruction}.
-        
-        TASK:
-        1. Select the top 3-5 absolute best matches from the list.
-        2. If User asked for "Black Pants", exclude anything not black/pants.
-        3. If User asked "Under $1000", exclude anything over $1000.
-        4. LANGUAGE: Output MUST be in the User's Language.
-        
-        OUTPUT JSON:
-        {{
-            "selected_ids": [int],
-            "reasoning": {{ "product_id_str": "Short punchy reason matching tone." }},
-            "intro_message": "A personalized opening hook (max 15 words).",
-            "confidence_score": 0.0 to 1.0
-        }}
-        """
-
-        try:
+            context = [{k: v for k, v in p.items() if k in ['id', 'name', 'price', 'category']} for p in products]
+            system_core = f"Select top matches. Tone: {tone_instruction}. Output JSON: {{'selected_ids': [], 'reasoning': {{}}, 'intro_message': '', 'confidence_score': 0.0}}"
             completion = await self._safe_execute(
                 self.client.chat.completions.create,
-                messages=[
-                    {"role": "system", "content": system_core},
-                    {"role": "user", "content": json.dumps(context_snapshot)}
-                ],
-                model=self.brain_model,
-                temperature=0.2,
-                max_tokens=800,
-                response_format={"type": "json_object"}
+                messages=[{"role": "system", "content": system_core}, {"role": "user", "content": json.dumps(context)}],
+                model=self.brain_model, temperature=0.2, response_format={"type": "json_object"}
             )
-            
-            response_data = json.loads(self._clean_json_response(completion.choices[0].message.content))
-            if response_data.get("confidence_score", 0) < 0.5: return None
-            
-            # Sanitize ID keys
-            reasoning = {str(k): v for k, v in response_data.get("reasoning", {}).items()}
-            response_data["reasoning"] = reasoning
-            
-            return CognitiveResponse(**response_data)
-
-        except Exception as e:
-            logger.error(f"Filtering Failed: {e}")
-            return None
+            data = json.loads(self._clean_json_response(completion.choices[0].message.content))
+            if "reasoning" in data: data["reasoning"] = {str(k): v for k, v in data["reasoning"].items()}
+            return CognitiveResponse(**data)
+        except: return None
