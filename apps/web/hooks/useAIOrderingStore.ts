@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
 
-// --- TYPES DEFINITION ---
+// --- TYPES ---
 type PaymentGateway = {
   provider: string;
   clientSecret?: string;
@@ -46,7 +46,7 @@ interface AIOrderingState {
   suggestedProductIds: number[] | null;
 
   isLoading: boolean;
-  isProcessing: boolean; // Controls the UI Lock
+  isProcessing: boolean;
   isOverlayVisible: boolean;
   recoveryMode: boolean;
   recoveryReason: string;
@@ -153,10 +153,13 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         newSocket.onopen = () => {
             set({ socket: newSocket, socketStatus: 'connected', reconnectAttempts: 0 });
 
-            // Initial Handshake
+            // --- 🛠️ ARCHITECT FIX: FORCE SESSION SYNC ---
+            // If the frontend has no history (Fresh Load/Refresh), ensure Backend wipes state.
             const hasHistory = get().messages.length > 1;
             if (!hasHistory) {
-               // We send this silently to wake up the session
+               // 1. Wipe Old Cart (The Ghost Killer)
+               get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
+               // 2. Fetch New Suggestions
                get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__', {}, true);
             }
         };
@@ -190,7 +193,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
                     set({ socketStatus: 'error' });
                     get().addSocketAIMessage({
                         type: 'error',
-                        content: 'Connection lost. Please refresh the page.'
+                        content: 'Connection lost. Please refresh.'
                     });
                 }
             }
@@ -216,17 +219,14 @@ export const useAIOrderingStore = create<AIOrderingState>()(
 
     addSocketAIMessage: (response) => {
       set(produce((state: AIOrderingState) => {
-        // 1. Remove Typing Indicator
         state.messages = state.messages.filter(m => m.contentType !== 'typing');
         state.isLoading = false;
-
-        // 2. ARCHITECTURAL FIX: Unlock Processing on ANY message except explicit typing
-        // This prevents the "System processing..." infinite loop.
+        
+        // Resilience: Unlock UI on any message
         if (response.type !== 'typing') {
             state.isProcessing = false;
         }
 
-        // 3. Construct Message
         const aiMessage: Message = {
           id: generateMessageId(),
           sender: 'ai',
@@ -240,7 +240,6 @@ export const useAIOrderingStore = create<AIOrderingState>()(
           timestamp: Date.now(),
         };
 
-        // 4. Handle Special States
         if (response.type === 'payment_intent') {
           state.paymentDetails = response.content as PaymentDetails;
           state.recoveryMode = false;
@@ -256,7 +255,6 @@ export const useAIOrderingStore = create<AIOrderingState>()(
           aiMessage.content = response.content;
         }
 
-        // 5. Handle Cart Updates (Deduplication)
         if (response.type === 'cart_preview') {
             const lastMsg = state.messages[state.messages.length - 1];
             const isDuplicate = lastMsg &&
@@ -265,7 +263,6 @@ export const useAIOrderingStore = create<AIOrderingState>()(
 
             if (isDuplicate) return;
 
-            // Remove previous confirmations if cart changed
             if (response.content?.items?.length === 0) {
               state.messages = state.messages.filter(m => m.contentType !== 'confirmation_prompt');
             }
@@ -305,7 +302,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         state.suggestedProductIds = null;
       }));
 
-      // Fallback Timeout: If AI dies, unlock UI after 15 seconds
+      // Safety timeout
       setTimeout(() => {
           const { isProcessing, isLoading } = get();
           if (isProcessing || isLoading) {
@@ -318,7 +315,6 @@ export const useAIOrderingStore = create<AIOrderingState>()(
 
     _sendInternalCommand: (command, payload: any = {}, silent: boolean = false) => {
         const { socket } = get();
-
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
         if (!silent) {
@@ -333,13 +329,10 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     },
 
     setOverlayVisible: (isVisible) => set({ isOverlayVisible: isVisible }),
-
     setSuggestedProductIds: (ids) => set({ suggestedProductIds: ids }),
 
     addProductById: (product, startElementId) => {
         const { recoveryMode, messages } = get();
-
-        // Handle Recovery Logic
         if (recoveryMode) {
             const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
             const previousItems = lastCartMessage?.content?.items || [];
@@ -351,7 +344,6 @@ export const useAIOrderingStore = create<AIOrderingState>()(
             set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
         }
 
-        // Visual Flying Animation
         const newFlyItem: FlyItem = {
             animationId: `${product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             productId: product.id,
@@ -378,9 +370,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     },
 
     clearPayment: () => set({ paymentDetails: null }),
-
     clearCart: () => get()._sendInternalCommand('__INTERNAL_CLEAR_CART__'),
-
     confirmCurrentOrder: () => get().sendMessage('Confirm Order', true),
 
     triggerResetConfirmation: () => {
@@ -416,7 +406,6 @@ export const useAIOrderingStore = create<AIOrderingState>()(
             flyQueue: [],
         });
         messageIdCounter = 1;
-
         get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
         get().fetchInitialSuggestions();
     },
@@ -428,38 +417,20 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     initiateCheckoutRecovery: () => {
         const { paymentDetails, isProcessing } = get();
         if (!paymentDetails || isProcessing) return;
-
-        set({
-            isOverlayVisible: true,
-            paymentDetails: null,
-            recoveryOrderDetails: paymentDetails,
-            recoveryMode: true
-        });
-
+        set({ isOverlayVisible: true, paymentDetails: null, recoveryOrderDetails: paymentDetails, recoveryMode: true });
         get().addSocketAIMessage({
             type: 'recovery_prompt',
             content: "Wait! Your order isn't confirmed yet. Do you want to:",
             options: ["Restore Checkout", "Save for Later", "Cancel Order"]
         });
-
         get()._sendInternalCommand('__INTERNAL_INITIATE_RECOVERY__', { orderId: paymentDetails.orderId }, true);
     },
 
     restoreCheckout: () => {
         const { recoveryOrderDetails } = get();
         if (!recoveryOrderDetails) return;
-
-        set({
-            isOverlayVisible: true,
-            recoveryMode: false,
-            paymentDetails: recoveryOrderDetails,
-            recoveryOrderDetails: null,
-        });
-
-        get().addSocketAIMessage({
-            type: 'success_text',
-            content: "Done! Checkout restored. Let's finish your order."
-        });
+        set({ isOverlayVisible: true, recoveryMode: false, paymentDetails: recoveryOrderDetails, recoveryOrderDetails: null });
+        get().addSocketAIMessage({ type: 'success_text', content: "Done! Checkout restored. Let's finish your order." });
     },
 
     setRecoveryReason: (reason) => set({ recoveryReason: reason }),
@@ -473,27 +444,18 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     hardCancelOrder: (reason) => {
         const { recoveryOrderDetails, socket } = get();
         const sanitizedReason = (typeof reason === 'string' && reason) ? reason : 'changed_mind';
-
         if (!recoveryOrderDetails || !socket || socket.readyState !== WebSocket.OPEN) {
-            get().addSocketAIMessage({ type: 'error', content: 'Connection lost. Please refresh.' });
+            get().addSocketAIMessage({ type: 'error', content: 'Connection lost.' });
             return;
         }
-
         set({ isProcessing: true });
-
         socket.send(JSON.stringify({
             type: 'CANCEL_INTENT',
-            message: {
-                orderId: recoveryOrderDetails.orderId,
-                reason: sanitizedReason,
-            }
+            message: { orderId: recoveryOrderDetails.orderId, reason: sanitizedReason }
         }));
-
         set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
     },
 
-    cancelPaymentIntent: async () => {
-        get().hardCancelOrder(get().recoveryReason);
-    },
+    cancelPaymentIntent: async () => { get().hardCancelOrder(get().recoveryReason); },
   })
 );

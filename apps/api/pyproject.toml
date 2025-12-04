@@ -44,6 +44,7 @@ numpy = "<2.0.0"
 transformers = "^4.57.3"
 ujson = "^5.11.0"
 python-dotenv = "^1.2.1"
+duckduckgo-search = "^8.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
