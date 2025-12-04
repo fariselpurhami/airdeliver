@@ -3,7 +3,10 @@ name = "airdeliver-api"
 version = "1.0.0"
 description = "Backend API for airdeliver"
 authors = ["Faris Elpurhami"]
-package-mode = false
+
+packages = [
+    {include = "app"},
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"

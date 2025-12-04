@@ -315,15 +315,16 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
-    env_file: .env
     user: airdeliver
     restart: always
     stop_grace_period: 30s
+    env_file: .env
     environment:
-      - DATABASE_URI=${DATABASE_URL_ASYNC}
+      - DATABASE_URI=postgresql+asyncpg://postgres:postgres@postgres:5432/airdeliver
       - POSTGRES_SERVER=postgres
       - RABBITMQ_HOST=mq
       - REDIS_HOST=redis
+      - REDIS_URL=redis://redis:6379/0
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - MILVUS_URI=http://milvus:19530
@@ -345,6 +346,7 @@ services:
     
     command: >
       sh -c "
+      echo '🚀 Starting Worker with Auto-Reload...' &&
       /opt/venv/bin/watchfiles '/opt/venv/bin/python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'
       "
     logging: *default-logging

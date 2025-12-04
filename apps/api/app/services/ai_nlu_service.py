@@ -190,10 +190,10 @@ class AINLUService:
         products_data = [p.model_dump(mode='json') for p in selected]
         
         greeting_map = {
-            "morning": "Good morning! ☀️ Here's what's fresh today:",
-            "afternoon": "Good afternoon! 🚀 Trending picks for you:",
-            "evening": "Good evening! 🌙 Relax and browse our best:",
-            "night": "Late night browsing? 🦉 Check these out:"
+            "morning": "Good morning! ☀️  Your daily dose of inspiration has arrived.",
+            "afternoon": "Good afternoon! ✨ Highlights from today, picked just for you.",
+            "evening": "Good evening! 🌙 Relax and explore our most-loved items.",
+            "night": "Welcome, night owl. 🌙🦉 Your exclusive late-night edit awaits."
         }
 
         await self.rabbitmq.publish({
