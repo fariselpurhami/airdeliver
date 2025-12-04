@@ -4,26 +4,28 @@ import json
 import logging
 import os
 import asyncio
+import re
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from groq import AsyncGroq
 
 logger = logging.getLogger("airdeliver.services.cognitive_core")
 
-class ProductContext(BaseModel):
-    id: int
-    name: str
-    category: str
-    price: float
-    tags: Optional[List[str]] = []
-    description: Optional[str] = ""
-    attributes: Optional[Dict[str, Any]] = {}
+class SearchStrategy(BaseModel):
+    is_direct_product_request: bool
+    search_queries: List[str]
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
+    category_filter: Optional[str] = None
+    attributes: List[str] = []
+    response_tone: str
+    direct_answer_prefix: str
 
 class CognitiveResponse(BaseModel):
-    selected_ids: List[int] = Field(..., description="Top matching product IDs")
-    reasoning: Dict[int, str] = Field(..., description="The 'Why' behind the selection")
-    intro_message: str = Field(..., description="The persuasive hook")
-    confidence_score: float = Field(..., description="0.0 to 1.0 certainty metric")
+    selected_ids: List[int]
+    reasoning: Dict[str, str]
+    intro_message: str
+    confidence_score: float
 
 class FreeLLMService:
     _instance = None
@@ -65,44 +67,98 @@ class FreeLLMService:
                 if i == retries:
                     logger.error(f"Execution Exhausted: {e}")
                     raise e
-                await asyncio.sleep(0.5 * (2 ** i))
+                await asyncio.sleep(0.3 * (2 ** i))
+
+    def _clean_json_response(self, content: str) -> str:
+        content = content.strip()
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        return json_match.group(0) if json_match else content
+
+    async def strategize_search(self, user_query: str) -> SearchStrategy:
+        if not self.client:
+            return SearchStrategy(
+                is_direct_product_request=True, 
+                search_queries=[user_query], 
+                response_tone="Standard", 
+                direct_answer_prefix="Here is what I found:"
+            )
+
+        system_core = """
+        ROLE: Elite Commerce Intelligence Architect for 'order with air'.
+        MISSION: Decode user intent with forensic precision into a structured search strategy.
+        
+        INPUT: User natural language query (any language).
+        OUTPUT: JSON Object ONLY.
+
+        LOGIC GATES:
+        1. DETECT INTENT: Is it a specific item ("Red Nike Shoes") or a vibe ("Gift for girlfriend")?
+        2. EXTRACT CONSTRAINTS: 
+           - Price ranges (e.g., "under $1000" -> price_max: 1000).
+           - Sizes, Colors, Attributes (e.g., "dry hair" -> attribute: "moisturizing").
+        3. GENERATE QUERIES: Convert "gift for girlfriend" into tangible search terms like ["perfume", "handbag", "jewelry"].
+        4. TONE SETTING: 
+           - "Birthday/Gift" -> "Celebratory & Helpful"
+           - "Specs/Tech" -> "Technical & Precise"
+           - "Problem/Solution" (e.g. dry hair) -> "Empathetic Expert"
+        5. LANGUAGE: The 'direct_answer_prefix' MUST be in the User's Language.
+
+        JSON STRUCTURE:
+        {
+            "is_direct_product_request": boolean,
+            "search_queries": [string, string],
+            "price_min": float or null,
+            "price_max": float or null,
+            "category_filter": string or null,
+            "attributes": [string],
+            "response_tone": string,
+            "direct_answer_prefix": string (In User Language)
+        }
+        """
+
+        try:
+            completion = await self._safe_execute(
+                self.client.chat.completions.create,
+                messages=[
+                    {"role": "system", "content": system_core},
+                    {"role": "user", "content": user_query}
+                ],
+                model=self.brain_model,
+                temperature=0.1,
+                max_tokens=500,
+                response_format={"type": "json_object"}
+            )
+            
+            raw_content = completion.choices[0].message.content
+            data = json.loads(self._clean_json_response(raw_content))
+            return SearchStrategy(**data)
+
+        except Exception as e:
+            logger.error(f"Strategy Generation Failed: {e}")
+            return SearchStrategy(
+                is_direct_product_request=True, 
+                search_queries=[user_query], 
+                response_tone="Fallback", 
+                direct_answer_prefix="Found these matches:"
+            )
 
     async def consult_on_product(self, product_data: Dict[str, Any], user_question: str) -> str:
         if not self.client:
-            return f"This {product_data.get('name')} is a premium item."
+            return f"This {product_data.get('name')} is a premium selection."
 
         system_core = f"""
-        IDENTITY: You are 'order with air', a Hyper-Intelligent Global Commerce Architect.
-        MISSION: Analyze the product with 'Forensic Precision' and advise the user with 'Executive Authority'.
-
-        --- DATA INGESTION ---
-        PRODUCT: {json.dumps(product_data, default=str)}
-
-        --- POLYGLOT PROTOCOL (CRITICAL) ---
-        1. DETECT LANGUAGE: Identify the language of the User's Question (e.g., Arabic, French, Spanish).
-        2. MIRROR: Respond STRICTLY in that same language and dialect.
-        3. ADAPT: If speaking Arabic, use professional yet warm Arabic (Modern Standard or polite dialect).
-
-        --- COGNITIVE PROTOCOLS ---
+        IDENTITY: 'order with air' - The Definitive Global Commerce Interface.
+        TARGET: Provide an executive summary of the product strictly related to the user's need.
         
-        PHASE 1: DOMAIN RECOGNITION
-        - Scan the product category.
-        - *IF Tech:* Adopt persona of **Senior Systems Architect**.
-        - *IF Beauty:* Adopt persona of **Clinical Dermatologist**.
-        - *IF Fashion:* Adopt persona of **Creative Director**.
-        - *IF Home:* Adopt persona of **Material Engineer**.
-
-        PHASE 2: THE BRIDGE (Feature -> Benefit)
-        - NEVER output a raw spec.
-        - *Arabic Example:* Instead of "فيه بطارية 5000"، Say: "بطارية الـ 5000 ملي أمبير تضمن لك يوماً كاملاً من العمل الشاق دون الحاجة للشاحن."
-        - *English Example:* "The '5000mAh battery' ensures all-day endurance..."
-
-        PHASE 3: TRUTH ANCHORING
-        - If features are missing, do not hallucinate. Use deductive reasoning based on category.
-
-        --- OUTPUT GUIDELINES ---
-        - Format: 3 Sentences Max.
-        - Style: Start directly with the verdict. Use single quotes for specs.
+        DATA: {json.dumps(product_data, default=str)}
+        
+        PROTOCOL:
+        1. LANGUAGE: Respond in the EXACT language/dialect of the User Question.
+        2. PERSONA ADAPTATION:
+           - Tech: Senior Engineer.
+           - Fashion/Gift: Personal Stylist.
+           - Beauty/Health: Clinical Specialist.
+        3. NO FLUFF: Maximum 2 sentences. High impact.
+        4. FACTUALITY: Do not hallucinate features not present in data.
         """
 
         try:
@@ -113,73 +169,63 @@ class FreeLLMService:
                     {"role": "user", "content": user_question}
                 ],
                 model=self.brain_model,
-                temperature=0.35, 
-                max_tokens=400
+                temperature=0.3,
+                max_tokens=300
             )
-            return completion.choices[0].message.content.strip().replace("**", "").replace("__", "")
+            return completion.choices[0].message.content.strip()
         except Exception:
-            return f"This {product_data.get('name')} is designed for performance and reliability."
+            return f"Excellent choice. The {product_data.get('name')} stands out in its category."
 
     async def extract_search_terms(self, user_query: str) -> str:
+        # Kept for legacy fallback, but strategize_search is now primary
         if not self.client: return user_query
-
-        system_core = """
-        TASK: Multilingual Semantic Extraction.
-        GOAL: Isolate the PHYSICAL OBJECT NOUN from user noise, translate concept to English for search matching if needed, OR keep as native if it's a proper noun.
-        
-        RULES:
-        1. STRIP: Adjectives, Emotions, Prices.
-        2. TRANSLATION LOGIC:
-           - If user asks in Arabic "عايز موبايل سامسونج", output "mobile" or "samsung".
-           - "حذاء رياضي" -> "shoes"
-        3. OUTPUT: Single English lowercase word preferred for Database Indexing.
-        """
-
         try:
             completion = await self._safe_execute(
                 self.client.chat.completions.create,
                 messages=[
-                    {"role": "system", "content": system_core},
+                    {"role": "system", "content": "Extract core product noun only. English output. No chat."},
                     {"role": "user", "content": user_query}
                 ],
                 model=self.reflex_model,
-                temperature=0.0, 
+                temperature=0.0,
                 max_tokens=20
             )
-            clean_term = completion.choices[0].message.content.strip().lower()
-            return "".join(ch for ch in clean_term if ch.isalnum() or ch.isspace()).strip()
+            return completion.choices[0].message.content.strip().lower()
         except Exception:
             return user_query
 
     async def filter_and_recommend(
         self, 
         user_query: str, 
-        products: List[Dict[str, Any]]
+        products: List[Dict[str, Any]],
+        tone_instruction: str = "Professional"
     ) -> Optional[CognitiveResponse]:
         if not self.client or not products: return None
 
         try:
             context_snapshot = [
-                ProductContext(**{k: v for k, v in p.items() if k in ProductContext.model_fields}).model_dump()
+                {k: v for k, v in p.items() if k in ['id', 'name', 'price', 'category', 'description', 'rating']}
                 for p in products
             ]
         except Exception: return None
 
         system_core = f"""
-        ROLE: The Grand Curator of 'order with air'.
-        INPUT: Query "{user_query}" vs Inventory.
-
-        PROTOCOL:
-        1. DETECT LANGUAGE: Identify user's language.
-        2. MATCH: Find products matching the nuance.
-        3. NARRATE: Generate reasoning/intro in the **USER'S DETECTED LANGUAGE**.
+        ROLE: 'order with air' Chief Curator.
+        CONTEXT: User asked "{user_query}".
+        TONE DIRECTIVE: {tone_instruction}.
         
-        OUTPUT JSON FORMAT:
+        TASK:
+        1. Select the top 3-5 absolute best matches from the list.
+        2. If User asked for "Black Pants", exclude anything not black/pants.
+        3. If User asked "Under $1000", exclude anything over $1000.
+        4. LANGUAGE: Output MUST be in the User's Language.
+        
+        OUTPUT JSON:
         {{
-            "selected_ids": [int, int],
-            "reasoning": {{ "id": "Reasoning in User's Language." }},
-            "intro_message": "Opening hook in User's Language.",
-            "confidence_score": 0.95
+            "selected_ids": [int],
+            "reasoning": {{ "product_id_str": "Short punchy reason matching tone." }},
+            "intro_message": "A personalized opening hook (max 15 words).",
+            "confidence_score": 0.0 to 1.0
         }}
         """
 
@@ -191,17 +237,20 @@ class FreeLLMService:
                     {"role": "user", "content": json.dumps(context_snapshot)}
                 ],
                 model=self.brain_model,
-                temperature=0.25,
-                max_tokens=700,
+                temperature=0.2,
+                max_tokens=800,
                 response_format={"type": "json_object"}
             )
             
-            response_data = json.loads(completion.choices[0].message.content)
+            response_data = json.loads(self._clean_json_response(completion.choices[0].message.content))
+            if response_data.get("confidence_score", 0) < 0.5: return None
             
-            if response_data.get("confidence_score", 0) < 0.6:
-                return None
-                
+            # Sanitize ID keys
+            reasoning = {str(k): v for k, v in response_data.get("reasoning", {}).items()}
+            response_data["reasoning"] = reasoning
+            
             return CognitiveResponse(**response_data)
 
-        except Exception:
+        except Exception as e:
+            logger.error(f"Filtering Failed: {e}")
             return None

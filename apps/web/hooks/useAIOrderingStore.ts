@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
 
+// --- TYPES DEFINITION ---
 type PaymentGateway = {
   provider: string;
   clientSecret?: string;
@@ -45,7 +46,7 @@ interface AIOrderingState {
   suggestedProductIds: number[] | null;
 
   isLoading: boolean;
-  isProcessing: boolean;
+  isProcessing: boolean; // Controls the UI Lock
   isOverlayVisible: boolean;
   recoveryMode: boolean;
   recoveryReason: string;
@@ -152,10 +153,11 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         newSocket.onopen = () => {
             set({ socket: newSocket, socketStatus: 'connected', reconnectAttempts: 0 });
 
+            // Initial Handshake
             const hasHistory = get().messages.length > 1;
             if (!hasHistory) {
-               get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
-               get().fetchInitialSuggestions();
+               // We send this silently to wake up the session
+               get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__', {}, true);
             }
         };
 
@@ -164,7 +166,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
                 const response = JSON.parse(event.data);
                 get().addSocketAIMessage(response);
             } catch (e) {
-                console.error(e);
+                console.error("Socket Parse Error:", e);
             }
         };
 
@@ -188,18 +190,18 @@ export const useAIOrderingStore = create<AIOrderingState>()(
                     set({ socketStatus: 'error' });
                     get().addSocketAIMessage({
                         type: 'error',
-                        content: 'Connection lost. Please refresh the page to reconnect.'
+                        content: 'Connection lost. Please refresh the page.'
                     });
                 }
             }
         };
 
         newSocket.onerror = () => {
-            set({ socketStatus: 'error' });
+            set({ socketStatus: 'error', isProcessing: false, isLoading: false });
         };
 
       } catch (e) {
-          set({ socketStatus: 'error' });
+          set({ socketStatus: 'error', isProcessing: false, isLoading: false });
       }
     },
 
@@ -214,9 +216,17 @@ export const useAIOrderingStore = create<AIOrderingState>()(
 
     addSocketAIMessage: (response) => {
       set(produce((state: AIOrderingState) => {
+        // 1. Remove Typing Indicator
         state.messages = state.messages.filter(m => m.contentType !== 'typing');
         state.isLoading = false;
 
+        // 2. ARCHITECTURAL FIX: Unlock Processing on ANY message except explicit typing
+        // This prevents the "System processing..." infinite loop.
+        if (response.type !== 'typing') {
+            state.isProcessing = false;
+        }
+
+        // 3. Construct Message
         const aiMessage: Message = {
           id: generateMessageId(),
           sender: 'ai',
@@ -230,15 +240,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
           timestamp: Date.now(),
         };
 
-        const typesThatEndProcessing = [
-          'payment_intent', 'ORDER_CANCELLED', 'error',
-          'success_text', 'confirmation_prompt', 'proactive_suggestion', 'recovery_prompt', 'product_carousel'
-        ];
-
-        if (typesThatEndProcessing.includes(response.type)) {
-          state.isProcessing = false;
-        }
-
+        // 4. Handle Special States
         if (response.type === 'payment_intent') {
           state.paymentDetails = response.content as PaymentDetails;
           state.recoveryMode = false;
@@ -254,6 +256,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
           aiMessage.content = response.content;
         }
 
+        // 5. Handle Cart Updates (Deduplication)
         if (response.type === 'cart_preview') {
             const lastMsg = state.messages[state.messages.length - 1];
             const isDuplicate = lastMsg &&
@@ -262,6 +265,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
 
             if (isDuplicate) return;
 
+            // Remove previous confirmations if cart changed
             if (response.content?.items?.length === 0) {
               state.messages = state.messages.filter(m => m.contentType !== 'confirmation_prompt');
             }
@@ -301,6 +305,14 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         state.suggestedProductIds = null;
       }));
 
+      // Fallback Timeout: If AI dies, unlock UI after 15 seconds
+      setTimeout(() => {
+          const { isProcessing, isLoading } = get();
+          if (isProcessing || isLoading) {
+              set({ isProcessing: false, isLoading: false });
+          }
+      }, 15000);
+
       get()._sendInternalCommand(text, {}, true);
     },
 
@@ -327,12 +339,11 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     addProductById: (product, startElementId) => {
         const { recoveryMode, messages } = get();
 
+        // Handle Recovery Logic
         if (recoveryMode) {
             const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
             const previousItems = lastCartMessage?.content?.items || [];
-
             set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
-
             previousItems.forEach((item: any) => {
                  get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${item.product_id}`, {}, true);
             });
@@ -340,6 +351,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
             set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
         }
 
+        // Visual Flying Animation
         const newFlyItem: FlyItem = {
             animationId: `${product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             productId: product.id,
@@ -463,9 +475,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         const sanitizedReason = (typeof reason === 'string' && reason) ? reason : 'changed_mind';
 
         if (!recoveryOrderDetails || !socket || socket.readyState !== WebSocket.OPEN) {
-            if (!socket || socket.readyState !== WebSocket.OPEN) {
-                get().addSocketAIMessage({ type: 'error', content: 'Connection lost. Please refresh or try again later.' });
-            }
+            get().addSocketAIMessage({ type: 'error', content: 'Connection lost. Please refresh.' });
             return;
         }
 
