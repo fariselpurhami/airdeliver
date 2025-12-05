@@ -2,13 +2,14 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2, PackageSearch, ScanBarcode, Sparkles, Database, Wifi } from 'lucide-react';
+import { X, Loader2, PackageSearch, ScanBarcode, Sparkles, Database, Wifi, Plus, ShoppingBag } from 'lucide-react';
 import ProductList from './Productlist'; 
 import { type Product } from '@/types'; 
 import useSWR from 'swr';
 import { api } from '@/lib/api';
+import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; // ✅ IMPORTED BRAIN
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
@@ -30,6 +31,79 @@ const LoadingSpinner = () => (
         </div>
     </div>
 );
+
+// --- 🚀 WORLD-CLASS ADD BUTTON COMPONENT ---
+const AddToManifestButton = ({ products }: { products: Product[] }) => {
+    const { addProductById } = useAIOrderingStore();
+    const [isFlying, setIsFlying] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+
+    const handleQuickAdd = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        // 1. Logic: Add the first available/featured product or a system pick
+        // For UX, we pick the first one as a "Quick Add" demo, or ideally a selected one.
+        // Here we simulate adding the "Top Pick" (first item).
+        const productToAdd = products[0];
+        
+        if (productToAdd) {
+            // Trigger Global Logic (this handles the actual cart state)
+            addProductById(productToAdd, 'quick-manifest-btn');
+            
+            // 2. Local Animation Trigger
+            setIsFlying(true);
+            setTimeout(() => setIsFlying(false), 1000);
+        }
+    };
+
+    return (
+        <div className="relative group">
+            <motion.button
+                id="quick-manifest-btn"
+                ref={btnRef}
+                onClick={handleQuickAdd}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative overflow-hidden flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 border border-cyan-400/30 text-white font-bold uppercase tracking-wider text-xs shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] transition-all duration-300"
+            >
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                <Plus size={16} className="text-cyan-100" />
+                <span className="relative z-10">Add to Manifest</span>
+                
+                {/* Active Pulse Ring */}
+                <span className="absolute -inset-1 rounded-2xl border border-cyan-400/0 group-hover:border-cyan-400/50 group-hover:animate-ping opacity-20 pointer-events-none" />
+            </motion.button>
+
+            {/* ✈️ THE 45-DEGREE FLIGHT PARTICLE ✈️ */}
+            <AnimatePresence>
+                {isFlying && (
+                    <motion.div
+                        initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+                        animate={{ 
+                            x: -300, // Move Left
+                            y: 300,  // Move Down (creating 45 degree angle towards bottom-left)
+                            opacity: 0, 
+                            scale: 0.5,
+                            rotate: -45 
+                        }}
+                        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} // Bezier for "launch" feel
+                        className="absolute top-1/2 left-1/2 z-50 pointer-events-none"
+                    >
+                        <div className="relative p-2 bg-cyan-400 rounded-full shadow-[0_0_30px_rgba(6,182,212,1)]">
+                            <ShoppingBag size={20} className="text-black fill-black" />
+                            {/* Trail Effect */}
+                            <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: 100 }}
+                                className="absolute right-0 top-1/2 h-1 bg-gradient-to-l from-cyan-400 to-transparent -translate-y-1/2 origin-right"
+                            />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
 
 export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     
@@ -100,12 +174,15 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                                 </div>
                             </div>
 
-                            <button
-                                onClick={onClose}
-                                className="group p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all duration-300 backdrop-blur-sm"
-                            >
-                                <X size={22} className="group-hover:rotate-90 transition-transform duration-300" />
-                            </button>
+                            <div className="flex items-center gap-4">
+
+                                <button
+                                    onClick={onClose}
+                                    className="group p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all duration-300 backdrop-blur-sm"
+                                >
+                                    <X size={22} className="group-hover:rotate-90 transition-transform duration-300" />
+                                </button>
+                            </div>
                         </header>
                    
                         
