@@ -1,5 +1,6 @@
 # apps/api/app/services/ai_cart_service.py
 
+import logging
 from app.services.cache_service import IAsyncCacheClient
 from app.services.rabbitmq_service import RabbitMQService
 from app.models.product import Product
