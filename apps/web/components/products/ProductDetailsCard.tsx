@@ -6,18 +6,27 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Check, Rocket, Package, TrendingUp, Bot, Star, ShieldCheck, Zap } from 'lucide-react';
 import Image from 'next/image';
-import { useCartStore } from '@/hooks/useCartStore';
+import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; // ✅ REPLACED: useCartStore -> useAIOrderingStore
 import { type Product } from './ProductCard';
 
 export const ProductDetailsCard = ({ product, onClose }: { product: Product, onClose: () => void }) => {
-    const { addToCart } = useCartStore();
+    
+    // ✅ AI LINK: Using the Global AI Store
+    const addProductById = useAIOrderingStore((state) => state.addProductById);
+    
     const [isAdded, setIsAdded] = useState(false);
+    // Unique ID for the button to serve as the start point for the flight animation
+    const uniqueBtnId = `details-add-btn-${product.id}`; 
 
     const handleAddToCart = (e: React.MouseEvent) => {
         e.stopPropagation();
-        addToCart(product);
+        
+        // 🚀 ACTION: Trigger AI Logic & Flight Animation
+        // This will make the product fly from this button to the Order With Air icon
+        addProductById(product, uniqueBtnId);
+        
         setIsAdded(true);
-        setTimeout(() => setIsAdded(false), 1500);
+        setTimeout(() => setIsAdded(false), 2000);
     };
 
     return (
@@ -149,12 +158,13 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
-                                className="w-full py-4 rounded-2xl bg-green-500 text-black font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.4)]"
+                                className="w-full py-4 rounded-2xl bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
                             >
                                 <Check size={20} /> System Acquired
                             </motion.button>
                         ) : (
                             <motion.button 
+                                id={uniqueBtnId}
                                 key="add" 
                                 onClick={handleAddToCart} 
                                 className="group w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold uppercase tracking-widest flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:scale-[1.02]"
