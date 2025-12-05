@@ -14,7 +14,7 @@ import { Star } from 'lucide-react';
 import React, { Suspense, useRef, useMemo, useEffect, useState, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Preload, Float, Line, Text, useTexture, OrbitControls, Stars } from '@react-three/drei';
-import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue, type MotionValue } from 'framer-motion';
+import { motion, useScroll, AnimatePresence, useSpring, useInView, useTransform, useMotionValue, type MotionValue } from 'framer-motion';
 import { Bot, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map } from 'lucide-react';
 import { X } from 'lucide-react'; 
 import * as THREE from 'three';
@@ -59,9 +59,17 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
   const messages = useAIOrderingStore((state) => state.messages);
 
   const hasActiveOrder = useMemo(() => {
-    const lastCartMsg = [...messages].reverse().find(m => m.contentType === 'cart_preview');
-    return lastCartMsg?.content?.items?.length > 0;
+    
+    const cartUpdates = messages.filter(m => m.contentType === 'cart_preview');
+    
+    if (cartUpdates.length === 0) return false;
+
+    const latestCartMsg = cartUpdates[cartUpdates.length - 1];
+
+    const items = latestCartMsg?.content?.items;
+    return Array.isArray(items) && items.length > 0;
   }, [messages]);
+
 
   return (
     <section ref={containerRef} className="relative h-screen w-full overflow-hidden">
@@ -118,21 +126,67 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
 
           <motion.button
             onClick={onOrderClick}
-            // Logic: Simulate the exact hover state (Scale 1.05) repeatedly
-            animate={hasActiveOrder ? { scale: [1, 1.05, 1] } : { scale: 1 }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-            className="group relative inline-flex items-center justify-center px-6 py-6 text-black font-medium bg-white text-xl rounded-full shadow-lg transition-transform duration-300 hover:scale-105 overflow-hidden"
+            // 1. Original Interaction: Zoom on Hover
+            whileHover={{ scale: 1.05 }} 
+            whileTap={{ scale: 0.95 }}
+            
+            // 2. Active Pulse State: Slow breathing if items exist
+            animate={hasActiveOrder ? {
+                scale: [1, 1.02, 1], // Subtle breathing
+                boxShadow: [
+                    "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                    "0 0 30px rgba(0, 198, 255, 0.4)", // Glow pulse
+                    "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
+                ]
+            } : {
+                scale: 1,
+                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
+            }}
+            transition={{ 
+                duration: 2.5, // Slow and calm
+                repeat: Infinity, 
+                ease: "easeInOut" 
+            }}
+            
+            className="group relative inline-flex items-center justify-center px-6 py-6 text-black font-medium bg-white text-xl rounded-full shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
           >
-            {/* Logic: Simulate the exact hover state (Opacity 1) repeatedly */}
-            <motion.span 
-                className="absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                animate={hasActiveOrder ? { opacity: [0, 1, 0] } : { opacity: 0 }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <span className="relative flex items-center font-light">
-                order with air 
-                <Bot className="ml-2 h-5 w-5" />
+            {/* 3. Background Logic: 
+                - Normal: Hidden, appears on hover.
+                - Active: Always visible (opacity-100), same as hover.
+            */}
+            <span className={`absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] transition-opacity duration-500 ${
+                hasActiveOrder ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            }`} />
+            
+            {/* 4. Text & Icon */}
+            <span className="relative flex items-center font-light z-10">
+                {/* Text stays black normally, turns white if background is visible (Active OR Hover) */}
+                <span className={`transition-colors duration-300 ${hasActiveOrder ? 'text-white' : 'text-black group-hover:text-white'}`}>
+                    order with air
+                </span>
+                
+                {/* AI Icon: Bounce when active */}
+                <Bot className={`ml-2 h-5 w-5 transition-all duration-300 ${
+                    hasActiveOrder 
+                        ? 'text-white animate-bounce' 
+                        : 'text-black group-hover:text-white'
+                }`} />
             </span>
+
+            {/* 5. The "Alive" Signal Dot */}
+            <AnimatePresence>
+                {hasActiveOrder && (
+                    <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0 }}
+                        className="absolute top-4 right-4 flex h-3 w-3 z-20"
+                    >
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                    </motion.span>
+                )}
+            </AnimatePresence>
           </motion.button>
 
           <button
