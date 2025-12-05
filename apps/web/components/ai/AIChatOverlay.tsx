@@ -8,9 +8,9 @@ import {
     Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, 
     ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, 
     ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap, 
-    Activity, Signal, Gauge, Battery, BrainCircuit 
+    Activity, Signal, Gauge, Battery, BrainCircuit, Lock 
 } from 'lucide-react';
-import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
+import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore'; //
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
 import { loadStripe, StripeElementsOptions, Stripe } from '@stripe/stripe-js';
@@ -606,14 +606,26 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const { data: session, status } = useSession();
     const chatEndRef = useRef<HTMLDivElement>(null);
 
+    // ✅🔥 GOLDEN FIX: STABILIZED CONNECTION LOGIC 🔥✅
+    // 1. We use 'currentAccessToken' to track the TOKEN string, not the Session Object.
+    // 2. We use 'isConnectedRef' to prevent double-connecting in Strict Mode.
+    // 3. We removed the auto-disconnect on unmount to keep background state alive.
+    const currentAccessToken = session?.accessToken;
+    const isConnectedRef = useRef(false);
+
     useEffect(() => {
-        if (isOpen && status === 'authenticated' && session?.accessToken) {
-            actions.connectSocket(session.accessToken);
+        // Only trigger if we have a token and we haven't marked it as connected yet
+        if (status === 'authenticated' && currentAccessToken && !isConnectedRef.current) {
+            isConnectedRef.current = true; // Mark as connected
+            actions.connectSocket(currentAccessToken);
+        } else if (status === 'unauthenticated') {
+             // Explicit disconnect only if user logs out
+             isConnectedRef.current = false;
+             actions.disconnectSocket();
         }
-        return () => {
-            if (!isOpen) actions.disconnectSocket();
-        };
-    }, [isOpen, status, session, actions.connectSocket, actions.disconnectSocket]);
+        
+        // NO CLEANUP FUNCTION HERE. This keeps the socket alive during page navigation.
+    }, [status, currentAccessToken, actions]);
 
     useEffect(() => {
         if (chatEndRef.current) {

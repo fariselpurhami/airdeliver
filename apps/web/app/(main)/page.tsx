@@ -56,6 +56,12 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
     offset: ['start start', 'end start'],
   });
   const parallaxY = useTransform(scrollYProgress, [0, 1], ['0%', '50%']);
+  const messages = useAIOrderingStore((state) => state.messages);
+
+  const hasActiveOrder = useMemo(() => {
+    const lastCartMsg = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+    return lastCartMsg?.content?.items?.length > 0;
+  }, [messages]);
 
   return (
     <section ref={containerRef} className="relative h-screen w-full overflow-hidden">
@@ -110,13 +116,24 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
         >
 
-          <button
+          <motion.button
             onClick={onOrderClick}
+            // Logic: Simulate the exact hover state (Scale 1.05) repeatedly
+            animate={hasActiveOrder ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
             className="group relative inline-flex items-center justify-center px-6 py-6 text-black font-medium bg-white text-xl rounded-full shadow-lg transition-transform duration-300 hover:scale-105 overflow-hidden"
           >
-            <span className="absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <span className="relative flex items-center font-light">order with air <Bot className="ml-2 h-5 w-5" /></span>
-          </button>
+            {/* Logic: Simulate the exact hover state (Opacity 1) repeatedly */}
+            <motion.span 
+                className="absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                animate={hasActiveOrder ? { opacity: [0, 1, 0] } : { opacity: 0 }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <span className="relative flex items-center font-light">
+                order with air 
+                <Bot className="ml-2 h-5 w-5" />
+            </span>
+          </motion.button>
 
           <button
 	    onClick={onExploreClick}

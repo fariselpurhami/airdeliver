@@ -11,13 +11,17 @@ import { type Product } from '@/types';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
-import { AlertTriangle, Cpu, Eye, ShoppingBag, Check, Zap, Tag, Layers, ScanLine } from 'lucide-react';
+import { AlertTriangle, Cpu, Eye, ShoppingBag, Check, Zap, Tag, Layers, ScanLine, Bot, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { useCartStore } from '@/hooks/useCartStore';
 import { ProductDetailsCard } from '@/components/products/ProductDetailsCard';
+import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 
+// --- TYPES & FETCHER ---
 const fetcher = (url: string) => api.get(url).then(res => res.data);
+
+const CATEGORIES = ["ALL", "FASHION", "BEAUTY", "ELECTRONICS", "ACCESSORIES"];
+const ITEMS_PER_PAGE = 100;
 
 // ============================================================================
 // --- 1. ARCHITECTURAL BACKGROUND (The Cosmos) ---
@@ -57,7 +61,65 @@ const DynamicProductsBackground = dynamic(() => Promise.resolve(ProductsBackgrou
 });
 
 // ============================================================================
-// --- 2. SKELETONS (Loading States) ---
+// --- 2. ANIMATION UTILS (The FlyToCart Logic - CORRECTED) ---
+// ============================================================================
+
+// ✅ CORRECTED: animation flies to the LEFT edge of the screen (simulating travel to Home)
+const PageFlyToCartAnimator = () => {
+  const flyQueue = useAIOrderingStore((state) => state.flyQueue);
+  const removeFlyItem = useAIOrderingStore((state) => state.removeFlyItem);
+
+  const getStartPosition = (startElementId: string) => {
+    if (!startElementId) return { x: window.innerWidth / 2, y: window.innerHeight / 2, width: 0, height: 0 };
+    const el = document.getElementById(startElementId);
+    if (el) return el.getBoundingClientRect();
+    return { x: window.innerWidth / 2, y: window.innerHeight / 2, width: 100, height: 100 };
+  };
+
+  return (
+    <AnimatePresence>
+      {flyQueue.map((item) => {
+          const startRect = getStartPosition(item.startElementId);
+          
+          if (!startRect || startRect.width === 0) return null;
+
+          return (
+            <motion.div
+              key={item.animationId} 
+              className="fixed z-[9999] rounded-xl overflow-hidden border border-cyan-500/80 shadow-[0_0_30px_rgba(6,182,212,0.8)]"
+              initial={{ 
+                  top: startRect.top, 
+                  left: startRect.left, 
+                  width: startRect.width, 
+                  height: startRect.height, 
+                  opacity: 1, 
+                  rotate: 0 
+              }}
+              animate={{ 
+                  // 🚀 FLIGHT PATH: Flies towards the vertical center-left of the screen
+                  top: window.innerHeight / 2, 
+                  left: -100, // Flies off-screen to the left
+                  width: 20, 
+                  height: 20, 
+                  opacity: 0, // Fades out as it exits
+                  rotate: -45, // Slight tilt towards flight direction
+                  scale: 0.5 
+              }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.8, ease: "easeIn" }} // Faster, accelerating exit
+              onAnimationComplete={() => removeFlyItem(item.animationId)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={item.image} alt="product" className="w-full h-full object-cover" />
+            </motion.div>
+          );
+      })}
+    </AnimatePresence>
+  );
+};
+
+// ============================================================================
+// --- 3. SKELETONS (Loading States) ---
 // ============================================================================
 
 const BannerSkeleton = () => (
@@ -87,17 +149,23 @@ const ProductListSkeleton = () => (
 );
 
 // ============================================================================
-// --- 3. ARCHITECTURAL PRODUCT CARD (The "Pod") ---
+// --- 4. ARCHITECTURAL PRODUCT CARD ---
 // ============================================================================
 const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: Product) => void }) => {
-    const { addToCart } = useCartStore();
+    const addProductById = useAIOrderingStore((state) => state.addProductById);
+    
     const [isAdded, setIsAdded] = useState(false);
+    const uniqueBtnId = `add-to-manifest-${product.id}`; 
 
     const handleAddToCart = (e: React.MouseEvent) => {
         e.stopPropagation();
-        addToCart(product);
+        
+        // This triggers the fly animation (configured above to go Left)
+        // And updates the store, which will eventually make the Home button glow.
+        addProductById(product, uniqueBtnId); 
+        
         setIsAdded(true);
-        setTimeout(() => setIsAdded(false), 1500);
+        setTimeout(() => setIsAdded(false), 2000);
     };
 
     return (
@@ -125,6 +193,7 @@ const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: 
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 >
                     <Image
+                        id={`product-img-${product.id}`} 
                         src={product.image_url || '/images/default.jpeg'}
                         alt={product.name}
                         fill
@@ -164,13 +233,14 @@ const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: 
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -10 }}
-                                className="w-full py-3 rounded-2xl bg-green-500/20 border border-green-500/50 text-green-300 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                                className="w-full py-3 rounded-2xl bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)]"
                             >
-                                <Check size={16} /> Acquired
+                                <Zap size={16} className="fill-cyan-300" /> Uplinked
                             </motion.button>
                         ) : (
                             <div className="flex gap-2">
                                 <motion.button 
+                                    id={uniqueBtnId}
                                     key="add"
                                     onClick={handleAddToCart}
                                     whileHover={{ scale: 1.02 }}
@@ -178,7 +248,7 @@ const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: 
                                     className="flex-1 py-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500 hover:text-black font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 group/btn"
                                 >
                                     <ShoppingBag size={16} className="group-hover/btn:text-black transition-colors" /> 
-                                    <span className="group-hover/btn:text-black">Add to Cart</span>
+                                    <span className="group-hover/btn:text-black">Add to Manifest</span>
                                 </motion.button>
                                 <motion.button
                                     key="view"
@@ -213,7 +283,7 @@ const ProductList = ({ products, onOpen }: { products: Product[], onOpen: (produ
 
 
 // ============================================================================
-// --- 4. AI FEATURED MODULE (The Core) ---
+// --- 5. AI FEATURED MODULE ---
 // ============================================================================
 const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) => void }) => {
     const { data: session, status } = useSession();
@@ -312,8 +382,36 @@ const ArrowRightIcon = ({ className }: { className?: string }) => (
 );
 
 // ============================================================================
-// --- 5. ERROR COMPONENT ---
+// --- 6. PAGINATION & ERROR ---
 // ============================================================================
+
+const Pagination = ({ page, setPage, hasMore }: { page: number, setPage: (p: number) => void, hasMore: boolean }) => (
+    <div className="flex justify-center items-center gap-4 mt-16">
+        <button
+            disabled={page === 1}
+            onClick={() => {
+                setPage(page - 1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="p-3 rounded-xl bg-white/5 border border-white/10 text-white disabled:opacity-30 hover:bg-white/10 transition-all"
+        >
+            <ChevronLeft size={20} />
+        </button>
+        <span className="font-mono text-cyan-400 text-sm tracking-widest px-4 py-2 border border-cyan-500/30 rounded-lg bg-cyan-950/20">
+            PAGE {page.toString().padStart(2, '0')}
+        </span>
+        <button
+            disabled={!hasMore}
+            onClick={() => {
+                setPage(page + 1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="p-3 rounded-xl bg-white/5 border border-white/10 text-white disabled:opacity-30 hover:bg-white/10 transition-all"
+        >
+            <ChevronRight size={20} />
+        </button>
+    </div>
+);
 
 const ErrorDisplay = ({ error }: { error: any }) => (
     <div className="flex flex-col items-center justify-center text-center py-20 px-6">
@@ -332,22 +430,34 @@ const ErrorDisplay = ({ error }: { error: any }) => (
 );
 
 // ============================================================================
-// --- 6. MAIN PAGE COMPONENT (The Terminal) ---
+// --- 7. MAIN PAGE COMPONENT (The Terminal) ---
 // ============================================================================
 
 export default function ProductsPage() {
-    const { data: productsData, error, isLoading } = useSWR<Product[] | { items: Product[] }>(
-        '/products/',
-        fetcher,
-        { revalidateOnFocus: false }
-    );
-
+    const [page, setPage] = useState(1);
+    const [category, setCategory] = useState("ALL");
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+    const queryKey = `/products/?page=${page}&limit=${ITEMS_PER_PAGE}&category=${category !== 'ALL' ? category.toLowerCase() : ''}`;
+    
+    const { data: productsData, error, isLoading } = useSWR<Product[] | { items: Product[], total: number }>(
+        queryKey,
+        fetcher,
+        { 
+            revalidateOnFocus: false,
+            keepPreviousData: true 
+        }
+    );
 
     const products = useMemo(() => {
         if (!productsData) return [];
         return Array.isArray(productsData) ? productsData : productsData.items || [];
     }, [productsData]);
+
+    const hasMore = useMemo(() => {
+        if (products.length < ITEMS_PER_PAGE) return false;
+        return true; 
+    }, [products]);
 
     const handleOpen = (product: Product) => {
         setSelectedProduct(product);
@@ -359,8 +469,14 @@ export default function ProductsPage() {
         document.body.style.overflow = '';
     };
 
+    const handleCategoryChange = (cat: string) => {
+        setCategory(cat);
+        setPage(1);
+    };
+
     return (
         <div className="min-h-screen w-full bg-black text-gray-100 overflow-x-hidden">
+            
             <div className="fixed inset-0 z-0">
                  <Canvas camera={{ position: [0, 0, 20], fov: 45 }}>
                     <Suspense fallback={null}>
@@ -370,7 +486,11 @@ export default function ProductsPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80 pointer-events-none" />
             </div>
 
+            {/* ✅ FIXED: Clean Flight Animation to the Left. No floating trigger button. */}
+            <PageFlyToCartAnimator />
+
             <main className="container mx-auto px-4 lg:px-8 pb-32 relative z-10">
+                
                 <section className="relative text-center pt-32 pb-16 md:pt-40 md:pb-24">
                     {isLoading && !productsData && !error ? <BannerSkeleton /> : (
                         <motion.div
@@ -406,7 +526,7 @@ export default function ProductsPage() {
                                 className="max-w-2xl mx-auto text-lg text-gray-400 font-light leading-relaxed"
                             >
                                 Access the world's most advanced autonomous delivery inventory. <br className="hidden md:block" />
-                                Selected by AI. Delivered by Air.
+                                Selected by order with air. Delivered by airaero X.
                             </motion.p>
                         </motion.div>
                     )}
@@ -414,17 +534,35 @@ export default function ProductsPage() {
 
                 <PersonalizedRecommendations onOpen={handleOpen} />
 
-                <div className="flex items-center justify-between mb-12 border-b border-white/10 pb-6">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-12 border-b border-white/10 pb-6 gap-6">
                     <div className="flex items-center gap-4">
                         <Layers className="text-cyan-500" size={24} />
                         <h2 className="text-2xl font-bold text-white uppercase tracking-widest" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             Global Inventory
                         </h2>
                     </div>
+
+                    <div className="flex flex-wrap gap-2">
+                         {CATEGORIES.map((cat) => (
+                             <button
+                                key={cat}
+                                onClick={() => handleCategoryChange(cat)}
+                                className={`px-4 py-2 rounded-full border text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
+                                    category === cat 
+                                        ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)]' 
+                                        : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/30 hover:text-white'
+                                }`}
+                             >
+                                 {cat}
+                             </button>
+                         ))}
+                    </div>
+
                     <div className="hidden md:flex items-center gap-2 text-sm text-gray-500 font-mono">
-                        <span>{products.length} UNITS</span>
-                        <span>//</span>
-                        <span>READY FOR DISPATCH</span>
+                        <ScanLine size={14} />
+                        <span>PAGE {page}</span>
+                        <span className="text-cyan-500/50">///</span>
+                        <span>{ITEMS_PER_PAGE}/PG</span>
                     </div>
                 </div>
 
@@ -433,11 +571,15 @@ export default function ProductsPage() {
                 ) : isLoading && !productsData ? (
                     <ProductListSkeleton />
                 ) : products.length > 0 ? (
-                    <ProductList products={products} onOpen={handleOpen} />
+                    <>
+                        <ProductList products={products} onOpen={handleOpen} />
+                        <Pagination page={page} setPage={setPage} hasMore={hasMore} />
+                    </>
                 ) : (
                     <div className="text-center py-20 border border-dashed border-white/10 rounded-[32px]">
                         <ShoppingBag size={48} className="mx-auto text-gray-600 mb-4" />
-                        <p className="text-gray-500 text-lg">Inventory Depleted. Awaiting Resupply.</p>
+                        <p className="text-gray-500 text-lg">Inventory Depleted in this Sector. Awaiting Resupply.</p>
+                        <button onClick={() => setCategory("ALL")} className="mt-4 text-cyan-400 hover:underline">Return to All Sectors</button>
                     </div>
                 )}
             </main>
