@@ -13,6 +13,7 @@ from app.services.rabbitmq_service import RabbitMQService
 from app.services.cache_service import IAsyncCacheClient
 from app.services.free_llm_service import FreeLLMService
 from app.models.product import Product
+from app.db.session import SessionLocal # ✅ ARCHITECTURAL FIX: Import Session Factory
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +21,9 @@ class AINLUService:
     """
     The Order With Air Brain (v24.0 - Golden Standard).
     Features:
-    - Deep Research Display (Fixed for Original Frontend).
-    - Thread-Safe Execution.
-    - Full Sales Tactics (Bundles, Accessories, Recovery).
-    - Context & Command Awareness.
+    - Deep Research Display.
+    - Thread-Safe Execution with Scoped Sessions for Background Tasks.
+    - Full Sales Tactics.
     """
     def __init__(
         self,
@@ -33,7 +33,7 @@ class AINLUService:
         cache: IAsyncCacheClient,
         llm_service: FreeLLMService, 
     ):
-        self.db = db
+        self.db = db # Used ONLY for the main request lifecycle
         self.search_engine = search_engine
         self.rabbitmq = rabbitmq
         self.cache = cache
@@ -69,17 +69,14 @@ class AINLUService:
     async def _handle_text_commands(self, user_id: int, text: str) -> bool:
         clean_text = text.lower().strip()
         
-        # Clear Cart
         if any(x in clean_text for x in ["clear cart", "empty cart", "delete all", "remove all"]):
             await self.rabbitmq.publish({"user_id": user_id, "notify_user": True}, "airdeliver.ai.intent.clear_cart")
             return True
             
-        # Checkout
         if any(x in clean_text for x in ["checkout", "pay now", "confirm order", "finish order"]):
             await self.rabbitmq.publish({"user_id": user_id, "content": {}, "type": "payment_intent"}, "airdeliver.ai.intent.confirm_order")
             return True
 
-        # Reset/Help
         if clean_text in ["reset", "start over", "restart", "help"]:
             await self._process_internal_command(user_id, "__INTERNAL_RESET_SESSION__")
             await self._handle_initial_suggestions(user_id)
@@ -87,87 +84,118 @@ class AINLUService:
 
         return False
 
-    # --- 🛒 SALES TACTICS ---
+    # --- 🛒 SALES TACTICS (ISOLATED BACKGROUND SCOPES) ---
 
-    async def _get_global_backup_products(self) -> List[Dict[str, Any]]:
+    async def _get_global_backup_products(self, db_session: AsyncSession) -> List[Dict[str, Any]]:
         cache_key = "global:trending_products:v1"
         cached_products = await self.cache.get_json(cache_key)
         if cached_products: return cached_products
+        
+        # Use the passed session, not self.db
         statement = select(Product).order_by(Product.rating.desc()).limit(20)
-        products = (await self.db.exec(statement)).all()
+        products = (await db_session.exec(statement)).all()
+        
         if products:
             products_data = [p.model_dump(mode='json') for p in products]
             await self.cache.set_json(cache_key, products_data, ttl=600)
             return products_data
         return []
 
-    async def _handle_secondary_suggestions(self, user_id: int, added_product: Product):
-        final_products = []
-        suggestion_reason = ""
-        
-        # Tier 1: Smart Bundle
-        if added_product.price > 150:
-            bundle_items = await self.search_engine.generate_smart_bundle(self.db, added_product)
-            if bundle_items:
-                final_products = [p.model_dump(mode='json') for p in bundle_items[:3]]
-                suggestion_reason = f"🔥 Complete your setup! {added_product.name} works best with:"
+    async def _handle_secondary_suggestions(self, user_id: int, product_id: int):
+        """
+        ✅ ARCHITECTURAL FIX:
+        This runs in the background. It MUST create its own DB session.
+        We pass product_id (int) instead of the object to avoid DetachedInstanceError.
+        """
+        async def _safe_bg_logic():
+            async with SessionLocal() as bg_db: # ⚡ FRESH ISOLATED SESSION
+                try:
+                    # Re-fetch product in this new session scope
+                    added_product = await bg_db.get(Product, product_id)
+                    if not added_product: return
 
-        # Tier 2: Accessories
-        if not final_products:
-            comps = await self.search_engine.find_complementary_products(self.db, added_product, limit=5)
-            if comps:
-                final_products = [p.model_dump(mode='json') for p in comps[:4]]
-                suggestion_reason = f"💡 Essential add-ons for your {added_product.name}:"
+                    final_products = []
+                    suggestion_reason = ""
+                    
+                    # Tier 1: Smart Bundle
+                    if added_product.price > 150:
+                        bundle_items = await self.search_engine.generate_smart_bundle(bg_db, added_product)
+                        if bundle_items:
+                            final_products = [p.model_dump(mode='json') for p in bundle_items[:3]]
+                            suggestion_reason = f"🔥 Complete your setup! {added_product.name} works best with:"
 
-        # Tier 3: Category Match
-        if not final_products:
-            statement = select(Product).where(
-                and_(Product.category == added_product.category, Product.id != added_product.id)
-            ).order_by(Product.rating.desc()).limit(5)
-            same_cat = (await self.db.exec(statement)).all()
-            if same_cat:
-                final_products = [p.model_dump(mode='json') for p in same_cat[:4]]
-                suggestion_reason = f"Excellent choice! People also viewed these {added_product.category} items:"
+                    # Tier 2: Accessories
+                    if not final_products:
+                        comps = await self.search_engine.find_complementary_products(bg_db, added_product, limit=5)
+                        if comps:
+                            final_products = [p.model_dump(mode='json') for p in comps[:4]]
+                            suggestion_reason = f"💡 Essential add-ons for your {added_product.name}:"
 
-        # Tier 4: Global Fallback
-        if not final_products:
-            global_picks = await self._get_global_backup_products()
-            final_products = random.sample(global_picks, min(len(global_picks), 4)) if global_picks else []
-            suggestion_reason = "Since you have great taste, check out what everyone else is buying:"
+                    # Tier 3: Category Match
+                    if not final_products:
+                        statement = select(Product).where(
+                            and_(Product.category == added_product.category, Product.id != added_product.id)
+                        ).order_by(Product.rating.desc()).limit(5)
+                        same_cat = (await bg_db.exec(statement)).all()
+                        if same_cat:
+                            final_products = [p.model_dump(mode='json') for p in same_cat[:4]]
+                            suggestion_reason = f"Excellent choice! People also viewed these {added_product.category} items:"
 
-        if final_products:
-            await asyncio.sleep(1.0)
-            await self._mark_products_as_seen(user_id, final_products)
-            await self.rabbitmq.publish({
-                "user_id": user_id,
-                "content": suggestion_reason,
-                "type": "proactive_suggestion",
-                "products": final_products,
-                "reason": "Smart Suggestion"
-            }, "airdeliver.ai.response.out")
+                    # Tier 4: Global Fallback
+                    if not final_products:
+                        global_picks = await self._get_global_backup_products(bg_db)
+                        final_products = random.sample(global_picks, min(len(global_picks), 4)) if global_picks else []
+                        suggestion_reason = "Since you have great taste, check out what everyone else is buying:"
+
+                    if final_products:
+                        await asyncio.sleep(1.0)
+                        await self._mark_products_as_seen(user_id, final_products)
+                        await self.rabbitmq.publish({
+                            "user_id": user_id,
+                            "content": suggestion_reason,
+                            "type": "proactive_suggestion",
+                            "products": final_products,
+                            "reason": "Smart Suggestion"
+                        }, "airdeliver.ai.response.out")
+                except Exception as e:
+                    logger.error(f"Background suggestion error: {e}")
+
+        asyncio.create_task(_safe_bg_logic())
 
     async def _handle_removal_recovery(self, user_id: int, product_id: int):
-        removed_product = await self.db.get(Product, product_id)
-        if not removed_product: return
+        """
+        ✅ ARCHITECTURAL FIX: Isolated Background Session
+        """
+        async def _safe_recovery():
+            async with SessionLocal() as bg_db:
+                try:
+                    removed_product = await bg_db.get(Product, product_id)
+                    if not removed_product: return
 
-        alternatives = await self.search_engine.perform_hybrid_search_pure(
-            self.db, 
-            f"alternative to {removed_product.name} {removed_product.category}", 
-            limit=5
-        )
-        alternatives = [p for p in alternatives if p.id != product_id][:3]
+                    alternatives = await self.search_engine.perform_hybrid_search_pure(
+                        bg_db, 
+                        f"alternative to {removed_product.name} {removed_product.category}", 
+                        limit=5
+                    )
+                    alternatives = [p for p in alternatives if p.id != product_id][:3]
 
-        if alternatives:
-            alt_data = [p.model_dump(mode='json') for p in alternatives]
-            await self.rabbitmq.publish({
-                "user_id": user_id,
-                "content": f"Changed your mind about **{removed_product.name}**? Maybe one of these fits better:",
-                "type": "proactive_suggestion",
-                "products": alt_data,
-                "reason": "Recovery Mode"
-            }, "airdeliver.ai.response.out")
+                    if alternatives:
+                        alt_data = [p.model_dump(mode='json') for p in alternatives]
+                        await self.rabbitmq.publish({
+                            "user_id": user_id,
+                            "content": f"Changed your mind about '{removed_product.name}'? Maybe one of these fits better:",
+                            "type": "proactive_suggestion",
+                            "products": alt_data,
+                            "reason": "Recovery Mode"
+                        }, "airdeliver.ai.response.out")
+                except Exception as e:
+                    logger.error(f"Background recovery error: {e}")
+
+        asyncio.create_task(_safe_recovery())
 
     async def _handle_initial_suggestions(self, user_id: int):
+        # Initial suggestions run in the MAIN flow, so using self.db is fine here
+        # because we await it before returning.
         time_context = self._get_time_context()
         logger.info(f"🌟 Generating {time_context} picks for User {user_id}")
         
@@ -190,9 +218,9 @@ class AINLUService:
         products_data = [p.model_dump(mode='json') for p in selected]
         
         greeting_map = {
-            "morning": "Good morning! ☀️  Your daily dose of inspiration has arrived.",
-            "afternoon": "Good afternoon! ✨ Highlights from today, picked just for you.",
-            "evening": "Good evening! 🌙 Relax and explore our most-loved items.",
+            "morning": "Good morning! ☀️ ✨ Your daily dose of inspiration has arrived.",
+            "afternoon": "Good afternoon! 🌙✨ Highlights from today, picked just for you.",
+            "evening": "Good evening! ✨🌙 Relax and explore our most-loved items.",
             "night": "Welcome, night owl. 🌙🦉 Your exclusive late-night edit awaits."
         }
 
@@ -204,7 +232,7 @@ class AINLUService:
             "reason": "Top Picks"
         }, "airdeliver.ai.response.out")
 
-    # --- ⚙️ CORE PROCESSING (THE INTELLIGENCE ROUTER) ---
+    # --- ⚙️ CORE PROCESSING ---
 
     async def _execute_strategic_search(self, strategy: Any, user_id: int) -> List[Product]:
         all_candidates = []
@@ -249,35 +277,30 @@ class AINLUService:
              await self.rabbitmq.publish({**message_payload, "user_id": user_id}, "airdeliver.ai.intent.confirm_order")
              return
 
-        # 2. Execution (Fetch Context)
+        # 2. Execution
         candidates = await self._execute_strategic_search(strategy, user_id)
         if not candidates:
             candidates = await self.search_engine.perform_hybrid_search_pure(self.db, message_text)
 
-        # --- 🔥 DEEP RESEARCH & DISPLAY FIX (The Golden Logic) 🔥 ---
+        # 3. Deep Research (Synchronous wait is fine here)
         is_informational_query = any(q in message_text.lower() for q in [
             "what is", "specs", "specifications", "details", "review", "vs", "compare", 
             "battery", "features", "ingredients", "info", "tell me about"
         ])
         
         if is_informational_query:
-            # 1. Context Setup
             target_data = candidates[0].model_dump(mode='json') if candidates else {"name": message_text, "category": "General"}
-            
-            # 2. Consult External Knowledge
             expert_answer = await self.llm_service.consult_on_product(target_data, message_text)
             
-            # 3. Step A: Send TEXT Answer (Guaranteed to show fully on original frontend)
             await self.rabbitmq.publish({
                 "user_id": user_id,
                 "content": expert_answer, 
                 "type": "text" 
             }, "airdeliver.ai.response.out")
 
-            # 4. Step B: Send Products Carousel (Separate message)
             if candidates:
                 candidate_data = [p.model_dump(mode='json') for p in candidates[:5]]
-                await asyncio.sleep(0.5) # Time for user to read text
+                await asyncio.sleep(0.5) 
                 await self.rabbitmq.publish({
                     "user_id": user_id,
                     "content": "Based on your request, these are the closest matches:",
@@ -286,7 +309,6 @@ class AINLUService:
                     "reason": "Research Matches"
                 }, "airdeliver.ai.response.out")
             return
-        # ------------------------------------------------
 
         # 4. Fallback
         if not candidates:
@@ -343,6 +365,7 @@ class AINLUService:
         if command == "__INTERNAL_SAVE_FOR_LATER__":
             await self.rabbitmq.publish({"user_id": user_id, "content": "Saved to wishlist. 💾", "type": "success_text"}, "airdeliver.ai.response.out")
             await self.rabbitmq.publish({"user_id": user_id, "notify_user": False}, "airdeliver.ai.intent.clear_cart")
+        
         elif command == "__INTERNAL_CLEAR_CART__":
             await self.rabbitmq.publish({"user_id": user_id, "notify_user": True}, "airdeliver.ai.intent.clear_cart")
         
@@ -350,17 +373,25 @@ class AINLUService:
             try:
                 pid = int(command.split(":")[1])
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": pid, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
+                
+                # Fetch product to confirm name and trigger suggestions
+                # We use main session here because we are awaiting it
                 p = await self.db.get(Product, pid)
                 if p: 
-                    await self.rabbitmq.publish({"user_id": user_id, "content": f"Added **{p.name}**. Anything else?", "type": "success_text"}, "airdeliver.ai.response.out")
-                    asyncio.create_task(self._handle_secondary_suggestions(user_id, p))
+                    await self.rabbitmq.publish({"user_id": user_id, "content": f"Added '{p.name}' to your cart.", "type": "success_text"}, "airdeliver.ai.response.out")
+                    
+                    # 🔥 FIXED: Pass ID, not object. The method creates its own session.
+                    await self._handle_secondary_suggestions(user_id, p.id)
+                    
                     await asyncio.sleep(0.5)
                     await self.rabbitmq.publish({"user_id": user_id, "content": "Ready to checkout?", "type": "confirmation_prompt", "options": ["Confirm Order", "Clear Cart"]}, "airdeliver.ai.response.out")
-            except Exception: pass
+            except Exception as e: 
+                logger.error(f"Error in internal add: {e}")
             
         elif command.startswith("__INTERNAL_REMOVE_BY_ID__:") and user_id:
             try:
                 pid = int(command.split(":")[1])
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": pid, "action": "remove_by_id"}, "airdeliver.ai.intent.remove_from_cart")
-                asyncio.create_task(self._handle_removal_recovery(user_id, pid))
+                # 🔥 FIXED: Pass ID, not object.
+                await self._handle_removal_recovery(user_id, pid)
             except Exception: pass
