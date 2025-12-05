@@ -403,24 +403,90 @@ const StatusCard = ({ icon, title, status, detail }: { icon: React.ReactNode, ti
 const OrderRow = ({ order }: { order: OrderRead }) => {
     const firstItem = order.items?.[0];
     const productName = firstItem?.product?.name || `Order #${order.id}`;
-    const statusColor = order.status === 'Delivered' ? 'text-green-400 border-green-500/30' : 'text-cyan-400 border-cyan-500/30';
+    
+    // [ARCHITECTURAL UPDATE] Intelligent Status Visualization
+    // Maps backend status to visual language (Colors & Icons)
+    const getStatusConfig = (status: string) => {
+        const s = status.toLowerCase();
+        
+        // 1. Success / Active States (تم الشراء)
+        // 'processing', 'paid', 'ordered' -> All mean the user bought it and it's coming
+        if (['processing', 'paid', 'ordered', 'confirmed'].includes(s)) {
+            return {
+                style: 'text-purple-400 border-purple-500/30 bg-purple-500/10 shadow-[0_0_10px_rgba(168,85,247,0.2)]',
+                icon: Zap, // رمز الطاقة/السرعة
+                label: 'Processing' // أو ممكن تعرض الحالة زي ما هي
+            };
+        }
+
+        // 2. Completed State
+        if (s === 'delivered') {
+            return {
+                style: 'text-green-400 border-green-500/30 bg-green-500/10',
+                icon: ShieldCheck,
+                label: 'Delivered'
+            };
+        }
+
+        // 3. Cancelled State
+        if (s === 'cancelled') {
+            return {
+                style: 'text-red-400 border-red-500/30 bg-red-500/10',
+                icon: LogOut, // أو X
+                label: 'Cancelled',
+                isStrike: true
+            };
+        }
+
+        // 4. Default / Pending State
+        return {
+            style: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10',
+            icon: Clock,
+            label: status
+        };
+    };
+
+    const config = getStatusConfig(order.status);
+    const StatusIcon = config.icon;
 
     return (
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all">
+        <div className="group flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 transition-all duration-300">
             <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-black/50 border border-white/10 flex items-center justify-center">
-                    <Package className="text-gray-400 w-6 h-6" />
+                {/* Product Icon / Image Placeholder */}
+                <div className={`w-12 h-12 rounded-xl border flex items-center justify-center transition-colors ${
+                    order.status === 'Cancelled' 
+                        ? 'bg-red-500/10 border-red-500/20 text-red-500' 
+                        : 'bg-black/50 border-white/10 text-cyan-400 group-hover:text-white'
+                }`}>
+                    <Package className="w-6 h-6" />
                 </div>
+                
+                {/* Order Details */}
                 <div>
-                    <h4 className="text-white font-medium">{productName}</h4>
-                    <p className="text-xs text-gray-500">{new Date(order.created_at).toLocaleDateString()}</p>
+                    <h4 className={`font-medium transition-all ${
+                        config.isStrike ? 'text-gray-500 line-through' : 'text-white group-hover:text-cyan-50'
+                    }`}>
+                        {productName}
+                    </h4>
+                    <p className="text-xs text-gray-500 flex items-center gap-2">
+                        {new Date(order.created_at).toLocaleDateString(undefined, { 
+                            year: 'numeric', month: 'short', day: 'numeric' 
+                        })}
+                        <span className="w-1 h-1 rounded-full bg-gray-600" />
+                        {order.items.length} Items
+                    </p>
                 </div>
             </div>
-            <div className="text-right">
-                <span className={`text-xs font-bold px-2 py-1 rounded-full border bg-black/20 ${statusColor}`}>
-                    {order.status}
+
+            {/* Dynamic Status Badge */}
+            <div className="text-right flex flex-col items-end gap-1">
+                <span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border ${config.style}`}>
+                    <StatusIcon size={12} />
+                    {order.status} {/* بيعرض الحالة اللي جاية من الباك إند بالظبط */}
                 </span>
-                <p className="text-sm text-gray-300 font-mono mt-1">${order.total_price.toFixed(2)}</p>
+                <p className={`text-sm font-mono mt-1 ${config.isStrike ? 'text-gray-600 line-through' : 'text-gray-300'}`}>
+                    ${order.total_price.toFixed(2)}
+                </p>
             </div>
         </div>
     );

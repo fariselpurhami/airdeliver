@@ -183,6 +183,31 @@ async def main():
     async def confirm_order_handler(payload):
         async with LocalSessionMaker() as db:
             await AICheckoutService(db, cache_client, rabbitmq, payment_orchestrator).handle_confirm_order(payload)
+
+    async def cancel_order_handler(payload):
+        """
+        Global Standard Handler for 'Discard Order'.
+        Actions:
+        1. Connects to Database & Cache.
+        2. Wipes the Cart Data physically.
+        3. Sends the termination signal to Frontend.
+        """
+        user_id = payload.get("user_id")
+        logger.info(f"🚫 PROCESSING DISCARD: Wiping session and cart for User {user_id}...")
+
+        async with LocalSessionMaker() as db:
+            cart_service = AICartService(db, cache_client, rabbitmq)
+            
+            try:
+                await cart_service.delete_cart(user_id) 
+            except Exception as e:
+                logger.error(f"⚠️ Error cleaning up cart during discard: {e}")
+
+            await rabbitmq.publish({
+                "user_id": user_id,
+                "content": "Order process discarded. Your cart has been cleared.",
+                "type": "ORDER_CANCELLED"
+            }, "airdeliver.ai.response.out")
             
     await rabbitmq.channel.set_qos(prefetch_count=10)
 
@@ -192,6 +217,7 @@ async def main():
         "q.ai.intent.remove": ("airdeliver.ai.intent.remove_from_cart", remove_cart_handler),
         "q.ai.intent.clear": ("airdeliver.ai.intent.clear_cart", clear_cart_handler),
         "q.ai.intent.confirm": ("airdeliver.ai.intent.confirm_order", confirm_order_handler),
+        "q.ai.intent.cancel": ("airdeliver.ai.intent.cancel_order", cancel_order_handler),
     }
 
     consumers = []

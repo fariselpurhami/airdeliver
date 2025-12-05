@@ -117,6 +117,34 @@ class AICheckoutService:
             )
             await self.cache.delete(cart_key)
 
+    async def handle_payment_success(self, payload: dict):
+        """
+        Step 2: Activated when payment is CONFIRMED.
+        Moves Order from PENDING -> PROCESSING (Triggers Purple UI).
+        """
+        user_id = payload.get("user_id")
+        order_id = payload.get("order_id")
+
+        order = await self.db.get(Order, order_id)
+        if not order: return
+
+        if order.status == OrderStatus.PENDING:
+            # 1. Update Status (The Purple Switch)
+            order.status = OrderStatus.PROCESSING
+            order.is_paid = True
+            self.db.add(order)
+            await self.db.commit()
+
+            # 2. Notify User (Success Animation)
+            await self.rabbitmq.publish(
+                {
+                    "user_id": user_id,
+                    "content": f"Payment secured! Order #{order.id} is now processing. Drones are engaging rotors... 🚁",
+                    "type": "success_text"
+                },
+                "airdeliver.ai.response.out"
+            )
+
     async def _handle_failed_payment(self, order: Order, reason: str):
         try:
             order.status = OrderStatus.FAILED

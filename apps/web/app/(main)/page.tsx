@@ -146,7 +146,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
                 ease: "easeInOut" 
             }}
             
-            className="group relative inline-flex items-center justify-center px-6 py-6 text-black font-medium bg-white text-xl rounded-full shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
+            className="group relative inline-flex items-center justify-center px-6 py-7 text-black font-light bg-white text-xl rounded-full shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
           >
            
             <span className={`absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] transition-opacity duration-500 ${
@@ -185,7 +185,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
 
           <button
 	    onClick={onExploreClick}
-	    className="group relative inline-flex items-center justify-center px-6 py-6 text-base font-bold text-white bg-transparent border-2 border-white/20 rounded-full shadow-lg transition-all duration-300 hover:border-white/50 hover:bg-white/10">
+	    className="group relative inline-flex items-center justify-center px-6 py-7 text-base font-bold text-white bg-transparent border-2 border-white/60 rounded-full shadow-lg transition-all duration-300 hover:border-white/50 hover:bg-white/10">
             Explore Products <ArrowRight className="ml-2 h-5 w-5" />
           </button>
         </motion.div>
@@ -1127,7 +1127,7 @@ const FinalCTA = () => {
               </span>
             </Link>
 
-            <button className="px-12 py-6 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-2">
+            <button className="px-12 py-7 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-2">
               <span className="flex flex-col items-start leading-none">
 
                 <span>Get The App</span>
