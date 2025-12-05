@@ -17,9 +17,7 @@ import dynamic from 'next/dynamic';
 import { ProductDetailsCard } from '@/components/products/ProductDetailsCard';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 
-// --- TYPES & FETCHER ---
 const fetcher = (url: string) => api.get(url).then(res => res.data);
-
 const CATEGORIES = ["ALL", "FASHION", "BEAUTY", "ELECTRONICS", "ACCESSORIES"];
 const ITEMS_PER_PAGE = 100;
 
@@ -64,7 +62,6 @@ const DynamicProductsBackground = dynamic(() => Promise.resolve(ProductsBackgrou
 // --- 2. ANIMATION UTILS (The FlyToCart Logic - CORRECTED) ---
 // ============================================================================
 
-// ✅ CORRECTED: animation flies to the LEFT edge of the screen (simulating travel to Home)
 const PageFlyToCartAnimator = () => {
   const flyQueue = useAIOrderingStore((state) => state.flyQueue);
   const removeFlyItem = useAIOrderingStore((state) => state.removeFlyItem);
@@ -96,20 +93,18 @@ const PageFlyToCartAnimator = () => {
                   rotate: 0 
               }}
               animate={{ 
-                  // 🚀 FLIGHT PATH: Flies towards the vertical center-left of the screen
                   top: window.innerHeight / 2, 
-                  left: -100, // Flies off-screen to the left
+                  left: -100, 
                   width: 20, 
                   height: 20, 
-                  opacity: 0, // Fades out as it exits
-                  rotate: -45, // Slight tilt towards flight direction
+                  opacity: 0, 
+                  rotate: -45, 
                   scale: 0.5 
               }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.8, ease: "easeIn" }} // Faster, accelerating exit
+              transition={{ duration: 0.8, ease: "easeIn" }} 
               onAnimationComplete={() => removeFlyItem(item.animationId)}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={item.image} alt="product" className="w-full h-full object-cover" />
             </motion.div>
           );
@@ -160,8 +155,6 @@ const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: 
     const handleAddToCart = (e: React.MouseEvent) => {
         e.stopPropagation();
         
-        // This triggers the fly animation (configured above to go Left)
-        // And updates the store, which will eventually make the Home button glow.
         addProductById(product, uniqueBtnId); 
         
         setIsAdded(true);
@@ -486,7 +479,6 @@ export default function ProductsPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/80 pointer-events-none" />
             </div>
 
-            {/* ✅ FIXED: Clean Flight Animation to the Left. No floating trigger button. */}
             <PageFlyToCartAnimator />
 
             <main className="container mx-auto px-4 lg:px-8 pb-32 relative z-10">

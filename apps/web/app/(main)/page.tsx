@@ -126,16 +126,14 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
 
           <motion.button
             onClick={onOrderClick}
-            // 1. Original Interaction: Zoom on Hover
             whileHover={{ scale: 1.05 }} 
             whileTap={{ scale: 0.95 }}
-            
-            // 2. Active Pulse State: Slow breathing if items exist
+           
             animate={hasActiveOrder ? {
-                scale: [1, 1.02, 1], // Subtle breathing
+                scale: [1, 1.02, 1], 
                 boxShadow: [
                     "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                    "0 0 30px rgba(0, 198, 255, 0.4)", // Glow pulse
+                    "0 0 30px rgba(0, 198, 255, 0.4)",
                     "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
                 ]
             } : {
@@ -143,29 +141,25 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
                 boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
             }}
             transition={{ 
-                duration: 2.5, // Slow and calm
+                duration: 2.5, 
                 repeat: Infinity, 
                 ease: "easeInOut" 
             }}
             
             className="group relative inline-flex items-center justify-center px-6 py-6 text-black font-medium bg-white text-xl rounded-full shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
           >
-            {/* 3. Background Logic: 
-                - Normal: Hidden, appears on hover.
-                - Active: Always visible (opacity-100), same as hover.
-            */}
+           
             <span className={`absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] transition-opacity duration-500 ${
                 hasActiveOrder ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
             }`} />
             
-            {/* 4. Text & Icon */}
             <span className="relative flex items-center font-light z-10">
-                {/* Text stays black normally, turns white if background is visible (Active OR Hover) */}
+               
                 <span className={`transition-colors duration-300 ${hasActiveOrder ? 'text-white' : 'text-black group-hover:text-white'}`}>
                     order with air
                 </span>
                 
-                {/* AI Icon: Bounce when active */}
+               
                 <Bot className={`ml-2 h-5 w-5 transition-all duration-300 ${
                     hasActiveOrder 
                         ? 'text-white animate-bounce' 
@@ -173,7 +167,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
                 }`} />
             </span>
 
-            {/* 5. The "Alive" Signal Dot */}
+           
             <AnimatePresence>
                 {hasActiveOrder && (
                     <motion.span

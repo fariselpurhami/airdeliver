@@ -81,13 +81,12 @@ COPY --chown=$APP_USER:$APP_USER ./app ./app
 
 USER $APP_USER
 EXPOSE 8000
-# CMD is empty here, allowing docker-compose to fully control the startup command (uvicorn --reload or watchfiles).
 
 # -----------------------------------------------------------------------------
 # STAGE 5: Final Production Runtime (Gunicorn)
 # -----------------------------------------------------------------------------
 FROM development AS production
-# Copy necessary files like alembic and seed data
+
 COPY --chown=$APP_USER:$APP_USER ./alembic.ini ./
 COPY --chown=$APP_USER:$APP_USER ./alembic ./alembic
 COPY --chown=$APP_USER:$APP_USER ./seed_data.json ./

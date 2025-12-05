@@ -6,9 +6,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { Bot, Rocket, Zap, ScanLine, ShoppingBag, Eye, Check } from 'lucide-react';
 import Image from 'next/image';
-import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; // ✅ LINKED TO AI BRAIN
+import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; 
 
-// --- 3D PARALLAX HOOK (Unchanged logic, just cleaner) ---
 const useParallax = (ref: React.RefObject<HTMLDivElement>) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -54,20 +53,16 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
   const cardRef = useRef<HTMLDivElement>(null);
   const { rotateX, rotateY } = useParallax(cardRef); 
   
-  // ✅ INTELLIGENCE INTEGRATION
   const { suggestedProductIds, addProductById } = useAIOrderingStore();
   const isRecommendedByAI = product.isAIRec || suggestedProductIds?.includes(product.id);
   
   const [isAdded, setIsAdded] = useState(false);
-  const uniqueBtnId = `card-add-btn-${product.id}`; // Critical for FlyToCartAnimator to find start position
+  const uniqueBtnId = `card-add-btn-${product.id}`; 
 
   const handleAddToCart = (e: React.MouseEvent) => {
-      e.stopPropagation(); // Stop propagation to prevent opening details
+      e.stopPropagation(); 
       
-      // 🚀 FLIGHT INITIATION
       addProductById(product, uniqueBtnId);
-      
-      // Visual feedback
       setIsAdded(true);
       setTimeout(() => setIsAdded(false), 2000);
   };
@@ -85,7 +80,6 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
         style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
         className="relative w-full h-full rounded-[36px] bg-[#050505] border border-white/10 overflow-hidden transition-all duration-500 group-hover:border-cyan-500/50 group-hover:shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col"
       >
-        {/* --- IMAGE SECTION --- */}
         <div className="relative w-full flex-grow bg-gradient-to-b from-white/5 to-transparent p-6 flex items-center justify-center overflow-hidden">
             
             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] bg-center" />
@@ -118,7 +112,6 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
             </div>
         </div>
 
-        {/* --- INFO SECTION --- */}
         <div 
             className="relative w-full bg-[#080808]/95 backdrop-blur-xl border-t border-white/5 p-5 flex flex-col justify-between transition-colors duration-500 group-hover:bg-[#0a0a0a]"
             style={{ transform: "translateZ(20px)" }}
@@ -140,7 +133,6 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
                 </p>
             </div>
 
-            {/* --- ACTION AREA (CONNECTED TO AI) --- */}
             <div className="mt-auto">
                 <div className="flex items-end justify-between mb-3">
                     <div className="flex flex-col">

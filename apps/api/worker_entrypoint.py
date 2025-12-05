@@ -9,7 +9,6 @@ import uvloop
 import time
 from typing import Callable, Awaitable
 
-# Third-party imports
 from aio_pika.abc import AbstractIncomingMessage, DeliveryMode
 import aio_pika
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -17,7 +16,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 from pymilvus import MilvusClient, DataType
 
-# App imports
 from app.core.config import (
     get_core_settings, 
     get_stripe_settings, get_paypal_settings, get_mpesa_settings
@@ -39,17 +37,14 @@ from app.services.ai_commerce_engine import (
     get_embedding_model
 )
 
-# --- CONFIG & LOGGING (Architectural Hardening) ---
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(name)s | %(levelname)s | [Worker-Node-01] | %(message)s"
 )
 logger = logging.getLogger("airdeliver.worker")
 
-# Set uvloop for maximum throughput
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-# --- MILVUS SCHEMA INTEGRITY CHECK ---
 def ensure_milvus_schema(client: MilvusClient, collection_name: str = "airdeliver_products"):
     """
     Ensures the Vector DB schema exists and is structurally correct.
@@ -69,26 +64,22 @@ def ensure_milvus_schema(client: MilvusClient, collection_name: str = "airdelive
             logger.info("✅ Milvus Schema Restored.")
     except Exception as e:
         logger.error(f"❌ Milvus Init Error: {e}")
-        # We generally don't stop the worker for this, but we log critically.
-
+        
 async def main():
     logger.info("🚀 --- STARTING AIRDELIVER GLOBAL WORKER NODE (RESILIENCE MODE) ---")
     settings = get_core_settings()
     
-    # --- 1. DB ENGINE INITIALIZATION ---
     final_db_uri = str(settings.DATABASE_URI)
     local_engine = create_async_engine(
         final_db_uri, 
         echo=False, 
         future=True,
-        pool_pre_ping=True, # Resilience: Checks connection health before usage
+        pool_pre_ping=True, 
         pool_size=20,
         max_overflow=10
     )
     LocalSessionMaker = sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
     
-    # --- 2. INFRASTRUCTURE & CACHE ---
-    # Redis with Retry Logic
     cache_client = RedisCacheClient(url=settings.REDIS_URL)
     retry_count = 0
     while retry_count < 5:
@@ -105,14 +96,11 @@ async def main():
         logger.critical("🔥 CRITICAL: Redis unreachable. Shutting down to prevent data inconsistency.")
         return
 
-    # --- 3. AI & SEARCH ENGINES ---
     logger.info("🧠 Loading Neural Commerce Engines...")
     
-    # OpenSearch
     opensearch_gen = get_opensearch_client(settings)
     opensearch_client = await anext(opensearch_gen)
     
-    # Milvus & Embeddings
     milvus_client = get_milvus_client(settings) 
     ensure_milvus_schema(milvus_client)
     embedding_model = get_embedding_model() 
@@ -127,7 +115,6 @@ async def main():
     free_llm_service = FreeLLMService()
     logger.info("🤖 LLM Core: Online")
 
-    # --- 4. PAYMENT ORCHESTRATION ---
     try:
         payment_orchestrator = PaymentOrchestrator(
             StripeGateway(get_stripe_settings()),
@@ -139,41 +126,30 @@ async def main():
         logger.critical(f"🔥 Payment System Configuration Failure: {e}")
         return
 
-    # --- 5. RABBITMQ SETUP (THE HEART OF RESILIENCE) ---
     try:
         rabbitmq = await get_rabbitmq_service(settings)
     except Exception as e:
         logger.critical(f"🔥 RabbitMQ Failure: {e}")
         return
 
-    # --- 🛡️ THE IRONCLAD MESSAGE WRAPPER (ANTI-DROPPING) ---
     async def hardened_wrapper(message: AbstractIncomingMessage, handler_func: Callable[[dict], Awaitable[None]]):
         """
         Implements the 'Ack-Late' pattern and strict error handling to ensure
         NO message is lost (Zero-Drop Architecture).
         """
         async with message.process(ignore_processed=True): 
-            # 'process' context manager automatically ACKs if code finishes,
-            # and NACKs if exception raised. We customize inside.
+        
             try:
                 payload = json.loads(message.body.decode())
                 
-                # EXECUTE BUSINESS LOGIC
                 await handler_func(payload)
-                
-                # Note: 'async with message.process()' handles the ACK automatically here.
-                # logger.debug(f"✅ Processed message: {message.message_id}")
-
+            
             except json.JSONDecodeError:
                 logger.error("❌ Malformed JSON. Sending to Dead Letter (if configured) or discarding.")
-                # This message is poison, we don't requeue it or it will crash loop.
-                # In a full setup, we'd reject(requeue=False).
                 
             except Exception as e:
                 logger.error(f"💥 WORKER EXCEPTION in {handler_func.__name__}: {e}", exc_info=True)
                 
-                # --- EMERGENCY USER NOTIFICATION ---
-                # Attempt to tell the user something went wrong before NACKing
                 try:
                     raw = json.loads(message.body.decode())
                     user_id = raw.get("user_id")
@@ -185,11 +161,8 @@ async def main():
                         )
                 except: pass
                 
-                # RE-RAISE exception so 'message.process' sends a NACK (Negative Acknowledgment).
-                # This forces RabbitMQ to redeliver the message (or DLQ it).
                 raise e 
 
-    # --- HANDLERS INJECTION ---
     async def chat_handler(payload):
         async with LocalSessionMaker() as db:
             service = AINLUService(db, ai_commerce_engine, rabbitmq, cache_client, free_llm_service)
@@ -211,10 +184,8 @@ async def main():
         async with LocalSessionMaker() as db:
             await AICheckoutService(db, cache_client, rabbitmq, payment_orchestrator).handle_confirm_order(payload)
             
-    # QoS: Prefetch count ensures fairness and prevents memory overflow
     await rabbitmq.channel.set_qos(prefetch_count=10)
 
-    # Queue Definitions
     queues = {
         "q.ai.chat": ("airdeliver.ai.chat.in", chat_handler),
         "q.ai.intent.add": ("airdeliver.ai.intent.add_to_cart", add_cart_handler),
@@ -223,21 +194,17 @@ async def main():
         "q.ai.intent.confirm": ("airdeliver.ai.intent.confirm_order", confirm_order_handler),
     }
 
-    # Bind Consumers
     consumers = []
     for q_name, (key, func) in queues.items():
-        queue = await rabbitmq.channel.declare_queue(q_name, durable=True) # Durable is mandatory for persistence
+        queue = await rabbitmq.channel.declare_queue(q_name, durable=True) 
         await queue.bind(rabbitmq.exchange_name, routing_key=key)
         
-        # We start consuming. The 'hardened_wrapper' ensures safety.
-        # We store the consumer tag to cancel it gracefully later.
         consumer_tag = await queue.consume(lambda m, f=func: hardened_wrapper(m, f))
         consumers.append((queue, consumer_tag))
         logger.info(f"🎧 Bound Consumer: {q_name} -> {key}")
 
-    logger.info("✅ AIRDELIVER WORKER FULLY OPERATIONAL. Waiting for events...")
+    logger.info("✅ airdeliver WORKER FULLY OPERATIONAL. Waiting for events...")
 
-    # --- 6. GRACEFUL SHUTDOWN (The "Drain" Pattern) ---
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
     
@@ -252,18 +219,14 @@ async def main():
     
     logger.info("⏳ Draining active tasks...")
     
-    # Step 1: Stop consuming new messages
     for queue, tag in consumers:
         await queue.cancel(tag)
     
-    # Step 2: Give a grace period for in-flight tasks to complete (e.g., 5 seconds)
-    # Since 'message.process()' waits for the block to finish, we just need to wait a bit
-    # or ensure connection stays open.
     await asyncio.sleep(2) 
 
     logger.info("�� Closing Infrastructure Connections...")
     if opensearch_client: await opensearch_client.close()
-    await rabbitmq.close() # Closes channel and connection cleanly
+    await rabbitmq.close() 
     await cache_client.disconnect()
     await local_engine.dispose()
     

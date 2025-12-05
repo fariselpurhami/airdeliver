@@ -13,7 +13,7 @@ from app.services.rabbitmq_service import RabbitMQService
 from app.services.cache_service import IAsyncCacheClient
 from app.services.free_llm_service import FreeLLMService
 from app.models.product import Product
-from app.db.session import SessionLocal # ✅ ARCHITECTURAL FIX: Import Session Factory
+from app.db.session import SessionLocal 
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +33,13 @@ class AINLUService:
         cache: IAsyncCacheClient,
         llm_service: FreeLLMService, 
     ):
-        self.db = db # Used ONLY for the main request lifecycle
+        self.db = db 
         self.search_engine = search_engine
         self.rabbitmq = rabbitmq
         self.cache = cache
         self.llm_service = llm_service
         self.seen_cache_ttl = 3600
 
-    # --- 🧠 UTILITIES ---
     def _get_time_context(self) -> str:
         hour = datetime.now().hour
         if 5 <= hour < 12: return "morning"
@@ -65,7 +64,6 @@ class AINLUService:
             except Exception: pass
         asyncio.create_task(_bg_task())
 
-    # --- 🛡️ TEXT COMMAND GUARD ---
     async def _handle_text_commands(self, user_id: int, text: str) -> bool:
         clean_text = text.lower().strip()
         
@@ -84,14 +82,12 @@ class AINLUService:
 
         return False
 
-    # --- 🛒 SALES TACTICS (ISOLATED BACKGROUND SCOPES) ---
-
+    
     async def _get_global_backup_products(self, db_session: AsyncSession) -> List[Dict[str, Any]]:
         cache_key = "global:trending_products:v1"
         cached_products = await self.cache.get_json(cache_key)
         if cached_products: return cached_products
         
-        # Use the passed session, not self.db
         statement = select(Product).order_by(Product.rating.desc()).limit(20)
         products = (await db_session.exec(statement)).all()
         
@@ -108,30 +104,26 @@ class AINLUService:
         We pass product_id (int) instead of the object to avoid DetachedInstanceError.
         """
         async def _safe_bg_logic():
-            async with SessionLocal() as bg_db: # ⚡ FRESH ISOLATED SESSION
+            async with SessionLocal() as bg_db: 
                 try:
-                    # Re-fetch product in this new session scope
                     added_product = await bg_db.get(Product, product_id)
                     if not added_product: return
 
                     final_products = []
                     suggestion_reason = ""
                     
-                    # Tier 1: Smart Bundle
                     if added_product.price > 150:
                         bundle_items = await self.search_engine.generate_smart_bundle(bg_db, added_product)
                         if bundle_items:
                             final_products = [p.model_dump(mode='json') for p in bundle_items[:3]]
                             suggestion_reason = f"🔥 Complete your setup! {added_product.name} works best with:"
 
-                    # Tier 2: Accessories
                     if not final_products:
                         comps = await self.search_engine.find_complementary_products(bg_db, added_product, limit=5)
                         if comps:
                             final_products = [p.model_dump(mode='json') for p in comps[:4]]
                             suggestion_reason = f"💡 Essential add-ons for your {added_product.name}:"
 
-                    # Tier 3: Category Match
                     if not final_products:
                         statement = select(Product).where(
                             and_(Product.category == added_product.category, Product.id != added_product.id)
@@ -141,7 +133,6 @@ class AINLUService:
                             final_products = [p.model_dump(mode='json') for p in same_cat[:4]]
                             suggestion_reason = f"Excellent choice! People also viewed these {added_product.category} items:"
 
-                    # Tier 4: Global Fallback
                     if not final_products:
                         global_picks = await self._get_global_backup_products(bg_db)
                         final_products = random.sample(global_picks, min(len(global_picks), 4)) if global_picks else []
@@ -194,8 +185,6 @@ class AINLUService:
         asyncio.create_task(_safe_recovery())
 
     async def _handle_initial_suggestions(self, user_id: int):
-        # Initial suggestions run in the MAIN flow, so using self.db is fine here
-        # because we await it before returning.
         time_context = self._get_time_context()
         logger.info(f"🌟 Generating {time_context} picks for User {user_id}")
         
@@ -231,8 +220,6 @@ class AINLUService:
             "products": products_data,
             "reason": "Top Picks"
         }, "airdeliver.ai.response.out")
-
-    # --- ⚙️ CORE PROCESSING ---
 
     async def _execute_strategic_search(self, strategy: Any, user_id: int) -> List[Product]:
         all_candidates = []
@@ -270,19 +257,16 @@ class AINLUService:
         if await self._handle_text_commands(user_id, message_text):
             return
 
-        # 1. Strategy
         strategy = await self.llm_service.strategize_search(message_text)
         
         if strategy.search_queries and any(q in ["checkout", "confirm", "pay"] for q in strategy.search_queries):
              await self.rabbitmq.publish({**message_payload, "user_id": user_id}, "airdeliver.ai.intent.confirm_order")
              return
 
-        # 2. Execution
         candidates = await self._execute_strategic_search(strategy, user_id)
         if not candidates:
             candidates = await self.search_engine.perform_hybrid_search_pure(self.db, message_text)
 
-        # 3. Deep Research (Synchronous wait is fine here)
         is_informational_query = any(q in message_text.lower() for q in [
             "what is", "specs", "specifications", "details", "review", "vs", "compare", 
             "battery", "features", "ingredients", "info", "tell me about"
@@ -310,7 +294,6 @@ class AINLUService:
                 }, "airdeliver.ai.response.out")
             return
 
-        # 4. Fallback
         if not candidates:
             await self.rabbitmq.publish({
                 "user_id": user_id, 
@@ -319,7 +302,6 @@ class AINLUService:
             }, "airdeliver.ai.response.out")
             return
 
-        # 5. Curation
         candidate_data = [p.model_dump(mode='json') for p in candidates[:15]]
         ai_curation = await self.llm_service.filter_and_recommend(
             user_query=message_text,
@@ -374,13 +356,10 @@ class AINLUService:
                 pid = int(command.split(":")[1])
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": pid, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
                 
-                # Fetch product to confirm name and trigger suggestions
-                # We use main session here because we are awaiting it
                 p = await self.db.get(Product, pid)
                 if p: 
                     await self.rabbitmq.publish({"user_id": user_id, "content": f"Added '{p.name}' to your cart.", "type": "success_text"}, "airdeliver.ai.response.out")
                     
-                    # 🔥 FIXED: Pass ID, not object. The method creates its own session.
                     await self._handle_secondary_suggestions(user_id, p.id)
                     
                     await asyncio.sleep(0.5)
@@ -392,6 +371,6 @@ class AINLUService:
             try:
                 pid = int(command.split(":")[1])
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": pid, "action": "remove_by_id"}, "airdeliver.ai.intent.remove_from_cart")
-                # 🔥 FIXED: Pass ID, not object.
+            
                 await self._handle_removal_recovery(user_id, pid)
             except Exception: pass

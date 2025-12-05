@@ -9,7 +9,7 @@ import ProductList from './Productlist';
 import { type Product } from '@/types'; 
 import useSWR from 'swr';
 import { api } from '@/lib/api';
-import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; // ✅ IMPORTED BRAIN
+import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; 
 
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
@@ -32,7 +32,6 @@ const LoadingSpinner = () => (
     </div>
 );
 
-// --- 🚀 WORLD-CLASS ADD BUTTON COMPONENT ---
 const AddToManifestButton = ({ products }: { products: Product[] }) => {
     const { addProductById } = useAIOrderingStore();
     const [isFlying, setIsFlying] = useState(false);
@@ -41,16 +40,11 @@ const AddToManifestButton = ({ products }: { products: Product[] }) => {
     const handleQuickAdd = (e: React.MouseEvent) => {
         e.stopPropagation();
         
-        // 1. Logic: Add the first available/featured product or a system pick
-        // For UX, we pick the first one as a "Quick Add" demo, or ideally a selected one.
-        // Here we simulate adding the "Top Pick" (first item).
         const productToAdd = products[0];
         
         if (productToAdd) {
-            // Trigger Global Logic (this handles the actual cart state)
+
             addProductById(productToAdd, 'quick-manifest-btn');
-            
-            // 2. Local Animation Trigger
             setIsFlying(true);
             setTimeout(() => setIsFlying(false), 1000);
         }
@@ -70,28 +64,25 @@ const AddToManifestButton = ({ products }: { products: Product[] }) => {
                 <Plus size={16} className="text-cyan-100" />
                 <span className="relative z-10">Add to Manifest</span>
                 
-                {/* Active Pulse Ring */}
                 <span className="absolute -inset-1 rounded-2xl border border-cyan-400/0 group-hover:border-cyan-400/50 group-hover:animate-ping opacity-20 pointer-events-none" />
             </motion.button>
 
-            {/* ✈️ THE 45-DEGREE FLIGHT PARTICLE ✈️ */}
             <AnimatePresence>
                 {isFlying && (
                     <motion.div
                         initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
                         animate={{ 
-                            x: -300, // Move Left
-                            y: 300,  // Move Down (creating 45 degree angle towards bottom-left)
+                            x: -300, 
+                            y: 300,  
                             opacity: 0, 
                             scale: 0.5,
                             rotate: -45 
                         }}
-                        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} // Bezier for "launch" feel
+                        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} 
                         className="absolute top-1/2 left-1/2 z-50 pointer-events-none"
                     >
                         <div className="relative p-2 bg-cyan-400 rounded-full shadow-[0_0_30px_rgba(6,182,212,1)]">
                             <ShoppingBag size={20} className="text-black fill-black" />
-                            {/* Trail Effect */}
                             <motion.div 
                                 initial={{ width: 0 }}
                                 animate={{ width: 100 }}

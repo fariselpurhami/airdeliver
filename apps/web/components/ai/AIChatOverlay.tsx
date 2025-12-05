@@ -605,26 +605,20 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
     const { data: session, status } = useSession();
     const chatEndRef = useRef<HTMLDivElement>(null);
-
-    // ✅🔥 GOLDEN FIX: STABILIZED CONNECTION LOGIC 🔥✅
-    // 1. We use 'currentAccessToken' to track the TOKEN string, not the Session Object.
-    // 2. We use 'isConnectedRef' to prevent double-connecting in Strict Mode.
-    // 3. We removed the auto-disconnect on unmount to keep background state alive.
     const currentAccessToken = session?.accessToken;
     const isConnectedRef = useRef(false);
 
     useEffect(() => {
-        // Only trigger if we have a token and we haven't marked it as connected yet
+        
         if (status === 'authenticated' && currentAccessToken && !isConnectedRef.current) {
-            isConnectedRef.current = true; // Mark as connected
+            isConnectedRef.current = true; 
             actions.connectSocket(currentAccessToken);
         } else if (status === 'unauthenticated') {
-             // Explicit disconnect only if user logs out
+             
              isConnectedRef.current = false;
              actions.disconnectSocket();
         }
         
-        // NO CLEANUP FUNCTION HERE. This keeps the socket alive during page navigation.
     }, [status, currentAccessToken, actions]);
 
     useEffect(() => {
@@ -707,7 +701,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
                 return {
                     clientSecret: stripeGateway.clientSecret,
-                    appearance: stripeAppearance, // Use the stabilized appearance
+                    appearance: stripeAppearance, 
                 };
             }, [paymentDetails, stripeAppearance]);
 
