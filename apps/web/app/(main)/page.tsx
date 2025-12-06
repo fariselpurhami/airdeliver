@@ -185,7 +185,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
 
           <button
 	    onClick={onExploreClick}
-	    className="group relative inline-flex items-center justify-center px-6 py-7 text-base font-bold text-white bg-transparent border-2 border-white/60 rounded-full shadow-lg transition-all duration-300 hover:border-white/50 hover:bg-white/10">
+	    className="group relative inline-flex items-center justify-center px-6 py-7 text-base font-bold text-white bg-transparent border-2 border-white/70 rounded-full shadow-lg transition-all duration-300 hover:border-white/50 hover:bg-white/10">
             Explore Products <ArrowRight className="ml-2 h-5 w-5" />
           </button>
         </motion.div>

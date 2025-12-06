@@ -733,7 +733,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()}
                        
-                        className="w-full max-w-7xl h-[95vh] max-h-[1100px] flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-[0_0_50px_rgba(0,198,255,0.15)] overflow-hidden relative dark"
+                        className="w-full max-w-7xl h-[97vh] flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-[0_0_50px_rgba(0,198,255,0.15)] overflow-hidden relative dark"
                     >
                        
                         <div className="absolute top-0 left-0 w-32 h-32 bg-cyan-500/5 blur-[60px] pointer-events-none" />
