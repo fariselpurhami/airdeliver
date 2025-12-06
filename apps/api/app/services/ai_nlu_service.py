@@ -334,8 +334,8 @@ class AINLUService:
                 p = await self.db.get(Product, pid)
                 if p: 
                     await self.rabbitmq.publish({"user_id": user_id, "content": f"Added '{p.name}' to your cart.", "type": "success_text"}, "airdeliver.ai.response.out")
-                    await self._handle_secondary_suggestions(user_id, p.id)
-                    await asyncio.sleep(0.5)
+                    suggestions_sent = await self._handle_secondary_suggestions(user_id, p.id)
+                    await asyncio.sleep(0.8 if suggestions_sent else 0.3)
                     await self.rabbitmq.publish({"user_id": user_id, "content": "Ready to checkout?", "type": "confirmation_prompt", "options": ["Confirm Order", "Clear Cart"]}, "airdeliver.ai.response.out")
             except Exception as e: 
                 logger.error(f"Error in internal add: {e}")
@@ -372,7 +372,6 @@ class AINLUService:
                             suggestion_reason = f"💡 Essential add-ons for your {added_product.name}:"
 
                     if final_products:
-                        await asyncio.sleep(1.0)
                         await self._mark_products_as_seen(user_id, final_products)
                         await self.rabbitmq.publish({
                             "user_id": user_id,
@@ -450,7 +449,7 @@ class AINLUService:
         
         greeting_map = {
             "morning": "Good morning! ☀️ ✨ Your daily dose of inspiration has arrived.",
-            "afternoon": "Good afternoon! 🌙 Highlights from today, picked just for you.",
+            "afternoon": "Good afternoon! 🌙  Highlights from today, picked just for you.",
             "evening": "Good evening! ✨ Relax and explore our most-loved items.",
             "night": "Welcome, night owl. 🦉 Your exclusive late-night edit awaits."
         }
