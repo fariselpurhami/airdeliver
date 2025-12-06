@@ -5,12 +5,12 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Bot, User, CornerDownRight, ShoppingCart, Cpu, Clock, X, 
+    Bot, User, CornerDownRight, ShoppingCart, Cpu, X, 
     ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, 
     ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap, 
-    Activity, Signal, Gauge, Battery, BrainCircuit, Lock 
+    Activity, Signal, BrainCircuit, Lock, Star, Sparkles
 } from 'lucide-react';
-import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore'; //
+import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
 import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
 import { loadStripe, StripeElementsOptions, Stripe } from '@stripe/stripe-js';
@@ -19,6 +19,7 @@ import { AIPaymentForm } from './AIPaymentForm';
 import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
 
+// --- Architectural Helper: Robust Image Resolution ---
 const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
     if (!relativePath || relativePath.startsWith('http')) {
         return relativePath || '/images/default.jpeg';
@@ -30,10 +31,11 @@ const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
 };
 
 // ============================================================================
-// --- 1. VISUAL COMPONENTS (The "Art" of the Interface) ---
+// --- 1. VISUAL COMPONENTS (High-Fidelity UI) ---
 // ============================================================================
 
 const DroneTelemetryWidget = React.memo(() => {
+    // Simulated live telemetry for architectural realism
     const [stats, setStats] = useState({ speed: 45, alt: 120, bat: 98, stab: 100 });
 
     useEffect(() => {
@@ -53,12 +55,12 @@ const DroneTelemetryWidget = React.memo(() => {
             <div className={`absolute top-0 right-0 p-1.5 opacity-20 group-hover:opacity-100 transition-opacity duration-500 ${color}`}>
                 <Icon size={14} />
             </div>
-            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">{label}</span>
-            <div className="flex items-baseline gap-1">
-                <span className="text-lg font-mono font-bold text-white tracking-tight">{value.toFixed(1)}</span>
-                <span className="text-[9px] text-gray-400">{unit}</span>
+            <span className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-0.5">{label}</span>
+            <div className="flex items-baseline gap-0.5">
+                <span className="text-sm font-mono font-bold text-white tracking-tight">{value.toFixed(1)}</span>
+                <span className="text-[8px] text-gray-400">{unit}</span>
             </div>
-            <div className="w-full h-0.5 bg-gray-800 mt-2 rounded-full overflow-hidden">
+            <div className="w-full h-0.5 bg-gray-800 mt-1.5 rounded-full overflow-hidden">
                 <motion.div 
                     className={`h-full ${color.replace('text-', 'bg-')}`} 
                     initial={{ width: 0 }}
@@ -70,7 +72,7 @@ const DroneTelemetryWidget = React.memo(() => {
     );
 
     return (
-        <div className="grid grid-cols-2 gap-2 w-full mt-2">
+        <div className="grid grid-cols-4 gap-2 w-full mt-2">
             <TelemetryItem icon={Wind} label="SPD" value={stats.speed} unit="km/h" color="text-cyan-400" />
             <TelemetryItem icon={Navigation} label="ALT" value={stats.alt} unit="m" color="text-purple-400" />
             <TelemetryItem icon={Zap} label="PWR" value={stats.bat} unit="%" color="text-green-400" />
@@ -80,9 +82,10 @@ const DroneTelemetryWidget = React.memo(() => {
 });
 DroneTelemetryWidget.displayName = 'DroneTelemetryWidget';
 
+// --- ARCHITECTURAL UPGRADE: Enhanced Product Card ---
 const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, totalItems: number }) => {
-    const mdWidthClass = totalItems === 2 ? "md:flex-[0_0_50%]" : "md:flex-[0_0_40%]";
-    const slideWidthClass = `flex-[0_0_65%] sm:flex-[0_0_50%] ${mdWidthClass}`;
+    // Made cards significantly larger for better UX (85% width on mobile, 55% on desktop)
+    const slideWidthClass = totalItems === 1 ? "flex-[0_0_100%] sm:flex-[0_0_95%]" : "flex-[0_0_85%] sm:flex-[0_0_60%] md:flex-[0_0_55%]";
     
     const rawImagePath = product.image_url || product.image;
     const imageUrl = useMemo(() => getAbsoluteImageUrl(rawImagePath), [rawImagePath]);
@@ -94,52 +97,64 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
     }, [product, rawImagePath, elementId, onSelect]);
 
     return (
-        <div className={`embla__slide ${slideWidthClass} px-3 py-2`}>
+        <div className={`embla__slide ${slideWidthClass} px-4 py-4`}>
             <motion.div
-                className="flex flex-col p-5 bg-black/40 backdrop-blur-xl rounded-[24px] border border-white/10 h-full text-left shadow-lg relative group overflow-hidden"
+                className="flex flex-col p-0 bg-gradient-to-br from-[#0F172A] to-[#020617] backdrop-blur-3xl rounded-[32px] border border-white/10 h-full text-left shadow-2xl relative group overflow-hidden"
                 whileHover={{ 
-                    scale: 1.02, 
-                    zIndex: 50,
-                    borderColor: "rgba(0, 198, 255, 0.4)",
-                    boxShadow: "0 0 30px rgba(0, 198, 255, 0.1)"
+                    scale: 1.02,
+                    border: "1px solid rgba(6, 182, 212, 0.5)",
+                    boxShadow: "0 20px 50px -12px rgba(6, 182, 212, 0.25)" 
                 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 25 }}
             >
-                <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                
-                <div className="relative z-10 flex-grow flex flex-col">
-                    <div className="relative h-32 mb-4 w-full flex items-center justify-center bg-gradient-to-b from-white/5 to-transparent rounded-2xl p-4 group-hover:from-cyan-500/10 transition-colors duration-500">
-                        <Image
-                            id={elementId}
-                            src={imageUrl}
-                            alt={product.name}
-                            width={150}
-                            height={150}
-                            className="w-full h-full object-contain drop-shadow-2xl group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 ease-out"
-                        />
+                {/* Image Section with Atmospheric Glow */}
+                <div className="relative h-56 w-full flex items-center justify-center bg-gradient-to-b from-white/5 to-transparent p-6 overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                    <Image
+                        id={elementId}
+                        src={imageUrl}
+                        alt={product.name}
+                        width={250}
+                        height={250}
+                        className="w-auto h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] group-hover:scale-110 group-hover:-rotate-2 transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)"
+                    />
+                    
+                    {/* Floating Price Tag */}
+                    <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
+                        <span className="text-cyan-400 font-bold font-mono text-lg">${product.price.toFixed(2)}</span>
                     </div>
-                    <h4 className="text-base font-bold text-white mb-1 line-clamp-1" style={{ fontFamily: "'Montserrat', sans-serif" }}>{product.name}</h4>
-                    <div className="flex items-end gap-2 mb-4">
-                        <span className="text-xl font-bold text-cyan-400 font-mono">
-                            ${product.price.toFixed(2)}
-                        </span>
-                        {product.rating && (
-                            <span className="text-[10px] text-gray-500 mb-1 flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">
-                                <span className="text-yellow-400">★</span> {product.rating}
-                            </span>
+                </div>
+
+                {/* Content Section */}
+                <div className="p-6 flex flex-col flex-grow relative z-10">
+                    <div className="flex justify-between items-start mb-2">
+                         <h4 className="text-xl font-bold text-white leading-snug tracking-tight line-clamp-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{product.name}</h4>
+                    </div>
+                   
+                    <div className="flex items-center gap-2 mb-6">
+                         {product.rating && (
+                            <div className="flex items-center gap-1 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-md">
+                                <Star size={12} className="text-yellow-400 fill-yellow-400" />
+                                <span className="text-xs font-bold text-yellow-200">{product.rating}</span>
+                            </div>
                         )}
+                        <span className="text-xs text-gray-500 font-mono">ID: {product.id}</span>
                     </div>
-                    <div className="mt-auto">
+
+                    <div className="mt-auto pt-4 border-t border-white/5">
                         <motion.button
                             onClick={handleSelect}
                             whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="w-full relative overflow-hidden rounded-xl bg-cyan-500/10 border border-cyan-500/30 p-[1px] group/btn"
+                            whileTap={{ scale: 0.96 }}
+                            className="w-full relative overflow-hidden rounded-2xl bg-cyan-500 text-black font-bold py-3.5 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
                         >
-                            <div className="relative px-4 py-3 rounded-[10px] flex items-center justify-center gap-2 transition-all duration-300 group-hover/btn:bg-cyan-500 group-hover/btn:text-black">
-                                <ShoppingBag size={16} className="text-cyan-400 group-hover/btn:text-black transition-colors" />
-                                <span className="font-bold text-xs uppercase tracking-wider text-cyan-100 group-hover/btn:text-black">Add to Cart</span>
-                            </div>
+                            <span className="relative z-10 flex items-center gap-2 uppercase tracking-wide text-xs">
+                                <ShoppingBag size={16} strokeWidth={2.5} />
+                                Add to Order
+                            </span>
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
                         </motion.button>
                     </div>
                 </div>
@@ -150,23 +165,23 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
 CarouselProductCard.displayName = 'CarouselProductCard';
 
 const ProductCarousel = React.memo(({ products, onSelect }: { products: any[], onSelect: (product: any, elementId: string) => void }) => {
-    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start' });
+    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'center', containScroll: 'trimSnaps' });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
     const totalItems = products.length;
-    const canScroll = totalItems > 2;
+    const canScroll = totalItems > 1;
 
     return (
-        <div className="relative my-4 px-1 group/carousel">
-            <div className="overflow-hidden" ref={emblaRef}>
-                <div className="flex -ml-3">
+        <div className="relative my-6 px-1 group/carousel w-full">
+            <div className="overflow-hidden p-2 -m-2" ref={emblaRef}>
+                <div className="flex gap-4 pl-4 pr-12 md:px-4">
                     {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} totalItems={totalItems} />)}
                 </div>
             </div>
             {canScroll && (
                 <>
-                    <button onClick={scrollPrev} className="absolute top-1/2 -translate-y-1/2 -left-4 p-2 bg-black/80 backdrop-blur-md border border-white/10 rounded-full z-10 hover:bg-cyan-500 hover:text-black transition-all opacity-0 group-hover/carousel:opacity-100 translate-x-2 group-hover/carousel:translate-x-0 duration-300"><ChevronLeft size={18}/></button>
-                    <button onClick={scrollNext} className="absolute top-1/2 -translate-y-1/2 -right-4 p-2 bg-black/80 backdrop-blur-md border border-white/10 rounded-full z-10 hover:bg-cyan-500 hover:text-black transition-all opacity-0 group-hover/carousel:opacity-100 -translate-x-2 group-hover/carousel:translate-x-0 duration-300"><ChevronRight size={18}/></button>
+                    <button onClick={scrollPrev} className="absolute top-1/2 -translate-y-1/2 left-0 p-3 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full z-20 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all opacity-0 group-hover/carousel:opacity-100 -translate-x-2 group-hover/carousel:translate-x-2 duration-300 shadow-xl"><ChevronLeft size={20}/></button>
+                    <button onClick={scrollNext} className="absolute top-1/2 -translate-y-1/2 right-0 p-3 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full z-20 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all opacity-0 group-hover/carousel:opacity-100 translate-x-2 group-hover/carousel:translate-x-0 duration-300 shadow-xl"><ChevronRight size={20}/></button>
                 </>
             )}
         </div>
@@ -176,16 +191,23 @@ ProductCarousel.displayName = 'ProductCarousel';
 
 const AIReasoning = React.memo(({ text }: { text: string }) => (
     <motion.div
-        initial={{ opacity: 0, height: 0 }}
-        animate={{ opacity: 1, height: 'auto' }}
-        className="flex items-start gap-3 p-3 mt-3 bg-gradient-to-r from-cyan-900/10 to-transparent border-l-2 border-cyan-500 rounded-r-lg max-w-lg"
+        initial={{ opacity: 0, height: 0, scale: 0.95 }}
+        animate={{ opacity: 1, height: 'auto', scale: 1 }}
+        className="flex items-start gap-3 p-4 mt-4 bg-[#0A1116] border border-cyan-900/50 rounded-2xl max-w-lg relative overflow-hidden"
     >
-        <Cpu size={16} className="text-cyan-400 flex-shrink-0 mt-0.5 animate-pulse"/>
-        <p className="text-xs text-cyan-200/90 font-mono leading-relaxed">{text}</p>
+        <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" />
+        <div className="absolute -right-4 -top-4 w-16 h-16 bg-cyan-500/10 blur-xl rounded-full" />
+        
+        <Sparkles size={16} className="text-cyan-400 flex-shrink-0 mt-0.5 animate-pulse"/>
+        <div>
+            <span className="block text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-1">Architectural Reasoning</span>
+            <p className="text-sm text-cyan-100/80 font-sans leading-relaxed">{text}</p>
+        </div>
     </motion.div>
 ));
 AIReasoning.displayName = 'AIReasoning';
 
+// --- ARCHITECTURAL UPGRADE: Refined Message Design ---
 const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
     const isAI = message.sender === 'ai';
 
@@ -194,17 +216,17 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
             case 'text':
             case 'error':
             case 'success_text':
-                return <p className={`whitespace-pre-wrap text-sm md:text-base leading-relaxed ${message.contentType === 'error' ? 'text-red-400 font-mono' : ''} ${message.contentType === 'success_text' ? 'text-cyan-300' : ''}`}>{message.content}</p>;
+                return <p className={`whitespace-pre-wrap text-[15px] md:text-base leading-7 ${message.contentType === 'error' ? 'text-red-400 font-mono bg-red-950/20 p-2 rounded' : ''} ${message.contentType === 'success_text' ? 'text-cyan-300' : ''}`}>{message.content}</p>;
             case 'confirmation_prompt':
                 return (
                     <div>
-                        <p className="whitespace-pre-wrap mb-4 text-sm md:text-base">{message.content}</p>
-                        <div className="flex flex-wrap gap-2">
+                        <p className="whitespace-pre-wrap mb-5 text-[15px] leading-7">{message.content}</p>
+                        <div className="flex flex-wrap gap-3">
                             {(message.options as string[])?.map((option: string) => {
                                 const isConfirm = option === 'Confirm Order';
                                 const buttonStyle = isConfirm
-                                    ? "bg-purple-600/20 text-purple-300 border-purple-500/50 hover:bg-purple-500 hover:text-white"
-                                    : "bg-cyan-500/10 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500 hover:text-black";
+                                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg hover:shadow-purple-500/25 border-transparent"
+                                    : "bg-white/5 text-cyan-200 border-white/10 hover:bg-cyan-500 hover:text-black hover:border-cyan-500";
                                 return (
                                     <motion.button
                                         key={option}
@@ -215,7 +237,7 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                                             else if (option === 'Clear Cart') onClearCart();
                                             else onSend(option);
                                         }}
-                                        className={`text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-full border ${buttonStyle} transition-all duration-300`}
+                                        className={`text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-xl border transition-all duration-300 ${buttonStyle}`}
                                     >
                                         {option}
                                     </motion.button>
@@ -227,23 +249,25 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
             case 'product_carousel':
             case 'proactive_suggestion':
                 return (
-                    <div className="w-full">
-                        <p className="whitespace-pre-wrap mb-2 text-sm md:text-base">{message.content}</p>
+                    <div className="w-full -ml-2 sm:ml-0">
+                        <p className="whitespace-pre-wrap mb-2 text-[15px] px-2 leading-7">{message.content}</p>
                         <ProductCarousel products={message.products || []} onSelect={onProductSelect} />
                         {(message.reason || message.ai_notes) && (
-                            <AIReasoning text={message.reason || message.ai_notes} />
+                            <div className="px-2">
+                                <AIReasoning text={message.reason || message.ai_notes} />
+                            </div>
                         )}
                     </div>
                 );
             case 'recovery_prompt':
                 return (
-                    <div className="flex flex-col gap-3 w-full p-2">
-                        <div className="flex items-center gap-2 text-amber-400 mb-1">
-                            <AlertCircle size={18} />
+                    <div className="flex flex-col gap-4 w-full p-2 bg-amber-950/20 border border-amber-500/20 rounded-xl">
+                        <div className="flex items-center gap-3 text-amber-400 border-b border-amber-500/20 pb-2">
+                            <AlertCircle size={20} />
                             <span className="font-bold text-sm uppercase tracking-wide">Session Interrupted</span>
                         </div>
-                        <p className="whitespace-pre-wrap text-sm text-gray-300 mb-2">{message.content}</p>
-                        <div className="grid grid-cols-3 gap-2 w-full">
+                        <p className="whitespace-pre-wrap text-sm text-gray-300">{message.content}</p>
+                        <div className="grid grid-cols-3 gap-3 w-full pt-2">
                             {[
                                 { icon: Undo2, label: "Resume", color: "cyan", action: onRestore },
                                 { icon: Save, label: "Save", color: "purple", action: onSave },
@@ -252,8 +276,9 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                                 <motion.button 
                                     key={idx}
                                     whileHover={{ scale: 1.03, y: -2 }}
+                                    whileTap={{ scale: 0.97 }}
                                     onClick={btn.action} 
-                                    className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border bg-${btn.color}-500/10 border-${btn.color}-500/30 text-${btn.color}-400 hover:bg-${btn.color}-500/20 transition-all`}
+                                    className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border bg-${btn.color}-500/5 border-${btn.color}-500/20 text-${btn.color}-300 hover:bg-${btn.color}-500/20 hover:border-${btn.color}-500/40 transition-all`}
                                 >
                                     <btn.icon size={18} /> 
                                     <span className="text-[10px] font-bold uppercase">{btn.label}</span>
@@ -268,27 +293,30 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
 
     if (['cart_preview', 'typing', 'payment_intent', 'ORDER_CANCELLED'].includes(message.contentType)) return null;
 
+    // --- VISUAL DESIGN: Distinct AI vs User styles ---
     return (
         <motion.div
             layout
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            className={`flex items-start gap-4 w-full ${isAI ? 'justify-start' : 'justify-end'}`}
+            className={`flex items-end gap-3 w-full mb-6 ${isAI ? 'justify-start' : 'justify-end'}`}
         >
             {isAI && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-cyan-950/50 flex items-center justify-center border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-950 flex items-center justify-center border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] mb-4">
                     <Bot size={16} className="text-cyan-400" />
                 </div>
             )}
-            <div className={`w-auto max-w-[85%] md:max-w-xl px-5 py-4 rounded-[24px] ${
+            
+            <div className={`w-auto max-w-[90%] md:max-w-2xl px-6 py-5 ${
                 isAI 
-                    ? 'bg-black/40 backdrop-blur-md border border-white/5 text-gray-100 shadow-lg' 
-                    : 'bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-xl shadow-purple-900/20'
-            } ${isAI ? 'rounded-tl-none' : 'rounded-tr-none'}`}>
+                    ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20' 
+                    : 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm'
+            }`}>
                 <MessageContent />
             </div>
+
             {!isAI && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-gray-800/50 flex items-center justify-center border border-gray-700">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10 mb-4">
                     <User size={16} className="text-gray-400" />
                 </div>
             )}
@@ -313,27 +341,30 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
     }, [messages]);
 
     return (
-        <div className="hidden lg:flex w-[35%] bg-black/40 backdrop-blur-2xl border-l border-white/5 flex-col overflow-hidden relative">
-            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none" />
+        <div className="hidden lg:flex w-[350px] xl:w-[400px] flex-shrink-0 bg-black/60 backdrop-blur-3xl border-l border-white/5 flex-col overflow-hidden relative z-20">
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" />
             
             <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent relative z-10">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-8">
                     <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
                         <ShoppingBag size={14} className="text-cyan-400" id="order-summary-cart-icon" /> 
                         Manifest
                     </h3>
-                    <div className="px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-500/20 text-[10px] text-cyan-400 font-mono">
-                        LIVE
+                    <div className="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/30 text-[10px] text-cyan-400 font-mono shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                        SYSTEM ACTIVE
                     </div>
                 </div>
 
-                <div className="space-y-3 flex-grow">
+                <div className="space-y-4 flex-grow">
                     <AnimatePresence>
                         {cart.items.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center h-40 text-gray-600 gap-2 border border-dashed border-white/5 rounded-2xl">
-                                <ShoppingCart size={24} className="opacity-50" />
-                                <p className="text-xs uppercase tracking-wide">Cart / Empty</p>
-                            </div>
+                            <motion.div 
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                className="flex flex-col items-center justify-center h-48 text-gray-600 gap-3 border border-dashed border-white/5 rounded-3xl bg-white/[0.02]"
+                            >
+                                <ShoppingCart size={32} className="opacity-30" />
+                                <p className="text-xs uppercase tracking-widest font-mono">Awaiting Input</p>
+                            </motion.div>
                         ) : cart.items.map((item: any, index: number) => (
                             <motion.div
                                 key={item.product_id || index}
@@ -342,34 +373,36 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                                 animate={{
                                     opacity: 1,
                                     x: 0,
-                                    backgroundColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.1)" : "rgba(255, 255, 255, 0.02)",
-                                    borderColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.4)" : "rgba(255, 255, 255, 0.05)",
+                                    backgroundColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.15)" : "rgba(255, 255, 255, 0.03)",
+                                    borderColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.5)" : "rgba(255, 255, 255, 0.05)",
                                 }}
                                 exit={{ opacity: 0, x: 20 }}
-                                className="flex justify-between items-center p-3 rounded-xl border transition-colors group"
+                                className="flex justify-between items-center p-3 rounded-2xl border transition-colors group relative overflow-hidden"
                             >
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <div className="w-10 h-10 rounded-lg bg-black/50 border border-white/10 flex items-center justify-center overflow-hidden">
-                                       
-                                         <ShoppingBag size={14} className="text-gray-500" />
+                                {item.product_id === glowingProductId && (
+                                    <motion.div layoutId="glow" className="absolute inset-0 bg-cyan-500/5" transition={{ duration: 0.3 }} />
+                                )}
+                                <div className="flex items-center gap-3 flex-1 min-w-0 relative z-10">
+                                    <div className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden">
+                                         <ShoppingBag size={16} className="text-gray-500" />
                                     </div>
                                     <div className="flex flex-col min-w-0">
-                                        <span className="text-gray-200 text-sm font-medium truncate" title={item.name}>
+                                        <span className="text-gray-100 text-sm font-bold truncate tracking-tight" title={item.name}>
                                             {item.name}
                                         </span>
-                                        <span className="text-xs text-gray-500 font-mono">Qty: {item.quantity}</span>
+                                        <span className="text-[10px] text-gray-400 font-mono mt-0.5">QTY: {item.quantity}</span>
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-end gap-1">
+                                <div className="flex flex-col items-end gap-1 relative z-10">
                                     <span className="font-bold text-cyan-300 font-mono text-sm">
                                         ${(item.price * item.quantity).toFixed(2)}
                                     </span>
                                     <motion.button
                                         onClick={() => onRemoveItem(item.product_id)}
-                                        className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
                                         title="Jettison Item"
                                     >
-                                        <X size={12} />
+                                        <X size={14} />
                                     </motion.button>
                                 </div>
                             </motion.div>
@@ -378,33 +411,33 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                 </div>
             </div>
 
-            <div className="flex-shrink-0 p-6 border-t border-white/10 bg-black/60 backdrop-blur-xl space-y-5 relative z-20">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-1 bg-cyan-500/20 rounded-full" />
+            <div className="flex-shrink-0 p-6 border-t border-white/10 bg-[#050B14] space-y-6 relative z-20">
                 
                 <div>
-                    <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                        <Signal size={12} /> Flight Telemetry
+                    <h3 className="text-[10px] font-bold text-gray-500 tracking-widest mb-3 flex items-center gap-2">
+                        <Signal size={12} /> airaero X
                     </h3>
                     <DroneTelemetryWidget />
                 </div>
 
-                <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
                 {aiNote && (
-                    <div className="bg-cyan-900/10 border border-cyan-500/10 p-3 rounded-xl">
-                        <h3 className="text-[10px] font-light text-cyan-400 tracking-widest mb-1 flex items-center gap-2">
-                            <BrainCircuit size={12} /> VISION INSIGHTS
+                    <div className="bg-cyan-950/20 border border-cyan-500/10 p-4 rounded-xl relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/50" />
+                        <h3 className="text-[9px] font-bold text-cyan-400 tracking-widest mb-2 flex items-center gap-2 uppercase">
+                            <BrainCircuit size={12} /> Vision Insights
                         </h3>
-                        <p className="text-xs text-cyan-100/70 italic leading-relaxed">{aiNote}</p>
+                        <p className="text-xs text-cyan-100/70 italic leading-relaxed line-clamp-3">{aiNote}</p>
                     </div>
                 )}
 
-                <div className="flex justify-between items-end pt-2">
+                <div className="w-full h-[1px] bg-white/10" />
+
+                <div className="flex justify-between items-end">
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest">Total Price</span>
-                        <span className="text-xs text-gray-400">Inclusive of Premium Charges</span>
+                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Estimated</span>
+                        <span className="text-[10px] text-gray-600">Including Service Fees</span>
                     </div>
-                    <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white font-mono tracking-tight">
+                    <span className="text-3xl font-bold text-white font-mono tracking-tighter">
                         ${cart.total.toFixed(2)}
                     </span>
                 </div>
@@ -438,24 +471,24 @@ const ChatInput = React.memo(
     };
 
     return (
-      <form onSubmit={handleSubmit} className="p-5 border-t border-white/5 flex-shrink-0 bg-black/20 backdrop-blur-md relative z-20">
-        <div className="relative group">
+      <form onSubmit={handleSubmit} className="p-6 border-t border-white/5 flex-shrink-0 bg-[#020617]/50 backdrop-blur-md relative z-20">
+        <div className="relative group max-w-4xl mx-auto">
           <input
             ref={inputRef}
             type="text"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder={isDisabled ? 'Systems processing...' : 'Ask order with air...'}
+            placeholder={isDisabled ? 'Processing sequence...' : 'Type your request...'}
             disabled={isDisabled}
-            className="w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-full py-4 pr-14 pl-6 text-white placeholder-gray-600 focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500/50 focus:outline-none transition-all duration-300 font-medium"
+            className="w-full bg-[#0F172A] border border-white/10 rounded-full py-5 pr-16 pl-8 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/40 focus:outline-none transition-all duration-300 font-medium shadow-inner"
           />
           <button
             type="submit"
             disabled={isDisabled}
             onClick={(e) => e.stopPropagation()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-800 disabled:text-gray-500 text-white shadow-lg transition-all hover:scale-105 active:scale-95"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-800 disabled:text-gray-600 text-white shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center justify-center"
           >
-            {isDisabled ? <Loader2 size={18} className="animate-spin" /> : <CornerDownRight size={18} />}
+            {isDisabled ? <Loader2 size={20} className="animate-spin" /> : <CornerDownRight size={20} />}
           </button>
         </div>
       </form>
@@ -467,24 +500,27 @@ ChatInput.displayName = 'ChatInput';
 const TypingIndicator = React.memo(() => (
     <motion.div
         layout
-        initial={{ opacity: 0, y: 10, scale: 0.9 }}
+        initial={{ opacity: 0, y: 10, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0 }}
-        className="flex items-center gap-3"
+        className="flex items-center gap-3 mb-4"
     >
-      <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-cyan-950/50 flex items-center justify-center border border-cyan-500/30">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-950/50 flex items-center justify-center border border-cyan-500/30">
         <Bot size={16} className="text-cyan-400" />
       </div>
-      <div className="flex items-center gap-1.5 px-4 py-3 bg-black/40 border border-white/5 rounded-[18px] rounded-tl-none">
-        <span className="text-xs text-cyan-500 font-mono mr-2 animate-pulse">COMPUTING</span>
-        <motion.div className="w-1.5 h-1.5 bg-cyan-400 rounded-full" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity }} />
-        <motion.div className="w-1.5 h-1.5 bg-cyan-400 rounded-full" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, delay: 0.2, repeat: Infinity }} />
-        <motion.div className="w-1.5 h-1.5 bg-cyan-400 rounded-full" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, delay: 0.4, repeat: Infinity }} />
+      <div className="flex items-center gap-2 px-5 py-4 bg-black/40 border border-white/5 rounded-3xl rounded-tl-none">
+        <span className="text-[10px] text-cyan-500 font-bold tracking-widest animate-pulse">ANALYZING</span>
+        <div className="flex gap-1">
+            <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, repeat: Infinity }} />
+            <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, delay: 0.2, repeat: Infinity }} />
+            <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, delay: 0.4, repeat: Infinity }} />
+        </div>
       </div>
     </motion.div>
 ));
 TypingIndicator.displayName = 'TypingIndicator';
 
+// --- ARCHITECTURAL UPGRADE: Physics-Based Animation (1000x smoother) ---
 const FlyToCartAnimator = React.memo(() => {
   const flyQueue = useAIOrderingStore((state) => state.flyQueue);
   const removeFlyItem = useAIOrderingStore((state) => state.removeFlyItem);
@@ -500,9 +536,9 @@ const FlyToCartAnimator = React.memo(() => {
     const el = document.getElementById('order-summary-cart-icon');
     if (el) {
       const rect = el.getBoundingClientRect();
-      return { top: rect.top + rect.height / 2, left: rect.left + rect.width / 2 };
+      return { top: rect.top, left: rect.left };
     }
-    return { top: 100, left: window.innerWidth - 100 };
+    return { top: 50, left: window.innerWidth - 50 };
   };
 
   const endPos = getEndPosition();
@@ -514,14 +550,40 @@ const FlyToCartAnimator = React.memo(() => {
           const imageSource = getAbsoluteImageUrl(item.image);
           if (!startRect || startRect.width === 0) return null;
 
+          // Using "spring" physics instead of "ease" for organic, super-smooth movement
           return (
             <motion.div
               key={item.animationId} 
-              className="fixed z-[9999] rounded-xl overflow-hidden border border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.5)]"
-              initial={{ top: startRect.top, left: startRect.left, width: startRect.width, height: startRect.height, opacity: 1, rotate: 0 }}
-              animate={{ top: endPos.top, left: endPos.left, width: 20, height: 20, opacity: 0.5, rotate: 360, scale: 0.1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} 
+              className="fixed z-[9999] rounded-full overflow-hidden border-2 border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.8)]"
+              style={{ 
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  pointerEvents: 'none'
+              }}
+              initial={{ 
+                  x: startRect.left, 
+                  y: startRect.top, 
+                  width: startRect.width, 
+                  height: startRect.height, 
+                  opacity: 1,
+                  scale: 1 
+              }}
+              animate={{ 
+                  x: endPos.left - 10, // Slight offset to hit icon center
+                  y: endPos.top - 10, 
+                  width: 30, 
+                  height: 30, 
+                  opacity: 0,
+                  scale: 0.5,
+                  rotate: 360
+              }}
+              transition={{ 
+                  type: "spring", 
+                  stiffness: 55, 
+                  damping: 15,
+                  mass: 0.8
+              }}
               onAnimationComplete={() => removeFlyItem(item.animationId)}
             >
               <Image src={imageSource} alt="product" width={100} height={100} className="w-full h-full object-cover" priority />
@@ -547,6 +609,10 @@ const PaymentFatalError = React.memo(({ keyMissing }: { keyMissing: boolean }) =
     </div>
 ));
 PaymentFatalError.displayName = 'PaymentFatalError';
+
+// ============================================================================
+// --- MAIN COMPONENT ---
+// ============================================================================
 
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     
@@ -609,16 +675,13 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const isConnectedRef = useRef(false);
 
     useEffect(() => {
-        
         if (status === 'authenticated' && currentAccessToken && !isConnectedRef.current) {
             isConnectedRef.current = true; 
             actions.connectSocket(currentAccessToken);
         } else if (status === 'unauthenticated') {
-             
              isConnectedRef.current = false;
              actions.disconnectSocket();
         }
-        
     }, [status, currentAccessToken, actions]);
 
     useEffect(() => {
@@ -690,7 +753,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                 rules: {
                     '.Input': { backgroundColor: '#1E293B', border: '1px solid #334155' },
                     '.Input:focus': { border: '1px solid #06b6d4', boxShadow: '0 0 0 1px #06b6d4' },
-		    '.Tab': { backgroundColor: '#1E293B', color: '#ffffff' }, 
+		            '.Tab': { backgroundColor: '#1E293B', color: '#ffffff' }, 
                     '.Tab--selected': { backgroundColor: '#06b6d4', color: '#000000' },
 		}
             }), []);
@@ -721,7 +784,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                     exit={{ opacity: 0 }}
                     onClick={handleClose}
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 overflow-hidden"
-		    style={{ colorScheme: 'dark' }}
+		            style={{ colorScheme: 'dark' }}
                 >
                    
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
@@ -732,17 +795,16 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()}
-                       
-                        className="w-full max-w-7xl h-[97vh] flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-[0_0_50px_rgba(0,198,255,0.15)] overflow-hidden relative dark"
+                        className="w-full  max-w-7xl h-[98vh] flex flex-col bg-[#020617] border border-white/10 rounded-[65px] shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden relative"
                     >
                        
-                        <div className="absolute top-0 left-0 w-32 h-32 bg-cyan-500/5 blur-[60px] pointer-events-none" />
-                        <div className="absolute bottom-0 right-0 w-32 h-32 bg-purple-500/5 blur-[60px] pointer-events-none" />
+                        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
+                        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full" />
 
-                        <header className="px-8 py-5 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-black/20">
-                            <h3 className="font-bold text-xl normal-case tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                        <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-black/20 backdrop-blur-sm">
+                            <h3 className="font-bold text-2xl normal-case tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 <motion.span
-                                    className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-400"
+                                    className="text-transparent bg-clip-text bg-gradient-to-r text-white"
                                     animate={{
                                         textShadow: [
                                             '0 0 10px rgba(6,182,212,0)',
@@ -752,13 +814,13 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                     }}
                                     transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                                 >
-                                    {paymentDetails ? 'secure_checkout' : 'order with air'}
+                                    {paymentDetails ? 'Secure Checkout' : 'order with air'}
                                 </motion.span>
-                                <span className="ml-2 text-[10px] text-cyan-500/50 font-mono align-top">v2.0</span>
+                                <span className="ml-3 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] text-cyan-400 font-mono align-middle">V 3.0</span>
                             </h3>
                             <button 
                                 onClick={handleClose} 
-                                className="p-2.5 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30 transition-all duration-300"
+                                className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30 transition-all duration-300"
                             >
                                 <X size={20} />
                             </button>
@@ -773,7 +835,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
                                         className="w-full h-full flex items-center justify-center overflow-y-auto relative z-20"
-					style={{ isolation: 'isolate' }}
+					                    style={{ isolation: 'isolate' }}
                                     >
                                         {isReadyToRender ? (
                                             <Elements key={stripeOptions.clientSecret} stripe={stripeObj} options={stripeOptions}>
@@ -789,14 +851,14 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                 {isStripeError || isKeyMissing ? (
                                                      <PaymentFatalError keyMissing={isKeyMissing} />
                                                 ) : (
-                                                    <div className="flex flex-col items-center gap-3">
+                                                    <div className="flex flex-col items-center gap-4">
                                                         <div className="relative">
-                                                            <div className="w-16 h-16 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin" />
+                                                            <div className="w-20 h-20 rounded-full border-2 border-cyan-900 border-t-cyan-400 animate-spin" />
                                                             <div className="absolute inset-0 flex items-center justify-center">
-                                                                <Lock size={20} className="text-cyan-400" />
+                                                                <Lock size={24} className="text-cyan-400" />
                                                             </div>
                                                         </div>
-                                                        <p className="text-cyan-200 font-mono text-sm tracking-widest animate-pulse">ENCRYPTING CONNECTION...</p>
+                                                        <p className="text-cyan-200 font-mono text-sm tracking-[0.2em] animate-pulse">ENCRYPTING UPLINK...</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -808,9 +870,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                                        className="w-full lg:w-[65%] flex flex-col relative z-10"
+                                        className="flex-grow flex flex-col relative z-10 w-full"
                                     >
-                                        <div className="flex-grow px-6 py-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/10 scrollbar-track-transparent">
+                                        <div className="flex-grow px-4 lg:px-12 py-8 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/10 scrollbar-track-transparent">
                                             <AnimatePresence initial={false}> 
                                                 {messages.map((msg) => (
                                                     <ChatMessage
