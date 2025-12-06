@@ -73,6 +73,7 @@ async def handle_chat_websocket(
                 "city": current_user.city or "",
                 "message": message_data.get("message"),
                 "type": message_data.get("type", "CHAT_MESSAGE"),
+                "image": message_data.get("image"),
                 "timestamp": message_data.get("timestamp"), 
             }
             

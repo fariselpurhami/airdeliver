@@ -8,7 +8,7 @@ import {
     Bot, User, CornerDownRight, ShoppingCart, Cpu, X, 
     ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, 
     ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap, 
-    Activity, Signal, BrainCircuit, Lock, Star, Sparkles
+    Activity, Signal, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock
 } from 'lucide-react';
 import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
 import Image from 'next/image';
@@ -29,6 +29,141 @@ const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
         : 'http://localhost:8000';
     return `${apiBase}${relativePath.startsWith('/') ? relativePath : `/${relativePath}`}`;
 };
+
+const useTextToSpeech = (messages: any[]) => {
+    useEffect(() => {
+        const lastMessage = messages[messages.length - 1];
+
+        // الشرط: الرسالة من الـ AI، ليست "جاري الكتابة"، وهي جديدة
+        if (lastMessage && lastMessage.sender === 'ai' && lastMessage.contentType !== 'typing') {
+            const textToSpeak = typeof lastMessage.content === 'string' ? lastMessage.content :
+                                lastMessage.intro_message || "Here are the results."; // Fallback for complex objects
+
+            // إلغاء أي كلام سابق لتجنب التداخل
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'en-US'; // أو اختر اللغة بناءً على تفضيل المستخدم
+            utterance.rate = 1.1; // سرعة طبيعية
+            utterance.pitch = 1.0;
+
+            // محاولة اختيار صوت "طبيعي" أكثر إذا وجد
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => v.name.includes("Google US English") || v.name.includes("Samantha"));
+            if (preferredVoice) utterance.voice = preferredVoice;
+
+            window.speechSynthesis.speak(utterance);
+        }
+    }, [messages.length]); // يعمل فقط عند زيادة عدد الرسائل
+};
+// --- 🛸 HOLOGRAPHIC FLIGHT DECK (NEW COMPONENT) ---
+const HolographicFlightDeck = React.memo(({ data }: { data: any }) => {
+    if (!data) return null;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full bg-[#050B14] border border-cyan-500/30 rounded-2xl overflow-hidden relative mt-2 shadow-[0_0_30px_rgba(6,182,212,0.15)]"
+        >
+            {/* Grid Background */}
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.05)_1px,transparent_1px)] bg-[size:20px_20px]" />
+
+            {/* Radar Sweep Animation */}
+            <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent w-[50%] skew-x-12"
+                animate={{ left: ['-100%', '200%'] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            />
+
+            <div className="p-5 relative z-10">
+                {/* Header */}
+                <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                            <span className="text-xs font-bold text-cyan-400 tracking-[0.2em] uppercase">Live Uplink</span>
+                        </div>
+                        <h3 className="text-lg font-black text-white font-mono">{data.mission_id}</h3>
+                    </div>
+                    <div className="text-right">
+                        <span className="block text-[10px] text-gray-500 uppercase tracking-widest">Drone ID</span>
+                        <span className="font-mono text-cyan-200">{data.drone_id}</span>
+                    </div>
+                </div>
+
+                {/* Tactical Map Visualization (SVG) */}
+                <div className="h-32 w-full relative mb-6 mx-auto flex items-center justify-center">
+                    <svg className="w-full h-full absolute inset-0 overflow-visible">
+                        {/* Flight Path Line */}
+                        <motion.path
+                            d="M 20,60 Q 150,10 280,60"
+                            fill="none"
+                            stroke="rgba(6, 182, 212, 0.3)"
+                            strokeWidth="2"
+                            strokeDasharray="5 5"
+                        />
+                         <motion.path
+                            d="M 20,60 Q 150,10 280,60"
+                            fill="none"
+                            stroke="#06b6d4"
+                            strokeWidth="2"
+                            initial={{ pathLength: 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 2, ease: "easeInOut" }}
+                        />
+
+                        {/* Origin Point */}
+                        <circle cx="20" cy="60" r="4" fill="#06b6d4" />
+                        <text x="20" y="80" fill="gray" fontSize="10" textAnchor="middle">HQ</text>
+
+                        {/* Drone Icon Moving */}
+                        <motion.g
+                            initial={{ offsetDistance: "0%" }}
+                            animate={{ offsetDistance: "100%" }}
+                            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                            style={{ offsetPath: 'path("M 20,60 Q 150,10 280,60")' }}
+                        >
+                            <circle cx="0" cy="0" r="6" fill="#06b6d4" className="drop-shadow-[0_0_10px_rgba(6,182,212,1)]" />
+                        </motion.g>
+
+                        {/* Destination Point */}
+                        <circle cx="280" cy="60" r="4" fill="#ef4444" />
+                        <circle cx="280" cy="60" r="8" fill="none" stroke="#ef4444" strokeOpacity="0.5" className="animate-ping" />
+                        <text x="280" y="80" fill="gray" fontSize="10" textAnchor="middle">YOU</text>
+                    </svg>
+                </div>
+
+                {/* Flight Stats Grid */}
+                <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center border border-white/5">
+                        <Clock size={16} className="text-cyan-400 mb-2" />
+                        <span className="text-[10px] text-gray-500 uppercase">ETA</span>
+                        <span className="text-sm font-bold text-white">{data.estimated_arrival_mins} min</span>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center border border-white/5">
+                        <Navigation size={16} className="text-purple-400 mb-2" />
+                        <span className="text-[10px] text-gray-500 uppercase">Dist</span>
+                        <span className="text-sm font-bold text-white">{data.distance_km} km</span>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center border border-white/5">
+                        <Wind size={16} className="text-green-400 mb-2" />
+                        <span className="text-[10px] text-gray-500 uppercase">Weather</span>
+                        <span className="text-[10px] font-bold text-white text-center leading-tight">{data.weather_condition}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Footer Status */}
+            <div className="bg-cyan-950/30 p-2 text-center border-t border-cyan-500/20">
+                <span className="text-[10px] font-mono text-cyan-300 animate-pulse">
+                    &gt;&gt; SYSTEM STATUS: {data.status} &lt;&lt;
+                </span>
+            </div>
+        </motion.div>
+    );
+});
+HolographicFlightDeck.displayName = 'HolographicFlightDeck';
 
 // ============================================================================
 // --- 1. VISUAL COMPONENTS (High-Fidelity UI) ---
@@ -215,26 +350,62 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
         switch (message.contentType) {
             case 'text':
             case 'error':
+	    case 'image_user_upload':
+                return (
+                    <div className="flex flex-col gap-2">
+                        {/* الصورة تظهر أولاً بشكل جميل */}
+                        {message.imageUrl && (
+                            <div className="relative w-full h-48 rounded-xl overflow-hidden border border-white/10 shadow-lg">
+                                <Image
+                                    src={message.imageUrl}
+                                    alt="User Upload"
+                                    fill
+                                    className="object-cover"
+                                />
+                            </div>
+                        )}
+                        {/* النص يظهر تحتها أو فوقها حسب رغبتك، هنا جعلناه بسيطاً */}
+                        <p className="text-sm text-cyan-200/70 font-mono tracking-wider">
+                            {message.content}
+                        </p>
+                    </div>
+                );
             case 'success_text':
                 return <p className={`whitespace-pre-wrap text-[15px] md:text-base leading-7 ${message.contentType === 'error' ? 'text-red-400 font-mono bg-red-950/20 p-2 rounded' : ''} ${message.contentType === 'success_text' ? 'text-cyan-300' : ''}`}>{message.content}</p>;
+	    case 'FLIGHT_MANIFEST': // New Case
+                return (
+                    <div className="w-full -ml-2 sm:ml-0">
+                         <p className="whitespace-pre-wrap mb-2 text-[15px] px-2 leading-7 text-cyan-200">
+                             {message.content}
+                         </p>
+                         <HolographicFlightDeck data={message.flight_data} />
+                    </div>
+                );
             case 'confirmation_prompt':
                 return (
                     <div>
                         <p className="whitespace-pre-wrap mb-5 text-[15px] leading-7">{message.content}</p>
                         <div className="flex flex-wrap gap-3">
                             {(message.options as string[])?.map((option: string) => {
-                                const isConfirm = option === 'Confirm Order';
-                                const buttonStyle = isConfirm
-                                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg hover:shadow-purple-500/25 border-transparent"
-                                    : "bg-white/5 text-cyan-200 border-white/10 hover:bg-cyan-500 hover:text-black hover:border-cyan-500";
+                                const isPrimary = option === 'Confirm Order' || option === 'Retry Payment' || option === 'Switch to PayPal';
+                                
+                                // Dynamic Styling based on intent
+                                let buttonStyle = "bg-white/5 text-cyan-200 border-white/10 hover:bg-cyan-500 hover:text-black";
+                                if (option === 'Switch to PayPal') buttonStyle = "bg-[#003087] text-white border-transparent hover:bg-[#003087]/80"; // PayPal Blue
+                                if (option === 'Retry Payment') buttonStyle = "bg-green-600 text-white hover:bg-green-500";
+
                                 return (
                                     <motion.button
                                         key={option}
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.95 }}
                                         onClick={() => {
-                                            if (option === 'Confirm Order') onConfirmOrder();
-                                            else if (option === 'Clear Cart') onClearCart();
+                                            if (option === 'Switch to PayPal') {
+                                                // Trigger frontend logic to switch tab or notify backend
+                                                onSend("I want to use PayPal");
+                                            }
+                                            else if (option === 'Retry Payment') onConfirmOrder(); // Re-trigger checkout
+                                            else if (option === 'Save for Later') onSave();
                                             else onSend(option);
                                         }}
                                         className={`text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-xl border transition-all duration-300 ${buttonStyle}`}
@@ -363,7 +534,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                                 className="flex flex-col items-center justify-center h-48 text-gray-600 gap-3 border border-dashed border-white/5 rounded-3xl bg-white/[0.02]"
                             >
                                 <ShoppingCart size={32} className="opacity-30" />
-                                <p className="text-xs uppercase tracking-widest font-mono">Awaiting Input</p>
+                                <p className="text-xs uppercase tracking-widest font-mono">Empty | Cart</p>
                             </motion.div>
                         ) : cart.items.map((item: any, index: number) => (
                             <motion.div
@@ -448,54 +619,126 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
 AIChatSidebar.displayName = 'AIChatSidebar';
 
 const ChatInput = React.memo(
-  ({ onSend, isTyping, isProcessing }: { onSend: (text: string) => void; isTyping: boolean; isProcessing: boolean }) => {
+  ({ onSend, onSendImage, isTyping, isProcessing }: { 
+      onSend: (text: string) => void; 
+      onSendImage: (base64: string) => void; // New Prop
+      isTyping: boolean; 
+      isProcessing: boolean 
+  }) => {
     const [value, setValue] = useState('');
-    const inputRef = useRef<HTMLInputElement>(null);
-    const wasTypingRef = useRef<boolean>(isTyping);
+    const [isListening, setIsListening] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-      if (wasTypingRef.current === true && isTyping === false) {
-        inputRef.current?.focus();
-      }
-      wasTypingRef.current = isTyping;
-    }, [isTyping]);
+    // --- 🎤 VOICE MODULE (Web Speech API) ---
+    const toggleVoice = () => {
+        if (!('webkitSpeechRecognition' in window)) {
+            alert("Voice module not supported in this browser sector.");
+            return;
+        }
+        
+        if (isListening) {
+            setIsListening(false);
+            return;
+        }
+
+        const recognition = new (window as any).webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US'; // Or dynamic based on user
+
+        recognition.onstart = () => setIsListening(true);
+        recognition.onend = () => setIsListening(false);
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            setValue(transcript);
+            // Optional: Auto-send on voice end
+            // onSend(transcript); 
+        };
+        recognition.start();
+    };
+
+    // --- 👁️ VISION MODULE (Image Processing) ---
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const fullDataUrl = reader.result as string; // ✅ الرابط الكامل (يعمل مع png/jpg)
+            const base64Raw = fullDataUrl.split(',')[1]; // ✅ البيانات الخام للسيرفر
+            
+            if (base64Raw) {
+                // 👇 نرسل الاثنين
+                onSendImage(fullDataUrl, base64Raw); 
+            }
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
 
     const isDisabled = isTyping || isProcessing;
 
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (value.trim() && !isDisabled) {
-        onSend(value);
-        setValue('');
-      }
-    };
-
     return (
-      <form onSubmit={handleSubmit} className="p-6 border-t border-white/5 flex-shrink-0 bg-[#020617]/50 backdrop-blur-md relative z-20">
-        <div className="relative group max-w-4xl mx-auto">
-          <input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={isDisabled ? 'Processing sequence...' : 'Type your request...'}
-            disabled={isDisabled}
-            className="w-full bg-[#0F172A] border border-white/10 rounded-full py-5 pr-16 pl-8 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/40 focus:outline-none transition-all duration-300 font-medium shadow-inner"
-          />
+      <div className="p-6 border-t border-white/5 flex-shrink-0 bg-[#020617]/50 backdrop-blur-md relative z-20">
+         {/* Hidden File Input */}
+         <input 
+            type="file" 
+            ref={fileInputRef} 
+            accept="image/*" 
+            className="hidden" 
+            onChange={handleImageUpload} 
+         />
+
+        <div className="relative group max-w-4xl mx-auto flex items-center gap-2">
+          
+          {/* 📸 Vision Trigger */}
           <button
-            type="submit"
-            disabled={isDisabled}
-            onClick={(e) => e.stopPropagation()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-800 disabled:text-gray-600 text-white shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center justify-center"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="p-3 rounded-full bg-white/5 text-cyan-400 hover:bg-cyan-500/20 transition-all border border-white/5 hover:border-cyan-500/50"
+            title="Upload Visual Data"
           >
-            {isDisabled ? <Loader2 size={20} className="animate-spin" /> : <CornerDownRight size={20} />}
+            <Camera size={20} />
           </button>
+
+          {/* 🎤 Voice Trigger */}
+          <button
+            type="button"
+            onClick={toggleVoice}
+            className={`p-3 rounded-full transition-all border border-white/5 ${
+                isListening 
+                ? 'bg-red-500/20 text-red-400 animate-pulse border-red-500/50' 
+                : 'bg-white/5 text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/50'
+            }`}
+            title="Activate Voice Command"
+          >
+            <Mic size={20} />
+          </button>
+
+          {/* Text Input */}
+          <div className="relative flex-grow">
+            <input
+                type="text"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !isDisabled && value.trim() && (onSend(value), setValue(''))}
+                placeholder={isListening ? 'Listening...' : isDisabled ? 'Processing sequence...' : 'Type or speak your request...'}
+                disabled={isDisabled}
+                className="w-full bg-[#0F172A] border border-white/10 rounded-full py-4 pr-16 pl-6 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/40 focus:outline-none transition-all duration-300 font-medium shadow-inner"
+            />
+             <button
+                disabled={isDisabled || !value.trim()}
+                onClick={() => { onSend(value); setValue(''); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-transparent disabled:text-gray-600 text-white transition-all"
+            >
+                {isDisabled ? <Loader2 size={18} className="animate-spin" /> : <CornerDownRight size={18} />}
+            </button>
+          </div>
         </div>
-      </form>
+      </div>
     );
   }
 );
-ChatInput.displayName = 'ChatInput';
 
 const TypingIndicator = React.memo(() => (
     <motion.div
@@ -649,10 +892,10 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const paymentDetails = useAIOrderingStore(state => state.paymentDetails);
     const glowingProductId = useAIOrderingStore(state => state.glowingProductId);
     const socketStatus = useAIOrderingStore(state => state.socketStatus);
-    
     const actions = useAIOrderingStore(
         useShallow((state) => ({
             sendMessage: state.sendMessage,
+	    sendImage: state.sendImage,
             addProductById: state.addProductById,
             setOverlayVisible: state.setOverlayVisible,
             resetChat: state.resetChat,
@@ -891,7 +1134,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                             {isLoading && <TypingIndicator />}
                                             <div ref={chatEndRef} />
                                         </div>
-                                        <ChatInput onSend={handleSendMessage} isTyping={isLoading} isProcessing={isProcessing} />
+                                        <ChatInput onSend={handleSendMessage} onSendImage={actions.sendImage} isTyping={isLoading} isProcessing={isProcessing} />
                                     </motion.div>
                                 )}
                             </AnimatePresence>

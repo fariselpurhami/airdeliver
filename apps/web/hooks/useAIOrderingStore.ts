@@ -29,7 +29,9 @@ type FlyItem = {
 export interface Message {
   id: number;
   sender: 'user' | 'ai';
-  contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'payment_intent' | 'success_text' | 'ORDER_CANCELLED' | 'recovery_prompt' | 'reset_prompt';
+  contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'payment_intent' | 'success_text' | 'ORDER_CANCELLED' | 'recovery_prompt' | 'reset_prompt' | 'image_user_upload';
+  flight_data?: any;
+  imageUrl?: string;
   content: any;
   options?: string[];
   products?: any[];
@@ -60,6 +62,7 @@ interface AIOrderingState {
   connectSocket: (token: string) => Promise<void>;
   disconnectSocket: () => void;
   sendMessage: (text: string, isButtonCommand?: boolean) => void;
+  sendImage: (base64: string) => void;
 
   setOverlayVisible: (isVisible: boolean) => void;
   addProductById: (product: any, startElementId: string) => void;
@@ -221,6 +224,10 @@ export const useAIOrderingStore = create<AIOrderingState>()(
       set(produce((state: AIOrderingState) => {
         state.messages = state.messages.filter(m => m.contentType !== 'typing');
         state.isLoading = false;
+
+	if (response.type === 'FLIGHT_MANIFEST') {
+            aiMessage.flight_data = response.flight_data;
+        }
         
         // Resilience: Unlock UI on any message
         if (response.type !== 'typing') {
@@ -311,6 +318,26 @@ export const useAIOrderingStore = create<AIOrderingState>()(
       }, 15000);
 
       get()._sendInternalCommand(text, {}, true);
+    },
+
+    sendImage: (fullDataUrl, base64Raw) => {
+      set(produce((state: AIOrderingState) => {
+        // Optimistic UI update: Show user uploaded image immediately
+        state.messages.push({
+            id: Date.now(), // يمكنك استخدام generateMessageId() إذا كانت متاحة لديك في النطاق
+            sender: 'user',
+	    contentType: 'image_user_upload',
+            content: 'Analyzing image...',
+            imageUrl: fullDataUrl
+        });
+        state.isLoading = true;
+	state.isProcessing = true;
+      }));
+
+      get()._sendInternalCommand('__IMAGE__', {
+          type: 'IMAGE_QUERY',
+          image: base64Raw
+      }, true);
     },
 
     _sendInternalCommand: (command, payload: any = {}, silent: boolean = false) => {

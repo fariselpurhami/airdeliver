@@ -84,10 +84,91 @@ class AICommerceEngine:
         self.milvus_collection = "airdeliver_products"
         self.intent_collection = "airdeliver_intents_v2" 
         
+        # [ARCHITECTURAL UPGRADE] User Long-Term Memory Vault
+        self.user_memory_collection = "airdeliver_user_memory_v1" 
+        self._ensure_memory_collection()
+        
         self.direct_confirm = {"confirm order", "checkout", "pay", "تأكيد الطلب", "دفع", "انهاء الشراء", "شراء"}
 
         self._ensure_intent_knowledge_base()
 
+    # --- 🧠 MEMORY VAULT MANAGEMENT (NEW) ---
+    def _ensure_memory_collection(self):
+        try:
+            if self.milvus_client.has_collection(self.user_memory_collection):
+                return
+            
+            logger.info("🧠 Initializing User Long-Term Memory Vault...")
+            schema = MilvusClient.create_schema(auto_id=True, enable_dynamic_field=True)
+            schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
+            schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=384)
+            schema.add_field(field_name="user_id", datatype=DataType.INT64) # Partition key logic
+            schema.add_field(field_name="fact_text", datatype=DataType.VARCHAR, max_length=512)
+            schema.add_field(field_name="timestamp", datatype=DataType.INT64)
+
+            index_params = self.milvus_client.prepare_index_params()
+            index_params.add_index(field_name="vector", index_type="FLAT", metric_type="L2")
+            # Index user_id for fast filtering
+            index_params.add_index(field_name="user_id", index_type="STL_SORT") 
+
+            self.milvus_client.create_collection(
+                collection_name=self.user_memory_collection, 
+                schema=schema, 
+                index_params=index_params
+            )
+            logger.info("✅ Memory Vault Ready.")
+        except Exception as e:
+            logger.error(f"❌ Failed to init Memory Vault: {e}")
+
+    async def remember_user_fact(self, user_id: int, fact_text: str):
+        """Stores a extracted truth about the user forever."""
+        try:
+            vector = self._get_query_embedding(fact_text)
+            data = [{
+                "user_id": user_id,
+                "vector": vector,
+                "fact_text": fact_text,
+                "timestamp": int(time.time())
+            }]
+            # Run in executor to avoid blocking async loop
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                None, 
+                lambda: self.milvus_client.insert(collection_name=self.user_memory_collection, data=data)
+            )
+            logger.info(f"💾 Persisted Fact for User {user_id}: {fact_text}")
+        except Exception as e:
+            logger.error(f"Memory Write Error: {e}")
+
+    async def recall_relevant_facts(self, user_id: int, query: str, limit: int = 3) -> List[str]:
+        """Retrieves facts relevant to the CURRENT query (Contextual Recall)."""
+        try:
+            vector = self._get_query_embedding(query)
+            # Filter strictly by user_id so we don't leak other users' data
+            search_filter = f"user_id == {user_id}"
+            
+            loop = asyncio.get_running_loop()
+            results = await loop.run_in_executor(
+                None,
+                lambda: self.milvus_client.search(
+                    collection_name=self.user_memory_collection,
+                    data=[vector],
+                    filter=search_filter,
+                    limit=limit,
+                    output_fields=["fact_text"]
+                )
+            )
+            
+            if not results or not results[0]: return []
+            
+            # Extract text only
+            facts = [hit["entity"]["fact_text"] for hit in results[0] if hit["distance"] < 1.2] # Distance threshold
+            return facts
+        except Exception as e:
+            logger.error(f"Memory Recall Error: {e}")
+            return []
+
+    # --- INTENT KNOWLEDGE BASE ---
     def _ensure_intent_knowledge_base(self):
         try:
             if self.milvus_client.has_collection(self.intent_collection):
@@ -104,7 +185,6 @@ class AICommerceEngine:
 
             self.milvus_client.create_collection(collection_name=self.intent_collection, schema=schema, index_params=index_params)
             
-            # Seed minimal intents for fallback logic
             intent_map = {
                 "ADD_TO_CART": ["add to cart", "buy this", "purchase", "ضيف للسلة", "اشتري ده", "شراء"],
                 "CONFIRM_ORDER": ["checkout", "confirm order", "pay now", "دفع", "تأكيد الطلب"],
@@ -160,12 +240,46 @@ class AICommerceEngine:
             logger.error(f"❌ Failed to ensure OpenSearch index: {e}")
 
     async def _search_opensearch(self, query: str, limit: int = 50) -> List[Tuple[str, float]]:
+
+        """
+        Search V2: Precision Boosting.
+        Uses 'query_string' for strict keyword matching logic.
+        """
+        # Clean query for strictness
+        clean_q = re.sub(r'[^\w\s]', '', query)
+
         opensearch_query = {
             "query": {
-                "multi_match": {
-                    "query": query,
-                    "fields": ["name^4", "description^2", "category^3", "tags"],
-                    "fuzziness": "AUTO"
+                "bool": {
+                    "should": [
+                        # 1. Exact Phrase Match (Highest Priority) - The "Sniper" Shot
+                        {
+                            "match_phrase": {
+                                "name": {
+                                    "query": clean_q,
+                                    "boost": 10.0 # Massive boost for exact sequence
+                                }
+                            }
+                        },
+                        # 2. Strong Keyword Match on Name
+                        {
+                            "match": {
+                                "name": {
+                                    "query": clean_q,
+                                    "operator": "and", # Requires ALL terms (e.g. "iPhone" AND "17")
+                                    "boost": 5.0
+                                }
+                            }
+                        },
+                        # 3. Broad Match (The Net)
+                        {
+                            "multi_match": {
+                                "query": clean_q,
+                                "fields": ["name^3", "description", "category^2", "tags"],
+                                "fuzziness": "AUTO"
+                            }
+                        }
+                    ]
                 }
             },
             "size": limit,
@@ -173,6 +287,7 @@ class AICommerceEngine:
         }
         try:
             response = await self.opensearch_client.search(index="airdeliver_products", body=opensearch_query)
+            max_score = response["hits"]["max_score"] or 1.0
             return [(hit["_id"], hit["_score"]) for hit in response["hits"]["hits"]]
         except Exception:
             return []
@@ -212,12 +327,14 @@ class AICommerceEngine:
     # --- THE NEW SURGICAL METHOD FOR LLM INTEGRATION ---
     async def perform_hybrid_search_pure(self, db: AsyncSession, query: str, limit: int = 50) -> List[Product]:
         """
-        Executes raw hybrid search WITHOUT internal intent classification.
-        This is designed to be driven by the FreeLLMService strategy.
+        Hybrid Engine V2: The RRF Tuner.
+        Favors Keyword Search (OpenSearch) when specific model numbers are detected.
         """
+        # Check if query contains specific model numbers (digits)
+        has_numbers = bool(re.search(r'\d+', query))
+        
         query_vector = self._get_query_embedding(query)
 
-        # Parallel Execution: Vector + Text
         opensearch_results, milvus_results = await asyncio.gather(
             self._search_opensearch(query, limit=limit),
             self._search_milvus(query_vector, limit=limit),
@@ -227,27 +344,34 @@ class AICommerceEngine:
         opensearch_results = opensearch_results if isinstance(opensearch_results, list) else []
         milvus_results = milvus_results if isinstance(milvus_results, list) else []
 
-        # RRF Fusion
-        all_results = opensearch_results + milvus_results
-        reranked_scores = self.reranker.rerank(all_results)
+        # RRF Fusion Logic with Dynamic Weighting
+        reranked_scores = {}
+        
+        # If query has numbers (e.g., "iPhone 17"), TRUST KEYWORD SEARCH MORE
+        keyword_weight = 3.0 if has_numbers else 1.0 
+        vector_weight = 1.0
+
+        for doc_id, score in opensearch_results:
+            reranked_scores[doc_id] = reranked_scores.get(doc_id, 0) + (score * keyword_weight)
+            
+        for doc_id, score in milvus_results:
+            reranked_scores[doc_id] = reranked_scores.get(doc_id, 0) + (score * vector_weight)
+
         sorted_ids = sorted(reranked_scores, key=reranked_scores.get, reverse=True)[:limit]
 
         if not sorted_ids:
-             # Last resort fallback if engine finds nothing
              return await self._fallback_sql_search(db, query, limit)
 
-        # Fetch actual objects
         product_ids_int = [int(pid) for pid in sorted_ids]
         statement = select(Product).where(Product.id.in_(product_ids_int))
         products_db = (await db.exec(statement)).all()
         
-        # Maintain Sort Order
         product_map = {p.id: p for p in products_db}
+        # Preserve sorted order
         return [product_map[pid] for pid in product_ids_int if pid in product_map]
 
-    # --- LEGACY METHOD (Kept for compatibility, but redirects to pure search) ---
+    # --- LEGACY METHOD ---
     async def find_products_from_message(self, db: AsyncSession, message: str, user_id: int) -> Tuple[List[Product], Dict[str, Any]]:
-        # This is now just a wrapper for the pure search to support legacy calls
         products = await self.perform_hybrid_search_pure(db, message)
         return products, {"intent": "SEARCH_PRODUCT", "query": message}
 
