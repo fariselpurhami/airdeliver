@@ -146,14 +146,14 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
                 ease: "easeInOut" 
             }}
             
-            className="group relative inline-flex items-center justify-center px-6 py-7 text-black font-light bg-white text-xl rounded-full shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
+            className="group relative inline-flex items-center justify-center px-6 py-7  text-black font-light bg-white text-xl rounded-full shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
           >
            
             <span className={`absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] transition-opacity duration-500 ${
                 hasActiveOrder ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
             }`} />
             
-            <span className="relative flex items-center font-light z-10">
+            <span className="relative flex items-center font-base text-xl z-10">
                
                 <span className={`transition-colors duration-300 ${hasActiveOrder ? 'text-white' : 'text-black group-hover:text-white'}`}>
                     order with air

@@ -9,7 +9,7 @@ import re
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from groq import AsyncGroq
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 logger = logging.getLogger("airdeliver.services.cognitive_core")
 
@@ -42,9 +42,9 @@ class FreeLLMService:
     def __init__(self):
         if self._initialized: return
         self.api_key = os.getenv("GROQ_API_KEY")
-        self.brain_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        self.brain_model = os.getenv("GROQ_MODEL")
         self.reflex_model = "llama-3.1-8b-instant"
-        self.vision_model = "llama-3.2-90b-vision-preview"
+        self.vision_model = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 
         if not self.api_key:
             logger.critical("GROQ_API_KEY missing. Cognitive Core is OFFLINE.")
@@ -99,8 +99,6 @@ class FreeLLMService:
         if not self.client:
             return "Visual core offline."
 
-        # Vision-optimized model
-        vision_model = "llama-3.2-11b-vision-preview"
 
         try:
             completion = await self._safe_execute(
@@ -119,7 +117,7 @@ class FreeLLMService:
                         ]
                     }
                 ],
-                model=vision_model,
+                model=self.vision_model,
                 temperature=0.1,
                 max_tokens=300
             )
@@ -287,9 +285,11 @@ class FreeLLMService:
         2. [WEB SEARCH]: {external_knowledge}
 
         --- 🛡️ INTELLIGENCE PROTOCOLS ---
-        1. **HYBRID KNOWLEDGE**: If [WEB SEARCH] is empty or fails, YOU MUST USE YOUR OWN INTERNAL TRAINING DATA to provide detailed specs for this product. Do NOT say "I don't know".
-        2. **ANTI-ROBOT FILTER**: NEVER output technical database fields like 'ID', 'slug', 'image_url', 'inventory', 'created_at', or 'category_id'. These are forbidden.
-        3. **VALUE ADD**: Only show specs that matter to a human buyer (Battery, Screen, Material, Chipset, Scent notes, Fabric).
+        1.DO NOT SUMMARIZE. YOU MUST INCLUDE ALL TECHNICAL DETAILS.
+        2. LIST ALL AVAILABLE SPECS. Prioritize completeness over conciseness.
+        3. **HYBRID KNOWLEDGE**: If [WEB SEARCH] is empty or fails, YOU MUST USE YOUR OWN INTERNAL TRAINING DATA to provide detailed specs for this product. Do NOT say "I don't know".
+        4. **ANTI-ROBOT FILTER**: NEVER output technical database fields like 'ID', 'slug', 'image_url', 'inventory', 'created_at', or 'category_id'. These are forbidden.
+        5. **VALUE ADD**: show all specs that matter to a human buyer (Battery, Screen, Material, Chipset, Scent notes, Fabric).
 
         --- STRICT OUTPUT RULES (ZERO MARKDOWN) ---
         1. **NO MARKDOWN SYMBOLS**: Do NOT use asterisks (**), hashes (#), underscores (_), or quotes ('') for formatting.
