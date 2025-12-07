@@ -9,18 +9,18 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-fastapi = "^0.111.0"
-uvicorn = {extras = ["standard"], version = "^0.29.0"}
-sqlmodel = "0.0.20"
+fastapi = "^0.124.0"
+uvicorn = {version = "^0.38.0", extras = ["standard"]}
+sqlmodel = "^0.0.27"
 SQLAlchemy = "^2.0"
 alembic = "^1.13.1"
-asyncpg = "^0.29.0"
+asyncpg = "^0.31.0"
 psycopg = {extras = ["binary"], version = "^3.1.19"}
 psycopg2-binary = "^2.9.9"
 pydantic-settings = "^2.2.1"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 bcrypt = "3.2.2"
-python-multipart = "^0.0.9"
+python-multipart = "^0.0.20"
 tenacity = "^8.3.0"
 starlette-prometheus = "^0.10.0"
 slowapi = "^0.1.9"
@@ -46,7 +46,6 @@ numpy = "<2.0.0"
 transformers = "^4.57.3"
 ujson = "^5.11.0"
 python-dotenv = "^1.2.1"
-ddgs = "^9.9.2"
 duckduckgo-search = "^8.1.1"
 
 [tool.poetry.group.dev.dependencies]
