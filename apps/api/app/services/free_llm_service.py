@@ -283,15 +283,21 @@ class FreeLLMService:
         1. [INTERNAL DB]: {internal_context}
         2. [WEB SEARCH]: {external_knowledge}
 
-        --- STRICT OUTPUT RULES (ZERO TOLERANCE) ---
-        1. **NO MARKDOWN**: Do NOT use asterisks (**bold**), hashes (##), or underscores. Write plain text only.
-        2. **NO EMOJIS**: Do NOT use any emojis or graphical symbols.
-        3. **NO LISTS**: Do NOT use bullet points or numbered lists. Use cohesive sentences and paragraphs.
-        4. **PROFESSIONAL TONE**: Speak like a high-end concierge. Elegant, precise, and helpful.
-        5. **ACCURACY**: If the user asks for specs, provide them accurately from the data.
+        --- STRICT OUTPUT RULES (ZERO MARKDOWN) ---
+        1. **NO MARKDOWN SYMBOLS**: Do NOT use asterisks (**), hashes (#), underscores (_), or quotes ('') for formatting.
+        2. **CLEAN LIST STYLE**: Use a real bullet point (•) for specifications.
+        3. **VISUAL HIERARCHY**: Since you cannot use bold, use CAPITAL LETTERS for the feature name to make it stand out.
+           - Example:
+             • BATTERY: Up to 18 hours
+             • PROCESSOR: Apple S8 chip
+        4. **LAYOUT**: 
+           - Start with a polite, direct answer sentence.
+           - Leave one empty line.
+           - List the specs/features.
+        5. **NO EMOJIS**: Keep it strictly professional and clean.
         6. **LANGUAGE**: Respond in the USER'S LANGUAGE.
 
-        Your goal is to answer the user's question about the product comprehensively in a clean, readable paragraph format.
+        Your goal is to provide a response that looks like a perfectly formatted official document without using any code symbols.
         """
 
         try:

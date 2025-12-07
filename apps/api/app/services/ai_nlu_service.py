@@ -329,14 +329,39 @@ class AINLUService:
         elif command.startswith("__INTERNAL_ADD_BY_ID__:") and user_id:
             try:
                 pid = int(command.split(":")[1])
+                
+                # 1. إضافة المنتج
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": pid, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
                 
+                # جلب البيانات
                 p = await self.db.get(Product, pid)
                 if p: 
-                    await self.rabbitmq.publish({"user_id": user_id, "content": f"Added '{p.name}' to your cart.", "type": "success_text"}, "airdeliver.ai.response.out")
-                    suggestions_sent = await self._handle_secondary_suggestions(user_id, p.id)
-                    await asyncio.sleep(0.8 if suggestions_sent else 0.3)
-                    await self.rabbitmq.publish({"user_id": user_id, "content": "Ready to checkout?", "type": "confirmation_prompt", "options": ["Confirm Order", "Clear Cart"]}, "airdeliver.ai.response.out")
+                    # 2. رسالة النجاح
+                    await self.rabbitmq.publish({
+                        "user_id": user_id, 
+                        "content": f"Added '{p.name}' to your cart.", 
+                        "type": "success_text"
+                    }, "airdeliver.ai.response.out")
+                    
+                    # 3. [هام جداً] استدعاء الاقتراحات مع وقت انتظار كافي
+                    logger.info(f"🚀 Triggering Suggestions for Product {p.id}")
+                    suggestions_found = await self._handle_secondary_suggestions(user_id, p.id)
+                    
+                    if suggestions_found:
+                        # 👇 التغيير الجوهري هنا: زدنا الوقت لـ 2.5 ثانية
+                        logger.info("✅ Suggestions sent. Holding UI for 2.5s...")
+                        await asyncio.sleep(2.5) 
+                    else:
+                        await asyncio.sleep(0.5)
+                    
+                    # 4. رسالة الدفع
+                    await self.rabbitmq.publish({
+                        "user_id": user_id, 
+                        "content": "Ready to checkout?", 
+                        "type": "confirmation_prompt", 
+                        "options": ["Confirm Order", "Clear Cart"]
+                    }, "airdeliver.ai.response.out")
+
             except Exception as e: 
                 logger.error(f"Error in internal add: {e}")
             
@@ -362,15 +387,41 @@ class AINLUService:
                     if added_product.price > 150:
                         bundle_items = await self.search_engine.generate_smart_bundle(bg_db, added_product)
                         if bundle_items:
-                            final_products = [p.model_dump(mode='json') for p in bundle_items[:3]]
+                            final_products = [p.model_dump(mode='json') for p in bundle_items[:5]]
                             suggestion_reason = f"🔥 Complete your setup! {added_product.name} works best with:"
-
+                            
                     if not final_products:
                         comps = await self.search_engine.find_complementary_products(bg_db, added_product, limit=5)
                         if comps:
-                            final_products = [p.model_dump(mode='json') for p in comps[:4]]
+                            final_products = [p.model_dump(mode='json') for p in comps[:5]]
                             suggestion_reason = f"💡 Essential add-ons for your {added_product.name}:"
+                    if not final_products and added_product.category:
+                       statement = (
+                            select(Product)
+                            .where(Product.category == added_product.category)
+                            .where(Product.id != added_product.id) # لا نقترح نفس المنتج
+                            .order_by(Product.rating.desc())
+                            .limit(5)
+                    )
+                    global_best = (await bg_db.exec(statement)).all()
+                    cat_best = (await bg_db.exec(statement)).all()
+                    if cat_best:
+                        final_products = [p.model_dump(mode='json') for p in cat_best]
+                        suggestion_reason = f"🏆 Top rated in {added_product.category}:"
 
+                # محاولة 4: الأفضل مبيعاً عاماً (Global Trending) - الملاذ الأخير
+                    if not final_products:
+                       statement = (
+                           select(Product)
+                           .where(Product.id != added_product.id)
+                           .order_by(Product.rating.desc())
+                           .limit(5)
+                       )
+                       global_best = (await bg_db.exec(statement)).all()
+                       if global_best:
+                          final_products = [p.model_dump(mode='json') for p in global_best]
+                          suggestion_reason = "✨ Popular choices you might like:"
+                    
                     if final_products:
                         await self._mark_products_as_seen(user_id, final_products)
                         await self.rabbitmq.publish({
@@ -380,9 +431,13 @@ class AINLUService:
                             "products": final_products,
                             "reason": "Smart Suggestion"
                         }, "airdeliver.ai.response.out")
+                        return True
+                    
+                    return False
+
                 except Exception as e:
                     logger.error(f"Background suggestion error: {e}")
-        asyncio.create_task(_safe_bg_logic())
+                    return False
 
     async def _handle_removal_recovery(self, user_id: int, product_id: int):
         async def _safe_recovery():
@@ -429,7 +484,7 @@ class AINLUService:
                  return
 
         logger.info(f"🌟 Generating {time_context} picks for User {user_id}")
-        statement = select(Product).order_by(Product.rating.desc()).limit(60)
+        statement = select(Product).order_by(Product.rating.desc()).limit(100)
         candidates = (await self.db.exec(statement)).all()
         if not candidates: return
 
@@ -443,7 +498,7 @@ class AINLUService:
             else: 
                 weighted_candidates.append(p)
 
-        selected = weighted_candidates[:8]
+        selected = weighted_candidates[:35]
         random.shuffle(selected)
         products_data = [p.model_dump(mode='json') for p in selected]
         

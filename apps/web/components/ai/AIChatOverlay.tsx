@@ -365,17 +365,17 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                             </div>
                         )}
                         {/* النص يظهر تحتها أو فوقها حسب رغبتك، هنا جعلناه بسيطاً */}
-                        <p className="text-sm text-cyan-200/70 font-mono tracking-wider">
+                        <p className="text-[15px] text-white font-medium whitespace-pre-wrap leading-relaxed tracking-wide">
                             {message.content}
                         </p>
                     </div>
                 );
             case 'success_text':
-                return <p className={`whitespace-pre-wrap text-[15px] md:text-base leading-7 ${message.contentType === 'error' ? 'text-red-400 font-mono bg-red-950/20 p-2 rounded' : ''} ${message.contentType === 'success_text' ? 'text-cyan-300' : ''}`}>{message.content}</p>;
+                return <p className={`whitespace-pre-wrap text-[15px] md:text-base leading-7 text-white font-medium ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
 	    case 'FLIGHT_MANIFEST': // New Case
                 return (
                     <div className="w-full -ml-2 sm:ml-0">
-                         <p className="whitespace-pre-wrap mb-2 text-[15px] px-2 leading-7 text-cyan-200">
+                         <p className="whitespace-pre-wrap mb-2 text-[15px] px-2 leading-7 text-white font-medium">
                              {message.content}
                          </p>
                          <HolographicFlightDeck data={message.flight_data} />
@@ -869,6 +869,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     
     const [stripeObj, setStripeObj] = useState<Stripe | null>(null);
     const [isStripeError, setIsStripeError] = useState(false);
+    const [isAnimationComplete, setIsAnimationComplete] = useState(false);
 
     useEffect(() => {
         if (stripePromise) {
@@ -932,6 +933,12 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
             chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
     }, [messages, isLoading]);
+
+    useEffect(() => {
+        if (!paymentDetails) {
+            setIsAnimationComplete(false);
+        }
+    }, [paymentDetails]);
 
     const handleClose = useCallback(() => {
         if (paymentDetails && !isProcessing) {
@@ -1077,11 +1084,16 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         initial={{ opacity: 0, x: 20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+					onAnimationComplete={() => setIsAnimationComplete(true)}
                                         className="w-full h-full flex items-center justify-center overflow-y-auto relative z-20"
 					                    style={{ isolation: 'isolate' }}
                                     >
-                                        {isReadyToRender ? (
-                                            <Elements key={stripeOptions.clientSecret} stripe={stripeObj} options={stripeOptions}>
+                                        {isReadyToRender && isAnimationComplete ? (
+                                            <Elements 
+					        key={`${stripeOptions?.clientSecret}-loaded`} 
+						stripe={stripeObj} 
+						options={stripeOptions}
+					    >
                                                 <AIPaymentForm
                                                     orderId={paymentDetails!.orderId}
                                                     total={paymentDetails!.total}
