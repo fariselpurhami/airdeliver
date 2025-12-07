@@ -329,39 +329,14 @@ class AINLUService:
         elif command.startswith("__INTERNAL_ADD_BY_ID__:") and user_id:
             try:
                 pid = int(command.split(":")[1])
-                
-                # 1. إضافة المنتج
                 await self.rabbitmq.publish({"user_id": user_id, "product_id": pid, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
                 
-                # جلب البيانات
                 p = await self.db.get(Product, pid)
                 if p: 
-                    # 2. رسالة النجاح
-                    await self.rabbitmq.publish({
-                        "user_id": user_id, 
-                        "content": f"Added '{p.name}' to your cart.", 
-                        "type": "success_text"
-                    }, "airdeliver.ai.response.out")
-                    
-                    # 3. [هام جداً] استدعاء الاقتراحات مع وقت انتظار كافي
-                    logger.info(f"🚀 Triggering Suggestions for Product {p.id}")
-                    suggestions_found = await self._handle_secondary_suggestions(user_id, p.id)
-                    
-                    if suggestions_found:
-                        # 👇 التغيير الجوهري هنا: زدنا الوقت لـ 2.5 ثانية
-                        logger.info("✅ Suggestions sent. Holding UI for 2.5s...")
-                        await asyncio.sleep(2.5) 
-                    else:
-                        await asyncio.sleep(0.5)
-                    
-                    # 4. رسالة الدفع
-                    await self.rabbitmq.publish({
-                        "user_id": user_id, 
-                        "content": "Ready to checkout?", 
-                        "type": "confirmation_prompt", 
-                        "options": ["Confirm Order", "Clear Cart"]
-                    }, "airdeliver.ai.response.out")
-
+                    await self.rabbitmq.publish({"user_id": user_id, "content": f"Added '{p.name}' to your cart.", "type": "success_text"}, "airdeliver.ai.response.out")
+                    suggestions_sent = await self._handle_secondary_suggestions(user_id, p.id)
+                    await asyncio.sleep(0.8 if suggestions_sent else 0.3)
+                    await self.rabbitmq.publish({"user_id": user_id, "content": "Ready to checkout?", "type": "confirmation_prompt", "options": ["Confirm Order", "Clear Cart"]}, "airdeliver.ai.response.out")
             except Exception as e: 
                 logger.error(f"Error in internal add: {e}")
             
@@ -376,40 +351,44 @@ class AINLUService:
 
     async def _handle_secondary_suggestions(self, user_id: int, product_id: int):
         async def _safe_bg_logic():
-            async with SessionLocal() as bg_db: 
+            async with SessionLocal() as bg_db:
                 try:
                     added_product = await bg_db.get(Product, product_id)
-                    if not added_product: return
+                    if not added_product: return False
 
                     final_products = []
                     suggestion_reason = ""
-                    
+
+                    # 1. Strategy: Smart Bundle (High Price Items)
                     if added_product.price > 150:
                         bundle_items = await self.search_engine.generate_smart_bundle(bg_db, added_product)
                         if bundle_items:
                             final_products = [p.model_dump(mode='json') for p in bundle_items[:5]]
                             suggestion_reason = f"🔥 Complete your setup! {added_product.name} works best with:"
-                            
+
+                    # 2. Strategy: Semantic Complementary (Accessories)
                     if not final_products:
                         comps = await self.search_engine.find_complementary_products(bg_db, added_product, limit=5)
                         if comps:
                             final_products = [p.model_dump(mode='json') for p in comps[:5]]
                             suggestion_reason = f"💡 Essential add-ons for your {added_product.name}:"
+
+                    # 3. Strategy: Category Best Sellers (Fallback A)
+                    # [FIXED LOGIC HERE]
                     if not final_products and added_product.category:
-                       statement = (
+                        statement = (
                             select(Product)
                             .where(Product.category == added_product.category)
-                            .where(Product.id != added_product.id) # لا نقترح نفس المنتج
+                            .where(Product.id != added_product.id)
                             .order_by(Product.rating.desc())
                             .limit(5)
-                    )
-                    global_best = (await bg_db.exec(statement)).all()
-                    cat_best = (await bg_db.exec(statement)).all()
-                    if cat_best:
-                        final_products = [p.model_dump(mode='json') for p in cat_best]
-                        suggestion_reason = f"🏆 Top rated in {added_product.category}:"
+                        )
+                        cat_best = (await bg_db.exec(statement)).all()
+                        if cat_best:
+                            final_products = [p.model_dump(mode='json') for p in cat_best]
+                            suggestion_reason = f"🏆 Top rated in {added_product.category}:"
 
-                # محاولة 4: الأفضل مبيعاً عاماً (Global Trending) - الملاذ الأخير
+                    # 4. Strategy: Global Trending (Fallback B - Last Resort)
                     if not final_products:
                        statement = (
                            select(Product)
@@ -421,7 +400,8 @@ class AINLUService:
                        if global_best:
                           final_products = [p.model_dump(mode='json') for p in global_best]
                           suggestion_reason = "✨ Popular choices you might like:"
-                    
+
+                    # 5. Final Dispatch
                     if final_products:
                         await self._mark_products_as_seen(user_id, final_products)
                         await self.rabbitmq.publish({
@@ -432,12 +412,15 @@ class AINLUService:
                             "reason": "Smart Suggestion"
                         }, "airdeliver.ai.response.out")
                         return True
-                    
+
                     return False
 
                 except Exception as e:
                     logger.error(f"Background suggestion error: {e}")
                     return False
+
+        # Execute the wrapper
+        return await _safe_bg_logic()
 
     async def _handle_removal_recovery(self, user_id: int, product_id: int):
         async def _safe_recovery():
@@ -447,8 +430,8 @@ class AINLUService:
                     if not removed_product: return
 
                     alternatives = await self.search_engine.perform_hybrid_search_pure(
-                        bg_db, 
-                        f"alternative to {removed_product.name} {removed_product.category}", 
+                        bg_db,
+                        f"alternative to {removed_product.name} {removed_product.category}",
                         limit=5
                     )
                     alternatives = [p for p in alternatives if p.id != product_id][:3]
@@ -479,29 +462,29 @@ class AINLUService:
                     "content": "Good morning! ☀️ I've prepared your usual caffeine fix. Want me to add these to your cart?",
                     "type": "proactive_suggestion",
                     "products": products_data,
-                    "reason": "Routine Detected 🔄"
+                    "reason": "Routine Detected ��"
                  }, "airdeliver.ai.response.out")
                  return
 
         logger.info(f"🌟 Generating {time_context} picks for User {user_id}")
-        statement = select(Product).order_by(Product.rating.desc()).limit(100)
+        statement = select(Product).order_by(Product.rating.desc()).limit(60)
         candidates = (await self.db.exec(statement)).all()
         if not candidates: return
 
         weighted_candidates = []
         for p in candidates:
             cat = p.category.lower() if p.category else ""
-            if time_context == "morning" and ("coffee" in cat or "office" in cat): 
+            if time_context == "morning" and ("coffee" in cat or "office" in cat):
                 weighted_candidates.insert(0, p)
-            elif time_context == "night" and ("game" in cat or "light" in cat): 
+            elif time_context == "night" and ("game" in cat or "light" in cat):
                 weighted_candidates.insert(0, p)
-            else: 
+            else:
                 weighted_candidates.append(p)
 
-        selected = weighted_candidates[:35]
+        selected = weighted_candidates[:8]
         random.shuffle(selected)
         products_data = [p.model_dump(mode='json') for p in selected]
-        
+
         greeting_map = {
             "morning": "Good morning! ☀️ ✨ Your daily dose of inspiration has arrived.",
             "afternoon": "Good afternoon! 🌙  Highlights from today, picked just for you.",
