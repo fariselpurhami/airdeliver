@@ -1,5 +1,6 @@
 # apps/api/app/services/free_llm_service.py
 
+from datetime import datetime
 import json
 import logging
 import os
@@ -274,6 +275,8 @@ class FreeLLMService:
              search_target = user_question # Use full question if it contains product name
         elif product_data.get('name'):
              search_target = f"{product_data.get('name')} {user_question}"
+
+        current_date = datetime.now().strftime("%B %Y")
 
         # 🔥 THE AGGRESSIVE PROMPT 🔥
         system_core = f"""
