@@ -1,4 +1,3 @@
-
 //** apps/web/hooks/useAIOrderingStore.ts **//
 
 'use client';
@@ -487,4 +486,3 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     cancelPaymentIntent: async () => { get().hardCancelOrder(get().recoveryReason); },
   })
 );
-

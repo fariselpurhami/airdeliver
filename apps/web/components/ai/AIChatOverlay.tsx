@@ -220,7 +220,9 @@ DroneTelemetryWidget.displayName = 'DroneTelemetryWidget';
 // --- ARCHITECTURAL UPGRADE: Enhanced Product Card ---
 const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, totalItems: number }) => {
     // Made cards significantly larger for better UX (85% width on mobile, 55% on desktop)
-    const slideWidthClass = totalItems === 1 ? "flex-[0_0_100%] sm:flex-[0_0_95%]" : "flex-[0_0_85%] sm:flex-[0_0_60%] md:flex-[0_0_55%]";
+    const slideWidthClass = totalItems === 1 
+    ? "flex-[0_0_100%] sm:flex-[0_0_auto] sm:w-[300px] md:w-[350px]" 
+    : "flex-[0_0_85%] sm:flex-[0_0_60%] md:flex-[0_0_55%]";
     
     const rawImagePath = product.image_url || product.image;
     const imageUrl = useMemo(() => getAbsoluteImageUrl(rawImagePath), [rawImagePath]);
