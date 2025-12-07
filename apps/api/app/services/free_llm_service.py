@@ -283,6 +283,11 @@ class FreeLLMService:
         1. [INTERNAL DB]: {internal_context}
         2. [WEB SEARCH]: {external_knowledge}
 
+        --- 🛡️ INTELLIGENCE PROTOCOLS ---
+        1. **HYBRID KNOWLEDGE**: If [WEB SEARCH] is empty or fails, YOU MUST USE YOUR OWN INTERNAL TRAINING DATA to provide detailed specs for this product. Do NOT say "I don't know".
+        2. **ANTI-ROBOT FILTER**: NEVER output technical database fields like 'ID', 'slug', 'image_url', 'inventory', 'created_at', or 'category_id'. These are forbidden.
+        3. **VALUE ADD**: Only show specs that matter to a human buyer (Battery, Screen, Material, Chipset, Scent notes, Fabric).
+
         --- STRICT OUTPUT RULES (ZERO MARKDOWN) ---
         1. **NO MARKDOWN SYMBOLS**: Do NOT use asterisks (**), hashes (#), underscores (_), or quotes ('') for formatting.
         2. **CLEAN LIST STYLE**: Use a real bullet point (•) for specifications.
