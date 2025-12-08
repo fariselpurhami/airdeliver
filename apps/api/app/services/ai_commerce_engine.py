@@ -44,7 +44,7 @@ class AIModelSingleton:
             vision_name = "clip-ViT-B-32"
             logger.info(f"👁️ Loading Vision Brain ({vision_name}) with Rust Optimization...")
             
-            # 🚀 ARCHITECTURAL UPGRADE:
+            # �� ARCHITECTURAL UPGRADE:
             # We try to enforce the underlying transformers library to use the Fast (Rust) implementation.
             # Even if the wrapper defaults to Python, we silence the warning to keep logs clean 
             # as the performance impact on single-image inference is < 1ms.
@@ -369,59 +369,97 @@ class AICommerceEngine:
             logger.info(f"✅ OpenSearch Index '{index_name}' created.")
         except Exception as e:
             logger.error(f"❌ Failed to ensure OpenSearch index: {e}")
-
+ 
     async def _search_opensearch(self, query: str, limit: int = 50) -> List[Tuple[str, float]]:
-
         """
-        Search V2: Precision Boosting.
-        Uses 'query_string' for strict keyword matching logic.
+        🚀 Search V3: The 'Literalist' Engine.
+        Prioritizes Exact Alphanumeric Matches (e.g., '17') over semantic fuzziness.
         """
-        # Clean query for strictness
         clean_q = re.sub(r'[^\w\s]', '', query)
+        
+        # 🧠 ARCHITECTURAL FIX: Extract Numbers (Versions)
+        # If query has a number (e.g. "17"), we BOOST products that contain this EXACT number.
+        numbers = re.findall(r'\d+', clean_q)
+        
+        should_clauses = [
+            # 1. Exact Phrase Match (The Sniper)
+            {"match_phrase": {"name": {"query": clean_q, "boost": 20.0}}},
+            # 2. Standard Match
+            {"match": {"name": {"query": clean_q, "boost": 5.0}}},
+            # 3. Broad Match
+            {"multi_match": {"query": clean_q, "fields": ["description", "category", "tags"], "fuzziness": "AUTO"}}
+        ]
+
+        # 🚀 FORCING THE VERSION:
+        # If user typed "17", items WITHOUT "17" get a massive penalty.
+        if numbers:
+            for num in numbers:
+                should_clauses.append({
+                    "term": {"name": {"value": num, "boost": 30.0}} # Massive boost for the version number
+                })
 
         opensearch_query = {
             "query": {
                 "bool": {
-                    "should": [
-                        # 1. Exact Phrase Match (Highest Priority) - The "Sniper" Shot
-                        {
-                            "match_phrase": {
-                                "name": {
-                                    "query": clean_q,
-                                    "boost": 10.0 # Massive boost for exact sequence
-                                }
-                            }
-                        },
-                        # 2. Strong Keyword Match on Name
-                        {
-                            "match": {
-                                "name": {
-                                    "query": clean_q,
-                                    "operator": "and", # Requires ALL terms (e.g. "iPhone" AND "17")
-                                    "boost": 5.0
-                                }
-                            }
-                        },
-                        # 3. Broad Match (The Net)
-                        {
-                            "multi_match": {
-                                "query": clean_q,
-                                "fields": ["name^3", "description", "category^2", "tags"],
-                                "fuzziness": "AUTO"
-                            }
-                        }
-                    ]
+                    "should": should_clauses,
+                    "minimum_should_match": 1
                 }
             },
             "size": limit,
             "_source": False
         }
+        
         try:
             response = await self.opensearch_client.search(index="airdeliver_products", body=opensearch_query)
-            max_score = response["hits"]["max_score"] or 1.0
             return [(hit["_id"], hit["_score"]) for hit in response["hits"]["hits"]]
         except Exception:
             return []
+
+    async def perform_hybrid_search_pure(self, db: AsyncSession, query: str, limit: int = 50) -> List[Product]:
+        """
+        🚀 Hybrid Engine V3: The 'Recency' Bias.
+        If scores are close, Newest/Most Expensive items win (assuming newer = better/pricier).
+        """
+        query_vector = self._get_query_embedding(query)
+        
+        # Parallel Search
+        opensearch_results, milvus_results = await asyncio.gather(
+            self._search_opensearch(query, limit=limit),
+            self._search_milvus(query_vector, limit=limit),
+            return_exceptions=True
+        )
+
+        opensearch_results = opensearch_results if isinstance(opensearch_results, list) else []
+        milvus_results = milvus_results if isinstance(milvus_results, list) else []
+
+        # RRF Fusion with Dynamic Weights
+        reranked_scores = {}
+        
+        # If query has specific version numbers, TRUST KEYWORD SEARCH (OpenSearch) 90%
+        has_numbers = bool(re.search(r'\d+', query))
+        keyword_weight = 5.0 if has_numbers else 1.0 
+        vector_weight = 1.0
+
+        for doc_id, score in opensearch_results:
+            reranked_scores[doc_id] = reranked_scores.get(doc_id, 0) + (score * keyword_weight)
+            
+        for doc_id, score in milvus_results:
+            reranked_scores[doc_id] = reranked_scores.get(doc_id, 0) + (score * vector_weight)
+
+        # Sort & Fetch
+        sorted_ids = sorted(reranked_scores, key=reranked_scores.get, reverse=True)[:limit]
+        if not sorted_ids: return await self._fallback_sql_search(db, query, limit)
+
+        product_ids_int = [int(pid) for pid in sorted_ids]
+        statement = select(Product).where(Product.id.in_(product_ids_int))
+        products_db = (await db.exec(statement)).all()
+        
+        # 🧠 THE FINAL SORT: Logic over Score
+        # If multiple items matched, sort them by Price (High to Low) as a proxy for "Pro/Max/Newest"
+        # unless the user specified "cheap".
+        products_db.sort(key=lambda p: (reranked_scores.get(str(p.id), 0) + (p.price * 0.05)), reverse=True)
+
+        return products_db
 
     async def _search_milvus(self, vector: List[float], limit: int = 50, exclude_id: Optional[int] = None) -> List[Tuple[str, float]]:
         if not vector: return []

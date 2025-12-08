@@ -69,7 +69,59 @@ class AINLUService:
             except Exception: pass
         asyncio.create_task(_bg_task())
 
-        # في ملف ai_nlu_service.py
+    async def _handle_image_query(self, user_id: int, image_data: str):
+        """
+        🛡️ GLOBAL STANDARD V4: The 'Agnostic' Vision Pipeline.
+        Forces 'Concept Search' + 'Premium Sort' to find iPhone 17 even if AI says 15.
+        """
+        if not image_data: return
+        await self.rabbitmq.publish({"user_id": user_id, "content": "Scanning Visual Identity... 👁️📦", "type": "typing"}, "airdeliver.ai.response.out")
+
+        # 1. Analyze
+        visual_task = self.search_engine.search_by_image_vector(image_data, limit=10) 
+        analysis_task = self.llm_service.analyze_product_image(image_data)
+        visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
+
+        # 2. THE CLEANER (Aggressive Mode)
+        # Always strip version numbers from the AI analysis.
+        # Why? Because AI logic is old (2023), but DB logic is new (2025).
+        # "iPhone 15 Pro" -> "iPhone Pro"
+        import re
+        clean_search_query = re.sub(r'(\b\w+\b)\s+\d+(?:\.\d+)?', r'\1', analysis_text)
+        
+        # If AI detected "Titanium" or "Orange", keep those as they are strong signals.
+        is_premium = any(x in analysis_text.lower() for x in ["pro", "max", "titanium", "ultra"])
+        
+        logger.info(f"🌍 Vision Abstracted: '{analysis_text}' -> '{clean_search_query}'")
+
+        # 3. SEARCH & OVERRIDE
+        # We search for the abstract term (e.g. "iPhone Pro Orange")
+        candidates = await self.search_engine.perform_hybrid_search_pure(self.db, clean_search_query, limit=20)
+        
+        # 4. INTELLIGENT RE-RANKING (The Fix)
+        # We don't trust the search score alone. We trust the METADATA.
+        # If the visual looked "Premium" (Pro/Max), we force the MOST EXPENSIVE / NEWEST items to the top.
+        if candidates and is_premium:
+             # Sort by Price Descending (Proxy for Model Year / Specs)
+             candidates.sort(key=lambda p: p.price, reverse=True)
+             
+        final_products = candidates[:5]
+
+        # Dispatch
+        if final_products:
+            products_data = [p.model_dump(mode='json') for p in final_products]
+            await self._mark_products_as_seen(user_id, products_data)
+            
+            # Use Singularity to fine-tune
+            if self.behavior_engine:
+                 products_data = await self.behavior_engine.collapse_wavefunction(user_id, products_data)
+
+            msg = f"Based on the visual analysis, here are the latest matches in stock:"
+            await self.rabbitmq.publish({
+                "user_id": user_id, "content": msg, "type": "product_carousel", "products": products_data, "reason": "Visual Intelligence"
+            }, "airdeliver.ai.response.out")
+        else:
+            await self.rabbitmq.publish({"user_id": user_id, "content": "No close match found.", "type": "error"}, "airdeliver.ai.response.out")
 
     async def _handle_image_query(self, user_id: int, image_data: str):
         """
@@ -409,107 +461,70 @@ class AINLUService:
 
     async def _handle_secondary_suggestions(self, user_id: int, product_id: int):
         """
-        🧬 GLOBAL STANDARD V2: The 'Unstoppable' Completion Engine.
-        Fixes the 'Empty List' issue by widening the search funnel and adding smart fallbacks.
+        🧬 GLOBAL STANDARD V3: The 'Orthogonal' Completion Engine.
+        Strictly bans the anchor category to enforce ACCESSORY suggestions.
         """
-        # Background task wrapper to prevent blocking the checkout flow
         async def _safe_bg_logic():
             async with SessionLocal() as bg_db:
                 try:
-                    # 1. Fetch the Anchor Product
                     anchor_product = await bg_db.get(Product, product_id)
                     if not anchor_product: return False
 
-                    final_bundle = []
-                    seen_ids = {anchor_product.id}
-                    anchor_price = anchor_product.price or 0
-                    
-                    # 2. STRATEGY A: SEMANTIC COMPLEMENTS (The Precision Strike)
-                    # We search deeper (limit=40) to skip the "Substitutes" and find the "Accessories"
-                    search_queries = [
+                    # 1. Define the Search Strategy (The Shift)
+                    # We explicitly look for "Accessories" and "Parts"
+                    queries = [
                         f"accessories for {anchor_product.name}",
-                        f"parts compatible with {anchor_product.name}",
-                        f"gadgets for {anchor_product.category or 'item'}"
+                        f"case for {anchor_product.name}", # Specific for phones
+                        f"compatible with {anchor_product.name}"
                     ]
                     
                     raw_candidates = []
-                    for query in search_queries:
-                        # 🚀 FIX 1: Widen the funnel. Increase limit to 40.
-                        # This ensures we dig past the main products to find the cheap add-ons.
-                        res = await self.search_engine.perform_hybrid_search_pure(bg_db, query, limit=40)
+                    for q in queries:
+                        res = await self.search_engine.perform_hybrid_search_pure(bg_db, q, limit=30)
                         raw_candidates.extend(res)
 
-                    # 3. THE SMART FILTER (With Looser Grip)
+                    final_bundle = []
+                    seen_ids = {anchor_product.id}
+                    anchor_cat = (anchor_product.category or "").lower()
+                    
+                    # 2. THE STRICT FILTER (The "Anti-Echo" Logic)
                     for p in raw_candidates:
                         if p.id in seen_ids: continue
-                        if len(final_bundle) >= 5: break # Don't overfill
+                        if len(final_bundle) >= 4: break
+
+                        p_cat = (p.category or "").lower()
                         
-                        # Guardrail: Price Logic
-                        # We want items that are cheaper than the main item (The "Add-on" Psychology)
-                        # But we allow up to 80% price for things like "Monitors" for a "PC".
-                        
-                        # Skip if it's MORE expensive than the anchor (Unless anchor is very cheap < $20)
-                        if anchor_price > 50 and p.price > anchor_price:
-                            continue 
-                        
-                        # Skip if it's a direct substitute (Same Name Start + Same Category + Similar Price)
-                        # e.g. "iPhone 17" vs "iPhone 17 Pro"
-                        is_substitute = (
-                            p.category == anchor_product.category and 
-                            p.price > (anchor_price * 0.7) and
-                            p.name.split()[0] == anchor_product.name.split()[0]
-                        )
-                        if is_substitute: continue
+                        # 🚫 BAN RULE 1: SAME CATEGORY BLOCK
+                        # If I bought a Phone, DO NOT show me a Phone.
+                        # Exception: Unless the candidate is drastically cheaper (< 20% price), likely a spare part.
+                        if p_cat == anchor_cat and p.price > (anchor_product.price * 0.2):
+                            continue # Block it.
+
+                        # 🚫 BAN RULE 2: PRICE CEILING
+                        # Accessories shouldn't cost more than the main item.
+                        if p.price > anchor_product.price:
+                            continue
 
                         final_bundle.append(p)
                         seen_ids.add(p.id)
 
-                    # 4. STRATEGY B: THE FALLBACK (Global Best Sellers)
-                    # 🚀 FIX 2: If Strategy A failed (too strict), grab generic best sellers in the category.
-                    # This ensures we ALWAYS show something.
-                    if not final_bundle and anchor_product.category:
-                         fallback_query = f"best selling {anchor_product.category} under {anchor_price}"
-                         fallback_res = await self.search_engine.perform_hybrid_search_pure(bg_db, fallback_query, limit=10)
-                         for p in fallback_res:
-                             if p.id not in seen_ids and p.price < anchor_price:
-                                 final_bundle.append(p)
-                                 seen_ids.add(p.id)
-                    
-                    # 5. QUANTUM RE-RANKING (Behavioral Sort)
-                    if self.behavior_engine and final_bundle:
-                        final_bundle = await self.behavior_engine.collapse_wavefunction(user_id, final_bundle)
-
-                    # Take top 4
-                    display_items = final_bundle[:4]
-
-                    # 6. DISPATCH
-                    if display_items:
-                        import random
-                        reasons = [
-                            f"⚡ Complete your setup with these essentials:",
-                            f"🔥 People who bought {anchor_product.name} also grabbed:",
-                            f"💡 Smart add-ons for your new item:",
-                            f"✨ Perfect matches found for you:"
-                        ]
-                        
-                        products_data = [p.model_dump(mode='json') for p in display_items]
+                    # 3. Dispatch
+                    if final_bundle:
+                        products_data = [p.model_dump(mode='json') for p in final_bundle]
+                        # ... (نفس كود الإرسال السابق) ...
                         await self.rabbitmq.publish({
                             "user_id": user_id,
-                            "content": random.choice(reasons),
+                            "content": f"Complete your {anchor_product.name} setup with these:",
                             "type": "proactive_suggestion",
                             "products": products_data,
-                            "reason": "Smart Completion Engine"
+                            "reason": "Smart Completion"
                         }, "airdeliver.ai.response.out")
                         return True
-                    
                     return False
-
-                except Exception as e:
-                    logger.error(f"❌ Smart Bundle Error: {e}")
-                    return False
-
-        # Fire and Forget (Non-blocking)
+                except Exception: return False
+        
         asyncio.create_task(_safe_bg_logic())
+
 
     async def _handle_removal_recovery(self, user_id: int, product_id: int):
         async def _safe_recovery():
