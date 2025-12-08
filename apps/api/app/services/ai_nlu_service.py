@@ -508,52 +508,147 @@ class AINLUService:
         asyncio.create_task(_safe_recovery())
 
     async def _handle_initial_suggestions(self, user_id: int):
-        time_context = self._get_time_context()
-        is_morning_routine = (time_context == "morning")
+        """
+        💎 THE ENDGAME ALGORITHM (With Human Touch).
+        Combines Ghost Vectors, Context, and a Dynamic Persona Engine.
+        """
+        # 1. Context Acquisition
+        time_context = self._get_time_context() # morning, afternoon, evening, night
+        candidates = []
+        source_stream = "" # "GHOST" or "TIME" or "EXPLORE"
+        
+        # --- STREAM A: THE GHOST VECTOR (Hyper-Personalization) ---
+        has_personalized = False
+        if self.behavior_engine:
+            try:
+                ghost_json = await self.cache.get(f"u:{user_id}:ghost_v2")
+                if ghost_json:
+                    import json
+                    ghost_data = json.loads(ghost_json)
+                    pos_vector = ghost_data.get('pos')
+                    
+                    if pos_vector:
+                        vector_results = await self.search_engine._search_milvus(pos_vector, limit=15)
+                        if vector_results:
+                            product_ids = [int(pid) for pid, score in vector_results]
+                            candidates = await self.search_engine._fetch_products_by_ids(product_ids)
+                            source_stream = "GHOST"
+                            has_personalized = True
+            except Exception: pass
 
-        if is_morning_routine:
-             routine_products = await self.search_engine.perform_hybrid_search_pure(self.db, "Coffee Beans Espresso", limit=2)
-             if routine_products:
-                 products_data = [p.model_dump(mode='json') for p in routine_products]
-                 await self.rabbitmq.publish({
-                    "user_id": user_id,
-                    "content": "Good morning! ☀️  I've prepared your usual caffeine fix. Want me to add these to your cart?",
-                    "type": "proactive_suggestion",
-                    "products": products_data,
-                    "reason": "Routine Detected"
-                 }, "airdeliver.ai.response.out")
-                 return
+        # --- STREAM B: TEMPORAL PROBABILITY (Context Fallback) ---
+        if not candidates or len(candidates) < 5:
+            source_stream = "TIME"
+            time_weights = {
+                "morning":  {"Coffee": 50, "Breakfast": 30, "Wellness": 10, "Tech": 10},
+                "afternoon": {"Office": 40, "Snack": 30, "Gadget": 20, "Accessories": 10},
+                "evening":  {"Kitchen": 30, "Home Decor": 30, "Relax": 20, "Fitness": 20},
+                "night":    {"Gaming": 40, "Lighting": 30, "Sleep": 20, "Reading": 10}
+            }
+            current_weights = time_weights.get(time_context, {"Trending": 100})
+            
+            import random
+            selected_category = random.choices(list(current_weights.keys()), weights=list(current_weights.values()), k=1)[0]
+            
+            context_results = await self.search_engine.perform_hybrid_search_pure(self.db, selected_category, limit=10)
+            candidates.extend(context_results)
 
-        logger.info(f"🌟 Generating {time_context} picks for User {user_id}")
-        statement = select(Product).order_by(Product.rating.desc()).limit(60)
-        candidates = (await self.db.exec(statement)).all()
-        if not candidates: return
+        # --- STREAM C: STOCHASTIC EXPLORATION ---
+        try:
+            wildcard_term = random.choice(["New Arrival", "Best Seller", "Limited Edition"])
+            wildcard_items = await self.search_engine.perform_hybrid_search_pure(self.db, wildcard_term, limit=2)
+            if wildcard_items: candidates.insert(1, wildcard_items[0])
+        except Exception: pass
 
-        weighted_candidates = []
-        for p in candidates:
-            cat = p.category.lower() if p.category else ""
-            if time_context == "morning" and ("coffee" in cat or "office" in cat):
-                weighted_candidates.insert(0, p)
-            elif time_context == "night" and ("game" in cat or "light" in cat):
-                weighted_candidates.insert(0, p)
-            else:
-                weighted_candidates.append(p)
+        # --- FINAL PROCESSING ---
+        unique_candidates = {p.id: p for p in candidates}.values()
+        final_list = list(unique_candidates)
+        
+        if self.behavior_engine and final_list:
+             final_list = await self.behavior_engine.collapse_wavefunction(user_id, final_list)
+        
+        final_display = final_list[:8]
 
-        selected = weighted_candidates[:8]
-        random.shuffle(selected)
-        products_data = [p.model_dump(mode='json') for p in selected]
+        # 4. 🗣️ THE NARRATIVE ENGINE (توليد الكلام البشري)
+        # We look at the FIRST product to determine the "Vibe" of the collection
+        lead_product = final_display[0] if final_display else None
+        
+        human_message = self._craft_human_message(time_context, source_stream, lead_product)
 
-        greeting_map = {
-            "morning": "Good morning! ☀️ ✨ Your daily dose of inspiration has arrived.",
-            "afternoon": "Good afternoon! 🌙  Highlights from today, picked just for you.",
-            "evening": "Good evening! ✨ Relax and explore our most-loved items.",
-            "night": "Welcome, night owl. 🦉 Your exclusive late-night edit awaits."
+        # Dispatch
+        if final_display:
+            products_data = [p.model_dump(mode='json') for p in final_display]
+            
+            await self.rabbitmq.publish({
+                "user_id": user_id,
+                "content": human_message, # <--- الرسالة الذكية هنا
+                "type": "proactive_suggestion",
+                "products": products_data,
+                "reason": "AI Context Awareness"
+            }, "airdeliver.ai.response.out")
+
+    # ---------------------------------------------------------
+    # 🧠 NEW HELPER: THE PERSONA GENERATOR
+    # ---------------------------------------------------------
+    def _craft_human_message(self, time_phase: str, stream: str, product: Any) -> str:
+        """
+        Generates a message that feels like it knows you and the time.
+        """
+        import random
+        
+        # 1. Analyze the "Vibe" of the product
+        # e.g. "Coffee" -> Energy, "Gaming" -> Fun, "Office" -> Focus
+        vibe = "neutral"
+        p_name = product.name.lower() if product else ""
+        p_cat = (product.category or "").lower() if product else ""
+        combined = p_name + " " + p_cat
+        
+        if any(x in combined for x in ["game", "console", "play", "rgb"]): vibe = "fun"
+        elif any(x in combined for x in ["coffee", "brew", "energy", "sport"]): vibe = "energy"
+        elif any(x in combined for x in ["office", "desk", "work", "laptop"]): vibe = "focus"
+        elif any(x in combined for x in ["sleep", "bed", "relax", "candle"]): vibe = "chill"
+        elif any(x in combined for x in ["phone", "tech", "smart", "watch"]): vibe = "tech"
+
+        # 2. Template Matrix (Time x Vibe)
+        # This creates the illusion of deep understanding.
+        
+        templates = {
+            "morning": {
+                "energy": ["Rise and shine! ☀️ Fuel up with these:", "Morning! Ready to conquer the day? Start here:", "Wakey wakey! ☕ Your morning essentials:"],
+                "focus": ["Good morning. Let's get productive today:", "Morning! Gear up for a successful day:", "Ready to work? Here is your toolkit:"],
+                "tech": ["Top of the morning! Check out today's tech drops:", "Morning! Smart choices for a smart day:"],
+                "default": ["Good morning! ☀️ Here's what's trending for you:", "Morning! A fresh selection just for you:"]
+            },
+            "afternoon": {
+                "energy": ["Mid-day slump? ⚡ Recharge with these:", "Power through your afternoon:"],
+                "focus": ["Good afternoon. Keep the momentum going:", "Afternoon check-in! 🚀 Upgrades for your setup:"],
+                "fun": ["Taking a break? 🎮 You deserve a treat:", "Afternoon vibes. Check these out:"],
+                "default": ["Good afternoon! 👋 Picked specially for you:", "Hope your day is going well! Take a look:"]
+            },
+            "evening": {
+                "chill": ["Long day? 🌙 Time to unwind:", "Good evening. Relax and explore:", "Evening vibes ✨ Comfort picks for you:"],
+                "fun": ["Evening is here! Time to play:", "Good evening! Ready for some action?"],
+                "kitchen": ["Dinner time? 🍽️ Inspiration for your evening:", "Good evening! Chef's choice for you:"],
+                "default": ["Good evening! ✨ Highlights from today:", "Wrapping up the day with these picks:"]
+            },
+            "night": {
+                "chill": ["Late night browsing? 🦉 We got you:", "Quiet hours. ✨ Explore our night edit:"],
+                "fun": ["Night owl mode: ON. 🦉🎮 Gamers only:", "Up late? The best gear never sleeps:"],
+                "default": ["Welcome, night owl. 🌙 Exclusive late-night finds:", "Burning the midnight oil? Check this:"]
+            }
         }
 
-        await self.rabbitmq.publish({
-            "user_id": user_id,
-            "content": greeting_map.get(time_context, "Welcome back! Top picks for you:"),
-            "type": "proactive_suggestion",
-            "products": products_data,
-            "reason": "Top Picks"
-        }, "airdeliver.ai.response.out")  
+        # 3. Select Template
+        options = templates.get(time_phase, {}).get(vibe, templates[time_phase]["default"])
+        
+        # 4. Personalization Injection (If we used Ghost Vector)
+        msg = random.choice(options)
+        
+        if stream == "GHOST":
+            # Add a subtle nod that we know them
+            suffixes = [" (Based on your style)", " (Matches your vibe)", " (Because you liked similar items)"]
+            # We assume a 30% chance to append the suffix to keep it natural, not robotic
+            if random.random() < 0.3:
+                msg += random.choice(suffixes)
+                
+        return msg
