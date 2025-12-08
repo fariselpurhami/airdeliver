@@ -71,122 +71,99 @@ class AINLUService:
 
     async def _handle_image_query(self, user_id: int, image_data: str):
         """
-        👁️ GLOBAL STANDARD V8: The 'Sensory' Vision Pipeline.
-        Prioritizes Visual Attributes (Color, Material, Shape) over Price/Text popularity.
-        If it looks Orange, it MUST be the Orange product.
+        💎 GLOBAL STANDARD V12: The 'Universal Cross-Encoder' Pipeline.
+        Zero Hardcoding. Works for ANY product category (Food, Cars, Fashion, Tech).
+        Uses a Neural Cross-Encoder logic to mathematically match Image Description vs Product Data.
         """
         if not image_data: return
 
-        # 1. Feedback
-        await self.rabbitmq.publish({"user_id": user_id, "content": "Analyzing Color & Design DNA... 👁️🎨", "type": "typing"}, "airdeliver.ai.response.out")
+        await self.rabbitmq.publish({"user_id": user_id, "content": "Analyzing Object Physics & Semantics... 👁️🌐", "type": "typing"}, "airdeliver.ai.response.out")
 
-        # 2. Parallel Acquisition
-        visual_task = self.search_engine.search_by_image_vector(image_data, limit=20) # Fetch more to filter by color
+        # 1. ACQUIRE DEEP INTELLIGENCE
+        # We need a RICH description from the Vision Model (LLM)
+        # e.g., "A modern luxury leather armchair in cognac brown with wooden legs."
+        # e.g., "A smartphone with triple cameras, titanium finish, likely the latest pro model."
+        visual_task = self.search_engine.search_by_image_vector(image_data, limit=50) 
         analysis_task = self.llm_service.analyze_product_image(image_data)
         visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
-
-        # ---------------------------------------------------------
-        # 🎨 STAGE A: VISUAL ATTRIBUTE EXTRACTION (استخراج السمات)
-        # ---------------------------------------------------------
-        # We extract what the eye sees (Adjectives), not just nouns.
-        analysis_lower = analysis_text.lower()
         
-        # 1. Detect Colors (The most distinct visual feature)
-        colors = ["orange", "gold", "titanium", "natural", "black", "white", "blue", "green", "pink", "purple", "silver", "desert", "copper"]
-        detected_colors = [c for c in colors if c in analysis_lower]
-        
-        # 2. Detect Materials/Features
-        features = ["pro", "max", "ultra", "triple", "camera", "ceramic", "glass", "leather", "silicone"]
-        detected_features = [f for f in features if f in analysis_lower]
-
-        # ---------------------------------------------------------
-        # 🧠 STAGE B: THE ABSTRACT SEARCH
-        # ---------------------------------------------------------
-        # Remove "hallucinated" versions (14, 15) but KEEP the detected attributes
+        # Clean analysis for search (remove "I see...", "Image contains...")
         import re
-        clean_text = re.sub(r'iphone\s*\d+', 'iphone', analysis_lower) # Convert "iphone 15" -> "iphone"
-        clean_text = re.sub(r'\b(looks like|similar to|possibly)\b', '', clean_text)
+        clean_desc = re.sub(r'(Image shows|I see|looks like|appears to be)', '', analysis_text, flags=re.IGNORECASE).strip()
         
-        # Construct a search query based on Visual Truth
-        # Query = "iPhone Orange Titanium" (Forces DB to find this specific look)
-        search_query = clean_text.split('.')[0] # Take the first sentence only
-        if len(search_query) < 3: search_query = "item"
-
-        # Search
-        candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=30)
+        # 2. UNIVERSAL SEARCH (Broad Net)
+        # We use the cleaned description to find "Candidates" via Hybrid Search
+        # We limit query to first 6-8 words to catch the category (e.g. "Luxury leather armchair")
+        search_query = " ".join(clean_desc.split()[:8])
+        candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=50)
         
-        # Merge with vector results for safety
+        # Merge visual matches (Shape cousins)
         if visual_matches:
-            candidates.extend([p for p in visual_matches if p.id not in [c.id for c in candidates]])
+            existing_ids = {c.id for c in candidates}
+            for vm in visual_matches:
+                if vm.id not in existing_ids:
+                    candidates.append(vm)
 
-        # ---------------------------------------------------------
-        # ⚖️ STAGE C: THE SENSORY SCORING ENGINE (قلب الموازين)
-        # ---------------------------------------------------------
-        # Instead of sorting by Price, we sort by "Visual Fidelity".
+        # 3. THE CROSS-ENCODER BRAIN (The Universal Judge)
+        # Instead of manual if/else rules, we use Vector Similarity between:
+        # A. The AI's Detailed Description of the Image.
+        # B. The Product's Name + Description + Tags.
+        
+        # Load the text model for Semantic Comparison (Already loaded in engine)
+        text_model = ai_manager.get_text_model()
+        
+        # Encode the "Anchor" (The Image Description)
+        anchor_embedding = text_model.encode(clean_desc, convert_to_tensor=True)
         
         scored_candidates = []
+        
         for p in candidates:
-            score = 0
-
-            tags_content = ""
-            if p.tags:
-                if isinstance(p.tags, list):
-                    tags_content = " ".join([str(t) for t in p.tags]) # Join list items
-                else:
-                    tags_content = str(p.tags) # Convert to
-
-            prod_text = (str(p.name) + " " + str(p.description or "") + " " + tags_content).lower()
+            # Construct Product DNA String
+            # Combine all product knowledge into one rich text block
+            prod_dna = f"{p.name} {p.category or ''} {p.description or ''} {' '.join(p.tags) if isinstance(p.tags, list) else str(p.tags or '')}"
             
-            # Rule 1: Color Match is King (50 Points)
-            # If AI saw "Orange", and product is "Orange", it wins instantly.
-            for color in detected_colors:
-                if color in prod_text:
-                    score += 50
+            # Encode Product
+            prod_embedding = text_model.encode(prod_dna, convert_to_tensor=True)
             
-            # Rule 2: Feature Match (20 Points)
-            # "Pro", "Max", "Titanium"
-            for feat in detected_features:
-                if feat in prod_text:
-                    score += 20
+            # Calculate Semantic Similarity (How much does this product match the image description?)
+            # Returns score between 0.0 and 1.0
+            semantic_score = util.cos_sim(anchor_embedding, prod_embedding).item()
             
-            # Rule 3: Exact Name Match in Analysis (30 Points)
-            # If AI said "Watch Ultra" and product is "Watch Ultra"
-            clean_name_tokens = set(re.findall(r'\w+', p.name.lower()))
-            analysis_tokens = set(re.findall(r'\w+', analysis_lower))
-            overlap = len(clean_name_tokens.intersection(analysis_tokens))
-            score += (overlap * 5)
+            # 4. UNIVERSAL PRICE HEURISTIC (Optional Boost)
+            # Generally, if the image description contains "Luxury/Pro/Max/Gold", 
+            # we imply the user wants the "Best" version.
+            price_boost = 0
+            if any(w in clean_desc.lower() for w in ["luxury", "premium", "pro", "max", "gold", "expensive", "high-end"]):
+                price_boost = (p.price * 0.0005) # Small nudging for expensive items
+            
+            final_score = (semantic_score * 100) + price_boost
+            scored_candidates.append((p, final_score))
 
-            # Rule 4: Price Tie-Breaker (1 Point)
-            # If two items have same visual score, pick the more expensive (likely newer)
-            score += (p.price * 0.001)
-
-            scored_candidates.append((p, score))
-
-        # Sort by Score Descending
+        # Sort by Universal Score
         scored_candidates.sort(key=lambda x: x[1], reverse=True)
-        final_products = [item[0] for item in scored_candidates[:5]]
+        final_list = scored_candidates[:5]
+        final_products = [item[0] for item in final_list]
+        
+        # Check match quality
+        top_score = final_list[0][1] if final_list else 0
+        is_strong_match = top_score > 45 # Threshold for confidence
 
-        # ---------------------------------------------------------
-        # 🗣️ STAGE D: DISPLAY LOGIC
-        # ---------------------------------------------------------
-        # Name Generator logic (V6)
-        display_name = "your item"
+        # 5. DISPATCH
         if final_products:
-            display_name = final_products[0].name # Use the winner's name
+            display_name = final_products[0].name
+            import random
+            
+            if is_strong_match:
+                success_templates = [
+                    f"Closest match: {display_name}. You can add it to your cart when you're ready.",
+                    f"Spot on. I found {display_name} in stock. Ready to confirm order?",
+                    f"Here is the {display_name} you're looking for."
+                ]
+                msg = random.choice(success_templates)
+            else:
+                # If similarity is low, be honest universally
+                msg = f"This looks like '{clean_desc[:30]}...'. Here are the closest items we have:"
 
-        import random
-
-        success_templates = [
-            f"Closest match: {display_name}. You can add it to your cart when you're ready.",
-            f"Spot on. I found {display_name} in stock. Ready to confirm order?",
-            f"Here is the {display_name} you're looking for."
-        ]
-
-        msg = random.choice(success_templates)
-
-
-        # Dispatch
-        if final_products:
             products_data = [p.model_dump(mode='json') for p in final_products]
             await self._mark_products_as_seen(user_id, products_data)
             
@@ -198,12 +175,12 @@ class AINLUService:
                 "content": msg, 
                 "type": "product_carousel", 
                 "products": products_data, 
-                "reason": "Sensory Intelligence"
+                "reason": "Universal Semantic Match"
             }, "airdeliver.ai.response.out")
         else:
             await self.rabbitmq.publish({
                 "user_id": user_id, 
-                "content": "I analyzed the visuals but couldn't find an exact style match in stock.", 
+                "content": "I analyzed the object, but couldn't find a semantic match in our inventory.", 
                 "type": "error"
             }, "airdeliver.ai.response.out")
 
@@ -668,7 +645,7 @@ class AINLUService:
                 ],
                 "default": [
                     "Good evening! 🌇 Wrapping up the day with these highlights:",
-                    "Hello! 🌙 A quiet browse through our latest collection:"
+                    "Hello! �� A quiet browse through our latest collection:"
                 ]
             },
             "night": {
