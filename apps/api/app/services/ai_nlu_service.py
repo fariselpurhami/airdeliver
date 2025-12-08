@@ -71,98 +71,127 @@ class AINLUService:
 
     async def _handle_image_query(self, user_id: int, image_data: str):
         """
-        💎 GLOBAL STANDARD V12: The 'Universal Cross-Encoder' Pipeline.
-        Zero Hardcoding. Works for ANY product category (Food, Cars, Fashion, Tech).
-        Uses a Neural Cross-Encoder logic to mathematically match Image Description vs Product Data.
+        💎 GLOBAL STANDARD V14: The 'DEEP' Protocol.
+        (Dynamic Extraction & Enforcement Protocol).
+        Trusts the AI's cognitive perception implicitly. If AI identifies a Brand/Model,
+        it enforces strict filtering instantly, bypassing all fuzzy logic.
+        Works universally for ANY brand or product type.
         """
         if not image_data: return
 
-        await self.rabbitmq.publish({"user_id": user_id, "content": "Analyzing Object Physics & Semantics... 👁️🌐", "type": "typing"}, "airdeliver.ai.response.out")
+        await self.rabbitmq.publish({"user_id": user_id, "content": "Locking on target signature... 👁️🔒", "type": "typing"}, "airdeliver.ai.response.out")
 
-        # 1. ACQUIRE DEEP INTELLIGENCE
-        # We need a RICH description from the Vision Model (LLM)
-        # e.g., "A modern luxury leather armchair in cognac brown with wooden legs."
-        # e.g., "A smartphone with triple cameras, titanium finish, likely the latest pro model."
+        # 1. ACQUIRE DEEP INTELLIGENCE (Vision)
         visual_task = self.search_engine.search_by_image_vector(image_data, limit=50) 
-        analysis_task = self.llm_service.analyze_product_image(image_data)
+        # We ask LLM for a structured extraction, not just a description
+        analysis_task = self.llm_service.analyze_product_image(image_data) 
+        
         visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
         
-        # Clean analysis for search (remove "I see...", "Image contains...")
+        # ---------------------------------------------------------
+        # 🧠 PHASE 1: DYNAMIC ENTITY EXTRACTION (استخراج الكيان الحي)
+        # ---------------------------------------------------------
+        # Instead of hardcoded lists, we parse the AI's own words.
+        # AI usually says: "Brand: Apple", "Product: Watch".
+        # We use Regex to extract these "Confidence Anchors" dynamically.
+        
         import re
-        clean_desc = re.sub(r'(Image shows|I see|looks like|appears to be)', '', analysis_text, flags=re.IGNORECASE).strip()
+        analysis_lower = analysis_text.lower()
         
-        # 2. UNIVERSAL SEARCH (Broad Net)
-        # We use the cleaned description to find "Candidates" via Hybrid Search
-        # We limit query to first 6-8 words to catch the category (e.g. "Luxury leather armchair")
+        # Dynamic Brand Extractor (Looks for patterns like "Brand: X" or "made by X")
+        # This works for "Rolex", "Nike", "Sony", or "UnknownBrand" equally.
+        detected_brand = ""
+        brand_match = re.search(r'\b(brand|manufacturer|made by|from)\s*[:\s-]+\s*([a-z0-9]+)', analysis_lower)
+        if brand_match:
+            detected_brand = brand_match.group(2).strip() # e.g., "apple", "nike"
+
+        # Dynamic Model/Category Extractor
+        detected_model = ""
+        # Looks for "Model: X" or "Product: X"
+        model_match = re.search(r'\b(model|product|item|type)\s*[:\s-]+\s*([a-z0-9\s]+)', analysis_lower)
+        if model_match:
+            # Take first 2 words of the model to be safe (e.g., "watch ultra" from "watch ultra 2")
+            raw_model = model_match.group(2).split(',')[0].strip()
+            detected_model = " ".join(raw_model.split()[:2]) 
+
+        logger.info(f"🔒 DEEP Protocol Lock: Brand='{detected_brand}' Model='{detected_model}'")
+
+        # ---------------------------------------------------------
+        # 🛡️ PHASE 2: THE ENFORCEMENT FILTER (فرض السيطرة)
+        # ---------------------------------------------------------
+        # Search Broadly first using the full description to get candidates
+        clean_desc = re.sub(r'(Image shows|I see|looks like)', '', analysis_text, flags=re.IGNORECASE).strip()
         search_query = " ".join(clean_desc.split()[:8])
-        candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=50)
         
-        # Merge visual matches (Shape cousins)
+        candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=100) # Fetch MORE to filter
+        
+        # Merge visual matches
         if visual_matches:
             existing_ids = {c.id for c in candidates}
             for vm in visual_matches:
                 if vm.id not in existing_ids:
                     candidates.append(vm)
 
-        # 3. THE CROSS-ENCODER BRAIN (The Universal Judge)
-        # Instead of manual if/else rules, we use Vector Similarity between:
-        # A. The AI's Detailed Description of the Image.
-        # B. The Product's Name + Description + Tags.
-        
-        # Load the text model for Semantic Comparison (Already loaded in engine)
-        text_model = ai_manager.get_text_model()
-        
-        # Encode the "Anchor" (The Image Description)
-        anchor_embedding = text_model.encode(clean_desc, convert_to_tensor=True)
+        # ---------------------------------------------------------
+        # ⚖️ PHASE 3: THE CONFIDENCE SCORING (تنفيذ الحكم)
+        # ---------------------------------------------------------
         
         scored_candidates = []
-        
-        for p in candidates:
-            # Construct Product DNA String
-            # Combine all product knowledge into one rich text block
-            prod_dna = f"{p.name} {p.category or ''} {p.description or ''} {' '.join(p.tags) if isinstance(p.tags, list) else str(p.tags or '')}"
-            
-            # Encode Product
-            prod_embedding = text_model.encode(prod_dna, convert_to_tensor=True)
-            
-            # Calculate Semantic Similarity (How much does this product match the image description?)
-            # Returns score between 0.0 and 1.0
-            semantic_score = util.cos_sim(anchor_embedding, prod_embedding).item()
-            
-            # 4. UNIVERSAL PRICE HEURISTIC (Optional Boost)
-            # Generally, if the image description contains "Luxury/Pro/Max/Gold", 
-            # we imply the user wants the "Best" version.
-            price_boost = 0
-            if any(w in clean_desc.lower() for w in ["luxury", "premium", "pro", "max", "gold", "expensive", "high-end"]):
-                price_boost = (p.price * 0.0005) # Small nudging for expensive items
-            
-            final_score = (semantic_score * 100) + price_boost
-            scored_candidates.append((p, final_score))
+        text_model = ai_manager.get_text_model()
+        anchor_embedding = text_model.encode(clean_desc, convert_to_tensor=True)
 
-        # Sort by Universal Score
+        for p in candidates:
+            # 1. Base Semantic Score
+            prod_dna = f"{p.name} {p.category or ''} {p.description or ''} {' '.join(p.tags) if isinstance(p.tags, list) else str(p.tags or '')}"
+            prod_embedding = text_model.encode(prod_dna, convert_to_tensor=True)
+            score = util.cos_sim(anchor_embedding, prod_embedding).item() * 100
+            
+            prod_text_lower = prod_dna.lower()
+
+            # 🚀 THE MAGIC: BRAND SOVEREIGNTY (Enforced Universally)
+            # If AI detected a brand (ANY brand), and product matches it -> HUGE BOOST.
+            # If AI detected a brand, and product DOES NOT match -> KILL SCORE.
+            if detected_brand and len(detected_brand) > 2:
+                if detected_brand in prod_text_lower:
+                    score += 2000.0 # Absolute Priority
+                else:
+                    score -= 5000.0 # Rejection (Wrong Brand)
+
+            # 🚀 THE MAGIC: MODEL AFFINITY
+            if detected_model and len(detected_model) > 2:
+                if detected_model in prod_text_lower:
+                    score += 1000.0
+
+            # Price/Premium Sorting (Secondary)
+            is_premium = any(w in clean_desc.lower() for w in ["pro", "max", "ultra", "luxury", "expensive"])
+            if is_premium:
+                score += (p.price * 0.1)
+
+            scored_candidates.append((p, score))
+
+        # Sort
         scored_candidates.sort(key=lambda x: x[1], reverse=True)
-        final_list = scored_candidates[:5]
-        final_products = [item[0] for item in final_list]
         
-        # Check match quality
-        top_score = final_list[0][1] if final_list else 0
-        is_strong_match = top_score > 45 # Threshold for confidence
+        # Filter out negative scores (Rejected brands)
+        final_list = [item for item in scored_candidates if item[1] > -1000][:5]
+        final_products = [item[0] for item in final_list]
 
         # 5. DISPATCH
         if final_products:
             display_name = final_products[0].name
             import random
             
-            if is_strong_match:
-                success_templates = [
-                    f"Closest match: {display_name}. You can add it to your cart when you're ready.",
-                    f"Spot on. I found {display_name} in stock. Ready to confirm order?",
-                    f"Here is the {display_name} you're looking for."
-                ]
-                msg = random.choice(success_templates)
+            # Confidence Check: If score is massive (Brand+Model match), use confident language
+            top_score = final_list[0][1] if final_list else 0
+            
+            if top_score > 1500: # We found the Brand!
+                msg = random.choice([
+                    f"Identified: {display_name}. Here are the available options:",
+                    f"I found the {detected_brand.title()} {detected_model.title()} you are looking for.",
+                    f"Match confirmed: {display_name}."
+                ])
             else:
-                # If similarity is low, be honest universally
-                msg = f"I’ve identified {display_name}. It’s not available right now, but I’ve handpicked these premium alternatives just for you:"
+                msg = f"Closest match: {display_name}. You can add it to your cart when you're ready."
 
             products_data = [p.model_dump(mode='json') for p in final_products]
             await self._mark_products_as_seen(user_id, products_data)
@@ -175,12 +204,12 @@ class AINLUService:
                 "content": msg, 
                 "type": "product_carousel", 
                 "products": products_data, 
-                "reason": "Universal Semantic Match"
+                "reason": "DEEP Protocol Match"
             }, "airdeliver.ai.response.out")
         else:
             await self.rabbitmq.publish({
                 "user_id": user_id, 
-                "content": "I analyzed the object, but couldn't find a semantic match in our inventory.", 
+                "content": f"I recognized this as a {detected_brand} {detected_model}, but we don't have it in stock right now.", 
                 "type": "error"
             }, "airdeliver.ai.response.out")
 
