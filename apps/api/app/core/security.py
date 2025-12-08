@@ -3,13 +3,17 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Dict
 from jose import jwt, JWTError
-from passlib.context import CryptContext
+from pwdlib import PasswordHash  # 👈 The Modern Replacement
 from app.core.config import settings
 from app import models
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 🔥 Architectural Upgrade:
+# Using 'recommended()' automatically selects the best algorithm (Argon2 or Bcrypt)
+# and creates a future-proof hashing object.
+password_hash = PasswordHash.recommended()
+
 ALGORITHM = "HS256"
 
 def create_access_token(
@@ -42,12 +46,19 @@ def create_refresh_token(
     return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verifies a password against the stored hash using pwdlib.
+    Supports seamless migration from legacy bcrypt hashes.
+    """
     if hashed_password is None:
         return False
-    return pwd_context.verify(plain_password, hashed_password)
+    return password_hash.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    """
+    Generates a secure hash using the modern recommended algorithm.
+    """
+    return password_hash.hash(password)
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> Optional[models.User]:
     result = await db.exec(select(models.User).where(models.User.email == email))

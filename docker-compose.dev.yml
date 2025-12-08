@@ -364,7 +364,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: airdeliver-seeder
-    command: python /app/init_data.py
+    command: python /app/seed_ultra_scale.py
     env_file: .env
     environment:
       - SEED_TARGET_COUNT=100000

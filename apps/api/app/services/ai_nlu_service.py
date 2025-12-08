@@ -1,5 +1,3 @@
-# apps/api/app/services/ai_nlu_service.py
-
 import logging
 import asyncio
 import random
@@ -64,71 +62,88 @@ class AINLUService:
             except Exception: pass
         asyncio.create_task(_bg_task())
 
-    # --- 👁️ VISION HANDLER (Architectural Component) ---
+        # في ملف ai_nlu_service.py
+
     async def _handle_image_query(self, user_id: int, image_data: str):
         if not image_data: return
+        
+        # إشعار للمستخدم
+        await self.rabbitmq.publish({"user_id": user_id, "content": "Scanning visual DNA & context... 👁️", "type": "typing"}, "airdeliver.ai.response.out")
 
-        await self.rabbitmq.publish({"user_id": user_id, "content": "Analyzing visual signature... 👁️", "type": "typing"}, "airdeliver.ai.response.out")
-        
-        # 1. Vision Analysis (The AI tells us WHAT it is: "Shoe", "Car", "Phone")
+        # --- 1. المسار البصري (PATH A: Visual Vectors) ---
+        # الهدف: إيجاد المنتج المطابق شكلاً بنسبة 100% (نفس الصورة)
+        visual_matches = []
+        try:
+            # نفترض أنك أضفت دالة search_by_image في search_engine
+            # هذه الدالة تستخدم SigLIP وتبحث في Milvus
+            visual_matches = await self.search_engine.search_by_image_vector(image_data, limit=5)
+            logger.info(f"👁️ Visual Search found {len(visual_matches)} candidates.")
+        except Exception as e:
+            logger.error(f"⚠️ Visual Path Failed: {e}")
+
+        # --- 2. المسار النصي (PATH B: Generative Description) ---
+        # الهدف: فهم السياق والاسم (للحالات التي تفشل فيها الصورة)
+        # هذا هو كودك القديم (llm_service)
         search_terms = await self.llm_service.analyze_product_image(image_data)
+        text_matches = await self.search_engine.perform_hybrid_search_pure(self.db, search_terms, limit=10)
+
+        # --- 3. المحرك الهجين (The Fusion Engine) ---
+        # هنا يكمن السحر: ندمج النتائج ونعطي الأولوية للتطابق البصري
         
-        # 2. Strict Search
-        candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_terms, limit=10)
+        final_products = []
+        seen_ids = set()
         
-        # 3. The "Universal Smart Filter" Logic (V2 - Global Standard)
-        exact_matches = []
+        # أولوية 1: التطابق البصري القوي (Visual Matches)
+        if visual_matches:
+            for p in visual_matches:
+                if p.id not in seen_ids:
+                    final_products.append(p)
+                    seen_ids.add(p.id)
+            response_msg = "I found this exact item based on the image:"
+            response_reason = "Visual Fingerprint Match"
+        
+        # أولوية 2: التطابق النصي الذكي (Text Matches - كودك القديم للتصفية)
+        # نستخدم منطقك القديم (Exact vs Accessory) كطبقة ثانية
+        exact_text_matches = []
         accessories = []
-        
-        # نستخرج الكلمات المفتاحية من بحث الـ AI
-        # مثلاً لو البحث "iPhone 17"، الكلمات هي {"iphone", "17"}
-        # لو البحث "Nike Jordan"، الكلمات هي {"nike", "jordan"}
         query_tokens = set(search_terms.lower().split())
 
-        for p in candidates:
+        for p in text_matches:
+            if p.id in seen_ids: continue # لا تكرر ما وجدناه بصرياً
+            
             prod_name = p.name.lower()
-            
-            # المنطق العالمي:
-            # المنتج "المطابق" هو الذي يحتوي على كل كلمات البحث الرئيسية.
-            # أي شيء آخر يعتبر "ملحق" أو "بديل".
             is_exact = all(token in prod_name for token in query_tokens)
+            is_accessory = any(acc in prod_name for acc in ["case", "cover", "charger", "strap"])
             
-            # تصفية إضافية: إذا كان الاسم يحتوي على كلمات تدل على "ملحق" (ديناميكي)
-            # هذه القائمة يمكن توسيعها أو جعل الـ AI يحددها
-            is_accessory_keyword = any(acc in prod_name for acc in ["case", "cover", "charger", "cable", "laces", "rims", "filter", "strap"])
-            
-            if is_exact and not is_accessory_keyword:
-                exact_matches.append(p)
+            if is_exact and not is_accessory:
+                exact_text_matches.append(p)
             else:
                 accessories.append(p)
 
-        # 4. Decision Matrix (نفس المنطق السابق لكن يعمل مع أي منتج)
-        final_products = []
-        response_msg = ""
-        response_reason = ""
+        # دمج النتائج النصية إذا لم نجد نتائج بصرية كافية
+        if not final_products:
+            if exact_text_matches:
+                final_products.extend(exact_text_matches)
+                response_msg = f"Visual match unclear, but found these based on analysis '{search_terms}':"
+                response_reason = "Semantic Match"
+            elif accessories:
+                final_products.extend(accessories[:5])
+                response_msg = f"Exact item not found, but found related accessories for '{search_terms}':"
+                response_reason = "Related Accessories"
+            else:
+                # Fallback
+                fallback_terms = search_terms.split()[-1]
+                fallback_res = await self.search_engine.perform_hybrid_search_pure(self.db, fallback_terms, limit=5)
+                final_products.extend(fallback_res)
+                response_msg = "No direct matches, but you might like these:"
+                response_reason = "Smart Fallback"
 
-        if exact_matches:
-            final_products = exact_matches
-            response_msg = f"Visual Match Confirmed: Found {len(final_products)} matches for '{search_terms}'."
-            response_reason = "Direct Visual Hit"
-        
-        elif not exact_matches and accessories:
-            # هذا السيناريو يعمل الآن مع الأحذية (يعرض الأربطة) والسيارات (يعرض الإطارات)
-            final_products = accessories[:5]
-            response_msg = f"I couldn't find the exact '{search_terms}' in stock, but I found these related items/accessories:"
-            response_reason = "Smart Alternative Suggestion"
-            
-        elif not exact_matches and not accessories:
-            # Fallback
-            fallback_terms = search_terms.split()[-1] 
-            final_products = await self.search_engine.perform_hybrid_search_pure(self.db, fallback_terms, limit=5)
-            response_msg = f"No exact match for '{search_terms}', but here are similar items from our collection:"
-            response_reason = "Category Fallback"
-
-        # ... (Display logic remains the same)
+        # --- 4. العرض النهائي ---
         if final_products:
-            products_data = [p.model_dump(mode='json') for p in final_products]
+            # نرسل أول 5 منتجات فقط
+            products_data = [p.model_dump(mode='json') for p in final_products[:5]]
             await self._mark_products_as_seen(user_id, products_data)
+            
             await self.rabbitmq.publish({
                 "user_id": user_id,
                 "content": response_msg,
@@ -137,13 +152,11 @@ class AINLUService:
                 "reason": response_reason
             }, "airdeliver.ai.response.out")
         else:
-             await self.rabbitmq.publish({
+            await self.rabbitmq.publish({
                 "user_id": user_id,
-                "content": f"Deep scan complete. '{search_terms}' is currently unavailable in the grid.",
+                "content": f"Deep scan complete. Could not identify stock for '{search_terms}'.",
                 "type": "error"
             }, "airdeliver.ai.response.out")
-
-    # --- 🧠 MAIN BRAIN PROCESSOR ---
     async def process_message(self, message_payload: dict):
         """
         The Central Nervous System. Routes messages based on Type and Intent.
@@ -498,4 +511,4 @@ class AINLUService:
             "type": "proactive_suggestion",
             "products": products_data,
             "reason": "Top Picks"
-        }, "airdeliver.ai.response.out")
+        }, "airdeliver.ai.response.out")  

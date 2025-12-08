@@ -1,205 +1,216 @@
-# apps/api/seed_ultra_scale.py
-
 import asyncio
-import random
 import logging
+import random
 import time
 import os
-import json 
-from typing import List
-from app.db.session import SessionLocal
-from app.models.product import Product
+import ujson
+from typing import List, Dict
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
+from app.core.config import settings
+from opensearchpy import AsyncOpenSearch, helpers
 
-TARGET_COUNT = int(os.getenv("SEED_TARGET_COUNT", 100000))
-BATCH_SIZE = int(os.getenv("SEED_BATCH_SIZE", 5000))
+# --- 🚀 Milvus & AI Imports ---
+from pymilvus import MilvusClient
+from sentence_transformers import SentenceTransformer
 
+# Setup Logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
 )
-logger = logging.getLogger("airdeliver.factory")
+logger = logging.getLogger("airdeliver.seeder")
 
-class RealismFactory:
+# Constants
+BATCH_SIZE = 200  # Reduced for Memory Safety
+TARGET_COUNT = int(os.getenv("SEED_TARGET_COUNT", "100000"))
+MAX_PRODUCTS_TO_SYNC = 20000 # 🛑 Safety Limit: Stop after 20k items
+
+# --- 🏭 Phase 1: Data Manufacturing (SQL) ---
+class ProductFactory:
     """
-    💎 DIAMOND STANDARD GENERATOR (Hybrid Mode)
-    1. Preserves your 'Golden 14' original products.
-    2. Generates 'High-Fidelity Synthetic Data' for the rest.
+    Simulates a high-speed production line for product data.
     """
-    def __init__(self):
-        self.catalog_blueprints = {
-            "electronics": {
-                "brands": ["Apple", "Samsung", "Sony", "Dell", "ASUS", "LG", "Bose", "JBL", "Logitech", "Razer", "Canon", "Nikon", "DJI", "GoPro"],
-                "models": ["iPhone 15", "Galaxy S24", "WH-1000XM5", "XPS 15", "ROG Strix", "OLED C3", "QuietComfort", "Flip 6", "MX Master 3", "BlackWidow", "EOS R5", "Z8", "Mavic 3", "Hero 12"],
-                "variants": ["Pro", "Ultra", "Max", "Elite", "Plus", "Mini", "Air", "Classic"],
-                "specs": ["512GB", "1TB", "Wireless", "Noise Cancelling", "4K", "HDR", "Mechanical", "Bluetooth 5.3"],
-                "colors": ["Midnight Black", "Silver", "Space Grey", "Gold", "White"],
-                "theme": "111111/00C6FF"
-            },
-            "fashion": {
-                "brands": ["Nike", "Adidas", "Zara", "Gucci", "H&M", "Levi's", "Calvin Klein", "Tommy Hilfiger", "Ralph Lauren", "Under Armour", "Puma", "North Face"],
-                "models": ["Air Max", "Ultraboost", "Slim Fit Jeans", "Cotton Hoodie", "Leather Jacket", "Summer Dress", "Polo Shirt", "Running Shorts", "Winter Coat", "Blazer"],
-                "variants": ["Vintage", "Modern", "Sport", "Classic", "Urban", "Streetwear", "Formal"],
-                "specs": ["100% Cotton", "Genuine Leather", "Breathable", "Waterproof", "Stretch", "Slim Fit"],
-                "colors": ["Navy Blue", "Red", "Black", "White", "Beige", "Olive Green"],
-                "theme": "F5F5F5/333333"
-            },
-            "home": {
-                "brands": ["IKEA", "Dyson", "Philips", "Nespresso", "KitchenAid", "Shark", "Ninja", "Samsung", "LG", "Nest"],
-                "models": ["V15 Detect", "Air Fryer", "Smart Bulb", "Coffee Maker", "Blender", "Robot Vacuum", "Air Purifier", "Standing Desk", "Ergo Chair", "Smart Thermostat"],
-                "variants": ["Pro", "Series 5", "Smart", "Automatic", "Compact", "XL"],
-                "specs": ["Energy Saving", "WiFi Connected", "HEPA Filter", "Stainless Steel", "Voice Control"],
-                "colors": ["Metallic", "White", "Matte Black", "Wood"],
-                "theme": "E0E0E0/2C3E50"
-            },
-            "beauty": {
-                "brands": ["L'Oreal", "Maybelline", "Chanel", "Dior", "Fenty", "Sephora", "The Ordinary", "CeraVe", "La Roche-Posay", "Estee Lauder"],
-                "models": ["Matte Lipstick", "Night Serum", "Daily Moisturizer", "Foundation", "Mascara", "Perfume", "Sunscreen", "Face Cleanser", "Eye Cream", "Toner"],
-                "variants": ["Hydrating", "Anti-Aging", "Glow", "Repair", "Volumizing", "Long-Lasting"],
-                "specs": ["Vegan", "Cruelty-Free", "Vitamin C", "Hyaluronic Acid", "SPF 50"],
-                "colors": ["Red", "Nude", "Pink", "Clear"],
-                "theme": "FFD1DC/555555"
-            },
-            "accessories": {
-                "brands": ["Rolex", "Casio", "Ray-Ban", "Fossil", "Pandora", "Swarovski", "Oakley", "G-Shock", "Cartier"],
-                "models": ["Watch", "Necklace", "Ring", "Bracelet", "Sunglasses", "Wallet", "Backpack", "Keychain", "Cap", "Beanie"],
-                "variants": ["Gold", "Silver", "Diamond", "Leather", "Sport", "Aviator", "Polarized", "Classic", "Digital", "Analog"],
-                "specs": ["Water Resistant", "Genuine Leather", "UV Protection", "Handmade", "Stainless Steel"],
-                "colors": ["Gold", "Silver", "Black", "Brown"],
-                "theme": "1A1A1A/FFD700"
-            }
-        }
+    BASE_PRODUCTS = [
+        {"name": "Iphone 17 Pro Max", "cat": "electronics", "price": 1299.99, "tags": ["phone", "premium", "gift"]},
+        {"name": "Samsung S25 Ultra", "cat": "electronics", "price": 1199.99, "tags": ["android", "phone", "zoom"]},
+        {"name": "Sony WH-1000XM6", "cat": "audio", "price": 399.99, "tags": ["headphone", "noise-canceling", "travel"]},
+        {"name": "MacBook Pro M4", "cat": "laptop", "price": 2499.99, "tags": ["laptop", "apple", "work"]},
+        {"name": "Nike Air Zoom", "cat": "shoes", "price": 129.99, "tags": ["running", "sport", "shoes"]},
+        {"name": "Adidas Ultraboost", "cat": "shoes", "price": 180.00, "tags": ["running", "comfortable", "shoes"]},
+        {"name": "Leather Jacket", "cat": "clothing", "price": 250.00, "tags": ["fashion", "leather", "winter"]},
+        {"name": "Smart Coffee Maker", "cat": "home", "price": 150.00, "tags": ["coffee", "smart", "kitchen"]},
+        {"name": "Gaming Chair", "cat": "furniture", "price": 299.99, "tags": ["gaming", "chair", "comfort"]},
+        {"name": "4K OLED Monitor", "cat": "electronics", "price": 899.99, "tags": ["monitor", "screen", "gaming"]}
+    ]
 
-    def _generate_dynamic_image(self, category: str, name: str) -> str:
-        cat_key = category.lower() if category.lower() in self.catalog_blueprints else "electronics"
-        theme = self.catalog_blueprints[cat_key]["theme"]
-        bg, fg = theme.split("/")
-        clean_name = "+".join(name.split()[:3])
-        return f"https://placehold.co/600x600/{bg}/{fg}?text={clean_name}"
-
-    def load_base_products(self) -> List[Product]:
-        """Loads the original 14 products from seed_data.json"""
-        json_path = "seed_data.json"
-        if not os.path.exists(json_path):
-            logger.warning("⚠️ seed_data.json not found. Skipping base products.")
-            return []
-        
-        try:
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-                products_data = data.get("products", [])
-                
-            base_products = []
-            for p_data in products_data:
-            
-                if "tags" not in p_data: p_data["tags"] = []
-                
-                product = Product(**p_data)
-                base_products.append(product)
-                
-            logger.info(f"📦 Loaded {len(base_products)} Base Products from JSON.")
-            return base_products
-        except Exception as e:
-            logger.error(f"❌ Failed to load base products: {e}")
-            return []
-
-    def generate_batch(self, size: int) -> List[Product]:
+    @staticmethod
+    def generate_batch(start_id: int, size: int) -> List[Dict]:
         batch = []
-        categories = list(self.catalog_blueprints.keys())
-        
-        for _ in range(size):
-            cat = random.choice(categories)
-            blueprint = self.catalog_blueprints[cat]
-            
-            brand = random.choice(blueprint["brands"])
-            model = random.choice(blueprint["models"])
-            variant = random.choice(blueprint["variants"])
-            spec = random.choice(blueprint["specs"])
-            
-            product_name = f"{brand} {model} {variant}"
-            
-            desc = (
-                f"Experience the new {product_name}. Featuring advanced {spec} technology. "
-                f"Designed by {brand} for the modern lifestyle. "
-                f"Perfect for those who demand quality and performance in the {cat} category."
-            )
-            
-            price = round(random.uniform(20.0, 2000.0), 2)
-            if price > 1000: price = 999.99
-            
-            img_url = self._generate_dynamic_image(cat, product_name)
-            
-            tags = [
-                cat, 
-                brand.lower(), 
-                model.lower().split()[0], 
-                "drone-ready",
-                "fast-delivery"
-            ]
-            if "Pro" in variant or price > 500: tags.append("premium")
-            if price < 50: tags.append("budget")
-
-            p = Product(
-                name=product_name,
-                description=desc,
-                price=price,
-                inventory=random.randint(10, 500),
-                image_url=img_url,
-                category=cat,
-                tags=tags,
-                rating=round(random.uniform(4.0, 5.0), 1)
-            )
-            batch.append(p)
-            
+        for i in range(size):
+            base = random.choice(ProductFactory.BASE_PRODUCTS)
+            pid = start_id + i
+            item = {
+                "id": pid,
+                "name": f"{base['name']} - Edition {pid}", # Unique Name
+                "description": f"This is the amazing {base['name']}, specifically edition {pid}. Top quality.",
+                "price": round(base['price'] * random.uniform(0.9, 1.1), 2),
+                "inventory": random.randint(10, 500),
+                "image_url": f"/images/product_{random.randint(1, 10)}.jpg", # Mock Image
+                "category": base['cat'],
+                "tags": ujson.dumps(base['tags']), # SQL needs JSON string
+                "rating": round(random.uniform(3.5, 5.0), 1),
+                "raw_tags": base['tags'] # For Search Engines
+            }
+            batch.append(item)
         return batch
 
-async def seed_ultra():
-    logger.info(f"🏭 Starting ULTRA-REALISM Manufacturing Plant.")
-    logger.info(f"�� Target: {TARGET_COUNT:,} items | Batch Size: {BATCH_SIZE:,}")
-    
-    start_time = time.time()
-    factory = RealismFactory()
-    total_created = 0
-    
-    async with SessionLocal() as db:
-        
-        base_products = factory.load_base_products()
-        if base_products:
-            
-            try:
-                db.add_all(base_products)
-                await db.commit()
-                total_created += len(base_products)
-                logger.info(f"✅ Inserted {len(base_products)} Base Products successfully.")
-            except Exception as e:
-                logger.warning(f"⚠️ Could not insert base products (maybe duplicates?): {e}")
-                await db.rollback()
+async def seed_sql():
+    logger.info("🚀 PHASE 1: SQL Data Injection Started...")
+    engine = create_async_engine(
+        str(settings.DATABASE_URI), # ✅ Fixed Config Name
+        echo=False,
+        pool_size=10,
+        max_overflow=0
+    )
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-        while total_created < TARGET_COUNT:
-            step_start = time.time()
+    async with async_session() as session:
+        # Check current count
+        result = await session.execute(text("SELECT COUNT(*) FROM products"))
+        current_count = result.scalar()
+        logger.info(f"📊 Current SQL Count: {current_count}")
+
+        if current_count >= TARGET_COUNT:
+            logger.info("✅ SQL Seeding Skipped (Target Reached).")
+            return
+
+        needed = TARGET_COUNT - current_count
+        start_id = current_count + 1
+        
+        # Batch Insert
+        for i in range(0, needed, 1000):
+            current_batch_size = min(1000, needed - i)
+            batch = ProductFactory.generate_batch(start_id + i, current_batch_size)
             
-            remaining = TARGET_COUNT - total_created
-            current_batch_size = min(BATCH_SIZE, remaining)
+            await session.execute(
+                text("""
+                INSERT INTO products (id, name, description, price, inventory, image_url, category, tags, rating)
+                VALUES (:id, :name, :description, :price, :inventory, :image_url, :category, :tags, :rating)
+                ON CONFLICT (id) DO NOTHING
+                """),
+                batch
+            )
+            await session.commit()
+            logger.info(f"📥 Inserted SQL Batch: {current_batch_size} items")
+
+    await engine.dispose()
+    logger.info("✅ PHASE 1 COMPLETE.")
+
+# --- 💎 Phase 2: Diamond Sync (OpenSearch + Milvus) ---
+async def seed_search_engines():
+    logger.info("🚀 PHASE 2: Search Engine Synchronization (Memory Optimized)...")
+    
+    # 1. Connect to OpenSearch
+    os_client = AsyncOpenSearch(
+        hosts=[{'host': settings.OPENSEARCH_HOST, 'port': settings.OPENSEARCH_PORT}],
+        http_compress=True,
+        timeout=60
+    )
+    
+    # 2. Connect to Milvus
+    milvus_client = MilvusClient(uri=settings.MILVUS_URI)
+    
+    # 3. Load AI Models
+    logger.info("🧠 Loading AI Models (Takes ~10s)...")
+    text_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+    vision_model = SentenceTransformer('clip-ViT-B-32')
+    logger.info("✅ AI Models Loaded.")
+
+    # 4. Connect to SQL to fetch data
+    engine = create_async_engine(str(settings.DATABASE_URI)) # ✅ Fixed Config Name
+    async_session = sessionmaker(engine, class_=AsyncSession)
+
+    async with async_session() as session:
+        # ✅ Using stream + yield_per for memory safety
+        stmt = text("SELECT id, name, description, category, tags, image_url, price, rating FROM products").execution_options(yield_per=BATCH_SIZE)
+        result = await session.stream(stmt)
+        
+        os_batch = []
+        milvus_text_batch = []
+        milvus_vis_batch = []
+        
+        count = 0
+        
+        async for row in result:
+            count += 1
             
-            products = factory.generate_batch(current_batch_size)
-            
-            try:
-                db.add_all(products)
-                await db.commit()
-                
-                total_created += len(products)
-                
-                duration = time.time() - step_start
-                rate = len(products) / duration if duration > 0 else 0
-                logger.info(f"🚀 Generated: {len(products)} units | Total: {total_created:,} | Speed: {rate:.0f} items/sec")
-                
-            except Exception as e:
-                logger.error(f"🔥 Batch Failed: {e}")
-                await db.rollback()
+            # 🛑 STOPPING CONDITION
+            if count > MAX_PRODUCTS_TO_SYNC:
+                logger.info(f"🛑 Reached Limit: {MAX_PRODUCTS_TO_SYNC} items synced. Stopping safely.")
                 break
 
-    total_time = time.time() - start_time
-    logger.info(f"✅ MISSION COMPLETE.")
-    logger.info(f"📊 Statistics: {total_created:,} realistic products generated in {total_time:.2f} seconds.")
+            item = dict(row._mapping)
+            
+            # Prepare OpenSearch Doc
+            os_doc = {
+                "_index": "airdeliver_products",
+                "_id": item['id'],
+                "_source": {
+                    "id": item['id'],
+                    "name": item['name'],
+                    "description": item['description'],
+                    "category": item['category'],
+                    "tags": ujson.loads(item['tags']) if isinstance(item['tags'], str) else item['tags'],
+                    "price": item['price'],
+                    "rating": item['rating'],
+                    "image_url": item['image_url']
+                }
+            }
+            os_batch.append(os_doc)
+
+            # Prepare Milvus Vectors
+            text_content = f"{item['name']} {item['description']} {item['category']}"
+            text_vec = text_model.encode(text_content).tolist()
+            milvus_text_batch.append({"id": item['id'], "vector": text_vec})
+
+            vis_content = f"photo of {item['name']}" 
+            vis_vec = vision_model.encode(vis_content).tolist()
+            milvus_vis_batch.append({"id": item['id'], "image_vector": vis_vec})
+
+            # Flush Batches
+            if len(os_batch) >= BATCH_SIZE:
+                try:
+                    await helpers.async_bulk(os_client, os_batch)
+                    milvus_client.insert(collection_name="airdeliver_products", data=milvus_text_batch)
+                    milvus_client.insert(collection_name="airdeliver_products_visual", data=milvus_vis_batch)
+                    
+                    logger.info(f"💎 Synced Batch: {count} items")
+                    
+                    os_batch = []
+                    milvus_text_batch = []
+                    milvus_vis_batch = []
+                except Exception as e:
+                    logger.error(f"❌ Batch Error: {e}")
+
+        # Flush Remaining (if any, and if loop finished naturally)
+        if os_batch:
+            await helpers.async_bulk(os_client, os_batch)
+            milvus_client.insert(collection_name="airdeliver_products", data=milvus_text_batch)
+            milvus_client.insert(collection_name="airdeliver_products_visual", data=milvus_vis_batch)
+            logger.info(f"💎 Synced Final Batch. Total: {count}")
+
+    await os_client.close()
+    await engine.dispose()
+    logger.info("✅ PHASE 2 COMPLETE.")
+
+async def main():
+    start_time = time.time()
+    await seed_sql()
+    await seed_search_engines()
+    logger.info(f"🏁 MISSION COMPLETE in {time.time() - start_time:.2f}s")
 
 if __name__ == "__main__":
-    asyncio.run(seed_ultra())
+    asyncio.run(main())
+

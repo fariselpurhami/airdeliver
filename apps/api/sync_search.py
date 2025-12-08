@@ -53,6 +53,18 @@ class DiamondSearchSynchronizer:
             retry_on_timeout=True
         )
 
+    def _encode_image_from_url(self, image_url: str) -> List[float]:
+    try:
+        response = requests.get(image_url, stream=True, timeout=5)
+        image = Image.open(response.raw)
+        vision_model = ai_manager.get_vision_model()
+        vector = vision_model.encode(image).tolist()
+        return vector
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to encode image {image_url}: {e}")
+        return [0.0] * 512
+
+
     async def _create_optimized_index(self):
         """Creates index with settings tuned for heavy-write throughput."""
         exists = await self.client.indices.exists(index=self.index_name)

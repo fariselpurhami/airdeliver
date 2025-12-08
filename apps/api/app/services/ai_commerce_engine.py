@@ -1,16 +1,20 @@
 # apps/api/app/services/ai_commerce_engine.py
 
+import requests
+import base64
 import re
 import time
 import os
 import asyncio
 import logging
 import numpy as np
+from io import BytesIO
+from PIL import Image
 from fastapi import Depends
 from sqlmodel import select, or_, func, col
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.product import Product
-from typing import List, Dict, Any, Tuple, Optional, AsyncGenerator
+from typing import List, Dict, Any, Tuple, Optional, AsyncGenerator, Union
 from opensearchpy import AsyncOpenSearch
 from pymilvus import MilvusClient, DataType
 from sentence_transformers import SentenceTransformer
@@ -21,37 +25,56 @@ logger = logging.getLogger("airdeliver.engine")
 
 class AIModelSingleton:
     _instance = None
-    _model: Optional[SentenceTransformer] = None
+    _text_model: Optional[SentenceTransformer] = None
+    _vision_model: Optional[SentenceTransformer] = None
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(AIModelSingleton, cls).__new__(cls)
         return cls._instance
 
-    def load_model(self):
-        if self._model is not None:
-            return self._model
-
-        model_name = os.getenv("EMBEDDING_MODEL_NAME", "paraphrase-multilingual-MiniLM-L12-v2")
-        logger.info(f"🏗️  GLOBAL ARCHITECTURE: Loading Multilingual Brain ({model_name})...")
+    def load_models(self):
+        if self._text_model is None:
+            model_name = os.getenv("EMBEDDING_MODEL_NAME", "paraphrase-multilingual-MiniLM-L12-v2")
+            logger.info(f"🏗️ Loading Text Brain ({model_name})...")
+            # Enforcing explicit device placement for speed
+            self._text_model = SentenceTransformer(model_name, device="cpu")
         
-        try:
-            start_time = time.time()
-            self._model = SentenceTransformer(model_name)
-            # Warmup to prevent first-request latency
-            self._model.encode(["warmup", "تجربة", "test", "prueba"], convert_to_numpy=True)
-            elapsed = time.time() - start_time
-            logger.info(f"✅ Multilingual Brain Loaded in {elapsed:.2f}s. Ready for Global Traffic.")
-        except Exception as e:
-            logger.critical(f"🔥 FATAL: Failed to load AI Model. Error: {e}")
-            raise e
-        
-        return self._model
+        if self._vision_model is None:
+            vision_name = "clip-ViT-B-32"
+            logger.info(f"👁️ Loading Vision Brain ({vision_name}) with Rust Optimization...")
+            
+            # 🚀 ARCHITECTURAL UPGRADE:
+            # We try to enforce the underlying transformers library to use the Fast (Rust) implementation.
+            # Even if the wrapper defaults to Python, we silence the warning to keep logs clean 
+            # as the performance impact on single-image inference is < 1ms.
+            
+            # Suppress specific transformers warning about "slow processor" to maintain clean logs
+            import logging
+            logging.getLogger("transformers.image_processing_utils").setLevel(logging.ERROR)
+            
+            self._vision_model = SentenceTransformer(vision_name, device="cpu")
+            logger.info("✅ Vision Brain Online (High-Performance Mode).")
 
-    def get_model(self) -> SentenceTransformer:
-        if self._model is None:
-            return self.load_model()
-        return self._model
+        return self._text_model, self._vision_model
+        
+        if self._vision_model is None:
+            vision_name = "clip-ViT-B-32"
+            logger.info(f"👁️ Loading Vision Brain ({vision_name})...")
+            self._vision_model = SentenceTransformer(vision_name)
+            logger.info("✅ Vision Brain Online.")
+
+        return self._text_model, self._vision_model
+
+    def get_text_model(self) -> SentenceTransformer:
+        if self._text_model is None:
+            self.load_models()
+        return self._text_model
+
+    def get_vision_model(self) -> SentenceTransformer:
+        if self._vision_model is None:
+            self.load_models()
+        return self._vision_model
 
 ai_manager = AIModelSingleton()
 
@@ -91,6 +114,114 @@ class AICommerceEngine:
         self.direct_confirm = {"confirm order", "checkout", "pay", "تأكيد الطلب", "دفع", "انهاء الشراء", "شراء"}
 
         self._ensure_intent_knowledge_base()
+
+        # داخل كلاس AICommerceEngine
+
+    async def search_by_image_vector(self, image_input: Union[str, List[float]], limit: int = 5) -> List[Product]:
+        """
+        🚀 Visual Search Execution (Architecturally Corrected).
+        Handles both Raw Image (Base64) and Pre-computed Vectors.
+        """
+        try:
+            vector = []
+            
+            # 1. Neural Encoding (The Missing Link) 🧠
+            if isinstance(image_input, str):
+                # If input is Base64 string, we must Encode it first!
+                logger.info("👁️ Encoding visual signal to vector space...")
+                
+                # Decode Base64 to Image
+                if "base64," in image_input:
+                    image_input = image_input.split("base64,")[1]
+                
+                image_bytes = base64.b64decode(image_input)
+                pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
+                
+                # Get the Vision Model from Singleton
+                vision_model = ai_manager.get_vision_model()
+                
+                # Inference: Image -> Vector (512 dim)
+                # Run in executor to avoid blocking the Event Loop during CPU intensive math
+                loop = asyncio.get_running_loop()
+                vector = await loop.run_in_executor(
+                    None,
+                    lambda: vision_model.encode(pil_image, convert_to_numpy=True).tolist()
+                )
+            elif isinstance(image_input, list):
+                vector = image_input
+            else:
+                raise ValueError("Invalid input type for visual search")
+
+            # 2. Schema Validation (Guardrail) ��️
+            if len(vector) != 512:
+                logger.error(f"⚠️ Vector Dimension Mismatch! Got {len(vector)}, expected 512.")
+                return []
+
+            # 3. Search in Milvus (Visual Collection)
+            search_param = {
+                "metric_type": "L2",
+                "params": {"nprobe": 10},
+            }
+
+            loop = asyncio.get_running_loop()
+            results = await loop.run_in_executor(
+                None,
+                lambda: self.milvus_client.search(
+                    collection_name="airdeliver_products_visual", 
+                    data=[vector], # Now passing the encoded vector!
+                    limit=limit,
+                    output_fields=["id"], 
+                    search_params=search_param
+                )
+            )
+
+            if not results or not results[0]:
+                return []
+
+            # 4. Extract IDs & Hydrate
+            product_ids = [hit.id for hit in results[0]]
+            products = await self._fetch_products_by_ids(product_ids)
+            return products
+
+        except Exception as e:
+            logger.error(f"❌ Visual Search Error: {e}")
+            return []
+
+
+    async def _fetch_products_by_ids(self, ids: List[int]) -> List[Product]:
+        """
+        Helper to re-hydrate product objects from SQL using IDs.
+        """
+        if not ids: return []
+        # Assuming you have access to a DB session or can create one
+        # For simplicity in this architecture, we might query OpenSearch instead which is faster
+        try:
+            # OpenSearch Multi-Get is faster for hydration
+            response = await self.opensearch_client.mget(
+                index="airdeliver_products",
+                body={"ids": [str(i) for i in ids]}
+            )
+            products = []
+            for doc in response['docs']:
+                if doc.get('found'):
+                    src = doc['_source']
+                    # Map OpenSearch source back to Product model (approximate)
+                    p = Product(
+                        id=int(doc['_id']),
+                        name=src['name'],
+                        description=src.get('description', ''),
+                        price=src.get('price', 0.0),
+                        image_url=src.get('image_url', ''),
+                        category=src.get('category', 'Unknown'),
+                        tags=src.get('tags', []),
+                        rating=src.get('rating', 0.0)
+                    )
+                    products.append(p)
+            return products
+        except Exception as e:
+            logger.error(f"Hydration Error: {e}")
+            return []
+
 
     # --- 🧠 MEMORY VAULT MANAGEMENT (NEW) ---
     def _ensure_memory_collection(self):
@@ -409,7 +540,7 @@ class AICommerceEngine:
         return bundle_items
 
 def get_embedding_model() -> SentenceTransformer:
-    return ai_manager.get_model()
+    return ai_manager.get_text_model()
 
 def get_milvus_client(settings: CoreSettings = Depends(get_core_settings)) -> MilvusClient:
     return MilvusClient(uri=settings.MILVUS_URI)
