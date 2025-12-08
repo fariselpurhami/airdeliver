@@ -44,25 +44,12 @@ class AIModelSingleton:
             vision_name = "clip-ViT-B-32"
             logger.info(f"👁️ Loading Vision Brain ({vision_name}) with Rust Optimization...")
             
-            # �� ARCHITECTURAL UPGRADE:
-            # We try to enforce the underlying transformers library to use the Fast (Rust) implementation.
-            # Even if the wrapper defaults to Python, we silence the warning to keep logs clean 
-            # as the performance impact on single-image inference is < 1ms.
-            
             # Suppress specific transformers warning about "slow processor" to maintain clean logs
             import logging
             logging.getLogger("transformers.image_processing_utils").setLevel(logging.ERROR)
             
             self._vision_model = SentenceTransformer(vision_name, device="cpu")
             logger.info("✅ Vision Brain Online (High-Performance Mode).")
-
-        return self._text_model, self._vision_model
-        
-        if self._vision_model is None:
-            vision_name = "clip-ViT-B-32"
-            logger.info(f"👁️ Loading Vision Brain ({vision_name})...")
-            self._vision_model = SentenceTransformer(vision_name)
-            logger.info("✅ Vision Brain Online.")
 
         return self._text_model, self._vision_model
 
@@ -111,11 +98,7 @@ class AICommerceEngine:
         self.user_memory_collection = "airdeliver_user_memory_v1" 
         self._ensure_memory_collection()
         
-        self.direct_confirm = {"confirm order", "checkout", "pay", "تأكيد الطلب", "دفع", "انهاء الشراء", "شراء"}
-
         self._ensure_intent_knowledge_base()
-
-        # داخل كلاس AICommerceEngine
 
     async def search_by_image_vector(self, image_input: Union[str, List[float]], limit: int = 5) -> List[Product]:
         """
@@ -127,21 +110,14 @@ class AICommerceEngine:
             
             # 1. Neural Encoding (The Missing Link) 🧠
             if isinstance(image_input, str):
-                # If input is Base64 string, we must Encode it first!
                 logger.info("👁️ Encoding visual signal to vector space...")
-                
-                # Decode Base64 to Image
                 if "base64," in image_input:
                     image_input = image_input.split("base64,")[1]
                 
                 image_bytes = base64.b64decode(image_input)
                 pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
                 
-                # Get the Vision Model from Singleton
                 vision_model = ai_manager.get_vision_model()
-                
-                # Inference: Image -> Vector (512 dim)
-                # Run in executor to avoid blocking the Event Loop during CPU intensive math
                 loop = asyncio.get_running_loop()
                 vector = await loop.run_in_executor(
                     None,
@@ -152,12 +128,10 @@ class AICommerceEngine:
             else:
                 raise ValueError("Invalid input type for visual search")
 
-            # 2. Schema Validation (Guardrail) ��️
             if len(vector) != 512:
                 logger.error(f"⚠️ Vector Dimension Mismatch! Got {len(vector)}, expected 512.")
                 return []
 
-            # 3. Search in Milvus (Visual Collection)
             search_param = {
                 "metric_type": "L2",
                 "params": {"nprobe": 10},
@@ -168,7 +142,7 @@ class AICommerceEngine:
                 None,
                 lambda: self.milvus_client.search(
                     collection_name="airdeliver_products_visual", 
-                    data=[vector], # Now passing the encoded vector!
+                    data=[vector], 
                     limit=limit,
                     output_fields=["id"], 
                     search_params=search_param
@@ -178,7 +152,6 @@ class AICommerceEngine:
             if not results or not results[0]:
                 return []
 
-            # 4. Extract IDs & Hydrate
             product_ids = [hit.id for hit in results[0]]
             products = await self._fetch_products_by_ids(product_ids)
             return products
@@ -187,16 +160,9 @@ class AICommerceEngine:
             logger.error(f"❌ Visual Search Error: {e}")
             return []
 
-
     async def _fetch_products_by_ids(self, ids: List[int]) -> List[Product]:
-        """
-        Helper to re-hydrate product objects from SQL using IDs.
-        """
         if not ids: return []
-        # Assuming you have access to a DB session or can create one
-        # For simplicity in this architecture, we might query OpenSearch instead which is faster
         try:
-            # OpenSearch Multi-Get is faster for hydration
             response = await self.opensearch_client.mget(
                 index="airdeliver_products",
                 body={"ids": [str(i) for i in ids]}
@@ -205,7 +171,6 @@ class AICommerceEngine:
             for doc in response['docs']:
                 if doc.get('found'):
                     src = doc['_source']
-                    # Map OpenSearch source back to Product model (approximate)
                     p = Product(
                         id=int(doc['_id']),
                         name=src['name'],
@@ -222,8 +187,7 @@ class AICommerceEngine:
             logger.error(f"Hydration Error: {e}")
             return []
 
-
-    # --- 🧠 MEMORY VAULT MANAGEMENT (NEW) ---
+    # --- 🧠 MEMORY VAULT MANAGEMENT ---
     def _ensure_memory_collection(self):
         try:
             if self.milvus_client.has_collection(self.user_memory_collection):
@@ -233,13 +197,12 @@ class AICommerceEngine:
             schema = MilvusClient.create_schema(auto_id=True, enable_dynamic_field=True)
             schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
             schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=384)
-            schema.add_field(field_name="user_id", datatype=DataType.INT64) # Partition key logic
+            schema.add_field(field_name="user_id", datatype=DataType.INT64) 
             schema.add_field(field_name="fact_text", datatype=DataType.VARCHAR, max_length=512)
             schema.add_field(field_name="timestamp", datatype=DataType.INT64)
 
             index_params = self.milvus_client.prepare_index_params()
             index_params.add_index(field_name="vector", index_type="FLAT", metric_type="L2")
-            # Index user_id for fast filtering
             index_params.add_index(field_name="user_id", index_type="STL_SORT") 
 
             self.milvus_client.create_collection(
@@ -252,7 +215,6 @@ class AICommerceEngine:
             logger.error(f"❌ Failed to init Memory Vault: {e}")
 
     async def remember_user_fact(self, user_id: int, fact_text: str):
-        """Stores a extracted truth about the user forever."""
         try:
             vector = self._get_query_embedding(fact_text)
             data = [{
@@ -261,7 +223,6 @@ class AICommerceEngine:
                 "fact_text": fact_text,
                 "timestamp": int(time.time())
             }]
-            # Run in executor to avoid blocking async loop
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None, 
@@ -272,10 +233,8 @@ class AICommerceEngine:
             logger.error(f"Memory Write Error: {e}")
 
     async def recall_relevant_facts(self, user_id: int, query: str, limit: int = 3) -> List[str]:
-        """Retrieves facts relevant to the CURRENT query (Contextual Recall)."""
         try:
             vector = self._get_query_embedding(query)
-            # Filter strictly by user_id so we don't leak other users' data
             search_filter = f"user_id == {user_id}"
             
             loop = asyncio.get_running_loop()
@@ -291,9 +250,7 @@ class AICommerceEngine:
             )
             
             if not results or not results[0]: return []
-            
-            # Extract text only
-            facts = [hit["entity"]["fact_text"] for hit in results[0] if hit["distance"] < 1.2] # Distance threshold
+            facts = [hit["entity"]["fact_text"] for hit in results[0] if hit["distance"] < 1.2]
             return facts
         except Exception as e:
             logger.error(f"Memory Recall Error: {e}")
@@ -369,97 +326,39 @@ class AICommerceEngine:
             logger.info(f"✅ OpenSearch Index '{index_name}' created.")
         except Exception as e:
             logger.error(f"❌ Failed to ensure OpenSearch index: {e}")
- 
+
     async def _search_opensearch(self, query: str, limit: int = 50) -> List[Tuple[str, float]]:
         """
-        🚀 Search V3: The 'Literalist' Engine.
-        Prioritizes Exact Alphanumeric Matches (e.g., '17') over semantic fuzziness.
+        🚀 SEARCH V4: The 'Numeric Anchor' Engine.
+        Enforces strict adherence to version numbers (e.g., '17', '5', '2025').
         """
         clean_q = re.sub(r'[^\w\s]', '', query)
-        
-        # 🧠 ARCHITECTURAL FIX: Extract Numbers (Versions)
-        # If query has a number (e.g. "17"), we BOOST products that contain this EXACT number.
         numbers = re.findall(r'\d+', clean_q)
         
         should_clauses = [
-            # 1. Exact Phrase Match (The Sniper)
-            {"match_phrase": {"name": {"query": clean_q, "boost": 20.0}}},
-            # 2. Standard Match
-            {"match": {"name": {"query": clean_q, "boost": 5.0}}},
-            # 3. Broad Match
-            {"multi_match": {"query": clean_q, "fields": ["description", "category", "tags"], "fuzziness": "AUTO"}}
+            {"match_phrase": {"name": {"query": clean_q, "boost": 10.0}}},
+            {"match": {"name": {"query": clean_q, "boost": 2.0}}},
+            {"multi_match": {"query": clean_q, "fields": ["description", "category", "tags"], "fuzziness": "AUTO", "boost": 0.5}}
         ]
 
-        # 🚀 FORCING THE VERSION:
-        # If user typed "17", items WITHOUT "17" get a massive penalty.
         if numbers:
             for num in numbers:
-                should_clauses.append({
-                    "term": {"name": {"value": num, "boost": 30.0}} # Massive boost for the version number
-                })
+                should_clauses.append({"term": {"name": {"value": num, "boost": 100.0}}})
+                should_clauses.append({"term": {"tags": {"value": num, "boost": 50.0}}})
 
         opensearch_query = {
-            "query": {
-                "bool": {
-                    "should": should_clauses,
-                    "minimum_should_match": 1
-                }
-            },
+            "query": { "bool": { "should": should_clauses, "minimum_should_match": 1 } },
             "size": limit,
             "_source": False
         }
         
         try:
             response = await self.opensearch_client.search(index="airdeliver_products", body=opensearch_query)
-            return [(hit["_id"], hit["_score"]) for hit in response["hits"]["hits"]]
-        except Exception:
+            hits = response["hits"]["hits"]
+            return [(hit["_id"], hit["_score"]) for hit in hits]
+        except Exception as e:
+            logger.error(f"OpenSearch Error: {e}")
             return []
-
-    async def perform_hybrid_search_pure(self, db: AsyncSession, query: str, limit: int = 50) -> List[Product]:
-        """
-        🚀 Hybrid Engine V3: The 'Recency' Bias.
-        If scores are close, Newest/Most Expensive items win (assuming newer = better/pricier).
-        """
-        query_vector = self._get_query_embedding(query)
-        
-        # Parallel Search
-        opensearch_results, milvus_results = await asyncio.gather(
-            self._search_opensearch(query, limit=limit),
-            self._search_milvus(query_vector, limit=limit),
-            return_exceptions=True
-        )
-
-        opensearch_results = opensearch_results if isinstance(opensearch_results, list) else []
-        milvus_results = milvus_results if isinstance(milvus_results, list) else []
-
-        # RRF Fusion with Dynamic Weights
-        reranked_scores = {}
-        
-        # If query has specific version numbers, TRUST KEYWORD SEARCH (OpenSearch) 90%
-        has_numbers = bool(re.search(r'\d+', query))
-        keyword_weight = 5.0 if has_numbers else 1.0 
-        vector_weight = 1.0
-
-        for doc_id, score in opensearch_results:
-            reranked_scores[doc_id] = reranked_scores.get(doc_id, 0) + (score * keyword_weight)
-            
-        for doc_id, score in milvus_results:
-            reranked_scores[doc_id] = reranked_scores.get(doc_id, 0) + (score * vector_weight)
-
-        # Sort & Fetch
-        sorted_ids = sorted(reranked_scores, key=reranked_scores.get, reverse=True)[:limit]
-        if not sorted_ids: return await self._fallback_sql_search(db, query, limit)
-
-        product_ids_int = [int(pid) for pid in sorted_ids]
-        statement = select(Product).where(Product.id.in_(product_ids_int))
-        products_db = (await db.exec(statement)).all()
-        
-        # 🧠 THE FINAL SORT: Logic over Score
-        # If multiple items matched, sort them by Price (High to Low) as a proxy for "Pro/Max/Newest"
-        # unless the user specified "cheap".
-        products_db.sort(key=lambda p: (reranked_scores.get(str(p.id), 0) + (p.price * 0.05)), reverse=True)
-
-        return products_db
 
     async def _search_milvus(self, vector: List[float], limit: int = 50, exclude_id: Optional[int] = None) -> List[Tuple[str, float]]:
         if not vector: return []
@@ -493,17 +392,16 @@ class AICommerceEngine:
         ).limit(limit)
         return (await db.exec(statement)).all()
 
-    # --- THE NEW SURGICAL METHOD FOR LLM INTEGRATION ---
+    # --- THE UNIFIED & FINAL HYBRID ENGINE (V4) ---
     async def perform_hybrid_search_pure(self, db: AsyncSession, query: str, limit: int = 50) -> List[Product]:
         """
-        Hybrid Engine V2: The RRF Tuner.
-        Favors Keyword Search (OpenSearch) when specific model numbers are detected.
+        🚀 Hybrid Engine V4: The 'Accuracy First' Pipeline.
+        Combines Semantic Understanding (Vector) with Numeric Precision (Keyword).
         """
-        # Check if query contains specific model numbers (digits)
+        # Check if query contains numbers (The "Literal" intent)
         has_numbers = bool(re.search(r'\d+', query))
         
         query_vector = self._get_query_embedding(query)
-
         opensearch_results, milvus_results = await asyncio.gather(
             self._search_opensearch(query, limit=limit),
             self._search_milvus(query_vector, limit=limit),
@@ -513,11 +411,11 @@ class AICommerceEngine:
         opensearch_results = opensearch_results if isinstance(opensearch_results, list) else []
         milvus_results = milvus_results if isinstance(milvus_results, list) else []
 
-        # RRF Fusion Logic with Dynamic Weighting
         reranked_scores = {}
         
-        # If query has numbers (e.g., "iPhone 17"), TRUST KEYWORD SEARCH MORE
-        keyword_weight = 3.0 if has_numbers else 1.0 
+        # �� ARCHITECTURAL DECISION:
+        # If the user typed a number (e.g. "17"), Keyword Search is GOD.
+        keyword_weight = 10.0 if has_numbers else 2.0 
         vector_weight = 1.0
 
         for doc_id, score in opensearch_results:
@@ -535,16 +433,18 @@ class AICommerceEngine:
         statement = select(Product).where(Product.id.in_(product_ids_int))
         products_db = (await db.exec(statement)).all()
         
-        product_map = {p.id: p for p in products_db}
-        # Preserve sorted order
-        return [product_map[pid] for pid in product_ids_int if pid in product_map]
+        # 4. FINAL VERIFICATION SORT (The 'Pro' Bias)
+        products_db.sort(key=lambda p: (reranked_scores.get(str(p.id), 0) + (p.price * 0.1)), reverse=True)
+        
+        return products_db
 
-    # --- LEGACY METHOD ---
+    # --- LEGACY METHODS (Kept for Interface Safety) ---
     async def find_products_from_message(self, db: AsyncSession, message: str, user_id: int) -> Tuple[List[Product], Dict[str, Any]]:
         products = await self.perform_hybrid_search_pure(db, message)
         return products, {"intent": "SEARCH_PRODUCT", "query": message}
 
     async def find_complementary_products(self, db: AsyncSession, anchor_product: Product, limit: int = 20) -> List[Product]:
+         # Uses direct Milvus call for related items logic
          semantic_query = f"accessories for {anchor_product.name}" 
          vector = self._get_query_embedding(semantic_query)
          milvus_results = await self._search_milvus(vector, limit=limit, exclude_id=anchor_product.id)
