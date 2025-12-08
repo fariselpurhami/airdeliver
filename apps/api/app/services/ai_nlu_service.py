@@ -174,7 +174,16 @@ class AINLUService:
         if final_products:
             display_name = final_products[0].name # Use the winner's name
 
-        msg = f"Closest match: {display_name}. You can add it to your cart when you're ready."
+        import random
+
+        success_templates = [
+            f"Closest match: {display_name}. You can add it to your cart when you're ready.",
+            f"Spot on. I found {display_name} in stock. Ready to confirm order?",
+            f"Here is the {display_name} you're looking for."
+        ]
+
+        msg = random.choice(success_templates)
+
 
         # Dispatch
         if final_products:
@@ -655,7 +664,7 @@ class AINLUService:
                 ],
                 "kitchen": [
                     "Dinner time? 🍽️ Inspiration for a delicious evening:",
-                    "Good evening! 👨‍🍳 Chef's choice for your home:"
+                    "Good evening! ✨ Chef's choice for your home:"
                 ],
                 "default": [
                     "Good evening! 🌇 Wrapping up the day with these highlights:",
