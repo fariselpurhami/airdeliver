@@ -589,12 +589,12 @@ class AINLUService:
     # ---------------------------------------------------------
     def _craft_human_message(self, time_phase: str, stream: str, product: Any) -> str:
         """
-        Generates a message that feels like it knows you and the time.
+        Generates a warm, expressive, and human-like English greeting.
+        Adapts to time of day and product vibe with emotional intelligence.
         """
         import random
         
-        # 1. Analyze the "Vibe" of the product
-        # e.g. "Coffee" -> Energy, "Gaming" -> Fun, "Office" -> Focus
+        # 1. Analyze the "Vibe"
         vibe = "neutral"
         p_name = product.name.lower() if product else ""
         p_cat = (product.category or "").lower() if product else ""
@@ -602,50 +602,95 @@ class AINLUService:
         
         if any(x in combined for x in ["game", "console", "play", "rgb"]): vibe = "fun"
         elif any(x in combined for x in ["coffee", "brew", "energy", "sport"]): vibe = "energy"
-        elif any(x in combined for x in ["office", "desk", "work", "laptop"]): vibe = "focus"
-        elif any(x in combined for x in ["sleep", "bed", "relax", "candle"]): vibe = "chill"
+        elif any(x in combined for x in ["office", "desk", "work", "laptop", "monitor"]): vibe = "focus"
+        elif any(x in combined for x in ["sleep", "bed", "relax", "candle", "sofa"]): vibe = "chill"
         elif any(x in combined for x in ["phone", "tech", "smart", "watch"]): vibe = "tech"
 
-        # 2. Template Matrix (Time x Vibe)
-        # This creates the illusion of deep understanding.
+        # 2. THE EMOTIONAL ENGLISH MATRIX 🇺��
         
         templates = {
             "morning": {
-                "energy": ["Rise and shine! ☀️ Fuel up with these:", "Morning! Ready to conquer the day? Start here:", "Wakey wakey! ☕ Your morning essentials:"],
-                "focus": ["Good morning. Let's get productive today:", "Morning! Gear up for a successful day:", "Ready to work? Here is your toolkit:"],
-                "tech": ["Top of the morning! Check out today's tech drops:", "Morning! Smart choices for a smart day:"],
-                "default": ["Good morning! ☀️ Here's what's trending for you:", "Morning! A fresh selection just for you:"]
+                "energy": [
+                    "Rise and shine! ☀️ Ready to conquer the day? Start here:",
+                    "Good morning! ☕ Fuel up your ambition with these picks:",
+                    "Wakey wakey! 🌅 Here is the energy boost you need:"
+                ],
+                "focus": [
+                    "Good morning. �� Let's make today productive:",
+                    "Morning! 🚀 Gear up for success with these essentials:",
+                    "Ready to work? 🧠 Here is your toolkit for the day:"
+                ],
+                "tech": [
+                    "Top of the morning! ⚡ Check out today's freshest tech:",
+                    "Good morning! 📱 Smart choices for a smart start:"
+                ],
+                "default": [
+                    "Good morning! ☀️ Wishing you a wonderful day ahead:",
+                    "Hello there! 👋 A fresh selection just for you this morning:"
+                ]
             },
             "afternoon": {
-                "energy": ["Mid-day slump? ⚡ Recharge with these:", "Power through your afternoon:"],
-                "focus": ["Good afternoon. Keep the momentum going:", "Afternoon check-in! 🚀 Upgrades for your setup:"],
-                "fun": ["Taking a break? 🎮 You deserve a treat:", "Afternoon vibes. Check these out:"],
-                "default": ["Good afternoon! 👋 Picked specially for you:", "Hope your day is going well! Take a look:"]
+                "energy": [
+                    "Mid-day slump? ⚡ Recharge your afternoon with this:",
+                    "Hey there! 🌈 Keep the momentum going with these:"
+                ],
+                "focus": [
+                    "Good afternoon. 🕑 Stay in the zone with these upgrades:",
+                    "Checking in! 🚀 Everything you need to finish strong:"
+                ],
+                "fun": [
+                    "Need a break? 🎮 You deserve a little treat right now:",
+                    "Afternoon vibes! 🎈 Take a moment to explore these:"
+                ],
+                "default": [
+                    "Good afternoon! 👋 Hope your day is going great:",
+                    "Hello again! ✨ Hand-picked suggestions for your afternoon:"
+                ]
             },
             "evening": {
-                "chill": ["Long day? 🌙 Time to unwind:", "Good evening. Relax and explore:", "Evening vibes ✨ Comfort picks for you:"],
-                "fun": ["Evening is here! Time to play:", "Good evening! Ready for some action?"],
-                "kitchen": ["Dinner time? 🍽️ Inspiration for your evening:", "Good evening! Chef's choice for you:"],
-                "default": ["Good evening! ✨ Highlights from today:", "Wrapping up the day with these picks:"]
+                "chill": [
+                    "Long day? 🌙 Time to unwind and relax:",
+                    "Good evening. 🍷 You earned some downtime with these:",
+                    "Evening vibes. ✨ create your cozy sanctuary:"
+                ],
+                "kitchen": [
+                    "Dinner time? 🍽️ Inspiration for a delicious evening:",
+                    "Good evening! 👨‍🍳 Chef's choice for your home:"
+                ],
+                "default": [
+                    "Good evening! 🌇 Wrapping up the day with these highlights:",
+                    "Hello! 🌙 A quiet browse through our latest collection:"
+                ]
             },
             "night": {
-                "chill": ["Late night browsing? 🦉 We got you:", "Quiet hours. ✨ Explore our night edit:"],
-                "fun": ["Night owl mode: ON. 🦉🎮 Gamers only:", "Up late? The best gear never sleeps:"],
-                "default": ["Welcome, night owl. 🌙 Exclusive late-night finds:", "Burning the midnight oil? Check this:"]
+                "chill": [
+                    "Late night browsing? 🦉 We've got you covered:",
+                    "Quiet hours. 🤫 Explore our peaceful night edit:",
+                    "Welcome, night owl. 🌙 Serenity is just a click away:"
+                ],
+                "fun": [
+                    "Night owl mode: ON. 🦉🎮 The best gear never sleeps:",
+                    "Up late? 🚀 Level up your game while the world sleeps:"
+                ],
+                "default": [
+                    "Burning the midnight oil? 🕯️ Check these out:",
+                    "Hello. ✨ Exclusive late-night finds just for you:"
+                ]
             }
         }
 
         # 3. Select Template
         options = templates.get(time_phase, {}).get(vibe, templates[time_phase]["default"])
-        
-        # 4. Personalization Injection (If we used Ghost Vector)
         msg = random.choice(options)
         
+        # 4. Subtle Personalization (The "I Know You" Touch)
         if stream == "GHOST":
-            # Add a subtle nod that we know them
-            suffixes = [" (Based on your style)", " (Matches your vibe)", " (Because you liked similar items)"]
-            # We assume a 30% chance to append the suffix to keep it natural, not robotic
-            if random.random() < 0.3:
+            suffixes = [
+                " (Picked for your style ✨)", 
+                " (Matches your vibe 🎯)", 
+                " (Because you have great taste 😉)"
+            ]
+            if random.random() < 0.4:
                 msg += random.choice(suffixes)
                 
         return msg
