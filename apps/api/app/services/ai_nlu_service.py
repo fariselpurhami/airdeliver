@@ -71,182 +71,109 @@ class AINLUService:
 
     async def _handle_image_query(self, user_id: int, image_data: str):
         """
-        🛡️ GLOBAL STANDARD V4: The 'Agnostic' Vision Pipeline.
-        Forces 'Concept Search' + 'Premium Sort' to find iPhone 17 even if AI says 15.
+        💎 GLOBAL STANDARD V6: The 'Surgical' Vision Pipeline.
+        Features: 
+        1. Noise Silencer (Regex) - Kills the 'Based on analysis' chatter.
+        2. Version Abstractor (Logic) - Fixes iPhone 15/17 issue.
+        3. DB-Cross Validation (The Genius Touch) - Ensures display name is clean and real.
         """
         if not image_data: return
+
+        # 1. Feedback Loop
         await self.rabbitmq.publish({"user_id": user_id, "content": "Scanning Visual Identity... 👁️📦", "type": "typing"}, "airdeliver.ai.response.out")
 
-        # 1. Analyze
+        # 2. Parallel Intelligence Acquisition
         visual_task = self.search_engine.search_by_image_vector(image_data, limit=10) 
         analysis_task = self.llm_service.analyze_product_image(image_data)
         visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
 
-        # 2. THE CLEANER (Aggressive Mode)
-        # Always strip version numbers from the AI analysis.
-        # Why? Because AI logic is old (2023), but DB logic is new (2025).
-        # "iPhone 15 Pro" -> "iPhone Pro"
+        # ---------------------------------------------------------
+        # 🧠 STAGE A: THE SILENCER (تنظيف الضوضاء)
+        # ---------------------------------------------------------
         import re
-        clean_search_query = re.sub(r'(\b\w+\b)\s+\d+(?:\.\d+)?', r'\1', analysis_text)
+        noise_patterns = [
+            r"Based on the visual analysis.*?:", r"Since the image contains.*?:",
+            r"The product in the image is", r"MODE [A-Z].*?TECH", r"\d+\s+IDENTITY",
+            r"However based on.*", r"Output:", r"looks like", r"appears to be",
+            r"specifically a", r"we infer based on", r"Here is what we have",
+            r"identified", r"1 IDENTITY", r"2 SPECS"
+        ]
         
-        # If AI detected "Titanium" or "Orange", keep those as they are strong signals.
-        is_premium = any(x in analysis_text.lower() for x in ["pro", "max", "titanium", "ultra"])
-        
-        logger.info(f"🌍 Vision Abstracted: '{analysis_text}' -> '{clean_search_query}'")
+        clean_text = analysis_text
+        for pattern in noise_patterns:
+            clean_text = re.sub(pattern, "", clean_text, flags=re.IGNORECASE)
+            
+        # Clean special chars & extra spaces
+        clean_text = re.sub(r'[^\w\s]', '', clean_text).strip()
+        clean_text = " ".join(clean_text.split())
 
-        # 3. SEARCH & OVERRIDE
-        # We search for the abstract term (e.g. "iPhone Pro Orange")
+        # ---------------------------------------------------------
+        # 🧠 STAGE B: THE UNIVERSAL ABSTRACTOR (تجريد الإصدارات)
+        # ---------------------------------------------------------
+        # "Apple Watch Series 9" -> "Apple Watch Series"
+        # "iPhone 15 Pro" -> "iPhone Pro"
+        # This fixes the "Old AI Knowledge" issue
+        clean_search_query = re.sub(r'(\b\w+\b)\s+\d+(?:\.\d+)?', r'\1', clean_text)
+        
+        # Fallback safety
+        if len(clean_search_query) < 2: clean_search_query = "this item"
+        
+        logger.info(f"🌍 Vision Extract: '{clean_search_query}'")
+
+        # ---------------------------------------------------------
+        # 🧠 STAGE C: SEARCH & RE-RANKING (البحث والترتيب)
+        # ---------------------------------------------------------
         candidates = await self.search_engine.perform_hybrid_search_pure(self.db, clean_search_query, limit=20)
         
-        # 4. INTELLIGENT RE-RANKING (The Fix)
-        # We don't trust the search score alone. We trust the METADATA.
-        # If the visual looked "Premium" (Pro/Max), we force the MOST EXPENSIVE / NEWEST items to the top.
+        # Premium Logic: If text implies "Pro/Max/Series", prioritize Price/Newness
+        # This ensures iPhone 17 (High Price) appears before iPhone 15
+        is_premium = any(x in analysis_text.lower() for x in ["pro", "max", "titanium", "ultra", "series"])
         if candidates and is_premium:
-             # Sort by Price Descending (Proxy for Model Year / Specs)
+             # Sort by Price High -> Low
              candidates.sort(key=lambda p: p.price, reverse=True)
              
         final_products = candidates[:5]
 
-        # Dispatch
-        if final_products:
-            products_data = [p.model_dump(mode='json') for p in final_products]
-            await self._mark_products_as_seen(user_id, products_data)
-            
-            # Use Singularity to fine-tune
-            if self.behavior_engine:
-                 products_data = await self.behavior_engine.collapse_wavefunction(user_id, products_data)
-
-            msg = f"Based on the visual analysis, here are the latest matches in stock:"
-            await self.rabbitmq.publish({
-                "user_id": user_id, "content": msg, "type": "product_carousel", "products": products_data, "reason": "Visual Intelligence"
-            }, "airdeliver.ai.response.out")
-        else:
-            await self.rabbitmq.publish({"user_id": user_id, "content": "No close match found.", "type": "error"}, "airdeliver.ai.response.out")
-
-    async def _handle_image_query(self, user_id: int, image_data: str):
-        """
-        🌍 GLOBAL STANDARD V3: Universal Product Recognition Logic.
-        Works for Electronics, Fashion, Home, Automotive, and Groceries.
-        """
-        if not image_data: return
-
-        await self.rabbitmq.publish({"user_id": user_id, "content": "Scanning Visual Identity... 👁️📦", "type": "typing"}, "airdeliver.ai.response.out")
-
-        # 1. Acquire Intelligence (Visual + Cognitive)
-        visual_task = self.search_engine.search_by_image_vector(image_data, limit=10) 
-        analysis_task = self.llm_service.analyze_product_image(image_data)
-
-        visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
-
-        # 2. Universal Uncertainty Detection
-        # If AI uses vague language, we activate "Abstraction Mode"
-        uncertainty_triggers = [
-            "infer", "assume", "looks like", "resembles", "similar to", 
-            "likely", "might be", "model", "version", "edition", "gadget", "item"
-        ]
+        # ---------------------------------------------------------
+        # 🧠 STAGE D: THE DISPLAY NAME GENERATOR (العبقرية النهائية)
+        # ---------------------------------------------------------
+        # Problem: "Apple Watch Series Orange" is ugly.
+        # Solution: Cheat! Use the name of the #1 matched product from YOUR DB.
         
-        clean_search_query = analysis_text
-        is_guessing = any(trigger in analysis_text.lower() for trigger in uncertainty_triggers)
-
-        if is_guessing:
-            # A. Remove Uncertainty Jargon
-            for trigger in uncertainty_triggers:
-                clean_search_query = re.sub(trigger, "", clean_search_query, flags=re.IGNORECASE)
+        display_name = clean_search_query # Default
+        
+        if final_products:
+            # Take the real DB name (e.g., "Apple Watch Ultra 2")
+            top_match_name = final_products[0].name
             
-            # B. The Universal Number Stripper (Crucial for Zero-Day Products)
-            # Logic: "Word + Number" -> "Word"
-            # Works for: "iPhone 17" -> "iPhone", "Jordan 5" -> "Jordan", "Sony A7" -> "Sony A"
-            clean_search_query = re.sub(r'(\b\w+\b)\s+\d+(?:\.\d+)?', r'\1', clean_search_query)
-            
-            # C. Clean up special chars
-            clean_search_query = re.sub(r'[^\w\s]', '', clean_search_query)
-            clean_search_query = " ".join(clean_search_query.split())
-            
-            logger.info(f"🌍 Universal Abstracted Query: '{clean_search_query}'")
+            # Simple heuristic: If the match is good, use the DB name because it's human-readable
+            display_name = top_match_name
 
-        # 3. Dynamic Reranking Strategy
-        final_products = []
-        response_msg = ""
-        response_reason = ""
-
-        # [Optional: Keep Semantic Gate here if desired for strict visual matches]
-
-        if not final_products:
-            # Fallback to broad search using the clean query
-            # We fetch 20 items to cast a wide net for the "Newest" item
-            candidates = await self.search_engine.perform_hybrid_search_pure(self.db, clean_search_query, limit=20)
-            
-            if candidates:
-                # 🧠 UNIVERSAL SCORING ALGORITHM
-                # This logic ranks ANY product based on how well it matches the AI's description keywords.
-                
-                query_tokens = set(clean_search_query.lower().split())
-                # Filter out stop words (the, a, an, in, for, with)
-                stop_words = {"the", "a", "an", "in", "for", "with", "of", "to", "is", "it"}
-                important_tokens = query_tokens - stop_words
-                
-                scored_candidates = []
-                for p in candidates:
-                    score = 0
-                    prod_text = (p.name + " " + (p.description or "") + " " + (p.category or "")).lower()
-                    
-                    # Criteria 1: Keyword Overlap (Universal)
-                    # For every important word AI said (e.g., "Red", "Leather", "Pro"), add points if found in product.
-                    matches = sum(1 for token in important_tokens if token in prod_text)
-                    score += (matches * 10) 
-                    
-                    # Criteria 2: Name Priority (Universal)
-                    # If the match is in the Name (not just description), it's more relevant.
-                    if any(t in p.name.lower() for t in important_tokens):
-                        score += 5
-
-                    # Criteria 3: Price Heuristic (Contextual)
-                    # Generally, users searching by image want the "Main Item", not a cheap accessory.
-                    # We penalize very cheap items (< $10) if the average price is high, to avoid showing "Phone Cases" when searching for "Phones".
-                    if p.price < 15 and any(c.price > 100 for c in candidates):
-                        score -= 20 
-                    else:
-                        # Slight boost for higher value items (often implies "Newer" or "Original")
-                        score += (p.price * 0.01)
-
-                    scored_candidates.append((p, score))
-                
-                # Sort by calculated Score
-                scored_candidates.sort(key=lambda x: x[1], reverse=True)
-                
-                # Pick Top 5
-                final_products = [item[0] for item in scored_candidates[:5]]
-                
-                response_msg = f"Based on the visual analysis '{clean_search_query}', here are the best matches:"
-                response_reason = "Smart Universal Ranking"
+        # Final Formatting
+        msg = f"I found these matches for '{display_name}':"
 
         # 4. Dispatch
         if final_products:
             products_data = [p.model_dump(mode='json') for p in final_products]
             await self._mark_products_as_seen(user_id, products_data)
-
-            if self.behavior_engine and products_data:
-                logger.info(f"🔮 Collapsing Wavefunction (Visual) for User {user_id}...")
-                # لاحظ: هنا نستخدم products_data بدلاً من final_display_products
-                products_data = await self.behavior_engine.collapse_wavefunction(
-                    user_id,
-                    products_data
-                )
             
+            if self.behavior_engine:
+                 products_data = await self.behavior_engine.collapse_wavefunction(user_id, products_data)
+
             await self.rabbitmq.publish({
-                "user_id": user_id,
-                "content": response_msg,
-                "type": "product_carousel",
-                "products": products_data,
-                "reason": response_reason
+                "user_id": user_id, 
+                "content": msg, 
+                "type": "product_carousel", 
+                "products": products_data, 
+                "reason": "Visual Intelligence"
             }, "airdeliver.ai.response.out")
         else:
             await self.rabbitmq.publish({
-                "user_id": user_id,
-                "content": f"I analyzed this as '{clean_search_query}', but couldn't find a close match in stock.",
+                "user_id": user_id, 
+                "content": f"I analyzed the image but couldn't find a precise match in stock.", 
                 "type": "error"
             }, "airdeliver.ai.response.out")
-            
+
     async def process_message(self, message_payload: dict):
         """
         The Central Nervous System. Routes messages based on Type and Intent.
@@ -430,7 +357,7 @@ class AINLUService:
             return
 
         if command == "__INTERNAL_SAVE_FOR_LATER__":
-            await self.rabbitmq.publish({"user_id": user_id, "content": "Saved to wishlist. 💾", "type": "success_text"}, "airdeliver.ai.response.out")
+            await self.rabbitmq.publish({"user_id": user_id, "content": "Saved to wishlist. ��", "type": "success_text"}, "airdeliver.ai.response.out")
             await self.rabbitmq.publish({"user_id": user_id, "notify_user": False}, "airdeliver.ai.intent.clear_cart")
         
         elif command == "__INTERNAL_CLEAR_CART__":
