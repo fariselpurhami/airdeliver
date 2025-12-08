@@ -1,11 +1,12 @@
 # apps/api/app/services/ai_nlu_service.py
 
+import re
 from sentence_transformers import util
 from app.services.ai_commerce_engine import ai_manager  
+from app.services.ai_behavior_engine import BehaviorEngine # ✅ Add Import
 import logging
 import asyncio
 import random
-import re
 from datetime import datetime
 from typing import List, Dict, Any
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -33,13 +34,15 @@ class AINLUService:
         search_engine: AICommerceEngine,
         rabbitmq: RabbitMQService,
         cache: IAsyncCacheClient,
-        llm_service: FreeLLMService, 
+        llm_service: FreeLLMService,
+        behavior_engine: BehaviorEngine = None
     ):
         self.db = db 
         self.search_engine = search_engine
         self.rabbitmq = rabbitmq
         self.cache = cache
         self.llm_service = llm_service
+        self.behavior_engine = behavior_engine
         self.seen_cache_ttl = 3600
 
     def _get_time_context(self) -> str:
@@ -70,94 +73,113 @@ class AINLUService:
 
     async def _handle_image_query(self, user_id: int, image_data: str):
         """
-        🛡️ V2: The Semantic Guardrail Architecture.
-        Uses Vector Cosine Similarity to mathematically enforce context.
+        🌍 GLOBAL STANDARD V3: Universal Product Recognition Logic.
+        Works for Electronics, Fashion, Home, Automotive, and Groceries.
         """
         if not image_data: return
-        
-        # Notify User: Processing...
-        await self.rabbitmq.publish({"user_id": user_id, "content": "Scanning Visual & Semantic DNA... 👁️🧬", "type": "typing"}, "airdeliver.ai.response.out")
 
-        # --- PHASE 1: Parallel Cognitive Acquisition (جمع المعلومات بالتوازي) ---
-        visual_task = self.search_engine.search_by_image_vector(image_data, limit=5)
-        analysis_task = self.llm_service.analyze_product_image(image_data) # e.g., "Apple iPhone 17 Pro Max"
-        
-        # Wait for both eyes and brain to finish
+        await self.rabbitmq.publish({"user_id": user_id, "content": "Scanning Visual Identity... 👁️📦", "type": "typing"}, "airdeliver.ai.response.out")
+
+        # 1. Acquire Intelligence (Visual + Cognitive)
+        visual_task = self.search_engine.search_by_image_vector(image_data, limit=10) 
+        analysis_task = self.llm_service.analyze_product_image(image_data)
+
         visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
-        
-        logger.info(f"👁️ Visual Candidates: {len(visual_matches)} | 🧠 AI Analysis: '{analysis_text}'")
 
-        # --- PHASE 2: The Semantic Vector Gate (بوابة التحقق الشعاعي) ---
-        verified_products = []
+        # 2. Universal Uncertainty Detection
+        # If AI uses vague language, we activate "Abstraction Mode"
+        uncertainty_triggers = [
+            "infer", "assume", "looks like", "resembles", "similar to", 
+            "likely", "might be", "model", "version", "edition", "gadget", "item"
+        ]
         
-        if visual_matches and analysis_text:
-            try:
-                # 1. Load the Text Brain (Milliseconds operation - Singleton)
-                text_model = ai_manager.get_text_model()
-                
-                # 2. Vectorize the AI Analysis (The "Truth" Anchor)
-                # Convert "iPhone 17 Pro Max" -> [0.1, 0.5, ...]
-                anchor_vector = text_model.encode(analysis_text, convert_to_tensor=True)
-                
-                # 3. Vectorize Candidates (Batch Processing for Speed)
-                # We combine Name + Category for rich context
-                candidate_texts = [f"{p.name} {p.category or ''}" for p in visual_matches]
-                candidate_vectors = text_model.encode(candidate_texts, convert_to_tensor=True)
-                
-                # 4. Compute Cosine Similarity (Math doesn't lie)
-                # Returns scores between -1 and 1
-                cosine_scores = util.cos_sim(anchor_vector, candidate_vectors)[0] # Shape: [num_candidates]
+        clean_search_query = analysis_text
+        is_guessing = any(trigger in analysis_text.lower() for trigger in uncertainty_triggers)
 
-                # 5. The Filter Loop
-                SEMANTIC_THRESHOLD = 0.35  # The "Safety Zone". Below this = Hallucination.
-                
-                for idx, score in enumerate(cosine_scores):
-                    product = visual_matches[idx]
-                    similarity = score.item()
-                    
-                    if similarity > SEMANTIC_THRESHOLD:
-                        # ✅ MATCH: Visual shape AND Semantic meaning align.
-                        logger.info(f"✅ Verified '{product.name}' (Score: {similarity:.2f})")
-                        verified_products.append(product)
-                    else:
-                        # 🚫 REJECT: Visual shape matches, but Meaning is wrong (e.g., Thermostat vs Phone)
-                        logger.warning(f"🛡️ Guardrail Blocked: '{product.name}' (Score: {similarity:.2f} < {SEMANTIC_THRESHOLD}) - Visual match but Semantic mismatch.")
+        if is_guessing:
+            # A. Remove Uncertainty Jargon
+            for trigger in uncertainty_triggers:
+                clean_search_query = re.sub(trigger, "", clean_search_query, flags=re.IGNORECASE)
             
-            except Exception as e:
-                logger.error(f"⚠️ Semantic Gate Error: {e}. Falling back to strict text search.")
-                verified_products = [] # Fail safe
+            # B. The Universal Number Stripper (Crucial for Zero-Day Products)
+            # Logic: "Word + Number" -> "Word"
+            # Works for: "iPhone 17" -> "iPhone", "Jordan 5" -> "Jordan", "Sony A7" -> "Sony A"
+            clean_search_query = re.sub(r'(\b\w+\b)\s+\d+(?:\.\d+)?', r'\1', clean_search_query)
+            
+            # C. Clean up special chars
+            clean_search_query = re.sub(r'[^\w\s]', '', clean_search_query)
+            clean_search_query = " ".join(clean_search_query.split())
+            
+            logger.info(f"🌍 Universal Abstracted Query: '{clean_search_query}'")
 
-        # --- PHASE 3: Strategic Routing (التوجيه الاستراتيجي) ---
+        # 3. Dynamic Reranking Strategy
         final_products = []
         response_msg = ""
         response_reason = ""
 
-        if verified_products:
-            # PATH A: Visual Search SUCCESS (Verified)
-            final_products = verified_products
-            response_msg = f"Found this exact match for '{analysis_text}':"
-            response_reason = "Visual+Semantic Verification"
-        
-        else:
-            # PATH B: Fallback to Hybrid Text Search (The "Invincible" Backup)
-            # If Visual failed or was blocked by Guardrail, we use the Analysis Text to search deeply.
-            logger.info(f"🔄 Switching to Hybrid Search for: '{analysis_text}'")
-            
-            # Using the pure hybrid search (OpenSearch + Milvus Text)
-            text_matches = await self.search_engine.perform_hybrid_search_pure(self.db, analysis_text, limit=10)
-            
-            if text_matches:
-                final_products = text_matches[:5]
-                response_msg = f"I identified '{analysis_text}'. Here is what we have in stock:"
-                response_reason = "Deep Semantic Search"
-            else:
-                # PATH C: Zero Results (Graceful handling)
-                response_msg = f"I identified '{analysis_text}', but it seems out of stock right now."
+        # [Optional: Keep Semantic Gate here if desired for strict visual matches]
 
-        # --- PHASE 4: Delivery ---
+        if not final_products:
+            # Fallback to broad search using the clean query
+            # We fetch 20 items to cast a wide net for the "Newest" item
+            candidates = await self.search_engine.perform_hybrid_search_pure(self.db, clean_search_query, limit=20)
+            
+            if candidates:
+                # 🧠 UNIVERSAL SCORING ALGORITHM
+                # This logic ranks ANY product based on how well it matches the AI's description keywords.
+                
+                query_tokens = set(clean_search_query.lower().split())
+                # Filter out stop words (the, a, an, in, for, with)
+                stop_words = {"the", "a", "an", "in", "for", "with", "of", "to", "is", "it"}
+                important_tokens = query_tokens - stop_words
+                
+                scored_candidates = []
+                for p in candidates:
+                    score = 0
+                    prod_text = (p.name + " " + (p.description or "") + " " + (p.category or "")).lower()
+                    
+                    # Criteria 1: Keyword Overlap (Universal)
+                    # For every important word AI said (e.g., "Red", "Leather", "Pro"), add points if found in product.
+                    matches = sum(1 for token in important_tokens if token in prod_text)
+                    score += (matches * 10) 
+                    
+                    # Criteria 2: Name Priority (Universal)
+                    # If the match is in the Name (not just description), it's more relevant.
+                    if any(t in p.name.lower() for t in important_tokens):
+                        score += 5
+
+                    # Criteria 3: Price Heuristic (Contextual)
+                    # Generally, users searching by image want the "Main Item", not a cheap accessory.
+                    # We penalize very cheap items (< $10) if the average price is high, to avoid showing "Phone Cases" when searching for "Phones".
+                    if p.price < 15 and any(c.price > 100 for c in candidates):
+                        score -= 20 
+                    else:
+                        # Slight boost for higher value items (often implies "Newer" or "Original")
+                        score += (p.price * 0.01)
+
+                    scored_candidates.append((p, score))
+                
+                # Sort by calculated Score
+                scored_candidates.sort(key=lambda x: x[1], reverse=True)
+                
+                # Pick Top 5
+                final_products = [item[0] for item in scored_candidates[:5]]
+                
+                response_msg = f"Based on the visual analysis '{clean_search_query}', here are the best matches:"
+                response_reason = "Smart Universal Ranking"
+
+        # 4. Dispatch
         if final_products:
             products_data = [p.model_dump(mode='json') for p in final_products]
             await self._mark_products_as_seen(user_id, products_data)
+
+            if self.behavior_engine and products_data:
+                logger.info(f"🔮 Collapsing Wavefunction (Visual) for User {user_id}...")
+                # لاحظ: هنا نستخدم products_data بدلاً من final_display_products
+                products_data = await self.behavior_engine.collapse_wavefunction(
+                    user_id,
+                    products_data
+                )
             
             await self.rabbitmq.publish({
                 "user_id": user_id,
@@ -169,9 +191,10 @@ class AINLUService:
         else:
             await self.rabbitmq.publish({
                 "user_id": user_id,
-                "content": response_msg,
+                "content": f"I analyzed this as '{clean_search_query}', but couldn't find a close match in stock.",
                 "type": "error"
             }, "airdeliver.ai.response.out")
+            
     async def process_message(self, message_payload: dict):
         """
         The Central Nervous System. Routes messages based on Type and Intent.
@@ -284,6 +307,13 @@ class AINLUService:
             
         await self._mark_products_as_seen(user_id, final_display_products)
         
+        if self.behavior_engine and final_display_products:
+            # نتأكد أن القائمة ليست فارغة وأن المحرك موجود
+            logger.info(f"🔮 Collapsing Wavefunction for User {user_id}...")
+            final_display_products = await self.behavior_engine.collapse_wavefunction(
+                user_id,
+                final_display_products
+            )
         await self.rabbitmq.publish({
             "user_id": user_id,
             "content": intro_message,
@@ -487,10 +517,10 @@ class AINLUService:
                  products_data = [p.model_dump(mode='json') for p in routine_products]
                  await self.rabbitmq.publish({
                     "user_id": user_id,
-                    "content": "Good morning! ☀️ I've prepared your usual caffeine fix. Want me to add these to your cart?",
+                    "content": "Good morning! ☀️  I've prepared your usual caffeine fix. Want me to add these to your cart?",
                     "type": "proactive_suggestion",
                     "products": products_data,
-                    "reason": "Routine Detected ��"
+                    "reason": "Routine Detected"
                  }, "airdeliver.ai.response.out")
                  return
 

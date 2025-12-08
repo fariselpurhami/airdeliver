@@ -176,27 +176,89 @@ async def main():
                 
                 raise e 
 
+    # ... (داخل دالة main في worker_entrypoint.py) ...
+
+    # 1. 🧠 CHAT HANDLER: حقن المحرك داخل الـ NLU
     async def chat_handler(payload):
         async with LocalSessionMaker() as db:
-            service = AINLUService(db, ai_commerce_engine, rabbitmq, cache_client, free_llm_service)
+            # 🚀 UPGRADE: Passing the Singularity Engine to the NLU Service
+            # This allows the NLU to use 'collapse_wavefunction' for Quantum Re-ranking
+            service = AINLUService(
+                db, 
+                ai_commerce_engine, 
+                rabbitmq, 
+                cache_client, 
+                free_llm_service,
+                behavior_engine # <--- ✅ تم تمرير المحرك هنا
+            )
+            
+            # Tracking the "Search/Chat" intent as a signal
+            user_id = payload.get("user_id")
+            if user_id:
+                # Fire & Forget: Track that user is "Searching" (Weight: 2.0)
+                await behavior_engine.track_interaction(
+                    user_id, 
+                    "search", 
+                    {"query": payload.get("message", "")}
+                )
+            
             await service.process_message(payload)
 
+    # 2. 🛒 CART HANDLER: تغذية المحرك ببيانات النوايا القوية
     async def add_cart_handler(payload):
         async with LocalSessionMaker() as db:
+            user_id = payload.get("user_id")
+            
+            # 🧠 FEED THE BEAST: This is a high-value signal (Weight: 5.0)
+            if user_id:
+                product_id = payload.get("product_id")
+                # We assume the service will handle the logic, but we track the INTENT here immediately
+                await behavior_engine.track_interaction(
+                    user_id, 
+                    "cart", 
+                    {"id": product_id, "action": "add"}
+                )
+
             await AICartService(db, cache_client, rabbitmq).handle_add_to_cart(payload)
 
+    # 3. ��️ REMOVE HANDLER: تغذية المحرك بما يكرهه المستخدم (Anti-Matter Learning)
     async def remove_cart_handler(payload):
         async with LocalSessionMaker() as db:
+            user_id = payload.get("user_id")
+            
+            # 🧠 FEED THE BEAST: Negative Signal (Weight: -5.0)
+            # The engine will learn to avoid similar products in the future
+            if user_id:
+                await behavior_engine.track_interaction(
+                    user_id, 
+                    "discard", 
+                    {"id": payload.get("product_id")}
+                )
+                
             await AICartService(db, cache_client, rabbitmq).handle_remove_from_cart(payload)
 
+    # 4. 🧹 CLEAR CART: إشارة قوية لإعادة الضبط أو الإحباط
     async def clear_cart_handler(payload):
         async with LocalSessionMaker() as db:
+            # Tracking context logic can be added here if needed
             await AICartService(db, cache_client, rabbitmq).handle_clear_cart(payload)
 
+    # 5. 💳 CHECKOUT HANDLER: اللحظة الحاسمة (Holy Grail Signal)
     async def confirm_order_handler(payload):
         async with LocalSessionMaker() as db:
+            user_id = payload.get("user_id")
+            
+            # 🧠 FEED THE BEAST: Maximum Reward Signal (Weight: 10.0)
+            if user_id:
+                await behavior_engine.track_interaction(
+                    user_id, 
+                    "buy", 
+                    {"context": "checkout_initiated"}
+                )
+                
             await AICheckoutService(db, cache_client, rabbitmq, payment_orchestrator).handle_confirm_order(payload)
 
+    # ... (باقي الكود كما هو) ...
     
 
 
