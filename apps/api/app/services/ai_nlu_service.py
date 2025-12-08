@@ -1,3 +1,7 @@
+# apps/api/app/services/ai_nlu_service.py
+
+from sentence_transformers import util
+from app.services.ai_commerce_engine import ai_manager  
 import logging
 import asyncio
 import random
@@ -65,83 +69,94 @@ class AINLUService:
         # في ملف ai_nlu_service.py
 
     async def _handle_image_query(self, user_id: int, image_data: str):
+        """
+        🛡️ V2: The Semantic Guardrail Architecture.
+        Uses Vector Cosine Similarity to mathematically enforce context.
+        """
         if not image_data: return
         
-        # إشعار للمستخدم
-        await self.rabbitmq.publish({"user_id": user_id, "content": "Scanning visual DNA & context... 👁️", "type": "typing"}, "airdeliver.ai.response.out")
+        # Notify User: Processing...
+        await self.rabbitmq.publish({"user_id": user_id, "content": "Scanning Visual & Semantic DNA... 👁️🧬", "type": "typing"}, "airdeliver.ai.response.out")
 
-        # --- 1. المسار البصري (PATH A: Visual Vectors) ---
-        # الهدف: إيجاد المنتج المطابق شكلاً بنسبة 100% (نفس الصورة)
-        visual_matches = []
-        try:
-            # نفترض أنك أضفت دالة search_by_image في search_engine
-            # هذه الدالة تستخدم SigLIP وتبحث في Milvus
-            visual_matches = await self.search_engine.search_by_image_vector(image_data, limit=5)
-            logger.info(f"👁️ Visual Search found {len(visual_matches)} candidates.")
-        except Exception as e:
-            logger.error(f"⚠️ Visual Path Failed: {e}")
-
-        # --- 2. المسار النصي (PATH B: Generative Description) ---
-        # الهدف: فهم السياق والاسم (للحالات التي تفشل فيها الصورة)
-        # هذا هو كودك القديم (llm_service)
-        search_terms = await self.llm_service.analyze_product_image(image_data)
-        text_matches = await self.search_engine.perform_hybrid_search_pure(self.db, search_terms, limit=10)
-
-        # --- 3. المحرك الهجين (The Fusion Engine) ---
-        # هنا يكمن السحر: ندمج النتائج ونعطي الأولوية للتطابق البصري
+        # --- PHASE 1: Parallel Cognitive Acquisition (جمع المعلومات بالتوازي) ---
+        visual_task = self.search_engine.search_by_image_vector(image_data, limit=5)
+        analysis_task = self.llm_service.analyze_product_image(image_data) # e.g., "Apple iPhone 17 Pro Max"
         
+        # Wait for both eyes and brain to finish
+        visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
+        
+        logger.info(f"👁️ Visual Candidates: {len(visual_matches)} | 🧠 AI Analysis: '{analysis_text}'")
+
+        # --- PHASE 2: The Semantic Vector Gate (بوابة التحقق الشعاعي) ---
+        verified_products = []
+        
+        if visual_matches and analysis_text:
+            try:
+                # 1. Load the Text Brain (Milliseconds operation - Singleton)
+                text_model = ai_manager.get_text_model()
+                
+                # 2. Vectorize the AI Analysis (The "Truth" Anchor)
+                # Convert "iPhone 17 Pro Max" -> [0.1, 0.5, ...]
+                anchor_vector = text_model.encode(analysis_text, convert_to_tensor=True)
+                
+                # 3. Vectorize Candidates (Batch Processing for Speed)
+                # We combine Name + Category for rich context
+                candidate_texts = [f"{p.name} {p.category or ''}" for p in visual_matches]
+                candidate_vectors = text_model.encode(candidate_texts, convert_to_tensor=True)
+                
+                # 4. Compute Cosine Similarity (Math doesn't lie)
+                # Returns scores between -1 and 1
+                cosine_scores = util.cos_sim(anchor_vector, candidate_vectors)[0] # Shape: [num_candidates]
+
+                # 5. The Filter Loop
+                SEMANTIC_THRESHOLD = 0.35  # The "Safety Zone". Below this = Hallucination.
+                
+                for idx, score in enumerate(cosine_scores):
+                    product = visual_matches[idx]
+                    similarity = score.item()
+                    
+                    if similarity > SEMANTIC_THRESHOLD:
+                        # ✅ MATCH: Visual shape AND Semantic meaning align.
+                        logger.info(f"✅ Verified '{product.name}' (Score: {similarity:.2f})")
+                        verified_products.append(product)
+                    else:
+                        # 🚫 REJECT: Visual shape matches, but Meaning is wrong (e.g., Thermostat vs Phone)
+                        logger.warning(f"🛡️ Guardrail Blocked: '{product.name}' (Score: {similarity:.2f} < {SEMANTIC_THRESHOLD}) - Visual match but Semantic mismatch.")
+            
+            except Exception as e:
+                logger.error(f"⚠️ Semantic Gate Error: {e}. Falling back to strict text search.")
+                verified_products = [] # Fail safe
+
+        # --- PHASE 3: Strategic Routing (التوجيه الاستراتيجي) ---
         final_products = []
-        seen_ids = set()
+        response_msg = ""
+        response_reason = ""
+
+        if verified_products:
+            # PATH A: Visual Search SUCCESS (Verified)
+            final_products = verified_products
+            response_msg = f"Found this exact match for '{analysis_text}':"
+            response_reason = "Visual+Semantic Verification"
         
-        # أولوية 1: التطابق البصري القوي (Visual Matches)
-        if visual_matches:
-            for p in visual_matches:
-                if p.id not in seen_ids:
-                    final_products.append(p)
-                    seen_ids.add(p.id)
-            response_msg = "I found this exact item based on the image:"
-            response_reason = "Visual Fingerprint Match"
-        
-        # أولوية 2: التطابق النصي الذكي (Text Matches - كودك القديم للتصفية)
-        # نستخدم منطقك القديم (Exact vs Accessory) كطبقة ثانية
-        exact_text_matches = []
-        accessories = []
-        query_tokens = set(search_terms.lower().split())
-
-        for p in text_matches:
-            if p.id in seen_ids: continue # لا تكرر ما وجدناه بصرياً
+        else:
+            # PATH B: Fallback to Hybrid Text Search (The "Invincible" Backup)
+            # If Visual failed or was blocked by Guardrail, we use the Analysis Text to search deeply.
+            logger.info(f"🔄 Switching to Hybrid Search for: '{analysis_text}'")
             
-            prod_name = p.name.lower()
-            is_exact = all(token in prod_name for token in query_tokens)
-            is_accessory = any(acc in prod_name for acc in ["case", "cover", "charger", "strap"])
+            # Using the pure hybrid search (OpenSearch + Milvus Text)
+            text_matches = await self.search_engine.perform_hybrid_search_pure(self.db, analysis_text, limit=10)
             
-            if is_exact and not is_accessory:
-                exact_text_matches.append(p)
+            if text_matches:
+                final_products = text_matches[:5]
+                response_msg = f"I identified '{analysis_text}'. Here is what we have in stock:"
+                response_reason = "Deep Semantic Search"
             else:
-                accessories.append(p)
+                # PATH C: Zero Results (Graceful handling)
+                response_msg = f"I identified '{analysis_text}', but it seems out of stock right now."
 
-        # دمج النتائج النصية إذا لم نجد نتائج بصرية كافية
-        if not final_products:
-            if exact_text_matches:
-                final_products.extend(exact_text_matches)
-                response_msg = f"Visual match unclear, but found these based on analysis '{search_terms}':"
-                response_reason = "Semantic Match"
-            elif accessories:
-                final_products.extend(accessories[:5])
-                response_msg = f"Exact item not found, but found related accessories for '{search_terms}':"
-                response_reason = "Related Accessories"
-            else:
-                # Fallback
-                fallback_terms = search_terms.split()[-1]
-                fallback_res = await self.search_engine.perform_hybrid_search_pure(self.db, fallback_terms, limit=5)
-                final_products.extend(fallback_res)
-                response_msg = "No direct matches, but you might like these:"
-                response_reason = "Smart Fallback"
-
-        # --- 4. العرض النهائي ---
+        # --- PHASE 4: Delivery ---
         if final_products:
-            # نرسل أول 5 منتجات فقط
-            products_data = [p.model_dump(mode='json') for p in final_products[:5]]
+            products_data = [p.model_dump(mode='json') for p in final_products]
             await self._mark_products_as_seen(user_id, products_data)
             
             await self.rabbitmq.publish({
@@ -154,7 +169,7 @@ class AINLUService:
         else:
             await self.rabbitmq.publish({
                 "user_id": user_id,
-                "content": f"Deep scan complete. Could not identify stock for '{search_terms}'.",
+                "content": response_msg,
                 "type": "error"
             }, "airdeliver.ai.response.out")
     async def process_message(self, message_payload: dict):
