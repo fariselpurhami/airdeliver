@@ -162,7 +162,7 @@ class AINLUService:
                 msg = random.choice(success_templates)
             else:
                 # If similarity is low, be honest universally
-                msg = f"This looks like '{clean_desc[:30]}...'. Here are the closest items we have:"
+                msg = f"I’ve identified {display_name}. It’s not available right now, but I’ve handpicked these premium alternatives just for you:"
 
             products_data = [p.model_dump(mode='json') for p in final_products]
             await self._mark_products_as_seen(user_id, products_data)
