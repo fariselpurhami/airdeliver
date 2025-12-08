@@ -71,88 +71,112 @@ class AINLUService:
 
     async def _handle_image_query(self, user_id: int, image_data: str):
         """
-        💎 GLOBAL STANDARD V6: The 'Surgical' Vision Pipeline.
-        Features: 
-        1. Noise Silencer (Regex) - Kills the 'Based on analysis' chatter.
-        2. Version Abstractor (Logic) - Fixes iPhone 15/17 issue.
-        3. DB-Cross Validation (The Genius Touch) - Ensures display name is clean and real.
+        👁️ GLOBAL STANDARD V8: The 'Sensory' Vision Pipeline.
+        Prioritizes Visual Attributes (Color, Material, Shape) over Price/Text popularity.
+        If it looks Orange, it MUST be the Orange product.
         """
         if not image_data: return
 
-        # 1. Feedback Loop
-        await self.rabbitmq.publish({"user_id": user_id, "content": "Scanning Visual Identity... 👁️📦", "type": "typing"}, "airdeliver.ai.response.out")
+        # 1. Feedback
+        await self.rabbitmq.publish({"user_id": user_id, "content": "Analyzing Color & Design DNA... 👁️🎨", "type": "typing"}, "airdeliver.ai.response.out")
 
-        # 2. Parallel Intelligence Acquisition
-        visual_task = self.search_engine.search_by_image_vector(image_data, limit=10) 
+        # 2. Parallel Acquisition
+        visual_task = self.search_engine.search_by_image_vector(image_data, limit=20) # Fetch more to filter by color
         analysis_task = self.llm_service.analyze_product_image(image_data)
         visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
 
         # ---------------------------------------------------------
-        # 🧠 STAGE A: THE SILENCER (تنظيف الضوضاء)
+        # 🎨 STAGE A: VISUAL ATTRIBUTE EXTRACTION (استخراج السمات)
         # ---------------------------------------------------------
+        # We extract what the eye sees (Adjectives), not just nouns.
+        analysis_lower = analysis_text.lower()
+        
+        # 1. Detect Colors (The most distinct visual feature)
+        colors = ["orange", "gold", "titanium", "natural", "black", "white", "blue", "green", "pink", "purple", "silver", "desert", "copper"]
+        detected_colors = [c for c in colors if c in analysis_lower]
+        
+        # 2. Detect Materials/Features
+        features = ["pro", "max", "ultra", "triple", "camera", "ceramic", "glass", "leather", "silicone"]
+        detected_features = [f for f in features if f in analysis_lower]
+
+        # ---------------------------------------------------------
+        # 🧠 STAGE B: THE ABSTRACT SEARCH
+        # ---------------------------------------------------------
+        # Remove "hallucinated" versions (14, 15) but KEEP the detected attributes
         import re
-        noise_patterns = [
-            r"Based on the visual analysis.*?:", r"Since the image contains.*?:",
-            r"The product in the image is", r"MODE [A-Z].*?TECH", r"\d+\s+IDENTITY",
-            r"However based on.*", r"Output:", r"looks like", r"appears to be",
-            r"specifically a", r"we infer based on", r"Here is what we have",
-            r"identified", r"1 IDENTITY", r"2 SPECS"
-        ]
+        clean_text = re.sub(r'iphone\s*\d+', 'iphone', analysis_lower) # Convert "iphone 15" -> "iphone"
+        clean_text = re.sub(r'\b(looks like|similar to|possibly)\b', '', clean_text)
         
-        clean_text = analysis_text
-        for pattern in noise_patterns:
-            clean_text = re.sub(pattern, "", clean_text, flags=re.IGNORECASE)
+        # Construct a search query based on Visual Truth
+        # Query = "iPhone Orange Titanium" (Forces DB to find this specific look)
+        search_query = clean_text.split('.')[0] # Take the first sentence only
+        if len(search_query) < 3: search_query = "item"
+
+        # Search
+        candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=30)
+        
+        # Merge with vector results for safety
+        if visual_matches:
+            candidates.extend([p for p in visual_matches if p.id not in [c.id for c in candidates]])
+
+        # ---------------------------------------------------------
+        # ⚖️ STAGE C: THE SENSORY SCORING ENGINE (قلب الموازين)
+        # ---------------------------------------------------------
+        # Instead of sorting by Price, we sort by "Visual Fidelity".
+        
+        scored_candidates = []
+        for p in candidates:
+            score = 0
+
+            tags_content = ""
+            if p.tags:
+                if isinstance(p.tags, list):
+                    tags_content = " ".join([str(t) for t in p.tags]) # Join list items
+                else:
+                    tags_content = str(p.tags) # Convert to
+
+            prod_text = (str(p.name) + " " + str(p.description or "") + " " + tags_content).lower()
             
-        # Clean special chars & extra spaces
-        clean_text = re.sub(r'[^\w\s]', '', clean_text).strip()
-        clean_text = " ".join(clean_text.split())
+            # Rule 1: Color Match is King (50 Points)
+            # If AI saw "Orange", and product is "Orange", it wins instantly.
+            for color in detected_colors:
+                if color in prod_text:
+                    score += 50
+            
+            # Rule 2: Feature Match (20 Points)
+            # "Pro", "Max", "Titanium"
+            for feat in detected_features:
+                if feat in prod_text:
+                    score += 20
+            
+            # Rule 3: Exact Name Match in Analysis (30 Points)
+            # If AI said "Watch Ultra" and product is "Watch Ultra"
+            clean_name_tokens = set(re.findall(r'\w+', p.name.lower()))
+            analysis_tokens = set(re.findall(r'\w+', analysis_lower))
+            overlap = len(clean_name_tokens.intersection(analysis_tokens))
+            score += (overlap * 5)
+
+            # Rule 4: Price Tie-Breaker (1 Point)
+            # If two items have same visual score, pick the more expensive (likely newer)
+            score += (p.price * 0.001)
+
+            scored_candidates.append((p, score))
+
+        # Sort by Score Descending
+        scored_candidates.sort(key=lambda x: x[1], reverse=True)
+        final_products = [item[0] for item in scored_candidates[:5]]
 
         # ---------------------------------------------------------
-        # 🧠 STAGE B: THE UNIVERSAL ABSTRACTOR (تجريد الإصدارات)
+        # 🗣️ STAGE D: DISPLAY LOGIC
         # ---------------------------------------------------------
-        # "Apple Watch Series 9" -> "Apple Watch Series"
-        # "iPhone 15 Pro" -> "iPhone Pro"
-        # This fixes the "Old AI Knowledge" issue
-        clean_search_query = re.sub(r'(\b\w+\b)\s+\d+(?:\.\d+)?', r'\1', clean_text)
-        
-        # Fallback safety
-        if len(clean_search_query) < 2: clean_search_query = "this item"
-        
-        logger.info(f"🌍 Vision Extract: '{clean_search_query}'")
-
-        # ---------------------------------------------------------
-        # 🧠 STAGE C: SEARCH & RE-RANKING (البحث والترتيب)
-        # ---------------------------------------------------------
-        candidates = await self.search_engine.perform_hybrid_search_pure(self.db, clean_search_query, limit=20)
-        
-        # Premium Logic: If text implies "Pro/Max/Series", prioritize Price/Newness
-        # This ensures iPhone 17 (High Price) appears before iPhone 15
-        is_premium = any(x in analysis_text.lower() for x in ["pro", "max", "titanium", "ultra", "series"])
-        if candidates and is_premium:
-             # Sort by Price High -> Low
-             candidates.sort(key=lambda p: p.price, reverse=True)
-             
-        final_products = candidates[:5]
-
-        # ---------------------------------------------------------
-        # 🧠 STAGE D: THE DISPLAY NAME GENERATOR (العبقرية النهائية)
-        # ---------------------------------------------------------
-        # Problem: "Apple Watch Series Orange" is ugly.
-        # Solution: Cheat! Use the name of the #1 matched product from YOUR DB.
-        
-        display_name = clean_search_query # Default
-        
+        # Name Generator logic (V6)
+        display_name = "your item"
         if final_products:
-            # Take the real DB name (e.g., "Apple Watch Ultra 2")
-            top_match_name = final_products[0].name
-            
-            # Simple heuristic: If the match is good, use the DB name because it's human-readable
-            display_name = top_match_name
+            display_name = final_products[0].name # Use the winner's name
 
-        # Final Formatting
-        msg = f"I found these matches for '{display_name}':"
+        msg = f"Closest match: {display_name}. You can add it to your cart when you're ready."
 
-        # 4. Dispatch
+        # Dispatch
         if final_products:
             products_data = [p.model_dump(mode='json') for p in final_products]
             await self._mark_products_as_seen(user_id, products_data)
@@ -165,12 +189,12 @@ class AINLUService:
                 "content": msg, 
                 "type": "product_carousel", 
                 "products": products_data, 
-                "reason": "Visual Intelligence"
+                "reason": "Sensory Intelligence"
             }, "airdeliver.ai.response.out")
         else:
             await self.rabbitmq.publish({
                 "user_id": user_id, 
-                "content": f"I analyzed the image but couldn't find a precise match in stock.", 
+                "content": "I analyzed the visuals but couldn't find an exact style match in stock.", 
                 "type": "error"
             }, "airdeliver.ai.response.out")
 
