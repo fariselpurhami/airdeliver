@@ -21,6 +21,14 @@ from app.models.order import Order
 from app.models.enums import OrderStatus
 from app.db.session import SessionLocal 
 
+try:
+    from ddgs import DDGS # New style
+except ImportError:
+    try:
+        from duckduckgo_search import DDGS # Old/Standard style
+    except ImportError:
+        DDGS = None # Fa
+
 logger = logging.getLogger(__name__)
 
 class AINLUService:
@@ -69,129 +77,208 @@ class AINLUService:
             except Exception: pass
         asyncio.create_task(_bg_task())
 
+    async def _perform_external_verification(self, image_desc: str) -> str:
+        """
+        🌍 V18: THE SMART LIVE AGENT (With Garbage Filter).
+        It searches the web, BUT it rejects anything that looks like a blog, a list, or a tool.
+        It ONLY returns a result if it looks like a real "Model Name".
+        """
+        if not DDGS: return ""
+
+        try:
+            # We refine the query to ask for a specific model identification
+            query = f"what is the exact model name of this product: {image_desc}"
+            
+            loop = asyncio.get_running_loop()
+            results = await loop.run_in_executor(
+                None, 
+                lambda: list(DDGS().text(query, max_results=4))
+            )
+            
+            if not results: return ""
+
+            # 🛡️ THE GARBAGE FILTER (فلتر القمامة)
+            # These words indicate the result is NOT a product name, but a generic page.
+            # 🛡️ THE GARBAGE FILTER (فلتر القمامة الموسع)
+            junk_indicators = [
+                "best", "top 10", "guide", "review", "vs", "versus", "compare", 
+                "finder", "tool", "analysis", "free", "download", "list", 
+                "cheap", "deal", "amazon", "ebay", "shop", "price", "stock",
+                "image", "search", "google", "bing", "yandex", "wiki",
+                "how to", "tutorial", "video", "forum", "reddit", "login"
+            ]
+            
+            valid_name = ""
+            
+            for res in results:
+                title = res['title']
+                
+                # 1. Clean the title
+                # Remove common suffixes like " - Official Site", " - Wikipedia"
+                import re
+                clean_title = re.sub(r'(\s-|\|).+', '', title).strip()
+                
+                # 2. Check for Junk
+                if any(bad in clean_title.lower() for bad in junk_indicators):
+                    continue # Skip this result, it's trash
+                
+                # 3. Validation Heuristic (The Genius Check)
+                # A real product name is usually short (2-6 words)
+                # e.g. "Sony WH-1000XM5" (Good) vs "How to find the best headphones" (Bad)
+                word_count = len(clean_title.split())
+                if 2 <= word_count <= 7:
+                    valid_name = clean_title
+                    break # We found a clean candidate!
+            
+            if valid_name:
+                logger.info(f"🌍 Live Agent Verified: '{valid_name}' (Clean Match)")
+                return valid_name
+            else:
+                logger.warning("🌍 Live Agent found only generic/junk results. Switching to Internal Vision.")
+                return ""
+
+        except Exception as e:
+            logger.warning(f"🌍 Live Search failed: {e}")
+            return ""
+
     async def _handle_image_query(self, user_id: int, image_data: str):
         """
-        💎 GLOBAL STANDARD V14: The 'DEEP' Protocol.
-        (Dynamic Extraction & Enforcement Protocol).
-        Trusts the AI's cognitive perception implicitly. If AI identifies a Brand/Model,
-        it enforces strict filtering instantly, bypassing all fuzzy logic.
-        Works universally for ANY brand or product type.
+        💎 GLOBAL STANDARD V17: The 'Universal Masterpiece'.
+        A category-agnostic pipeline that adapts its strategy based on what it sees.
+        
+        STRATEGY SWITCHER:
+        1. If it's a specific model (Tech/Cars/Branded) -> Uses LIVE WEB SEARCH + SNIPER DB.
+        2. If it's a generic item (Food/Furniture/Clothes) -> Uses SEMANTIC CROSS-ENCODING.
+        
+        Zero Bias. Works for everything.
         """
         if not image_data: return
 
-        await self.rabbitmq.publish({"user_id": user_id, "content": "Locking on target signature... 👁️🔒", "type": "typing"}, "airdeliver.ai.response.out")
+        await self.rabbitmq.publish({"user_id": user_id, "content": "Analyzing Object DNA & World Context... 👁️🌍", "type": "typing"}, "airdeliver.ai.response.out")
 
-        # 1. ACQUIRE DEEP INTELLIGENCE (Vision)
+        # 1. ACQUIRE DEEP INTELLIGENCE
         visual_task = self.search_engine.search_by_image_vector(image_data, limit=50) 
-        # We ask LLM for a structured extraction, not just a description
-        analysis_task = self.llm_service.analyze_product_image(image_data) 
-        
+        analysis_task = self.llm_service.analyze_product_image(image_data)
         visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
         
-        # ---------------------------------------------------------
-        # 🧠 PHASE 1: DYNAMIC ENTITY EXTRACTION (استخراج الكيان الحي)
-        # ---------------------------------------------------------
-        # Instead of hardcoded lists, we parse the AI's own words.
-        # AI usually says: "Brand: Apple", "Product: Watch".
-        # We use Regex to extract these "Confidence Anchors" dynamically.
-        
-        import re
         analysis_lower = analysis_text.lower()
-        
-        # Dynamic Brand Extractor (Looks for patterns like "Brand: X" or "made by X")
-        # This works for "Rolex", "Nike", "Sony", or "UnknownBrand" equally.
-        detected_brand = ""
-        brand_match = re.search(r'\b(brand|manufacturer|made by|from)\s*[:\s-]+\s*([a-z0-9]+)', analysis_lower)
-        if brand_match:
-            detected_brand = brand_match.group(2).strip() # e.g., "apple", "nike"
-
-        # Dynamic Model/Category Extractor
-        detected_model = ""
-        # Looks for "Model: X" or "Product: X"
-        model_match = re.search(r'\b(model|product|item|type)\s*[:\s-]+\s*([a-z0-9\s]+)', analysis_lower)
-        if model_match:
-            # Take first 2 words of the model to be safe (e.g., "watch ultra" from "watch ultra 2")
-            raw_model = model_match.group(2).split(',')[0].strip()
-            detected_model = " ".join(raw_model.split()[:2]) 
-
-        logger.info(f"🔒 DEEP Protocol Lock: Brand='{detected_brand}' Model='{detected_model}'")
 
         # ---------------------------------------------------------
-        # 🛡️ PHASE 2: THE ENFORCEMENT FILTER (فرض السيطرة)
+        # 🌍 PHASE 1: THE LIVE IDENTIFICATION (للمنتجات ذات الهوية)
         # ---------------------------------------------------------
-        # Search Broadly first using the full description to get candidates
-        clean_desc = re.sub(r'(Image shows|I see|looks like)', '', analysis_text, flags=re.IGNORECASE).strip()
-        search_query = " ".join(clean_desc.split()[:8])
+        # Check if the analysis suggests a Specific Brand/Model or just a Generic Item.
+        # "Apple Watch" -> Specific. "Red wooden chair" -> Generic.
         
-        candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=100) # Fetch MORE to filter
+        is_specific_entity = any(x in analysis_lower for x in ["model", "brand", "edition", "series", "version", "release"])
         
-        # Merge visual matches
+        exact_name_from_web = ""
+        if is_specific_entity:
+            # Use the Live Internet Agent to find the real world name
+            # This works for "iPhone 17" as well as "Nike Air Jordan 5" or "Sony A7 Camera"
+            exact_name_from_web = await self._perform_external_verification(analysis_text[:200])
+
+        # ---------------------------------------------------------
+        # 🧠 PHASE 2: THE ADAPTIVE SEARCH (البحث المتكيف)
+        # ---------------------------------------------------------
+        candidates = []
+        search_strategy = ""
+
+        # STRATEGY A: SNIPER (For recognized models)
+        if exact_name_from_web:
+            logger.info(f"🎯 Strategy A (Sniper): Hunting for '{exact_name_from_web}'")
+            # Search for the EXACT name found on the web
+            candidates = await self.search_engine.perform_hybrid_search_pure(self.db, exact_name_from_web, limit=20)
+            search_strategy = "Sniper"
+        
+        # STRATEGY B: SEMANTIC (For generic items or if Sniper missed)
+        if not candidates:
+            logger.info("🌊 Strategy B (Semantic): Falling back to descriptive search.")
+            # Remove "I see", "Image shows" noise
+            import re
+            clean_desc = re.sub(r'(Image shows|I see|looks like|appears to be)', '', analysis_text, flags=re.IGNORECASE).strip()
+            # Use the first 10 meaningful words
+            search_query = " ".join(clean_desc.split()[:10])
+            candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=50)
+            search_strategy = "Semantic"
+
+        # Merge visual vector matches (The "Shape" backup)
         if visual_matches:
             existing_ids = {c.id for c in candidates}
             for vm in visual_matches:
-                if vm.id not in existing_ids:
-                    candidates.append(vm)
+                if vm.id not in existing_ids: candidates.append(vm)
 
         # ---------------------------------------------------------
-        # ⚖️ PHASE 3: THE CONFIDENCE SCORING (تنفيذ الحكم)
+        # ⚖️ PHASE 3: THE UNIVERSAL SCORING ENGINE (الترتيب العالمي)
         # ---------------------------------------------------------
-        
         scored_candidates = []
         text_model = ai_manager.get_text_model()
-        anchor_embedding = text_model.encode(clean_desc, convert_to_tensor=True)
+        
+        # We encode the 'Analysis' as the anchor truth
+        anchor_emb = text_model.encode(analysis_lower, convert_to_tensor=True)
+        
+        # Extract Universal Attributes (Color/Material) from Analysis
+        # Note: We don't hardcode colors list anymore, we rely on semantic similarity for colors,
+        # BUT we boost if we find exact word matches for robustness.
+        common_colors = ["red", "blue", "green", "black", "white", "silver", "gold", "yellow", "orange", "brown", "pink", "purple", "grey", "beige"]
+        detected_colors = [c for c in common_colors if c in analysis_lower]
 
         for p in candidates:
-            # 1. Base Semantic Score
-            prod_dna = f"{p.name} {p.category or ''} {p.description or ''} {' '.join(p.tags) if isinstance(p.tags, list) else str(p.tags or '')}"
-            prod_embedding = text_model.encode(prod_dna, convert_to_tensor=True)
-            score = util.cos_sim(anchor_embedding, prod_embedding).item() * 100
+            # Prepare Product DNA
+            # Safe Tag handling included
+            tags_str = " ".join([str(t) for t in p.tags]) if isinstance(p.tags, list) else str(p.tags or "")
+            prod_dna = f"{p.name} {p.category or ''} {p.description or ''} {tags_str}".lower()
             
-            prod_text_lower = prod_dna.lower()
-
-            # 🚀 THE MAGIC: BRAND SOVEREIGNTY (Enforced Universally)
-            # If AI detected a brand (ANY brand), and product matches it -> HUGE BOOST.
-            # If AI detected a brand, and product DOES NOT match -> KILL SCORE.
-            if detected_brand and len(detected_brand) > 2:
-                if detected_brand in prod_text_lower:
-                    score += 2000.0 # Absolute Priority
-                else:
-                    score -= 5000.0 # Rejection (Wrong Brand)
-
-            # 🚀 THE MAGIC: MODEL AFFINITY
-            if detected_model and len(detected_model) > 2:
-                if detected_model in prod_text_lower:
-                    score += 1000.0
-
-            # Price/Premium Sorting (Secondary)
-            is_premium = any(w in clean_desc.lower() for w in ["pro", "max", "ultra", "luxury", "expensive"])
-            if is_premium:
-                score += (p.price * 0.1)
-
-            scored_candidates.append((p, score))
+            # 1. Semantic Similarity (0-100) - Works for EVERYTHING
+            prod_emb = text_model.encode(prod_dna, convert_to_tensor=True)
+            sem_score = util.cos_sim(anchor_emb, prod_emb).item() * 100
+            
+            # 2. The "Web Truth" Boost (If we found a name online)
+            if exact_name_from_web and exact_name_from_web.lower() in prod_dna:
+                sem_score += 500.0 # Huge boost if it matches the web result
+            
+            # 3. Universal Attribute Enforcement
+            # If AI saw "Red", and Product has "Red", boost it.
+            for color in detected_colors:
+                if color in prod_dna:
+                    sem_score += 50.0
+            
+            # 4. Price Logic (Contextual)
+            # If the description sounds expensive (Luxury, Pro, Gold), prefer higher price
+            if any(w in analysis_lower for w in ["luxury", "expensive", "premium", "pro", "ultra", "gold"]):
+                sem_score += (p.price * 0.05)
+            
+            scored_candidates.append((p, sem_score))
 
         # Sort
         scored_candidates.sort(key=lambda x: x[1], reverse=True)
-        
-        # Filter out negative scores (Rejected brands)
-        final_list = [item for item in scored_candidates if item[1] > -1000][:5]
+        final_list = scored_candidates[:5]
         final_products = [item[0] for item in final_list]
 
-        # 5. DISPATCH
+        # ---------------------------------------------------------
+        # 🗣️ PHASE 4: THE ADAPTIVE DISPATCH
+        # ---------------------------------------------------------
         if final_products:
             display_name = final_products[0].name
             import random
             
-            # Confidence Check: If score is massive (Brand+Model match), use confident language
+            msg = ""
+            # Message adapts based on CONFIDENCE
             top_score = final_list[0][1] if final_list else 0
             
-            if top_score > 1500: # We found the Brand!
-                msg = random.choice([
-                    f"Identified: {display_name}. Here are the available options:",
-                    f"I found the {detected_brand.title()} {detected_model.title()} you are looking for.",
+            if top_score > 400: # We had a Web Match or Super Semantic Match
+                templates = [
+                    f"Identified: {display_name}. Found in stock.",
+                    f"That looks like the {display_name}. Here it is:",
                     f"Match confirmed: {display_name}."
-                ])
+                ]
+                msg = random.choice(templates)
             else:
+                # Lower confidence (Generic items)
                 msg = f"Closest match: {display_name}. You can add it to your cart when you're ready."
+
+            # Color warning if semantic score wasn't perfect but model matched
+            if top_score < 400 and top_score > 100: 
+                 msg += " (Note: Exact color/variant might differ)."
 
             products_data = [p.model_dump(mode='json') for p in final_products]
             await self._mark_products_as_seen(user_id, products_data)
@@ -204,12 +291,12 @@ class AINLUService:
                 "content": msg, 
                 "type": "product_carousel", 
                 "products": products_data, 
-                "reason": "DEEP Protocol Match"
+                "reason": f"Universal Intelligence ({search_strategy})"
             }, "airdeliver.ai.response.out")
         else:
             await self.rabbitmq.publish({
                 "user_id": user_id, 
-                "content": f"I recognized this as a {detected_brand} {detected_model}, but we don't have it in stock right now.", 
+                "content": f"I analyzed the object, but couldn't find a close match in our inventory.", 
                 "type": "error"
             }, "airdeliver.ai.response.out")
 
