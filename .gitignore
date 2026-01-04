@@ -9,3 +9,8 @@ apps/web/.next
 data/storage/models_cache/
 apps/api/storage/models_cache/
 
+data/
+huggingface_cache/
+*.pth
+*.bin
+*.safetensors

@@ -90,7 +90,7 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
 
   return (
     <motion.div 
-      className="w-full max-w-lg mx-auto relative group"
+      className="w-full max-w-lg mx-auto relative group flex flex-col bg-[#020617] border border-white/10 rounded-[73px] shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden relative"
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}

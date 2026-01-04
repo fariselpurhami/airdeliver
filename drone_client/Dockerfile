@@ -54,4 +54,4 @@ COPY --chown=$APP_USER:$APP_USER drone-control.py .
 
 USER $APP_USER
 
-CMD ["watchfiles", "python", "drone-control.py"]
+CMD ["python", "drone-control.py"]

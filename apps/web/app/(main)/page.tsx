@@ -13,7 +13,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { Star } from 'lucide-react';
 import React, { Suspense, useRef, useMemo, useEffect, useState, ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Preload, Float, Line, Text, useTexture, OrbitControls, Stars } from '@react-three/drei';
+import { Preload, Float, Line, Text, useTexture, OrbitControls, Stars, Points, PointMaterial } from '@react-three/drei';
 import { motion, useScroll, AnimatePresence, useSpring, useInView, useTransform, useMotionValue, type MotionValue } from 'framer-motion';
 import { Bot, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map } from 'lucide-react';
 import { X } from 'lucide-react'; 
@@ -83,38 +83,40 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
         </Suspense>
       </div>
 
-      <motion.div style={{ y: parallaxY }} className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4">
-        
+      <motion.div style={{ y: parallaxY }} className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4 will-change-transform transform-gpu">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vw] h-[100vh] bg-[radial-gradient(circle,rgba(80,80,90,0.15)_0%,transparent_60%)] blur-3xl -z-10 pointer-events-none" />
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.5 }}
           className="mb-4 text-sm font-light tracking-[0.3em] text-white uppercase relative z-20" 
         >
-          AI. AUTONOMY. REDEFINING E-COMMERCE.
+           AI. AUTONOMY. REDEFINING E-COMMERCE. 
         </motion.p>
+    <div className="flex flex-col items-center leading-none z-20 relative mix-blend-screen">
         <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.8 }}
-          className="w-full max-w-[90vw] mx-auto font-black uppercase leading-none" 
-          style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
+          initial={{ opacity: 0, y: 40, filter: "blur(10px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 1.2, delay: 0.2 }}
+          className="w-full text-center font-black uppercase tracking-tighter" 
+          style={{ fontFamily: "'Helvetica Neue', Inter, Arial, sans-serif" }}
         >
-          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] lg:text-[8vw] leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-cyan-400 via-cyan-400 to-white drop-shadow-[0_0_25px_rgba(0,198,255,0.3)]">
-            COMMERCE.
+          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] text-white/90 drop-shadow-2xl">
+            COMMERCE
           </span>
           
-          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] lg:text-[8vw] leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-white via-purple-300 to-purple-500 drop-shadow-[0_0_25px_rgba(168,85,247,0.3)]">
-            TAKES FLIGHT.
+          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] text-white/90 drop-shadow-2xl">
+            TAKES FLIGHT
           </span>
         </motion.h1>
+    </div>
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 1.2 }}
           className="mt-6 max-w-2xl text-base md:text-lg text-white"
         >
-          Experience the World’s First AI-Driven Delivery Infrastructure — Faster, Smarter, and Fully Autonomous.
+           Experience the world’s first AI-driven delivery infrastructure — faster, smarter, and fully autonomous.
         </motion.p>
 
         <motion.div
@@ -146,7 +148,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
                 ease: "easeInOut" 
             }}
             
-            className="group relative inline-flex items-center justify-center px-6 py-7  text-black font-light bg-white text-xl rounded-full shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
+            className="group relative inline-flex items-center justify-center px-6 py-10 text-black font-light bg-white text-xl rounded-full shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
           >
            
             <span className={`absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] transition-opacity duration-500 ${
@@ -156,7 +158,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
             <span className="relative flex items-center font-base text-xl z-10">
                
                 <span className={`transition-colors duration-300 ${hasActiveOrder ? 'text-white' : 'text-black group-hover:text-white'}`}>
-                    order with air
+		    order with air
                 </span>
                 
                
@@ -185,12 +187,65 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
 
           <button
 	    onClick={onExploreClick}
-	    className="group relative inline-flex items-center justify-center px-6 py-7 text-base font-bold text-white bg-transparent border-2 border-white/70 rounded-full shadow-lg transition-all duration-300 hover:border-white/50 hover:bg-white/10">
+	    className="group relative inline-flex items-center justify-center px-6 py-10 text-base font-bold text-white bg-transparent border-2 border-white/70 rounded-full shadow-lg transition-all duration-300 hover:border-white/50 hover:bg-white/10">
             Explore Products <ArrowRight className="ml-2 h-5 w-5" />
           </button>
         </motion.div>
       </motion.div>
     </section>
+  );
+};
+
+const Starfield = (props: any) => {
+  const groupRef = useRef<THREE.Group>(null!);
+
+  const sphere = useMemo(() => {
+    
+    const count = 400000; 
+    
+    const radius = 66;  
+    
+    const positions = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+     
+      const r = radius * Math.cbrt(Math.random());
+      const theta = Math.random() * 2 * Math.PI;
+      const phi = Math.acos(2 * Math.random() - 1);
+
+      const x = r * Math.sin(phi) * Math.cos(theta);
+      const y = r * Math.sin(phi) * Math.sin(theta);
+      const z = r * Math.cos(phi);
+
+      positions[i * 3] = x;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = z;
+    }
+    return positions;
+  }, []);
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.x -= delta * 0.0005;
+      groupRef.current.rotation.y -= delta * 0.0005;
+      groupRef.current.rotation.z -= delta * 0.005;
+    }
+  });
+
+  return (
+    <group ref={groupRef} {...props} position={[0, 0, -60]}>
+      <Points positions={sphere} stride={3} frustumCulled={false}>
+        <PointMaterial
+          transparent
+          color={[6, 6, 6]}    
+          size={0.067}            
+          sizeAttenuation={true} 
+          depthWrite={false}     
+          toneMapped={false}     
+          opacity={1}            
+        />
+      </Points>
+    </group>
   );
 };
 
@@ -216,40 +271,16 @@ const Hero3DBackground = () => {
   return (
     <>
       <fog attach="fog" args={['#000000', 10, 40]} />
+     
       <ambientLight intensity={1.5} />
+      
       <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
       <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
+      
       <Starfield />
     </>
   );
-};
-
-const Starfield = (props: any) => {
-  const starsRef = useRef<THREE.Group>(null!);
-
-  useFrame((_, delta) => {
-    if (starsRef.current) {
-      starsRef.current.rotation.x = 0;
-      starsRef.current.rotation.y = 0;
-      starsRef.current.rotation.z += delta * 0.05;
-    }
-  });
-
-  return (
-    <group ref={starsRef} {...props} position={[0, 0, -50]}>
-      <Stars
-        radius={100}
-        depth={100}
-        count={45000}
-        factor={30}
-        saturation={0}
-        fade
-        speed={0.1}
-      />
-    </group>
-  );
-};
-
+};  
 // ============================================================================
 // --- 2. HOW IT WORKS SECTION  ---
 // ============================================================================
@@ -289,13 +320,13 @@ const timelineSteps = [
 
 const stepsWithPositions = [
  
-  { ...timelineSteps[0], id: 'card-1', x: 50, y: 160, width: CARD_W, height: CARD_H },
+  { ...timelineSteps[0], id: 'card-1', x: 50, y: 300, width: CARD_W, height: CARD_H },
 
-  { ...timelineSteps[1], id: 'card-2', x: 800, y: 550, width: CARD_W, height: CARD_H },
+  { ...timelineSteps[1], id: 'card-2', x: 800, y: 700, width: CARD_W, height: CARD_H },
 
-  { ...timelineSteps[2], id: 'card-3', x: 50, y: 1050, width: CARD_W, height: CARD_H },
+  { ...timelineSteps[2], id: 'card-3', x: 50, y: 1300, width: CARD_W, height: CARD_H },
 
-  { ...timelineSteps[3], id: 'card-4', x: 800, y: 1440, width: CARD_W, height: CARD_H },
+  { ...timelineSteps[3], id: 'card-4', x: 800, y: 1700, width: CARD_W, height: CARD_H },
 ];
 
 // ============================================================================
@@ -448,29 +479,36 @@ const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
   return (
     <div className="relative group h-full w-full">
        
-        <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/0 via-cyan-500/50 to-purple-500/0 rounded-[32px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-sm" />
-        <div className="absolute inset-0 bg-cyan-900/10 rounded-[30px] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-700" />
+        {/* 1. التوهج الخارجي - غيرناه للأزرق والبنفسجي ليشبه الغلاف الجوي للأرض */}
+        <div className="absolute -inset-[1px] bg-gradient-to-r from-blue-600/0 via-blue-600/50 to-purple-600/0 rounded-[32px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-sm" />
+        <div className="absolute inset-0 bg-blue-900/10 rounded-[30px] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-700" />
 
-        <div className="relative h-full w-full rounded-[30px] bg-[#050505]/95 backdrop-blur-xl border border-white/10 p-5 flex flex-col items-start justify-start transition-all duration-500 group-hover:border-cyan-500/40 group-hover:translate-y-[-4px] group-hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] overflow-hidden z-20">
+        {/* 2. جسم البطاقة - أصبح أزرق داكن جداً بدلاً من الأسود الصريح */}
+        <div className="relative h-full w-full rounded-[30px] bg-[#020410]/95 backdrop-blur-xl border border-white/10 p-5 flex flex-col items-start justify-start transition-all duration-500 group-hover:border-blue-500/40 group-hover:translate-y-[-4px] group-hover:shadow-[0_20px_40px_-10px_rgba(2,6,23,0.8)] overflow-hidden z-20">
 
+            {/* الخلفية الشبكية */}
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20" />
 
+            {/* 3. النقاط المضيئة في الزاوية - أزرق وبنفسجي */}
             <div className="absolute top-5 right-5 flex gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/50 group-hover:bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)] transition-all duration-500" />
-                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500/20 border border-cyan-500/50 group-hover:bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)] transition-all duration-500 delay-75" />
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/20 border border-blue-500/50 group-hover:bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.4)] transition-all duration-500" />
+                <div className="w-1.5 h-1.5 rounded-full bg-purple-500/20 border border-purple-500/50 group-hover:bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)] transition-all duration-500 delay-75" />
             </div>
 
-            <div className="relative z-30 mb-3 inline-flex items-center justify-center p-2 rounded-lg bg-cyan-950/50 border border-cyan-500/30 text-cyan-400 group-hover:text-white group-hover:bg-cyan-600 group-hover:scale-105 transition-all duration-500 shadow-lg shadow-black/50">
+            {/* 4. الأيقونة - أصبحت زرقاء مثل المحيطات */}
+            <div className="relative z-30 mb-3 inline-flex items-center justify-center p-2 rounded-lg bg-blue-950/50 border border-blue-500/30 text-blue-400 group-hover:text-white group-hover:bg-blue-600 group-hover:scale-105 transition-all duration-500 shadow-lg shadow-black/50">
                 <item.icon size={37} strokeWidth={1.5} />
             </div>
 
+            {/* 5. رقم المرحلة - أزرق فاتح */}
             <div className="flex items-center gap-2 mb-2 relative z-20">
-                <span className="text-[9px] font-mono text-cyan-400/80 tracking-[0.2em] uppercase border border-cyan-500/20 px-2 py-0.5 rounded bg-cyan-950/30">
+                <span className="text-[9px] font-mono text-blue-300/80 tracking-[0.2em] uppercase border border-blue-500/20 px-2 py-0.5 rounded bg-blue-950/30">
                     Phase 0{item.step}
                 </span>
             </div>
 
-            <h3 className="text-xl font-bold text-white mb-2 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all relative z-20" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            {/* 6. العنوان - يتدرج للبنفسجي عند التحويم */}
+            <h3 className="text-xl font-bold text-white mb-2 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-purple-300 transition-all relative z-20" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                 {item.title}
             </h3>
 
@@ -480,11 +518,12 @@ const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
                 </p>
             </div>
 
-            <div className="absolute bottom-5 left-5 w-8 h-[1px] bg-white/10 group-hover:w-16 group-hover:bg-cyan-500/50 transition-all duration-700" />
+            {/* 7. الخط السفلي - أزرق مشع */}
+            <div className="absolute bottom-5 left-5 w-8 h-[1px] bg-white/10 group-hover:w-16 group-hover:bg-blue-500/50 transition-all duration-700" />
         </div>
     </div>
   );
-};
+};;
 
 const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) => {
   const ref = useRef<HTMLDivElement>(null);

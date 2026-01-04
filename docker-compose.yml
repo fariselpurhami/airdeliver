@@ -75,8 +75,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik-letsencrypt-data:/letsencrypt
     networks:
-      - public-net
-      - monitoring-net
+      - global-net
     logging: *default-logging
     labels:
       - "traefik.enable=true"
@@ -87,7 +86,7 @@ services:
     container_name: airdeliver-loki
     command: -config.file=/etc/loki/local-config.yaml
     networks:
-      - monitoring-net
+      - global-net
     deploy: *default-core-deploy
 
   promtail:
@@ -99,7 +98,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     command: -config.file=/etc/promtail/config.yml -config.expand-env=true
     networks:
-      - monitoring-net
+      - global-net
     deploy: *default-app-deploy
 
   prometheus:
@@ -111,8 +110,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
     networks:
-      - monitoring-net
-      - backend-net
+      - global-net
     deploy: *default-core-deploy
 
   cadvisor:
@@ -125,7 +123,7 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     networks:
-      - monitoring-net
+      - global-net
     deploy: *default-app-deploy
     devices:
       - /dev/kmsg
@@ -138,8 +136,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     networks:
-      - monitoring-net
-      - public-net
+      - global-net
     deploy: *default-core-deploy
     labels:
       - "traefik.enable=true"
@@ -167,7 +164,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - backend-net
+      - global-net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
       interval: 5s
@@ -197,7 +194,7 @@ services:
     volumes:
       - postgres-backups:/backups
     networks:
-      - backend-net
+      - global-net
     depends_on:
       postgres:
         condition: service_healthy
@@ -209,20 +206,25 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq/
     environment:
-      - RABBITMQ_DEFAULT_USER_FILE=/run/secrets/rabbitmq_user
-      - RABBITMQ_DEFAULT_PASS_FILE=/run/secrets/rabbitmq_pass
-      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-setcookie ${RABBITMQ_COOKIE:-secretcookie}
+      - RABBITMQ_ERLANG_COOKIE=${RABBITMQ_COOKIE:-secretcookie}
     secrets:
       - rabbitmq_user
       - rabbitmq_pass
+    entrypoint:
+      - sh
+      - -c
+      - |
+        export RABBITMQ_DEFAULT_USER=$(cat /run/secrets/rabbitmq_user)
+        export RABBITMQ_DEFAULT_PASS=$(cat /run/secrets/rabbitmq_pass)
+        docker-entrypoint.sh rabbitmq-server
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_aliveness"]
-      interval: 5s
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
       timeout: 10s
-      retries: 20
+      retries: 5
       start_period: 30s
     networks:
-      - backend-net
+      - global-net
     logging: *default-logging
     deploy: *default-core-deploy
 
@@ -234,7 +236,7 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - backend-net
+      - global-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -263,7 +265,7 @@ services:
     volumes:
       - opensearch-data:/usr/share/opensearch/data
     networks:
-      - backend-net
+      - global-net
     healthcheck:
       test: ["CMD", "curl", "-k", "-f", "https://localhost:9200"]
       interval: 10s
@@ -285,7 +287,7 @@ services:
       - etcd-data:/etcd
     command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
     networks:
-      - backend-net
+      - global-net
     logging: *default-logging
     deploy: *default-core-deploy
 
@@ -299,7 +301,7 @@ services:
       - minio-data:/minio_data
     command: minio server /minio_data
     networks:
-      - backend-net
+      - global-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
@@ -323,7 +325,7 @@ services:
       - etcd
       - minio
     networks:
-      - backend-net
+      - global-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
@@ -359,7 +361,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - backend-net
+      - global-net
     restart: 'no'
     deploy:
       resources:
@@ -411,8 +413,7 @@ services:
       milvus:
         condition: service_healthy
     networks:
-      - backend-net
-      - public-net
+      - global-net
     healthcheck:
        test: ["CMD-SHELL", "curl -f http://localhost:8000/api/v1/health || exit 1"]
        interval: 5s
@@ -476,7 +477,7 @@ services:
       milvus:
         condition: service_healthy
     networks:
-      - backend-net
+      - global-net
     logging: *default-logging
     deploy: *default-core-deploy
     command: python /app/worker_entrypoint.py
@@ -503,9 +504,7 @@ services:
       api:
         condition: service_healthy
     networks:
-      - backend-net
-      - public-net
-      - simulation-net
+      - global-net
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8001/ws/health || exit 1"]
       interval: 5s
@@ -541,7 +540,7 @@ services:
       api:
         condition: service_healthy
     networks:
-      - public-net
+      - global-net
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -574,19 +573,9 @@ volumes:
   milvus-data:
 
 networks:
-  public-net:
-    driver: bridge
-    name: airdeliver-public
-  backend-net:
-    driver: bridge
-    internal: true
-    name: airdeliver-backend
-  simulation-net:
-    driver: bridge
-    name: airdeliver-simulation
-  monitoring-net:
-    driver: bridge
-    name: airdeliver-monitoring
+  global-net:
+    name: airdeliver-global-net
+    external: true
 
 secrets:
   postgres_user:

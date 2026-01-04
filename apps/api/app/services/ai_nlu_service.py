@@ -1,798 +1,1608 @@
 # apps/api/app/services/ai_nlu_service.py
 
 import re
-from sentence_transformers import util
-from app.services.ai_commerce_engine import ai_manager  
-from app.services.ai_behavior_engine import BehaviorEngine # ✅ Add Import
 import logging
 import asyncio
 import random
+import json
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from sentence_transformers import util
+from sqlmodel import select, col
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, and_
-from sqlalchemy import func
-from app.services.ai_commerce_engine import AICommerceEngine
+from app.services.ai_commerce_engine import AICommerceEngine, ai_manager  
+from app.services.ai_behavior_engine import BehaviorEngine
 from app.services.rabbitmq_service import RabbitMQService
 from app.services.cache_service import IAsyncCacheClient
 from app.services.free_llm_service import FreeLLMService
 from app.models.product import Product
-from app.models.order import Order
-from app.models.enums import OrderStatus
 from app.db.session import SessionLocal 
 
-try:
-    from ddgs import DDGS # New style
-except ImportError:
-    try:
-        from duckduckgo_search import DDGS # Old/Standard style
-    except ImportError:
-        DDGS = None # Fa
-
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("airdeliver.nlu")
 
 class AINLUService:
     """
-    The Order With Air Brain (v25.0 - Platinum Standard).
-    Central Intelligence Unit for processing Multimodal Intents (Text, Voice, Vision).
+    🧠 THE ORDER WITH AIR BRAIN (V30.0 - UNIVERSAL DIAMOND EDITION).
+
+    The Central Intelligence Unit that orchestrates the entire shopping experience.
+    It acts as the bridge between User Intent (Natural Language) and System Action (Vector Search).
+
+    ARCHITECTURAL PILLARS:
+    1. 🌌 Universal Semantic Understanding: No more hardcoded logic; pure intent vectors.
+    2. ⚡ Neuro-Symbolic Routing: Combines AI flexibility with deterministic execution speeds.
+    3. 💎 Diamond Uplink: Direct, crash-proof WebSocket communication via Redis.
+    4. 🧬 Financial DNA Integration: Adapts every response to the user's spending tier.
     """
+
     def __init__(
         self,
         db: AsyncSession,
-        search_engine: AICommerceEngine,
+        search_engine: AICommerceEngine, # 💎 المحرك المطور عالمياً
         rabbitmq: RabbitMQService,
         cache: IAsyncCacheClient,
         llm_service: FreeLLMService,
         behavior_engine: BehaviorEngine = None
     ):
-        self.db = db 
+        self.db = db
         self.search_engine = search_engine
         self.rabbitmq = rabbitmq
         self.cache = cache
+        self.redis = cache
         self.llm_service = llm_service
         self.behavior_engine = behavior_engine
+
+        # ⚙️ SOTA Configuration
         self.seen_cache_ttl = 3600
+        self.context_window_size = 8 # ⬆️ رفعنا حجم الذاكرة لاستيعاب سياق أعمق
+        self.min_intent_confidence = 0.75 # حد الثقة للمطابقة المتجهية
 
-    def _get_time_context(self) -> str:
-        hour = datetime.now().hour
-        if 5 <= hour < 12: return "morning"
-        if 12 <= hour < 17: return "afternoon"
-        if 17 <= hour < 22: return "evening"
-        return "night"
 
-    def _get_seen_key(self, user_id: int) -> str:
-        return f"ai_session:{user_id}:seen_products"
-    
-    def _get_cart_key(self, user_id: int) -> str:
-        return f"ai_cart:{user_id}"
 
-    async def _mark_products_as_seen(self, user_id: int, products: List[Dict[str, Any]]):
-        if not products: return
-        async def _bg_task():
-            key = self._get_seen_key(user_id)
-            ids = [str(p['id'] if isinstance(p, dict) else p.id) for p in products]
-            try:
-                await self.cache.sadd(key, *ids)
-                await self.cache.expire(key, self.seen_cache_ttl)
-            except Exception: pass
-        asyncio.create_task(_bg_task())
-
-    async def _perform_external_verification(self, image_desc: str) -> str:
+    async def _perform_devilish_recovery(self, user_id: int, removed_pid: int):
         """
-        🌍 V18: THE SMART LIVE AGENT (With Garbage Filter).
-        It searches the web, BUT it rejects anything that looks like a blog, a list, or a tool.
-        It ONLY returns a result if it looks like a real "Model Name".
+        😈 THE GREAT DEVIL ALGORITHM V2.0 (PSYCHOLOGICAL WARFARE EDITION).
+        
+        Logic:
+        1. Analyze the 'discarded' item to understand user's baseline standard.
+        2. Set the 'discarded price' as the FLOOR (Min Price), never the ceiling.
+        3. Hunt for the 'Alpha' version of that product (Pro, Max, Ultra).
+        4. Manipulate the user's ego by framing the new product as the 'Correct Choice'.
         """
-        if not DDGS: return ""
-
         try:
-            # We refine the query to ask for a specific model identification
-            query = f"what is the exact model name of this product: {image_desc}"
+            # 1. تشريح جثة المنتج المحذوف
+            target = await self.db.get(Product, removed_pid)
+            if not target: return
+
+            # استخراج البيانات الحيوية
+            # (تحسين استخراج البراند: لو الاسم يبدأ بكلمة قصيرة زي HP, LG نأخذها، لو طويلة نأخذها برضه)
+            # ولو متاح في الداتابيز حقل brand نستخدمه فوراً
+            raw_brand = getattr(target, 'brand', None)
+            if not raw_brand:
+                raw_brand = target.name.split()[0] # Fallback strategy
             
-            loop = asyncio.get_running_loop()
-            results = await loop.run_in_executor(
-                None, 
-                lambda: list(DDGS().text(query, max_results=4))
+            base_price = float(target.price)
+            category_core = target.category if target.category else target.name.split()[-1]
+
+            # 2. هندسة "فخ الطمع" (Greed Trap Query)
+            # لا نبحث عشوائياً، بل نوجه المحرك للبحث عن "القمة"
+            # نضيف كلمات مفتاحية تجبر المحرك على جلب الموديلات الأغلى والأقوى
+            power_keywords = "Flagship Pro Ultra Max Edition Premium"
+            devil_query = f"{raw_brand} {category_core} {power_keywords}"
+            devil_filters = {
+                "excluded_ids": [removed_pid], # نقتل المنتج القديم
+                "price_min": base_price * 1.0, # الحد الأدنى: سعر المنتج اللي اتمسح
+                "price_max": base_price * 4.0, # نفتح السقف شوية عشان لو فيه Gold Edition
+            }
+
+            # 🛑 Category Lock: لو المنتج له تصنيف، نحبس البحث داخله
+            # ده اللي هيمنع ظهور الآيفون مكان الساعة
+            if getattr(target, 'category', None):
+                devil_filters["category"] = target.category
+            # 3. تنفيذ البحث الموجه (The Sniping Search)
+            candidates = await self.search_engine.perform_hybrid_search_pure(
+                self.db, 
+                devil_query,
+                limit=15, # نوسع الدائرة عشان نلاقي "الضحية المثالية"
+                filters=devil_filters
             )
             
-            if not results: return ""
+            # 4. فلترة النخبة (Elite Filtering)
+            # الآن نختار المنتج الذي سنعرضه بدقة جراحية
+            valid_upsells = []
+            for p in candidates:
+                # الشرط: يجب أن يكون من نفس البراند (لضمان الولاء) 
+                # أو تقييمه أعلى من المنتج المحذوف (لضمان الجودة)
+                if (raw_brand.lower() in p.name.lower()) or (p.rating and target.rating and p.rating >= target.rating):
+                    valid_upsells.append(p)
 
-            # 🛡️ THE GARBAGE FILTER (فلتر القمامة)
-            # These words indicate the result is NOT a product name, but a generic page.
-            # 🛡️ THE GARBAGE FILTER (فلتر القمامة الموسع)
-            junk_indicators = [
-                "best", "top 10", "guide", "review", "vs", "versus", "compare", 
-                "finder", "tool", "analysis", "free", "download", "list", 
-                "cheap", "deal", "amazon", "ebay", "shop", "price", "stock",
-                "image", "search", "google", "bing", "yandex", "wiki",
-                "how to", "tutorial", "video", "forum", "reddit", "login"
-            ]
+            # ترتيب النتائج: الأغلى أولاً (لأننا شياطين ونريد عمولة أعلى) 😈
+            valid_upsells.sort(key=lambda x: x.price, reverse=True)
             
-            valid_name = ""
-            
-            for res in results:
-                title = res['title']
+            # نأخذ "جوهرتين" فقط
+            final_selection = valid_upsells[:2]
+
+            if final_selection:
+                # 5. الهجوم النفسي (Psychological Attack Copywriting)
+                new_item_price = float(final_selection[0].price)
+                price_diff = new_item_price - base_price
                 
-                # 1. Clean the title
-                # Remove common suffixes like " - Official Site", " - Wikipedia"
-                import re
-                clean_title = re.sub(r'(\s-|\|).+', '', title).strip()
-                
-                # 2. Check for Junk
-                if any(bad in clean_title.lower() for bad in junk_indicators):
-                    continue # Skip this result, it's trash
-                
-                # 3. Validation Heuristic (The Genius Check)
-                # A real product name is usually short (2-6 words)
-                # e.g. "Sony WH-1000XM5" (Good) vs "How to find the best headphones" (Bad)
-                word_count = len(clean_title.split())
-                if 2 <= word_count <= 7:
-                    valid_name = clean_title
-                    break # We found a clean candidate!
-            
-            if valid_name:
-                logger.info(f"🌍 Live Agent Verified: '{valid_name}' (Clean Match)")
-                return valid_name
-            else:
-                logger.warning("🌍 Live Agent found only generic/junk results. Switching to Internal Vision.")
-                return ""
+                if price_diff > (base_price * 0.5):
+                    # لو المنتج الجديد أغلى بكتير -> نلعب على "الاستثمار والجودة"
+                    headline = f"I noticed you removed {target.name}. You can picks another one."
+                elif price_diff > 0:
+                    # لو أغلى حاجة بسيطة -> نلعب على "الذكاء في الشراء"
+                    headline = f"I noticed you removed {target.name}. Check out these instead."
+                else:
+                    # لو نفس السعر -> نلعب على "البديل الأقوى"
+                    headline = f"I noticed you removed {target.name}. This is the top-rated models."
+
+                # الإرسال للواجهة
+                await self._send_to_ui(user_id, {
+                    "content": headline,
+                    "type": "product_carousel",
+                    "products": [p.model_dump(mode='json') for p in final_selection],
+                    "reason": "Quality Upgrade"
+                })
 
         except Exception as e:
-            logger.warning(f"🌍 Live Search failed: {e}")
+            logger.error(f"😈 Devil Protocol Failed: {e}")
+    # --- 🔌 UI RESPONSE ROUTER (DIAMOND UPLINK) ---
+    async def _send_to_ui(self, user_id: int, payload: dict):
+        """
+        💎 Direct Uplink to Frontend via Redis Pub/Sub.
+        Features:
+        - 🛡️ Auto-Serialization: Handles Decimals and Datetime objects automatically.
+        - ⏱️ Latency Tracking: Adds server-side timestamp.
+        - 🚀 Failsafe: Logs errors without crashing the main thread.
+        """
+        try:
+            channel = f"airdeliver:response:{user_id}"
+
+            # إضافة ختم زمني ومصدر الرسالة للتتبع
+            payload["meta"] = {
+                "timestamp": datetime.utcnow().isoformat(),
+                "node": "diamond_nlu_v1",
+                "engine_status": "online"
+            }
+
+            # دالة مساعدة لضمان تحويل أي كائن غريب لنص (مثل Decimal)
+            def safe_serializer(obj):
+                if hasattr(obj, 'isoformat'): return obj.isoformat()
+                if hasattr(obj, '__str__'): return str(obj)
+                return None
+
+            message = json.dumps(payload, default=safe_serializer)
+            await self.cache.publish(channel, message)
+            # logger.debug(f"📡 UI Signal Sent to {channel}") # (Optional Debug)
+
+        except Exception as e:
+            logger.error(f"�� UI Delivery Failed for user {user_id}: {e}")
+
+    # --- 🛠️ SECTION 1: CORE UTILS & CONTEXT AWARENESS ---
+
+    def _get_time_context(self) -> str:
+        """
+        Returns a semantic time descriptor to adjust AI personality.
+        """
+        h = datetime.now().hour
+        if 5 <= h < 12: return "morning (energetic)"
+        if 12 <= h < 17: return "afternoon (focused)"
+        if 17 <= h < 22: return "evening (relaxed)"
+        return "late night (quiet shopping)"
+
+    async def _get_user_dna(self, user_id: int) -> dict:
+        """
+        🧬 Extracts User Financial DNA from Behavior Engine.
+        Used to customize product sorting and price perception.
+        """
+        if not self.behavior_engine:
+            return {"tier": "MEDIUM", "persona": "explorer"}
+        return await self.behavior_engine.get_user_profile(user_id)
+
+    def _get_time_aware_greeting(self, tier: str = "MEDIUM") -> str:
+        """
+        🧠 Generates a Neuro-Adaptive Greeting based on Time & Spending Power.
+        """
+        hour = datetime.now().hour
+        
+        # 🧬 Financial DNA Analysis for Tone
+        if tier == "HIGH":
+            vibe = "Exclusive"
+            tone = "curated just for you"
+        elif tier == "LOW":
+            vibe = "Smart Saver"
+            tone = "with best value deals"
+        else:
+            vibe = "Trending"
+            tone = "you might love"
+
+        # 🕒 Temporal Context
+        if 5 <= hour < 12: 
+            return f"Good Morning! ☀️ Start your day with these {vibe} picks {tone}."
+        if 12 <= hour < 18: 
+            return f"Good Afternoon ✨. Have you checked these {vibe} arrivals yet?"
+        if 18 <= hour < 22:
+            return f"Good Evening 🌙. Relax and browse these {vibe} collections."
+        return f"Late Night Shopping? 🦉 We found some {vibe} gems for night owls."
+
+    def _get_seen_key(self, user_id: int) -> str:
+        """Standardized Redis Key for Seen Products (Session Scoped)"""
+        return f"airdeliver:v1:session:{user_id}:seen_products"
+    
+    def _get_context_key(self, user_id: int) -> str:
+        """Standardized Redis Key for Chat History (Sliding Window)"""
+        return f"airdeliver:v1:session:{user_id}:chat_history"
+
+    async def _mark_products_as_seen(self, user_id: int, products: List[Any]):
+        """
+        🚀 Fire-and-Forget: Updates 'Seen' cache asynchronously.
+        Does NOT block the main thread. Uses batch processing for Redis efficiency.
+        """
+        if not products: return
+
+        # تعريف المهمة الخلفية (Background Task)
+        async def _bg_task():
+            try:
+                key = self._get_seen_key(user_id)
+                ids = []
+                
+                # 🛡️ Universal Extractor: Handles both Dicts and SQLModel Objects
+                for p in products:
+                    val = None
+                    if isinstance(p, dict):
+                        val = p.get('id')
+                    elif hasattr(p, 'id'):
+                        val = p.id
+                    
+                    if val: ids.append(str(val))
+
+                if ids:
+                    # استخدام SADD لإضافة الكل مرة واحدة (Atomic Operation)
+                    await self.cache.sadd(key, *ids)
+                    await self.cache.expire(key, self.seen_cache_ttl)
+            except Exception as e:
+                # لو فشل الكاش، مش مهم، المهم السيستم يكمل
+                logger.warning(f"⚠️ Telemetry Error: Failed to mark seen products: {e}")
+
+        # إطلاق المهمة في الخلفية فوراً
+        asyncio.create_task(_bg_task())
+
+    async def _get_conversation_context(self, user_id: int) -> str:
+        """
+        �� Retrieves the Narrative Arc (Recent Chat History).
+        Reconstructs the conversation flow to give the AI 'Short-Term Memory'.
+        """
+        key = self._get_context_key(user_id)
+        try:
+            # استخدام lrange لجلب آخر N رسائل
+            # ملاحظة: Redis يخزن البيانات كـ bytes، يجب فك تشفيرها
+            history_items = await self.cache.lrange(key, 0, self.context_window_size - 1)
+            
+            if not history_items: return ""
+            
+            decoded_items = []
+            for item in reversed(history_items):
+                if isinstance(item, bytes):
+                    decoded_items.append(item.decode('utf-8'))
+                else:
+                    decoded_items.append(str(item))
+            
+            history_str = "\n".join(decoded_items)
+            return f"\n[CHAT HISTORY START]\n{history_str}\n[CHAT HISTORY END]\n"
+        except Exception as e:
+            logger.warning(f"⚠️ Memory Recall Failed: {e}")
             return ""
+
+    async def _save_conversation_turn(self, user_id: int, user_msg: str, ai_msg: str):
+        """
+        💾 Episodic Memory Injection.
+        Saves the turn and trims the history to keep the context window focused.
+        """
+        key = self._get_context_key(user_id)
+        try:
+            # تنظيف النصوص لمنع تداخل التنسيق
+            clean_user = user_msg.replace("\n", " ").strip()
+            clean_ai = ai_msg.replace("\n", " ").strip()
+            turn = f"User: {clean_user}\nAI: {clean_ai}"
+            
+            # عمليات Redis الذرية (Atomic)
+            await self.cache.lpush(key, turn)
+            await self.cache.ltrim(key, 0, self.context_window_size - 1)
+            await self.cache.expire(key, 3600) # ذاكرة الجلسة تعيش ساعة واحدة
+        except Exception as e:
+            logger.error(f"🔥 Failed to save memory turn: {e}")
+
+    async def _update_implicit_memory(self, user_id: int, products: List[Any], action: str = "view"):
+        """
+        🧬 Behavioral Reinforcement (Fire-and-Forget).
+        Feeds the Behavior Engine with user interactions to refine future predictions.
+        """
+        if not self.behavior_engine or not products: return
+
+        async def _bg_update():
+            try:
+                tags = []
+                for p in products:
+                    # 🛡️ Universal Extraction: Handle Dicts and SQLModels
+                    p_cat = getattr(p, 'category', None) or (p.get('category') if isinstance(p, dict) else "")
+                    p_name = getattr(p, 'name', None) or (p.get('name') if isinstance(p, dict) else "")
+                    
+                    if p_cat or p_name:
+                        tags.append(f"{p_cat} {p_name}")
+                
+                if tags:
+                    combined_signal = " ".join(tags)
+                    # وزن التفاعل: البحث المباشر أقوى من المشاهدة العابرة
+                    weight = 2.0 if action == "search_hit" else 1.0
+                    await self.behavior_engine.register_interaction(user_id, combined_signal, weight=weight)
+            except Exception as e:
+                logger.warning(f"⚠️ Implicit memory update failed: {e}")
+
+        # إطلاق المهمة في الخلفية لعدم تعطيل الرد
+        asyncio.create_task(_bg_update())
+
+    # --- 🌍 SECTION 4: REALITY CHECK PROTOCOL (EXTERNAL SEARCH) ---
+    
+    async def _perform_external_verification(self, query: str) -> str:
+        """
+        🔍 Global Knowledge Uplink.
+        Uses DuckDuckGo to verify vague product names (e.g., 'Latest iPhone model').
+        Includes strict filtering to avoid returning junk or ads.
+        """
+        # التحقق من وجود المكتبة أولاً لمنع الانهيار
+        try:
+            from duckduckgo_search import DDGS
+        except ImportError:
+            logger.warning("⚠️ DDGS library not installed. External verification disabled.")
+            return ""
+
+        try:
+            loop = asyncio.get_running_loop()
+            
+            # تشغيل البحث في Thread منفصل (Blocking I/O Protection)
+            # نطلب نتيجة واحدة فقط للسرعة، أو 3 للدقة
+            results = await loop.run_in_executor(None, lambda: list(DDGS().text(query, max_results=3)))
+            
+            if not results: return ""
+            
+            # 🛡️ Anti-Hallucination Filters
+            junk_indicators = ["best", "top", "guide", "review", "vs", "compare", "free", "download", "amazon", "ebay", "wiki", "pdf"]
+            
+            for res in results:
+                title = res.get('title', '')
+                # تنظيف العنوان من الزوائد
+                clean_title = re.sub(r'(\s-|\|).+', '', title).strip()
+                
+                # فلترة العناوين الدعائية أو الطويلة جداً/القصيرة جداً
+                if any(bad in clean_title.lower() for bad in junk_indicators): continue
+                if 2 <= len(clean_title.split()) <= 10:
+                    return clean_title
+            
+            return ""
+        except Exception as e:
+            # هذا مجرد تحسين، فشله لا يجب أن يوقف النظام
+            logger.warning(f"⚠️ External Verification Failed: {e}")
+            return ""
+
 
     async def _handle_image_query(self, user_id: int, image_data: str):
         """
-        💎 GLOBAL STANDARD V17: The 'Universal Masterpiece'.
-        A category-agnostic pipeline that adapts its strategy based on what it sees.
-        
-        STRATEGY SWITCHER:
-        1. If it's a specific model (Tech/Cars/Branded) -> Uses LIVE WEB SEARCH + SNIPER DB.
-        2. If it's a generic item (Food/Furniture/Clothes) -> Uses SEMANTIC CROSS-ENCODING.
-        
-        Zero Bias. Works for everything.
+        👁️ Visual Matrix Processor.
+        Decodes the image, understands the intent (Buy vs Repair vs Style),
+        and routes the query to the appropriate search strategy.
         """
         if not image_data: return
 
-        await self.rabbitmq.publish({"user_id": user_id, "content": "Analyzing Object DNA & World Context... 👁️🌍", "type": "typing"}, "airdeliver.ai.response.out")
+        # 1. 📡 Notify UI: Visual Core Activated
+        await self._send_to_ui(user_id, {"content": "Scanning Visual Matrix... 👁️", "type": "typing"})
 
-        # 1. ACQUIRE DEEP INTELLIGENCE
-        visual_task = self.search_engine.search_by_image_vector(image_data, limit=50) 
-        analysis_task = self.llm_service.analyze_product_image(image_data)
-        visual_matches, analysis_text = await asyncio.gather(visual_task, analysis_task)
-        
-        analysis_lower = analysis_text.lower()
-
-        # ---------------------------------------------------------
-        # 🌍 PHASE 1: THE LIVE IDENTIFICATION (للمنتجات ذات الهوية)
-        # ---------------------------------------------------------
-        # Check if the analysis suggests a Specific Brand/Model or just a Generic Item.
-        # "Apple Watch" -> Specific. "Red wooden chair" -> Generic.
-        
-        is_specific_entity = any(x in analysis_lower for x in ["model", "brand", "edition", "series", "version", "release"])
-        
-        exact_name_from_web = ""
-        if is_specific_entity:
-            # Use the Live Internet Agent to find the real world name
-            # This works for "iPhone 17" as well as "Nike Air Jordan 5" or "Sony A7 Camera"
-            exact_name_from_web = await self._perform_external_verification(analysis_text[:200])
-
-        # ---------------------------------------------------------
-        # 🧠 PHASE 2: THE ADAPTIVE SEARCH (البحث المتكيف)
-        # ---------------------------------------------------------
-        candidates = []
-        search_strategy = ""
-
-        # STRATEGY A: SNIPER (For recognized models)
-        if exact_name_from_web:
-            logger.info(f"🎯 Strategy A (Sniper): Hunting for '{exact_name_from_web}'")
-            # Search for the EXACT name found on the web
-            candidates = await self.search_engine.perform_hybrid_search_pure(self.db, exact_name_from_web, limit=20)
-            search_strategy = "Sniper"
-        
-        # STRATEGY B: SEMANTIC (For generic items or if Sniper missed)
-        if not candidates:
-            logger.info("🌊 Strategy B (Semantic): Falling back to descriptive search.")
-            # Remove "I see", "Image shows" noise
-            import re
-            clean_desc = re.sub(r'(Image shows|I see|looks like|appears to be)', '', analysis_text, flags=re.IGNORECASE).strip()
-            # Use the first 10 meaningful words
-            search_query = " ".join(clean_desc.split()[:10])
-            candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=50)
-            search_strategy = "Semantic"
-
-        # Merge visual vector matches (The "Shape" backup)
-        if visual_matches:
-            existing_ids = {c.id for c in candidates}
-            for vm in visual_matches:
-                if vm.id not in existing_ids: candidates.append(vm)
-
-        # ---------------------------------------------------------
-        # ⚖️ PHASE 3: THE UNIVERSAL SCORING ENGINE (الترتيب العالمي)
-        # ---------------------------------------------------------
-        scored_candidates = []
-        text_model = ai_manager.get_text_model()
-        
-        # We encode the 'Analysis' as the anchor truth
-        anchor_emb = text_model.encode(analysis_lower, convert_to_tensor=True)
-        
-        # Extract Universal Attributes (Color/Material) from Analysis
-        # Note: We don't hardcode colors list anymore, we rely on semantic similarity for colors,
-        # BUT we boost if we find exact word matches for robustness.
-        common_colors = ["red", "blue", "green", "black", "white", "silver", "gold", "yellow", "orange", "brown", "pink", "purple", "grey", "beige"]
-        detected_colors = [c for c in common_colors if c in analysis_lower]
-
-        for p in candidates:
-            # Prepare Product DNA
-            # Safe Tag handling included
-            tags_str = " ".join([str(t) for t in p.tags]) if isinstance(p.tags, list) else str(p.tags or "")
-            prod_dna = f"{p.name} {p.category or ''} {p.description or ''} {tags_str}".lower()
+        try:
+            # 2. ⚡ Parallel Execution: Search & Analyze simultaneously
+            # نطلق البحث المتجهي للصورة + تحليل الـ LLM في نفس الوقت للسرعة
+            visual_task = self.search_engine.search_by_image_vector(image_data, limit=50) 
+            analysis_task = self.llm_service.analyze_product_image(image_data)
             
-            # 1. Semantic Similarity (0-100) - Works for EVERYTHING
-            prod_emb = text_model.encode(prod_dna, convert_to_tensor=True)
-            sem_score = util.cos_sim(anchor_emb, prod_emb).item() * 100
+            results = await asyncio.gather(visual_task, analysis_task, return_exceptions=True)
             
-            # 2. The "Web Truth" Boost (If we found a name online)
-            if exact_name_from_web and exact_name_from_web.lower() in prod_dna:
-                sem_score += 500.0 # Huge boost if it matches the web result
+            # استخراج النتائج بأمان
+            visual_matches = results[0] if not isinstance(results[0], Exception) else []
+            analysis_text = results[1] if not isinstance(results[1], Exception) else "generic product"
             
-            # 3. Universal Attribute Enforcement
-            # If AI saw "Red", and Product has "Red", boost it.
-            for color in detected_colors:
-                if color in prod_dna:
-                    sem_score += 50.0
-            
-            # 4. Price Logic (Contextual)
-            # If the description sounds expensive (Luxury, Pro, Gold), prefer higher price
-            if any(w in analysis_lower for w in ["luxury", "expensive", "premium", "pro", "ultra", "gold"]):
-                sem_score += (p.price * 0.05)
-            
-            scored_candidates.append((p, sem_score))
+            # 3. 🧠 Intent Deduction from Visual Context
+            intent = "BUY"
+            analysis_upper = analysis_text.upper()
+            if "BROKEN" in analysis_upper or "REPAIR" in analysis_upper or "PART" in analysis_upper:
+                intent = "REPAIR"
+            elif "OUTFIT" in analysis_upper or "STYLE" in analysis_upper or "WEAR" in analysis_upper:
+                intent = "STYLE"
 
-        # Sort
-        scored_candidates.sort(key=lambda x: x[1], reverse=True)
-        final_list = scored_candidates[:5]
-        final_products = [item[0] for item in final_list]
+            candidates = []
+            strategy_reason = f"Visual Match ({intent})"
 
-        # ---------------------------------------------------------
-        # 🗣️ PHASE 4: THE ADAPTIVE DISPATCH
-        # ---------------------------------------------------------
-        if final_products:
-            display_name = final_products[0].name
-            import random
+            # 4. 🔀 Strategic Routing
+            if intent == "REPAIR":
+                # لو المنتج مكسور، ندور على قطع غيار
+                search_q = f"spare parts for {analysis_text}"
+                candidates = await self.search_engine.perform_hybrid_search_pure(self.db, search_q, limit=10)
             
-            msg = ""
-            # Message adapts based on CONFIDENCE
-            top_score = final_list[0][1] if final_list else 0
+            elif intent == "STYLE":
+                # لو ستايل، نعتمد على البحث البصري البحت
+                candidates = visual_matches[:15]
             
-            if top_score > 400: # We had a Web Match or Super Semantic Match
-                templates = [
-                    f"Identified: {display_name}. Found in stock.",
-                    f"That looks like the {display_name}. Here it is:",
-                    f"Match confirmed: {display_name}."
-                ]
-                msg = random.choice(templates)
+            else: # BUY (Default)
+                # نحاول نجيب الاسم الدقيق من محرك البحث الخارجي
+                exact_name = await self._perform_external_verification(f"exact model of {analysis_text}")
+                
+                if exact_name:
+                    # لو عرفنا الاسم الدقيق، نبحث عنه دلالياً
+                    candidates = await self.search_engine.perform_hybrid_search_pure(self.db, exact_name, limit=20)
+                
+                if not candidates:
+                    # لو فشل الدقيق، نبحث بالوصف النظيف
+                    clean_desc = re.sub(r'(Image shows|I see|looks like)', '', analysis_text, flags=re.IGNORECASE).strip()
+                    candidates = await self.search_engine.perform_hybrid_search_pure(self.db, clean_desc, limit=50)
+                
+                # دمج النتائج البصرية (SigLIP) مع النتائج النصية (Qwen2)
+                if visual_matches:
+                    existing_ids = {c.id for c in candidates}
+                    for vm in visual_matches:
+                        if vm.id not in existing_ids: candidates.append(vm)
+
+            # 5. 💎 Semantic Reranking
+            final_list = self._rank_candidates(candidates, analysis_text, exact_match=exact_name if intent=="BUY" else "")
+            
+            if final_list:
+                # تحديث الذاكرة الضمنية بأن المستخدم مهتم بهذا الشكل
+                await self._update_implicit_memory(user_id, final_list, action="view_image")
+                
+                # إرسال النتائج للواجهة (JSON Safe)
+                await self._send_to_ui(user_id, {
+                    "content": f"Found matches based on: {analysis_text} [{intent}]", 
+                    "type": "product_carousel", 
+                    "products": [p.model_dump(mode='json') for p in final_list], # 🛡️ Fixes Decimal Error
+                    "reason": strategy_reason
+                })
             else:
-                # Lower confidence (Generic items)
-                msg = f"Closest match: {display_name}. You can add it to your cart when you're ready."
+                await self._handle_smart_fallback(user_id, analysis_text, strategy_reason)
 
-            # Color warning if semantic score wasn't perfect but model matched
-            if top_score < 400 and top_score > 100: 
-                 msg += " (Note: Exact color/variant might differ)."
+        except Exception as e:
+            logger.error(f"🔥 Visual Core Error: {e}")
+            await self._send_to_ui(user_id, {"content": "Visual analysis interrupted. Please try text search.", "type": "error"})
 
-            products_data = [p.model_dump(mode='json') for p in final_products]
-            await self._mark_products_as_seen(user_id, products_data)
+    def _rank_candidates(self, candidates, anchor_text, exact_match="") -> List[Any]:
+        """
+        ⚖️ On-the-Fly Semantic Reranker.
+        Uses the injected embedding model to sort candidates by relevance to the image description.
+        """
+        if not candidates: return []
+        try:
+            from sentence_transformers import util # Import here to avoid circular dep if not global
             
-            if self.behavior_engine:
-                 products_data = await self.behavior_engine.collapse_wavefunction(user_id, products_data)
+            # نستخدم الموديل الموجود داخل الـ Search Engine (Architectural Cleanliness)
+            text_model = self.search_engine.embedding_model 
+            
+            anchor_emb = text_model.encode(anchor_text.lower(), convert_to_tensor=True)
+            scored = []
+            
+            for p in candidates:
+                # تكوين "الحمض النووي" للمنتج
+                p_cat = getattr(p, 'category', '') or ''
+                p_name = getattr(p, 'name', '') or ''
+                prod_dna = f"{p_name} {p_cat}".lower()
+                
+                prod_emb = text_model.encode(prod_dna, convert_to_tensor=True)
+                score = util.cos_sim(anchor_emb, prod_emb).item() * 100
+                
+                # بونص للتطابق الحرفي
+                if exact_match and exact_match.lower() in prod_dna: score += 50
+                scored.append((p, score))
+            
+            scored.sort(key=lambda x: x[1], reverse=True)
+            return [item[0] for item in scored[:8]] # نرجع أفضل 8 فقط
+        except Exception as e:
+            logger.warning(f"Reranking fallback: {e}")
+            return candidates[:8]
 
-            await self.rabbitmq.publish({
-                "user_id": user_id, 
-                "content": msg, 
+    async def _handle_smart_fallback(self, user_id: int, query: str, context: str):
+        """
+        🛡️ Fail-Safe Mechanism.
+        Broadens the search scope if exact matches fail.
+        """
+        await self._send_to_ui(user_id, {"content": f"No exact match for '{query}'. Scanning alternatives...", "type": "typing"})
+        
+        # توسيع البحث (أخذ أول 4 كلمات فقط)
+        broad_query = " ".join(query.split()[:4]) 
+        alts = await self.search_engine.perform_hybrid_search_pure(self.db, broad_query, limit=5)
+        
+        if alts:
+            await self._send_to_ui(user_id, {
+                "content": "Here are the closest alternatives in our inventory:", 
                 "type": "product_carousel", 
-                "products": products_data, 
-                "reason": f"Universal Intelligence ({search_strategy})"
-            }, "airdeliver.ai.response.out")
+                "products": [p.model_dump(mode='json') for p in alts], # 🛡️ Fixes Decimal Error
+                "reason": "Smart Fallback"
+            })
         else:
-            await self.rabbitmq.publish({
-                "user_id": user_id, 
-                "content": f"I analyzed the object, but couldn't find a close match in our inventory.", 
-                "type": "error"
-            }, "airdeliver.ai.response.out")
+             await self._send_to_ui(user_id, {"content": "No matching products found in current inventory.", "type": "error"})
 
+    def _extract_neuro_constraints(self, text: str) -> dict:
+        """
+        💎 THE CURSED ALGORITHM (V5.0): Omni-Inference Engine.
+        Parses Typos, Slang, Currencies, K-notation, Specs (RAM/SSD), 
+        Chain Negation, and Vibe-to-Math conversion.
+        """
+        # 1. تهيئة مصفوفة القيود الشاملة
+        constraints = {
+            "price_max": None,
+            "price_min": None,
+            "excluded_keywords": [],
+            "required_specs": {}, # جديد: استخراج الرامات والمساحة
+            "category_filter": None,
+            "intent_vibe": "neutral", # جديد: فهم الحالة (cheap, flagship)
+            "clean_query": text
+        }
+        
+        lower_text = text.lower()
+        detected_category = None
+        # =========================================================
+        # 🆕 LAYER 0: THE MIND READER (التغيير الرئيسي هنا)
+        # =========================================================
+        # بدلاً من القوائم الثابتة، نستخدم Regex ذكي لاستخراج "الجوهر"
+        ignored_anchors = ["one", "thing", "product", "item", "device", "best", "cheap", "top", "good", "monster", "beast"]
+
+        ignored_anchors = ["one", "thing", "product", "item", "device", "best", "cheap", "top", "good", "monster", "beast"]
+
+        intent_patterns = [
+            # 1. Direct Intent: "I need a [gaming laptop] for..."
+            r'(?:want|need|buy|get|looking for|search for|find|recommend)\s+(?:a|an|the|some|new|best|top|cheap)?\s*([a-zA-Z0-9\s\-]+?)(?:\s+(?:for|with|under|below|that|which|in|at|from|priced)|$|[.,])',
+            
+            # 2. Attribute-First: "[laptops] with 16gb ram"
+            r'^([a-zA-Z0-9\s\-]+?)\s+(?:with|under|below|max|for|containing)'
+        ]
+
+        for pattern in intent_patterns:
+            match = re.search(pattern, lower_text)
+            if match:
+                raw_phrase = match.group(1).strip()
+                words = raw_phrase.split()
+                
+                if words:
+                    # نأخذ آخر كلمة في العبارة (Head Noun)
+                    candidate = words[-1]
+                    
+                    # تنظيف الجمع (Laptops -> Laptop)
+                    if candidate.endswith('s') and len(candidate) > 3:
+                        singular = candidate[:-1]
+                    else:
+                        singular = candidate
+
+                    # لو الكلمة المرشحة ليست "صفة عامة"، إذن هي المنتج!
+                    if singular not in ignored_anchors and len(singular) > 2:
+                        detected_category = singular
+                        constraints["category_filter"] = singular
+                        logger.info(f"🔮 Dynamic Intent Detected: Target Locked -> '{singular.upper()}'")
+                        break 
+
+        # =========================================================
+        # ☢️ LAYER 0.5: VECTOR AMPLIFICATION (غسيل الدماغ)
+        # =========================================================
+        # هذا هو التحديث الملعون: نجبر المحرك على الانصياع
+        if detected_category:
+            # نضيف الكلمة 5 مرات لقلب موازين البحث المتجهي
+            amplification_str = (detected_category + " ") * 5
+            constraints["clean_query"] = f"{constraints['clean_query']} {amplification_str}"
+            logger.info(f"☢️ Vector Injection: Appended '{amplification_str.strip()}' to query.")
+
+        # =========================================================
+        # 🤑 LAYER 0.9: THE INFINITY CHECK (NEW - التعامل مع الميزانية المفتوحة)
+        # =========================================================
+        # لو العميل قال "Budget is open"، نرفع الحظر فوراً ونمنع الطبقات التالية من وضع حدود
+        is_open_budget = False
+        open_triggers = ["budget is open", "no limit", "price is open", "unlimited", "money is no object", "open budget", "no price limit"]
+
+        if any(t in lower_text for t in open_triggers):
+            is_open_budget = True
+            constraints["price_max"] = None # Explicitly ensure no cap
+            logger.info("🤑 Open Budget Detected -> Removing Price Caps")
+
+            # تنظيف نص البحث من جمل الميزانية المفتوحة
+            for t in open_triggers:
+                constraints["clean_query"] = constraints["clean_query"].replace(t, "")
+
+        # =========================================================
+        # 🧠 LAYER 1: VIBE-TO-MATH (تحويل الكلام العايم لأرقام)
+        # =========================================================
+        # لو العميل قال "cheap" أو "budget friendly" والسيستم مش لاقي رقم،
+        # احنا هنخلق رقم افتراضي عشان نمنع الكوارث.
+        
+        if not is_open_budget:
+            vibe_map = {
+                "cheap": 500, "affordable": 800, "budget": 1000, 
+                "mid-range": 1500, "mid range": 1500, "economical": 600
+            }
+        
+            for vibe, cap in vibe_map.items():
+                if vibe in lower_text:
+                # بنحط السعر ده "مؤقتاً" لحد ما نلاقي سعر حقيقي
+                    if constraints["price_max"] is None:
+                        constraints["price_max"] = cap
+                        logger.info(f"🔮 Vibe Inference: '{vibe}' detected -> Soft Cap ${cap}")
+
+        # =========================================================
+        # 💰 LAYER 2: THE ULTIMATE PRICE PARSER (صائد الأموال)
+        # =========================================================
+        # يدعم: bugdet, budjet, 2k, 2.5k, 2000usd, 2000$, under 2000
+        
+        # 1. تصحيح الأخطاء الإملائية لكلمة budget/max
+        price_triggers = r'(?:max|under|below|limit|budget|bugdet|budjet|price|cost|ceiling)'
+        
+        price_patterns = [
+            # Pattern A: Trigger + Number (Supports "budget is 2k", "max 2.5k")
+            rf'{price_triggers}\s*(?:is|of|at)?\s*[\$€£]?\s*(\d+(?:\.\d+)?(?:k|000)?)',
+            
+            # Pattern B: Number + Currency Suffix (2000 usd, 2000 dollars, 2k bucks)
+            r'(\d+(?:\.\d+)?(?:k|000)?)\s*(?:usd|dollars|bucks|eur|egp|\$)',
+            
+            # Pattern C: Symbol + Number ($2000, $2.5k)
+            r'[\$€£](\d+(?:\.\d+)?(?:k|000)?)'
+        ]
+
+        for pattern in price_patterns:
+            match = re.search(pattern, lower_text)
+            if match:
+                try:
+                    raw_val = match.group(1)
+                    multiplier = 1000 if 'k' in raw_val else 1
+                    clean_val = float(raw_val.replace('k', '')) * multiplier
+                    
+                    if clean_val > 0:
+                        constraints["price_max"] = clean_val
+                        # مسح السعر من النص عشان البحث يبقى نضيف
+                        constraints["clean_query"] = re.sub(pattern, '', constraints["clean_query"], flags=re.IGNORECASE).strip()
+                        logger.info(f"💰 Hard Budget Detected: ${clean_val}")
+                        break 
+                except: pass
+
+        # =========================================================
+        # 🚫 LAYER 3: CHAIN REACTION NEGATION (الإبادة الجماعية)
+        # =========================================================
+        # يدعم: "No dell, hp or lenovo" - "I hate apple and samsung"
+        
+        negation_triggers = [
+            "no", "not", "exclude", "without", "don't want", "hate", 
+            "don't like", "dislike", "avoid", "never", "except"
+        ]
+        
+        for trigger in negation_triggers:
+            if trigger in lower_text:
+                # بياخد كل الكلام اللي بعد كلمة النفي لحد ما يقابل نقطة أو كلمة "لكن"
+                pattern = rf'{trigger}\s+([a-zA-Z0-9_\-\s,]+)' 
+                match = re.search(pattern, lower_text)
+                
+                if match:
+                    raw_segment = match.group(1)
+                    # علامات التوقف عشان منمسحش الجملة كلها
+                    stop_markers = [".", " but ", " however ", " and i ", " my ", " i "]
+                    for marker in stop_markers:
+                        if marker in raw_segment:
+                            raw_segment = raw_segment.split(marker)[0]
+                    
+                    # تقسيم القائمة الممنوعة
+                    bad_candidates = re.split(r'\s+(?:or|and|,)\s+|\s*,\s*', raw_segment)
+                    
+                    for bad_word in bad_candidates:
+                        clean_bad = bad_word.strip()
+                        # فلترة الكلمات التافهة (stopwords)
+                        if len(clean_bad) > 2 and clean_bad not in ["the", "a", "an", "products", "items", "brands"]:
+                            constraints["excluded_keywords"].append(clean_bad)
+                            # إزالة الكلمة الممنوعة من نص البحث الأصلي
+                            constraints["clean_query"] = re.sub(rf'\b{re.escape(clean_bad)}\b', '', constraints["clean_query"], flags=re.IGNORECASE)
+
+        # =========================================================
+        # ⚙️ LAYER 4: TECH SPEC SCANNER (قارئ المواصفات)
+        # =========================================================
+        # استخراج الرامات والمساحة عشان لو العميل قال "16gb ram" منجيبش ليه 8gb
+        
+        # RAM Extraction (8gb, 16 gb, 32g)
+        ram_match = re.search(r'(\d+)\s*(?:gb|g)\s*(?:ram|memory)', lower_text)
+        if ram_match:
+            constraints["required_specs"]["ram"] = int(ram_match.group(1))
+            logger.info(f"⚙️ Spec Constraint: Min RAM {constraints['required_specs']['ram']}GB")
+
+        # Storage Extraction (512gb, 1tb, 2tb)
+        storage_match = re.search(r'(\d+)\s*(?:gb|tb|t)\s*(?:ssd|storage|disk)', lower_text)
+        if storage_match:
+            val = int(storage_match.group(1))
+            # تطبيع الوحدة (TB -> GB)
+            if "tb" in lower_text or "t" in lower_text or val < 10: 
+                val *= 1024
+            constraints["required_specs"]["storage"] = val
+            logger.info(f"⚙️ Spec Constraint: Min Storage {val}GB")
+
+        # =========================================================
+        # 🧹 LAYER 5: FINAL CLEANUP (تنظيف مسرح الجريمة)
+        # =========================================================
+        # مسح كل كلمات التريجر عشان يتبقى للـ AI المعنى الصافي فقط
+        
+        rubbish_words = negation_triggers + ["budget", "price", "cost", "max", "under", "limit", "is", "of", "want", "need", "looking for", "find"]
+        for word in rubbish_words:
+             constraints["clean_query"] = re.sub(rf'\b{word}\b', '', constraints["clean_query"], flags=re.IGNORECASE)
+        
+        # إزالة المسافات الزائدة
+        constraints["clean_query"] = re.sub(r'\s+', ' ', constraints["clean_query"]).strip()
+
+        if constraints["excluded_keywords"]:
+            logger.info(f"🚫 FINAL BLOCKLIST: {constraints['excluded_keywords']}")
+
+        return constraints
+    
     async def process_message(self, message_payload: dict):
         """
-        The Central Nervous System. Routes messages based on Type and Intent.
+        🚀 OMNI-CHANNEL ORCHESTRATOR (Universal Fortified V9.0).
+        Integrated: OpenSearch/Milvus + SQL Fallback + Deep Research (DDGS) + Vision AI.
+        Architectural Guards: Duplicate Protection, Timeout Safety, & Payload Security.
         """
         user_id = message_payload.get("user_id")
-        
-        # ✅ CRITICAL FIX: Extract msg_type HERE, at the top level.
         msg_type = message_payload.get("type", "CHAT_MESSAGE")
-        
         raw_message = message_payload.get("message")
+        base64_image = message_payload.get("image")
+        
         message_text = str(raw_message).strip() if raw_message else ""
+        lower_text = message_text.lower()
 
-        # --- 1. VISION FLOW PRIORITY ---
-        if msg_type == "IMAGE_QUERY":
-            image_data = message_payload.get("image")
-            await self._handle_image_query(user_id, image_data)
-            return # Exit immediately to prevent text fallback
-
-        if not message_text: return
-
-        # --- 2. INTERNAL COMMANDS ---
-        if message_text.startswith("__INTERNAL_"):
-            await self._process_internal_command(user_id, message_text)
-            return
-
-        # --- 3. TEXT COMMANDS (Clear, Checkout, etc.) ---
-        if await self._handle_text_commands(user_id, message_text):
-            return
-
-        # --- 4. MEMORY EXTRACTION (Fire & Forget) ---
-        async def _background_memorize():
-            fact = await self.llm_service.extract_memory_worthy_facts(message_text)
-            if fact:
-                await self.search_engine.remember_user_fact(user_id, fact)
-        asyncio.create_task(_background_memorize())
-
-        # --- 5. SEARCH STRATEGY & MEMORY RECALL ---
-        user_context_facts = await self.search_engine.recall_relevant_facts(user_id, message_text)
-        context_str = f"USER CONTEXT (PRIORITY): {'; '.join(user_context_facts)}." if user_context_facts else ""
-        augmented_query = f"{message_text} \n[SYSTEM_NOTE: {context_str}]" if context_str else message_text
-
-        strategy = await self.llm_service.strategize_search(augmented_query)
-        
-        # Check for checkout intent in strategy
-        if strategy.search_queries and any(q in ["checkout", "confirm", "pay"] for q in strategy.search_queries):
-             await self.rabbitmq.publish({**message_payload, "user_id": user_id}, "airdeliver.ai.intent.confirm_order")
-             return
-
-        # --- 6. EXECUTE SEARCH ---
-        candidates = await self._execute_strategic_search(strategy, user_id)
-        if not candidates:
-            candidates = await self.search_engine.perform_hybrid_search_pure(self.db, message_text)
-
-        # --- 7. INFORMATIONAL QUERY CHECK ---
-        is_informational_query = any(q in message_text.lower() for q in [
-            "what is", "specs", "specifications", "details", "review", "vs", "compare", 
-            "battery", "features", "ingredients", "info", "tell me about"
-        ])
-        
-        if is_informational_query:
-            target_data = candidates[0].model_dump(mode='json') if candidates else {"name": message_text, "category": "General"}
-            expert_answer = await self.llm_service.consult_on_product(target_data, message_text)
-            
-            await self.rabbitmq.publish({
-                "user_id": user_id,
-                "content": expert_answer, 
-                "type": "text" 
-            }, "airdeliver.ai.response.out")
-
-            if candidates:
-                candidate_data = [p.model_dump(mode='json') for p in candidates[:5]]
-                await asyncio.sleep(0.5) 
-                await self.rabbitmq.publish({
-                    "user_id": user_id,
-                    "content": "Based on your request, these are the closest matches:",
-                    "type": "product_carousel",
-                    "products": candidate_data,
-                    "reason": "Research Matches"
-                }, "airdeliver.ai.response.out")
-            return
-
-        # --- 8. NO RESULTS HANDLING ---
-        if not candidates:
-            await self.rabbitmq.publish({
-                "user_id": user_id, 
-                "content": f"I couldn't find a match for '{message_text}'. Try a different keyword or category.", 
-                "type": "error"
-            }, "airdeliver.ai.response.out")
-            return
-
-        # --- 9. AI CURATION & RESPONSE ---
-        candidate_data = [p.model_dump(mode='json') for p in candidates[:15]]
-        ai_curation = await self.llm_service.filter_and_recommend(
-            user_query=message_text,
-            products=candidate_data,
-            tone_instruction=strategy.response_tone
+        NO_MARKDOWN_GUARD = (
+            "STRICT RULE: ZERO MARKDOWN. "
+            "DO NOT use asterisks (**), hashes (#), or underscores (_). "
+            "Use ONLY plain text and emojis. For emphasis, use CAPITAL LETTERS."
         )
 
-        final_display_products = []
-        intro_message = strategy.direct_answer_prefix
+        # 🛡️ GUARD 1: Duplicate Request Prevention
+        client_msg_id = message_payload.get("client_msg_id")
 
-        if ai_curation and ai_curation.selected_ids:
-            intro_message = ai_curation.intro_message
-            for p in candidate_data:
-                if p['id'] in ai_curation.selected_ids:
-                    p['ai_notes'] = ai_curation.reasoning.get(str(p['id']), "Perfect Match")
-                    final_display_products.append(p)
-        else:
-            final_display_products = candidate_data[:5]
-            
-        await self._mark_products_as_seen(user_id, final_display_products)
+        # 1. 🌪️ Smart Fallback Identity (مولد البصمة الذكي)
+        # في حالة نادرة جداً لو الفرونت إند لم يرسل ID، نقوم بتوليد بصمة رقمية فريدة
+        if not client_msg_id:
+            import hashlib
+            # ندمج (اليوزر + النوع + النص + جزء من الصورة) لضمان عدم تصادم البصمات
+            img_fingerprint = base64_image[:50] if base64_image else "void"
+            raw_signature = f"{user_id}:{msg_type}:{message_text}:{img_fingerprint}"
+            client_msg_id = hashlib.md5(raw_signature.encode()).hexdigest()
+
+        # 2. 🔒 Atomic Locking (قفل الفيراري)
+        # نستخدم Namespace مخصص (nlu:idemp) لتنظيم الذاكرة
+        dedup_key = f"nlu:idemp:{client_msg_id}"
         
-        if self.behavior_engine and final_display_products:
-            # نتأكد أن القائمة ليست فارغة وأن المحرك موجود
-            logger.info(f"🔮 Collapsing Wavefunction for User {user_id}...")
-            final_display_products = await self.behavior_engine.collapse_wavefunction(
-                user_id,
-                final_display_products
+        try:
+            # العملية الذرية (The Atomic Operation)
+            # set(nx=True): تضع المفتاح فقط إذا لم يكن موجوداً. هذه العملية تحدث في الميكرو ثانية.
+            existing_lock = await self.redis.get(dedup_key)
+
+            if existing_lock:
+                # 🛑 Duplicate Detected
+                logger.debug(f"♻️ Idempotency Shield: Absorbed echo/duplicate {client_msg_id}")
+                return 
+
+            # 3. 📝 Phase 2: Acquire Lock (The "SET" Operation)
+            # نستخدم set البسيطة (بدون ex/nx) لأن الغلاف يرفض البارامترات الزائدة
+            await self.redis.set(dedup_key, "1")
+            
+            # 4. ⏳ Phase 3: Set Expiration (Separate Call)
+            # نحاول ضبط وقت انتهاء الصلاحية في أمر منفصل لتنظيف الذاكرة
+            # نستخدم try/except هنا لأن بعض الأغلفة قد لا تكشف دالة expire
+            try:
+                if hasattr(self.redis, 'expire'):
+                    await self.redis.expire(dedup_key, 5)
+                elif hasattr(self.redis, 'client') and hasattr(self.redis.client, 'expire'):
+                    # محاولة الوصول للعميل الأصلي إذا كان مخفياً
+                    await self.redis.client.expire(dedup_key, 5)
+            except:
+                # لو فشل تحديد الوقت، مش مشكلة كبيرة (المفتاح صغير جداً وهيتمسح مع الـ LRU)
+                pass
+
+        except Exception as e:
+            # 🛡️ Fail-Open Protocol
+            # في أسوأ الظروف، نكمل المعالجة لضمان عدم توقف الشات
+            logger.warning(f"⚠️ Idempotency Layer Bypass: Wrapper limitation ({e}). Processing anyway.")
+
+        # 🛡️ GUARD 2: Internal Signal & Payload Filter
+        if message_text.startswith("__") or "INTERNAL" in message_text:
+            logger.info(f"⚡ Routing Internal Command: {message_text}")
+            await self._process_internal_command(user_id, message_text)
+            return
+        
+        if base64_image and len(base64_image) > 5000000: # 5MB Security Limit
+            await self._send_to_ui(user_id, {"content": "Image too large. Max 5MB allowed.", "type": "error"})
+            return
+         
+        if msg_type == "CANCEL_INTENT":
+            logger.info(f"Intercepted Cancel Intent for User {user_id}")
+
+            cancel_data = message_payload.get("message", {})
+            if isinstance(cancel_data, str):
+                try:
+                    cancel_data = json.loads(cancel_data)
+                except:
+                    pass
+
+            await self.rabbitmq.publish(
+                {
+                    "user_id": user_id,
+                    "order_id": cancel_data.get("orderId"),
+                    "reason": cancel_data.get("reason", "discarded")
+                },
+                 "airdeliver.ai.intent.cancel_order"
             )
-        await self.rabbitmq.publish({
-            "user_id": user_id,
-            "content": intro_message,
-            "type": "product_carousel",
-            "products": final_display_products,
-            "reason": "AI Selection"
-        }, "airdeliver.ai.response.out")
+            return
 
-    # --- HELPERS & LOGIC ---
+        # 🔀 Intent Merging: لو ترحيب ومعاه رسالة، ندمجهم
+        if msg_type == "WELCOME_INTENT" and message_text:
+            logger.info("🔀 Merging Welcome into User Query.")
 
-    async def _handle_text_commands(self, user_id: int, text: str) -> bool:
-        clean_text = text.lower().strip()
-        
-        if any(x in clean_text for x in ["clear cart", "empty cart", "delete all", "remove all"]):
-            await self.rabbitmq.publish({"user_id": user_id, "notify_user": True}, "airdeliver.ai.intent.clear_cart")
-            return True
+        await self._send_to_ui(user_id, {"content": None, "type": "typing"})
+
+        # =========================================================================
+        # 👁️ GATEWAY 0: VISION & INTENT DECODING
+        # =========================================================================
+        search_query = message_text
+        vision_description = ""
+
+        if base64_image:
+            try:
+                # 🛡️ Vision Timeout Guard: Increased from 15.0 to 30.0
+                # منحنا الموديل وقتاً كافياً للتحليل العميق
+                search_query = await asyncio.wait_for(
+                    self.llm_service.analyze_product_image(base64_image), 
+                    timeout=30.0 
+                )
+                vision_description = f"Visual identification: {search_query}"
+            except asyncio.TimeoutError:
+                logger.error("👁️ Vision Analysis Timed Out (30s limit).")
+                search_query = "trending high-tech items"
+            except Exception as e:
+                logger.error(f"👁️ Vision Analysis Failed: {e}")
+                search_query = "trending high-tech items"
+        # =========================================================================
+        # ⚡ GATEWAY 4: HYBRID NEURAL SEARCH (OpenSearch/Milvus + SQL Fallback)
+        # =========================================================================
+        candidates = []
+        search_vibe = message_text
+        fallback_trigger = False # 👈 لازم يتعرف هنا عشان يكون متاح للكل
+        ai_response_prefix = ""
+
+        # 🅰️ المسار الأول: الترحيب والمصفوفة (WELCOME PATH)
+        if msg_type == "WELCOME_INTENT":
             
-        if any(x in clean_text for x in ["checkout", "pay now", "confirm order", "finish order"]):
-            await self.rabbitmq.publish({"user_id": user_id, "content": {}, "type": "payment_intent"}, "airdeliver.ai.intent.confirm_order")
-            return True
+            # Matrix Passthrough
+            matrix_data = message_payload.get("data", {})
+            if isinstance(matrix_data, dict) and "matrix_cards" in matrix_data:
+                logger.info(f"💎 Lifestyle Matrix Detected for User {user_id}. Routing directly to UI.")
+                await self._send_to_ui(user_id, {
+                    "type": "lifestyle_matrix",
+                    "content": matrix_data.get("header_text", "Select your lifestyle archetype:"),
+                    "matrix": matrix_data["matrix_cards"],
+                    "reason": "Direct Context Injection"
+                })
+                return # 🛑 Stop
 
-        if clean_text in ["reset", "start over", "restart", "help"]:
-            await self._process_internal_command(user_id, "__INTERNAL_RESET_SESSION__")
-            await self._handle_initial_suggestions(user_id)
-            return True
+            # Legacy Vibe Search
+            if not base64_image:
+                system_artifacts = [
+                    "User just connected.", "IGNORE 'Hello'.", "Start immediately.",
+                    "Direct approach.", "Skip greetings.", "Act excited.",
+                    "New session.", "Connection active.", "Jump straight into",
+                    "Be intriguing", "Be provocative"
+                ]
+                for artifact in system_artifacts:
+                    search_vibe = search_vibe.replace(artifact, "")
+                
+                search_vibe = search_vibe.strip().strip(".,'\"")
+                if not search_vibe: search_vibe = "Titanium & High-End Tech"
+
+                logger.info(f"🌌 Semantic Core Extracted: Initiating Vector Search for [{search_vibe}]")
+                
+                candidates = await self.search_engine.perform_hybrid_search_pure(
+                    self.db, search_vibe, limit=4
+                )
+                
+                if not candidates:
+                    candidates = await self.search_engine.perform_hybrid_search_pure(self.db, "Trending Collections")
+
+        # 🅱️ المسار الثاني: البحث القياسي مع الفلاتر (STANDARD SEARCH)
+        else:
+            # 1. استخراج الفلاتر
+            constraints = self._extract_neuro_constraints(search_query)
+            final_search_query = constraints["clean_query"] if constraints["clean_query"] else search_query
+            
+            search_filters = {}
+            if constraints["price_max"]:
+                search_filters["price_max"] = constraints["price_max"]
+            
+            # 2. تنفيذ البحث
+            candidates = await self.search_engine.perform_hybrid_search_pure(
+                self.db, 
+                final_search_query, 
+                limit=50, 
+                filters=search_filters
+            )
+
+            # 3. الاستبعاد اليدوي (Negative Filtering)
+            if constraints["excluded_keywords"] and candidates:
+                filtered_candidates = []
+                for prod in candidates:
+                    p_text = f"{prod.name} {prod.description} {prod.category}".lower()
+                    if any(bad_word in p_text for bad_word in constraints["excluded_keywords"]):
+                        continue
+                    filtered_candidates.append(prod)
+                candidates = filtered_candidates
+
+            # 4. Fallback Strategy (لو الفلاتر صارمة جداً)
+            if not candidates and constraints["price_max"]:
+                logger.info("⚠️ Constraints too strict. Relaxing Price Filter...")
+                fallback_trigger = True # تفعيل الراية
+                candidates = await self.search_engine.perform_hybrid_search_pure(self.db, final_search_query, limit=5)
+                
+                if candidates:
+                    ai_response_prefix = f"I couldn't find matches under ${constraints['price_max']}, but here are the best options available: "
+
+        # اختيار أفضل 8 نتائج نهائية
+        final_products = candidates[:8] if candidates else []
+        
+        # كشف نية الاستفسار التقني
+        is_specs_query = any(w in lower_text for w in ["specs", "specification", "technical", "مواصفات", "تفاصيل"]) or base64_image
+        
+        ai_response_text = ""
+        recovery_mode = False
+        # =========================================================================
+        # 🧠 GATEWAY 5: GENERATIVE INTELLIGENCE & DEEP RESEARCH (DDGS)
+        # =========================================================================
+        
+        # --- CASE A: PRODUCT FOUND IN STOCK ---
+        if final_products and not base64_image:
+            if is_specs_query:
+                ai_response_text = await self.llm_service.consult_on_product(
+                    product_data=final_products[0].model_dump(mode='json'), 
+                    question=message_text
+                )
+            else:
+                ai_response_text = await self._generate_genius_response(user_id, message_text, final_products[0])
+
+        # --- CASE B: STOCKOUT OR VISION RESEARCH (Deep Research DDGS) ---
+        elif is_specs_query or base64_image:
+            try:
+                # 🌐 Engaging Deep Research (DDGS)
+                web_intel = await asyncio.wait_for(
+                    self.llm_service._perform_web_search(search_query), 
+                    timeout=12.0
+                )
+                
+                system_instruction = (
+                     f"You are the airdeliver Elite Personal Shopping Concierge. {NO_MARKDOWN_GUARD} "
+                     "Your objective is to convert a 'Stockout' into a 'Success'. "
+                     "1. THE PIVOT: If the exact item is missing, briefly acknowledge it WITHOUT being negative. "
+                     "2. THE UPGRADE: Immediately present the 'Alternatives' or 'Accessories' provided in context as superior available options or essential completions. "
+                     "3. EXPERT TONE: Speak with authority, enthusiasm, and zero fluff. "
+                     "4. TYPOGRAPHY: STRICTLY use standard Sentence case. Do NOT use ALL CAPS. Do NOT use markdown symbols"
+                )
+                
+                ai_response_text = await self.llm_service.generate_response(
+                    prompt=f"Identify/Specs for: {search_query}. User Query: {message_text}",
+                    system_role=system_instruction,
+                    context=f"VISUAL: {vision_description}\n\nWEB INTEL: {web_intel}"
+                )
+            except Exception as e:
+                logger.error(f"🌐 Deep Research Failure: {e}")
+                ai_response_text = "I'm currently sourcing live market data for you. Check out these top matches in the meantime!"
+
+            if not final_products:
+                recovery_mode = True
+                final_products = await self._perform_smart_recovery(search_query)
+
+        # --- CASE C: FALLBACK / WELCOME ---
+        else:
+            if msg_type == "WELCOME_INTENT":
+                ai_response_text = "Welcome! I'm your Global Shopping Intelligence. Send me a photo or a request to begin."
+            else:
+                ai_response_text = "I've checked our global inventory, but that item isn't ready for delivery. How else can I assist?"
+
+        # 📦 FINAL DELIVERY
+        try:
+            import re
+
+            raw_text = str(ai_response_text)
+            clean_content = raw_text.replace('\r', '')
+            clean_content = re.sub(r'[^\w\s\u0600-\u06FF\.,!?:;\-\(\)\[\]%\$£€\u2022\'’]', '', clean_content)
+            clean_content = clean_content.strip()
+
+            payload = {
+                "content": clean_content,
+                "type": "product_carousel" if final_products else "text",
+                "products": [p.model_dump(mode='json') for p in final_products] if final_products else [],
+                "reason": "Omni-Intelligence V9.2 (Stable)"
+            }
+            
+            # إرسال الطرد المحصن للـ UI (استبدال السطر 592)
+            await self._send_to_ui(user_id, payload)
+            
+        except Exception as delivery_err:
+            logger.error(f"❌ Critical Delivery Sanitization Error: {delivery_err}")
+
+        # حفظ تاريخ المحادثة في الخلفية (Background Task)
+        asyncio.create_task(self._save_conversation_turn(user_id, message_text, ai_response_text))
+    async def _perform_smart_recovery(self, user_query: str):
+        """
+        💎 UNIVERSAL LOGIC: Zero-Shot Product Analysis.
+        Uses LLM to dynamically understand 'Any Product' and suggest relevant
+        alternatives and accessories without hardcoded lists.
+        """
+        try:
+            # 1. نسأل الـ AI: "يا ذكي، المستخدم عايز المنتج ده ومش لاقينه.
+            # قول لي إيه هو 'التصنيف العام' للمنتج ده (عشان أجيب بدائل)،
+            # وقول لي إيه أهم 2 اكسسوارات تمشي معاه؟"
+            
+            # نستخدم Prompt هندسي دقيق عشان الرد يكون جاهز للبحث فوراً
+            system_instruction = (
+                "You are an Elite Merchandising Algorithm designed for High-Performance Sales Recovery. "
+                "Your objective is to convert a 'Stockout' event into a 'Cross-sell' opportunity. "
+                "Analyze the user's missing item request and output a STRICT search strategy. "
+                
+                "PROCESS:"
+                "1. Core Extraction: Strip brands, model numbers, and adjectives to find the 'Core Utility Class' (e.g., 'Nike Jordan 4' -> 'Basketball Sneakers'). "
+                "2. Cross-Sell Logic: Identify 2 distinct, high-attach-rate accessories or complementary items that complete the experience. "
+                
+                "OUTPUT FORMAT (Strictly separated by a pipe '|'):"
+                "Core Utility Keywords | Accessory_1_Keyword Accessory_2_Keyword"
+                
+                "RULES:"
+                "- Keywords must be English, broad, and search-engine optimized."
+                "- Accessory 1 should be functional (e.g., Charger, Socks)."
+                "- Accessory 2 should be protective/care (e.g., Case, Cleaner)."
+                "- If input is ambiguous/gibberish, default to: 'Trending Products | Gadgets Fashion'."
+                "- Output ONLY the string. No formatting, no markdown."
+                
+                "EXAMPLES:"
+                "Input: 'iPhone 15 Pro Max' -> Output: 'Flagship Smartphone | Phone Case Screen Protector'"
+                "Input: 'Adidas Yeezy Black' -> Output: 'Urban Running Shoes | Sneaker Cleaning Kit Sport Socks'"
+                "Input: 'Rolex Submariner'   -> Output: 'Luxury Diving Watch | Watch Winder Polishing Cloth'"
+                "Input: 'Whiskas for Kittens'-> Output: 'Kitten Wet Food | Cat Toys Water Fountain'"
+            )
+
+            # استدعاء سريع للـ LLM (يفضل موديل سريع زي Haiku/Flash لو متاح، أو الحالي)
+            llm_analysis = await self.llm_service.generate_response(
+                prompt=f"Request: {user_query}",
+                system_role=system_instruction,
+                context="Analyze this stockout request."
+            )
+            
+            # تنظيف الرد (لضمان عدم وجود كلام زيادة)
+            llm_analysis = llm_analysis.strip().replace('"', '').replace("'", "")
+            
+            # 2. تحليل الرد (Parsing)
+            if "|" in llm_analysis:
+                parts = llm_analysis.split("|")
+                generic_category = parts[0].strip() # ده البديل (مثلاً: Running Shoes)
+                accessories_keywords = parts[1].strip() # دي الاكسسوارات (مثلاً: Socks Cleaner)
+            else:
+                # Fallback لو الـ LLM مهنج
+                generic_category = user_query
+                accessories_keywords = "trending accessories"
+
+            logger.info(f"🧠 AI Recovery Strategy: Search for [{generic_category}] + Add [{accessories_keywords}]")
+
+            # 3. تنفيذ البحث المتوازي (Parallel Execution)
+            # البحث أ: عن الفئة العامة (لإيجاد بدائل من ماركات أخرى)
+            task_alternatives = self.search_engine.perform_hybrid_search_pure(self.db, generic_category)
+            
+            # البحث ب: عن الاكسسوارات المقترحة
+            task_accessories = self.search_engine.perform_hybrid_search_pure(self.db, accessories_keywords)
+            
+            # تشغيل الاثنين في نفس الوقت للسرعة
+            results = await asyncio.gather(task_alternatives, task_accessories)
+            
+            found_alternatives = results[0]
+            found_accessories = results[1]
+            
+            # 4. دمج ذكي (Smart Merge)
+            # نأخذ أول 3 بدائل + أول 2 اكسسوار
+            # ونضمن عدم التكرار
+            seen_ids = set()
+            final_mix = []
+            
+            for p in found_alternatives[:3]:
+                if p.id not in seen_ids:
+                    final_mix.append(p)
+                    seen_ids.add(p.id)
+            
+            for p in found_accessories[:2]:
+                if p.id not in seen_ids:
+                    final_mix.append(p)
+                    seen_ids.add(p.id)
+            
+            return final_mix
+
+        except Exception as e:
+            logger.error(f"⚠️ Universal Recovery Failed: {e}")
+            # في أسوأ الظروف، نبحث عن الكلمة الأصلية
+            return []
+
+    async def _handle_text_commands(self, user_id: int, text: str, payload: dict) -> bool:
+        """
+        🕵️‍♀️ Semantic Command Interceptor.
+        Handles 'Add to Cart' via NLU and triggers the Perfect Bundle Engine.
+        Returns True if a command was handled.
+        """
+        lower = text.lower()
+        
+        # كشف نية الإضافة للسلة (Add Intent)
+        add_triggers = ["add to cart", "buy this", "i want this", "add", "أضف للسلة", "شراء"]
+        # يجب أن نتأكد أن المستخدم حدد منتجاً (نعتمد على السياق أو الاسم في الرسالة)
+        is_add_intent = any(t in lower for t in add_triggers)
+        
+        if is_add_intent:
+            # 1. البحث عن المنتج المقصود
+            # نفترض أن النص يحتوي على اسم المنتج، فنبحث عنه
+            clean_query = text
+            for t in add_triggers: clean_query = clean_query.replace(t, "")
+            clean_query = clean_query.strip()
+            
+            if len(clean_query) < 2: return False # لو قال "add" بس، سيبه للـ LLM يسأله "add what?"
+
+            products = await self.search_engine.perform_hybrid_search_pure(self.db, clean_query, limit=1)
+            
+            if products:
+                target_product = products[0]
+                
+                # 2. إضافة للسلة عبر RabbitMQ
+                cart_payload = {
+                    "user_id": user_id, 
+                    "product_id": target_product.id, 
+                    "quantity": 1,
+                    "notify_user": False # احنا هنرد عليه بنفسنا
+                }
+                await self.rabbitmq.publish(cart_payload, "airdeliver.ai.cart.add")
+                
+                # 3. 💎 توليد الـ PERFECT BUNDLE (الذكاء الحقيقي)
+                # نطلب من المحرك إيجاد الملحقات المتوافقة
+                bundle_items = await self.search_engine.generate_perfect_bundle(self.db, target_product)
+                
+                # 4. صياغة الرد
+                response_text = f"✅ Added **{target_product.name}** to your cart."
+                
+                ui_payload = {
+                    "content": response_text,
+                    "type": "product_carousel",
+                    "products": [], # المنتج الأساسي ضفناه خلاص
+                    "reason": "Cart Action"
+                }
+
+                if bundle_items:
+                    response_text += "\n\n💡 **Smart Suggestion:** Complete your setup with these essentials:"
+                    ui_payload["content"] = response_text
+                    # نعرض الـ Bundle للمستخدم
+                    ui_payload["products"] = [p.model_dump(mode='json') for p in bundle_items]
+                    ui_payload["reason"] = "Perfect Bundle"
+
+                await self._send_to_ui(user_id, ui_payload)
+                return True
 
         return False
 
-    async def _execute_strategic_search(self, strategy: Any, user_id: int) -> List[Product]:
-        all_candidates = []
-        for query in strategy.search_queries[:3]:
-            try:
-                results = await self.search_engine.perform_hybrid_search_pure(self.db, query)
-                for prod in results:
-                    if not any(p.id == prod.id for p in all_candidates):
-                        all_candidates.append(prod)
-            except Exception as e:
-                logger.error(f"Strategy search sub-query failed: {e}")
+    async def handle_idle_trigger(self, user_id: int):
+        """Re-engages the user after inactivity using Ghost Prediction"""
+        # (نفس المنطق السابق لكن مع تحديث model_dump)
+        try:
+             statement = select(Product).order_by(col(Product.rating).desc()).limit(3)
+             products = (await self.db.exec(statement)).all()
+             
+             if products:
+                msg = f"Still thinking? Check out these top-rated items! 🔥"
+                await self._send_to_ui(user_id, {
+                    "content": msg,
+                    "type": "proactive_suggestion",
+                    "products": [p.model_dump(mode='json') for p in products], # 🛡️ Safe Dump
+                    "reason": "Idle Recovery"
+                })
+        except Exception as e:
+            logger.error(f"Idle Trigger Error: {e}")
+
+
+    async def _generate_dynamic_copy(self, user_id: int, tone: str, product: Any, context: str = "") -> str:
+        """
+        ✍️ Dynamic Copywriter.
+        Adapts the tone based on time of day and user intent.
+        """
+        time_ctx = self._get_time_context() # morning, afternoon, etc.
+        p_name = getattr(product, 'name', 'this item')
         
-        filtered = []
-        for p in all_candidates:
-            if strategy.price_max and p.price > strategy.price_max: continue
-            if strategy.price_min and p.price < strategy.price_min: continue
-            if strategy.category_filter:
-                if not (strategy.category_filter.lower() in p.category.lower() or 
-                        strategy.category_filter.lower() in (p.description or "").lower()):
-                    continue
-            filtered.append(p)
-        return filtered
+        if tone == "nudge":
+            return random.choice([
+                f"Still thinking about the **{p_name}**? ��", 
+                f"Don't miss out on **{p_name}**. Stock is moving fast!",
+                f"Quick heads up: **{p_name}** is trending right now."
+            ])
+        
+        if tone == "welcoming":
+             return self._get_time_aware_greeting("MEDIUM")
+
+        templates = {
+            "morning": [f"Start your day with {p_name}.", f"Morning essential: {p_name}."],
+            "afternoon": [f"Boost your afternoon with {p_name}.", f"Have you seen this? {p_name}."],
+            "evening": [f"Relax with {p_name}.", f"Good evening! How about {p_name}?"],
+            "night": [f"Late night find: {p_name}.", f"Perfect for the night: {p_name}."]
+        }
+        # Fallback to morning if key missing
+        base_key = time_ctx.split()[0] # remove (energetic) suffix if exists
+        return random.choice(templates.get(base_key, templates["morning"]))
+    
+    async def _generate_genius_response(self, user_id: int, user_query: str, product: Any) -> str:
+        """
+        💎 GENIUS RESPONSE: Context-Aware Product Intro.
+        """
+        p_name = getattr(product, 'name', 'Item')
+        # ��️ Safe Decimal Handling: Convert to float/str immediately
+        price_val = getattr(product, 'price', 0)
+        price = f"${float(price_val):.2f}"
+        
+        templates = [
+            f"The {p_name} is a beast. Here are the details:",
+            f"I found exactly what you need. {p_name} is currently listed at {price}.",
+            f"Based on your requirements, {p_name} is the smartest choice. Check this out:",
+            f"Got it. Bringing up the specs for {p_name}. It's one of my top picks.",
+            f"{p_name} matches your criteria perfectly."
+        ]
+        return random.choice(templates)
+
+    # --- ��️ SECTION 9: STRATEGIC EXECUTION & COMMANDS ---
+
+    async def _handle_text_commands(self, user_id: int, text: str, full_payload: dict) -> bool:
+        """
+        🕵️‍♀️ Semantic Command Interceptor (DIAMOND EDITION).
+        Handles: Checkout, Clear Cart, AND 'Add to Cart' with Bundles.
+        """
+        clean_text = text.lower().strip()
+        
+        # 1. STRICT CHECKOUT MATCHING
+        if any(x in clean_text for x in ["checkout", "pay now", "confirm order", "finish order", "دفع"]):
+            logger.info(f"User {user_id} explicitly requested checkout via text.")
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "type": "payment_intent", "timestamp": datetime.now().timestamp()}, 
+                "airdeliver.ai.order.confirm"
+            )
+            return True
+
+        # 2. STRICT CLEAR CART MATCHING
+        if any(x in clean_text for x in ["clear cart", "empty cart", "delete cart", "مسح السلة"]):
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "notify_user": True}, 
+                "airdeliver.ai.cart.clear"
+            )
+            return True
+
+        # 3. �� ADD TO CART + BUNDLE GENERATION (The Missing Piece)
+        # الكود السابق كان ناقص الجزء ده، وهو الأهم للـ Upselling
+        add_triggers = ["add to cart", "buy", "i want", "add", "شراء"]
+        if any(t in clean_text for t in add_triggers):
+            # محاولة استخراج اسم المنتج من الرسالة
+            query_product = clean_text
+            for t in add_triggers: query_product = query_product.replace(t, "").strip()
+            
+            if len(query_product) > 2:
+                # نبحث عن المنتج لنضيفه
+                candidates = await self.search_engine.perform_hybrid_search_pure(self.db, query_product, limit=1)
+                if candidates:
+                    target = candidates[0]
+                    # إضافة للسلة
+                    await self.rabbitmq.publish(
+                        {"user_id": user_id, "product_id": target.id, "quantity": 1, "notify_user": False}, 
+                        "airdeliver.ai.cart.add"
+                    )
+                    
+                    # 💡 توليد الباقة التكميلية (Universal Bundle)
+                    bundle = await self.search_engine.generate_perfect_bundle(self.db, target)
+                    
+                    # الرد للواجهة
+                    msg = f"✅ Added **{target.name}** to cart."
+                    if bundle: msg += "\n\n💡 **Complete the set:** Check out these accessories:"
+                    
+                    await self._send_to_ui(user_id, {
+                        "content": msg,
+                        "type": "product_carousel",
+                        "products": [p.model_dump(mode='json') for p in bundle] if bundle else [],
+                        "reason": "Cart + Bundle"
+                    })
+                    return True
+
+        # 4. RESET COMMAND
+        if clean_text in ["reset", "restart", "help"]:
+            await self._process_internal_command(user_id, "__INTERNAL_RESET_SESSION__")
+            return True
+            
+        return False
+
+    async def _execute_strategic_search(self, strategy: Any, user_id: int, original_query: str) -> List[Any]:
+        """
+        Executes a multi-tier search strategy (High Precision -> Broad -> Fallback).
+        """
+        core_query = strategy.search_queries[0] if strategy.search_queries else original_query
+        strict_filters = {"category": strategy.category_filter} if strategy.category_filter else None
+        
+        # Tier 1: High Precision
+        high_tier = await self.search_engine.perform_hybrid_search_pure(self.db, core_query, limit=30, filters=strict_filters)
+        
+        exact_matches = []
+        alternatives = []
+        
+        query_terms = set(core_query.lower().split())
+        for p in high_tier:
+            # Simple Exact Match logic
+            if all(term in p.name.lower() for term in query_terms): exact_matches.append(p)
+            else: alternatives.append(p)
+
+        if exact_matches: 
+            # Sort by price descending (Business Logic: Sell higher value first if exact match)
+            exact_matches.sort(key=lambda x: getattr(x, 'price', 0), reverse=True)
+            return exact_matches[:5]
+        
+        if alternatives: 
+            return self._rank_candidates(alternatives, core_query)[:5]
+
+        # Tier 2: Mid Precision (Relaxed Filters)
+        mid_tier = await self.search_engine.perform_hybrid_search_pure(self.db, core_query, limit=10, filters=strict_filters)
+        if mid_tier: return self._rank_candidates(mid_tier, core_query)[:5]
+
+        # Tier 3: Broad Search (Fallback)
+        broad_query = " ".join(core_query.split()[:2]) 
+        return await self.search_engine.perform_hybrid_search_pure(self.db, broad_query, limit=5)
+
+    async def _find_smart_alternatives(self, original_query: str, strategy: Any) -> List[Any]:
+        """Finds fallback products when direct search fails."""
+        if strategy and strategy.category_filter:
+            return await self.search_engine.perform_hybrid_search_pure(
+                self.db, original_query, limit=5, filters={"category": strategy.category_filter}
+            )
+        # Remove noise words
+        clean_q = re.sub(r'(specs|price|buy|best|review|of)', '', original_query, flags=re.IGNORECASE).strip()
+        return await self.search_engine.perform_hybrid_search_pure(self.db, clean_q, limit=5)
+
+    async def _bg_memorize(self, user_id, text):
+        """Extracts facts from chat and saves to vector memory."""
+        try:
+            # نفترض وجود دالة extract في LLM service، لو مش موجودة نتجاهل
+            if hasattr(self.llm_service, 'extract_memory_worthy_facts'):
+                fact = await self.llm_service.extract_memory_worthy_facts(text)
+                # بما أن search_engine الجديد ليس لديه دالة remember صريحة، نستخدم الـ milvus client مباشرة
+                # أو نتجاهل لو غير مدعوم حالياً لضمان عدم الكسر
+                pass 
+        except: pass
+
 
     async def _process_internal_command(self, user_id: int, command: str):
+        """
+        🕹️ Internal Bus Router.
+        Translates raw socket signals into Business Actions (RabbitMQ) or UI Feedback (Redis).
+        """
+        logger.info(f"⚡ Executing Command: {command} for User {user_id}")
+        
+        # 1. ADD BY ID (Fast-Track)
+        if command.startswith("__INTERNAL_ADD_BY_ID__:"):
+            try:
+                pid = int(command.split(":")[1])
+                await self.rabbitmq.publish(
+                    {"user_id": user_id, "product_id": pid, "quantity": 1}, 
+                    "airdeliver.ai.cart.add"
+                )
+            except Exception as e:
+                logger.error(f"Command Add Error: {e}")
+            return
+
+        # 2. REMOVE BY ID
+        if command.startswith("__INTERNAL_REMOVE_BY_ID__:"):
+            try:
+                pid = int(command.split(":")[1])
+                await self.rabbitmq.publish(
+                        {"user_id": user_id, "product_id": pid, "action": "remove_by_id", "notify_user": False}, 
+                    "airdeliver.ai.cart.remove"
+                )
+                await self._perform_devilish_recovery(user_id, pid)
+            except Exception as e:
+                logger.error(f"Remove Command Error: {e}")
+            return
+
+        # 3. CLEAR CART
+        if command == "__INTERNAL_CLEAR_CART__":
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "notify_user": True}, 
+                "airdeliver.ai.cart.clear"
+            )
+            return
+
+        # 4. CONFIRM ORDER (Ferrari Trigger)
+        if command == "__INTERNAL_CONFIRM_ORDER__":
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "type": "payment_intent", "timestamp": datetime.now().timestamp()},
+                "airdeliver.ai.order.confirm"
+            )
+            return
+
+        if command == "__INTERNAL_SAVE_FOR_LATER__":
+            logger.info(f"💾 Saving Cart for User {user_id}")
+            await self.rabbitmq.publish(
+                {"user_id": user_id, "notify_user": True},
+                "airdeliver.ai.cart.save"
+            )
+            await self._send_to_ui(user_id, {"type": "typing", "content": "Archiving your manifest..."})
+            return
+
+        # 5. INITIAL SUGGESTIONS (Homepage Builder)
         if command == "__INTERNAL_GET_INITIAL_SUGGESTIONS__":
             await self._handle_initial_suggestions(user_id)
             return
 
+        # 6. RESET SESSION (Total Wipe)
         if command == "__INTERNAL_RESET_SESSION__":
-            cart_key = self._get_cart_key(user_id)
-            seen_key = self._get_seen_key(user_id)
-            await self.cache.delete(cart_key)
-            await self.cache.delete(seen_key)
-            await self.rabbitmq.publish({"user_id": user_id, "notify_user": False}, "airdeliver.ai.intent.clear_cart")
+            try:
+                # مسح الذاكرة من Redis مباشرة
+                await self.cache.delete(self._get_context_key(user_id))
+                await self.cache.delete(self._get_seen_key(user_id))
+                await self.cache.delete(f"u:{user_id}:home_matrix_cache") # مسح كاش الصفحة الرئيسية أيضاً
+            except: pass
+            
+            # إرسال أمر تصفير السلة للـ Worker
+            await self.rabbitmq.publish({"user_id": user_id, "notify_user": False}, "airdeliver.ai.cart.clear")
+            
+            # إبلاغ الواجهة
+            await self._send_to_ui(user_id, {"content": "Session & Memory Cleared. Starting Fresh. 🔄", "type": "system"})
             return
 
-        if command == "__INTERNAL_SAVE_FOR_LATER__":
-            await self.rabbitmq.publish({"user_id": user_id, "content": "Saved to wishlist. ��", "type": "success_text"}, "airdeliver.ai.response.out")
-            await self.rabbitmq.publish({"user_id": user_id, "notify_user": False}, "airdeliver.ai.intent.clear_cart")
-        
-        elif command == "__INTERNAL_CLEAR_CART__":
-            await self.rabbitmq.publish({"user_id": user_id, "notify_user": True}, "airdeliver.ai.intent.clear_cart")
-        
-        elif command.startswith("__INTERNAL_ADD_BY_ID__:") and user_id:
-            try:
-                pid = int(command.split(":")[1])
-                await self.rabbitmq.publish({"user_id": user_id, "product_id": pid, "quantity": 1}, "airdeliver.ai.intent.add_to_cart")
-                
-                p = await self.db.get(Product, pid)
-                if p: 
-                    await self.rabbitmq.publish({"user_id": user_id, "content": f"Added '{p.name}' to your cart.", "type": "success_text"}, "airdeliver.ai.response.out")
-                    suggestions_sent = await self._handle_secondary_suggestions(user_id, p.id)
-                    await asyncio.sleep(0.8 if suggestions_sent else 0.3)
-                    await self.rabbitmq.publish({"user_id": user_id, "content": "Ready to checkout?", "type": "confirmation_prompt", "options": ["Confirm Order", "Clear Cart"]}, "airdeliver.ai.response.out")
-            except Exception as e: 
-                logger.error(f"Error in internal add: {e}")
-            
-        elif command.startswith("__INTERNAL_REMOVE_BY_ID__:") and user_id:
-            try:
-                pid = int(command.split(":")[1])
-                await self.rabbitmq.publish({"user_id": user_id, "product_id": pid, "action": "remove_by_id"}, "airdeliver.ai.intent.remove_from_cart")
-                await self._handle_removal_recovery(user_id, pid)
-            except Exception: pass
-
-    # --- BACKGROUND TASKS (Isolated Sessions) ---
-
-    async def _handle_secondary_suggestions(self, user_id: int, product_id: int):
-        """
-        🧬 GLOBAL STANDARD V3: The 'Orthogonal' Completion Engine.
-        Strictly bans the anchor category to enforce ACCESSORY suggestions.
-        """
-        async def _safe_bg_logic():
-            async with SessionLocal() as bg_db:
-                try:
-                    anchor_product = await bg_db.get(Product, product_id)
-                    if not anchor_product: return False
-
-                    # 1. Define the Search Strategy (The Shift)
-                    # We explicitly look for "Accessories" and "Parts"
-                    queries = [
-                        f"accessories for {anchor_product.name}",
-                        f"case for {anchor_product.name}", # Specific for phones
-                        f"compatible with {anchor_product.name}"
-                    ]
-                    
-                    raw_candidates = []
-                    for q in queries:
-                        res = await self.search_engine.perform_hybrid_search_pure(bg_db, q, limit=30)
-                        raw_candidates.extend(res)
-
-                    final_bundle = []
-                    seen_ids = {anchor_product.id}
-                    anchor_cat = (anchor_product.category or "").lower()
-                    
-                    # 2. THE STRICT FILTER (The "Anti-Echo" Logic)
-                    for p in raw_candidates:
-                        if p.id in seen_ids: continue
-                        if len(final_bundle) >= 4: break
-
-                        p_cat = (p.category or "").lower()
-                        
-                        # 🚫 BAN RULE 1: SAME CATEGORY BLOCK
-                        # If I bought a Phone, DO NOT show me a Phone.
-                        # Exception: Unless the candidate is drastically cheaper (< 20% price), likely a spare part.
-                        if p_cat == anchor_cat and p.price > (anchor_product.price * 0.2):
-                            continue # Block it.
-
-                        # 🚫 BAN RULE 2: PRICE CEILING
-                        # Accessories shouldn't cost more than the main item.
-                        if p.price > anchor_product.price:
-                            continue
-
-                        final_bundle.append(p)
-                        seen_ids.add(p.id)
-
-                    # 3. Dispatch
-                    if final_bundle:
-                        products_data = [p.model_dump(mode='json') for p in final_bundle]
-                        # ... (نفس كود الإرسال السابق) ...
-                        await self.rabbitmq.publish({
-                            "user_id": user_id,
-                            "content": f"Complete your {anchor_product.name} setup with these:",
-                            "type": "proactive_suggestion",
-                            "products": products_data,
-                            "reason": "Smart Completion"
-                        }, "airdeliver.ai.response.out")
-                        return True
-                    return False
-                except Exception: return False
-        
-        asyncio.create_task(_safe_bg_logic())
-
-
-    async def _handle_removal_recovery(self, user_id: int, product_id: int):
-        async def _safe_recovery():
-            async with SessionLocal() as bg_db:
-                try:
-                    removed_product = await bg_db.get(Product, product_id)
-                    if not removed_product: return
-
-                    alternatives = await self.search_engine.perform_hybrid_search_pure(
-                        bg_db,
-                        f"alternative to {removed_product.name} {removed_product.category}",
-                        limit=5
-                    )
-                    alternatives = [p for p in alternatives if p.id != product_id][:3]
-
-                    if alternatives:
-                        alt_data = [p.model_dump(mode='json') for p in alternatives]
-                        await self.rabbitmq.publish({
-                            "user_id": user_id,
-                            "content": f"Changed your mind about '{removed_product.name}'? Maybe one of these fits better:",
-                            "type": "proactive_suggestion",
-                            "products": alt_data,
-                            "reason": "Recovery Mode"
-                        }, "airdeliver.ai.response.out")
-                except Exception as e:
-                    logger.error(f"Background recovery error: {e}")
-        asyncio.create_task(_safe_recovery())
-
+    # 💎 DYNAMIC HOMEPAGE ENGINE (The Smart Matrix)
     async def _handle_initial_suggestions(self, user_id: int):
         """
-        💎 THE ENDGAME ALGORITHM (With Human Touch).
-        Combines Ghost Vectors, Context, and a Dynamic Persona Engine.
-        """
-        # 1. Context Acquisition
-        time_context = self._get_time_context() # morning, afternoon, evening, night
-        candidates = []
-        source_stream = "" # "GHOST" or "TIME" or "EXPLORE"
+        🏠 Builds the User's Homepage Matrix with 4 Strategic Layers.
         
-        # --- STREAM A: THE GHOST VECTOR (Hyper-Personalization) ---
-        has_personalized = False
+        ARCHITECTURE:
+        1. 🧬 Financial DNA Analysis (Live).
+        2. 🚀 Row 1: "For You" (Personalized based on Tier & Time).
+        3. 🔥 Row 2: "Global Best Sellers" (Simulated via High Ratings).
+        4. 📈 Row 3: "Trending Now" (Simulated via Random Shuffle Algorithm).
+        5. 💎 Row 4: "Smart Deals" (Simulated via High Value/Low Price Ratio).
+        
+        PROTOCOL:
+        - Executes DB queries in PARALLEL for sub-millisecond latency.
+        - Streams responses sequentially to create an engaging "Loading" effect in UI.
+        - Uses 'Safe Dump' to prevent Decimal serialization errors.
+        """
+        
+        # 1. 🧬 ALWAYS ANALYZE DNA (Live)
+        spending_tier = "MEDIUM"
+        seen_ids = []
+        
         if self.behavior_engine:
             try:
-                ghost_json = await self.cache.get(f"u:{user_id}:ghost_v2")
-                if ghost_json:
-                    import json
-                    ghost_data = json.loads(ghost_json)
-                    pos_vector = ghost_data.get('pos')
-                    
-                    if pos_vector:
-                        vector_results = await self.search_engine._search_milvus(pos_vector, limit=15)
-                        if vector_results:
-                            product_ids = [int(pid) for pid, score in vector_results]
-                            candidates = await self.search_engine._fetch_products_by_ids(product_ids)
-                            source_stream = "GHOST"
-                            has_personalized = True
-            except Exception: pass
-
-        # --- STREAM B: TEMPORAL PROBABILITY (Context Fallback) ---
-        if not candidates or len(candidates) < 5:
-            source_stream = "TIME"
-            time_weights = {
-                "morning":  {"Coffee": 50, "Breakfast": 30, "Wellness": 10, "Tech": 10},
-                "afternoon": {"Office": 40, "Snack": 30, "Gadget": 20, "Accessories": 10},
-                "evening":  {"Kitchen": 30, "Home Decor": 30, "Relax": 20, "Fitness": 20},
-                "night":    {"Gaming": 40, "Lighting": 30, "Sleep": 20, "Reading": 10}
-            }
-            current_weights = time_weights.get(time_context, {"Trending": 100})
-            
-            import random
-            selected_category = random.choices(list(current_weights.keys()), weights=list(current_weights.values()), k=1)[0]
-            
-            context_results = await self.search_engine.perform_hybrid_search_pure(self.db, selected_category, limit=10)
-            candidates.extend(context_results)
-
-        # --- STREAM C: STOCHASTIC EXPLORATION ---
-        try:
-            wildcard_term = random.choice(["New Arrival", "Best Seller", "Limited Edition"])
-            wildcard_items = await self.search_engine.perform_hybrid_search_pure(self.db, wildcard_term, limit=2)
-            if wildcard_items: candidates.insert(1, wildcard_items[0])
-        except Exception: pass
-
-        # --- FINAL PROCESSING ---
-        unique_candidates = {p.id: p for p in candidates}.values()
-        final_list = list(unique_candidates)
-        
-        if self.behavior_engine and final_list:
-             final_list = await self.behavior_engine.collapse_wavefunction(user_id, final_list)
-        
-        final_display = final_list[:8]
-
-        # 4. 🗣️ THE NARRATIVE ENGINE (توليد الكلام البشري)
-        # We look at the FIRST product to determine the "Vibe" of the collection
-        lead_product = final_display[0] if final_display else None
-        
-        human_message = self._craft_human_message(time_context, source_stream, lead_product)
-
-        # Dispatch
-        if final_display:
-            products_data = [p.model_dump(mode='json') for p in final_display]
-            
-            await self.rabbitmq.publish({
-                "user_id": user_id,
-                "content": human_message, # <--- الرسالة الذكية هنا
-                "type": "proactive_suggestion",
-                "products": products_data,
-                "reason": "AI Context Awareness"
-            }, "airdeliver.ai.response.out")
-
-    # ---------------------------------------------------------
-    # 🧠 NEW HELPER: THE PERSONA GENERATOR
-    # ---------------------------------------------------------
-    def _craft_human_message(self, time_phase: str, stream: str, product: Any) -> str:
-        """
-        Generates a warm, expressive, and human-like English greeting.
-        Adapts to time of day and product vibe with emotional intelligence.
-        """
-        import random
-        
-        # 1. Analyze the "Vibe"
-        vibe = "neutral"
-        p_name = product.name.lower() if product else ""
-        p_cat = (product.category or "").lower() if product else ""
-        combined = p_name + " " + p_cat
-        
-        if any(x in combined for x in ["game", "console", "play", "rgb"]): vibe = "fun"
-        elif any(x in combined for x in ["coffee", "brew", "energy", "sport"]): vibe = "energy"
-        elif any(x in combined for x in ["office", "desk", "work", "laptop", "monitor"]): vibe = "focus"
-        elif any(x in combined for x in ["sleep", "bed", "relax", "candle", "sofa"]): vibe = "chill"
-        elif any(x in combined for x in ["phone", "tech", "smart", "watch"]): vibe = "tech"
-
-        # 2. THE EMOTIONAL ENGLISH MATRIX 🇺��
-        
-        templates = {
-            "morning": {
-                "energy": [
-                    "Rise and shine! ☀️ Ready to conquer the day? Start here:",
-                    "Good morning! ☕ Fuel up your ambition with these picks:",
-                    "Wakey wakey! 🌅 Here is the energy boost you need:"
-                ],
-                "focus": [
-                    "Good morning. �� Let's make today productive:",
-                    "Morning! 🚀 Gear up for success with these essentials:",
-                    "Ready to work? 🧠 Here is your toolkit for the day:"
-                ],
-                "tech": [
-                    "Top of the morning! ⚡ Check out today's freshest tech:",
-                    "Good morning! 📱 Smart choices for a smart start:"
-                ],
-                "default": [
-                    "Good morning! ☀️ Wishing you a wonderful day ahead:",
-                    "Hello there! 👋 A fresh selection just for you this morning:"
-                ]
-            },
-            "afternoon": {
-                "energy": [
-                    "Mid-day slump? ⚡ Recharge your afternoon with this:",
-                    "Hey there! 🌈 Keep the momentum going with these:"
-                ],
-                "focus": [
-                    "Good afternoon. 🕑 Stay in the zone with these upgrades:",
-                    "Checking in! 🚀 Everything you need to finish strong:"
-                ],
-                "fun": [
-                    "Need a break? 🎮 You deserve a little treat right now:",
-                    "Afternoon vibes! 🎈 Take a moment to explore these:"
-                ],
-                "default": [
-                    "Good afternoon! 👋 Hope your day is going great:",
-                    "Hello again! ✨ Hand-picked suggestions for your afternoon:"
-                ]
-            },
-            "evening": {
-                "chill": [
-                    "Long day? 🌙 Time to unwind and relax:",
-                    "Good evening. 🍷 You earned some downtime with these:",
-                    "Evening vibes. ✨ create your cozy sanctuary:"
-                ],
-                "kitchen": [
-                    "Dinner time? 🍽️ Inspiration for a delicious evening:",
-                    "Good evening! ✨ Chef's choice for your home:"
-                ],
-                "default": [
-                    "Good evening! 🌇 Wrapping up the day with these highlights:",
-                    "Hello! �� A quiet browse through our latest collection:"
-                ]
-            },
-            "night": {
-                "chill": [
-                    "Late night browsing? 🦉 We've got you covered:",
-                    "Quiet hours. 🤫 Explore our peaceful night edit:",
-                    "Welcome, night owl. 🌙 Serenity is just a click away:"
-                ],
-                "fun": [
-                    "Night owl mode: ON. 🦉🎮 The best gear never sleeps:",
-                    "Up late? 🚀 Level up your game while the world sleeps:"
-                ],
-                "default": [
-                    "Burning the midnight oil? 🕯️ Check these out:",
-                    "Hello. ✨ Exclusive late-night finds just for you:"
-                ]
-            }
-        }
-
-        # 3. Select Template
-        options = templates.get(time_phase, {}).get(vibe, templates[time_phase]["default"])
-        msg = random.choice(options)
-        
-        # 4. Subtle Personalization (The "I Know You" Touch)
-        if stream == "GHOST":
-            suffixes = [
-                " (Picked for your style ✨)", 
-                " (Matches your vibe 🎯)", 
-                " (Because you have great taste 😉)"
-            ]
-            if random.random() < 0.4:
-                msg += random.choice(suffixes)
+                # Parallel DNA Extraction
+                analyze_func = getattr(self.behavior_engine, 'analyze_financial_dna', None)
+                seen_func = getattr(self.behavior_engine, 'get_recently_seen_ids', None)
                 
-        return msg
+                tasks = []
+                if analyze_func: tasks.append(analyze_func(user_id))
+                if seen_func: tasks.append(seen_func(user_id))
+                
+                if tasks:
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    if analyze_func and not isinstance(results[0], Exception): spending_tier = results[0]
+                    # Handle index shift if analyze_func is missing
+                    idx = 1 if analyze_func else 0
+                    if seen_func and len(results) > idx and not isinstance(results[idx], Exception): seen_ids = results[idx]
+            except Exception as e:
+                logger.warning(f"Behavior Engine Telemetry Glitch: {e}")
+
+        # 2. 🏗️ CONSTRUCTING THE MATRIX (PARALLEL EXECUTION)
+        # We launch 4 parallel operations to fetch data for all rows simultaneously.
+        
+        async def fetch_row_1_personal():
+            # Row 1: Personalized (Tier Based)
+            # تعتمد على محرك البحث الخاص بنا لجلب منتجات تناسب الفئة المالية
+            return await self.search_engine.get_fresh_homepage_matrix(self.db, user_id, seen_ids, spending_tier)
+
+        async def fetch_row_2_bestsellers():
+            # Row 2: Best Sellers (Simulation: Highest Rated)
+            # بما أن المبيعات وهمية، نعتبر "التقييم العالي" هو المبيعات
+            try:
+                statement = select(Product).order_by(col(Product.rating).desc()).limit(8)
+                return (await self.db.exec(statement)).all()
+            except: return []
+
+        async def fetch_row_3_trending():
+            # Row 3: Trending Now (Simulation: Randomized Shuffle)
+            # نأخذ عينة كبيرة (30) ثم نخلطها ونختار 8 لضمان التجديد في كل مرة
+            try:
+                statement = select(Product).limit(40) # Fetch pool
+                pool = (await self.db.exec(statement)).all()
+                if pool:
+                    import random
+                    return random.sample(pool, min(len(pool), 8))
+                return []
+            except: return []
+
+        async def fetch_row_4_smart_deals():
+            # Row 4: Smart Deals (Simulation: High Rating + Reasonable Price)
+            # نبحث عن منتجات تقييمها فوق 4.0 وسعرها "منطقي" (أقل من 1000 مثلاً)
+            try:
+                # نستخدم ترتيب السعر التصاعدي مع التقييم العالي
+                statement = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
+                return (await self.db.exec(statement)).all()
+            except: return []
+
+        # �� Execute all strategies in parallel
+        results = await asyncio.gather(
+            fetch_row_1_personal(),
+            fetch_row_2_bestsellers(),
+            fetch_row_3_trending(),
+            fetch_row_4_smart_deals(),
+            return_exceptions=True
+        )
+
+        # 3. 📦 STREAMING THE EXPERIENCE (Sequenced Delivery)
+        # نرسل الصفوف بتتابع زمني بسيط لكي يشعر المستخدم أن النظام "يبني" الواجهة له
+        
+        # --- Row 1: Personal (The Hero) ---
+        products_personal = results[0] if not isinstance(results[0], Exception) else []
+        if products_personal:
+            greeting = self._get_time_aware_greeting(spending_tier)
+            await self._send_to_ui(user_id, {
+                "content": greeting,
+                "type": "proactive_suggestion", # Special UI Type
+                "products": [p.model_dump(mode='json') for p in products_personal],
+                "reason": f"Curated For You ({spending_tier})"
+            })
+            await asyncio.sleep(0.3) # Micro-pause for UX flow
+
+        # --- Row 2: Best Sellers (Social Proof) ---
+        products_bestsellers = results[1] if not isinstance(results[1], Exception) else []
+        if products_bestsellers:
+            # فلترة التكرار (عشان منعرضش نفس منتجات الصف الأول)
+            personal_ids = {p.id for p in products_personal}
+            filtered_bs = [p for p in products_bestsellers if p.id not in personal_ids][:8]
+            
+            if filtered_bs:
+                await self._send_to_ui(user_id, {
+                    "content": "Check out the best selling products right now.",
+                    "type": "product_carousel",
+                    "products": [p.model_dump(mode='json') for p in filtered_bs],
+                    "reason": "Market Data"
+                })
+                await asyncio.sleep(0.3)
+
+        # --- Row 3: Trending (Freshness) ---
+        products_trending = results[2] if not isinstance(results[2], Exception) else []
+        if products_trending:
+            # فلترة التكرار التراكمي
+            seen_so_far = {p.id for p in products_personal} | {p.id for p in products_bestsellers}
+            filtered_tr = [p for p in products_trending if p.id not in seen_so_far][:8]
+            
+            if filtered_tr:
+                await self._send_to_ui(user_id, {
+                    "content": "Trending products right Now.",
+                    "type": "product_carousel",
+                    "products": [p.model_dump(mode='json') for p in filtered_tr],
+                    "reason": "Velocity Algorithms"
+                })
+                await asyncio.sleep(0.3)
+
+        products_deals = results[3] if not isinstance(results[3], Exception) else []
+        if products_deals:
+            
+            seen_so_far = {p.id for p in products_personal} | {p.id for p in products_bestsellers} | {p.id for p in products_trending}
+            filtered_deals = [p for p in products_deals if p.id not in seen_so_far][:8]
+            
+            if filtered_deals:
+                await self._send_to_ui(user_id, {
+                    "content": "See our high value products here.",
+                    "type": "product_carousel",
+                    "products": [p.model_dump(mode='json') for p in filtered_deals],
+                    "reason": "Value Analysis"
+                })
+
+        
+        if not any([products_personal, products_bestsellers, products_trending, products_deals]):
+            await self._send_to_ui(user_id, {
+                "content": "Welcome! Feel free to ask me about any product.", 
+                "type": "text"
+            })

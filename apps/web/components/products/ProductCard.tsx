@@ -168,10 +168,10 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
                                 onClick={handleAddToCart}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.95 }}
-                                className="flex-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500 hover:text-black font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 group/btn"
+                                className="flex-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500 hover:text-black font-bold text-[10px] tracking-widest flex items-center justify-center gap-2 transition-all duration-300 group/btn"
                             >
                                 <ShoppingBag size={14} className="group-hover/btn:text-black transition-colors" /> 
-                                <span className="group-hover/btn:text-black">Add to Manifest</span>
+                                <span className="group-hover/btn:text-black">order with air</span>
                             </motion.button>
                             <motion.button
                                 key="view"

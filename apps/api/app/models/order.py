@@ -5,7 +5,7 @@ from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from .enums import OrderStatus, CancellationReason
 
 if TYPE_CHECKING:
@@ -18,15 +18,25 @@ if TYPE_CHECKING:
 class Order(SQLModel, table=True):
     __tablename__ = "orders"
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id")
+    user_id: int = Field(foreign_key="users.id", index=True)
 
     status: OrderStatus = Field(
+        default=OrderStatus.PENDING,  # أو CREATED حسب الـ Enum عندك
         sa_column=Column(
-            SAEnum(OrderStatus, name="orderstatus", native_enum=False), nullable=False
-        ),
-        default=OrderStatus.PENDING,
+            SAEnum(OrderStatus, name="orderstatus", native_enum=False), 
+            nullable=False,
+            index=True  # 👈 التصحيح: الفهرس مكانه الصحيح هنا
+        )
     )
-    total_price: float
+
+    total_price: float = Field(default=0.0, nullable=False)
+
+    # 2. حالة الدفع (الـ Checkout Service يحتاجها لتحديث الحالة لاحقاً)
+    is_paid: bool = Field(default=False)
+    paid_at: Optional[datetime] = Field(default=None)
+    stripe_payment_id: Optional[str] = Field(default=None, nullable=True)
+    
+    # Diamond Standard: UTC Timezones + Auto Update Logic
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(
         default_factory=datetime.utcnow,
@@ -37,7 +47,7 @@ class Order(SQLModel, table=True):
     delivery_lat: float = Field(default=0.0)
     delivery_lon: float = Field(default=0.0)
 
-    drone_id: Optional[int] = Field(default=None, foreign_key="drones.id")
+    drone_id: Optional[int] = Field(default=None, foreign_key="drones.id", index=True)
 
     cancellation_reason: Optional[CancellationReason] = Field(
         sa_column=Column(
@@ -74,8 +84,8 @@ class Order(SQLModel, table=True):
 class OrderItem(SQLModel, table=True):
     __tablename__ = "order_items"
     id: Optional[int] = Field(default=None, primary_key=True)
-    order_id: int = Field(foreign_key="orders.id")
-    product_id: int = Field(foreign_key="products.id")
+    order_id: int = Field(foreign_key="orders.id", index=True)
+    product_id: int = Field(foreign_key="products.id", index=True)
     quantity: int
     price_per_unit: float
 

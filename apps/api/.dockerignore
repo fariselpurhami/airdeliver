@@ -51,3 +51,11 @@ Thumbs.db
 data/
 models_cache/
 static/
+
+node_modules
+.pnpm-store
+.next
+dist
+build
+.git
+.DS_Store

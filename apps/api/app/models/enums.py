@@ -28,6 +28,7 @@ class DroneStatus(str, Enum):
     OFFLINE = "offline"
 
 class MissionStatus(str, Enum):
+    PENDING = "PENDING"
     CREATED = "created"
     ASSIGNED = "assigned"
     PREFLIGHT_CHECKS = "preflight_checks"

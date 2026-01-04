@@ -1,8 +1,7 @@
 # apps/api/app/models/drone.py
 
-# 1. قم بتعديل سطر الاستيراد هذا
-from sqlmodel import SQLModel, Field, Column, Relationship, JSON
-from sqlalchemy import Enum as SAEnum
+from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, Enum as SAEnum, JSON
 from sqlalchemy.orm import Mapped, relationship
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 from datetime import datetime
@@ -25,7 +24,11 @@ class Drone(SQLModel, table=True):
     
     status: DroneStatus = Field(
         default=DroneStatus.OFFLINE,
-        sa_column=Column(SAEnum(DroneStatus, name="dronestatus", native_enum=False), nullable=False)
+        sa_column=Column(
+            SAEnum(DroneStatus, name="dronestatus", native_enum=False), 
+            nullable=False,
+            index=True  # 👈 نقلنا الفهرس هنا جوه الـ Column
+        )
     )
     current_battery_pct: Optional[int] = Field(default=None, ge=0, le=100)
     last_seen: Optional[datetime] = Field(default=None)
@@ -36,11 +39,12 @@ class Drone(SQLModel, table=True):
         sa_relationship=relationship("Mission", back_populates="assigned_drone")
     )
 
-
     assigned_orders: Mapped[List["Order"]] = Relationship(
         sa_relationship=relationship("Order", back_populates="drone")
     )
     
+    # Telemetry should persist even if drone is deleted logic-wise, 
+    # but 'cascade' here implies standard DB cleaning.
     telemetry_logs: Mapped[List["DroneTelemetry"]] = Relationship(
         sa_relationship=relationship(
             "DroneTelemetry", 

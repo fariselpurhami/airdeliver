@@ -2,12 +2,20 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Check, Rocket, Package, TrendingUp, Bot, Star, ShieldCheck, Zap } from 'lucide-react';
+import { X, Plus, Check, Rocket, TrendingUp, Bot, Star, ShieldCheck, Zap } from 'lucide-react';
 import Image from 'next/image';
-import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; // ✅ REPLACED: useCartStore -> useAIOrderingStore
+import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 import { type Product } from './ProductCard';
+
+// --- ARCHITECTURAL UTILITY: SAFE DATA LAYER ---
+// This ensures the UI never crashes even if the backend sends strings or nulls
+const formatPrice = (value: number | string | undefined | null): string => {
+    if (value === undefined || value === null) return '0.00';
+    const num = Number(value);
+    return isNaN(num) ? '0.00' : num.toFixed(2);
+};
 
 export const ProductDetailsCard = ({ product, onClose }: { product: Product, onClose: () => void }) => {
     
@@ -17,6 +25,9 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
     const [isAdded, setIsAdded] = useState(false);
     // Unique ID for the button to serve as the start point for the flight animation
     const uniqueBtnId = `details-add-btn-${product.id}`; 
+
+    // Memoize the price to prevent recalculation on every render
+    const displayPrice = useMemo(() => formatPrice(product.price), [product.price]);
 
     const handleAddToCart = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -32,11 +43,13 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
     return (
         <motion.div
             layoutId={`product-card-${product.id}`} 
-            className="relative w-full h-full max-h-[85vh] flex flex-col md:flex-row gap-0 overflow-hidden bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-[0_0_50px_rgba(0,198,255,0.15)]"
+            className="relative w-full h-full max-h-[93vh] flex flex-col md:flex-row gap-0 overflow-hidden bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_50px_rgba(0,198,255,0.15)]"
         >
+            {/* Ambient Background Effects */}
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/10 via-transparent to-purple-900/10 pointer-events-none" />
             <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 blur-[80px] pointer-events-none" />
 
+            {/* Close Button */}
             <motion.button
                 initial={{ opacity: 0, rotate: -90 }}
                 animate={{ opacity: 1, rotate: 0 }}
@@ -48,6 +61,7 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                 <X size={20} />
             </motion.button>
 
+            {/* LEFT SIDE: Image Showcase */}
             <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -60,15 +74,19 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                     animate={{ y: [0, -15, 0], rotate: [0, 2, 0] }}
                     transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
                 >
-                    {product.image_url && (
+                    {product.image_url ? (
                         <Image
                             src={product.image_url}
                             alt={product.name}
                             fill
                             className="object-contain drop-shadow-[0_25px_50px_rgba(0,0,0,0.5)]"
                             sizes="(max-width: 768px) 100vw, 50vw"
-                            priority
+                            priority // Turbo Load for Modal
                         />
+                    ) : (
+                         <div className="flex items-center justify-center w-full h-full text-white/10">
+                            <Bot size={64} />
+                        </div>
                     )}
                 </motion.div>
                 
@@ -84,6 +102,7 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                 </div>
             </motion.div>
 
+            {/* RIGHT SIDE: Details & Actions */}
             <motion.div
                  initial={{ opacity: 0, x: 20 }}
                  animate={{ opacity: 1, x: 0 }}
@@ -103,8 +122,9 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                             {product.name}
                         </h2>
                         <div className="flex items-baseline gap-3">
+                            {/* CRASH FIX APPLIED HERE: Using displayPrice instead of raw toFixed */}
                             <span className="text-3xl font-mono text-cyan-400 font-bold tracking-tight">
-                                ${product.price.toFixed(2)}
+                                ${displayPrice}
                             </span>
                             {product.stock_level && (
                                 <span className="text-xs text-green-400 font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20">
@@ -150,6 +170,7 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                     </div>
                 </div>
 
+                {/* Footer Action Area */}
                 <div className="mt-4 pt-6 border-t border-white/10">
                     <AnimatePresence mode="wait">
                         {isAdded ? (
@@ -167,11 +188,11 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                                 id={uniqueBtnId}
                                 key="add" 
                                 onClick={handleAddToCart} 
-                                className="group w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold uppercase tracking-widest flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:scale-[1.02]"
+                                className="group w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold tracking-widest flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:scale-[1.02]"
                                 whileTap={{ scale: 0.98 }}
                             >
                                 <Plus size={20} className="group-hover:rotate-90 transition-transform" /> 
-                                Add to Manifest
+                                order with air
                             </motion.button>
                         )}
                     </AnimatePresence>

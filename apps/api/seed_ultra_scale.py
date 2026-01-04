@@ -1,216 +1,231 @@
 import asyncio
 import logging
-import random
-import time
 import os
-import ujson
-from typing import List, Dict
+import random
+import json
+from datetime import datetime, timezone
+from decimal import Decimal
+
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
-from app.core.config import settings
-from opensearchpy import AsyncOpenSearch, helpers
-
-# --- 🚀 Milvus & AI Imports ---
-from pymilvus import MilvusClient
 from sentence_transformers import SentenceTransformer
+from opensearchpy import AsyncOpenSearch, helpers
+from pymilvus import MilvusClient, DataType
 
-# Setup Logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
-logger = logging.getLogger("airdeliver.seeder")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger("airdeliver.seeder_global")
 
-# Constants
-BATCH_SIZE = 200  # Reduced for Memory Safety
-TARGET_COUNT = int(os.getenv("SEED_TARGET_COUNT", "100000"))
-MAX_PRODUCTS_TO_SYNC = 20000 # 🛑 Safety Limit: Stop after 20k items
+DB_URL = os.getenv("DATABASE_URI", "postgresql+asyncpg://postgres:postgres@postgres:5432/airdeliver")
+OPENSEARCH_HOST = os.getenv("OPENSEARCH_HOST", "opensearch")
+MILVUS_URI = "http://milvus:19530"
+MODEL_TEXT_SOTA = "Alibaba-NLP/gte-Qwen2-1.5B-instruct"
+TEXT_COL = "airdeliver_products_sota_v4"
+BATCH_SIZE = 64
 
-# --- 🏭 Phase 1: Data Manufacturing (SQL) ---
-class ProductFactory:
-    """
-    Simulates a high-speed production line for product data.
-    """
-    BASE_PRODUCTS = [
-        {"name": "Iphone 17 Pro Max", "cat": "electronics", "price": 1299.99, "tags": ["phone", "premium", "gift"]},
-        {"name": "Samsung S25 Ultra", "cat": "electronics", "price": 1199.99, "tags": ["android", "phone", "zoom"]},
-        {"name": "Sony WH-1000XM6", "cat": "audio", "price": 399.99, "tags": ["headphone", "noise-canceling", "travel"]},
-        {"name": "MacBook Pro M4", "cat": "laptop", "price": 2499.99, "tags": ["laptop", "apple", "work"]},
-        {"name": "Nike Air Zoom", "cat": "shoes", "price": 129.99, "tags": ["running", "sport", "shoes"]},
-        {"name": "Adidas Ultraboost", "cat": "shoes", "price": 180.00, "tags": ["running", "comfortable", "shoes"]},
-        {"name": "Leather Jacket", "cat": "clothing", "price": 250.00, "tags": ["fashion", "leather", "winter"]},
-        {"name": "Smart Coffee Maker", "cat": "home", "price": 150.00, "tags": ["coffee", "smart", "kitchen"]},
-        {"name": "Gaming Chair", "cat": "furniture", "price": 299.99, "tags": ["gaming", "chair", "comfort"]},
-        {"name": "4K OLED Monitor", "cat": "electronics", "price": 899.99, "tags": ["monitor", "screen", "gaming"]}
+PRODUCT_TEMPLATES = {
+    "Smartphones": [
+        {"name": "Apple iPhone 15 Pro Max", "base_price": 1199, "img": "https://images.unsplash.com/photo-1696446701796-da61225697cc?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Samsung Galaxy S24 Ultra", "base_price": 1299, "img": "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Google Pixel 8 Pro", "base_price": 999, "img": "https://images.unsplash.com/photo-1698669930852-25916053f317?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Sony Xperia 1 V", "base_price": 1399, "img": "https://images.unsplash.com/photo-1596742517684-29729a656515?auto=format&fit=crop&w=800&q=80"},
+    ],
+    "Laptops": [
+        {"name": "MacBook Pro 16 M3 Max", "base_price": 2499, "img": "https://images.unsplash.com/photo-1517336714731-489689fd1ca4?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Dell XPS 15 OLED", "base_price": 1899, "img": "https://images.unsplash.com/photo-1593642632823-8f78536788c6?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Razer Blade 18 Gaming", "base_price": 3299, "img": "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Asus ROG Zephyrus G14", "base_price": 1599, "img": "https://images.unsplash.com/photo-1628122393356-97987820d880?auto=format&fit=crop&w=800&q=80"},
+    ],
+    "Headphones": [
+        {"name": "Sony WH-1000XM5", "base_price": 348, "img": "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Apple AirPods Max", "base_price": 549, "img": "https://images.unsplash.com/photo-1613040809024-b4ef7ba99bc3?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Bose QuietComfort Ultra", "base_price": 429, "img": "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=800&q=80"},
+    ],
+    "Cameras": [
+        {"name": "Sony Alpha a7 IV", "base_price": 2498, "img": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Canon EOS R5", "base_price": 3899, "img": "https://images.unsplash.com/photo-1519183071298-a2962feb14f4?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Fujifilm X-T5", "base_price": 1699, "img": "https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=800&q=80"},
+    ],
+    "Drones": [
+        {"name": "DJI Mavic 3 Pro", "base_price": 2199, "img": "https://images.unsplash.com/photo-1579829366248-204fe8413f31?auto=format&fit=crop&w=800&q=80"},
+        {"name": "DJI Mini 4 Pro", "base_price": 759, "img": "https://images.unsplash.com/photo-1473968512647-3e447244af8f?auto=format&fit=crop&w=800&q=80"},
+    ],
+    "Watches": [
+        {"name": "Apple Watch Ultra 2", "base_price": 799, "img": "https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Garmin Fenix 7X Pro", "base_price": 899, "img": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"},
+        {"name": "Samsung Galaxy Watch 6", "base_price": 299, "img": "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=800&q=80"},
     ]
+}
 
-    @staticmethod
-    def generate_batch(start_id: int, size: int) -> List[Dict]:
-        batch = []
-        for i in range(size):
-            base = random.choice(ProductFactory.BASE_PRODUCTS)
-            pid = start_id + i
-            item = {
-                "id": pid,
-                "name": f"{base['name']} - Edition {pid}", # Unique Name
-                "description": f"This is the amazing {base['name']}, specifically edition {pid}. Top quality.",
-                "price": round(base['price'] * random.uniform(0.9, 1.1), 2),
-                "inventory": random.randint(10, 500),
-                "image_url": f"/images/product_{random.randint(1, 10)}.jpg", # Mock Image
-                "category": base['cat'],
-                "tags": ujson.dumps(base['tags']), # SQL needs JSON string
-                "rating": round(random.uniform(3.5, 5.0), 1),
-                "raw_tags": base['tags'] # For Search Engines
-            }
-            batch.append(item)
-        return batch
+VARIANTS = ["Midnight Black", "Titanium Silver", "Ocean Blue", "Space Grey", "Sunset Gold", "Arctic White"]
+SPECS_KEYWORDS = ["512GB", "1TB", "256GB", "Pro Performance", "AI Edition", "Limited Series"]
 
-async def seed_sql():
-    logger.info("🚀 PHASE 1: SQL Data Injection Started...")
-    engine = create_async_engine(
-        str(settings.DATABASE_URI), # ✅ Fixed Config Name
-        echo=False,
-        pool_size=10,
-        max_overflow=0
-    )
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-    async with async_session() as session:
-        # Check current count
-        result = await session.execute(text("SELECT COUNT(*) FROM products"))
-        current_count = result.scalar()
-        logger.info(f"📊 Current SQL Count: {current_count}")
-
-        if current_count >= TARGET_COUNT:
-            logger.info("✅ SQL Seeding Skipped (Target Reached).")
-            return
-
-        needed = TARGET_COUNT - current_count
-        start_id = current_count + 1
-        
-        # Batch Insert
-        for i in range(0, needed, 1000):
-            current_batch_size = min(1000, needed - i)
-            batch = ProductFactory.generate_batch(start_id + i, current_batch_size)
-            
-            await session.execute(
-                text("""
-                INSERT INTO products (id, name, description, price, inventory, image_url, category, tags, rating)
-                VALUES (:id, :name, :description, :price, :inventory, :image_url, :category, :tags, :rating)
-                ON CONFLICT (id) DO NOTHING
-                """),
-                batch
-            )
-            await session.commit()
-            logger.info(f"📥 Inserted SQL Batch: {current_batch_size} items")
-
-    await engine.dispose()
-    logger.info("✅ PHASE 1 COMPLETE.")
-
-# --- 💎 Phase 2: Diamond Sync (OpenSearch + Milvus) ---
 async def seed_search_engines():
-    logger.info("🚀 PHASE 2: Search Engine Synchronization (Memory Optimized)...")
+    logger.info("�� STARTING GLOBAL ARCHITECTURE SEEDING SEQUENCE...")
+    os_client = None
+    engine = None
     
-    # 1. Connect to OpenSearch
-    os_client = AsyncOpenSearch(
-        hosts=[{'host': settings.OPENSEARCH_HOST, 'port': settings.OPENSEARCH_PORT}],
-        http_compress=True,
-        timeout=60
-    )
-    
-    # 2. Connect to Milvus
-    milvus_client = MilvusClient(uri=settings.MILVUS_URI)
-    
-    # 3. Load AI Models
-    logger.info("🧠 Loading AI Models (Takes ~10s)...")
-    text_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-    vision_model = SentenceTransformer('clip-ViT-B-32')
-    logger.info("✅ AI Models Loaded.")
+    try:
+        milvus = MilvusClient(uri=MILVUS_URI)
+        os_client = AsyncOpenSearch(hosts=[{'host': OPENSEARCH_HOST, 'port': 9200}], timeout=60)
+        
+        logger.info("🧠 Loading Neural Model...")
+        model = SentenceTransformer(MODEL_TEXT_SOTA, device="cpu", trust_remote_code=False)
+        embedding_dim = model.get_sentence_embedding_dimension()
 
-    # 4. Connect to SQL to fetch data
-    engine = create_async_engine(str(settings.DATABASE_URI)) # ✅ Fixed Config Name
-    async_session = sessionmaker(engine, class_=AsyncSession)
+        if milvus.has_collection(TEXT_COL):
+            milvus.drop_collection(TEXT_COL)
 
-    async with async_session() as session:
-        # ✅ Using stream + yield_per for memory safety
-        stmt = text("SELECT id, name, description, category, tags, image_url, price, rating FROM products").execution_options(yield_per=BATCH_SIZE)
-        result = await session.stream(stmt)
+        schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=True)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        schema.add_field("vector", DataType.FLOAT_VECTOR, dim=embedding_dim)
+        schema.add_field("price", DataType.DOUBLE)
+        schema.add_field("rating", DataType.DOUBLE)
+        schema.add_field("category", DataType.VARCHAR, max_length=512)
+
+        index_params = milvus.prepare_index_params()
+        index_params.add_index(field_name="vector", metric_type="COSINE", index_type="AUTOINDEX")
+
+        milvus.create_collection(
+            collection_name=TEXT_COL,
+            schema=schema,
+            index_params=index_params
+        )
+
+        await os_client.indices.delete(index="airdeliver_products", ignore=[400, 404])
+
+        engine = create_async_engine(DB_URL)
+        async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+        async with async_session() as session:
+            logger.info("🛡️ Performing Self-Healing Schema Check...")
+            await session.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS image VARCHAR(1024);"))
+            await session.commit()
+            logger.info("✅ Schema Verified.")
+
+        products_list = []
+        pg_products_list = []
+        now_utc_naive = datetime.now(timezone.utc).replace(tzinfo=None)
         
-        os_batch = []
-        milvus_text_batch = []
-        milvus_vis_batch = []
+        categories = list(PRODUCT_TEMPLATES.keys())
         
-        count = 0
-        
-        async for row in result:
-            count += 1
+        for i in range(1, 1001):
+            cat = random.choice(categories)
+            template = random.choice(PRODUCT_TEMPLATES[cat])
+            variant_color = random.choice(VARIANTS)
+            variant_spec = random.choice(SPECS_KEYWORDS)
             
-            # 🛑 STOPPING CONDITION
-            if count > MAX_PRODUCTS_TO_SYNC:
-                logger.info(f"🛑 Reached Limit: {MAX_PRODUCTS_TO_SYNC} items synced. Stopping safely.")
-                break
-
-            item = dict(row._mapping)
+            full_name = f"{template['name']} ({variant_spec}, {variant_color})"
+            base_price = template['base_price']
+            final_price = round(base_price * random.uniform(0.9, 1.2), 2)
             
-            # Prepare OpenSearch Doc
-            os_doc = {
-                "_index": "airdeliver_products",
-                "_id": item['id'],
-                "_source": {
-                    "id": item['id'],
-                    "name": item['name'],
-                    "description": item['description'],
-                    "category": item['category'],
-                    "tags": ujson.loads(item['tags']) if isinstance(item['tags'], str) else item['tags'],
-                    "price": item['price'],
-                    "rating": item['rating'],
-                    "image_url": item['image_url']
-                }
+            desc = (
+                f"Experience the ultimate {cat} with the {full_name}. "
+                f"Featuring state-of-the-art technology, premium {variant_color} finish, and {variant_spec} configuration. "
+                f"Perfect for professionals and enthusiasts seeking top-tier performance."
+            )
+
+            image_url = template['img']
+            tags_py = [cat, "Premium", variant_color, template['name'].split()[0], "Global Store"]
+
+            p = {
+                "id": i,
+                "sku": f"GLB-{cat[:3].upper()}-{i:04d}",
+                "name": full_name,
+                "description": desc,
+                "price": final_price,
+                "category": cat,
+                "inventory": random.randint(5, 500),
+                "rating": round(random.uniform(4.2, 5.0), 1),
+                "tags": tags_py,
+                "image": image_url,
+                "is_active": True,
+                "created_at": now_utc_naive,
+                "updated_at": now_utc_naive
             }
-            os_batch.append(os_doc)
+            products_list.append(p)
 
-            # Prepare Milvus Vectors
-            text_content = f"{item['name']} {item['description']} {item['category']}"
-            text_vec = text_model.encode(text_content).tolist()
-            milvus_text_batch.append({"id": item['id'], "vector": text_vec})
+            pg_p = p.copy()
+            pg_p['tags'] = json.dumps(tags_py)
+            pg_products_list.append(pg_p)
 
-            vis_content = f"photo of {item['name']}" 
-            vis_vec = vision_model.encode(vis_content).tolist()
-            milvus_vis_batch.append({"id": item['id'], "image_vector": vis_vec})
+        logger.info("💉 Injecting Data into PostgreSQL...")
+        
+        async with async_session() as session:
+            stmt = text("""
+                INSERT INTO products (id, sku, name, description, price, inventory, category, rating, tags, image, is_active, created_at, updated_at)
+                VALUES (:id, :sku, :name, :description, :price, :inventory, :category, :rating, :tags, :image, :is_active, :created_at, :updated_at)
+                ON CONFLICT (id) DO UPDATE SET 
+                    sku = EXCLUDED.sku,
+                    name = EXCLUDED.name,
+                    description = EXCLUDED.description,
+                    price = EXCLUDED.price,
+                    rating = EXCLUDED.rating,
+                    category = EXCLUDED.category,
+                    tags = EXCLUDED.tags,
+                    image = EXCLUDED.image,
+                    inventory = EXCLUDED.inventory,
+                    updated_at = EXCLUDED.updated_at
+            """)
+            
+            await session.execute(stmt, pg_products_list)
+            await session.commit()
+            logger.info("✅ Database Synchronization Complete.")
 
-            # Flush Batches
-            if len(os_batch) >= BATCH_SIZE:
-                try:
-                    await helpers.async_bulk(os_client, os_batch)
-                    milvus_client.insert(collection_name="airdeliver_products", data=milvus_text_batch)
-                    milvus_client.insert(collection_name="airdeliver_products_visual", data=milvus_vis_batch)
-                    
-                    logger.info(f"💎 Synced Batch: {count} items")
-                    
-                    os_batch = []
-                    milvus_text_batch = []
-                    milvus_vis_batch = []
-                except Exception as e:
-                    logger.error(f"❌ Batch Error: {e}")
+        total = len(products_list)
+        logger.info(f"📦 Synchronizing {total} vectors to AI Core...")
 
-        # Flush Remaining (if any, and if loop finished naturally)
-        if os_batch:
+        for i in range(0, total, BATCH_SIZE):
+            chunk_dicts = products_list[i:i+BATCH_SIZE]
+            
+            texts = [
+                f"Product: {d['name']}. Category: {d['category']}. "
+                f"Color: {d['tags'][2]}. Specs: {d['description']}" 
+                for d in chunk_dicts
+            ]
+            
+            embeddings = model.encode(texts, convert_to_tensor=False).tolist()
+
+            os_batch, mil_batch = [], []
+            for idx, d in enumerate(chunk_dicts):
+                p_id = str(d['id'])
+                emb = embeddings[idx]
+
+                os_batch.append({
+                    "_index": "airdeliver_products",
+                    "_id": p_id,
+                    "_source": {
+                        **d,
+                        "embedding": emb,
+                        "id": p_id,
+                        "created_at": d['created_at'].isoformat(),
+                        "updated_at": d['updated_at'].isoformat()
+                    }
+                })
+
+                mil_batch.append({
+                    "id": int(p_id),
+                    "vector": emb,
+                    "price": d['price'],
+                    "rating": d['rating'],
+                    "category": str(d.get('category', '')),
+                    "payload": {"product_id": p_id, "sku": d['sku'], "image": d['image']} 
+                })
+
             await helpers.async_bulk(os_client, os_batch)
-            milvus_client.insert(collection_name="airdeliver_products", data=milvus_text_batch)
-            milvus_client.insert(collection_name="airdeliver_products_visual", data=milvus_vis_batch)
-            logger.info(f"💎 Synced Final Batch. Total: {count}")
+            milvus.insert(TEXT_COL, mil_batch)
+            
+            logger.info(f"⚡ Batch Synced: {min(i+BATCH_SIZE, total)}/{total}")
 
-    await os_client.close()
-    await engine.dispose()
-    logger.info("✅ PHASE 2 COMPLETE.")
-
-async def main():
-    start_time = time.time()
-    await seed_sql()
-    await seed_search_engines()
-    logger.info(f"🏁 MISSION COMPLETE in {time.time() - start_time:.2f}s")
+    except Exception as e:
+        logger.error(f"❌ EXECUTION FAILED: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        if engine:
+            await engine.dispose()
+        if os_client:
+            await os_client.close()
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
+    asyncio.run(seed_search_engines())

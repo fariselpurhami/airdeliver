@@ -9,7 +9,7 @@ import dynamic from 'next/dynamic';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 import AIChatOverlay from '../ai/AIChatOverlay';
 
-const Chatbot = dynamic(() => import('@/components/ai/chatbot'), {
+const Chatbot = dynamic(() => import('@/components/ai/Chatbot'), {
   ssr: false,
 });
 

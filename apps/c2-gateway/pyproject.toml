@@ -10,13 +10,26 @@ package-mode = false
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0" 
 
-fastapi = {version = "^0.121.2", extras = ["all"]}
+fastapi = "^0.128.0"
 aio-pika = "^9.5.8"
 httpx = "^0.28.1"
 structlog = "^25.5.0"
 python-jose = {version = "^3.5.0", extras = ["cryptography"]}
 pydantic-settings = "^2.12.0"
 gunicorn = "^23.0.0"
+anyio = "^4.12.0"
+click = "^8.3.1"
+fastapi-cli = "^0.0.20"
+fastapi-cloud-cli = "^0.8.0"
+orjson = "^3.11.5"
+pydantic = "^2.12.5"
+python-multipart = "^0.0.21"
+rich-toolkit = "^0.17.1"
+sentry-sdk = "^2.48.0"
+starlette = "^0.50.0"
+typer = "^0.21.0"
+urllib3 = "^2.6.2"
+uvicorn = "^0.40.0"
 
 [tool.poetry.group.dev.dependencies]
 

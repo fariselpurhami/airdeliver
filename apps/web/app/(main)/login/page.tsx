@@ -1,11 +1,12 @@
 'use client';
 
+import CinematicBackground from '@/components/ui/CinematicBackground';
 import React, { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Float, Sparkles as ThreeSparkles } from '@react-three/drei';
+import { Stars, Float } from '@react-three/drei';
 import { AtSign, Lock, User, ArrowRight, Zap, Globe, ShieldCheck, Gem } from 'lucide-react';
 import * as THREE from 'three';
 
@@ -64,7 +65,7 @@ const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.I
         </div>
         <input
             {...props}
-	        suppressHydrationWarning={true}
+            suppressHydrationWarning={true}
             className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-white placeholder-gray-500 
                        focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-500/30 focus:bg-black/40 focus:outline-none 
                        transition-all duration-500 font-medium tracking-wide backdrop-blur-sm"
@@ -144,7 +145,7 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
                 setIsLoading(false);
             } else if (result?.ok) {
                 router.refresh();
-		        router.push('/');
+                router.push('/');
             }
         } catch (err) {
             setError('System Error. Please try again.');
@@ -248,7 +249,7 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
                 setIsLoading(false);
             } else if (result?.ok) {
                 router.refresh();
-		        router.push('/');
+                router.push('/');
             }
         } catch (err) {
             setError('System Error. Please try again.');
@@ -335,6 +336,7 @@ export default function AuthPage() {
             
             {/* 1. Cinematic Background Layer - The Cosmos */}
             <div className="absolute inset-0 z-0">
+	    <CinematicBackground />
                 <Canvas camera={{ position: [0, 0, 20], fov: 40 }}> 
                     <Suspense fallback={null}>
                         <color attach="background" args={['#000000']} />
@@ -342,6 +344,7 @@ export default function AuthPage() {
                         <Stars radius={150} depth={80} count={12000} factor={6} saturation={0} fade speed={0.5} />
                         <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.4}>
                              <DiamondDust />
+			     
                         </Float>
                         <ambientLight intensity={0.2} />
                         <pointLight position={[10, 10, 10]} intensity={1.5} color="#00C6FF" />
@@ -413,13 +416,21 @@ export default function AuthPage() {
                     <div className="absolute top-0 left-0 w-64 h-64 bg-purple-500/5 blur-[80px] rounded-full pointer-events-none" />
 
                     <div className="relative p-10 md:p-12 z-10">
-                        <AnimatePresence mode="wait">
-                            {variant === 'SIGNIN' ? (
-                                <SignInForm key="signin" onSwitch={toggleVariant} />
-                            ) : (
-                                <SignUpForm key="signup" onSwitch={toggleVariant} />
-                            )}
-                        </AnimatePresence>
+                        {/* 💎 GOLDEN STANDARD FIX: Wrapped Content in Suspense 💎 */}
+                        <Suspense fallback={
+                            <div className="flex flex-col items-center justify-center min-h-[300px] text-cyan-400 font-mono text-xs tracking-widest animate-pulse gap-4">
+                                <Gem size={24} className="animate-spin duration-3000" />
+                                <span>INITIALIZING INTERFACE...</span>
+                            </div>
+                        }>
+                            <AnimatePresence mode="wait">
+                                {variant === 'SIGNIN' ? (
+                                    <SignInForm key="signin" onSwitch={toggleVariant} />
+                                ) : (
+                                    <SignUpForm key="signup" onSwitch={toggleVariant} />
+                                )}
+                            </AnimatePresence>
+                        </Suspense>
                     </div>
 
                     {/* Architectural Footer Bar */}

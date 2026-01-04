@@ -6,30 +6,46 @@ import logging
 import os
 import asyncio
 import re
+import random
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from groq import AsyncGroq
-from ddgs import DDGS
+from tavily import TavilyClient
 
 logger = logging.getLogger("airdeliver.services.cognitive_core")
 
 class SearchStrategy(BaseModel):
-    is_direct_product_request: bool
-    search_queries: List[str]
+    """Blueprint for the Search Engine Execution."""
+    is_direct_product_request: bool = Field(..., description="True if user wants a specific item, False if browsing")
+    search_queries: List[str] = Field(..., description="Optimized queries for hybrid search (Semantic + Keyword)")
     price_min: Optional[float] = None
     price_max: Optional[float] = None
     category_filter: Optional[str] = None
-    attributes: List[str] = []
-    response_tone: str
-    direct_answer_prefix: str
+    attributes: List[str] = Field(default_factory=list, description="Extracted attributes like color, size, material")
+    response_tone: str = Field(..., description="suggested tone: 'enthusiastic', 'professional', 'minimalist'")
+    direct_answer_prefix: str = Field(..., description="A short, human-like opening sentence")
 
 class CognitiveResponse(BaseModel):
+    """Structured output for decision making."""
     selected_ids: List[int]
     reasoning: Dict[str, str]
     intro_message: str
     confidence_score: float
 
 class FreeLLMService:
+    """
+    💎 DIAMOND COGNITIVE CORE (V100.0 - UNIVERSAL MIND).
+
+    The brain behind the operation. Not just an LLM wrapper, but a
+    Personality Engine and Intent Decoder.
+
+    ARCHITECTURAL PILLARS:
+    1. 🎭 Dynamic Persona Injection: Adapts tone based on user financial DNA.
+    2. 🕵️ Sherlock Extraction: Reads between lines to find implicit user facts.
+    3. 👁️ Commercial Vision: Analyzes images like a senior merchandiser.
+    4. 🛡️ Resilience: Automatic retries and fallback models.
+    """
+
     _instance = None
     _client: Optional[AsyncGroq] = None
     _initialized = False
@@ -41,41 +57,235 @@ class FreeLLMService:
 
     def __init__(self):
         if self._initialized: return
+
         self.api_key = os.getenv("GROQ_API_KEY")
-        self.brain_model = os.getenv("GROQ_MODEL")
-        self.reflex_model = "llama-3.1-8b-instant"
-        self.vision_model = os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+
+        self.brain_model = "openai/gpt-oss-120b"
+        
+        self.vision_model = "meta-llama/llama-4-maverick-17b-128e-instruct"
+    
+        self.reflex_model = "openai/gpt-oss-20b"
+
+        self.system_persona = """
+        YOU ARE airdeliver AI. A World-Class Shopping Concierge.
+        TRAITS: Charismatic, Ultra-Intelligent, Proactive, and Brief.
+        GOAL: Help the user buy the PERFECT item in record time.
+        TONE: Adaptive. If the user is technical, be precise. If casual, be friendly.
+        NEVER start with "As an AI...". Be human-like.
+        """
 
         if not self.api_key:
-            logger.critical("GROQ_API_KEY missing. Cognitive Core is OFFLINE.")
-            
+            logger.critical("⛔ GROQ_API_KEY missing. Cognitive Core is OFFLINE.")
+
         self._initialized = True
 
     @property
     def client(self) -> Optional[AsyncGroq]:
+        """Lazy-loaded, fault-tolerant connection."""
         if not self._client and self.api_key:
             try:
                 self._client = AsyncGroq(api_key=self.api_key)
+        
             except Exception as e:
-                logger.critical(f"Neural Uplink Failed: {e}")
+                logger.critical(f"🔥 Neural Uplink Failed: {e}")
                 return None
         return self._client
 
+    async def generate_response(
+        self,
+        prompt: str,
+        system_role: str = "You are a helpful AI assistant.",
+        context: Any = None,
+        temperature: float = 0.7,
+        json_mode: bool = False
+    ) -> str:
+        """
+        🚀 Universal Generator:
+        - Handles Text/JSON/List contexts automatically.
+        - Supports 'JSON Mode' for structured data extraction.
+        - Dynamic Creativity Control via 'temperature'.
+        """
+        try:
+            client_instance = self.client
+            context_str = ""
+            if context:
+                if isinstance(context, (dict, list)):
+                    import json
+                    context_str = json.dumps(context, indent=2, ensure_ascii=False)
+                else:
+                    context_str = str(context)
+
+            full_system_content = system_role
+            if context_str:
+                full_system_content += f"\n\n🔍 REFERENCED CONTEXT:\n{context_str}"
+
+            messages = [
+                {"role": "system", "content": full_system_content},
+                {"role": "user", "content": prompt}
+            ]
+
+            kwargs = {
+                "messages": messages,
+                "model": self.brain_model,  
+                "temperature": temperature if temperature is not None else 0.5,
+                "max_tokens": 2048,
+                "top_p": 0.9,
+            }
+
+            if json_mode:
+                kwargs["response_format"] = {"type": "json_object"}
+
+            chat_completion = await client_instance.chat.completions.create(**kwargs)
+            return chat_completion.choices[0].message.content
+        except Exception as e:
+            logger.error(f"🔥 LLM Universal Error: {e}")
+
+            return ""
+
+    def _get_spontaneous_vibe(self) -> str:
+        """
+        🎲 Random Vibe Selector.
+        Picks a unique 'Scene' for the AI to act upon, avoiding robotic welcomes.
+        """
+        vibes = [
+            "User entered. IGNORE 'Hello'. Jump straight into the sleek efficiency of 'Titanium Minimalist Setups'. Be intriguing.",
+            "Skip greetings. Act as if you were analyzing 'Quantum Computing' specs and want to share a secret.",
+            "New session. Do not welcome. Question if they have seen the latest 'Eco-Luxury' tech. Be provocative.",
+            "Connection active. Immediately propose a 'Cyberpunk Aesthetic' upgrade for their daily gear.",
+            "Start immediately. Mention that 'Silence is the ultimate luxury' (Noise Cancelling context).",
+            "User is online. Ask them: 'Ready to see what the future looks like today?'",
+            "Direct approach. Say: 'I found something that matches your high standards.'"
+        ]
+        return random.choice(vibes)
+
+    async def generate_lifestyle_matrix(self, all_products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        🚀 THE QUAD-CORE WELCOME ENGINE.
+        Instead of a single "Hello", we launch a coordinated 4-pronged engagement strategy.
+        It turns a bug into a Global Lifestyle Feature.
+        
+        💎 STRATEGY:
+        1. The Trendsetter (Popular Item).
+        2. The Deal Hunter (Best Value).
+        3. The Connoisseur (High Rating/Price).
+        4. The Wildcard (Random Discovery).
+        """
+        if not self.client or not all_products:
+            return [{"text": "Welcome to the future of shopping.", "product": None}]
+
+        try:
+        
+            trend_pool = all_products[:10]
+            trend_item = random.choice(trend_pool) if trend_pool else all_products[0]
+
+            deal_pool = random.sample(all_products, min(len(all_products), 20))
+            deal_item = min(deal_pool, key=lambda x: x.get('price', 999999))
+
+            lux_pool = random.sample(all_products, min(len(all_products), 20))
+            lux_item = max(lux_pool, key=lambda x: x.get('price', 0))
+
+            wild_item = random.choice(all_products)
+            selected_items = [trend_item, deal_item, lux_item, wild_item]
+            
+            unique_items = []
+            seen_ids = set()
+            for item in selected_items:
+                if item.get('id') not in seen_ids:
+                    unique_items.append(item)
+                    seen_ids.add(item.get('id'))
+                else:
+                
+                    fallback = random.choice(all_products)
+                    unique_items.append(fallback)
+
+            items_context = "\n".join([
+                f"1. TREND ({unique_items[0].get('name')}): Enthusiastic vibe.",
+                f"2. DEAL ({unique_items[1].get('name')}): Urgent value vibe.",
+                f"3. LUXURY ({unique_items[2].get('name')}): Sophisticated vibe.",
+                f"4. DISCOVERY ({unique_items[3].get('name')}): Curious vibe."
+            ])
+
+            system_prompt = """
+            ROLE: Global Lifestyle Curator.
+            TASK: Write 4 short, punchy hooks for the provided products.
+            
+            RULES:
+            1. Output MUST be valid JSON list of strings: ["Hook 1", "Hook 2", "Hook 3", "Hook 4"].
+            2. NO MARKDOWN. NO EMOJIS (The UI handles emojis).
+            3. Length: Max 10 words per hook.
+            4. Tone: Match the requested vibe (Trend, Deal, Luxury, Discovery).
+            """
+
+            completion = await self._safe_execute(
+                self.client.chat.completions.create,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": items_context}
+                ],
+                model=self.reflex_model, 
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+
+            hooks_json = json.loads(self._clean_json_response(completion.choices[0].message.content))
+            hooks_list = hooks_json.get("hooks", list(hooks_json.values())[0]) 
+
+            if not isinstance(hooks_list, list) or len(hooks_list) < 4:
+                hooks_list = [
+                    f"Check out the {unique_items[0].get('name')}.",
+                    f"Great price on {unique_items[1].get('name')}.",
+                    f"Experience the {unique_items[2].get('name')}.",
+                    f"Have you seen {unique_items[3].get('name')}?"
+                ]
+
+            matrix_response = []
+            for i in range(min(len(unique_items), 4)):
+                matrix_response.append({
+                    "text": hooks_list[i],
+                    "product": unique_items[i],
+                    "type": ["trend", "deal", "luxury", "discovery"][i]
+                })
+
+            return matrix_response
+
+        except Exception as e:
+            logger.error(f"Lifestyle Matrix Failed: {e}")
+
+            return [{
+                "text": "Ready to explore our global collection?", 
+                "product": random.choice(all_products) if all_products else None,
+                "type": "fallback"
+            }]
+
+
     async def extract_memory_worthy_facts(self, user_message: str) -> Optional[str]:
         """
-        Silent Observer: Checks if the user stated a permanent preference or fact.
-        Returns the fact string or None.
+        🕵️ The Silent Observer.
+        Analyzes user input to extract PERMANENT & IMPLICIT facts.
+
+        Example:
+        Input: "I need a cheap phone for my kid."
+        Output: "User has a child, prefers budget-friendly electronics."
         """
         if not self.client or len(user_message.split()) < 3: return None
 
         system_prompt = """
-        TASK: Analyze user input. Extract PERMANENT preferences/facts (Diet, Size, Brand Loyalty, Allergies, Location context).
-        OUTPUT: The fact as a concise statement (e.g., "User is vegan", "User wears size 42").
-        IF NO FACT: Return "NULL".
+        ROLE: Expert Profiler.
+        TASK: Analyze the user's message. Extract PERMANENT preferences, Lifestyle Indicators, or Financial Context.
+        OUTPUT: A single, concise 3rd-person fact string.
+
+        RULES:
+        - Ignore temporary intent (e.g., "I want a pizza" -> NULL).
+        - Capture constraints (Allergies, Sizes, Brand Loyalty, Budget Tier).
+        - IF NO VALUABLE FACT FOUND: Return "NULL".
+
+        INPUT EXAMPLES:
+        "I only wear Nike." -> "Brand loyalty: Nike."
+        "Too expensive for me." -> "Price sensitivity: High."
+        "I need this for my wedding." -> "Life Event: Wedding upcoming."
         """
 
         try:
-            # We use the smaller/faster model (Reflex Model) for this to save latency
             completion = await self._safe_execute(
                 self.client.chat.completions.create,
                 messages=[
@@ -84,21 +294,23 @@ class FreeLLMService:
                 ],
                 model=self.reflex_model,
                 temperature=0.0,
-                max_tokens=50
+                max_tokens=150
             )
             result = completion.choices[0].message.content.strip()
-            return None if "NULL" in result else result
-        except:
+            return None if "NULL" in result or len(result) < 5 else result
+        except Exception:
             return None
 
-    async def analyze_visual_context(self, base64_image: str, user_prompt: str = "Describe this product for a shopping search.") -> str:
-        """
-        Multimodal Uplink: Converts raw pixel data into semantic search vectors.
-        Uses Llama-3.2-Vision (or equivalent) to 'see' the product.
-        """
-        if not self.client:
-            return "Visual core offline."
 
+    async def analyze_visual_context(self, base64_image: str, user_prompt: str = "") -> str:
+        """
+        👁️ Multimodal Retina Scan.
+        Converts raw pixels into rich Commercial Metadata.
+        Acts as a Senior Merchandiser identifying style, material, and occasion.
+        """
+        if not self.client: return "Visual core offline."
+
+        final_prompt = user_prompt if user_prompt else "Describe this product in detail for a search engine. Focus on: Category, Color, Material, Brand style, and Vibe."
 
         try:
             completion = await self._safe_execute(
@@ -107,7 +319,7 @@ class FreeLLMService:
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": user_prompt},
+                            {"type": "text", "text": final_prompt},
                             {
                                 "type": "image_url",
                                 "image_url": {
@@ -119,77 +331,98 @@ class FreeLLMService:
                 ],
                 model=self.vision_model,
                 temperature=0.1,
-                max_tokens=300
+                max_tokens=250 
             )
             description = completion.choices[0].message.content.strip()
-            logger.info(f"👁️ Visual Analysis Complete: {description[:50]}...")
+            logger.info(f"👁️ Visual Analysis: {description[:60]}...")
             return description
         except Exception as e:
-            logger.error(f"Visual Cortex Failure: {e}")
-            return "Unable to analyze image due to signal interference."
+            logger.error(f"🔥 Visual Cortex Failure: {e}")
+            return "Visual signal interrupted."
 
+    
     async def _safe_execute(self, func, *args, **kwargs):
+        """
+        🛡️ Resilience Wrapper.
+        Retries with exponential backoff for network blips.
+        """
         retries = 2
         for i in range(retries + 1):
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
                 if i == retries:
-                    logger.error(f"Execution Exhausted: {e}")
+                    logger.error(f"❌ LLM Execution Exhausted: {e}")
                     raise e
                 await asyncio.sleep(0.3 * (2 ** i))
 
     def _clean_json_response(self, content: str) -> str:
+        """🧹 Sanitizes LLM output to ensure valid JSON."""
         content = content.strip()
         json_match = re.search(r'\{.*\}', content, re.DOTALL)
-        return json_match.group(0) if json_match else content
+        return json_match.group(0) if json_match else "{}"
 
-    async def analyze_product_image(self, base64_image: str) -> str:
+    async def analyze_product_image(self, base64_image: str, enrich_with_search: bool = True) -> str:
         """
-        Uses a Multimodal LLM to translate an image into optimal search queries.
+        👁️ OMNI-VISION ANALYZER (V5.0).
+        Uses Multimodal LLM to extract 'Commercial DNA' from pixels.
+        Includes a 'Flash Search Bridge' to validate visual hallucinations against real market data.
         """
-        if not self.client or not base64_image: return "generic product"
+
+        if not self.client: return "generic product"
+        if not base64_image: return "generic product"
 
         system_prompt = """
-        ROLE: Senior Global Multi-Vertical Visual Merchant (Fashion, Beauty, Tech, Home).
-        TASK: Analyze the image to extract the precise commercial DNA of the DOMINANT product for a high-end search engine.
+        ROLE: Senior Global Multi-Vertical Visual Merchant & SEO Expert.
+        TASK: Analyze the image to extract the precise commercial DNA of the DOMINANT product.
+        GOAL: Output a search query that will hit the EXACT product in a database of 100M items.
 
         --- 🧠 DYNAMIC ANALYSIS PROTOCOLS (AUTO-SWITCHING) ---
 
         [MODE A: FASHION & APPAREL]
-        IF the image contains clothing/shoes/bags:
-        1. IDENTITY: Brand + Item Name + Gender (Men/Women/Unisex).
-        2. VISUAL DNA: Identify Fabric (e.g., Silk, Denim, Leather), Pattern (e.g., Floral, Striped), and Fit (e.g., Oversized, Slim).
-        3. ACCESSORY CHECK: If focusing on a Belt/Scarf/Jewelry worn by a model, output the ACCESSORY, not the outfit.
-        -> Example: "Zara Women Maxi Dress Floral Silk Green" OR "Gucci Leather Belt Black Gold Buckle"
+        IF clothing/shoes/bags:
+        1. IDENTITY: Brand + Item Name + Gender.
+        2. DNA: Fabric (Silk/Denim), Pattern (Floral/Striped), Fit (Oversized/Slim).
+        3. ACCESSORY CHECK: If focusing on a Belt/Watch, ignore the outfit.
+        -> Ex: "Zara Women Maxi Dress Floral Silk Green"
 
-        [MODE B: BEAUTY & MAKEUP]
-        IF the image contains cosmetics/skincare:
-        1. IDENTITY: Brand + Product Line + Item Type (Lipstick, Serum, Palette).
-        2. NUANCE: Identify Shade (e.g., Ruby Woo, Nude), Finish (Matte, Glossy, Satin), or Skin Concern (Anti-aging, Hydrating).
-        3. PACKAGING vs PRODUCT: Distinguish between the Box (Packaging) and the Bottle/Tube.
-        -> Example: "Fenty Beauty Gloss Bomb Universal Lip Luminizer Fenty Glow" OR "The Ordinary Niacinamide 10% + Zinc 1% Serum"
+        [MODE B: BEAUTY & PERSONAL CARE]
+        IF cosmetics/skincare:
+        1. IDENTITY: Brand + Product Line + Type (Serum/Lipstick).
+        2. NUANCE: Shade (Ruby Woo), Finish (Matte), or Concern (Anti-aging).
+        -> Ex: "Fenty Beauty Gloss Bomb Universal Lip Luminizer"
 
         [MODE C: ELECTRONICS & TECH]
-        IF the image contains gadgets/appliances:
-        1. IDENTITY: Brand + Model Number/Series + Core Device Name.
-        2. SPECS: Capture visible specs (Storage, Size, 5G, 4K) and Color/Finish (Space Grey, Silver).
-        3. PART vs WHOLE: Distinguish "Phone Case" from "Phone", "Strap" from "Watch".
-        -> Example: "Apple MacBook Pro 14 M3 Chip Space Black" OR "Samsung Galaxy S24 Ultra Titanium Yellow"
+        IF gadgets/appliances:
+        1. IDENTITY: Brand + Model Series + Core Device.
+        2. SPECS: Visible specs (5G, 4K, Pro Max) + Color (Space Grey).
+        -> Ex: "Apple MacBook Pro 14 M3 Chip Space Black"
 
         [MODE D: HOME & LIFESTYLE]
-        IF the image contains furniture/decor/tools:
-        1. IDENTITY: Style (Modern, Rustic, Industrial) + Item Name + Material.
-        -> Example: "IKEA Strandmon Wing Chair Nordvalla Dark Grey"
+        IF furniture/decor:
+        1. IDENTITY: Style (Mid-Century, Industrial) + Item + Material.
+        -> Ex: "IKEA Strandmon Wing Chair Nordvalla Dark Grey"
 
-        --- 🛡️ UNIVERSAL RULES (ALWAYS ACTIVE) ---
-        1. EXACT MATCH PRIORITY: If text/logo is visible, it overrides visual guessing.
-        2. NO FILLER: Output strict keywords only. No "I think...", "It looks like...".
-        3. FORMAT: "{Brand} {Sub-Brand/Model} {Key Attribute/Color} {Category}"
+        [MODE E: CPG, GROCERY & PACKAGED GOODS] (💎 NEW)
+        IF food/drinks/cleaning:
+        1. IDENTITY: Brand + Flavor/Scent + Net Weight.
+        2. TYPE: Packaging (Can/Bottle/Box).
+        -> Ex: "Coca-Cola Zero Sugar Vanilla 330ml Can"
+
+        [MODE F: AUTOMOTIVE & INDUSTRIAL] (💎 NEW)
+        IF car parts/tools:
+        1. IDENTITY: Part Name + Compatible Brand/Model.
+        -> Ex: "Bosch Wiper Blades Aerotwin A123S"
+
+        --- 🛡️ UNIVERSAL RULES ---
+        1. TEXT PRIORITY: If a brand name or logo is visible, IT IS LAW.
+        2. NO HALLUCINATION: If unclear, describe the visual features (Red running shoes).
+        3. OUTPUT FORMAT: Pure search keywords only. No intro/outro.
         """
 
         try:
-            logger.info("👁️ Sending image to Vision Model for analysis...")
+            logger.info("👁️ Engaging Vision Model for Optical Analysis...")
+            
             completion = await self._safe_execute(
                 self.client.chat.completions.create,
                 messages=[
@@ -197,190 +430,679 @@ class FreeLLMService:
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Analyze this product for search."},
+                            {"type": "text", "text": "Extract the commercial search terms for this product."},
                             {
                                 "type": "image_url",
-                                # Assumes JPEG for standard API compatibility, Groq handles base64 directly
                                 "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
                             }
                         ]
                     }
                 ],
                 model=self.vision_model,
-                temperature=0.0, # Low temperature for factual accuracy
-                max_tokens=100
+                temperature=0.05, 
+                max_tokens=450,
+                top_p=0.85,
             )
+            
             search_terms = completion.choices[0].message.content.strip()
-            logger.info(f"👁️ Vision Analysis Result: '{search_terms}'")
+        
+            search_terms = search_terms.replace('"', '').replace("Search query:", "").strip()
+            
+            logger.info(f"👁️ Visual Cortex Output: '{search_terms}'")
+
+            if enrich_with_search and len(search_terms.split()) > 1 and "generic" not in search_terms.lower():
+                try:
+                    tavily_key = os.getenv("TAVILY_API_KEY")
+                    
+                    if not tavily_key:
+                        logger.warning("⚠️ Flash Search Skipped: Missing TAVILY_API_KEY")
+                    else:
+                        logger.info(f"🌍 Initiating Global Validation via Tavily for: '{search_terms}'...")
+
+                        def _execute_flash_search():
+                            try:
+                                from tavily import TavilyClient
+                                client = TavilyClient(api_key=tavily_key)
+                                
+                                return client.search(
+                                    query=f"{search_terms} official product name price", 
+                                    max_results=1,
+                                    search_depth="basic", 
+                                    include_domains=[],   
+                                )
+                            except Exception as inner_e:
+                                logger.error(f"❌ Tavily Internal Error: {inner_e}")
+                                return None
+
+                        loop = asyncio.get_running_loop()
+            
+                        search_result = await loop.run_in_executor(None, _execute_flash_search)
+
+                        if search_result and search_result.get('results'):
+                            top_hit = search_result['results'][0]
+                            official_title = top_hit.get('title', '').strip()
+                            
+                            if official_title:
+                            
+                                refined_tokens = re.sub(r'[^\w\s]', '', official_title).split()[:6]
+                                official_fragment = " ".join(refined_tokens)
+                                
+                                combined_query = f"{search_terms} {official_fragment}"
+                                
+                                seen = set()
+                                final_terms = []
+                                for word in combined_query.split():
+                                    lower_word = word.lower()
+                                    if lower_word not in seen:
+                                        seen.add(lower_word)
+                                        final_terms.append(word)
+                                
+                                search_terms = " ".join(final_terms)
+                                logger.info(f"✅ Enhanced Visual DNA (Fused): '{search_terms}'")
+
+                except Exception as e:
+                    logger.warning(f"⚠️ Search Bridge Bypassed (Non-Critical): {e}")
+
             return search_terms
+
         except Exception as e:
-            logger.error(f"❌ Vision analysis failed: {e}")
-            return "generic product"
+            logger.error(f"🔥 Visual Analysis Failed: {e}")
+            return "generic product"  #
+                
 
-
-    # --- 🌍 EXTERNAL RESEARCH ENGINE (SMART QUERY) ---
     async def _perform_web_search(self, query: str) -> str:
         """
-        Executes a live web search. 
-        Auto-cleans the query to ensure best results.
+        🌍 GLOBAL KNOWLEDGE UPLINK (V18.0 - TAVILY ENTERPRISE).
+        CORE: Tavily AI Search API (The 'Google' built for LLMs).
+        CAPABILITY: Universal Search (Products, Services, General Knowledge).
+        SCOPE: From a needle to a rocket (Unlimited Context).
         """
         try:
-            # 1. Clean the query (Remove "what is", "tell me", etc)
-            clean_query = re.sub(r'(what is|tell me about|describe|show me|find|search for)', '', query, flags=re.IGNORECASE).strip()
             
-            # 2. Append strategic keywords if missing
-            if "specs" not in clean_query and "review" not in clean_query:
-                clean_query += " specs rumors news"
-                
-            logger.info(f"🌍 Deep Research Query: '{clean_query}'")
+            api_key = os.getenv("TAVILY_API_KEY")
             
-            loop = asyncio.get_running_loop()
-            results = await loop.run_in_executor(None, lambda: DDGS().text(clean_query, max_results=4))
-            
-            if not results: 
-                # Retry with simpler query
-                logger.warning("⚠️ Zero results. Retrying with simpler query...")
-                simple_query = clean_query.split()[0] + " " + clean_query.split()[1] # First 2 words
-                results = await loop.run_in_executor(None, lambda: DDGS().text(simple_query, max_results=3))
+            if not api_key:
+                logger.error("❌ ENTERPRISE ALERT: TAVILY_API_KEY is missing in .env")
+                return "System Configuration Error: Global Search Uplink is Down."
 
-            if not results:
-                return "No external data found."
+            clean_query = re.sub(r'(hey ai|please|can you)', '', query, flags=re.IGNORECASE).strip()
             
-            summary = "\n".join([f"Source: {r['title']} - {r['body']}" for r in results])
+            search_context = clean_query
+            if not any(x in search_context.lower() for x in ["price", "cost", "how much", "who", "where"]):
+
+                 search_context += " comprehensive details specifications and latest data"
+
+            logger.info(f"📡 Global Uplink (Tavily): Scanning reality for '{search_context}'...")
             
-            # 🔥 Log the success to the terminal so the user SEES it working
-            logger.info(f"✅ Research Success! Found {len(results)} sources.")
-            return summary
+            def execute_global_search():
+                client = TavilyClient(api_key=api_key)
+                return client.search(
+                    query=search_context,
+                    search_depth="advanced", 
+                    max_results=5,           
+                    include_answer=True,     
+                    include_raw_content=False,
+                    include_domains=[],      
+                    topic="general"          
+                )
+
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(None, execute_global_search)
+            
+            parts = []
+            
+            direct_answer = response.get("answer", "")
+            if direct_answer:
+                parts.append(f"• INTELLIGENCE SUMMARY: {direct_answer}")
+            
+            results = response.get("results", [])
+            if not results and not direct_answer:
+                return "Global search yielded no confirmed data."
+
+            for res in results:
+                title = res.get("title", "Source").replace("\n", " ").strip()
+                content = res.get("content", "")[:350].replace("\n", " ").strip()
+                url = res.get("url", "N/A")
+                parts.append(f"• DATA ({title}): {content}")
+            
+            final_report = "\n".join(parts)
+            
+            logger.info(f"✅ Global Uplink Successful. Retrieved {len(results)} verified sources.")
+            return final_report
 
         except Exception as e:
-            logger.warning(f"⚠️ Research failed: {e}")
-            return "External research unavailable."
+            logger.error(f"🔥 Global Search Bridge Failure: {e}")
+            return "Connection to Global Knowledge Grid failed. Please verify API Credentials."
 
-    # --- 🧠 HYBRID CONSULTANT (UNLEASHED) ---
-    async def consult_on_product(self, product_data: Dict[str, Any], user_question: str) -> str:
-        if not self.client:
-            return f"The {product_data.get('name')} is a premium selection with excellent specifications."
-
-        internal_context = json.dumps(product_data, default=str)
+    async def consult_on_product(
+        self, 
+        product_data: Dict[str, Any], 
+        question: str, 
+        chat_history: List[Dict[str, str]] = None
+    ) -> str:
+        """
+        🎤 SENIOR PRODUCT CONNOISSEUR (THE OMNI-PRESENT V200).
+        ARCHITECTURAL MASTERPIECE.
         
-        # Determine Search Strategy
-        # If user names a specific product (e.g. iPhone 17), use that as the search anchor.
-        # Otherwise use the DB product name.
-        search_target = f"{product_data.get('name')} {user_question}"
-        external_knowledge = await self._perform_web_search(search_target)
+        💎 CAPABILITIES:
+        1. Universal Attribute Guard: Handles mismatches in Size, Spec, Flavor, Material, Compatibility.
+        2. Deep Chameleon: Adapts linguistic DNA to 50+ micro-verticals.
+        3. Silent Luxury: Enforces strict visual elegance (No shouting).
+        4. Resilience: Never says "I don't know", always finds the "Value Angle".
+        """
+        
+        if not hasattr(self, 'client') or not self.client:
+            return f"The {product_data.get('name')} is a premium selection available now."
 
-        if product_data.get('name') and product_data.get('name').lower() in user_question.lower():
-             search_target = user_question # Use full question if it contains product name
-        elif product_data.get('name'):
-             search_target = f"{product_data.get('name')} {user_question}"
+        clean_data = {
+            k: v for k, v in product_data.items() 
+            if k not in ['id', 'created_at', 'updated_at', 'vectors', 'image_url', 'slug', 'inventory_count']
+        }
+        internal_context = json.dumps(clean_data, default=str)
+        
+        external_knowledge = "OFFICIAL DATA PENDING"
+        try:
+            
+            search_target = f"{product_data.get('name')} {question}"
+            if hasattr(self, '_perform_web_search'):
+                external_knowledge = await self._perform_web_search(search_target)
+        except Exception as e:
+            logger.warning(f"⚠️ Web Intel Bypassed: {e}")
 
-        current_date = datetime.now().strftime("%B %Y")
-
-        # 🔥 THE AGGRESSIVE PROMPT 🔥
         system_core = f"""
-        You are the Senior Chief Tech Analyst for 'order with air'.
+        You are 'AirDeliver', the world's most sophisticated Product Authority.
+        Your mission is to curate, explain, and elevate the user's understanding of ANY item.
+        Your tone is: Expert, Warm, and Impeccably Polished.
+
+        --- 📡 INPUT DATA ---
+        1. [PRODUCT ON SHELF]: {internal_context}
+        2. [MARKET INTEL]: {external_knowledge}
+        3. [USER DESIRE]: "{question}"
+
+        --- 🧠 1. THE "UNIVERSAL ATTRIBUTE PIVOT" (THE CORE INTELLIGENCE) ---
+        You must detect ANY mismatch between [USER DESIRE] and [PRODUCT ON SHELF].
+        This applies to: Color, Size, RAM, Flavor, Material, Compatibility, Vintage, or Power.
+
+        **THE PROTOCOL:**
+        IF a specific attribute is requested but missing:
+        1. **NEVER SAY "NO"**: Do not start with "Unfortunately", "Sorry", or "Not available".
+        2. **VALIDATE & BRIDGE**: Acknowledge the requested spec as a great choice, then pivot to the value of the CURRENT item.
         
-        --- INPUT DATA ---
-        1. [INTERNAL DB]: {internal_context}
-        2. [WEB SEARCH]: {external_knowledge}
+        *Scenarios (Universal Logic):*
+        - (Tech) Asked for 32GB RAM -> Has 16GB: "While 32GB is powerful, this 16GB Unified Memory architecture is optimized to outperform expectations."
+        - (Fashion) Asked for Black -> Has Blue: "The Midnight Black is a classic, yet this Navy Blue edition offers a rare, sophisticated depth."
+        - (Food) Asked for Spicy -> Has Mild: "For those who prefer heat, this Mild blend focuses on revealing the rich, authentic notes of the ingredients."
+        - (Auto) Asked for Turbo -> Has Base: "The Turbo is aggressive, but this model delivers the most balanced and efficient drive in its class."
 
-        --- 🛡️ INTELLIGENCE PROTOCOLS ---
-        1.DO NOT SUMMARIZE. YOU MUST INCLUDE ALL TECHNICAL DETAILS.
-        2. LIST ALL AVAILABLE SPECS. Prioritize completeness over conciseness.
-        3. **HYBRID KNOWLEDGE**: If [WEB SEARCH] is empty or fails, YOU MUST USE YOUR OWN INTERNAL TRAINING DATA to provide detailed specs for this product. Do NOT say "I don't know".
-        4. **ANTI-ROBOT FILTER**: NEVER output technical database fields like 'ID', 'slug', 'image_url', 'inventory', 'created_at', or 'category_id'. These are forbidden.
-        5. **VALUE ADD**: show all specs that matter to a human buyer (Battery, Screen, Material, Chipset, Scent notes, Fabric).
+        --- 🦎 2. THE "DEEP CHAMELEON" ADAPTATION ---
+        Shift your vocabulary based on the item's soul:
+        
+        A. **ENGINEERING (Tech/Auto/Tools)**:
+           - Focus: Precision, Torque, Efficiency, Build Quality.
+           - Words: "Engineered", "Robust", "Seamless", "Benchmark".
+           
+        B. **AESTHETICS (Fashion/Decor/Art)**:
+           - Focus: Texture, Silhouette, Palette, Atmosphere.
+           - Words: "Curated", "Timeless", "Artisanal", "Statement".
+           
+        C. **SENSORY (Food/Beauty/Wellness)**:
+           - Focus: Notes, Finish, Purity, Ritual.
+           - Words: "Radiant", "Authentic", "Revitalizing", "Essence".
+           
+        D. **INTELLECT (Books/Software/Courses)**:
+           - Focus: Insight, Clarity, Methodology, Impact.
+           - Words: "Comprehensive", "Transformative", "Essential", "Definitive".
 
-        --- STRICT OUTPUT RULES (ZERO MARKDOWN) ---
-        1. **NO MARKDOWN SYMBOLS**: Do NOT use asterisks (**), hashes (#), underscores (_), or quotes ('') for formatting.
-        2. **CLEAN LIST STYLE**: Use a real bullet point (•) for specifications.
-        3. **VISUAL HIERARCHY**: Since you cannot use bold, use CAPITAL LETTERS for the feature name to make it stand out.
-           - Example:
-             • BATTERY: Up to 18 hours
-             • PROCESSOR: Apple S8 chip
-        4. **LAYOUT**: 
-           - Start with a polite, direct answer sentence.
-           - Leave one empty line.
-           - List the specs/features.
-        5. **NO EMOJIS**: Keep it strictly professional and clean.
-        6. **LANGUAGE**: Respond in the USER'S LANGUAGE.
+        --- 🎨 3. THE "SILENT LUXURY" VISUAL STANDARD ---
+        1. **ZERO MARKDOWN**: NO asterisks (**), NO hashes (#), NO backticks (`). Pure text.
+        2. **NO SHOUTING**: NEVER use ALL CAPS. Use Title Case for headers.
+        3. **CLEAN LISTS**: Use ONLY a simple dot (•) for bullet points.
+        4. **NO QUOTES**: Do not put quotes around feature names.
 
-        Your goal is to provide a response that looks like a perfectly formatted official document without using any code symbols.
+        --- 📝 4. RESPONSE STRUCTURE (STRICT) ---
+        
+        [Direct Answer: Address the specific question/constraint gracefully. Max 2 sentences.]
+        
+        [Blank Line]
+        
+        [3-4 Highlights tailored to the specific category:]
+        • Feature Name: The sophisticated explanation (Bridge Spec to Benefit).
+        • Feature Name: The sophisticated explanation.
+        • Feature Name: The sophisticated explanation.
+        
+        [Blank Line]
+        
+        [A short, confidence-inspiring closing statement.]
+
+        --- 🛡️ 5. INTEGRITY ---
+        - Respond in the **USER'S LANGUAGE**.
+        - If data is missing, rely on Brand Reputation and Market Intel.
+        - Do not hallucinate. If specs are unknown, focus on "Quality Assurance".
+        """
+
+        messages = [{"role": "system", "content": system_core}]
+        if chat_history:
+            messages.extend(chat_history[-2:]) 
+        messages.append({"role": "user", "content": f"USER DESIRE: {question}\nPRODUCT DNA: {product_data.get('name')}"})
+
+        try:
+            model_to_use = getattr(self, 'brain_model', "gpt-3.5-turbo")
+            
+            completion = await self._safe_execute(
+                self.client.chat.completions.create,
+                messages=messages,
+                model=model_to_use, 
+                temperature=0.5, 
+                max_tokens=800,
+                top_p=0.9,
+            )
+            return completion.choices[0].message.content.strip()
+
+        except Exception as e:
+            logger.error(f"Consultation Core Failed: {e}")
+            desc = product_data.get('description', 'A premium selection.')
+            return f"This item represents a standard of excellence.\n\n• Overview: {desc}\n\nReady for immediate dispatch."
+
+    async def strategize_search(self, user_query: str) -> SearchStrategy:
+        """
+        🚀 DECISION ENGINE.
+        Translates human intent into database queries.
+        
+        Updates:
+        - Enhanced Category Detection logic.
+        - Better handling of vague queries (mapping to 'Trending').
+        """
+        if not self.client:
+            return SearchStrategy(
+                is_direct_product_request=True, 
+                search_queries=[user_query], 
+                response_tone="Standard", 
+                direct_answer_prefix="Results found:"
+            )
+
+        system_core = """
+        ROLE: Elite Search Architect & Intent Decoder.
+        TASK: Translate user input into a rigid, executable JSON Search Strategy.
+
+        --- 🧠 UNIVERSAL INTENT HIERARCHY (THE "QUESTION TRUMPS COMMAND" PROTOCOL) ---
+
+        1. **THE GOLDEN RULE (CRITICAL OVERRIDE)**:
+           - **TRIGGER**: If the input contains ANY form of inquiry, doubt, comparison, reasoning, or validation.
+           - **LOGIC**: Even if the user says "Find X", if they add "...and tell me if Y", the Intent is CONSULTATION.
+           - **EXECUTION**: `is_direct_product_request` MUST BE **FALSE**.
+           - **UNIVERSAL SIGNALS**:
+             * Questions: "Does it?", "Is it?", "Why?", "How?", "Can I?", "When?".
+             * Conditions: "If I use it for...", "Provided that...", "Unless...".
+             * Subjective Nuance: "Good for beginners?", "Best value?", "Worth it?", "Any good?".
+
+        2. **INTENT CLASSIFICATION**:
+           - **DIRECT REQUEST (True)**: Triggered ONLY when the input is PURELY transactional/navigational.
+             * Signals: "Find [Product]", "Show [Category]", "Price of [Item]", "Buy [SKU]".
+             * Condition: User is NOT asking for an opinion or technical fact.
+             * Example: "Find Samsung S24 Ultra 1TB" -> `True`.
+
+           - **BROWSING/CONSULTING (False)**: Triggered by ANY complexity or curiosity (Big or Small).
+             * **Stress Test A (The Hybrid)**: "I want the iPhone 15. Is the battery better than the 14?" -> **FALSE**.
+             * **Stress Test B (The Skeptic)**: "Find cheap laptops. Will they break fast?" -> **FALSE**.
+             * **Stress Test C (The Novice)**: "Show me cameras. Which is good for vlogging?" -> **FALSE**.
+             * **Stress Test D (The Detail)**: "Blue shirt. Is the fabric cotton?" -> **FALSE**.
+
+        3. **THE "INVARIANCE PRINCIPLE" (ATTRIBUTE EXTRACTION)**:
+           - Even when defaulting to Consultation (`False`), you MUST extract technical constraints to aid the search.
+           - **Capture EVERYTHING**: Color, Size, RAM, Voltage, Texture, Era, Flavor.
+
+           --- 🌟 UNIVERSAL ATTRIBUTE EXTRACTION (COVERING ALL DOMAINS) ---
+           
+           [SCENARIO: TECH SPECS]
+           * Input: "Find the one with 32GB RAM"
+           * Constraint: "32GB RAM" -> Query: "[Product] 32GB RAM"
+           
+           [SCENARIO: COMPATIBILITY]
+           * Input: "Show me the version for PS5"
+           * Constraint: "PS5 Compatible" -> Query: "[Product] PS5 edition"
+           
+           [SCENARIO: MATERIAL/TEXTURE]
+           * Input: "I want the leather one"
+           * Constraint: "Leather" -> Query: "[Product] Leather"
+           
+           [SCENARIO: TEMPORAL/VERSION]
+           * Input: "Get the 2024 model"
+           * Constraint: "2024" -> Query: "[Product] 2024 model"
+           
+           [SCENARIO: CONDITION/STATE]
+           * Input: "Find a refurbished one"
+           * Constraint: "Refurbished" -> Query: "[Product] Refurbished"
+           
+           [SCENARIO: ABSTRACT/VIBE]
+           * Input: "Something for a wedding"
+           * Constraint: "Wedding/Formal" -> Query: "[Product] Wedding Formal"
+
+        4. **QUERY CONSTRUCTION STRATEGY**:
+           - **Query 1 (The Sniper)**: [Core Product Name] + [USER CONSTRAINT EXACTLY].
+           - **Query 2 (The Net)**: [Core Product Name] + [Constraint Synonym].
+           - **Query 3 (The Context)**: [Core Product Name] + [Category].
+
+        5. **CATEGORY & PRICE LOGIC**:
+           - Map fuzzy terms to global verticals (e.g., "Lipstick" -> "Beauty").
+           - Detect Price Constraints: "Under 50" -> `price_max: 50`.
+           - Detect Quality Constraints: "Cheap" -> Low Tier / "Best" -> High Tier.
+
+        --- JSON OUTPUT SCHEMA ---
+        {
+            "is_direct_product_request": bool, 
+            "search_queries": [str], 
+            "price_min": float or null,
+            "price_max": float or null, 
+            "category_filter": str or null, 
+            "attributes": [str],
+            "response_tone": str, 
+            "direct_answer_prefix": str
+        }
+        """
+           
+        try:
+            completion = await self._safe_execute(
+                self.client.chat.completions.create,
+                messages=[
+                    {"role": "system", "content": system_core}, 
+                    {"role": "user", "content": user_query}
+                ],
+                model=self.brain_model, 
+                temperature=0.1, 
+                response_format={"type": "json_object"}
+            )
+            
+            raw_json = self._clean_json_response(completion.choices[0].message.content)
+            data = json.loads(raw_json)
+            return SearchStrategy(**data)
+            
+        except Exception as e:
+            logger.warning(f"Strategy Fallback: {e}")
+            return SearchStrategy(
+                is_direct_product_request=False, 
+                search_queries=[user_query, f"{user_query} best price"], 
+                response_tone="Helpful", 
+                direct_answer_prefix="Here are the best matches I found:"
+            )
+
+
+    async def extract_search_terms(self, user_query: str) -> str:
+        """
+        🎯 UNIVERSAL ATOMIC EXTRACTOR (V300.0 - GLOBAL EDITION).
+        ARCHITECTURAL GOAL: Distill complex user 'stories' into 'database-ready' tokens.
+        
+        💎 GLOBAL UPGRADES:
+        1. Multilingual Guard: Preserves the user's language (No forced translation).
+        2. Domain Agnostic: Works for Fashion, Food, Tech, or Industrial parts.
+        3. Noise Cancellation: Surgical removal of filler words.
+        """
+        if not self.client or not user_query or not user_query.strip(): 
+            return user_query
+
+        system_prompt = """
+        ROLE: Master Database Query Optimizer (Multilingual).
+        TASK: Convert Human Narrative into Machine Search Tokens.
+        
+        --- 🧠 UNIVERSAL EXTRACTION PROTOCOL ---
+        
+        1. **IDENTIFY THE ENTITY (THE NOUN)**:
+           - What is the physical item? (e.g., "Laptop", "فستان", "Screwdriver").
+           - **CRITICAL**: KEEP THE INPUT LANGUAGE. Do not translate unless explicitly asked.
+             * Input: "عايز تليفون سامسونج" -> Output: "تليفون سامسونج" (Not "Samsung Phone").
+           
+        2. **IDENTIFY THE CORE MODIFIER (THE ADJECTIVE)**:
+           - What is the *defining* feature? (e.g., "Gaming", "أحمر", "Spicy").
+           - Convert "usage" to "adjective":
+             * "Phone for taking photos" -> "Camera Phone"
+             * "لابتوب للالعاب" -> "لابتوب جيمنج"
+             
+        3. **ELIMINATE NOISE (STRICT)**:
+           - **REMOVE PRICE**: "Under $500", "Cheap", "Budget", "رخيص". (Logic handles this, not text search).
+           - **REMOVE STORY**: "For my son", "I need", "Can you find", "عايز اشتري".
+           - **REMOVE FILLERS**: "Best", "Top", "Good", "Please", "لو سمحت".
+
+        4. **HANDLING ABSTRACTS (DOMAIN NEUTRAL)**:
+           - Input: "Something cool" -> Output: "Trending Items"
+           - Input: "Gift for mom" -> Output: "Women Gift"
+           - Input: "حاجة حلوة" -> Output: "Best Sellers"
+
+        --- 🎯 EXAMPLES (GLOBAL SCENARIOS) ---
+        * Input: "I have a budget of 700 for a laptop capable of editing 4k" 
+          -> Output: "High Performance Laptop"
+          
+        * Input: "وريني جزم تنفع للكورة بس متكونش غالية" 
+          -> Output: "جزم كورة"
+          
+        * Input: "Show me a red dress for a wedding" 
+          -> Output: "Red Wedding Dress"
+          
+        * Input: "Samsung S24 Ultra black 512gb" 
+          -> Output: "Samsung S24 Ultra Black"
+
+        OUTPUT FORMAT: Raw text string (2-5 words max). No quotes.
         """
 
         try:
             completion = await self._safe_execute(
                 self.client.chat.completions.create,
                 messages=[
-                    {"role": "system", "content": system_core},
-                    {"role": "user", "content": user_question}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_query}
                 ],
-                model=self.brain_model,
-                temperature=0.3, # Slightly higher temp to allow "knowledge retrieval" from model memory
-                max_tokens=500
+                model=self.reflex_model, 
+                temperature=0.0, 
+                max_tokens=40    
             )
-            return completion.choices[0].message.content.strip()
-        except Exception:
-            return "Based on industry trends, this device is expected to feature top-tier specs, though my live feed is currently interrupted."
+            
+            optimized_query = completion.choices[0].message.content.strip()
+            optimized_query = optimized_query.replace('"', '').replace("'", "")
+            
+            return optimized_query
+            
+        except Exception as e:
 
-    # --- STRATEGY & FILTERING (UNCHANGED) ---
-    async def strategize_search(self, user_query: str) -> SearchStrategy:
-        if not self.client:
-            return SearchStrategy(is_direct_product_request=True, search_queries=[user_query], response_tone="Standard", direct_answer_prefix="Found these:")
+            return user_query.strip()
 
-        system_core = """
-        ROLE: Search Strategist. 
-        TASK: Analyze the user's intent and extract search parameters.
-        
-        CRITICAL: Identify the 'category_filter' precisely.
-        - If user says "Tablet", category_filter is "Electronics" or "Tablet".
-        - If user says "Lipstick", category_filter is "Beauty".
-        
-        JSON SCHEMA:
-        {
-            "is_direct_product_request": bool, 
-            "search_queries": [str], 
-            "price_min": float/null,
-            "price_max": float/null, 
-            "category_filter": str/null, 
-            "attributes": [str],
-            "response_tone": str, 
-            "direct_answer_prefix": str
-        }
+    def _rank_products_by_relevance(self, query: str, products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        try:
-            completion = await self._safe_execute(
-                self.client.chat.completions.create,
-                messages=[{"role": "system", "content": system_core}, {"role": "user", "content": user_query}],
-                model=self.brain_model, temperature=0.1, response_format={"type": "json_object"}
-            )
-            data = json.loads(self._clean_json_response(completion.choices[0].message.content))
-            return SearchStrategy(**data)
-        except:
-            return SearchStrategy(is_direct_product_request=True, search_queries=[user_query], response_tone="Standard", direct_answer_prefix="Here are the results:")
+        🚀 FERRARI PRE-FILTER.
+        Locally scores products to ensure only the 'Cream of the Crop' reaches the LLM.
+        This saves Tokens and Latency.
+        """
+        if not products: return []
+        
+        query_terms = set(query.lower().split())
+        scored_products = []
+        
+        for p in products:
+            score = 0
+            p_name = str(p.get('name', '')).lower()
+            p_cat = str(p.get('category', '')).lower()
+            p_desc = str(p.get('description', '')).lower()
+            
+            if query.lower() in p_name:
+                score += 100
+            
+            matches = 0
+            for term in query_terms:
+                if term in p_name: 
+                    score += 50  
+                    matches += 1
+                elif term in p_cat:
+                    score += 30  
+                    matches += 1
+                elif term in p_desc:
+                    score += 10  
+            
+            if len(query_terms) > 0 and matches == len(query_terms):
+                score += 20 
 
-    async def extract_search_terms(self, user_query: str) -> str:
-        if not self.client: return user_query
-        try:
-            completion = await self._safe_execute(
-                self.client.chat.completions.create,
-                messages=[{"role": "system", "content": "Extract core noun."}, {"role": "user", "content": user_query}],
-                model=self.reflex_model, temperature=0.0, max_tokens=20
-            )
-            return completion.choices[0].message.content.strip().lower()
-        except: return user_query
+            try:
+                rating = float(p.get('rating', 0))
+                score += rating * 2
+            except: pass
+
+            scored_products.append((score, p))
+            
+        scored_products.sort(key=lambda x: x[0], reverse=True)
+        
+        return [item[1] for item in scored_products]
+
 
     async def filter_and_recommend(self, user_query: str, products: List[Dict[str, Any]], tone_instruction: str = "Professional") -> Optional[CognitiveResponse]:
+        """
+        🏆 CHIEF MERCHANDISING OFFICER.
+        Analyzes the top candidates and hand-picks the winners based on the User's Soul.
+        Generates the 'Intro Message' that appears in the UI.
+        """
         if not self.client or not products: return None
+
         try:
-            context = [{k: v for k, v in p.items() if k in ['id', 'name', 'price', 'category']} for p in products]
-            system_core = f"Select top matches. Tone: {tone_instruction}. Output JSON: {{'selected_ids': [], 'reasoning': {{}}, 'intro_message': '', 'confidence_score': 0.0}}"
+        
+            ranked_products = self._rank_products_by_relevance(user_query, products)
+            
+            MAX_CONTEXT_ITEMS = 12
+            products_slice = ranked_products[:MAX_CONTEXT_ITEMS]
+
+            context = [
+                {
+                    "id": p.get('id'), 
+                    "name": p.get('name'), 
+                    "price": p.get('price'), 
+                    "rating": p.get('rating', 'N/A'),
+                    "category": p.get('category')
+                } 
+                for p in products_slice
+            ]
+            
+            system_core = f"""
+            ROLE: Chief Buyer & Personal Shopper for 'airdeliver'.
+            YOUR VIBE: {tone_instruction}, Charismatic, Trustworthy.
+
+            TASK: Select the top 3-5 products from the list that BEST match the User Query: "{user_query}".
+            
+            --- SELECTION LOGIC ---
+            1. **RELEVANCE KING**: If user asks for "Red Shoes", do not pick "Blue Hat".
+            2. **VALUE SCOUT**: If prices vary, pick a mix of 'Best Value' and 'Premium'.
+            3. **SOCIAL PROOF**: Prefer items with higher ratings if available.
+            4. **DIVERSITY**: Don't show 5 identical items. Show variety.
+
+            --- OUTPUT FORMAT (JSON) ---
+            {{
+                "selected_ids": [int],  // List of IDs for the winners
+                "reasoning": {{ "id": "Short punchy reason" }}, // Why you picked it? (e.g., "Best rated option")
+                "intro_message": "String", // A charismatic UI message introducing the collection.
+                "confidence_score": float // 0.0 to 1.0
+            }}
+
+            --- INTRO MESSAGE STYLE ---
+            - Be human. Use 1 emoji.
+            - Example: "I found some top-tier options for you. The first one is a steal! "
+            - Example: "Here are the best matches based on specs and price. 🛡️"
+            """
+            
             completion = await self._safe_execute(
                 self.client.chat.completions.create,
-                messages=[{"role": "system", "content": system_core}, {"role": "user", "content": json.dumps(context)}],
-                model=self.brain_model, temperature=0.2, response_format={"type": "json_object"}
+                messages=[
+                    {"role": "system", "content": system_core},
+                    {"role": "user", "content": json.dumps(context)}
+                ],
+                model=self.brain_model, 
+                temperature=0.2, 
+                response_format={"type": "json_object"}
             )
-            data = json.loads(self._clean_json_response(completion.choices[0].message.content))
-            if "reasoning" in data: data["reasoning"] = {str(k): v for k, v in data["reasoning"].items()}
+            
+            raw_json = self._clean_json_response(completion.choices[0].message.content)
+            data = json.loads(raw_json)
+            
+            if "reasoning" in data: 
+                data["reasoning"] = {str(k): str(v) for k, v in data["reasoning"].items()}
+                
             return CognitiveResponse(**data)
-        except: return None
+            
+        except Exception as e:
+            logger.error(f"Cognitive Filter Failed: {e}")
+            return None
+
+
+    async def handle_commerce_interaction(
+        self, 
+        user_query: str, 
+        all_products: List[Dict[str, Any]], 
+        chat_history: List = None
+    ) -> Dict[str, Any]:
+        """
+        🚀 THE OMNI-ORCHESTRATOR (V1000.0 - GOOGLE LEVEL).
+        Architectural Goal: Zero-Latency, Context-Aware, Fail-Safe Decision Making.
+        
+        💎 ENGINEERING PILLARS:
+        1. **Parallel Cognitive Processing**: Executes Intent Analysis & SEO Extraction concurrently.
+        2. **Heuristic Search Layering**: Exact Match -> Fuzzy Match -> Fallback Strategy.
+        3. **Dynamic Routing**: Smart switching between 'Consultant' and 'Salesman' personas.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            strategy_task = self.strategize_search(user_query)
+            seo_task = self.extract_search_terms(user_query)
+            
+            strategy, clean_terms = await asyncio.gather(strategy_task, seo_task)
+            
+            logger.info(f"🧠 Orchestrator: Intent={not strategy.is_direct_product_request} | SEO='{clean_terms}'")
+
+            relevant_products = self._rank_products_by_relevance(clean_terms, all_products)
+            
+            if not relevant_products and clean_terms != user_query:
+                relevant_products = self._rank_products_by_relevance(user_query, all_products)
+                
+            if not relevant_products:
+                relevant_products = sorted(all_products, key=lambda x: x.get('rating', 0), reverse=True)[:5]
+
+            target_products = relevant_products[:5]
+            hero_product = target_products[0] if target_products else {"name": "General Catalog", "description": "Various items"}
+
+            if not strategy.is_direct_product_request:
+                logger.info("🧠 Route: CONSULTATION (Deep Analysis Mode)")
+                
+                consultation_text = await self.consult_on_product(
+                    product_data=hero_product,
+                    question=user_query,
+                    chat_history=chat_history
+                )
+                
+                return {
+                    "type": "consultation",
+                    "text": consultation_text,
+                    "products": target_products, 
+                    "search_terms": clean_terms,
+                    "intent_metadata": strategy.dict()
+                }
+
+            else:
+                logger.info("🛒 Route: CAROUSEL (Direct Transaction Mode)")
+                
+                recommendation = await self.filter_and_recommend(
+                    user_query=user_query,
+                    products=target_products,
+                    tone_instruction=strategy.response_tone
+                )
+                
+                intro = recommendation.intro_message if recommendation else f"I found these top matches for '{clean_terms}'."
+                ids = recommendation.selected_ids if recommendation else [p.get('id') for p in target_products[:3]]
+
+                return {
+                    "type": "carousel",
+                    "intro": intro,
+                    "selected_ids": ids,
+                    "products": target_products,
+                    "search_terms": clean_terms,
+                    "intent_metadata": strategy.dict()
+                }
+
+        except Exception as e:
+            logger.critical(f"🔥 ORCHESTRATOR FAILURE: {e}")
+            return {
+                "type": "consultation", 
+                "text": "I'm currently optimizing my neural search. Here are some top picks in the meantime.",
+                "products": all_products[:5],
+                "search_terms": user_query
+            }

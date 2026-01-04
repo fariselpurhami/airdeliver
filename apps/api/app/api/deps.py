@@ -9,7 +9,7 @@ from sqlmodel import select
 from typing import Dict, Optional, Set
 import logging
 import asyncio
-
+from app.services.rabbitmq_service import RabbitMQService
 from app.db.session import get_session
 from app.core.config import get_core_settings, CoreSettings
 from app.core import security
@@ -200,3 +200,10 @@ async def get_current_active_user_ws_ticket(
         raise HTTPException(status_code=400, detail="Inactive user")
 
     return user
+
+def get_rabbitmq_service() -> RabbitMQService:
+    """
+    Dependency to provide a RabbitMQ Service instance.
+    """
+    settings = get_core_settings()
+    return RabbitMQService(settings)

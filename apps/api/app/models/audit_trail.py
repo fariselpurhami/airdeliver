@@ -1,11 +1,11 @@
 # apps/api/app/models/audit_trail.py 
 
 from __future__ import annotations
-from sqlmodel import SQLModel, Field, Relationship, Column
+from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, TYPE_CHECKING, Dict, Any
 from sqlalchemy.orm import Mapped, relationship
-from sqlalchemy import Enum as SAEnum, JSON
-from datetime import datetime
+from sqlalchemy import Enum as SAEnum, JSON, Column
+from datetime import datetime, timezone
 from app.models.enums import EventType
 
 if TYPE_CHECKING:
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 class AuditTrail(SQLModel, table=True):
     __tablename__ = "audit_trails"
     id: Optional[int] = Field(default=None, primary_key=True)
-    order_id: int = Field(foreign_key="orders.id")
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    order_id: int = Field(foreign_key="orders.id", index=True)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     event_description: str
     changed_by: Optional[int] = Field(default=None, foreign_key="users.id")
 
@@ -34,7 +34,7 @@ class DroneTelemetry(SQLModel, table=True):
     __tablename__ = "drone_telemetry"
     id: Optional[int] = Field(default=None, primary_key=True)
     drone_id: int = Field(foreign_key="drones.id", index=True)
-    timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
     mission_id_str: Optional[str] = Field(default=None, index=True)
     
     lat: float
@@ -52,7 +52,7 @@ class DroneEvent(SQLModel, table=True):
     __tablename__ = "drone_events"
     id: Optional[int] = Field(default=None, primary_key=True)
     drone_id: int = Field(foreign_key="drones.id", index=True)
-    timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)
     mission_id_str: Optional[str] = Field(default=None, index=True)
     
     event_type: EventType = Field(

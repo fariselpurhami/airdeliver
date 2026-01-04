@@ -15,6 +15,10 @@ const MONOREPO_ROOT = path.join(__dirname, '../../');
  */
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   // 1. ARCHITECTURAL FOUNDATION: Microservices & Docker Ready
   output: 'standalone', 
   

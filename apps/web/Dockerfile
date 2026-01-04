@@ -1,17 +1,18 @@
-# apps/web/Dockerfile 
+# apps/web/Dockerfile
 
 FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.27.0 --activate
 
 FROM base AS deps
 WORKDIR /app
+
 COPY package.json pnpm-lock.yaml ./
 
-RUN pnpm config set store-dir /root/.pnpm-store
-RUN pnpm install --frozen-lockfile --prefer-offline
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prefer-offline
 
 FROM base AS development
 WORKDIR /app
@@ -36,19 +37,22 @@ CMD ["pnpm", "dev"]
 
 FROM base AS builder
 WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN pnpm build
+RUN --mount=type=cache,target=/app/.next/cache \
+    pnpm build
 
 FROM base AS runner
 WORKDIR /app
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
@@ -61,7 +65,6 @@ ARG APP_GID=1001
 
 RUN existing_group=$(getent group $APP_GID | cut -d: -f1) && \
     if [ -n "$existing_group" ]; then \
-       echo "Cleaning conflict for GID $APP_GID"; \
        delgroup $existing_group; \
     fi && \
     addgroup --system --gid $APP_GID $APP_GROUP && \

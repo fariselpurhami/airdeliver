@@ -7,11 +7,12 @@ from .enums import (
     MissionStatus,
     NotificationType,
     EventType,
+    CancellationReason, # Added this
 )
 
 from .drone import Drone
 from .audit_trail import AuditTrail, DroneTelemetry, DroneEvent
-from .gamification import Badge, UserBadge
+from .gamification import Badge, UserBadge, UserActivity # Added UserActivity
 from .mission import Mission
 from .notification_subscription import NotificationSubscription
 from .notification import Notification
@@ -27,12 +28,14 @@ __all__ = [
     "MissionStatus",
     "NotificationType",
     "EventType",
+    "CancellationReason",
     "AuditTrail",
     "Drone",
     "DroneTelemetry",
     "DroneEvent",
     "Badge",
     "UserBadge",
+    "UserActivity",
     "Mission",
     "NotificationSubscription",
     "Notification",

@@ -2,6 +2,8 @@
 
 'use client';
 
+import { ProductDetailsCard } from '../products/ProductDetailsCard';
+import { Eye } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -20,16 +22,32 @@ import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
 
 // --- Architectural Helper: Robust Image Resolution ---
+const DEFAULT_PLACEHOLDER = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
 const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
-    if (!relativePath || relativePath.startsWith('http')) {
-        return relativePath || '/images/default.jpeg';
+    // Defense Layer 1: لو مفيش مسار، رجع الصورة المدمجة فوراً
+    if (!relativePath) {
+        return DEFAULT_PLACEHOLDER;
     }
+
+    // Defense Layer 2: لو الرابط خارجي أو Base64 أصلاً، رجعه زي ما هو
+    if (relativePath.startsWith('http') || relativePath.startsWith('data:')) {
+        return relativePath;
+    }
+
+    // Defense Layer 3: لو الرابط محلي، نركبه مع الـ API URL
     const apiBase = process.env.NEXT_PUBLIC_API_URL
         ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '')
         : 'http://localhost:8000';
-    return `${apiBase}${relativePath.startsWith('/') ? relativePath : `/${relativePath}`}`;
-};
+    
+    // تأكد من المسار السليم
+    const cleanPath = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
+    
+    // حالة خاصة: لو الصورة اسمها default.jpeg ومش موجودة، نرجع المدمجة
+    if (cleanPath.includes('default.jpeg')) return DEFAULT_PLACEHOLDER;
 
+    return `${apiBase}${cleanPath}`;
+};
 const useTextToSpeech = (messages: any[]) => {
     useEffect(() => {
         const lastMessage = messages[messages.length - 1];
@@ -218,7 +236,8 @@ const DroneTelemetryWidget = React.memo(() => {
 DroneTelemetryWidget.displayName = 'DroneTelemetryWidget';
 
 // --- ARCHITECTURAL UPGRADE: Enhanced Product Card ---
-const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, totalItems: number }) => {
+const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, onViewDetails: (product: any) => void, totalItems: number }) => {
+    const confirmOrder = useAIOrderingStore(state => state.confirmCurrentOrder);
     // Made cards significantly larger for better UX (85% width on mobile, 55% on desktop)
     const slideWidthClass = totalItems === 1 
     ? "flex-[0_0_100%] sm:flex-[0_0_auto] sm:w-[300px] md:w-[350px]" 
@@ -246,6 +265,16 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: 'spring', stiffness: 200, damping: 25 }}
             >
+	        <motion.button
+                    onClick={(e) => { e.stopPropagation(); onViewDetails(product); }}
+                    initial={{ opacity: 0, y: -10 }}
+		    animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ scale: 1.1, backgroundColor: "rgba(6, 182, 212, 1)", color: "#000" }}
+                    className="absolute top-4 right-2 z-50 p-2.5 rounded-full bg-black/40 border border-white/10 text-white backdrop-blur-md opacity-60 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+                    title="Inspect Hologram"
+                >
+                    <Eye size={18} strokeWidth={2.5} />
+                </motion.button>
                 {/* Image Section with Atmospheric Glow */}
                 <div className="relative h-56 w-full flex items-center justify-center bg-gradient-to-b from-white/5 to-transparent p-6 overflow-hidden">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
@@ -260,7 +289,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
                     
                     {/* Floating Price Tag */}
                     <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
-                        <span className="text-cyan-400 font-bold font-mono text-lg">${product.price.toFixed(2)}</span>
+                        <span className="text-cyan-400 font-bold font-mono text-lg">${(Number(product.price) || 0).toFixed(2)}</span>
                     </div>
                 </div>
 
@@ -282,14 +311,16 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
 
                     <div className="mt-auto pt-4 border-t border-white/5">
                         <motion.button
-                            onClick={handleSelect}
+                 
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.96 }}
-                            className="w-full relative overflow-hidden rounded-2xl bg-cyan-500 text-black font-bold py-3.5 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
+			    onClick={handleSelect}
+
+                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold py-3.5 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
                         >
-                            <span className="relative z-10 flex items-center gap-2 uppercase tracking-wide text-xs">
+                            <span className="relative z-10 flex items-center gap-2 tracking-wide text-xs">
                                 <ShoppingBag size={16} strokeWidth={2.5} />
-                                Add to Order
+                                CART
                             </span>
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
                         </motion.button>
@@ -301,7 +332,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, totalItems }: { pro
 });
 CarouselProductCard.displayName = 'CarouselProductCard';
 
-const ProductCarousel = React.memo(({ products, onSelect }: { products: any[], onSelect: (product: any, elementId: string) => void }) => {
+const ProductCarousel = React.memo(({ products, onViewDetails, onSelect }: { products: any[], onSelect: (product: any, elementId: string) => void }) => {
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'center', containScroll: 'trimSnaps' });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
@@ -312,7 +343,7 @@ const ProductCarousel = React.memo(({ products, onSelect }: { products: any[], o
         <div className="relative my-6 px-1 group/carousel w-full">
             <div className="overflow-hidden p-2 -m-2" ref={emblaRef}>
                 <div className="flex gap-4 pl-4 pr-12 md:px-4">
-                    {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} totalItems={totalItems} />)}
+                    {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} onViewDetails={onViewDetails} totalItems={totalItems} />)}
                 </div>
             </div>
             {canScroll && (
@@ -337,7 +368,7 @@ const AIReasoning = React.memo(({ text }: { text: string }) => (
         
         <Sparkles size={16} className="text-cyan-400 flex-shrink-0 mt-0.5 animate-pulse"/>
         <div>
-            <span className="block text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-1">Architectural Reasoning</span>
+            <span className="block text-[10px] font-light text-cyan-500 tracking-widest mb-1">INSIGHTS</span>
             <p className="text-sm text-cyan-100/80 font-sans leading-relaxed">{text}</p>
         </div>
     </motion.div>
@@ -345,31 +376,45 @@ const AIReasoning = React.memo(({ text }: { text: string }) => (
 AIReasoning.displayName = 'AIReasoning';
 
 // --- ARCHITECTURAL UPGRADE: Refined Message Design ---
-const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
+const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
     const isAI = message.sender === 'ai';
 
-    const MessageContent = () => {
+    const renderContent = () => {
         switch (message.contentType) {
             case 'text':
             case 'error':
+	    case 'info':
 	    case 'image_user_upload':
+
+	    const hasText = message.content && message.content.trim().length > 0 && !message.content.includes("Analyzing") && !message.content.includes("Processing");
+            const hasImage = !!message.imageUrl;
+
                 return (
-                    <div className="flex flex-col gap-2">
-                        {/* الصورة تظهر أولاً بشكل جميل */}
-                        {message.imageUrl && (
-                            <div className="relative w-full h-48 rounded-xl overflow-hidden border border-white/10 shadow-lg">
+                    <div className="flex flex-col gap-3">
+                        {/* 🖼️ IMAGE HANDLING (Cinematic Mode) */}
+                        {hasImage && (
+                            <div className={`relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black/40 ${hasText ? 'w-full h-48' : 'w-full min-w-[260px] sm:min-w-[320px] h-64'}`}>
+                                {/* Logic Update: 
+                                   1. لو مفيش نص، بنكبر الصورة (h-64) وبنديها عرض أدنى (min-w) عشان متنهارش
+                                   2. لو فيه نص، بنخليها مدمجة (h-48) 
+                                */}
                                 <Image
                                     src={message.imageUrl}
-                                    alt="User Upload"
+                                    alt="Visual Data"
                                     fill
-                                    className="object-cover"
+                                    className="object-cover hover:scale-105 transition-transform duration-700 ease-out"
                                 />
+                                {/* Glass Overlay Effect */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
                             </div>
                         )}
-                        {/* النص يظهر تحتها أو فوقها حسب رغبتك، هنا جعلناه بسيطاً */}
-                        <p className="text-[15px] text-white font-medium whitespace-pre-wrap leading-relaxed tracking-wide">
-                            {message.content}
-                        </p>
+
+                        {/* 📝 TEXT HANDLING */}
+                        {hasText && (
+                             <p className="text-[15px] text-white font-medium whitespace-pre-wrap leading-relaxed tracking-wide">
+                                  {message.content}
+                             </p>
+                        )}
                     </div>
                 );
             case 'success_text':
@@ -401,14 +446,27 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                                         key={option}
                                         whileHover={{ scale: 1.05 }}
                                         whileTap={{ scale: 0.95 }}
+                                        // ✅ الكود الجديد (توجيه صامت للأوامر)
                                         onClick={() => {
-                                            if (option === 'Switch to PayPal') {
-                                                // Trigger frontend logic to switch tab or notify backend
+                                            // 1. Confirm Order -> Silent Action
+                                            if (option === 'Confirm Order') {
+                                                onConfirmOrder(); 
+                                            }
+                                            // 2. Clear Cart -> Silent Action
+                                            else if (option === 'Clear Cart') {
+                                                onClearCart();
+                                            }
+                                            // 3. باقي الأزرار
+                                            else if (option === 'Switch to PayPal') {
                                                 onSend("I want to use PayPal");
                                             }
-                                            else if (option === 'Retry Payment') onConfirmOrder(); // Re-trigger checkout
+                                            else if (option === 'Retry Payment') onConfirmOrder(); 
                                             else if (option === 'Save for Later') onSave();
-                                            else onSend(option);
+                                            
+                                            // 4. أي شيء آخر يُرسل كنص عادي
+                                            else {
+                                                onSend(option);
+                                            }
                                         }}
                                         className={`text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-xl border transition-all duration-300 ${buttonStyle}`}
                                     >
@@ -424,7 +482,7 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
                 return (
                     <div className="w-full -ml-2 sm:ml-0">
                         <p className="whitespace-pre-wrap mb-2 text-[15px] px-2 leading-7">{message.content}</p>
-                        <ProductCarousel products={message.products || []} onSelect={onProductSelect} />
+                        <ProductCarousel products={message.products || []} onSelect={onProductSelect} onViewDetails={onViewDetails} />
                         {(message.reason || message.ai_notes) && (
                             <div className="px-2">
                                 <AIReasoning text={message.reason || message.ai_notes} />
@@ -464,9 +522,11 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
         }
     };
 
-    if (['cart_preview', 'typing', 'payment_intent', 'ORDER_CANCELLED'].includes(message.contentType)) return null;
+    const contentNode = renderContent();
 
+    if (['cart_preview', 'typing', 'payment_intent', 'ORDER_CANCELLED', 'system'].includes(message.contentType)) return null;
     // --- VISUAL DESIGN: Distinct AI vs User styles ---
+    if (!contentNode) return null;
     return (
         <motion.div
             layout
@@ -474,25 +534,14 @@ const ChatMessage = React.memo(({ message, onSend, onProductSelect, onConfirmOrd
             animate={{ opacity: 1, y: 0, scale: 1 }}
             className={`flex items-end gap-3 w-full mb-6 ${isAI ? 'justify-start' : 'justify-end'}`}
         >
-            {isAI && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-950 flex items-center justify-center border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] mb-4">
-                    <Bot size={16} className="text-cyan-400" />
-                </div>
-            )}
             
             <div className={`w-auto max-w-[90%] md:max-w-2xl px-6 py-5 ${
                 isAI 
                     ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20' 
                     : 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm'
             }`}>
-                <MessageContent />
+		{contentNode}
             </div>
-
-            {!isAI && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10 mb-4">
-                    <User size={16} className="text-gray-400" />
-                </div>
-            )}
         </motion.div>
     );
 });
@@ -502,6 +551,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
     messages: Message[],
     glowingProductId: number | null,
     onRemoveItem: (productId: number) => void
+    onConfirmOrder: () => void
 }) => {
    
     const { cart, aiNote } = useMemo(() => {
@@ -514,18 +564,13 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
     }, [messages]);
 
     return (
-        <div className="hidden lg:flex w-[350px] xl:w-[400px] flex-shrink-0 bg-black/60 backdrop-blur-3xl border-l border-white/5 flex-col overflow-hidden relative z-20">
+        <div className="hidden lg:flex w-[350px] xl:w-[400px] flex-shrink-0 backdrop-blur-3xl bg-black/60 border-l border-white/5 flex-col overflow-hidden relative z-20">
             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" />
             
             <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent relative z-10">
                 <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                        <ShoppingBag size={14} className="text-cyan-400" id="order-summary-cart-icon" /> 
-                        Manifest
+                    <h3 className="text-sm font-bold uppercase text-white tracking-widest flex items-center gap-2">
                     </h3>
-                    <div className="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/30 text-[10px] text-cyan-400 font-mono shadow-[0_0_10px_rgba(6,182,212,0.2)]">
-                        SYSTEM ACTIVE
-                    </div>
                 </div>
 
                 <div className="space-y-4 flex-grow">
@@ -593,16 +638,6 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                     <DroneTelemetryWidget />
                 </div>
 
-                {aiNote && (
-                    <div className="bg-cyan-950/20 border border-cyan-500/10 p-4 rounded-xl relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/50" />
-                        <h3 className="text-[9px] font-bold text-cyan-400 tracking-widest mb-2 flex items-center gap-2 uppercase">
-                            <BrainCircuit size={12} /> Vision Insights
-                        </h3>
-                        <p className="text-xs text-cyan-100/70 italic leading-relaxed line-clamp-3">{aiNote}</p>
-                    </div>
-                )}
-
                 <div className="w-full h-[1px] bg-white/10" />
 
                 <div className="flex justify-between items-end">
@@ -611,7 +646,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                         <span className="text-[10px] text-gray-600">Including Service Fees</span>
                     </div>
                     <span className="text-3xl font-bold text-white font-mono tracking-tighter">
-                        ${cart.total.toFixed(2)}
+                        ${Number(cart.total || 0).toFixed(2)}
                     </span>
                 </div>
             </div>
@@ -623,13 +658,27 @@ AIChatSidebar.displayName = 'AIChatSidebar';
 const ChatInput = React.memo(
   ({ onSend, onSendImage, isTyping, isProcessing }: { 
       onSend: (text: string) => void; 
-      onSendImage: (base64: string) => void; // New Prop
+      onSendImage: (base64: string, raw: string, caption?: string) => void;
       isTyping: boolean; 
       isProcessing: boolean 
   }) => {
     const [value, setValue] = useState('');
+    const [pendingImage, setPendingImage] = useState<{ url: string; base64: string } | null>(null);
     const [isListening, setIsListening] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // 🆕 2. دالة التمدد التلقائي
+    const handleAutoResize = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const target = e.target;
+        setValue(target.value);
+
+        // تصفير الارتفاع لحساب الحجم الجديد بدقة
+        target.style.height = 'auto';
+        // تعيين الارتفاع الجديد بناءً على المحتوى (بحد أقصى 150px مثلاً)
+        target.style.height = `${Math.min(target.scrollHeight, 150)}px`;
+    };
 
     // --- 🎤 VOICE MODULE (Web Speech API) ---
     const toggleVoice = () => {
@@ -659,37 +708,70 @@ const ChatInput = React.memo(
         recognition.start();
     };
 
-    // --- 👁️ VISION MODULE (Image Processing) ---
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.onloadend = () => {
-            const fullDataUrl = reader.result as string; // ✅ الرابط الكامل (يعمل مع png/jpg)
-            const base64Raw = fullDataUrl.split(',')[1]; // ✅ البيانات الخام للسيرفر
-            
-            if (base64Raw) {
-                // 👇 نرسل الاثنين
-                onSendImage(fullDataUrl, base64Raw); 
-            }
+            const fullDataUrl = reader.result as string;
+            const base64Raw = fullDataUrl.split(',')[1];
+            // 💎 بدلاً من الإرسال الفوري، نضعها في الانتظار (Preview)
+            setPendingImage({ url: fullDataUrl, base64: base64Raw });
         };
         reader.readAsDataURL(file);
-        e.target.value = '';
+        e.target.value = ''; // Reset input
     };
 
-    const isDisabled = isTyping || isProcessing;
+    // --- 🚀 HYBRID SEND (Image + Text) ---
+    const handleTriggerSend = () => {
+        if (isSendButtonDisabled) return;
+        if (pendingImage) {
+            // 💎 إرسال الصورة + النص (كـ Caption)
+            onSendImage(pendingImage.url, pendingImage.base64, value);
+            setPendingImage(null); // تنظيف المعاينة
+            setValue('');
+        } else if (value.trim()) {
+            // إرسال نص فقط
+            onSend(value);
+            setValue('');
+        }
+	if (textareaRef.current) {
+	    textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = '56px'; // ارجع للارتفاع الأصلي
+        }
+    };
+
+    const isInputLocked = isTyping || isProcessing;
+    const isSendButtonDisabled = isInputLocked || (!value.trim() && !pendingImage);
 
     return (
       <div className="p-6 border-t border-white/5 flex-shrink-0 bg-[#020617]/50 backdrop-blur-md relative z-20">
-         {/* Hidden File Input */}
-         <input 
-            type="file" 
-            ref={fileInputRef} 
-            accept="image/*" 
-            className="hidden" 
-            onChange={handleImageUpload} 
-         />
+         <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} />
+
+        {/* 💎 IMAGE PREVIEW AREA (The Architectural Upgrade) */}
+        <AnimatePresence>
+            {pendingImage && (
+                <motion.div 
+                    initial={{ opacity: 0, y: 10, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, y: 10, height: 0 }}
+                    className="absolute -top-24 left-6 z-30"
+                >
+                    <div className="relative group">
+                        <div className="w-20 h-20 rounded-xl overflow-hidden border border-cyan-500/50 shadow-lg bg-black/50 backdrop-blur-md">
+                            <Image src={pendingImage.url} alt="Preview" width={80} height={80} className="object-cover w-full h-full" />
+                        </div>
+                        <button 
+                            onClick={() => setPendingImage(null)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-transform"
+                        >
+                            <X size={12} />
+                        </button>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
 
         <div className="relative group max-w-4xl mx-auto flex items-center gap-2">
           
@@ -697,7 +779,7 @@ const ChatInput = React.memo(
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 rounded-full bg-white/5 text-cyan-400 hover:bg-cyan-500/20 transition-all border border-white/5 hover:border-cyan-500/50"
+            className="p-3 rounded-full bg-white/5 text-white hover:bg-cyan-500/20 transition-all border border-white/5 hover:border-cyan-500/50"
             title="Upload Visual Data"
           >
             <Camera size={20} />
@@ -710,7 +792,7 @@ const ChatInput = React.memo(
             className={`p-3 rounded-full transition-all border border-white/5 ${
                 isListening 
                 ? 'bg-red-500/20 text-red-400 animate-pulse border-red-500/50' 
-                : 'bg-white/5 text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/50'
+                : 'bg-white/5 text-white hover:bg-cyan-500/20 hover:border-cyan-500/50'
             }`}
             title="Activate Voice Command"
           >
@@ -719,21 +801,32 @@ const ChatInput = React.memo(
 
           {/* Text Input */}
           <div className="relative flex-grow">
-            <input
-                type="text"
+            <textarea
+                ref={textareaRef}
                 value={value}
-                onChange={(e) => setValue(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !isDisabled && value.trim() && (onSend(value), setValue(''))}
-                placeholder={isListening ? 'Listening...' : isDisabled ? 'Processing sequence...' : 'Type or speak your request...'}
-                disabled={isDisabled}
-                className="w-full bg-[#0F172A] border border-white/10 rounded-full py-4 pr-16 pl-6 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/40 focus:outline-none transition-all duration-300 font-medium shadow-inner"
+                onChange={handleAutoResize}
+                rows={1}
+                onKeyDown={(e) => {
+                    // إرسال عند الضغط على Enter (بدون Shift)
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault(); // منع سطر جديد
+                        if (!isSendButtonDisabled) handleTriggerSend();
+                    }
+                }}
+                placeholder={isListening ? 'Listening...' : isInputLocked ? 'Processing sequence...' : 'Ask order with air...'}
+                disabled={isInputLocked}
+                className="w-full bg-[#0F172A] border border-white/10 rounded-full py-4 pr-16 pl-6 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/40 focus:outline-none transition-all duration-300 font-medium shadow-inner resize-none overflow-hidden min-h-[56px] leading-relaxed"
+		style={{
+                    // نظهر السكرول فقط لو الكلام زاد عن 150 بيكسل
+                    overflowY: textareaRef.current && textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden'
+                }}
             />
              <button
-                disabled={isDisabled || !value.trim()}
-                onClick={() => { onSend(value); setValue(''); }}
+                disabled={isSendButtonDisabled}
+                onClick={handleTriggerSend}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-transparent disabled:text-gray-600 text-white transition-all"
             >
-                {isDisabled ? <Loader2 size={18} className="animate-spin" /> : <CornerDownRight size={18} />}
+                {isInputLocked ? <Loader2 size={18} className="animate-spin" /> : <CornerDownRight size={18} />}
             </button>
           </div>
         </div>
@@ -861,6 +954,7 @@ PaymentFatalError.displayName = 'PaymentFatalError';
 
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     
+    const [detailProduct, setDetailProduct] = useState<any | null>(null);
     const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
     const stripePromise: Promise<Stripe | null> | null = useMemo(() => {
         if (STRIPE_PUBLISHABLE_KEY) {
@@ -920,6 +1014,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const currentAccessToken = session?.accessToken;
     const isConnectedRef = useRef(false);
 
+    const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+    const cartItems = lastCartMessage?.content?.items || [];
+
     useEffect(() => {
         if (status === 'authenticated' && currentAccessToken && !isConnectedRef.current) {
             isConnectedRef.current = true; 
@@ -942,13 +1039,29 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         }
     }, [paymentDetails]);
 
+    const hasTriggeredRecoveryRef = useRef(false);
+
+    useEffect(() => {
+        hasTriggeredRecoveryRef.current = false;
+    }, [cartItems, paymentDetails?.orderId]);
+
     const handleClose = useCallback(() => {
         if (paymentDetails && !isProcessing) {
-            actions.initiateCheckoutRecovery();
+            if (hasTriggeredRecoveryRef.current) {
+                // نعم حذرناه، وهو أصر على الخروج مرة أخرى -> إذن نغلق النافذة بصمت
+                onClose();
+            } else {
+                // لا، هذه أول مرة يحاول يخرج -> نظهر رسالة التحذير (Pause)
+                actions.initiateCheckoutRecovery();
+                // ونسجل أننا حذرناه
+                hasTriggeredRecoveryRef.current = true;
+            }
+
         } else if (!paymentDetails) {
+            // الحالة الثانية: وضع الشات العادي -> إغلاق مباشر
             onClose();
         }
-    }, [paymentDetails, isProcessing, onClose, actions.initiateCheckoutRecovery]);
+    }, [paymentDetails, isProcessing, onClose, actions]);
     
     const handlePaymentSuccess = useCallback(() => {
         actions.setOverlayVisible(false);
@@ -1020,9 +1133,6 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                 };
             }, [paymentDetails, stripeAppearance]);
 
-    const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
-    const cartItems = lastCartMessage?.content?.items || [];
-    
     const isPaymentMode = !!paymentDetails; 
     const isKeyMissing = !STRIPE_PUBLISHABLE_KEY;
     const isReadyToRender = stripeObj && stripeOptions && !isStripeError;
@@ -1041,13 +1151,34 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                    
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
                     <FlyToCartAnimator /> 
+		    <AnimatePresence>
+                        {detailProduct && (
+                            <motion.div
+                                initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                                animate={{ opacity: 1, backdropFilter: "blur(10px)" }}
+                                exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                                className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
+                                onClick={(e) => {
+                                    e.stopPropagation(); // منع إغلاق الشات الرئيسي
+                                    setDetailProduct(null); // إغلاق المودال فقط
+                                }}
+                            >
+                                <div onClick={(e) => e.stopPropagation()} className="w-full max-w-7xl h-[93vh]">
+                                    <ProductDetailsCard
+                                        product={detailProduct}
+                                        onClose={() => setDetailProduct(null)}
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <motion.div
                         initial={{ scale: 0.95, opacity: 0, y: 30 }}
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-full  max-w-7xl h-[98vh] flex flex-col bg-[#020617] border border-white/10 rounded-[65px] shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden relative"
+                        className="w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617]/40 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
                     >
                        
                         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
@@ -1056,7 +1187,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-black/20 backdrop-blur-sm">
                             <h3 className="font-bold text-2xl normal-case tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 <motion.span
-                                    className="text-transparent bg-clip-text bg-gradient-to-r text-white"
+                                    className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400"
                                     animate={{
                                         textShadow: [
                                             '0 0 10px rgba(6,182,212,0)',
@@ -1068,7 +1199,6 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                 >
                                     {paymentDetails ? 'Secure Checkout' : 'order with air'}
                                 </motion.span>
-                                <span className="ml-3 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] text-cyan-400 font-mono align-middle">V 3.0</span>
                             </h3>
                             <button 
                                 onClick={handleClose} 
@@ -1128,7 +1258,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         animate={{ opacity: 1 }}
                                         exit={{ opacity: 0, transition: { duration: 0.1 } }}
                                         className="flex-grow flex flex-col relative z-10 w-full"
-                                    >
+        
+                            >
                                         <div className="flex-grow px-4 lg:px-12 py-8 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/10 scrollbar-track-transparent">
                                             <AnimatePresence initial={false}> 
                                                 {messages.map((msg) => (
@@ -1137,6 +1268,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                         message={msg}
                                                         onSend={handleSendMessage}
                                                         onProductSelect={handleProductSelect}
+							onViewDetails={setDetailProduct}
                                                         onConfirmOrder={actions.confirmCurrentOrder}
                                                         onClearCart={actions.clearCart}
                                                         onRestore={actions.restoreCheckout}
@@ -1159,6 +1291,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                     messages={messages}
                                     glowingProductId={glowingProductId}
                                     onRemoveItem={actions.removeProductById}
+				    onConfirmOrder={actions.confirmCurrentOrder}
                                  />
                             )}
                         </div>

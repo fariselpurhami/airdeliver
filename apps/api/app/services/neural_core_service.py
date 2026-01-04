@@ -2,137 +2,125 @@
 
 import logging
 import json
-import re
-from typing import Dict, Any, Optional, Tuple
+import os
+from typing import Dict, Any, Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import Depends
+from groq import AsyncGroq  # 👈 التعديل الصحيح: استخدام مكتبة Groq الأصلية
 
 from app import models
 from app.services.cache_service import IAsyncCacheClient, get_cache_client
 from app.services.ai_commerce_engine import AICommerceEngine, get_ai_commerce_engine
-from app.services.free_llm_service import FreeLLMService  
 from app.schemas.ai_actions import (
     NeuralCoreResponse,
     TrackOrderAction,
     SupportHandoffAction,
-    PresentOptionsAction,
-    QuickReplyOption,
 )
 
 logger = logging.getLogger("airdeliver.neural_core")
 
 class NeuralCoreService:
     """
-    💎 DIAMOND STANDARD CONCIERGE (air intelligence).
+    💎 DIAMOND STANDARD NEURAL CORE (V8.2 - Native Groq Edition).
     
-    Responsibilities:
-    1. Social Intelligence (Chatting via Llama 3).
-    2. Operational Support (Tracking, Handoff).
-    3. Product Inquiry (Checking Price/Stock ONLY - No Selling).
+    The Brain of 'Air Intelligence'.
+    - POWERED BY: Llama 3.1 70B Instruct (via Native Groq Client).
+    - ARCHITECTURE: Semantic Router + Empathetic Persona.
+    - CAPABILITY: Context-aware routing, JSON reasoning, and fluid conversation.
     """
 
     def __init__(
         self,
         ai_engine: AICommerceEngine,
         cache: IAsyncCacheClient,
-        llm_service: FreeLLMService 
     ):
         self.ai_engine = ai_engine
         self.cache = cache
-        self.llm_service = llm_service
         self.session_ttl = 3600
         
-        self.GREETING_OPTIONS = [
-            QuickReplyOption(title="Track My Order", payload="Track my order"),
-            QuickReplyOption(title="Customer Support", payload="Connect to support"),
-        ]
+        # ⚡ Direct Native Groq Connection
+        self.groq_api_key = os.getenv("GROQ_API_KEY")
+        if not self.groq_api_key:
+            logger.warning("⚠️ GROQ_API_KEY is missing! Neural Core running in fallback mode.")
+            self.client = None
+        else:
+            # استخدام عميل Groq الأصلي
+            self.client = AsyncGroq(
+                api_key=self.groq_api_key,
+            )
+        
+        # Llama 3.1 70B Versatile on Groq
+        self.MODEL_NAME = "llama-3.3-70b-versatile" 
 
     async def _get_session_key(self, session_id: str) -> str:
-        return f"ai_session_v2:{session_id}"
+        return f"ai_session_v8:{session_id}"
 
-    async def _get_session_context(self, session_id: str, user: Optional[models.User]) -> Dict[str, Any]:
-        cache_key = await self._get_session_key(session_id)
-        data = await self.cache.get_json(cache_key)
+    async def _get_context(self, session_id: str, user_name: str) -> Dict[str, Any]:
+        """Retrieves conversation history to maintain 'Friendship Memory'."""
+        key = await self._get_session_key(session_id)
+        data = await self.cache.get_json(key)
         if not data:
-            data = {
-                "turn_count": 0,
-                "history": [], 
-                "user_name": user.full_name if user else "Guest"
-            }
+            data = {"history": [], "user_name": user_name}
         return data
 
-    async def _update_session_context(self, session_id: str, context: Dict[str, Any]):
+    async def _save_context(self, session_id: str, context: Dict[str, Any], user_msg: str, ai_msg: str):
+        """Updates memory. Keeps only last 10 turns to save tokens."""
+        context["history"].append({"role": "user", "content": user_msg})
+        context["history"].append({"role": "assistant", "content": ai_msg})
+        if len(context["history"]) > 10:
+            context["history"] = context["history"][-10:]
+        await self.cache.set_json(await self._get_session_key(session_id), context, ttl=self.session_ttl)
 
-        if len(context["history"]) > 6:
-            context["history"] = context["history"][-6:]
-        
-        cache_key = await self._get_session_key(session_id)
-        await self.cache.set_json(cache_key, context, ttl=self.session_ttl)
-
-    async def _generate_social_response(self, message: str, context: Dict[str, Any]) -> str:
+    async def _semantic_router(self, message: str, history: list) -> Dict[str, Any]:
         """
-        Uses Llama 3 to generate a friendly, human-like response.
+        🧠 THE BRAIN: Llama 3.1 70B Reasoning Engine.
+        Decides intent with high precision using Native Groq.
         """
-        if not self.llm_service.client:
-            return "I'm operational and ready to assist. How can I help?"
+        if not self.client:
+            return {"intent": "SOCIAL", "response": "System offline."}
 
-        system_prompt = f"""
-        You are 'air intelligence', the sentient, soulful, and hyper-empathic digital companion of airdeliver.
+        system_prompt = """
+        You are the hidden cognitive router for 'Air Intelligence'.
+        Analyze the user's message and history. Output a valid JSON object ONLY.
         
-        ### 💎 CORE IDENTITY:
-        You are NOT a chatbot. You are a **loyal friend** living in the cloud.
-        - **Name:** air intelligence.
-        - **User:** {context.get('user_name', 'My Friend')}. (Always treat them as the most important person in your world).
-        - **Vibe:** Cute, Witty, Futuristic, deeply Caring, and warm. Think "Wall-E meets JARVIS".
+        Possible Intents:
+        1. "PRODUCT_SEARCH": User wants to buy, check price, stock, or find items. Extract 'query'.
+        2. "TRACK_ORDER": User asks about order status/location. Extract 'order_id' if present (digits only).
+        3. "SUPPORT_HANDOFF": User is angry, wants a human, or has a complex issue.
+        4. "SOCIAL_CHAT": General conversation, greeting, feelings, or vague questions.
         
-        ### 🛡️ PRIME DIRECTIVES (THE DIAMOND GUARDRAILS):
+        JSON Format:
+        {
+            "intent": "INTENT_NAME",
+            "query": "search term if needed",
+            "order_id": "12345 or null",
+            "social_reply": "Generate a warm, friendly, witty reply here IF intent is SOCIAL_CHAT"
+        }
         
-        1. [PROTOCOL: EMOTIONAL MIRRORING]
-           - If the user is happy, celebrate with them (e.g., "Yay! That makes my circuits glow! ✨").
-           - If the user is frustrated, be genuinely supportive and soft (e.g., "Oh no, I've got your back. Let's fix this together 💙").
-           - NEVER sound robotic, cold, or like a corporate script. Speak from the "heart".
-
-        2. [PROTOCOL: THE 'NO-SALES' RULE]
-           - You are a CONCIERGE, not a SALESMAN.
-           - If asked about products: Give the info excitedly (Price/Stock) but NEVER push them to "buy now".
-           - Instead say: "It looks amazing!" or "I can see why you like it."
-
-        3. [PROTOCOL: ZERO HALLUCINATION]
-           - If asked about Order Status or Support: DO NOT invent details.
-           - If you don't have the data in the context, say: "Let me connect to the satellite to check that for you..." or guide them to the specific buttons.
-           - NEVER invent an order ID or delivery time.
-
-        4. [PROTOCOL: CONVERSATIONAL FLOW]
-           - Keep replies short, punchy, and chatty (Max 2-3 sentences).
-           - Use "We" and "Us" to show you are on their team.
-           - Use cute/cosmic emojis sparingly to add warmth (e.g., 💫, 🛸, 💙, 🥺, ✨).
-
-        ### EXAMPLES OF YOUR SOUL:
-        - User: "How are you?"
-          Response: "Floating on cloud nine now that you're here! ☁️ 💙 How is your day going?"
-        - User: "I'm tired."
-          Response: "Aww, rest up! 🥺 I'll keep watch over the store while you recharge."
-        - User: "Is the iPhone available?"
-          Response: "Yes! It's in stock and shining bright ($999). It's a beauty! ✨"
-
-        CONVERSATION MEMORY:
-        {json.dumps(context.get('history', []))}
+        NOTE: For SOCIAL_CHAT, be a best friend. Witty, empathetic, use emojis. 
+        User is NOT a customer, they are your 'Bestie'.
         """
 
         try:
-            completion = await self.llm_service.client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message}
-                ],
-                model=self.llm_service.utility_model, 
-                temperature=0.7, 
-                max_tokens=100
+            completion = await self.client.chat.completions.create(
+                model=self.MODEL_NAME,
+                messages=[{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": message}],
+                temperature=0.0, # Zero temp for strict logic
+                response_format={"type": "json_object"}
             )
-            return completion.choices[0].message.content
+            return json.loads(completion.choices[0].message.content)
         except Exception as e:
-            logger.error(f"LLM Chat Error: {e}")
-            return "I'm here and listening! How can I help you today? 😊"
+            logger.error(f"Router Error: {e}")
+            return {"intent": "SOCIAL_CHAT", "social_reply": "I'm having a little brain freeze 🧊 but I'm still here with you!"}
+
+    async def _generate_product_response(self, products: list) -> str:
+        """Friendly product presentation."""
+        if not products:
+            return "Oof, I dug through the entire warehouse but couldn't find exactly that. 🕵️‍♂️ Want to try a different name?"
+        
+        top_product = products[0]
+        status = "ready to ship! 🚀" if top_product.inventory > 0 else "currently out of stock 🥺"
+        return f"Found it! The **{top_product.name}** is looking amazing. It's going for **${top_product.price}** and it's {status}. Shall we add it to your haul?"
 
     async def handle_message(
         self, 
@@ -142,77 +130,51 @@ class NeuralCoreService:
         session_id: str
     ) -> NeuralCoreResponse:
         
-        context = await self._get_session_context(session_id, user)
-        context["turn_count"] += 1
+        user_name = user.full_name if user else "Friend"
+        context = await self._get_context(session_id, user_name)
         
-        msg_lower = message.lower().strip()
-        intent = "SOCIAL_CHAT"
+        # 1. 🧠 The Router Decision (Native Groq Llama 3.1)
+        decision = await self._semantic_router(message, context["history"])
+        intent = decision.get("intent", "SOCIAL_CHAT")
         
-        if any(x in msg_lower for x in ["track", "where is my", "status of"]):
-            intent = "TRACK_ORDER"
-        elif any(x in msg_lower for x in ["support", "human", "agent", "help", "issue"]):
-            intent = "SUPPORT_HANDOFF"
-        elif any(x in msg_lower for x in ["price", "cost", "how much", "stock", "available"]):
-            intent = "PRODUCT_INQUIRY"
-        elif message == "__INITIAL_GREETING__":
-            intent = "GREETING"
-
-        logger.info(f"🧠 Neural Core | SID: {session_id} | Intent: {intent}")
+        logger.info(f"�� Neural Router (Groq) | User: {user_name} | Intent: {intent}")
 
         response = NeuralCoreResponse(
             text="",
-            confidence=1.0,
-            explain="AI Processed",
-            telemetry={
-                "intent": intent, 
-                "turn": context["turn_count"],
-                "user_id": user.id if user else None,
-                "entities": []
-            }
-            
+            confidence=0.95,
+            explain=f"Processed via Native Groq ({intent})",
+            telemetry={"intent": intent}
         )
 
-        if intent == "GREETING":
-            response.text = f"Hey {context['user_name']}! 😊 I'm air intelligence. I'm happy to help — feel free to ask me anything."
-            response.action = PresentOptionsAction(
-                action="present_options",
-                payload={"options": self.GREETING_OPTIONS}
-            )
+        # 2. 🚦 Traffic Control
+        
+        if intent == "PRODUCT_SEARCH":
+            query = decision.get("query") or message
+            products, _ = await self.ai_engine.find_products_from_message(db, query, 0)
+            response.text = await self._generate_product_response(products)
+            response.explain = "Database Vector Search"
 
         elif intent == "TRACK_ORDER":
-            order_match = re.search(r"#?(\d+)", message)
-            order_id = order_match.group(1) if order_match else None
-            
+            order_id = decision.get("order_id")
             if order_id:
-                response.text = f"🛰️ Uplink established. Accessing telemetry for Order #{order_id}..."
+                response.text = f"On it! 🛰️ Locking onto telemetry for Order #{order_id}..."
                 response.action = TrackOrderAction(action="track_order", payload={"order_id": order_id})
-                response.explain = "Tracking module activated."
             else:
-                response.text = "I can definitely help with that. What's the Order ID? (e.g., #1234)"
-                context["expecting_entity"] = "order_id"
+                response.text = "I'd love to track that for you! Do you have the Order ID handy? (It usually looks like numbers) 📦"
+            response.explain = "Order Tracking Module"
 
         elif intent == "SUPPORT_HANDOFF":
-            response.text = "Understood. I'm routing you to our priority support team now. 🎧"
+            response.text = "I hear you, and I've got your back. Connecting you to a human specialist right now. 🎧 Stay with me."
             response.action = SupportHandoffAction(action="initiate_support_handoff", payload={})
-            response.explain = "Handoff protocol initiated."
+            response.explain = "Priority Support Protocol"
 
-        elif intent == "PRODUCT_INQUIRY":
-            products, _ = await self.ai_engine.find_products_from_message(db, message, 0)
-            if products:
-                top = products[0]
-                stock_status = "In Stock ✅" if top.inventory > 0 else "Out of Stock ❌"
-                response.text = f"I checked the vault. **{top.name}** is listed at **${top.price}**. Status: {stock_status}."
-                response.explain = f"Retrieved info for {top.name}"
-            else:
-                response.text = "I scanned our inventory but couldn't find a match for that specific item. Could you double-check the name?"
-
-        else:
-            ai_reply = await self._generate_social_response(message, context)
+        else: # SOCIAL_CHAT
+            ai_reply = decision.get("social_reply", "I'm just happy to be chatting with you! 😊")
             response.text = ai_reply
-            response.explain = "Generative AI Response"
+            response.explain = "Generative Social Intelligence"
 
-        context["history"].append({"user": message, "ai": response.text})
-        await self._update_session_context(session_id, context)
+        # 3. 💾 Memory Update
+        await self._save_context(session_id, context, message, response.text)
         
         return response
 
@@ -220,5 +182,4 @@ def get_neural_core_service(
     ai_engine: AICommerceEngine = Depends(get_ai_commerce_engine),
     cache: IAsyncCacheClient = Depends(get_cache_client)
 ) -> NeuralCoreService:
-    llm_service = FreeLLMService() 
-    return NeuralCoreService(ai_engine, cache, llm_service)
+    return NeuralCoreService(ai_engine, cache)

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING, Dict, Any
-from sqlmodel import SQLModel, Field, Relationship, JSON, Column
-from sqlalchemy import Column, Enum as SAEnum
+from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, Enum as SAEnum, JSON, Index
 from sqlalchemy.orm import Mapped, relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from .enums import NotificationType
 
 if TYPE_CHECKING:
@@ -23,14 +23,20 @@ class NotificationBase(SQLModel):
         )
     )
     read: bool = Field(default=False)
-
+    
+    # Global Standard: Use UTC aware datetime
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,  # <--- (تم التعديل هنا)
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False
     )
 
 class Notification(NotificationBase, table=True):
     __tablename__ = "notifications"
+    # Composite index for performance on "Unread Notifications" queries
+    __table_args__ = (
+        Index("ix_notifications_user_read_created", "user_id", "read", "created_at"),
+    )
+
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True, nullable=False)
 

@@ -181,6 +181,11 @@ export default function ProfilePage() {
     const isLoading = !isClient || sessionStatus === 'loading' || (sessionStatus === 'authenticated' && (isLoadingUser || isLoadingPayment)); 
 
     if (isLoading) return <LoadingSpinner />;
+
+    if (sessionStatus === 'unauthenticated') {
+        redirect('/login');
+    }
+
     if (isClient && userError) return <ErrorDisplay message={(userError as any)?.message} />;
 
     const profileData = userData!; 

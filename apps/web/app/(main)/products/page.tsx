@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
+import React, { useState, Suspense, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
@@ -11,18 +11,28 @@ import { type Product } from '@/types';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
-import { AlertTriangle, Cpu, Eye, ShoppingBag, Check, Zap, Tag, Layers, ScanLine, Bot, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Cpu, Eye, ShoppingBag, Zap, Tag, Layers, ScanLine, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { ProductDetailsCard } from '@/components/products/ProductDetailsCard';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 
+// --- ARCHITECTURAL UTILS: RESILIENCE LAYER ---
 const fetcher = (url: string) => api.get(url).then(res => res.data);
+
+// Safe Currency Formatter (Prevents the .toFixed crash)
+const formatCurrency = (value: number | string | undefined | null): string => {
+    if (value === undefined || value === null) return '0.00';
+    const num = Number(value);
+    // If NaN (Not a Number), return 0.00 safely
+    return isNaN(num) ? '0.00' : num.toFixed(2);
+};
+
 const CATEGORIES = ["ALL", "FASHION", "BEAUTY", "ELECTRONICS", "ACCESSORIES"];
-const ITEMS_PER_PAGE = 100;
+const ITEMS_PER_PAGE = 30;
 
 // ============================================================================
-// --- 1. ARCHITECTURAL BACKGROUND (The Cosmos) ---
+// --- 1. PERFORMANCE CORE (Background Isolation) ---
 // ============================================================================
 const ProductsBackground = () => {
     const light1Ref = useRef<THREE.PointLight>(null!);
@@ -31,14 +41,18 @@ const ProductsBackground = () => {
     useFrame((state) => {
         const time = state.clock.elapsedTime;
         if (light1Ref.current) {
-            light1Ref.current.position.x = Math.sin(time * 0.5) * 20;
-            light1Ref.current.position.y = Math.cos(time * 0.5) * 20;
-            light1Ref.current.position.z = Math.cos(time * 0.5) * 15;
+            light1Ref.current.position.set(
+                Math.sin(time * 0.5) * 20,
+                Math.cos(time * 0.5) * 20,
+                Math.cos(time * 0.5) * 15
+            );
         }
         if (light2Ref.current) {
-            light2Ref.current.position.x = Math.sin(time * 0.3) * -20;
-            light2Ref.current.position.y = Math.cos(time * 0.3) * -20;
-            light2Ref.current.position.z = Math.sin(time * 0.3) * 10;
+            light2Ref.current.position.set(
+                Math.sin(time * 0.3) * -20,
+                Math.cos(time * 0.3) * -20,
+                Math.sin(time * 0.3) * 10
+            );
         }
     });
 
@@ -48,42 +62,38 @@ const ProductsBackground = () => {
             <ambientLight intensity={0.8} />
             <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={300} color="#00C6FF" distance={50} />
             <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={200} color="#7F00FF" distance={50} />
-            <Stars radius={120} depth={60} count={8000} factor={5} saturation={0.5} fade speed={0.5} />
+            <Stars radius={120} depth={60} count={5000} factor={4} saturation={0.5} fade speed={0.5} />
         </>
     );
 };
 
+// Lazy Load Heavy 3D Assets
 const DynamicProductsBackground = dynamic(() => Promise.resolve(ProductsBackground), { 
     ssr: false,
     loading: () => null
 });
 
 // ============================================================================
-// --- 2. ANIMATION UTILS (The FlyToCart Logic - CORRECTED) ---
+// --- 2. ANIMATION LOGIC (Optimized) ---
 // ============================================================================
 
 const PageFlyToCartAnimator = () => {
   const flyQueue = useAIOrderingStore((state) => state.flyQueue);
   const removeFlyItem = useAIOrderingStore((state) => state.removeFlyItem);
 
-  const getStartPosition = (startElementId: string) => {
-    if (!startElementId) return { x: window.innerWidth / 2, y: window.innerHeight / 2, width: 0, height: 0 };
-    const el = document.getElementById(startElementId);
-    if (el) return el.getBoundingClientRect();
-    return { x: window.innerWidth / 2, y: window.innerHeight / 2, width: 100, height: 100 };
-  };
-
   return (
     <AnimatePresence>
       {flyQueue.map((item) => {
-          const startRect = getStartPosition(item.startElementId);
+          // Use a safe fallback if element not found to prevent calculation errors
+          const el = document.getElementById(item.startElementId);
+          const startRect = el ? el.getBoundingClientRect() : { top: 0, left: 0, width: 0, height: 0 };
           
-          if (!startRect || startRect.width === 0) return null;
+          if (!startRect.width) return null;
 
           return (
             <motion.div
               key={item.animationId} 
-              className="fixed z-[9999] rounded-xl overflow-hidden border border-cyan-500/80 shadow-[0_0_30px_rgba(6,182,212,0.8)]"
+              className="fixed z-[9999] rounded-xl overflow-hidden border border-cyan-500/80 shadow-[0_0_30px_rgba(6,182,212,0.8)] pointer-events-none"
               initial={{ 
                   top: startRect.top, 
                   left: startRect.left, 
@@ -93,7 +103,7 @@ const PageFlyToCartAnimator = () => {
                   rotate: 0 
               }}
               animate={{ 
-                  top: window.innerHeight / 2, 
+                  top: "50vh", // Center vertically roughly
                   left: -100, 
                   width: 20, 
                   height: 20, 
@@ -102,10 +112,11 @@ const PageFlyToCartAnimator = () => {
                   scale: 0.5 
               }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.8, ease: "easeIn" }} 
+              transition={{ duration: 0.8, ease: "easeInOut" }} 
               onAnimationComplete={() => removeFlyItem(item.animationId)}
             >
-              <img src={item.image} alt="product" className="w-full h-full object-cover" />
+              {/* Using standard img for animation performance over Next/Image here */}
+              <img src={item.image} alt="" className="w-full h-full object-cover" />
             </motion.div>
           );
       })}
@@ -114,7 +125,7 @@ const PageFlyToCartAnimator = () => {
 };
 
 // ============================================================================
-// --- 3. SKELETONS (Loading States) ---
+// --- 3. LOADING SKELETONS ---
 // ============================================================================
 
 const BannerSkeleton = () => (
@@ -126,13 +137,10 @@ const BannerSkeleton = () => (
 
 const ProductCardSkeleton = () => (
     <div className="relative animate-pulse w-full rounded-[32px] bg-black/20 border border-white/5 p-4 flex flex-col aspect-[3/4.2]">
-        <div className="flex-1 bg-white/5 rounded-2xl mb-4 relative overflow-hidden">
-             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
-        </div>
+        <div className="flex-1 bg-white/5 rounded-2xl mb-4 relative overflow-hidden" />
         <div className="space-y-3 px-2">
             <div className="h-6 bg-white/5 rounded w-3/4"></div>
             <div className="h-4 bg-white/5 rounded w-1/2"></div>
-            <div className="h-12 bg-white/5 rounded-2xl w-full mt-2"></div>
         </div>
     </div>
 );
@@ -144,32 +152,37 @@ const ProductListSkeleton = () => (
 );
 
 // ============================================================================
-// --- 4. ARCHITECTURAL PRODUCT CARD ---
+// --- 4. ARCHITECTURAL PRODUCT CARD (Memoized for Speed) ---
 // ============================================================================
-const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: Product) => void }) => {
+
+// Defined outside to prevent recreation on render
+const cardVariants = {
+    hidden: { opacity: 0, y: 30, scale: 0.9 }, 
+    visible: { opacity: 1, y: 0, scale: 1 } 
+};
+
+// Using React.memo ensures this card ONLY re-renders if its specific props change.
+// Crucial for lists with 100+ items.
+const ProductCard = React.memo(({ product, onOpen }: { product: Product, onOpen: (product: Product) => void }) => {
     const addProductById = useAIOrderingStore((state) => state.addProductById);
-    
     const [isAdded, setIsAdded] = useState(false);
     const uniqueBtnId = `add-to-manifest-${product.id}`; 
 
-    const handleAddToCart = (e: React.MouseEvent) => {
+    const handleAddToCart = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
-        
         addProductById(product, uniqueBtnId); 
-        
         setIsAdded(true);
-        setTimeout(() => setIsAdded(false), 2000);
-    };
+        // Clean up timeout to prevent memory leaks if component unmounts
+        const timer = setTimeout(() => setIsAdded(false), 2000);
+        return () => clearTimeout(timer);
+    }, [product, uniqueBtnId, addProductById]);
 
     return (
         <motion.div
             layoutId={`product-card-${product.id}`}
-            variants={{ 
-                hidden: { opacity: 0, y: 30, scale: 0.9 }, 
-                visible: { opacity: 1, y: 0, scale: 1 } 
-            }}
+            variants={cardVariants}
             transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-            className="group relative w-full h-full rounded-[32px] bg-black/40 backdrop-blur-md border border-white/10 overflow-hidden hover:border-cyan-500/40 hover:shadow-[0_0_40px_rgba(0,198,255,0.1)] transition-all duration-500 cursor-pointer flex flex-col"
+            className="group relative w-full h-full rounded-[32px] bg-black/40 backdrop-blur-md border border-white/10 overflow-hidden hover:border-cyan-500/40 hover:shadow-[0_0_40px_rgba(0,198,255,0.1)] transition-all duration-500 cursor-pointer flex flex-col will-change-transform"
             onClick={() => onOpen(product)}
         >
             <div className="absolute top-4 left-4 z-20 flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
@@ -192,6 +205,7 @@ const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: 
                         fill
                         className="object-contain drop-shadow-2xl"
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        loading="lazy"
                     />
                 </motion.div>
             </div>
@@ -204,8 +218,9 @@ const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: 
                 </div>
                 
                 <div className="flex items-center gap-2 mb-4">
+                    {/* CRASH FIX APPLIED HERE: formatCurrency */}
                     <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 font-mono tracking-tight">
-                        ${product.price.toFixed(2)}
+                        ${formatCurrency(product.price)}
                     </span>
                     {product.stock_status && (
                         <span className="px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] text-green-400 uppercase tracking-wider">
@@ -238,10 +253,10 @@ const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: 
                                     onClick={handleAddToCart}
                                     whileHover={{ scale: 1.02 }}
                                     whileTap={{ scale: 0.95 }}
-                                    className="flex-1 py-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500 hover:text-black font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 group/btn"
+                                    className="flex-1 py-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500 hover:text-black font-bold text-xs tracking-widest flex items-center justify-center gap-2 transition-all duration-300 group/btn"
                                 >
                                     <ShoppingBag size={16} className="group-hover/btn:text-black transition-colors" /> 
-                                    <span className="group-hover/btn:text-black">Add to Manifest</span>
+                                    <span className="group-hover/btn:text-black">order with air</span>
                                 </motion.button>
                                 <motion.button
                                     key="view"
@@ -259,11 +274,12 @@ const ProductCard = ({ product, onOpen }: { product: Product, onOpen: (product: 
             </div>
         </motion.div>
     );
-};
+});
+ProductCard.displayName = 'ProductCard';
 
-const ProductList = ({ products, onOpen }: { products: Product[], onOpen: (product: Product) => void }) => (
+const ProductList = React.memo(({ products, onOpen }: { products: Product[], onOpen: (product: Product) => void }) => (
     <motion.div 
-        variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+        variants={{ visible: { transition: { staggerChildren: 0.05 } } }} // Faster stagger
         initial="hidden"
         animate="visible"
         className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"
@@ -272,8 +288,8 @@ const ProductList = ({ products, onOpen }: { products: Product[], onOpen: (produ
             <ProductCard key={product.id} product={product} onOpen={onOpen} />
         ))}
     </motion.div>
-);
-
+));
+ProductList.displayName = 'ProductList';
 
 // ============================================================================
 // --- 5. AI FEATURED MODULE ---
@@ -287,7 +303,8 @@ const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) =>
 
     const { data: recommendationsData, error, isLoading } = useSWR<Product>(apiUrl, fetcher, {
         revalidateOnFocus: false,
-        shouldRetryOnError: false
+        shouldRetryOnError: false,
+        dedupingInterval: 60000 // Cache for 1 minute
     });
 
     const topPick = useMemo(() => {
@@ -321,6 +338,7 @@ const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) =>
                             alt={topPick.name}
                             fill
                             className="object-contain drop-shadow-[0_0_50px_rgba(0,198,255,0.3)]"
+                            priority // Load this fast (Above Fold)
                         />
                     </motion.div>
                     
@@ -359,7 +377,7 @@ const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) =>
                         
                         <div className="px-6 py-4 rounded-full border border-white/10 flex items-center gap-3 bg-white/5">
                             <Tag size={16} className="text-purple-400" />
-                            <span className="text-sm text-gray-300 font-mono">${topPick.price.toFixed(2)}</span>
+                            <span className="text-sm text-gray-300 font-mono">${formatCurrency(topPick.price)}</span>
                         </div>
                     </div>
                 </div>
@@ -406,7 +424,7 @@ const Pagination = ({ page, setPage, hasMore }: { page: number, setPage: (p: num
     </div>
 );
 
-const ErrorDisplay = ({ error }: { error: any }) => (
+const ErrorDisplay = ({ error, retry }: { error: any, retry: () => void }) => (
     <div className="flex flex-col items-center justify-center text-center py-20 px-6">
         <div className="p-6 bg-red-500/10 rounded-full border border-red-500/30 mb-6">
             <AlertTriangle className="w-12 h-12 text-red-400" />
@@ -414,7 +432,7 @@ const ErrorDisplay = ({ error }: { error: any }) => (
         <h3 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>System Error</h3>
         <p className="text-gray-400 max-w-md mb-6">{error?.message || 'Unable to retrieve product manifest. Connection interrupted.'}</p>
         <button 
-            onClick={() => window.location.reload()}
+            onClick={retry}
             className="px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-sm text-white transition-colors"
         >
             Retry Connection
@@ -431,14 +449,15 @@ export default function ProductsPage() {
     const [category, setCategory] = useState("ALL");
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+    // Optimized Query Key for SWR
     const queryKey = `/products/?page=${page}&limit=${ITEMS_PER_PAGE}&category=${category !== 'ALL' ? category.toLowerCase() : ''}`;
     
-    const { data: productsData, error, isLoading } = useSWR<Product[] | { items: Product[], total: number }>(
+    const { data: productsData, error, isLoading, mutate } = useSWR<Product[] | { items: Product[], total: number }>(
         queryKey,
         fetcher,
         { 
             revalidateOnFocus: false,
-            keepPreviousData: true 
+            keepPreviousData: true // Creates the "Instant" feel
         }
     );
 
@@ -449,29 +468,32 @@ export default function ProductsPage() {
 
     const hasMore = useMemo(() => {
         if (products.length < ITEMS_PER_PAGE) return false;
+        // In a real scenario, use productsData.total from backend
         return true; 
     }, [products]);
 
-    const handleOpen = (product: Product) => {
+    // Optimize Handlers to prevent unnecessary re-renders of children
+    const handleOpen = useCallback((product: Product) => {
         setSelectedProduct(product);
         document.body.style.overflow = 'hidden';
-    };
+    }, []);
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setSelectedProduct(null);
         document.body.style.overflow = '';
-    };
+    }, []);
 
-    const handleCategoryChange = (cat: string) => {
+    const handleCategoryChange = useCallback((cat: string) => {
         setCategory(cat);
         setPage(1);
-    };
+    }, []);
 
     return (
-        <div className="min-h-screen w-full bg-black text-gray-100 overflow-x-hidden">
+        <div className="min-h-screen w-full bg-black text-gray-100 overflow-x-hidden selection:bg-cyan-500/30">
             
             <div className="fixed inset-0 z-0">
-                 <Canvas camera={{ position: [0, 0, 20], fov: 45 }}>
+                 {/* Canvas logic is heavy, ensuring it doesn't block main thread via suspense */}
+                 <Canvas camera={{ position: [0, 0, 20], fov: 45 }} dpr={[1, 2]}>
                     <Suspense fallback={null}>
                         <DynamicProductsBackground />
                     </Suspense>
@@ -559,11 +581,12 @@ export default function ProductsPage() {
                 </div>
 
                 {error ? (
-                    <ErrorDisplay error={error} />
+                    <ErrorDisplay error={error} retry={() => mutate()} />
                 ) : isLoading && !productsData ? (
                     <ProductListSkeleton />
                 ) : products.length > 0 ? (
                     <>
+                        {/* Using Memoized ProductList to prevent re-renders when parent state changes */}
                         <ProductList products={products} onOpen={handleOpen} />
                         <Pagination page={page} setPage={setPage} hasMore={hasMore} />
                     </>

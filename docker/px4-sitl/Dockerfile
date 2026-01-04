@@ -3,12 +3,11 @@
 # Fixes: GID Conflict + 'awk' package name error
 
 FROM px4io/px4-dev-simulation-focal:2022-08-12 AS builder
-WORKDIR /tmp/build
+WORKDIR /root/PX4-Autopilot
 # Using shallow clone to speed up CI/CD build time
 RUN git clone --recursive --depth 1 --branch v1.14.0 https://github.com/PX4/PX4-Autopilot.git .
 # Run build in headless mode to reduce resource consumption
 RUN DONT_RUN=1 HEADLESS=1 make px4_sitl_default
-RUN rm -rf .git
 
 FROM px4io/px4-dev-simulation-focal:2022-08-12 AS final
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -46,15 +45,14 @@ RUN existing_group=$(getent group $APP_GID | cut -d: -f1) && \
     net-tools && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /home/$APP_USER/PX4-Autopilot
+RUN mkdir -p /opt/px4-source-cache
 
-# Copy artifacts with correct ownership from the start
-COPY --from=builder --chown=$APP_USER:$APP_USER /tmp/build .
-COPY --chown=$APP_USER:$APP_USER entrypoint.sh /usr/local/bin/entrypoint.sh
-
+# ✅ التعديل الجوهري: نسخ الملفات إلى الكاش لكي يجدها الـ entrypoint
+COPY --from=builder /root/PX4-Autopilot /opt/px4-source-cache
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-USER $APP_USER
+WORKDIR /root/PX4-Autopilot
 
 # Standard PX4 Ports
 EXPOSE 14540 14556 14557 18570

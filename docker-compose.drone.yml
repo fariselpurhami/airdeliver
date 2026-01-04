@@ -1,4 +1,4 @@
-# docker-compose.drone.yml 
+# docker-compose.drone.yml
 
 x-logging: &default-logging
   driver: "json-file"
@@ -6,20 +6,58 @@ x-logging: &default-logging
     max-size: "20m"
     max-file: "5"
 
-x-deploy-client: &default-client-deploy
-  restart_policy:
-    condition: any
-    delay: 5s
-    window: 120s
-  resources:
-    limits:
-      cpus: '1.0'
-      memory: 1G
-    reservations:
-      cpus: '0.25'
-      memory: 256M
-
 services:
+  px4-sitl:
+    container_name: airdeliver-px4-sitl
+    build:
+      context: ./docker/px4-sitl
+      dockerfile: Dockerfile
+    user: root
+    networks:
+      - global-net
+    environment:
+      - PX4_SIM_SPEED_FACTOR=1
+      - MAVLINK_UDP_HOST=192.168.65.2
+      - PX4_HOME_LAT=30.0444
+      - PX4_HOME_LON=31.2357
+      - PX4_HOME_ALT=100
+    volumes:
+      - px4-source-data:/root/PX4-Autopilot
+    restart: on-failure
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+    ports:
+      - "14540:14540"
+
+  c2_gateway:
+    container_name: airdeliver-c2-gateway
+    build:
+      context: ./apps/c2-gateway
+      dockerfile: Dockerfile
+    env_file: .env
+    restart: always
+    environment:
+      - RABBITMQ_HOST=mq 
+      - API_BASE_URL=http://api:8000/api/v1
+    volumes:
+      - ./apps/c2-gateway:/app:delegated
+      - poetry-cache:/opt/venv
+    networks:
+      - global-net
+    ports:
+       - "8001:8001"
+    command: /opt/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    logging: *default-logging
+    deploy:
+        resources:
+            limits:
+                memory: 512M
+
   companion:
     container_name: airdeliver-companion-sim
     build:
@@ -32,8 +70,11 @@ services:
       - AUTH_TOKEN_FILE=/run/secrets/drone_auth_token
     secrets:
       - drone_auth_token
+    depends_on:
+      - c2_gateway
+      - px4-sitl
     networks:
-      - simulation-net
+      - global-net
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f 'python drone-control.py' || exit 1"]
       interval: 10s
@@ -41,7 +82,6 @@ services:
       retries: 5
       start_period: 10s
     logging: *default-logging
-    deploy: *default-client-deploy
     stdin_open: true
     tty: true
     develop:
@@ -55,10 +95,15 @@ services:
         - action: rebuild
           path: ./drone_client/requirements.txt
 
+volumes:
+  px4-source-data:
+    driver: local
+  poetry-cache:
+
 networks:
-  simulation-net:
+  global-net:
+    name: airdeliver-global-net
     external: true
-    name: airdeliver-simulation
 
 secrets:
   drone_auth_token:

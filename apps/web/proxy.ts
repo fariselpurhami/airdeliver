@@ -5,97 +5,107 @@ import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 /**
- * 💎 AIRDELIVER GLOBAL PROXY (The Iron Dome)
+ * 💎 AIRDELIVER GLOBAL PROXY (The Iron Dome) - V5 UPDATE
  * -------------------------------------------
  * Scope: GLOBAL (Runs on entire platform)
  * Strategy: Smart Traffic Control (Public vs Protected Zones)
  */
 
 // 1. PUBLIC ZONES DEFINITION
-// These paths are accessible to everyone, but still monitored by Proxy.
 const publicPaths = [
-  '/',              // Home
-  '/login',         // Auth
-  '/about',         // Info
-  '/help',          // Support
-  '/tracking',      // Order Tracking (Public access allowed usually)
-  '/legal',         // Terms & Privacy
+  '/',              
+  '/login',         
+  '/register',      // Added Register just in case
+  '/about',         
+  '/help',          
+  '/tracking',      
+  '/legal', 
+  '/api/auth',      // ⚠️ IMPORTANT: Allow Auth Routes pass through       
 ];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // =========================================================
-  // 1. ⚡ PERFORMANCE BYPASS (Static & Assets)
+  // 1. ⚡ PERFORMANCE BYPASS
   // =========================================================
-  // Skip logic for Prefetching to save resources
   if (req.headers.get('x-middleware-prefetch')) {
     return NextResponse.next();
   }
 
   // =========================================================
-  // 2. 🛡️ GLOBAL SECURITY HEADERS (Injected Everywhere)
+  // 2. 🛡️ GLOBAL SECURITY HEADERS
   // =========================================================
-  // Even on public pages, we inject security headers or tracking IDs.
-  // This satisfies your requirement: "Works on the whole platform".
   const response = NextResponse.next();
   response.headers.set('x-airdeliver-guard', 'active');
-  response.headers.set('x-frame-options', 'SAMEORIGIN'); // Prevent Clickjacking globally
+  response.headers.set('x-frame-options', 'SAMEORIGIN');
 
   // =========================================================
   // 3. 🚦 ROUTE INTELLIGENCE (Public vs Protected)
   // =========================================================
   
-  // Check if the current path is Public or a Product page
+  // Check if public path OR product page OR NextAuth internal route
   const isPublicPath = publicPaths.some(path => pathname === path || pathname.startsWith(path)) || 
-                       pathname.startsWith('/products') || // /products & /products/xyz
-                       pathname.startsWith('/product');    // /product/xyz
+                       pathname.startsWith('/products') || 
+                       pathname.startsWith('/product') ||
+                       pathname.startsWith('/_next'); // Allow Next.js internals
 
-  // ✅ CHECK: Is user authenticated?
-  const hasAuthCookie = req.cookies.has('next-auth.session-token') || 
-                        req.cookies.has('__Secure-next-auth.session-token');
+  // 🔍 V5 COOKIE DETECTION (The Missing Link)
+  // Auth.js v5 uses 'authjs.session-token' by default now
+  const hasAuthCookie = 
+    req.cookies.has('authjs.session-token') ||                // <--- V5 Standard (HTTP)
+    req.cookies.has('__Secure-authjs.session-token') ||       // <--- V5 Standard (HTTPS)
+    req.cookies.has('next-auth.session-token') ||             // <--- Legacy V4
+    req.cookies.has('__Secure-next-auth.session-token');      // <--- Legacy V4 Secure
 
-  // SCENARIO A: Public Page (e.g., Home, Products)
+  // Debug Log (To see what's happening in Docker logs)
+  // console.log(`🛡️ Proxy: ${pathname} | Cookie Found: ${hasAuthCookie}`);
+
+  // SCENARIO A: Public Page
   if (isPublicPath) {
-    // Even if public, if they have a token, we might want to pass it through specifically
-    // but generally, we just let them pass.
     return response;
   }
 
-  // SCENARIO B: Protected Page (Dashboard, Profile, Checkout, Orders)
-  // If NOT public, it MUST be protected.
+  // SCENARIO B: Protected Page
   if (!hasAuthCookie) {
-    // User is trying to access a protected zone without a badge.
+    console.log(`⛔ Proxy Block: User tried accessing ${pathname} without cookie.`);
     return redirectToLogin(req, pathname);
   }
 
   // =========================================================
-  // 4. 🔐 DEEP AUTH VERIFICATION (For Protected Routes Only)
+  // 4. 🔐 DEEP AUTH VERIFICATION
   // =========================================================
   try {
-    const secret = process.env.NEXTAUTH_SECRET;
+    const secret = process.env.AUTH_SECRET;
     if (!secret) {
-      console.error("🚨 CRITICAL: NEXTAUTH_SECRET is missing.");
+      console.error("🚨 CRITICAL: AUTH_SECRET is missing in Proxy.");
+      // In dev, we might want to fail hard, but for now redirect
       return redirectToLogin(req, pathname);
     }
 
-    const session = await getToken({ req, secret });
+    // ⚠️ Note: getToken in v5 might need explicit cookieName if defaults differ
+    // but usually it detects 'authjs.session-token' automatically in latest versions.
+    const session = await getToken({ 
+      req, 
+      secret,
+      // If V5 standard fails, we might need to specify cookieName here, 
+      // but let's try standard first.
+    });
 
     if (!session) {
-      // Invalid/Expired Token
+      console.log(`⚠️ Proxy Warning: Cookie existed but token validation failed for ${pathname}`);
       return redirectToLogin(req, pathname);
     }
 
-    // 👑 ADMIN PROTECTION LAYER (Based on your file tree structure)
-    // If user tries to access /dashboard or /admin, verify role
+    // 👑 ADMIN PROTECTION LAYER
     if (pathname.startsWith('/dashboard') || pathname.startsWith('/admin')) {
-      if (session.role !== 'ADMIN' && session.role !== 'SUPER_ADMIN') {
-        // Redirect unauthorized access to home or 403 page
+      if (session.role !== 'admin' && session.role !== 'SUPER_ADMIN') {
+        console.log(`⛔ Role Mismatch: User ${session.sub} tried accessing Admin.`);
         return NextResponse.redirect(new URL('/', req.url));
       }
     }
 
-    // Inject User ID for backend tracing
+    // Inject User ID
     response.headers.set('x-user-id', session.sub || 'unknown');
     return response;
 
@@ -109,26 +119,17 @@ export async function proxy(req: NextRequest) {
  * 🔄 Smart Redirect
  */
 function redirectToLogin(req: NextRequest, pathname: string) {
+  // Avoid redirect loops
+  if (pathname === '/login') return NextResponse.next();
+  
   const signInUrl = new URL('/login', req.url);
   signInUrl.searchParams.set('callbackUrl', pathname);
   return NextResponse.redirect(signInUrl);
 }
 
-/**
- * 🎯 GLOBAL MATCHER CONFIGURATION
- * ---------------------------------
- * Regex Explanation:
- * Match ALL paths (.*) EXCEPT:
- * - api (Next.js API routes - handled separately or let pass)
- * - _next/static (JS chunks, CSS)
- * - _next/image (Image optimization)
- * - favicon.ico
- * - avatars (Found in your apps/web/public/avatars)
- * - images (Found in your apps/web/public/images)
- * - textures (Found in your apps/web/public/textures)
- */
 export const config = {
   matcher: [
+    // Match everything EXCEPT api routes, static files, images
     '/((?!api|_next/static|_next/image|favicon.ico|avatars|images|textures).*)',
   ],
 };

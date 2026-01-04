@@ -1,358 +1,460 @@
 # apps/api/worker_entrypoint.py
 
+import logging
+import sys
+import uvloop
 import asyncio
 import json
-import logging
 import os
 import signal
-import uvloop
-import time
+import random
+from functools import partial
 from typing import Callable, Awaitable
-from app.services.ai_behavior_engine import get_behavior_engine
-from aio_pika.abc import AbstractIncomingMessage, DeliveryMode
+from aiohttp import web
 import aio_pika
+import redis.asyncio as redis
+from aio_pika.abc import AbstractIncomingMessage
+from aio_pika import connect_robust, IncomingMessage
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 from pymilvus import MilvusClient, DataType
+from datetime import datetime
+
+# Services & Config
 from app.core.config import (
     get_core_settings, 
     get_stripe_settings, get_paypal_settings, get_mpesa_settings
 )
-from app.db.session import SessionLocal
-from app.services.rabbitmq_service import get_rabbitmq_service
+from app.services.rabbitmq_service import RabbitMQService
 from app.services.cache_service import RedisCacheClient
 from app.services.ai_nlu_service import AINLUService
-from app.services.ai_cart_service import AICartService
-from app.services.ai_checkout_service import AICheckoutService
 from app.services.free_llm_service import FreeLLMService
-from app.services.payment_orchestrator import (
-    PaymentOrchestrator, StripeGateway, PayPalGateway, MpesaGateway
-)
+from app.services.ai_behavior_engine import BehaviorEngine
+
+# 💎 SOTA Engine Imports
 from app.services.ai_commerce_engine import (
     get_ai_commerce_engine,
     get_opensearch_client,
     get_milvus_client,
-    get_embedding_model
+    ai_manager
+)
+from app.services.payment_orchestrator import (
+    PaymentOrchestrator, StripeGateway, PayPalGateway, MpesaGateway
 )
 
+from transformers.cache_utils import DynamicCache
+
+# Hotfix for Transformers DynamicCache
+try:
+    if not hasattr(DynamicCache, "get_usable_length"):
+        def get_usable_length(self, input_seq_len, layer_idx=None):
+            if layer_idx is None: layer_idx = 0
+            return self.get_seq_length(layer_idx)
+        DynamicCache.get_usable_length = get_usable_length
+        logging.getLogger("transformers").warning("🛡️ Applied Hotfix: DynamicCache.get_usable_length patched.")
+except Exception as e:
+    logging.warning(f"⚠️ Hotfix skipped: {e}")
+
+# 2. 📝 LOGGING SETUP (CLEAN & PROFESSIONAL)
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(name)s | %(levelname)s | [Worker-Node-01] | %(message)s"
+    format="%(asctime)s | %(name)s | %(levelname)s | [Worker-Node-Diamond] | %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
+logging.getLogger("aio_pika").setLevel(logging.WARNING)
+logging.getLogger("aiormq").setLevel(logging.WARNING)
+
 logger = logging.getLogger("airdeliver.worker")
 
+# 3. 🚀 HIGH PERFORMANCE LOOP
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
+def emergency_brake(signum, frame):
+    signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
+    print(f"\n🛑 ARCHITECTURE ALERT: Received {signal_name}. Initiating Immediate Shutdown...")
+    logger.warning(f"🛑 Signal {signal_name} received. Killing process gracefully.")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, emergency_brake)
+signal.signal(signal.SIGTERM, emergency_brake)
+
+# --- GLOBAL SERVICES REGISTRY ---
+_services = {
+    "rabbitmq": None,
+    "db_engine": None,
+    "cache": None,
+    "commerce": None,
+    "session_maker": None,
+    "payment": None,
+    "behavior": None,
+    "llm": None
+}
+
 def ensure_milvus_schema(client: MilvusClient):
-    # 1. Collection النصوص (الأساسية)
+    """
+    💎 SOTA UPDATE: Enforces Correct Dimensions Dynamically.
+    Ensures the Vector DB is ready for both Text (Qwen2) and Vision (SigLIP).
+    """
+    text_col = "airdeliver_products_sota_v4"
+    vis_col = "airdeliver_visual_sota_v4"
+    
+    TEXT_DIM = 1536  # Qwen2 / GTE Dimension
+    VIS_DIM = 1152   # SigLIP Standard
+    
     try:
-        if not client.has_collection("airdeliver_products"):
+        # 1. Text Collection (Semantic Search)
+        if not client.has_collection(text_col):
             schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=True)
             schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
-            schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=384) # Text Only
+            schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=TEXT_DIM)
+            schema.add_field(field_name="price", datatype=DataType.FLOAT)
+            schema.add_field(field_name="category", datatype=DataType.VARCHAR, max_length=128)
             
             idx = client.prepare_index_params()
-            idx.add_index(field_name="vector", index_type="FLAT", metric_type="L2")
-            client.create_collection("airdeliver_products", schema=schema, index_params=idx)
-            logger.info("✅ Milvus: Text Collection Ready")
-    except Exception as e:
-        logger.error(f"Milvus Text Init Error: {e}")
+            idx.add_index(field_name="vector", index_type="HNSW", metric_type="COSINE", params={"M": 16, "efConstruction": 200})
+            
+            client.create_collection(text_col, schema=schema, index_params=idx)
+            logger.info(f"✅ Milvus: Text Collection Ready ({text_col}, dim={TEXT_DIM})")
 
-    # 2. Collection الصور (المنفصلة - Visual)
-    try:
-        if not client.has_collection("airdeliver_products_visual"):
+        # 2. Visual Collection (Image Search)
+        if not client.has_collection(vis_col):
             schema_vis = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=True)
             schema_vis.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
-            schema_vis.add_field(field_name="image_vector", datatype=DataType.FLOAT_VECTOR, dim=512) # Visual Only
+            schema_vis.add_field(field_name="image_vector", datatype=DataType.FLOAT_VECTOR, dim=VIS_DIM)
             
             idx_vis = client.prepare_index_params()
-            idx_vis.add_index(field_name="image_vector", index_type="FLAT", metric_type="L2")
-            client.create_collection("airdeliver_products_visual", schema=schema_vis, index_params=idx_vis)
-            logger.info("✅ Milvus: Visual Collection Ready")
+            idx_vis.add_index(field_name="image_vector", index_type="HNSW", metric_type="COSINE", params={"M": 16, "efConstruction": 200})
+            
+            client.create_collection(vis_col, schema=schema_vis, index_params=idx_vis)
+            logger.info(f"✅ Milvus: Visual Collection Ready ({vis_col}, dim={VIS_DIM})")
+            
     except Exception as e:
-        logger.error(f"Milvus Visual Init Error: {e}")
+        logger.error(f"⚠️ Milvus Init Warning: {e}")
 
-        
-async def main():
-    logger.info("🚀 --- STARTING AIRDELIVER GLOBAL WORKER NODE (RESILIENCE MODE) ---")
-    settings = get_core_settings()
-    
-    final_db_uri = str(settings.DATABASE_URI)
-    local_engine = create_async_engine(
-        final_db_uri, 
-        echo=False, 
-        future=True,
-        pool_pre_ping=True, 
-        pool_size=20,
-        max_overflow=10
-    )
-    LocalSessionMaker = sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
-    
-    cache_client = RedisCacheClient(url=settings.REDIS_URL)
-    retry_count = 0
-    while retry_count < 5:
-        try:
-            await cache_client.connect()
-            logger.info("✅ Redis: Connected")
-            break
-        except Exception as e:
-            retry_count += 1
-            logger.warning(f"⚠️ Redis Connection Failed (Attempt {retry_count}/5). Retrying in 2s...")
-            await asyncio.sleep(2)
-    
-    if retry_count == 5:
-        logger.critical("🔥 CRITICAL: Redis unreachable. Shutting down to prevent data inconsistency.")
-        return
+async def save_cart_handler_impl(payload: dict):
+    """💾 Save Cart Worker"""
+    async with _services['session_maker']() as db:
+        user_id = payload.get("user_id")
+        if user_id and _services.get('behavior'):
+            asyncio.create_task(
+                _services['behavior'].track_interaction(user_id, "save", {"context": "cart_recovery"})
+            )
 
-    logger.info("🧠 Loading Neural Commerce Engines...")
-    
-    opensearch_gen = get_opensearch_client(settings)
-    opensearch_client = await anext(opensearch_gen)
-    
-    milvus_client = get_milvus_client(settings) 
-    ensure_milvus_schema(milvus_client)
-    embedding_model = get_embedding_model() 
+        from app.services.ai_cart_service import AICartService
+        # نستخدم CartService لأنه المسؤول عن نقل البيانات من Redis لـ DB
+        service = AICartService(
+            db, _services['cache'], _services['rabbitmq'], _services['commerce']
+        )
+        await service.handle_save_cart(payload)
 
-    ai_commerce_engine = get_ai_commerce_engine(opensearch_client, milvus_client, embedding_model)
+# --- 🛡️ RESILIENCE: EXPONENTIAL BACKOFF RETRY WRAPPER ---
+async def cancel_order_handler_impl(payload: dict):
+    """🛑 Cancel Order Worker"""
+    async with _services['session_maker']() as db:
+        user_id = payload.get("user_id")
+        # تتبع السلوك (اختياري)
+        if user_id and _services.get('behavior'):
+            asyncio.create_task(
+                _services['behavior'].track_interaction(user_id, "cancel", {"context": "recovery_discard"})
+            )
+            
+        from app.services.ai_checkout_service import AICheckoutService
+        # حقن التبعيات (Dependency Injection)
+        service = AICheckoutService(
+            db, _services['cache'], _services['rabbitmq'], _services['payment']
+        )
+        await service.handle_cancel_order(payload)
+
+async def smart_retry_wrapper(message: IncomingMessage, handler_func: Callable[[dict], Awaitable[None]]):
+    """
+    💎 DIAMOND STANDARD V3: Resilient Infrastructure Wrapper.
+    Wraps every task execution with a crash-proof shield.
+    """
     try:
-        await ai_commerce_engine.ensure_opensearch_index()
-        logger.info("✅ RAG Engine: Online & Indexed")
+        payload_body = message.body.decode()
+        try:
+            payload = json.loads(payload_body)
+        except json.JSONDecodeError:
+            logger.error("❌ TERMINAL: Malformed JSON. Discarding message.")
+            await message.reject(requeue=False)
+            return
+
+        await handler_func(payload)
+        await message.ack()
+
+    except (ValueError, KeyError, TypeError) as logic_err:
+        logger.error(f"❌ TERMINAL: Logic Error: {logic_err}")
+        await message.reject(requeue=False)
+
+    except Exception as trans_err:
+        headers = getattr(message, 'headers', {})
+        retry_count = headers.get('x-retry-count', 0)
+        backoff_time = min(2 ** retry_count + random.uniform(0.1, 1.0), 30)
+
+        if retry_count < 5:
+            logger.warning(
+                f"🔄 TRANSIENT: {type(trans_err).__name__}. "
+                f"Retry {retry_count + 1}/5. Sleep {backoff_time:.2f}s..."
+            )
+            await asyncio.sleep(backoff_time)
+            await message.nack(requeue=True)
+        else:
+            logger.critical(f"🚫 DEAD: Max retries reached. Discarding. Error: {trans_err}")
+            await message.reject(requeue=False)
+
+async def health_check_handler(request):
+    """🏥 Liveness & Readiness Probe."""
+    is_healthy = True
+    status_details = {
+        "version": "Diamond-V30",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+    if not _services.get('rabbitmq') or _services['rabbitmq'].is_closed:
+        is_healthy = False
+        status_details['rabbitmq'] = "Disconnected ❌"
+    else:
+        status_details['rabbitmq'] = "Connected 🟢"
+
+    if not _services.get('db_engine'):
+        is_healthy = False
+        status_details['db'] = "Not Initialized ❌"
+    else:
+        status_details['db'] = "Ready 🟢"
+
+    try:
+        if ai_manager._text_model is None:
+             status_details['ai_engine'] = "Warming Up... ⏳"
+        else:
+             status_details['ai_engine'] = "Online 💎"
+    except:
+        status_details['ai_engine'] = "Error ⚠️"
+
+    status_code = 200 if is_healthy else 503
+    return web.json_response({"status": "healthy" if is_healthy else "unhealthy", "details": status_details}, status=status_code)
+
+async def start_health_server():
+    try:
+        app = web.Application()
+        app.add_routes([web.get('/health', health_check_handler)])
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', 8081)
+        await site.start()
+        logger.info("💓 Health Check Server running on port 8081")
     except Exception as e:
-        logger.error(f"⚠️ Search Index Warning: {e}")
+        logger.error(f"⚠️ Failed to start health server: {e}")
 
-    free_llm_service = FreeLLMService()
-    logger.info("🤖 LLM Core: Online")
+# --- 👷 HANDLER IMPLEMENTATIONS ---
 
-    behavior_engine = get_behavior_engine(cache_client)
-    logger.info("🌌 Singularity Brain: Online")
+async def chat_handler_impl(payload: dict):
+    """🗣️ Chat Worker"""
+    if not _services.get('commerce') or not _services.get('session_maker'):
+         logger.warning("⚠️ Services not ready yet. Requeueing task...")
+         raise ConnectionError("AI Services Not Ready") 
 
+    async with _services['session_maker']() as db:
+        service = AINLUService(
+            db=db,
+            search_engine=_services['commerce'],
+            rabbitmq=_services['rabbitmq'],
+            cache=_services['cache'],
+            llm_service=_services.get('llm', FreeLLMService()),
+            behavior_engine=_services.get('behavior')
+        )
 
+        user_id = payload.get("user_id")
+        if user_id and _services.get('behavior'):
+             asyncio.create_task(
+                 _services['behavior'].track_interaction(
+                     user_id, "search", {"query": payload.get("message", "")}
+                 )
+             )
+        await service.process_message(payload)
+
+async def add_cart_handler_impl(payload: dict):
+    """�� Cart Worker"""
+    if not _services.get('session_maker'): raise ConnectionError("DB Not Ready")
+
+    async with _services['session_maker']() as db:
+        user_id = payload.get("user_id")
+        if user_id and _services.get('behavior'):
+             asyncio.create_task(
+                 _services['behavior'].track_interaction(
+                     user_id, "cart", {"id": payload.get("product_id"), "action": "add"}
+                 )
+             )
+        
+        from app.services.ai_cart_service import AICartService
+        cart_service = AICartService(
+            db, _services['cache'], _services['rabbitmq'], 
+            commerce_engine=_services.get('commerce')
+        )
+        await cart_service.handle_add_to_cart(payload)
+
+async def remove_cart_handler_impl(payload: dict):
+    """🗑️ Remove Item Handler"""
+    async with _services['session_maker']() as db:
+        user_id = payload.get("user_id")
+        if user_id and _services.get('behavior'):
+            asyncio.create_task(
+                _services['behavior'].track_interaction(user_id, "discard", {"id": payload.get("product_id")})
+            )
+        from app.services.ai_cart_service import AICartService
+        cart_service = AICartService(
+            db, _services['cache'], _services['rabbitmq'],
+            commerce_engine=_services.get('commerce')
+        )
+        await cart_service.handle_remove_from_cart(payload)
+
+async def clear_cart_handler_impl(payload: dict):
+    """🧹 Clear Cart Handler"""
+    async with _services['session_maker']() as db:
+        from app.services.ai_cart_service import AICartService
+        await AICartService(
+            db, _services['cache'], _services['rabbitmq']
+        ).handle_clear_cart(payload)
+
+async def confirm_order_handler_impl(payload: dict):
+    """💳 Checkout Handler"""
+    async with _services['session_maker']() as db:
+        user_id = payload.get("user_id")
+        if user_id and _services.get('behavior'):
+            asyncio.create_task(
+                _services['behavior'].track_interaction(user_id, "buy", {"context": "checkout_initiated"})
+            )
+        from app.services.ai_checkout_service import AICheckoutService
+        checkout_service = AICheckoutService(
+            db, _services['cache'], _services['rabbitmq'], 
+            _services['payment']
+        )
+        await checkout_service.handle_confirm_order(payload)
+
+# --- 🚀 MAIN ENTRY POINT ---
+
+async def main():
+    """
+    💎 TITANIUM WORKER ENTRY POINT.
+    """
+    logger.info("🚀 --- STARTING AIRDELIVER GLOBAL WORKER NODE (TITANIUM EDITION) ---")
+    
+    settings = get_core_settings() 
+    await start_health_server()
+
+    # 1. INFRASTRUCTURE
+    logger.info("📡 [Phase 1] Initializing Infrastructure...")
+    try:
+        local_engine = create_async_engine(
+            str(settings.DATABASE_URI),
+            echo=False,
+            future=True,
+            pool_pre_ping=True,
+            pool_size=50,
+            max_overflow=20
+        )
+        LocalSessionMaker = sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
+        _services['session_maker'] = LocalSessionMaker
+        _services['db_engine'] = local_engine
+
+        # Redis Cache (String connection fix applied)
+        cache_client = RedisCacheClient(str(settings.REDIS_URL))
+        if hasattr(cache_client, 'connect'): await cache_client.connect()
+        _services['cache'] = cache_client
+        logger.info("✅ Infra Connected.")
+        
+    except Exception as e:
+        logger.critical(f"❌ Infra Failure: {e}")
+        sys.exit(1)
+
+    # 2. AI ENGINE
+    try:
+        logger.info("🧪 [Phase 2] Warming up SOTA Neural Engines...")
+        
+        opensearch_gen = get_opensearch_client(settings)
+        opensearch_client = await anext(opensearch_gen)
+        
+        milvus_client = get_milvus_client(settings)
+        ensure_milvus_schema(milvus_client)
+        
+        loop = asyncio.get_running_loop()
+        logger.info("🧠 Loading Text Brain (Qwen2)...")
+        embedding_model = await loop.run_in_executor(None, ai_manager.get_text_model)
+
+        # 💎 STEP 2: LOAD VISION MODEL (THE MISSING PIECE)
+        # هذا السطر سيجبر الموديل على التحميل في الذاكرة قبل استقبال أي طلب
+        logger.info("👁️ Loading Vision Brain (SigLIP)...")
+        # نفترض أن ai_manager لديه دالة get_vision_model أو get_image_model
+        # سنقوم بمناداتها فقط لتفعيل التحميل
+        if hasattr(ai_manager, 'get_vision_model'):
+            await loop.run_in_executor(None, ai_manager.get_vision_model)
+        elif hasattr(ai_manager, 'get_image_model'):
+            await loop.run_in_executor(None, ai_manager.get_image_model)
+
+        ai_commerce_engine = get_ai_commerce_engine(opensearch_client, milvus_client, embedding_model, cache_client)
+        _services['commerce'] = ai_commerce_engine
+        _services['llm'] = FreeLLMService()
+        _services['behavior'] = BehaviorEngine(cache_client)
+        
+        logger.info("💎 [Phase 2] AI Engines Loaded (Text + Vision).")
+    except Exception as e:
+        logger.error(f"⚠️ AI INIT FAILURE: {e}. Worker running in DEGRADED mode.")
+
+    # 3. PAYMENT
     try:
         payment_orchestrator = PaymentOrchestrator(
             StripeGateway(get_stripe_settings()),
             PayPalGateway(get_paypal_settings(), cache_client),
             MpesaGateway(get_mpesa_settings(), cache_client)
         )
-        logger.info("💳 Payment Gateways: Secure & Ready")
+        _services['payment'] = payment_orchestrator
     except Exception as e:
-        logger.critical(f"🔥 Payment System Configuration Failure: {e}")
-        return
+        logger.critical(f"🛑 Payment Config Failure: {e}")
 
+    # 4. RABBITMQ CONSUMER
     try:
-        rabbitmq = await get_rabbitmq_service(settings)
+        rabbitmq_service = RabbitMQService(settings)
+        _services['rabbitmq'] = rabbitmq_service
+
+        logger.info("🔗 Establishing Consumer Connection...")
+        consume_connection = await connect_robust(settings.RABBITMQ_URL)
+        consume_channel = await consume_connection.channel()
+        
+        PREFETCH_COUNT = int(os.getenv("WORKER_PREFETCH", "50"))
+        await consume_channel.set_qos(prefetch_count=PREFETCH_COUNT)
+
+        exchange = await consume_channel.declare_exchange("airdeliver_main_exchange", type="topic", durable=True)
+
+        QUEUE_CONFIG = {
+            "chat": {"queue": "q.ai.chat", "key": "airdeliver.ai.chat.in", "handler": chat_handler_impl},
+            "cart_add": {"queue": "q.ai.cart.add", "key": "airdeliver.ai.cart.add", "handler": add_cart_handler_impl},
+            "cart_remove": {"queue": "q.ai.cart.remove", "key": "airdeliver.ai.cart.remove", "handler": remove_cart_handler_impl},
+            "cart_clear": {"queue": "q.ai.cart.clear", "key": "airdeliver.ai.cart.clear", "handler": clear_cart_handler_impl},
+            "checkout": {"queue": "q.ai.order.confirm", "key": "airdeliver.ai.order.confirm", "handler": confirm_order_handler_impl},
+            "cancel": {"queue": "q.ai.intent.cancel", "key": "airdeliver.ai.intent.cancel_order", "handler": cancel_order_handler_impl},
+            "save": {"queue": "q.ai.cart.save", "key": "airdeliver.ai.cart.save", "handler": save_cart_handler_impl}
+
+        }
+        
+        args = {"x-queue-type": "quorum"}
+
+        for name, config in QUEUE_CONFIG.items():
+            queue = await consume_channel.declare_queue(config["queue"], durable=True, arguments=args)
+            await queue.bind(exchange, routing_key=config["key"])
+            await queue.consume(partial(smart_retry_wrapper, handler_func=config["handler"]))
+            logger.info(f"✅ Bound Queue [{config['queue']}]")
+
+        logger.info("🚀 WORKER NODE IS FULLY OPERATIONAL...")
+        await asyncio.Future()
+
+    except asyncio.CancelledError:
+        logger.info("👋 Worker shutting down...")
     except Exception as e:
-        logger.critical(f"🔥 RabbitMQ Failure: {e}")
-        return
-
-    async def hardened_wrapper(message: AbstractIncomingMessage, handler_func: Callable[[dict], Awaitable[None]]):
-        """
-        Implements the 'Ack-Late' pattern and strict error handling to ensure
-        NO message is lost (Zero-Drop Architecture).
-        """
-        async with message.process(ignore_processed=True): 
-        
-            try:
-                payload = json.loads(message.body.decode())
-                
-                await handler_func(payload)
-            
-            except json.JSONDecodeError:
-                logger.error("❌ Malformed JSON. Sending to Dead Letter (if configured) or discarding.")
-                
-            except Exception as e:
-                logger.error(f"💥 WORKER EXCEPTION in {handler_func.__name__}: {e}", exc_info=True)
-                
-                try:
-                    raw = json.loads(message.body.decode())
-                    user_id = raw.get("user_id")
-                    if user_id:
-                        err_msg = "⚠️ An internal error occurred. Our engineers have been notified."
-                        await rabbitmq.publish(
-                            {"user_id": user_id, "content": err_msg, "type": "error"},
-                            "airdeliver.ai.response.out"
-                        )
-                except: pass
-                
-                raise e 
-
-    # ... (داخل دالة main في worker_entrypoint.py) ...
-
-    # 1. 🧠 CHAT HANDLER: حقن المحرك داخل الـ NLU
-    async def chat_handler(payload):
-        async with LocalSessionMaker() as db:
-            # 🚀 UPGRADE: Passing the Singularity Engine to the NLU Service
-            # This allows the NLU to use 'collapse_wavefunction' for Quantum Re-ranking
-            service = AINLUService(
-                db, 
-                ai_commerce_engine, 
-                rabbitmq, 
-                cache_client, 
-                free_llm_service,
-                behavior_engine # <--- ✅ تم تمرير المحرك هنا
-            )
-            
-            # Tracking the "Search/Chat" intent as a signal
-            user_id = payload.get("user_id")
-            if user_id:
-                # Fire & Forget: Track that user is "Searching" (Weight: 2.0)
-                await behavior_engine.track_interaction(
-                    user_id, 
-                    "search", 
-                    {"query": payload.get("message", "")}
-                )
-            
-            await service.process_message(payload)
-
-    # 2. 🛒 CART HANDLER: تغذية المحرك ببيانات النوايا القوية
-    async def add_cart_handler(payload):
-        async with LocalSessionMaker() as db:
-            user_id = payload.get("user_id")
-            
-            # 🧠 FEED THE BEAST: This is a high-value signal (Weight: 5.0)
-            if user_id:
-                product_id = payload.get("product_id")
-                # We assume the service will handle the logic, but we track the INTENT here immediately
-                await behavior_engine.track_interaction(
-                    user_id, 
-                    "cart", 
-                    {"id": product_id, "action": "add"}
-                )
-
-            await AICartService(db, cache_client, rabbitmq).handle_add_to_cart(payload)
-
-    # 3. ��️ REMOVE HANDLER: تغذية المحرك بما يكرهه المستخدم (Anti-Matter Learning)
-    async def remove_cart_handler(payload):
-        async with LocalSessionMaker() as db:
-            user_id = payload.get("user_id")
-            
-            # 🧠 FEED THE BEAST: Negative Signal (Weight: -5.0)
-            # The engine will learn to avoid similar products in the future
-            if user_id:
-                await behavior_engine.track_interaction(
-                    user_id, 
-                    "discard", 
-                    {"id": payload.get("product_id")}
-                )
-                
-            await AICartService(db, cache_client, rabbitmq).handle_remove_from_cart(payload)
-
-    # 4. 🧹 CLEAR CART: إشارة قوية لإعادة الضبط أو الإحباط
-    async def clear_cart_handler(payload):
-        async with LocalSessionMaker() as db:
-            # Tracking context logic can be added here if needed
-            await AICartService(db, cache_client, rabbitmq).handle_clear_cart(payload)
-
-    # 5. 💳 CHECKOUT HANDLER: اللحظة الحاسمة (Holy Grail Signal)
-    async def confirm_order_handler(payload):
-        async with LocalSessionMaker() as db:
-            user_id = payload.get("user_id")
-            
-            # 🧠 FEED THE BEAST: Maximum Reward Signal (Weight: 10.0)
-            if user_id:
-                await behavior_engine.track_interaction(
-                    user_id, 
-                    "buy", 
-                    {"context": "checkout_initiated"}
-                )
-                
-            await AICheckoutService(db, cache_client, rabbitmq, payment_orchestrator).handle_confirm_order(payload)
-
-    # ... (باقي الكود كما هو) ...
-    
-
-
-    async def cancel_order_handler(payload):
-        """
-        Global Standard Handler for 'Discard Order'.
-        Actions:
-        1. Connects to Database & Cache.
-        2. Wipes the Cart Data physically.
-        3. Sends the termination signal to Frontend.
-        """
-        user_id = payload.get("user_id")
-        logger.info(f"🚫 PROCESSING DISCARD: Wiping session and cart for User {user_id}...")
-
-        async def behavior_handler(payload):
-          """
-          Lightning-fast handler for tracking signals.
-          Payload expected: {"user_id": 123, "event": "view", "meta": {...}}
-          """
-          user_id = payload.get("user_id")
-          event = payload.get("event")
-          meta = payload.get("meta", {})
-    
-          if user_id and event:
-             # Fire and forget into the singularity
-             await behavior_engine.track_interaction(user_id, event, meta)
-
-        async with LocalSessionMaker() as db:
-            cart_service = AICartService(db, cache_client, rabbitmq)
-            
-            try:
-                await cart_service.delete_cart(user_id) 
-            except Exception as e:
-                logger.error(f"⚠️ Error cleaning up cart during discard: {e}")
-
-            await rabbitmq.publish({
-                "user_id": user_id,
-                "content": "Order process discarded. Your cart has been cleared.",
-                "type": "ORDER_CANCELLED"
-            }, "airdeliver.ai.response.out")
-            
-    await rabbitmq.channel.set_qos(prefetch_count=10)
-
-
-
-    queues = {
-        "q.ai.chat": ("airdeliver.ai.chat.in", chat_handler),
-        "q.ai.intent.add": ("airdeliver.ai.intent.add_to_cart", add_cart_handler),
-        "q.ai.intent.remove": ("airdeliver.ai.intent.remove_from_cart", remove_cart_handler),
-        "q.ai.intent.clear": ("airdeliver.ai.intent.clear_cart", clear_cart_handler),
-        "q.ai.intent.confirm": ("airdeliver.ai.intent.confirm_order", confirm_order_handler),
-        "q.ai.intent.cancel": ("airdeliver.ai.intent.cancel_order", cancel_order_handler),
-    }
-
-    consumers = []
-    for q_name, (key, func) in queues.items():
-        queue = await rabbitmq.channel.declare_queue(q_name, durable=True) 
-        await queue.bind(rabbitmq.exchange_name, routing_key=key)
-        
-        consumer_tag = await queue.consume(lambda m, f=func: hardened_wrapper(m, f))
-        consumers.append((queue, consumer_tag))
-        logger.info(f"🎧 Bound Consumer: {q_name} -> {key}")
-
-    logger.info("✅ airdeliver WORKER FULLY OPERATIONAL. Waiting for events...")
-
-    stop_event = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    
-    def signal_handler():
-        logger.warning("🛑 Signal received! Initiating Graceful Shutdown...")
-        stop_event.set()
-
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, signal_handler)
-
-    await stop_event.wait()
-    
-    logger.info("⏳ Draining active tasks...")
-    
-    for queue, tag in consumers:
-        await queue.cancel(tag)
-    
-    await asyncio.sleep(2) 
-
-    logger.info("�� Closing Infrastructure Connections...")
-    if opensearch_client: await opensearch_client.close()
-    await rabbitmq.close() 
-    await cache_client.disconnect()
-    await local_engine.dispose()
-    
-    logger.info("👋 Goodnight. System Halted Safely.")
+        logger.critical(f"🔥 Worker Crash: {e}", exc_info=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        pass
+        logger.info("👋 Worker stopped.")
