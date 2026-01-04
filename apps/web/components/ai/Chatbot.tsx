@@ -184,7 +184,7 @@ export default function Chatbot() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
             >
-                <div className="relative w-16 h-16 rounded-full bg-[#020617] border border-cyan-500/30 overflow-hidden flex items-center justify-center backdrop-blur-xl">
+                <div className="relative w-16 h-16 rounded-full bg-black overflow-hidden flex items-center justify-center backdrop-blur-xl">
                     <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 to-transparent group-hover:opacity-100 transition-opacity duration-500" />
                     <motion.div
                         key={isOpen ? "close" : "open"}
@@ -197,7 +197,7 @@ export default function Chatbot() {
                              <X size={26} className="text-gray-300 group-hover:text-red-400 transition-colors" />
                          ) : (
                              <div className="relative">
-                                 <Sparkles size={26} className="text-cyan-400 animate-pulse" />
+                                 <Sparkles size={26} className="text-white animate-pulse" />
                                 
                              </div>
                          )}
