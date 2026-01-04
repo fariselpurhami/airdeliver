@@ -617,7 +617,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                                     </span>
                                     <motion.button
                                         onClick={() => onRemoveItem(item.product_id)}
-                                        className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                        className="text-white hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
                                         title="Jettison Item"
                                     >
                                         <X size={14} />
