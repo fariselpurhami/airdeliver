@@ -218,12 +218,12 @@ class AINLUService:
 
         # 🕒 Temporal Context
         if 5 <= hour < 12: 
-            return f"Good Morning! ☀️ Start your day with these {vibe} picks {tone}."
+            return f"Good Morning. Start your day with these {vibe} picks {tone}."
         if 12 <= hour < 18: 
-            return f"Good Afternoon ✨. Have you checked these {vibe} arrivals yet?"
+            return f"Good Afternoon. Have you checked these {vibe} arrivals yet?"
         if 18 <= hour < 22:
-            return f"Good Evening 🌙. Relax and browse these {vibe} collections."
-        return f"Late Night Shopping? 🦉 We found some {vibe} gems for night owls."
+            return f"Good Evening. Relax and browse these {vibe} collections."
+        return f"Late Night Shopping? We found some {vibe} gems for night owls."
 
     def _get_seen_key(self, user_id: int) -> str:
         """Standardized Redis Key for Seen Products (Session Scoped)"""
@@ -1164,7 +1164,7 @@ class AINLUService:
                 bundle_items = await self.search_engine.generate_perfect_bundle(self.db, target_product)
                 
                 # 4. صياغة الرد
-                response_text = f"✅ Added **{target_product.name}** to your cart."
+                response_text = f"✅ Added {target_product.name} to your cart."
                 
                 ui_payload = {
                     "content": response_text,
@@ -1193,7 +1193,7 @@ class AINLUService:
              products = (await self.db.exec(statement)).all()
              
              if products:
-                msg = f"Still thinking? Check out these top-rated items! 🔥"
+                msg = f"Still thinking? Check out these top-rated items!"
                 await self._send_to_ui(user_id, {
                     "content": msg,
                     "type": "proactive_suggestion",

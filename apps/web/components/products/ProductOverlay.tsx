@@ -140,7 +140,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()} 
-                        className="w-full max-w-7xl h-[95vh] max-h-[1100px] flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[40px] shadow-[0_0_60px_rgba(168,85,247,0.15)] overflow-hidden relative"
+                        className="w-full max-w-7xl h-[93vh] flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[55px] shadow-[0_0_60px_rgba(168,85,247,0.15)] overflow-hidden relative"
                     >
                      
                         <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 blur-[80px] pointer-events-none" />
