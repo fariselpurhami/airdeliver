@@ -21,29 +21,24 @@ import { AIPaymentForm } from './AIPaymentForm';
 import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
 
-// --- Architectural Helper: Robust Image Resolution ---
 const DEFAULT_PLACEHOLDER = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
-    // Defense Layer 1: لو مفيش مسار، رجع الصورة المدمجة فوراً
+    
     if (!relativePath) {
         return DEFAULT_PLACEHOLDER;
     }
 
-    // Defense Layer 2: لو الرابط خارجي أو Base64 أصلاً، رجعه زي ما هو
     if (relativePath.startsWith('http') || relativePath.startsWith('data:')) {
         return relativePath;
     }
 
-    // Defense Layer 3: لو الرابط محلي، نركبه مع الـ API URL
     const apiBase = process.env.NEXT_PUBLIC_API_URL
         ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '')
         : 'http://localhost:8000';
     
-    // تأكد من المسار السليم
     const cleanPath = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
     
-    // حالة خاصة: لو الصورة اسمها default.jpeg ومش موجودة، نرجع المدمجة
     if (cleanPath.includes('default.jpeg')) return DEFAULT_PLACEHOLDER;
 
     return `${apiBase}${cleanPath}`;
@@ -52,29 +47,27 @@ const useTextToSpeech = (messages: any[]) => {
     useEffect(() => {
         const lastMessage = messages[messages.length - 1];
 
-        // الشرط: الرسالة من الـ AI، ليست "جاري الكتابة"، وهي جديدة
         if (lastMessage && lastMessage.sender === 'ai' && lastMessage.contentType !== 'typing') {
             const textToSpeak = typeof lastMessage.content === 'string' ? lastMessage.content :
-                                lastMessage.intro_message || "Here are the results."; // Fallback for complex objects
+                                lastMessage.intro_message || "Here are the results."; 
 
-            // إلغاء أي كلام سابق لتجنب التداخل
             window.speechSynthesis.cancel();
 
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
-            utterance.lang = 'en-US'; // أو اختر اللغة بناءً على تفضيل المستخدم
-            utterance.rate = 1.1; // سرعة طبيعية
+            utterance.lang = 'en-US'; 
+            utterance.rate = 1.1; 
             utterance.pitch = 1.0;
 
-            // محاولة اختيار صوت "طبيعي" أكثر إذا وجد
+           
             const voices = window.speechSynthesis.getVoices();
             const preferredVoice = voices.find(v => v.name.includes("Google US English") || v.name.includes("Samantha"));
             if (preferredVoice) utterance.voice = preferredVoice;
 
             window.speechSynthesis.speak(utterance);
         }
-    }, [messages.length]); // يعمل فقط عند زيادة عدد الرسائل
+    }, [messages.length]); 
 };
-// --- 🛸 HOLOGRAPHIC FLIGHT DECK (NEW COMPONENT) ---
+
 const HolographicFlightDeck = React.memo(({ data }: { data: any }) => {
     if (!data) return null;
 
@@ -84,10 +77,10 @@ const HolographicFlightDeck = React.memo(({ data }: { data: any }) => {
             animate={{ opacity: 1, scale: 1 }}
             className="w-full bg-[#050B14] border border-cyan-500/30 rounded-2xl overflow-hidden relative mt-2 shadow-[0_0_30px_rgba(6,182,212,0.15)]"
         >
-            {/* Grid Background */}
+            
             <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.05)_1px,transparent_1px)] bg-[size:20px_20px]" />
 
-            {/* Radar Sweep Animation */}
+         
             <motion.div
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent w-[50%] skew-x-12"
                 animate={{ left: ['-100%', '200%'] }}
@@ -95,7 +88,7 @@ const HolographicFlightDeck = React.memo(({ data }: { data: any }) => {
             />
 
             <div className="p-5 relative z-10">
-                {/* Header */}
+             
                 <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -316,11 +309,11 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                             whileTap={{ scale: 0.96 }}
 			    onClick={handleSelect}
 
-                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold py-3.5 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
+                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold px-3.5 py-2.5 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
                         >
                             <span className="relative z-10 flex items-center gap-2 tracking-wide text-xs">
                                 <ShoppingBag size={16} strokeWidth={2.5} />
-                                CART
+                                ADD TO CART
                             </span>
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
                         </motion.button>

@@ -107,7 +107,7 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
                 </div>
                 
                 <h2 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                    Payment Terminal
+                    Global Payment
                 </h2>
                 <div className="flex items-center gap-2 text-xs text-gray-500 font-mono">
                     <span>REF: {`ORD-${orderId.toString().padStart(6, '0')}`}</span>

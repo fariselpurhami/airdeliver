@@ -334,6 +334,16 @@ services:
         reservations:
           memory: 512M
 
+  mavlink-router:
+    build:
+      context: ./infrastructure/router
+      dockerfile: Dockerfile
+    container_name: mavlink-router
+    network_mode: service:px4-sitl
+    depends_on:
+      - px4-sitl
+    restart: always
+
   api-worker:
     container_name: airdeliver-api-worker
     build:
