@@ -375,42 +375,44 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
 
     const renderContent = () => {
         switch (message.contentType) {
-            case 'text':
-            case 'error':
-	    case 'info':
 	    case 'image_user_upload':
-
-	    const hasText = message.content && message.content.trim().length > 0 && !message.content.includes("Analyzing") && !message.content.includes("Processing");
-            const hasImage = !!message.imageUrl;
+                const hasCaption = message.content && message.content.trim().length > 0 && 
+                                  !message.content.includes("Analyzing") && 
+                                  !message.content.includes("Processing");
+                const hasImg = !!message.imageUrl;
 
                 return (
-                    <div className="flex flex-col gap-3">
-                        {/* 🖼️ IMAGE HANDLING (Cinematic Mode) */}
-                        {hasImage && (
-                            <div className={`relative overflow-hidden rounded-2xl border border-white/10 shadow-2xl bg-black/40 ${hasText ? 'w-full h-48' : 'w-full min-w-[260px] sm:min-w-[320px] h-64'}`}>
-                                {/* Logic Update: 
-                                   1. لو مفيش نص، بنكبر الصورة (h-64) وبنديها عرض أدنى (min-w) عشان متنهارش
-                                   2. لو فيه نص، بنخليها مدمجة (h-48) 
-                                */}
+                    // 1. العرض: بنسمح للفقاعة توصل لـ 450px عشان الصورة تاخد راحتها
+                    <div className="flex flex-col w-full min-w-[300px] max-w-[350px] sm:max-w-[450px]">
+                        
+                        {/* 2. صندوق الصورة: */}
+                        {/* aspect-[4/3]: بيخلي البوكس ياخد نسبة الكاميرا الطبيعية (زي يوتيوب القديم) وده بيبين تفاصيل أكتر */}
+                        {/* h-auto: الطول بيظبط نفسه حسب العرض */}
+                        {hasImg && (
+                            <div className={`relative w-full aspect-[4/3] flex-none overflow-hidden shadow-2xl ${hasCaption ? 'rounded-t-[32px] border-b-0' : 'rounded-[32px]'}`}>
                                 <Image
                                     src={message.imageUrl}
-                                    alt="Visual Data"
+                                    alt="Uploaded"
                                     fill
-                                    className="object-cover hover:scale-105 transition-transform duration-700 ease-out"
+                                    // 3. object-contain: الصورة كاملة بدون قص
+                                    // شيلنا p-2 عشان الصورة تلمس الحواف وتبان أكبر
+                                    className="object-cover" 
                                 />
-                                {/* Glass Overlay Effect */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
                             </div>
                         )}
 
-                        {/* 📝 TEXT HANDLING */}
-                        {hasText && (
-                             <p className="text-[15px] text-white font-medium whitespace-pre-wrap leading-relaxed tracking-wide">
-                                  {message.content}
-                             </p>
+                        {/* 3. صندوق النص */}
+                        {hasCaption && (
+                             <div className="bg-zinc-900/95 backdrop-blur-xl px-5 py-4 rounded-b-[32px] border border-white/10 text-gray-100 text-[15px] leading-relaxed shadow-lg relative -mt-[1px]">
+                                {message.content}
+                             </div>
                         )}
                     </div>
                 );
+            case 'text':
+            case 'error':
+	    case 'info':
+	    
             case 'success_text':
                 return <p className={`whitespace-pre-wrap text-[15px] md:text-base leading-7 text-white font-medium ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
 	    case 'FLIGHT_MANIFEST': // New Case
