@@ -36,6 +36,17 @@ services:
     ports:
       - "14540:14540"
 
+  mavlink-router:
+    build:
+      context: ./infrastructure/router
+      dockerfile: Dockerfile
+    container_name: mavlink-router
+    network_mode: service:px4-sitl
+    depends_on:
+      - px4-sitl
+    restart: always
+
+
   c2_gateway:
     container_name: airdeliver-c2-gateway
     build:

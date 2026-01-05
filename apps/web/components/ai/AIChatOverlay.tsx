@@ -234,7 +234,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
     // Made cards significantly larger for better UX (85% width on mobile, 55% on desktop)
     const slideWidthClass = totalItems === 1 
     ? "flex-[0_0_100%] sm:flex-[0_0_auto] sm:w-[300px] md:w-[350px]" 
-    : "flex-[0_0_85%] sm:flex-[0_0_60%] md:flex-[0_0_55%]";
+    : "flex-[0_0_85%] sm:flex-[0_0_60%] md:flex-[0_0_49%]";
     
     const rawImagePath = product.image_url || product.image;
     const imageUrl = useMemo(() => getAbsoluteImageUrl(rawImagePath), [rawImagePath]);
@@ -281,13 +281,14 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                     />
                     
                     {/* Floating Price Tag */}
-                    <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full flex items-center gap-1 shadow-lg">
-                        <span className="text-cyan-400 font-bold font-mono text-lg">${(Number(product.price) || 0).toFixed(2)}</span>
-                    </div>
+                    
                 </div>
 
                 {/* Content Section */}
                 <div className="p-6 flex flex-col flex-grow relative z-10">
+		    <div className="absolute -top-4 right-3 z-20 flex items-center gap-1">
+                       <span className="text-cyan-300 font-bold font-mono text-lg">${(Number(product.price) || 0).toFixed(2)}</span>
+                    </div>
                     <div className="flex justify-between items-start mb-2">
                          <h4 className="text-xl font-bold text-white leading-snug tracking-tight line-clamp-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{product.name}</h4>
                     </div>
@@ -528,7 +529,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
             className={`flex items-end gap-3 w-full mb-6 ${isAI ? 'justify-start' : 'justify-end'}`}
         >
             
-            <div className={`w-auto max-w-[90%] md:max-w-2xl px-6 py-5 ${
+            <div className={`w-auto max-w-[90%] md:max-w-3xl px-6 py-5 ${
                 isAI 
                     ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20' 
                     : 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm'
