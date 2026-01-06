@@ -359,10 +359,8 @@ const AIReasoning = React.memo(({ text }: { text: string }) => (
     >
         <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" />
         <div className="absolute -right-4 -top-4 w-16 h-16 bg-cyan-500/10 blur-xl rounded-full" />
-        
-        <Sparkles size={16} className="text-cyan-400 flex-shrink-0 mt-0.5 animate-pulse"/>
         <div>
-            <span className="block text-[10px] font-light text-cyan-500 tracking-widest mb-1">INSIGHTS</span>
+            <span className="block text-[10px] font-black text-cyan-300 tracking-widest mb-1">vision by air</span>
             <p className="text-sm text-cyan-100/80 font-sans leading-relaxed">{text}</p>
         </div>
     </motion.div>
@@ -638,7 +636,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
 
                 <div className="flex justify-between items-end">
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Estimated</span>
+                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Price</span>
                         <span className="text-[10px] text-gray-600">Including Service Fees</span>
                     </div>
                     <span className="text-3xl font-bold text-white font-mono tracking-tighter">

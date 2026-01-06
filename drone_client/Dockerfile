@@ -50,7 +50,7 @@ RUN existing_group=$(getent group $APP_GID | cut -d: -f1) && \
 
 
 COPY --from=builder --chown=$APP_USER:$APP_USER /opt/venv /opt/venv
-COPY --chown=$APP_USER:$APP_USER drone-control.py .
+COPY --chown=$APP_USER:$APP_USER drone_control.py .
 
 USER $APP_USER
 

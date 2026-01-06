@@ -1029,7 +1029,7 @@ class AINLUService:
                 "content": clean_content,
                 "type": "product_carousel" if final_products else "text",
                 "products": [p.model_dump(mode='json') for p in final_products] if final_products else [],
-                "reason": "Omni-Intelligence V9.2 (Stable)"
+                "reason": "Top choices based on user experience."
             }
             
             # إرسال الطرد المحصن للـ UI (استبدال السطر 592)
@@ -1563,7 +1563,7 @@ class AINLUService:
                 "content": greeting,
                 "type": "proactive_suggestion", # Special UI Type
                 "products": [p.model_dump(mode='json') for p in products_personal],
-                "reason": f"Curated For You ({spending_tier})"
+                "reason": "Specially curated for you."
             })
             await asyncio.sleep(0.3) # Micro-pause for UX flow
 
@@ -1579,7 +1579,7 @@ class AINLUService:
                     "content": "Check out the best selling products right now.",
                     "type": "product_carousel",
                     "products": [p.model_dump(mode='json') for p in filtered_bs],
-                    "reason": "Market Data"
+                    "reason": "Based on market analysis."
                 })
                 await asyncio.sleep(0.3)
 
@@ -1595,7 +1595,7 @@ class AINLUService:
                     "content": "Trending products right Now.",
                     "type": "product_carousel",
                     "products": [p.model_dump(mode='json') for p in filtered_tr],
-                    "reason": "Velocity Algorithms"
+                    "reason": "Based on user trends."
                 })
                 await asyncio.sleep(0.3)
 
@@ -1610,7 +1610,7 @@ class AINLUService:
                     "content": "See our high value products here.",
                     "type": "product_carousel",
                     "products": [p.model_dump(mode='json') for p in filtered_deals],
-                    "reason": "Value Analysis"
+                    "reason": "Selected for best value."
                 })
 
         
