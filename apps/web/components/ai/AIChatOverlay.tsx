@@ -1147,13 +1147,11 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         {detailProduct && (
                             <motion.div
                                 initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                                animate={{ opacity: 1, backdropFilter: "blur(12px)" }}
+                                animate={{ opacity: 1, backdropFilter: "blur(16px)" }}
                                 exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                                className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
-				 onClick={(e) => {
-                                    e.stopPropagation(); // منع إغلاق الشات الرئيسي
-                                    setDetailProduct(null); // إغلاق المودال فقط
-                                }}
+				transition={{ duration: 0.3, ease: "easeOut" }}
+                                className="fixed inset-0 z-[100] bg-black/40 flex items-center justify-center p-4"
+				onClick={() => setDetailProduct(null)}
                             >
                                 <div onClick={(e) => e.stopPropagation()} className="w-full max-w-7xl h-[93vh]">
                                     <ProductDetailsCard
