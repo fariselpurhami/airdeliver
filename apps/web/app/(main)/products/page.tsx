@@ -342,16 +342,13 @@ const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) =>
                         />
                     </motion.div>
                     
-                    <div className="absolute top-6 left-6 px-3 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 backdrop-blur-md flex items-center gap-2">
-                        <Cpu size={14} className="text-cyan-400 animate-pulse" />
-                        <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest">AI Selected</span>
-                    </div>
+                    
                 </div>
 
                 <div className="w-full lg:w-3/5 p-10 lg:p-12 flex flex-col justify-center bg-black/20">
                     <div className="flex items-center gap-3 mb-6">
                         <ScanLine className="w-6 h-6 text-gray-500" />
-                        <span className="text-xs font-mono text-gray-500 uppercase tracking-[0.2em]">Recommendation Engine v9.0</span>
+                        <span className="text-xs font-mono text-gray-500 uppercase tracking-[0.2em]">Selected for you</span>
                     </div>
                     
                     <h2 className="text-4xl lg:text-5xl font-black text-white mb-6 leading-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -370,7 +367,7 @@ const PersonalizedRecommendations = ({ onOpen }: { onOpen: (product: Product) =>
                             className="group relative px-8 py-4 bg-cyan-500 text-black font-bold uppercase tracking-widest text-sm rounded-full overflow-hidden transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)]"
                         >
                             <span className="relative z-10 flex items-center gap-2">
-                                Initiate View <ArrowRightIcon className="w-4 h-4" />
+                                View <ArrowRightIcon className="w-4 h-4" />
                             </span>
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                         </button>
