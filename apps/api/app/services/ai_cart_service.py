@@ -317,6 +317,16 @@ class AICartService:
                 "products": [p.model_dump(mode='json') for p in alternatives] if alternatives else [], # 🛡️ Safe Dump
                 "reason": ai_reason if alternatives else None
             })
+
+            if cart.get("items") and len(cart["items"]) > 0:
+                # تأخير بسيط جداً (0.5 ثانية) لضمان ترتيب الرسائل في الـ UI
+                await asyncio.sleep(0.5)
+
+                await self._send_to_ui(user_id, {
+                    "content": "You still have items in your manifest. Ready to proceed?",
+                    "type": "confirmation_prompt",
+                    "options": ["Confirm Order", "Keep Shopping"]
+                })
             
             # E. Analytics (Async Fire-and-Forget)
             try:

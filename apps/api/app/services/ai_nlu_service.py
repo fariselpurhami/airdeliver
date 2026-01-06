@@ -144,6 +144,19 @@ class AINLUService:
                     "reason": "Quality Upgrade"
                 })
 
+                await asyncio.sleep(0.5)
+
+                cart_key = f"ai_cart:{user_id}"
+                cart = await self.cache.get_json(cart_key)
+
+                # 3. إذا وجدنا منتجات متبقية، نعرض الخيارات
+                if cart and cart.get("items") and len(cart["items"]) > 0:
+                    await self._send_to_ui(user_id, {
+                        "content": "You still have items in your manifest. Ready to proceed?",
+                        "type": "confirmation_prompt",
+                        "options": ["Confirm Order", "Keep Shopping"]
+                    })
+
         except Exception as e:
             logger.error(f"😈 Devil Protocol Failed: {e}")
     # --- 🔌 UI RESPONSE ROUTER (DIAMOND UPLINK) ---

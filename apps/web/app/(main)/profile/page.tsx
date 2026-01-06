@@ -105,6 +105,12 @@ export default function ProfilePage() {
         sessionStatus === 'authenticated' ? paymentApiUrl : null, swrFetcher, { revalidateOnFocus: false }
     );
 
+    useEffect(() => {
+        if (userError) {
+            signOut({ callbackUrl: '/login' });
+        }
+    }, [userError]);
+
     const [isClient, setIsClient] = useState(false);
     const [isEditDetailsModalOpen, setIsEditDetailsModalOpen] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -178,9 +184,8 @@ export default function ProfilePage() {
         );
     };
 
-    const isLoading = !isClient || sessionStatus === 'loading' || (sessionStatus === 'authenticated' && (isLoadingUser || isLoadingPayment)); 
-
-    if (isLoading) return <LoadingSpinner />;
+    const isLoading = !isClient || sessionStatus === 'loading' || (sessionStatus === 'authenticated' && (isLoadingUser || isLoadingPayment));
+    if (isLoading || (userError && !userData)) return <LoadingSpinner />;
 
     if (sessionStatus === 'unauthenticated') {
         redirect('/login');
@@ -188,7 +193,7 @@ export default function ProfilePage() {
 
     if (isClient && userError) return <ErrorDisplay message={(userError as any)?.message} />;
 
-    const profileData = userData!; 
+    const profileData = userData || {} as UserProfileData;
     const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'A')}&background=0a0f28&color=06b6d4&bold=true&size=128`;
     const subtext = [joinedDate ? `Operative since ${joinedDate}` : null, location].filter(Boolean).join(' | ');
     const handleAvatarUpload = () => fileInputRef.current?.click();
