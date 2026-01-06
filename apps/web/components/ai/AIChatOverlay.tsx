@@ -839,10 +839,8 @@ const TypingIndicator = React.memo(() => (
         exit={{ opacity: 0 }}
         className="flex items-center gap-3 mb-4"
     >
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-950/50 flex items-center justify-center border border-cyan-500/30">
-        <Bot size={16} className="text-cyan-400" />
-      </div>
-      <div className="flex items-center gap-2 px-5 py-4 bg-black/40 border border-white/5 rounded-3xl rounded-tl-none">
+    
+      <div className="flex items-center gap-2 px-5 py-4 bg-black/40 border border-white/5 rounded-full rounded-tl-none">
         <span className="text-[10px] text-cyan-500 font-bold tracking-widest animate-pulse">ANALYZING</span>
         <div className="flex gap-1">
             <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, repeat: Infinity }} />

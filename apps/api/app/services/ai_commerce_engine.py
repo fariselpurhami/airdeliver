@@ -511,7 +511,7 @@ class AICommerceEngine:
         except Exception as e:
             logger.error(f"Universal Bundle Error: {e}")
             return []
-
+                
     async def get_fresh_homepage_matrix(self, db: AsyncSession, user_id: int, seen_ids: List[int], spending_tier: str = "MEDIUM") -> List[Product]:
         """
         Generates a unique homepage using Semantic Steering instead of Hard Filtering.

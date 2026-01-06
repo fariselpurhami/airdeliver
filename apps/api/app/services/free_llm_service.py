@@ -444,7 +444,8 @@ Only output tokens supported by evidence. Evidence priority:
 
 Forbidden guesses (never invent):
 - Exact model number, generation/year, chip/CPU, RAM/storage, material blend %, limited editions, compatibility lists, medical claims, certifications, “Pro/Max/Ultra” unless printed or unmistakably labeled.
-
+- EXACT ALPHANUMERIC MODEL CODES (e.g., "MXE13LLA", "A2442", "SM-S918B") unless you distinctly OCR them from a label in the image.
+ - Exact screen size (14" vs 16" vs 17") unless strictly inferred from visual comparison (e.g., keyboard-to-chassis ratio).
 If evidence is insufficient, degrade gracefully:
 Brand (if known) + generic product noun + 3–6 defining visible attributes.
 

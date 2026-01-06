@@ -311,7 +311,6 @@ class AICartService:
             else:
                 response_msg = f"🗑️ Removed {removed_name}. Manifest updated."
 
-            # D. Send Response to UI
             await self._send_to_ui(user_id, {
                 "content": response_msg,
                 "type": "product_carousel" if alternatives else "success_text",
@@ -335,7 +334,6 @@ class AICartService:
         else:
             # Fallback sync if item somehow missing in finding logic but present in key
             await self._update_cart_in_redis(user_id, cart)
-
     # --- 🧹 5. HANDLE CLEAR CART (HARD RESET) ---
     async def handle_clear_cart(self, payload: dict):
         """
