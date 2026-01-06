@@ -28,6 +28,56 @@ import os
 
 logger = logging.getLogger("airdeliver.engine")
 
+ACCESSORY_SAFE_KEYWORDS = {
+    # 📱 Mobile & Tech Essentials (Essential Protection & Power)
+    "case", "cover", "skin", "bumper", "screen", "protector", "glass", "film",
+    "charger", "adapter", "cable", "cord", "wire", "plug", "brick", "dock",
+    "stand", "mount", "holder", "grip", "ring", "pop", "socket", "sleeve",
+    "stylus", "pen", "pencil", "tip", "nibs", "sim", "ejector", "dongle", "hub",
+
+    # 💻 Computing & Peripherals (Expansion & Input)
+    "mouse", "keyboard", "keypad", "trackpad", "monitor", "display", "webcam",
+    "mic", "microphone", "speaker", "headset", "headphones", "earbuds", "pods",
+    "drive", "storage", "disk", "ssd", "hdd", "card", "memory", "ram", "stick",
+    "cooler", "fan", "pad", "paste", "thermal", "screw", "bracket", "hinge",
+    "battery", "powerbank", "inverter", "ups", "toner", "ink", "cartridge", "ribbon",
+
+    # 📷 Photography & Optics (Vision Enhancers)
+    "lens", "filter", "cap", "hood", "tripod", "monopod", "gimbal", "stabilizer",
+    "flash", "light", "diffuser", "reflector", "shutter", "remote", "trigger",
+    "strap", "harness", "bag", "backpack", "cleaning", "cloth", "blower", "sensor",
+
+    # 🎮 Gaming & Entertainment (Control & Immersion)
+    "controller", "gamepad", "joystick", "wheel", "pedal", "console", "vr", "headset",
+    "docking", "station", "faceplate", "thumbstick", "trigger", "paddle", "chair",
+
+    # 🏠 Home, Kitchen & Appliances (Maintenance & Refills)
+    "filter", "refill", "bag", "brush", "roller", "hose", "nozzle", "attachment",
+    "blade", "mixer", "beater", "whisk", "bowl", "lid", "seal", "gasket", "ring",
+    "pod", "capsule", "beans", "ground", "scale", "timer", "thermometer",
+    "bulb", "lamp", "shade", "remote", "switch", "dimmer", "socket",
+
+    # 👗 Fashion, Apparel & Care (Style Completers)
+    "belt", "tie", "scarf", "socks", "laces", "shoelace", "insole", "polish", "wax",
+    "brush", "hanger", "hook", "organizer", "box", "jewelry", "watch", "link", "band",
+    "stud", "clip", "pin", "button", "zipper", "patch",
+
+    # 💄 Beauty & Personal Care (Consumables & Tools)
+    "brush", "sponge", "applicator", "wand", "mirror", "tweezer", "clipper", "file",
+    "razor", "blade", "head", "foil", "comb", "curler", "dryer", "diffuser",
+    "refill", "sample", "tester", "travel", "kit", "set", "pack",
+
+    # 🚗 Automotive & Tools (Parts & Fixes)
+    "mat", "liner", "cover", "shade", "freshener", "perfume", "holder", "mount",
+    "charger", "jumper", "cable", "jack", "wrench", "tool", "kit", "oil", "fluid",
+    "wiper", "blade", "bulb", "fuse", "valve", "cap", "sticker", "decal",
+
+    # 🛠 General & Abstract Terms (The Safety Net)
+    "accessory", "accessories", "part", "parts", "spare", "replacement",
+    "attachment", "extension", "expansion", "add-on", "module", "unit",
+    "consumable", "supply", "supplies", "maintenance", "service", "care",
+    "cleaner", "cleaning", "fluid", "spray", "wipe", "cloth"
+}
 class AIModelSingleton:
     """
     Central Intelligence Hub for Local Inference.
@@ -472,46 +522,149 @@ class AICommerceEngine:
 
     async def generate_perfect_bundle(self, db: AsyncSession, anchor: Product) -> List[Product]:
         """
-        Generates complimentary bundles using Pure Semantic Intelligence.
-        Zero Hardcoding. Universal context awareness.
+        💎 THE PERFECT BUNDLE V7 (TITANIUM EDITION).
+        
+        Features:
+        - ⚡ Cache-First Strategy.
+        - 🛡️ Smart Deduplication (Set Theory + Wildcard Protocol).
+        - ⏱️ Time-Boxed Execution.
         """
-        try:
-            # 🧠 CONCEPT: Semantic Completers
-            # بدلاً من تحديد كلمات لكل فئة، نستخدم "مفاتيح عالمية" يفهمها الـ AI لأي منتج
-            anchor_price = float(anchor.price) if anchor.price is not None else 0.0
-            universal_completers = "essential accessories matching attachments complementary parts gear"
-            target_query = f"{universal_completers} for {anchor.name} in {anchor.category}"
-            price_limit = anchor_price * 0.6
-            filters = {"price_max": price_limit}
-            candidates = await self.perform_hybrid_search_pure(
-                db, target_query, limit=12, filters=filters
-            )
-            
-            # تصفية النتائج: إزالة المنتج الأصلي
-            bundle = [p for p in candidates if p.id != anchor.id][:4]
-            
-            # --- STRATEGY B: The Freedom Fallback ---
-            # لو ملقاش رخيص، شيل فلتر السعر (ممكن الملحق يكون غالي زي عدسة الكاميرا)
-            if not bundle:
-                logger.info(f"Bundle Strategy B (Expanded) for {anchor.name}")
-                candidates = await self.perform_hybrid_search_pure(db, target_query, limit=10)
-                bundle = [p for p in candidates if p.id != anchor.id][:4]
-            
-            # --- STRATEGY C: Category Safety Net ---
-            # لو كله فشل، هات أفضل المنتجات تقييماً في نفس الفئة (كطقم)
-            if not bundle:
-                statement = select(Product).where(
-                    Product.category == anchor.category, 
-                    Product.id != anchor.id
-                ).order_by(col(Product.rating).desc()).limit(4)
-                bundle = (await db.exec(statement)).all()
+        start_time = time.time()
+        # نستخدم معرف فريد للكاش يعتمد على الـ ID
+        cache_key = f"bundle:v7:prod:{anchor.id}"
 
-            return bundle
+        try:
+            # 1. 🚀 CACHE LAYER
+            if self.cache_client:
+                cached_data = await self.cache_client.get_json(cache_key)
+                if cached_data:
+                    logger.info(f"⚡ Bundle Cache Hit for {anchor.id}")
+                    return [Product(**p) for p in cached_data]
+
+            # 2. 🧹 Data Sanitization
+            # ⚠️ FIX: وحدنا الاسم ليكون clean_name_root في كل مكان
+            clean_name_root = re.sub(r'\b(\d+GB|\d+TB|\d+mm|5G|4G|LTE)\b', '', anchor.name, flags=re.IGNORECASE).strip()
+            clean_name_root = re.sub(r'[^\w\s]', ' ', clean_name_root)
+            clean_name_root = re.sub(r'\s+', ' ', clean_name_root).strip()
+
+            anchor_price = float(anchor.price or 0)
+            anchor_cat = getattr(anchor, 'category', '').lower()
+
+            # Dynamic Pricing Logic
+            is_cheap_item = anchor_price < 50
+            max_accessory_ratio = 2.0 if is_cheap_item else 0.6
+            max_price = anchor_price * max_accessory_ratio if anchor_price > 0 else 1000
+
+            # 3. 🧠 Intent-Based Search Queries
+            search_queries = [
+                f"accessories for {clean_name_root}",
+                f"compatible parts {clean_name_root}",
+                f"essential gear {clean_name_root}"
+            ]
+
+            # 4. ⚡ Parallel Execution
+            tasks = []
+            price_filter = {"price_max": max_price}
+            
+            for query in search_queries:
+                tasks.append(
+                    self.perform_hybrid_search_pure(db, query, limit=5, filters=price_filter)
+                )
+
+            try:
+                # 🛡️ Circuit Breaker
+                results_groups = await asyncio.wait_for(asyncio.gather(*tasks), timeout=3.0)
+            except asyncio.TimeoutError:
+                logger.warning(f"⚠️ Bundle Timeout for {anchor.id}. Triggering Fallback.")
+                return await self._get_emergency_fallback(db, anchor_cat, price_filter)
+
+            # 5. 🛡️ The Filtering Engine
+            bundle_candidates = []
+            seen_ids = {anchor.id}
+            seen_utilities = set() 
+
+            for group in results_groups:
+                for item in group:
+                    if item.id in seen_ids: continue
+
+                    item_price = float(item.price or 0)
+                    item_name_lower = item.name.lower()
+
+                    item_tokens = set(re.findall(r'\w+', item_name_lower))
+                    is_safe_accessory = not item_tokens.isdisjoint(ACCESSORY_SAFE_KEYWORDS)
+                    has_anchor_name = clean_name_root.lower() in item_name_lower
+
+                    # Anti-Echo Logic
+                    if has_anchor_name and not is_safe_accessory:
+                        if item_price > (anchor_price * 0.4): 
+                            continue
+
+                    # Category Logic
+                    item_cat = getattr(item, 'category', '').lower()
+                    if item_cat == anchor_cat and item_cat:
+                         if not is_safe_accessory and item_price > (anchor_price * 0.2):
+                            continue
+
+                    # 💎 Deduplication & Wildcard Logic
+                    found_utilities = item_tokens.intersection(ACCESSORY_SAFE_KEYWORDS)
+                    utility_fingerprint = ""
+
+                    if found_utilities:
+                        # ✅ Known Function
+                        utility_fingerprint = "-".join(sorted(found_utilities))
+                        if utility_fingerprint in seen_utilities:
+                            continue
+                    else:
+                        # ⚠️ Wildcard (Unknown Function)
+                        if "unknown_wildcard" in seen_utilities:
+                            continue
+                        utility_fingerprint = "unknown_wildcard"
+
+                    # ✅ Approved
+                    bundle_candidates.append(item)
+                    seen_ids.add(item.id)
+                    seen_utilities.add(utility_fingerprint)
+                    
+                    break # Take one per group
+
+            # 6. Fallback Polish
+            if len(bundle_candidates) < 2:
+                fallback_items = await self._get_emergency_fallback(db, clean_name_root, price_filter)
+                for p in fallback_items:
+                    if p.id not in seen_ids:
+                        bundle_candidates.append(p)
+                        seen_ids.add(p.id)
+                        if len(bundle_candidates) >= 4: break
+
+            final_result = bundle_candidates[:4]
+
+            # 7. 💾 Write-Behind Cache
+            if self.cache_client and final_result:
+                serialized_data = [p.model_dump(mode='json') for p in final_result]
+                # ⚠️ FIX: تم تصحيح التعليق هنا
+                await self.cache_client.set_json(cache_key, serialized_data, ttl=86400) # 24 Hours
+
+            # ⏱️ Observability
+            execution_time = (time.time() - start_time) * 1000
+            logger.info(f"💎 Bundle Generated for {anchor.id} in {execution_time:.2f}ms | Items: {len(final_result)}")
+
+            return final_result
 
         except Exception as e:
-            logger.error(f"Universal Bundle Error: {e}")
+            logger.error(f"🔥 Critical Bundle Error: {e}", exc_info=True)
             return []
-                
+
+    async def _get_emergency_fallback(self, db, keyword: str, filters: dict) -> List[Product]:
+        """Fast path for timeouts or empty results"""
+        # نستخدم صيغة "best" لجذب المنتجات ذات التقييم العالي دلالياً
+        # هذا يعطي نتائج "Safe Bets" (رهانات آمنة) يحبها المستخدمون
+        query = f"best rated accessories for {keyword}"
+
+        # نطلب 6 منتجات بدلاً من 4 لنعطي مساحة بسيطة للفلترة اللاحقة (إن وجدت)
+        return await self.perform_hybrid_search_pure(
+            db, query, limit=6, filters=filters
+        )
+
     async def get_fresh_homepage_matrix(self, db: AsyncSession, user_id: int, seen_ids: List[int], spending_tier: str = "MEDIUM") -> List[Product]:
         """
         Generates a unique homepage using Semantic Steering instead of Hard Filtering.
