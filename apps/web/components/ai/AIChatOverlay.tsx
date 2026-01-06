@@ -485,32 +485,55 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
                     </div>
                 );
             case 'recovery_prompt':
-                return (
-                    <div className="flex flex-col gap-4 w-full p-2 bg-amber-950/20 border border-amber-500/20 rounded-xl">
-                        <div className="flex items-center gap-3 text-amber-400 border-b border-amber-500/20 pb-2">
-                            <AlertCircle size={20} />
-                            <span className="font-bold text-sm uppercase tracking-wide">Session Interrupted</span>
-                        </div>
-                        <p className="whitespace-pre-wrap text-sm text-gray-300">{message.content}</p>
-                        <div className="grid grid-cols-3 gap-3 w-full pt-2">
-                            {[
-                                { icon: Undo2, label: "Resume", color: "cyan", action: onRestore },
-                                { icon: Save, label: "Save", color: "purple", action: onSave },
-                                { icon: Trash2, label: "Discard", color: "red", action: onCancel }
-                            ].map((btn, idx) => (
-                                <motion.button 
-                                    key={idx}
-                                    whileHover={{ scale: 1.03, y: -2 }}
-                                    whileTap={{ scale: 0.97 }}
-                                    onClick={btn.action} 
-                                    className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border bg-${btn.color}-500/5 border-${btn.color}-500/20 text-${btn.color}-300 hover:bg-${btn.color}-500/20 hover:border-${btn.color}-500/40 transition-all`}
-                                >
-                                    <btn.icon size={18} /> 
-                                    <span className="text-[10px] font-bold uppercase">{btn.label}</span>
-                                </motion.button>
-                            ))}
-                        </div>
-                    </div>
+               return (
+                  <div className="flex items-center justify-center w-full py-6">
+            {/* شريط الأوامر العائم بتصميم Glassmorphism أبيض شفاف */}
+                     <motion.div 
+                         initial={{ scale: 0.9, opacity: 0, y: 10 }}
+                         animate={{ scale: 1, opacity: 1, y: 0 }}
+                         className="flex items-center gap-4 p-3 bg-white/[0.04] backdrop-blur-3xl border border-white/10 rounded-[55px] shadow-2xl"
+                     >
+                         {[
+                             { 
+                                 icon: Undo2, 
+                                 label: "UNDO", 
+                                 action: onRestore, 
+                                 textColor: "text-white", 
+                                 hoverBg: "hover:bg-cyan-500/10" 
+                             },
+                             { 
+                                 icon: Save, 
+                                 label: "SAVE", 
+                                 action: onSave, 
+                                 textColor: "text-white", 
+                                 hoverBg: "hover:bg-purple-500/10" 
+                             },
+                             { 
+                                 icon: X, 
+                                 label: "CANCEL", 
+                                 action: onCancel, 
+                                 textColor: "text-white", 
+                                 hoverBg: "hover:bg-red-500/10" 
+                             }
+                         ].map((btn, idx) => (
+                             <motion.button 
+                                 key={idx}
+                                 whileHover={{ scale: 1.05 }}
+                                 whileTap={{ scale: 0.95 }}
+                                 onClick={btn.action} 
+                                 className={`flex flex-col items-center justify-center min-w-[80px] h-[80px] gap-2 rounded-[55px] transition-all duration-300 ${btn.hoverBg} group`}
+                    >
+                        {/* الأيقونة بيضاء كما طلبت */}
+                                 <btn.icon size={22} strokeWidth={2.5} className="text-white opacity-80 group-hover:opacity-100" />
+                        
+                        {/* الكلمة باللون الأصلي الخاص بها */}
+                                 <span className={`text-[9px] font-black uppercase tracking-widest ${btn.textColor}`}>
+                                     {btn.label}
+                                 </span>
+                             </motion.button>
+                         ))}
+                      </motion.div>
+                  </div>
                 );
             default: return null;
         }
