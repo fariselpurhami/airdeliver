@@ -1150,7 +1150,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                 animate={{ opacity: 1, backdropFilter: "blur(16px)" }}
                                 exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
 				transition={{ duration: 0.3, ease: "easeOut" }}
-                                className="fixed inset-0 z-[100] bg-black/40 flex items-center justify-center p-4"
+                                className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
 				onClick={() => setDetailProduct(null)}
                             >
                                 <div onClick={(e) => e.stopPropagation()} className="w-full max-w-7xl h-[93vh]">
