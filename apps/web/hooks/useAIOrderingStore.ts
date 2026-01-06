@@ -293,6 +293,20 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         state.messages = state.messages.filter(m => m.contentType !== 'typing');
         state.isLoading = false;
 
+        const lastMsg = state.messages[state.messages.length - 1];
+
+        // لو الرسالة الجديدة هي نفس نوع الرسالة الأخيرة (خاصة الـ recovery أو الدفع) -> تجاهلها فوراً
+        if (lastMsg && lastMsg.contentType === response.type) {
+
+            // استثناء: لو المحتوى مختلف جذرياً (مثلاً رسالة خطأ مختلفة)، اسمح بالمرور
+            // لكن في حالة الـ prompts الثابتة، نمنعها.
+            const isIdenticalContent = JSON.stringify(lastMsg.content) === JSON.stringify(response.content);
+
+            if (isIdenticalContent || response.type === 'recovery_prompt') {
+                return; // ⛔ STOP HERE
+            }
+	}
+
         if (response.type !== 'typing') {
             state.isProcessing = false;
         }
@@ -347,8 +361,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         if (response.type === 'payment_intent') {
           state.paymentDetails = response.content as PaymentDetails;
           state.recoveryMode = false;
-          aiMessage.contentType = 'text';
-          aiMessage.content = "Great! I've prepared your order. Please complete the secure payment to finalize.";
+          return; 
         }
 
         if (response.type === 'ORDER_CANCELLED') {
@@ -624,7 +637,6 @@ export const useAIOrderingStore = create<AIOrderingState>()(
         const { recoveryOrderDetails } = get();
         if (!recoveryOrderDetails) return;
         set({ isOverlayVisible: true, recoveryMode: false, paymentDetails: recoveryOrderDetails, recoveryOrderDetails: null });
-        get().addSocketAIMessage({ type: 'success_text', content: "Done! Checkout restored. Let's finish your order." });
     },
 
     setRecoveryReason: (reason) => set({ recoveryReason: reason }),

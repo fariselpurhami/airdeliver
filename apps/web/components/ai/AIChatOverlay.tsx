@@ -310,7 +310,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                             whileTap={{ scale: 0.96 }}
 			    onClick={handleSelect}
 
-                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold px-3.5 py-2.5 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
+                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold px-5 py-4 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
                         >
                             <span className="relative z-10 flex items-center gap-2 tracking-wide text-xs">
                                 <ShoppingBag size={16} strokeWidth={2.5} />
@@ -428,10 +428,14 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
                         <p className="whitespace-pre-wrap mb-5 text-[15px] leading-7">{message.content}</p>
                         <div className="flex flex-wrap gap-3">
                             {(message.options as string[])?.map((option: string) => {
+
                                 const isPrimary = option === 'Confirm Order' || option === 'Retry Payment' || option === 'Switch to PayPal';
                                 
                                 // Dynamic Styling based on intent
-                                let buttonStyle = "bg-white/5 text-cyan-200 border-white/10 hover:bg-cyan-500 hover:text-black";
+                                let buttonStyle = "bg-white/5 text-white border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.1)] " + 
+                                                  "hover:bg-cyan-500/10 hover:text-cyan-400 hover:border-cyan-500/60 " +
+                                                  "hover:shadow-[0_0_25px_rgba(6,182,212,0.4)] hover:scale-[1.02]";
+
                                 if (option === 'Switch to PayPal') buttonStyle = "bg-[#003087] text-white border-transparent hover:bg-[#003087]/80"; // PayPal Blue
                                 if (option === 'Retry Payment') buttonStyle = "bg-green-600 text-white hover:bg-green-500";
 
@@ -462,7 +466,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
                                                 onSend(option);
                                             }
                                         }}
-                                        className={`text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-xl border transition-all duration-300 ${buttonStyle}`}
+                                        className={`text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-[55px]  mt-[-15px] transition-all duration-300 ${buttonStyle}`}
                                     >
                                         {option}
                                     </motion.button>
@@ -485,13 +489,13 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
                     </div>
                 );
             case 'recovery_prompt':
-               return (
-                  <div className="flex items-center justify-center w-full py-6">
+               return (   
+                  <div className="flex items-center justify-center w-fit mx-auto rounded-[55px] overflow-hidden"> 
             {/* شريط الأوامر العائم بتصميم Glassmorphism أبيض شفاف */}
                      <motion.div 
                          initial={{ scale: 0.9, opacity: 0, y: 10 }}
                          animate={{ scale: 1, opacity: 1, y: 0 }}
-                         className="flex items-center gap-4 p-3 bg-white/[0.04] backdrop-blur-3xl border border-white/10 rounded-[55px] shadow-2xl"
+                         className="flex items-center gap-2 p-2"
                      >
                          {[
                              { 
