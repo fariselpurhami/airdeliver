@@ -169,7 +169,7 @@ class AICartService:
                         "type": "product_carousel",
                         "products": [p.model_dump(mode='json') for p in bundle_items], # 🛡️ Safe Dump
                         "secondary_suggestions": True, # UI Hint
-                        "reason": "Smart Ecosystem Bundle"
+                        "reason": "Carefully selected to provide the best user experience."
                     })
             except Exception as e:
                 logger.warning(f"Bundling Logic Warning: {e}")
@@ -177,9 +177,8 @@ class AICartService:
         # E. Checkout Prompt (Nudge)
         if notify_user:
             await self._send_to_ui(user_id, {
-                "content": "Ready to checkout or keep exploring?",
                 "type": "confirmation_prompt",
-                "options": ["Confirm Order", "Keep Shopping"]
+                "options": ["Confirm Order"]
             })
     # --- 💾 6. HANDLE SAVE FOR LATER ---
     async def handle_save_cart(self, payload: dict):

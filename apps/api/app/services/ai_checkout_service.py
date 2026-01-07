@@ -231,7 +231,7 @@ class AICheckoutService:
 
                 # 4. Notify UI: Phase 1 (Confirmation)
                 await self._send_to_ui(user_id, {
-                    "content": f"Payment Secured! Order #{order.id} is confirmed. Engaging Drone Rotors... 🚁",
+                    "content": f"Payment Secured! Order #{order.id} is confirmed. airaero X on his way.",
                     "type": "success_text",
                     "sound": "drone_takeoff" # Frontend hint for audio effect
                 })
@@ -345,9 +345,8 @@ class AICheckoutService:
         })
         
         # 4. User Feedback
-        msg = f"Order #{order_id} discarded." if order_cancelled else "Session discarded."
+        msg = f"Order #{order_id} discarded." if order_cancelled else "Your order is canceled."
         await self._send_to_ui(user_id, {
-            "content": f"{msg} Manifest cleared.",
             "type": "info" 
         })
     async def _send_error(self, user_id: int, message: str):

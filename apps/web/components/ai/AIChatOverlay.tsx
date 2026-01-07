@@ -355,9 +355,8 @@ const AIReasoning = React.memo(({ text }: { text: string }) => (
     <motion.div
         initial={{ opacity: 0, height: 0, scale: 0.95 }}
         animate={{ opacity: 1, height: 'auto', scale: 1 }}
-        className="flex items-start gap-3 p-4 mt-4 bg-[#0A1116] border border-cyan-900/50 rounded-2xl max-w-lg relative overflow-hidden"
+        className="flex items-start gap-3 mt-4 max-w-lg relative"
     >
-        <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" />
         <div className="absolute -right-4 -top-4 w-16 h-16 bg-cyan-500/10 blur-xl rounded-full" />
         <div>
             <span className="block text-[10px] font-black text-cyan-300 tracking-widest mb-1">vision by air</span>
@@ -1195,7 +1194,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617]/40 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
+                        className="w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617]/80 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
                     >
                        
                         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />

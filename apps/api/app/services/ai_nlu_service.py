@@ -154,7 +154,7 @@ class AINLUService:
                     await self._send_to_ui(user_id, {
                         "content": "You still have items in your manifest. Ready to proceed?",
                         "type": "confirmation_prompt",
-                        "options": ["Confirm Order", "Keep Shopping"]
+                        "options": ["Confirm Order"]
                     })
 
         except Exception as e:

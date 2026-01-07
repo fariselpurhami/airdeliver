@@ -636,30 +636,65 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     restoreCheckout: () => {
         const { recoveryOrderDetails } = get();
         if (!recoveryOrderDetails) return;
-        set({ isOverlayVisible: true, recoveryMode: false, paymentDetails: recoveryOrderDetails, recoveryOrderDetails: null });
+
+        set(produce((state: AIOrderingState) => {
+            // 💎 1. تنظيف: شيل رسالة الاختيارات عشان متبقاش ظاهرة ورا الـ Overlay
+            state.messages = state.messages.filter(m => m.contentType !== 'recovery_prompt');
+
+            // 2. تفعيل: افتح الـ Overlay ورجع بيانات الدفع
+            state.isOverlayVisible = true;
+            state.recoveryMode = false;
+            state.paymentDetails = recoveryOrderDetails;
+            state.recoveryOrderDetails = null;
+        }));
     },
 
     setRecoveryReason: (reason) => set({ recoveryReason: reason }),
 
     saveForLater: () => {
+        // إرسال الأمر للسيرفر
         get()._sendInternalCommand('__INTERNAL_SAVE_FOR_LATER__');
+        
+        // تنظيف السلة
         get().clearCart();
-        set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null });
+        
+        // 💎 التعديل: مسح رسالة الأزرار وتصفير الحالة
+        set(produce((state: AIOrderingState) => {
+            // 1. مسح الرسالة اللي فيها الأزرار عشان تختفي من الشات
+            state.messages = state.messages.filter(m => m.contentType !== 'recovery_prompt');
+
+            // 2. تصفير باقي الحالات
+            state.recoveryMode = false;
+            state.recoveryOrderDetails = null;
+            state.paymentDetails = null;
+        }));
     },
 
     hardCancelOrder: (reason) => {
-        const { recoveryOrderDetails, socket } = get();
+        const { recoveryOrderDetails } = get();
         const sanitizedReason = (typeof reason === 'string' && reason) ? reason : 'changed_mind';
         
-        // Use offline queue if socket is down, don't just return
-        get()._sendInternalCommand('__CANCEL__', {
+        // 1. إرسال الأمر للسيرفر
+        get()._sendInternalCommand('__CANCEL__', { 
             type: 'CANCEL_INTENT',
             message: { orderId: recoveryOrderDetails?.orderId, reason: sanitizedReason }
         }, true);
 
-        set({ recoveryMode: false, recoveryOrderDetails: null, paymentDetails: null, isProcessing: false });
-    },
+        // 2. تحديث الحالة (لاحظ إقفال الأقواس هنا)
+        set(produce((state: AIOrderingState) => {
+            // مسح الرسالة
+            state.messages = state.messages.filter(m => m.contentType !== 'recovery_prompt');
+            
+            // تعديل القيم مباشرة على state (بدون set داخلية)
+            state.recoveryMode = false;
+            state.recoveryOrderDetails = null;
+            state.paymentDetails = null;
+            state.isProcessing = false;
+        })); 
+    }, // <--- 🔴 دي الفاصلة اللي كانت تايهة منك وقوس إغلاق الدالة
 
-    cancelPaymentIntent: async () => { get().hardCancelOrder(get().recoveryReason); },
+    cancelPaymentIntent: async () => { 
+        get().hardCancelOrder(get().recoveryReason); 
+    },
   })
 );
