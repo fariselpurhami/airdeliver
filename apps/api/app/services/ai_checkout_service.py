@@ -347,6 +347,7 @@ class AICheckoutService:
         # 4. User Feedback
         msg = f"Order #{order_id} discarded." if order_cancelled else "Your order is canceled."
         await self._send_to_ui(user_id, {
+            "content": f"{msg} Cart is cleared.",
             "type": "info" 
         })
     async def _send_error(self, user_id: int, message: str):

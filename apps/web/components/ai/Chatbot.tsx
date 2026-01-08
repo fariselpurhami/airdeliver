@@ -95,8 +95,7 @@ const TypingIndicator = memo(() => (
         exit={{ opacity: 0 }}
         className="flex items-center gap-3 mb-4"
     >
-      <div className="flex items-center gap-2 px-4 py-3 bg-black/40 border border-white/5 rounded-2xl rounded-tl-none">
-        <span className="text-[10px] text-cyan-500 font-bold tracking-widest animate-pulse">PROCESSING</span>
+      <div className="flex items-center gap-2 px-5 py-4 bg-black/40 border border-white/5 rounded-full rounded-tl-none">
         <div className="flex gap-1">
             <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, repeat: Infinity }} />
             <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, delay: 0.2, repeat: Infinity }} />
@@ -224,9 +223,9 @@ export default function Chatbot() {
                         <header className="px-6 py-5 border-b border-white/5 flex justify-between items-center flex-shrink-0 bg-black/20 backdrop-blur-md relative z-10">
                             <div>
                                 <h3 className="font-bold text-lg tracking-tight flex items-center gap-2 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                                    <Terminal size={18} className="text-cyan-400" />
+                               
                                     <motion.span
-                                        className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400"
+                                        className="text-transparent bg-clip-text bg-gradient-to-r text-white"
                                         animate={{ opacity: [0.8, 1, 0.8] }}
                                         transition={{ duration: 4, repeat: Infinity }}
                                     >
@@ -234,8 +233,6 @@ export default function Chatbot() {
                                     </motion.span>
                                 </h3>
                                 <div className="flex items-center gap-2 pl-7">
-                                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_5px_#22c55e]" />
-                                     <span className="text-[10px] text-cyan-500/70 font-mono tracking-widest uppercase">System Online</span>
                                 </div>
                             </div>
                             

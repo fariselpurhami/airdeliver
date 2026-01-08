@@ -230,7 +230,7 @@ class AICartService:
 
             # 4. Notify UI (This unfreezes the frontend)
             await self._send_to_ui(user_id, {
-                "content": "Manifest archived securely. You can restore it from your profile.",
+                "content": "Done! You can restore it from your profile.",
                 "type": "success_text"
             })
             
@@ -383,7 +383,7 @@ class AICartService:
             "type": "cart_preview",
             "reason": "Clear Command"
         })
-        
-        # D. Optional Notification
+
         if payload.get("notify_user", False):
-            await self._send_to_ui(user_id, {"content": "Cart cleared.", "type": "success_text"})
+
+            pass

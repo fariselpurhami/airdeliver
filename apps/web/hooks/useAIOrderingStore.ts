@@ -547,7 +547,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
             set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
         }
 
-        const newFlyItem: FlyItem = {
+	const newFlyItem: FlyItem = {
             animationId: `${product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             productId: product.id,
             image: product.image_url || product.image,

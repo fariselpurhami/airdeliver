@@ -865,7 +865,6 @@ const TypingIndicator = React.memo(() => (
     >
     
       <div className="flex items-center gap-2 px-5 py-4 bg-black/40 border border-white/5 rounded-full rounded-tl-none">
-        <span className="text-[10px] text-cyan-500 font-bold tracking-widest animate-pulse">ANALYZING</span>
         <div className="flex gap-1">
             <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, repeat: Infinity }} />
             <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, delay: 0.2, repeat: Infinity }} />
@@ -910,7 +909,7 @@ const FlyToCartAnimator = React.memo(() => {
           return (
             <motion.div
               key={item.animationId} 
-              className="fixed z-[9999] rounded-full overflow-hidden border-2 border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.8)]"
+              className="fixed z-[9999] rounded-full overflow-hidden border-[1px] border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.8)]"
               style={{ 
                   position: 'fixed',
                   top: 0,
@@ -918,31 +917,31 @@ const FlyToCartAnimator = React.memo(() => {
                   pointerEvents: 'none'
               }}
               initial={{ 
-                  x: startRect.left, 
-                  y: startRect.top, 
-                  width: startRect.width, 
-                  height: startRect.height, 
+                  x: startRect.left + (startRect.width / 2),
+                  y: startRect.top + (startRect.height / 2),
+                  width: 40,
+                  height: 40,
                   opacity: 1,
                   scale: 1 
               }}
               animate={{ 
-                  x: endPos.left - 10, // Slight offset to hit icon center
-                  y: endPos.top - 10, 
-                  width: 30, 
-                  height: 30, 
-                  opacity: 0,
-                  scale: 0.5,
-                  rotate: 360
+                  x: endPos.left - 5, // Slight offset to hit icon center
+                  y: endPos.top - 5, 
+                  width: 6, 
+                  height: 6, 
+                  opacity: 0.8,
+                  scale: 0.3,
+                  rotate: 720
               }}
               transition={{ 
                   type: "spring", 
-                  stiffness: 55, 
-                  damping: 15,
-                  mass: 0.8
+                  stiffness: 70, 
+                  damping: 20,
+                  mass: 0.5
               }}
               onAnimationComplete={() => removeFlyItem(item.animationId)}
             >
-              <Image src={imageSource} alt="product" width={100} height={100} className="w-full h-full object-cover" priority />
+              <Image src={imageSource} alt="product" width={20} height={20} className="w-full h-full object-cover" priority />
             </motion.div>
           );
       })}
@@ -1168,7 +1167,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                 >
                    
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
-                    <FlyToCartAnimator /> 
+		    <FlyToCartAnimator />
 		    <AnimatePresence>
                         {detailProduct && (
                             <motion.div
@@ -1203,7 +1202,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-black/20 backdrop-blur-sm">
                             <h3 className="font-bold text-2xl normal-case tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 <motion.span
-                                    className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400"
+                                    className="text-transparent bg-clip-text bg-gradient-to-r text-white"
                                     animate={{
                                         textShadow: [
                                             '0 0 10px rgba(6,182,212,0)',

@@ -1506,6 +1506,51 @@ class AINLUService:
             except Exception as e:
                 logger.warning(f"Behavior Engine Telemetry Glitch: {e}")
 
+        async def fetch_row_1_personal():
+            # Row 1: Personalized
+            async with SessionLocal() as session:
+                return await self.search_engine.get_fresh_homepage_matrix(session, user_id, seen_ids, spending_tier)
+
+        async def fetch_row_2_bestsellers():
+            # Row 2: Best Sellers
+            async with SessionLocal() as session:
+                try:
+                    statement = select(Product).order_by(col(Product.rating).desc()).limit(8)
+                    return (await session.exec(statement)).all()
+                except: return []
+
+        async def fetch_row_3_trending():
+            # Row 3: Trending Now
+            async with SessionLocal() as session:
+                try:
+                    statement = select(Product).limit(40)
+                    pool = (await session.exec(statement)).all()
+                    if pool:
+                        import random
+                        return random.sample(pool, min(len(pool), 8))
+                    return []
+                except: return []
+
+        async def fetch_row_4_smart_deals():
+            # Row 4: Smart Deals
+            async with SessionLocal() as session:
+                try:
+                    statement = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
+                    return (await session.exec(statement)).all()
+                except: return []
+
+        results = await asyncio.gather(
+            fetch_row_1_personal(),
+            fetch_row_2_bestsellers(),
+            fetch_row_3_trending(),
+            fetch_row_4_smart_deals(),
+            return_exceptions=True
+        )
+
+        
+        products_personal = results[0] if not isinstance(results[0], Exception) else []
+        
+
         # 2. 🏗️ CONSTRUCTING THE MATRIX (PARALLEL EXECUTION)
         # We launch 4 parallel operations to fetch data for all rows simultaneously.
         
