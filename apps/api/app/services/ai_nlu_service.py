@@ -1222,9 +1222,15 @@ class AINLUService:
             import re
 
             raw_text = str(ai_response_text)
-            clean_content = raw_text.replace('\r', '')
-            clean_content = re.sub(r'[^\w\s\u0600-\u06FF\.,!?:;\-\(\)\[\]%\$£€\u2022\'’]', '', clean_content)
-            clean_content = clean_content.strip()
+            clean_content = " ".join(raw_text.split())
+        
+            clean_content = re.sub(
+                r'[^\w\s\u0600-\u06FF\.,!?:;\-\(\)\[\]%\$£€\u2022\'’"/+]', 
+                ' ',  # 👈 التغيير الجوهري: استبدال بمسافة وليس حذف
+                clean_content
+            )
+            clean_content = re.sub(r'(?<=[.,;?!])(?=[^\s])', r' ', clean_content)
+            clean_content = " ".join(clean_content.split())
 
             payload = {
                 "content": clean_content,
@@ -1504,8 +1510,9 @@ class AINLUService:
         - Example: "Since you mentioned you hate black, I pulled this White edition for you."
         2. **BRIDGE THE GAP**: Link user's query to the product's feature.
         3. **MICRO-COPY**: Max 40 words. Punchy and persuasive.
-        4. **KILL THE ROBOT**: No "Here is..." or "I found...".
-        5. **ONE EMOJI**: Use strategic placement.
+        4. **GRAMMAR FLOW**: Ensure grammatical coherence using complete linking phrases. Do not omit verbs for brevity.
+        5. **KILL THE ROBOT**: No "Here is..." or "I found...".
+        6. **ONE EMOJI**: Use strategic placement.
     
         TONE:
         - If user is casual -> Be a cool friend.

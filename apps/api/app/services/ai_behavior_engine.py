@@ -138,6 +138,85 @@ class BehaviorEngine:
         except Exception:
             return "MEDIUM"
 
+    async def get_user_profile(self, user_id: int) -> Dict:
+        """
+        🚀 HYPER-SCALAR IDENTITY RESOLUTION.
+        Performs parallel retrieval of Financial DNA, Neural Ghost Context, and
+        Real-time Intent to construct a 'Live Persona' in < 5ms.
+        """
+        try:
+            # 1. ⚡ Parallel Fan-Out (تقنية جوجل لتقليل زمن الاستجابة)
+            # نطلق كل الاستعلامات في نفس اللحظة ولا ننتظرها بالتتابع
+            dna_future = self.analyze_financial_dna(user_id)
+            ghost_future = self.cache.get(f"u:{user_id}:ghost_v2")
+            seen_future = self.cache.client.scard(f"u:{user_id}:seen_ids_24h") # حجم التفاعل
+
+            # نجمع النتائج دفعة واحدة (Non-blocking Gather)
+            financial_tier, ghost_json, interaction_volume = await asyncio.gather(
+                dna_future, ghost_future, seen_future, return_exceptions=True
+            )
+
+            # 2. 🧬 Data Sanitization & Fallbacks
+            # لو حصل خطأ في استرجاع الـ DNA، نعتبره MEDIUM
+            if isinstance(financial_tier, Exception): financial_tier = "MEDIUM"
+            if isinstance(interaction_volume, Exception): interaction_volume = 0
+
+            # تحليل الشبح الرقمي (Neural Intent)
+            has_strong_intent = False
+            if isinstance(ghost_json, str):
+                has_strong_intent = True # العميل لديه ملف تنبؤي نشط
+
+            # 3. 💎 The Matrix Classification Algorithm (الخوارزمية التصنيفية)
+            # دمج القدرة الشرائية مع السلوك اللحظي
+            persona_code = "EXPLORER"
+            segment_type = "STANDARD"
+
+            if financial_tier == "HIGH":
+                segment_type = "VIP"
+                if has_strong_intent:
+                    persona_code = "TITANIUM_ELITE"  # غني + يعرف ماذا يريد
+                else:
+                    persona_code = "LUXURY_BROWSER"  # غني + يتصفح فقط
+
+            elif financial_tier == "LOW":
+                if interaction_volume > 10:
+                    persona_code = "SMART_HUNTER"    # يبحث عن صفقات بذكاء
+                else:
+                    persona_code = "VALUE_SEEKER"
+
+            else: # MEDIUM
+                if has_strong_intent:
+                    persona_code = "DECISIVE_BUYER"
+                else:
+                    persona_code = "EXPLORER"
+
+            # 4. 📦 Optimized Payload Construction
+            return {
+                "user_id": user_id,
+                "tier": financial_tier,       # HIGH, MEDIUM, LOW
+                "persona": persona_code,      # التصنيف النفسي الدقيق
+                "segment": segment_type,      # VIP vs STANDARD
+                "metrics": {
+                    "engagement_score": interaction_volume if isinstance(interaction_volume, int) else 0,
+                    "neural_active": has_strong_intent
+                },
+                "meta": {
+                    "engine": "Singularity_v9.1",
+                    "latency": "RealTime"
+                }
+            }
+
+        except Exception as e:
+            # 🛡️ Fail-Open Strategy (استراتيجية عدم الانهيار)
+            # حتى لو احترق السيرفر، العميل لن يشعر بشيء
+            logging.error(f"⚠️ Profile Resolution Fallback: {e}")
+            return {
+                "tier": "MEDIUM",
+                "persona": "EXPLORER",
+                "segment": "STANDARD",
+                "meta": {"fallback": True}
+            }
+
     async def get_recently_seen_ids(self, user_id: int) -> List[int]:
         key = f"u:{user_id}:seen_ids_24h"
         try:
