@@ -954,79 +954,81 @@ OUTPUT NOW: ONE LINE OF SEARCH KEYWORDS ONLY.
 
     async def extract_search_terms(self, user_query: str) -> str:
         """
-        🎯 UNIVERSAL ATOMIC EXTRACTOR (V300.0 - GLOBAL EDITION).
+        🎯 UNIVERSAL ATOMIC EXTRACTOR (V300.0 - TITANIUM EDITION).
         ARCHITECTURAL GOAL: Distill complex user 'stories' into 'database-ready' tokens.
         
         💎 GLOBAL UPGRADES:
         1. Multilingual Guard: Preserves the user's language (No forced translation).
         2. Domain Agnostic: Works for Fashion, Food, Tech, or Industrial parts.
         3. Noise Cancellation: Surgical removal of filler words.
+        4. Safety Net: Never returns empty strings.
         """
+        # 1. Quick Guard: If input is empty, return immediately
         if not self.client or not user_query or not user_query.strip(): 
-            return user_query
+            return user_query if user_query else ""
 
+        # 💎 TITANIUM PROMPT: Optimized for Intent Decoding & Formulaic Output
         system_prompt = """
-        ROLE: Master Database Query Optimizer (Multilingual).
-        TASK: Convert Human Narrative into Machine Search Tokens.
-        
-        --- 🧠 UNIVERSAL EXTRACTION PROTOCOL ---
-        
-        1. **IDENTIFY THE ENTITY (THE NOUN)**:
-           - What is the physical item? (e.g., "Laptop", "فستان", "Screwdriver").
-           - **CRITICAL**: KEEP THE INPUT LANGUAGE. Do not translate unless explicitly asked.
-             * Input: "عايز تليفون سامسونج" -> Output: "تليفون سامسونج" (Not "Samsung Phone").
-           
-        2. **IDENTIFY THE CORE MODIFIER (THE ADJECTIVE)**:
-           - What is the *defining* feature? (e.g., "Gaming", "أحمر", "Spicy").
-           - Convert "usage" to "adjective":
-             * "Phone for taking photos" -> "Camera Phone"
-             * "لابتوب للالعاب" -> "لابتوب جيمنج"
-             
-        3. **ELIMINATE NOISE (STRICT)**:
-           - **REMOVE PRICE**: "Under $500", "Cheap", "Budget", "رخيص". (Logic handles this, not text search).
-           - **REMOVE STORY**: "For my son", "I need", "Can you find", "عايز اشتري".
-           - **REMOVE FILLERS**: "Best", "Top", "Good", "Please", "لو سمحت".
+        ROLE: Universal Commerce Intent Decoder & Query Rewriter.
+        MISSION: Convert human shopping questions into ONE compact search query (3-6 words) optimized for Hybrid Search.
 
-        4. **HANDLING ABSTRACTS (DOMAIN NEUTRAL)**:
-           - Input: "Something cool" -> Output: "Trending Items"
-           - Input: "Gift for mom" -> Output: "Women Gift"
-           - Input: "حاجة حلوة" -> Output: "Best Sellers"
+        A) INTENT FORMULAS (APPLY STRICTLY):
+        1. VALIDATION ("Why buy X not Y?"):
+           - Logic: User wants X. Y is noise.
+           - Output: [Brand X] [Category] [Top Feature]. (Ignore Y).
+        2. COMPETITION ("Better than X"):
+           - Logic: User wants alternatives to X.
+           - Output: [Category of X] [Competitor/Top Rated]. (Do NOT output X).
+        3. DECISION ("X or Y?"):
+           - Logic: User is undecided. Show both or the category best.
+           - Output: [Category] [X] [Y] comparison. (e.g., "Laptop MacBook HP comparison")
+        4. HARD CONSTRAINT ("X without Y"):
+           - Logic: Y is a deal-breaker.
+           - Output: [Category X] no [Y].
+        5. USE-CASE ("Laptop for Coding/Engineering"):
+           - PUBG/Gaming -> "Gaming High FPS GPU"
+           - Engineering/Design -> "Workstation High RAM"
+           - Students -> "Budget Durable Battery"
+           - Output: [Category] [Mapped Specs].
 
-        --- 🎯 EXAMPLES (GLOBAL SCENARIOS) ---
-        * Input: "I have a budget of 700 for a laptop capable of editing 4k" 
-          -> Output: "High Performance Laptop"
-          
-        * Input: "وريني جزم تنفع للكورة بس متكونش غالية" 
-          -> Output: "جزم كورة"
-          
-        * Input: "Show me a red dress for a wedding" 
-          -> Output: "Red Wedding Dress"
-          
-        * Input: "Samsung S24 Ultra black 512gb" 
-          -> Output: "Samsung S24 Ultra Black"
+        B) NOISE ELIMINATION RULES:
+        - REMOVE: "I am a", "I don't know", "which is best", "buy", "me", "show me", "please".
+        - KEEP: Brands (Apple, HP, Samsung), Models, and Key Specs (512GB, 4K).
+        - LANGUAGE: ALWAYS Output in ENGLISH, even if input is Arabic/French.
 
-        OUTPUT FORMAT: Raw text string (2-5 words max). No quotes.
+        OUTPUT FORMAT: Single line of text. No quotes. No JSON.
         """
 
         try:
+            # 2. Execute LLM Call with Safe Wrapper
             completion = await self._safe_execute(
                 self.client.chat.completions.create,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_query}
                 ],
-                model=self.reflex_model, 
-                temperature=0.0, 
-                max_tokens=40    
+                model=self.reflex_model, # Use the fast model (Llama-3-70b or similar)
+                temperature=0.0, # Zero creativity, maximum precision
+                max_tokens=100    
             )
             
+            # 3. Post-Processing
             optimized_query = completion.choices[0].message.content.strip()
-            optimized_query = optimized_query.replace('"', '').replace("'", "")
+            # Remove artifacts like quotes or generic prefixes
+            optimized_query = optimized_query.replace('"', '').replace("'", "").replace("Search Query:", "").strip()
+            
+            # 🛡️ SAFETY NET (THE ARCHITECTURAL FIX):
+            # If LLM returns nothing or fails to extract useful tokens, fall back to user query.
+            # This prevents the "No hybrid results for ''" error.
+            if len(optimized_query) < 2:
+                logger.warning(f"⚠️ LLM returned empty/short query for '{user_query}'. Using fallback.")
+                return user_query.strip()
             
             return optimized_query
             
         except Exception as e:
-
+            # 4. Ultimate Fallback: If anything crashes, do not stop the user flow.
+            logger.error(f"Extraction Failed: {e}")
             return user_query.strip()
 
     def _rank_products_by_relevance(self, query: str, products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

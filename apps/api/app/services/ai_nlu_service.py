@@ -57,7 +57,86 @@ class AINLUService:
         self.min_intent_confidence = 0.75 # حد الثقة للمطابقة المتجهية
 
 
+    async def _append_to_memory(
+        self, 
+        user_id: int, 
+        role: str, 
+        content: str, 
+        intent: str = "general"
+    ):
+        """
+        🔥 WRITES TO THE ETERNAL SCROLL (REDIS LIST).
+        Saves precise metadata: Timestamp, Intent, and Role.
+        Architecture: First-In-Last-Out (Stack) managed as a Sliding Window.
+        """
+        try:
+            key = f"chat_history:{user_id}"
+            
+            # 1. التغليف الذكي (Smart Encapsulation)
+            # لا نخزن نصاً فقط، بل نخزن "حدثاً" (Event)
+            memory_packet = {
+                "r": role,           # u=user, a=assistant (Short keys to save RAM)
+                "c": content.strip(),# The payload
+                "t": datetime.now().isoformat(), # Temporal anchor
+                "i": intent          # The detected intent (e.g., 'buy_laptop')
+            }
+            
+            # 2. الضغط والتخزين (Serialization)
+            # نستخدم JSON لأنه الأسرع والأكثر توافقاً
+            payload = json.dumps(memory_packet)
+            
+            # 3. الحقن الذري (Atomic Injection)
+            # نستخدم Pipeline لضمان أن الإضافة والقص يحدثان في نبضة واحدة
+            pipeline = self.cache.client.pipeline()
+            pipeline.lpush(key, payload)   # ادفع في المقدمة
+            pipeline.ltrim(key, 0, 29)     # احتفظ بآخر 30 رسالة فقط (Sliding Window)
+            pipeline.expire(key, 86400)    # الذاكرة تموت بعد 24 ساعة (Session Scope)
+            await pipeline.execute()       # نفذ الأمر كطلقة واحدة
+            
+        except Exception as e:
+            # الذاكرة مهمة، لكن لا يجب أن توقف النظام إذا فشلت
+            logger.error(f"💀 Memory Injection Failed: {e}")
 
+    async def _get_conversation_context(self, user_id: int, limit: int = 5) -> str:
+        """
+        �� READS FROM THE ETERNAL SCROLL.
+        Reconstructs the timeline in a format that makes the LLM feel "Omniscient".
+        """
+        try:
+            key = f"chat_history:{user_id}"
+            
+            # 1. استحضار الأرواح (Fetch Raw Data)
+            # نسحب ضعف العدد المطلوب لضمان وجود سياق كافٍ
+            raw_data = await self.cache.client.lrange(key, 0, limit * 2)
+            
+            if not raw_data:
+                return ""
+
+            # 2. إعادة بناء الزمن (Timeline Reconstruction)
+            # البيانات تأتي (أحدث -> أقدم)، يجب عكسها لتصبح (أقدم -> أحدث)
+            timeline = []
+            for packet in raw_data:
+                try:
+                    event = json.loads(packet)
+                    role_label = "Customer" if event['r'] == 'u' else "Agent"
+                    # تحويل الوقت لصيغة مقروءة للبشر (اختياري للذكاء الزائد)
+                    # ts = datetime.fromisoformat(event['t']).strftime("%H:%M") 
+                    # timeline.append(f"[{ts}] {role_label}: {event['c']}")
+                    timeline.append(f"{role_label}: {event['c']}")
+                except: continue
+
+            # نعكس القائمة لنقرأ القصة من البداية
+            timeline.reverse()
+            
+            # 3. الصياغة الدرامية (Prompt Engineering)
+            # نحول القائمة لنص واحد متماسك يقرأه الـ LLM
+            conversation_script = "\n".join(timeline)
+            
+            return conversation_script
+
+        except Exception as e:
+            logger.warning(f"⚠️ Memory Recall Failed: {e}")
+            return ""
     async def _perform_devilish_recovery(self, user_id: int, removed_pid: int):
         """
         😈 THE GREAT DEVIL ALGORITHM V2.0 (PSYCHOLOGICAL WARFARE EDITION).
@@ -205,13 +284,63 @@ class AINLUService:
 
     async def _get_user_dna(self, user_id: int) -> dict:
         """
-        🧬 Extracts User Financial DNA from Behavior Engine.
-        Used to customize product sorting and price perception.
+        🧬 FINANCIAL DNA EXTRACTOR (V2.0 - FAULT TOLERANT).
+        Architectural Pattern: Cache-Aside with Circuit Breaker Fallback.
+        
+        Logic:
+        1. Try Hot Cache (Redis/Memory) -> Zero Latency.
+        2. Try Behavior Engine (Deep Analysis).
+        3. Fallback to 'Cold Start' Persona if Engine fails/timeouts.
         """
-        if not self.behavior_engine:
-            return {"tier": "MEDIUM", "persona": "explorer"}
-        return await self.behavior_engine.get_user_profile(user_id)
+        # 1. ⚡ Hot Cache Layer (Save DB hits)
+        # نخزن البروفايل لمدة 5 دقائق (300 ثانية) لأن الشخصية المالية لا تتغير كل ثانية
+        cache_key = f"dna:profile:{user_id}"
+        try:
+            # نحاول القراءة من الكاش أولاً (أسرع 100 مرة)
+            if hasattr(self.cache, 'get_json'): # التأكد من وجود دالة JSON
+                cached_profile = await self.cache.get_json(cache_key)
+                if cached_profile:
+                    return cached_profile
+        except Exception:
+            pass # فشل الكاش لا يجب أن يوقفنا
 
+        # 2. 🛡️ Safe Engine Execution (Circuit Breaker Logic)
+        default_dna = {"tier": "MEDIUM", "persona": "explorer", "source": "fallback"}
+        
+        try:
+            # التحقق المعماري (Dependency Check)
+            if not self.behavior_engine:
+                return default_dna
+
+            # التحقق من صحة الدالة (Attribute Check)
+            if not hasattr(self.behavior_engine, 'get_user_profile'):
+                logger.warning(f"⚠️ Behavior Engine missing 'get_user_profile' for user {user_id}")
+                return default_dna
+
+            # التنفيذ مع مهلة زمنية (Timeout Guard)
+            # لا ننتظر المحرك لأكثر من 1 ثانية، الشات أهم من التحليل العميق
+            user_profile = await asyncio.wait_for(
+                self.behavior_engine.get_user_profile(user_id), 
+                timeout=1.0 
+            )
+
+            # 3. 💾 Cache Write-Back (تحديث الكاش للمستقبل)
+            if user_profile and isinstance(user_profile, dict):
+                user_profile['source'] = 'engine' # للتتبع
+                try:
+                    if hasattr(self.cache, 'set_json'):
+                        await self.cache.set_json(cache_key, user_profile, ttl=300)
+                except: pass
+                
+                return user_profile
+
+        except asyncio.TimeoutError:
+            logger.warning(f"⏳ Behavior Engine Timed Out for user {user_id}. Using fallback.")
+        except Exception as e:
+            logger.error(f"💥 Critical DNA Failure: {e}")
+        
+        # 4. 🏳️ Ultimate Fallback (لو الدنيا خربت خالص)
+        return default_dna
     def _get_time_aware_greeting(self, tier: str = "MEDIUM") -> str:
         """
         🧠 Generates a Neuro-Adaptive Greeting based on Time & Spending Power.
@@ -680,36 +809,42 @@ class AINLUService:
         # =========================================================
         # يدعم: "No dell, hp or lenovo" - "I hate apple and samsung"
         
+        comparison_markers = ["why", "better", " vs ", "compare", "difference", "which", "ليه", "أحسن", "مقارنة", "الفرق"]
+        is_comparison_mode = any(marker in lower_text for marker in comparison_markers)
+
         negation_triggers = [
             "no", "not", "exclude", "without", "don't want", "hate", 
             "don't like", "dislike", "avoid", "never", "except"
         ]
         
-        for trigger in negation_triggers:
-            if trigger in lower_text:
+        if not is_comparison_mode:
+             for trigger in negation_triggers:
+                 if trigger in lower_text:
                 # بياخد كل الكلام اللي بعد كلمة النفي لحد ما يقابل نقطة أو كلمة "لكن"
-                pattern = rf'{trigger}\s+([a-zA-Z0-9_\-\s,]+)' 
-                match = re.search(pattern, lower_text)
+                     pattern = rf'{trigger}\s+([a-zA-Z0-9_\-\s,]+)' 
+                     match = re.search(pattern, lower_text)
                 
-                if match:
-                    raw_segment = match.group(1)
+                     if match:
+                         raw_segment = match.group(1)
                     # علامات التوقف عشان منمسحش الجملة كلها
-                    stop_markers = [".", " but ", " however ", " and i ", " my ", " i "]
-                    for marker in stop_markers:
-                        if marker in raw_segment:
-                            raw_segment = raw_segment.split(marker)[0]
+                         stop_markers = [".", " but ", " however ", " and i ", " my ", " i "]
+                         for marker in stop_markers:
+                             if marker in raw_segment:
+                                 raw_segment = raw_segment.split(marker)[0]
                     
                     # تقسيم القائمة الممنوعة
-                    bad_candidates = re.split(r'\s+(?:or|and|,)\s+|\s*,\s*', raw_segment)
+                         bad_candidates = re.split(r'\s+(?:or|and|,)\s+|\s*,\s*', raw_segment)
                     
-                    for bad_word in bad_candidates:
-                        clean_bad = bad_word.strip()
+                         for bad_word in bad_candidates:
+                             clean_bad = bad_word.strip()
                         # فلترة الكلمات التافهة (stopwords)
-                        if len(clean_bad) > 2 and clean_bad not in ["the", "a", "an", "products", "items", "brands"]:
-                            constraints["excluded_keywords"].append(clean_bad)
+                             if len(clean_bad) > 2 and clean_bad not in ["the", "a", "an", "products", "items", "brands"]:
+                                 constraints["excluded_keywords"].append(clean_bad)
                             # إزالة الكلمة الممنوعة من نص البحث الأصلي
-                            constraints["clean_query"] = re.sub(rf'\b{re.escape(clean_bad)}\b', '', constraints["clean_query"], flags=re.IGNORECASE)
-
+                                 constraints["clean_query"] = re.sub(rf'\b{re.escape(clean_bad)}\b', '', constraints["clean_query"], flags=re.IGNORECASE)
+        
+        else:
+            logger.info("🚫 Negation Layer Skipped: Comparison Context Detected.")
         # =========================================================
         # ⚙️ LAYER 4: TECH SPEC SCANNER (قارئ المواصفات)
         # =========================================================
@@ -748,6 +883,25 @@ class AINLUService:
 
         return constraints
     
+    async def _get_conversation_context(self, user_id: int, limit: int = 4) -> str:
+        """
+        استرجاع آخر الرسائل من الذاكرة (Redis) لبناء سياق المحادثة.
+        """
+        try:
+            # مفتاح الذاكرة في Redis (نفس المفتاح المستخدم في useAIOrderingStore)
+            # سنفترض وجود مفتاح chat_history:{user_id} أو نعتمد على تخزين مؤقت
+            # بما أننا لا نملك كود تخزين الشات، سنقوم بمحاكاة ذكية أو استرجاع بسيط
+
+            # هنا سنستخدم الـ Cache لاسترجاع آخر تفاعل إذا كنت تخزنه
+            # إذا لم يكن هناك تخزين حالي، نعيد نصاً فارغاً لتفادي الخطأ مؤقتاً
+            # حتى نبني نظام الذاكرة الكامل.
+
+            return "" # حالياً نرجع فارغ لمنع الـ Crash، وسنفعل الذاكرة لاحقاً
+
+        except Exception as e:
+            logger.warning(f"⚠️ Memory Retrieval Failed: {e}")
+            return ""
+
     async def process_message(self, message_payload: dict):
         """
         🚀 OMNI-CHANNEL ORCHESTRATOR (Universal Fortified V9.0).
@@ -815,6 +969,8 @@ class AINLUService:
             # 🛡️ Fail-Open Protocol
             # في أسوأ الظروف، نكمل المعالجة لضمان عدم توقف الشات
             logger.warning(f"⚠️ Idempotency Layer Bypass: Wrapper limitation ({e}). Processing anyway.")
+        
+        await self._send_to_ui(user_id, {"content": None, "type": "typing"})
 
         # 🛡️ GUARD 2: Internal Signal & Payload Filter
         if message_text.startswith("__") or "INTERNAL" in message_text:
@@ -849,6 +1005,12 @@ class AINLUService:
         # 🔀 Intent Merging: لو ترحيب ومعاه رسالة، ندمجهم
         if msg_type == "WELCOME_INTENT" and message_text:
             logger.info("🔀 Merging Welcome into User Query.")
+
+        try:
+            if hasattr(self, '_append_to_memory'):
+                await self._append_to_memory(user_id, "u", message_text, intent="query")
+        except Exception: pass
+
 
         await self._send_to_ui(user_id, {"content": None, "type": "typing"})
 
@@ -919,13 +1081,33 @@ class AINLUService:
                 if not candidates:
                     candidates = await self.search_engine.perform_hybrid_search_pure(self.db, "Trending Collections")
 
-        # 🅱️ المسار الثاني: البحث القياسي مع الفلاتر (STANDARD SEARCH)
+        # 🅱️ المسار الثاني: البحث القياسي مع الفلاتر (STANDARD SEARCH
         else:
-            # 1. استخراج الفلاتر
-            constraints = self._extract_neuro_constraints(search_query)
-            final_search_query = constraints["clean_query"] if constraints["clean_query"] else search_query
+            # =========================================================
+            # 🧠 AGENTIC REASONING LAYER (العقل المدبر)
+            # =========================================================
+            # إذا كان السؤال معقداً، نستخدم الـ LLM لتبسيطه واستخراج الجوهر
+            if len(search_query.split()) > 4 or "?" in search_query:
+                # نستخدم الدالة الموجودة بالفعل لاستخراج الكلمات المفتاحية بذكاء
+                optimized_query = await self.llm_service.extract_search_terms(search_query)
+
+                if not optimized_query:
+                    optimized_query = search_query
+            else:
+                # لو جملة بسيطة، نستخدمها كما هي
+                optimized_query = search_query
+
+            # =========================================================
+            # ⚙️ EXECUTION LAYER (التنفيذ)
+            # =========================================================
+
+            # 1. استخراج الفلاتر (نطبق الـ Regex والقيود على الاستعلام المحسن)
+            # لاحظ: هنا استخدمنا optimized_query بدلاً من search_query
+            constraints = self._extract_neuro_constraints(optimized_query)
+            final_search_query = constraints["clean_query"] if constraints["clean_query"] else optimized_query
             
             search_filters = {}
+            
             if constraints["price_max"]:
                 search_filters["price_max"] = constraints["price_max"]
             
@@ -976,7 +1158,26 @@ class AINLUService:
                     question=message_text
                 )
             else:
-                ai_response_text = await self._generate_genius_response(user_id, message_text, final_products[0])
+                try:
+                    # ✅ حماية: نتأكد إن الدوال موجودة قبل ما نناديها
+                    chat_context_str = ""
+                    if hasattr(self, '_get_conversation_context'):
+                        chat_context_str = await self._get_conversation_context(user_id)
+                    
+                    if hasattr(self, '_generate_genius_response'):
+                        ai_response_text = await self._generate_genius_response(
+                            user_id=user_id, 
+                            user_query=message_text, 
+                            product=final_products[0],
+                            chat_history=chat_context_str
+                        )
+                    else:
+                        raise AttributeError("Genius response missing")
+                except Exception as e:
+                    # لو حصل أي خطأ، نرجع رد بسيط بدل ما السيستم يقع
+                    logger.warning(f"⚠️ Genius Response Skipped: {e}")
+                    p_name = final_products[0].name if hasattr(final_products[0], 'name') else "this item"
+                    ai_response_text = f"Check out {p_name}, it matches what you are looking for!"
 
         # --- CASE B: STOCKOUT OR VISION RESEARCH (Deep Research DDGS) ---
         elif is_specs_query or base64_image:
@@ -1040,6 +1241,7 @@ class AINLUService:
 
         # حفظ تاريخ المحادثة في الخلفية (Background Task)
         asyncio.create_task(self._save_conversation_turn(user_id, message_text, ai_response_text))
+
     async def _perform_smart_recovery(self, user_query: str):
         """
         💎 UNIVERSAL LOGIC: Zero-Shot Product Analysis.
@@ -1102,16 +1304,13 @@ class AINLUService:
 
             # 3. تنفيذ البحث المتوازي (Parallel Execution)
             # البحث أ: عن الفئة العامة (لإيجاد بدائل من ماركات أخرى)
-            task_alternatives = self.search_engine.perform_hybrid_search_pure(self.db, generic_category)
+            task_alternatives = await self.search_engine.perform_hybrid_search_pure(self.db, generic_category)
             
             # البحث ب: عن الاكسسوارات المقترحة
-            task_accessories = self.search_engine.perform_hybrid_search_pure(self.db, accessories_keywords)
+            task_accessories = await self.search_engine.perform_hybrid_search_pure(self.db, accessories_keywords)
             
-            # تشغيل الاثنين في نفس الوقت للسرعة
-            results = await asyncio.gather(task_alternatives, task_accessories)
-            
-            found_alternatives = results[0]
-            found_accessories = results[1]
+            found_alternatives = task_alternatives
+            found_accessories = task_accessories
             
             # 4. دمج ذكي (Smart Merge)
             # نأخذ أول 3 بدائل + أول 2 اكسسوار
@@ -1245,23 +1444,89 @@ class AINLUService:
         base_key = time_ctx.split()[0] # remove (energetic) suffix if exists
         return random.choice(templates.get(base_key, templates["morning"]))
     
-    async def _generate_genius_response(self, user_id: int, user_query: str, product: Any) -> str:
+    async def _generate_genius_response(self, user_id: int, user_query: str, product: Any, chat_history: str = "") -> str:
         """
-        💎 GENIUS RESPONSE: Context-Aware Product Intro.
+        💎 SOTA GENERATION V2 (THE GOD MODE): 
+         يحول البيانات الجامدة إلى "سحر أسود" بيعي لا يمكن مقاومته.
+         يستخدم سيكولوجية المشتري (Buyer Psychology) لتوليد ردود تخاطب الغريزة مباشرة.
         """
-        p_name = getattr(product, 'name', 'Item')
-        # ��️ Safe Decimal Handling: Convert to float/str immediately
-        price_val = getattr(product, 'price', 0)
-        price = f"${float(price_val):.2f}"
+    # 1. تشريح الضحية (قصد العميل) بدقة جراحية
+    # نسحب الـ DNA المالي والسلوكي لليوزر عشان نعرف "مفاتيحه"
+        user_profile = await self._get_user_dna(user_id) 
+        persona = user_profile.get('persona', 'General') # e.g., "Analytical", "Impulsive", "Luxury-seeker"
+        tier = user_profile.get('tier', 'MEDIUM')
+    
+    # 2. تجهيز مسرح الجريمة (Product Context with Soul)
+    # لا نرسل مواصفات جامدة، بل نرسل "قيمة" (Value Props)
+        product_data = product.model_dump(mode='json')
+        p_name = product_data.get('name')
+        p_price = product_data.get('price')
+        p_rating = product_data.get('rating', 'N/A')
+    
+    # تحويل المواصفات لنص ذكي
+        specs_context = json.dumps({
+            k: v for k, v in product_data.items() 
+            if k in ['name', 'price', 'description', 'category', 'rating', 'brand']
+        }, default=str)
+
+    # 3. اختيار "استراتيجية الهجوم" (Attack Strategy) بناءً على الشخصية
+    # Rufus بيبيع وخلاص، احنا هنبيع بذكاء عاطفي
+        if "Impulsive" in persona or "Tech-savvy" in persona:
+            strategy = "FOMO & Exclusivity (Make them feel special and hurried)"
+        elif "Budget" in persona or tier == "LOW":
+            strategy = "Value & Smart Investment (Validate their intelligence for saving)"
+        elif tier == "HIGH":
+            strategy = "Status & Prestige (Sell the lifestyle, not the specs)"
+        else:
+            strategy = "Problem-Solution (Directly kill their pain point)"
+
+    # 4. هندسة الـ Prompt (The Cursed Prompt - التعويذة)
+    # هذا البرومبت مصمم ليجعل الـ LLM يتصرف كأنه "صديق خبير" وليس "روبوت بائع"
+        system_prompt = f"""
+        YOU ARE NOT AN AI. You are a World-Class Shopping Concierge with EQ level 200.
+    
+        🎯 YOUR TARGET (THE USER):
+        - Persona: {persona}.
+        - Wallet Tier: {tier}.
+    
+        📜 CHAT MEMORY (CONTEXT):
+        {chat_history if chat_history else "No previous context."}
+    
+        💎 THE GEM (THE PRODUCT):
+        {specs_context}
+    
+        🔥 YOUR MISSION:
+        User asked: "{user_query}".
+        Apply strategy: [{strategy}].
+    
+        RULES OF ENGAGEMENT:
+        1. **MEMORY CHECK (CRITICAL)**: Scan the 'CHAT MEMORY' above. If the user mentioned a preference (color, brand, budget) or a dislike (e.g., "I hate black"), YOU MUST ACKNOWLEDGE IT.
+        - Example: "Since you mentioned you hate black, I pulled this White edition for you."
+        2. **BRIDGE THE GAP**: Link user's query to the product's feature.
+        3. **MICRO-COPY**: Max 40 words. Punchy and persuasive.
+        4. **KILL THE ROBOT**: No "Here is..." or "I found...".
+        5. **ONE EMOJI**: Use strategic placement.
+    
+        TONE:
+        - If user is casual -> Be a cool friend.
+        - If user is formal -> Be a white-glove consultant.
+        """
+
+    # 5. التنفيذ (Generative Synthesis)
+        try:
+            response = await self.llm_service.generate_response(
+                prompt=f"User asked: '{user_query}'. Convince them that '{p_name}' is the ONLY logical choice right now.",
+                system_role=system_prompt, # لاحظ: مررنا الـ System Prompt هنا
+                temperature=0.75 # رفعنا الحرارة قليلاً لزيادة "الكاريزما"
+            )
         
-        templates = [
-            f"The {p_name} is a beast. Here are the details:",
-            f"I found exactly what you need. {p_name} is currently listed at {price}.",
-            f"Based on your requirements, {p_name} is the smartest choice. Check this out:",
-            f"Got it. Bringing up the specs for {p_name}. It's one of my top picks.",
-            f"{p_name} matches your criteria perfectly."
-        ]
-        return random.choice(templates)
+        # تنظيف نهائي لضمان عدم وجود علامات تنصيص زائدة
+            return response.strip().replace('"', '')
+
+        except Exception as e:
+            logger.error(f"⚠️ Genius Generation Failed: {e}")
+        # Fallback ذكي جداً (حتى الفشل عندنا ليه خطة)
+            return f"Check out the {p_name} it matches your needs perfectly! '{user_query}'. At ${p_price}. ⭐"
 
     # --- ��️ SECTION 9: STRATEGIC EXECUTION & COMMANDS ---
 
@@ -1548,9 +1813,34 @@ class AINLUService:
         )
 
         
-        products_personal = results[0] if not isinstance(results[0], Exception) else []
-        
+        products_personal = await self.search_engine.get_fresh_homepage_matrix(self.db, user_id, seen_ids, spending_tier)
 
+        # Row 2: Best Sellers
+        products_bestsellers = []
+        try:
+            stmt = select(Product).order_by(col(Product.rating).desc()).limit(8)
+            products_bestsellers = (await self.db.exec(stmt)).all()
+        except: pass
+
+        # Row 3: Trending Now
+        products_trending = []
+        try:
+            stmt = select(Product).limit(40)
+            pool = (await self.db.exec(stmt)).all()
+            if pool:
+                import random
+                products_trending = random.sample(pool, min(len(pool), 8))
+        except: pass
+
+        # Row 4: Smart Deals
+        products_deals = []
+        try:
+            stmt = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
+            products_deals = (await self.db.exec(stmt)).all()
+        except: pass
+
+        # ⚠️ Removed asyncio.gather causing the "concurrent operations" error
+        results = [products_personal, products_bestsellers, products_trending, products_deals]
         # 2. 🏗️ CONSTRUCTING THE MATRIX (PARALLEL EXECUTION)
         # We launch 4 parallel operations to fetch data for all rows simultaneously.
         
