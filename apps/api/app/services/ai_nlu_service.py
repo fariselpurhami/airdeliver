@@ -732,7 +732,7 @@ class AINLUService:
             # نضيف الكلمة 5 مرات لقلب موازين البحث المتجهي
             amplification_str = (detected_category + " ") * 5
             constraints["clean_query"] = f"{constraints['clean_query']} {amplification_str}"
-            logger.info(f"☢️ Vector Injection: Appended '{amplification_str.strip()}' to query.")
+            logger.info(f"☢️  Vector Injection: Appended '{amplification_str.strip()}' to query.")
 
         # =========================================================
         # 🤑 LAYER 0.9: THE INFINITY CHECK (NEW - التعامل مع الميزانية المفتوحة)

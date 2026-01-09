@@ -1021,7 +1021,7 @@ OUTPUT NOW: ONE LINE OF SEARCH KEYWORDS ONLY.
             # If LLM returns nothing or fails to extract useful tokens, fall back to user query.
             # This prevents the "No hybrid results for ''" error.
             if len(optimized_query) < 2:
-                logger.warning(f"🤖ིྀLLM returned empty/short query for '{user_query}'. Using fallback.")
+                logger.warning(f"🤖ིྀ LLM returned empty/short query for '{user_query}'. Using fallback.")
                 return user_query.strip()
             
             return optimized_query
