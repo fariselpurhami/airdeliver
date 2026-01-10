@@ -654,9 +654,8 @@ OUTPUT NOW: ONE LINE OF SEARCH KEYWORDS ONLY.
             clean_query = re.sub(r'(hey ai|please|can you)', '', query, flags=re.IGNORECASE).strip()
             
             search_context = clean_query
-            if not any(x in search_context.lower() for x in ["price", "cost", "how much", "who", "where"]):
-
-                 search_context += " comprehensive details specifications and latest data"
+            if not any(x in search_context.lower() for x in ["price", "buy", "review", "date"]):
+                 search_context += " official review current price specs availability"
 
             logger.info(f"📡 Global Uplink (Tavily): Scanning reality for '{search_context}'...")
             
@@ -687,7 +686,8 @@ OUTPUT NOW: ONE LINE OF SEARCH KEYWORDS ONLY.
 
             for res in results:
                 title = res.get("title", "Source").replace("\n", " ").strip()
-                content = res.get("content", "")[:350].replace("\n", " ").strip()
+                content = res.get("content", "")[:650].replace("\n", " ").strip()
+                date = res.get("published_date", "Unknown Date")
                 url = res.get("url", "N/A")
                 parts.append(f"• DATA ({title}): {content}")
             

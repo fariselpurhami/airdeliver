@@ -447,7 +447,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
               state.isLoading = false; // Release lock
               state.isProcessing = false;
           }));
-      }, 8000); // 8 seconds timeout
+      }, 60000); // 8 seconds timeout
       
       set(produce((state: AIOrderingState) => {
           state.ackTimeouts[msgId] = timeoutId;

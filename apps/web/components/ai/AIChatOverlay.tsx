@@ -833,7 +833,7 @@ const ChatInput = React.memo(
                         if (!isSendButtonDisabled) handleTriggerSend();
                     }
                 }}
-                placeholder={isListening ? 'Listening...' : isInputLocked ? 'Processing sequence...' : 'Ask order with air...'}
+                placeholder={isListening ? 'Listening...' : isInputLocked ? 'Thinking...' : 'Ask order with air...'}
                 disabled={isInputLocked}
                 className="w-full bg-[#0F172A] border border-white/10 rounded-full py-4 pr-16 pl-6 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/40 focus:outline-none transition-all duration-300 font-medium shadow-inner resize-none overflow-hidden min-h-[56px] leading-relaxed"
 		style={{

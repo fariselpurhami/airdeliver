@@ -5,6 +5,7 @@ import logging
 import asyncio
 import random
 import json
+import numpy as np
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from sentence_transformers import util
@@ -17,6 +18,7 @@ from app.services.cache_service import IAsyncCacheClient
 from app.services.free_llm_service import FreeLLMService
 from app.models.product import Product
 from app.db.session import SessionLocal 
+from app.services.ai_meta_cognition import MetaCognitionLayer
 
 logger = logging.getLogger("airdeliver.nlu")
 
@@ -50,6 +52,7 @@ class AINLUService:
         self.redis = cache
         self.llm_service = llm_service
         self.behavior_engine = behavior_engine
+        self.meta_cognition = MetaCognitionLayer()
 
         # ⚙️ SOTA Configuration
         self.seen_cache_ttl = 3600
@@ -888,7 +891,7 @@ class AINLUService:
         استرجاع آخر الرسائل من الذاكرة (Redis) لبناء سياق المحادثة.
         """
         try:
-            # مفتاح الذاكرة في Redis (نفس المفتاح المستخدم في useAIOrderingStore)
+            # مفتاح الذاكرة في Redis نفس المفتاح المستخدم في useAIOrderingStore)
             # سنفترض وجود مفتاح chat_history:{user_id} أو نعتمد على تخزين مؤقت
             # بما أننا لا نملك كود تخزين الشات، سنقوم بمحاكاة ذكية أو استرجاع بسيط
 
@@ -1452,91 +1455,148 @@ class AINLUService:
     
     async def _generate_genius_response(self, user_id: int, user_query: str, product: Any, chat_history: str = "") -> str:
         """
-        💎 SOTA GENERATION V2 (THE GOD MODE): 
-         يحول البيانات الجامدة إلى "سحر أسود" بيعي لا يمكن مقاومته.
-         يستخدم سيكولوجية المشتري (Buyer Psychology) لتوليد ردود تخاطب الغريزة مباشرة.
+        💎 SOTA GENERATION V3 (THE ADAPTIVE MIND):
+        يضبط 'طول الرد' و 'نبرة الصوت' ديناميكياً بناءً على مستوى الشك (Uncertainty).
         """
-    # 1. تشريح الضحية (قصد العميل) بدقة جراحية
-    # نسحب الـ DNA المالي والسلوكي لليوزر عشان نعرف "مفاتيحه"
-        user_profile = await self._get_user_dna(user_id) 
-        persona = user_profile.get('persona', 'General') # e.g., "Analytical", "Impulsive", "Luxury-seeker"
+        # 1. استدعاء البيانات الأساسية (DNA & Product)
+        user_profile = await self._get_user_dna(user_id)
+        persona = user_profile.get('persona', 'General')
         tier = user_profile.get('tier', 'MEDIUM')
-    
-    # 2. تجهيز مسرح الجريمة (Product Context with Soul)
-    # لا نرسل مواصفات جامدة، بل نرسل "قيمة" (Value Props)
+        
         product_data = product.model_dump(mode='json')
         p_name = product_data.get('name')
         p_price = product_data.get('price')
-        p_rating = product_data.get('rating', 'N/A')
-    
-    # تحويل المواصفات لنص ذكي
-        specs_context = json.dumps({
-            k: v for k, v in product_data.items() 
-            if k in ['name', 'price', 'description', 'category', 'rating', 'brand']
-        }, default=str)
+        
+        word_limit = "70"
+        style_guide = "Direct and Helpful"
+        strategy_instruction = "Focus on the value proposition."
+        web_context = ""
+        is_unknown_product = False   
+        # 1. استخراج الأرقام من السؤال (مثل 17, 25, 6)
+        import re
+        query_numbers = re.findall(r'\d+', user_query)
+        
+        # 2. هل فيه رقم مهم في السؤال مش موجود في المنتج؟ (Version Mismatch)
+        # مثال: السؤال فيه "17" والمنتج فيه "15" -> Mismatch = True
+        version_mismatch = any(num not in p_name for num in query_numbers)
 
-    # 3. اختيار "استراتيجية الهجوم" (Attack Strategy) بناءً على الشخصية
-    # Rufus بيبيع وخلاص، احنا هنبيع بذكاء عاطفي
-        if "Impulsive" in persona or "Tech-savvy" in persona:
-            strategy = "FOMO & Exclusivity (Make them feel special and hurried)"
-        elif "Budget" in persona or tier == "LOW":
-            strategy = "Value & Smart Investment (Validate their intelligence for saving)"
-        elif tier == "HIGH":
-            strategy = "Status & Prestige (Sell the lifestyle, not the specs)"
-        else:
-            strategy = "Problem-Solution (Directly kill their pain point)"
+        # 3. حساب نسبة تطابق الكلمات (للتأكد إننا مش بنجيب منتج غلط خالص)
+        keywords = [w for w in user_query.lower().split() if len(w) > 3] # تجاهل الكلمات القصيرة
+        match_score = sum(1 for word in keywords if word in p_name.lower()) / len(keywords) if keywords else 1.0
+        
+        # الشرط الذكي: لو التطابق ضعيف جداً أو فيه اختلاف في الإصدار (الرقم)
+        if match_score < 0.3 or version_mismatch:
+            logger.warning(f"🕵️ Product Mismatch/Version Gap Detected. Triggering Tavily for: {user_query}")
+            is_unknown_product = True
+            # استدعاء Tavily
+            # تأكد أن perform_web_search عامة (public) في FreeLLMService
+            web_context = await self.llm_service._perform_web_search(user_query)
+        # 2. 🔮 META-COGNITION CHECK
+        # نحاول جلب الشبح وتوجيه السؤال الحالي لمعرفة "مستوى الشك"
+        meta_analysis = {"stance": "AUTHORITATIVE", "uncertainty": 0.0}
+        
+        try:
+            # نجلب بيانات الشبح من الكاش
+            ghost_json = await self.cache.get_json(f"u:{user_id}:ghost_v2")
+            
+            # نحول سؤال المستخدم الحالي لـ Vector باستخدام موديل البحث
+            if hasattr(self.search_engine, 'embedding_model'):
+                current_vector = self.search_engine.embedding_model.encode(user_query).tolist()
+                
+                if ghost_json:
+                    # نسأل "الضمير": هل أنا فاهم صح؟
+                    meta_analysis = self.meta_cognition.evaluate_confidence(ghost_json, current_vector)
+                    logger.info(f"🧘 Meta-Cognition: {meta_analysis}")
+        except Exception as e:
+            logger.warning(f"⚠️ Meta-Cognition Skipped: {e}")
 
-    # 4. هندسة الـ Prompt (The Cursed Prompt - التعويذة)
-    # هذا البرومبت مصمم ليجعل الـ LLM يتصرف كأنه "صديق خبير" وليس "روبوت بائع"
+        # 3. 🧠 THE "DYNAMIC VERBOSITY" LOGIC (تحديد الاستراتيجية وطول الرد)
+        stance = meta_analysis.get("stance", "AUTHORITATIVE")
+        is_comparison = any(w in user_query.lower() for w in ["vs", "compare", "better", "difference", "or", "مقارنة", "الفرق", "أحسن"])
+        # الحالة 1: القناص (Sniper) - ثقة عالية -> رد قصير وحاسم
+        current_date_str = datetime.now().strftime("%B %d, %Y")
+        if is_unknown_product:
+            word_limit = "120"
+            style_guide = " Sophisticated, Expert, Conversational, Knowledgeable, Up-to-date."
+            strategy_instruction = (
+                "The user asked about a product NOT in our local stock. "
+                "Step 1: ANALYZE WEB DATA DATES. Is the product ALREADY RELEASED? (Look for prices, reviews, specs,  'released' status). "
+                
+                "Step 2: CHOOSE TONE based on status: "
+                "   - **CASE A (RELEASED)**: Speak with ABOLUTE CERTAINTY with a professional . Use present tense ('It features', 'The battery lasts', 'It costs', 'It specs' ). "
+                "     **FORBIDDEN WORDS for Released items**: 'Expected', 'Rumored', 'Reports say', 'Might'. Treat it as a hard fact. "
+                "     Acknowledge we don't carry it yet, but praise its specs if they are good. "
+                
+                "   - **CASE B (UNRELEASED)**: Only THEN use speculative language ('It is expected to...', 'Leaks suggest'). "
+                
+                
+                "Step 3: SMOOTH PIVOT. After discussing the external product objectively, suggest the IN-STOCK alternative as the best option available *here* right now."
+            )
+            stance = "INQUISITIVE"
+
+        elif stance == "AUTHORITATIVE":
+            is_comparison = any(w in user_query.lower() for w in ["vs", "compare", "better", "or"])
+            if is_comparison:
+               word_limit = "85"
+               style_guide = "Decisive, Analytical, yet Comprehensive."
+               strategy_instruction = "Declare the WINNER immediately. List 2 KILLER SPECS that outclass the competition. Briefly mention the TRADEOFF (what they lose) to sound objective, then dismiss it."
+            else:
+            # تخصيص البيع حسب الشخصية
+                style_guide = "Direct, Punchy, Decision-Oriented."
+                if "Impulsive" in persona: strategy_instruction = "Focus on FOMO & Speed."
+                elif tier == "HIGH": strategy_instruction = "Focus on Status & Luxury."
+                elif tier == "LOW": strategy_instruction = "Focus on Value & Savings."
+                else: strategy_instruction = "Focus on the 'One Big Reason' to buy. No fluff."
+
+        # الحالة 2: الدبلوماسي (Diplomat) - انحراف السياق -> رد متوسط للتبرير
+        elif stance == "ADAPTIVE_SHOCK":
+            word_limit = "75"
+            style_guide = "Reassuring, Bridge-Building, explanatory."
+            strategy_instruction = "Acknowledge the shift in taste. Explain 'Why this fits' the new context."
+
+        # الحالة 3: البروفيسور (Professor) - شك أو سؤال -> رد طويل للشرح
+        else: # INQUISITIVE
+            word_limit = "100" 
+            style_guide = "Educational, Humble, collaborative."
+            strategy_instruction = "Teach the user about the feature. Then ask a guiding question."
+
+        # 4. هندسة الـ Prompt المتكيفة (Adaptive Prompt)
+        specs_context = json.dumps({k: v for k, v in product_data.items() if k in ['name', 'price', 'brand', 'rating']}, default=str)
+
         system_prompt = f"""
-        YOU ARE NOT AN AI. You are a World-Class Shopping Concierge with EQ level 200.
-    
-        🎯 YOUR TARGET (THE USER):
-        - Persona: {persona}.
-        - Wallet Tier: {tier}.
-    
-        📜 CHAT MEMORY (CONTEXT):
-        {chat_history if chat_history else "No previous context."}
-    
-        💎 THE GEM (THE PRODUCT):
-        {specs_context}
-    
-        🔥 YOUR MISSION:
-        User asked: "{user_query}".
-        Apply strategy: [{strategy}].
-    
-        RULES OF ENGAGEMENT:
-        1. **MEMORY CHECK (CRITICAL)**: Scan the 'CHAT MEMORY' above. If the user mentioned a preference (color, brand, budget) or a dislike (e.g., "I hate black"), YOU MUST ACKNOWLEDGE IT.
-        - Example: "Since you mentioned you hate black, I pulled this White edition for you."
-        2. **BRIDGE THE GAP**: Link user's query to the product's feature.
-        3. **MICRO-COPY**: Max 40 words. Punchy and persuasive.
-        4. **GRAMMAR FLOW**: Ensure grammatical coherence using complete linking phrases. Do not omit verbs for brevity.
-        5. **KILL THE ROBOT**: No "Here is..." or "I found...".
-        6. **ONE EMOJI**: Use strategic placement.
-    
-        TONE:
-        - If user is casual -> Be a cool friend.
-        - If user is formal -> Be a white-glove consultant.
+        YOU ARE 'airdeliver', a Context-Aware AI.
+        
+        🎯 USER STATE:
+        - Persona: {persona} (Tier: {tier})
+        - Cognitive State: {stance} (We are {style_guide})
+
+        💎 PRODUCT: {specs_context}
+
+        🔥 STRATEGY DIRECTIVE:
+        {strategy_instruction}
+
+        RULES:
+        1. **LENGTH CONTROL**: STRICTLY Max {word_limit} words.
+        2. **GRAMMAR**: Use complete linking phrases. No broken English.
+        3. **NO ROBOTIC FILLERS**: Start directly with value (Avoid "I think", "Based on data").
+        4. **MEMORY**: Use chat history context if relevant:
+        {chat_history[-200:] if chat_history else "No context."}
         """
 
-    # 5. التنفيذ (Generative Synthesis)
+        # 5. التنفيذ (Generative Synthesis)
         try:
             response = await self.llm_service.generate_response(
-                prompt=f"User asked: '{user_query}'. Convince them that '{p_name}' is the ONLY logical choice right now.",
-                system_role=system_prompt, # لاحظ: مررنا الـ System Prompt هنا
-                temperature=0.75 # رفعنا الحرارة قليلاً لزيادة "الكاريزما"
+                prompt=f"User asked: '{user_query}'. Product: {p_name}. Execute Strategy.",
+                system_role=system_prompt,
+                # إبداع أقل عند الثقة (للتركيز)، وأعلى عند الشرح (للإسهاب)
+                temperature=0.3 if stance == "AUTHORITATIVE" else 0.6 
             )
-        
-        # تنظيف نهائي لضمان عدم وجود علامات تنصيص زائدة
             return response.strip().replace('"', '')
 
         except Exception as e:
             logger.error(f"⚠️ Genius Generation Failed: {e}")
-        # Fallback ذكي جداً (حتى الفشل عندنا ليه خطة)
-            return f"Check out the {p_name} it matches your needs perfectly! '{user_query}'. At ${p_price}. ⭐"
-
-    # --- ��️ SECTION 9: STRATEGIC EXECUTION & COMMANDS ---
-
+            # Fallback ذكي
+            return f"Check out {p_name}, it matches your needs perfectly! '{user_query}'. At ${p_price}."
     async def _handle_text_commands(self, user_id: int, text: str, full_payload: dict) -> bool:
         """
         🕵️‍♀️ Semantic Command Interceptor (DIAMOND EDITION).
