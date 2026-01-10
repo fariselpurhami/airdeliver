@@ -919,6 +919,20 @@ class AINLUService:
         message_text = str(raw_message).strip() if raw_message else ""
         lower_text = message_text.lower()
 
+        def safe_get(obj, attr, default=""):
+            """يستخرج القيمة بأمان سواء كان المصدر Object أو Dict"""
+            if isinstance(obj, dict):
+                return obj.get(attr, default) or default
+            return getattr(obj, attr, default) or default
+
+        def safe_dump(obj):
+            """يحول المنتج لـ JSON بأمان مهما كان نوعه"""
+            if hasattr(obj, 'model_dump'):
+                return obj.model_dump(mode='json')
+            if isinstance(obj, dict):
+                return obj
+            return {}
+
         NO_MARKDOWN_GUARD = (
             "STRICT RULE: ZERO MARKDOWN. "
             "DO NOT use asterisks (**), hashes (#), or underscores (_). "
@@ -1122,11 +1136,82 @@ class AINLUService:
                 filters=search_filters
             )
 
+            # =========================================================
+            # 🧠 INTELLIGENT RERANKING V2 (LINGUISTICALLY AWARE)
+            # =========================================================
+            if candidates:
+                import re
+
+                # 1. قائمة التجاهل (Stopwords) - تم توسيعها لتشمل كلمات عامة أكثر
+                stopwords = {
+                    "best", "the", "a", "an", "i", "want", "need", "looking", "for",
+                    "top", "recommend", "buy", "get", "right", "now", "tell", "me",
+                    "please", "find", "search", "show", "what", "is", "vs", "compare"
+                }
+
+                # 2. تنظيف رموز الاستعلام (عشان "iphone?" تبقى "iphone")
+                clean_msg = re.sub(r'[^\w\s]', '', message_text.lower())
+                query_tokens = [w for w in clean_msg.split() if w not in stopwords and len(w) > 1]
+
+                scored_candidates = []
+
+                for prod in candidates:
+                    score = 0
+
+                    def get_safe(obj, attr):
+                        if isinstance(obj, dict):
+                            return obj.get(attr, "") or ""
+                        return getattr(obj, attr, "") or ""
+
+                    p_name = get_safe(prod, 'name')
+                    p_cat = get_safe(prod, 'category')
+                    p_brand = get_safe(prod, 'brand')
+                    p_rating = get_safe(prod, 'rating')
+                    # تحويل اسم المنتج وتصنيفه لقائمة كلمات فريدة (Set) لسرعة البحث
+                    # re.split(r'\W+') بيفصل الكلمات بناءً على أي فاصل غير حرفي (مسافات، شرطات، فواصل)
+                    p_text = f"{p_name} {p_cat} {p_brand}".lower()
+                    p_tokens = set(re.split(r'\W+', p_text))
+
+                    matches = 0
+                    for q_token in query_tokens:
+                        # أ. التطابق التام (Exact Match)
+                        # هنا بنبحث في الـ Set وده بيحل مشكلة الـ Pineapple (Word Boundary)
+                        if q_token in p_tokens:
+                            matches += 1
+
+                        # ب. التطابق الذكي (Singular/Plural)
+                        # لو العميل كتب headphones والمنتج headphone
+                        elif q_token.endswith('s') and q_token[:-1] in p_tokens:
+                            matches += 1
+                        # لو العميل كتب headphone والمنتج headphones
+                        elif (q_token + 's') in p_tokens:
+                            matches += 1
+
+                    if matches > 0:
+                        # السكور بيزيد بناءً على عدد الكلمات المتطابقة
+                        # لو طابق كلمتين (Sony + Headphone) ياخد 2000 نقطة، أقوى من كلمة واحدة
+                        score += (matches * 1000)
+
+                    try:
+                        score += float(p_rating or 0) * 10
+                    except: pass
+
+                    
+                    scored_candidates.append((prod, score))
+
+                # إعادة الترتيب
+                scored_candidates.sort(key=lambda x: x[1], reverse=True)
+                candidates = [item[0] for item in scored_candidates]
+
             # 3. الاستبعاد اليدوي (Negative Filtering)
             if constraints["excluded_keywords"] and candidates:
                 filtered_candidates = []
                 for prod in candidates:
-                    p_text = f"{prod.name} {prod.description} {prod.category}".lower()
+                    p_name = safe_get(prod, 'name')
+                    p_desc = safe_get(prod, 'description')
+                    p_cat = safe_get(prod, 'category')
+
+                    p_text = f"{p_name} {p_desc} {p_cat}".lower()
                     if any(bad_word in p_text for bad_word in constraints["excluded_keywords"]):
                         continue
                     filtered_candidates.append(prod)
@@ -1155,9 +1240,10 @@ class AINLUService:
         
         # --- CASE A: PRODUCT FOUND IN STOCK ---
         if final_products and not base64_image:
+            p_data_safe = safe_dump(final_products[0])
             if is_specs_query:
                 ai_response_text = await self.llm_service.consult_on_product(
-                    product_data=final_products[0].model_dump(mode='json'), 
+                    product_data=p_data_safe,
                     question=message_text
                 )
             else:
@@ -1179,7 +1265,7 @@ class AINLUService:
                 except Exception as e:
                     # لو حصل أي خطأ، نرجع رد بسيط بدل ما السيستم يقع
                     logger.warning(f"⚠️ Genius Response Skipped: {e}")
-                    p_name = final_products[0].name if hasattr(final_products[0], 'name') else "this item"
+                    p_name = safe_get(final_products[0], 'name')
                     ai_response_text = f"Check out {p_name}, it matches what you are looking for!"
 
         # --- CASE B: STOCKOUT OR VISION RESEARCH (Deep Research DDGS) ---
@@ -1232,13 +1318,14 @@ class AINLUService:
                 ' ',  # 👈 التغيير الجوهري: استبدال بمسافة وليس حذف
                 clean_content
             )
-            clean_content = re.sub(r'(?<=[.,;?!])(?=[^\s])', r' ', clean_content)
+            clean_content = re.sub(r'(?<=[;?!])(?=[^\s])|(?<=[.,])(?=[^\s\d])', r' ', clean_content)
             clean_content = " ".join(clean_content.split())
-
+            
+            safe_products_list = [safe_dump(p) for p in final_products] if final_products else []
             payload = {
                 "content": clean_content,
                 "type": "product_carousel" if final_products else "text",
-                "products": [p.model_dump(mode='json') for p in final_products] if final_products else [],
+                "products": safe_products_list,
                 "reason": "Top choices based on user experience."
             }
             
@@ -1463,7 +1550,13 @@ class AINLUService:
         persona = user_profile.get('persona', 'General')
         tier = user_profile.get('tier', 'MEDIUM')
         
-        product_data = product.model_dump(mode='json')
+        if hasattr(product, 'model_dump'):
+            product_data = product.model_dump(mode='json')
+        elif isinstance(product, dict):
+            product_data = product
+        else:
+            product_data = {} # S
+
         p_name = product_data.get('name')
         p_price = product_data.get('price')
         
@@ -1472,27 +1565,43 @@ class AINLUService:
         strategy_instruction = "Focus on the value proposition."
         web_context = ""
         is_unknown_product = False   
-        # 1. استخراج الأرقام من السؤال (مثل 17, 25, 6)
+
+        generic_triggers = ["best", "recommend", "suggestion", "top", "good", "buy", "option", "review", "what is"]
+        is_generic_query = any(trigger in user_query.lower() for trigger in generic_triggers)
+
+        # 2. كشف "تعارض الإصدارات" (Version Mismatch) - دي الحالة الوحيدة اللي محتاجة نت
+        # مثال: العميل طلب iPhone 17 (مش عندنا) واحنا رجعنا iPhone 15
         import re
         query_numbers = re.findall(r'\d+', user_query)
-        
-        # 2. هل فيه رقم مهم في السؤال مش موجود في المنتج؟ (Version Mismatch)
-        # مثال: السؤال فيه "17" والمنتج فيه "15" -> Mismatch = True
-        version_mismatch = any(num not in p_name for num in query_numbers)
 
-        # 3. حساب نسبة تطابق الكلمات (للتأكد إننا مش بنجيب منتج غلط خالص)
-        keywords = [w for w in user_query.lower().split() if len(w) > 3] # تجاهل الكلمات القصيرة
+        major_version_mismatch = False
+        if query_numbers:
+             relevant_nums = [n for n in query_numbers if int(n) > 10] # الأرقام الكبيرة زي 15, 16, 17, 2026
+             major_version_mismatch = any(num not in p_name for num in relevant_nums)
+
+        # 3. حساب نسبة التطابق (للحالات العادية)
+        keywords = [w for w in user_query.lower().split() if len(w) > 3]
         match_score = sum(1 for word in keywords if word in p_name.lower()) / len(keywords) if keywords else 1.0
-        
-        # الشرط الذكي: لو التطابق ضعيف جداً أو فيه اختلاف في الإصدار (الرقم)
-        if match_score < 0.3 or version_mismatch:
+
+        # 🔥 THE GATEKEEPER (حارس البوابة)
+        should_trigger_tavily = False
+
+        if major_version_mismatch:
+            should_trigger_tavily = True # العميل طالب إصدار مش موجود
+        elif not is_generic_query and match_score < 0.4:
+            should_trigger_tavily = True # العميل سأل عن "شامبو" واحنا رجعنا "موبايل"
+
+        # التنفيذ
+        if should_trigger_tavily:
             logger.warning(f"🕵️ Product Mismatch/Version Gap Detected. Triggering Tavily for: {user_query}")
             is_unknown_product = True
-            # استدعاء Tavily
-            # تأكد أن perform_web_search عامة (public) في FreeLLMService
+            # تأكد أن الدالة _perform_web_search متاحة (بشرطة أو بدون حسب تعريفك في FreeLLMService)
             web_context = await self.llm_service._perform_web_search(user_query)
-        # 2. 🔮 META-COGNITION CHECK
-        # نحاول جلب الشبح وتوجيه السؤال الحالي لمعرفة "مستوى الشك"
+        else:
+            # ✅ الحالة اللي كانت مجنناك:
+            # لو السؤال Generic ("Best headphone")، حتى لو الاسم مش متطابق، هنعتبر المنتج هو المطلوب ونقفل النت
+            is_unknown_product = False
+        
         meta_analysis = {"stance": "AUTHORITATIVE", "uncertainty": 0.0}
         
         try:
@@ -1518,28 +1627,67 @@ class AINLUService:
         if is_unknown_product:
             word_limit = "120"
             style_guide = " Sophisticated, Expert, Conversational, Knowledgeable, Up-to-date."
-            strategy_instruction = (
-                "The user asked about a product NOT in our local stock. "
-                "Step 1: ANALYZE WEB DATA DATES. Is the product ALREADY RELEASED? (Look for prices, reviews, specs,  'released' status). "
-                
-                "Step 2: CHOOSE TONE based on status: "
-                "   - **CASE A (RELEASED)**: Speak with ABOLUTE CERTAINTY with a professional . Use present tense ('It features', 'The battery lasts', 'It costs', 'It specs' ). "
-                "     **FORBIDDEN WORDS for Released items**: 'Expected', 'Rumored', 'Reports say', 'Might'. Treat it as a hard fact. "
-                "     Acknowledge we don't carry it yet, but praise its specs if they are good. "
-                
-                "   - **CASE B (UNRELEASED)**: Only THEN use speculative language ('It is expected to...', 'Leaks suggest'). "
-                
-                
-                "Step 3: SMOOTH PIVOT. After discussing the external product objectively, suggest the IN-STOCK alternative as the best option available *here* right now."
-            )
+            strategy_instruction = f"""
+                🚨 TEMPORAL AWARENESS & PRODUCT STATUS OVERRIDE (CRITICAL)
+
+                - TODAY’S DATE (ABSOLUTE PRESENT): {current_date_str}
+                - Your training data may be outdated. DO NOT assume product status from memory.
+
+                STEP 1: REALITY CHECK — ANALYZE WEB DATA ONLY
+                - Examine dates of articles, reviews, prices, specs, and availability.
+                - Look for signals like prices, hands-on reviews, full specifications, or released/available status.
+
+                DECISION LOGIC:
+                - IF Web Data contains reviews, prices, or confirmed specs dated BEFORE or UP TO today:
+                -> The product is ALREADY RELEASED.
+
+                - IF Web Data explicitly states a future launch (e.g. "Coming in 2027"):
+                -> The product is UNRELEASED.
+
+                STEP 2: TONE & LANGUAGE CONTROL (NON-NEGOTIABLE)
+
+                CASE A — RELEASED PRODUCT:
+                - Speak with ABSOLUTE CERTAINTY and professional confidence.
+                - Use PRESENT TENSE ONLY ("It features", "It costs", "Its specs include").
+                - Treat specs as established FACTS.
+                - FORBIDDEN WORDS: "Expected", "Rumored", "Leaks suggest", "Reports say", "Might", "Could".
+                - Clearly state we do NOT carry it locally yet, while objectively praising strong specs.
+
+                CASE B — UNRELEASED PRODUCT:
+                - Use speculative language ONLY here ("It is expected to", "Leaks suggest", "It may feature").
+                - Maintain expert but cautious tone. No false certainty.
+
+                STEP 3: SMOOTH STRATEGIC PIVOT
+                - After discussing the external product objectively,
+                suggest the IN-STOCK alternative as the best option available HERE and NOW.
+
+                STYLE GUIDE:
+                {style_guide}
+                MAX WORD COUNT: {word_limit}
+                """
             stance = "INQUISITIVE"
 
         elif stance == "AUTHORITATIVE":
-            is_comparison = any(w in user_query.lower() for w in ["vs", "compare", "better", "or"])
+            is_comparison = any(w in user_query.lower() for w in ["vs", "compare", "better", "difference", "or"])
+            
             if is_comparison:
-               word_limit = "85"
-               style_guide = "Decisive, Analytical, yet Comprehensive."
-               strategy_instruction = "Declare the WINNER immediately. List 2 KILLER SPECS that outclass the competition. Briefly mention the TRADEOFF (what they lose) to sound objective, then dismiss it."
+               word_limit = "90"
+               style_guide = "Persuasive, Comparative, Product-Focused."
+               
+               # 🔥 التعديل هنا: بنجبره يخلي المنتج اللي في الداتابيز (p_name) هو البطل
+               strategy_instruction = f"""
+               You are selling **{p_name}**. The user is comparing it to a competitor.
+               
+               YOUR MISSION:
+               1. Acknowledge the competitor briefly (e.g., 'While the iPhone ecosystem is smooth...').
+               2. **BUT**, declare **{p_name}** the 'Winner' specifically for the user's priority (Performance/Camera).
+               3. Highlight 2 KILLER SPECS of {p_name} that the competitor lacks.
+               4. Frame the 'Switch' as an upgrade, not a loss.
+               
+               CRITICAL: DO NOT declare the competitor as the winner if we are selling {p_name}. 
+               Align your verdict with the product we have in stock.
+               """
+                # ... (باقي الكود للعادي)
             else:
             # تخصيص البيع حسب الشخصية
                 style_guide = "Direct, Punchy, Decision-Oriented."
