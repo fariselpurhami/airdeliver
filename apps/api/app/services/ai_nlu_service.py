@@ -691,11 +691,11 @@ class AINLUService:
         # =========================================================
         # 🆕 LAYER 0: THE MIND READER (التغيير الرئيسي هنا)
         # =========================================================
-        # بدلاً من القوائم الثابتة، نستخدم Regex ذكي لاستخراج "الجوهر"
-        ignored_anchors = ["one", "thing", "product", "item", "device", "best", "cheap", "top", "good", "monster", "beast"]
-
-        ignored_anchors = ["one", "thing", "product", "item", "device", "best", "cheap", "top", "good", "monster", "beast"]
-
+        # بدلاً من القوائم الثابتة، نستخدم Regex ذكي لاستخراج "الجوهر
+        ignored_anchors = [
+            "one", "thing", "product", "item", "device", "best", "cheap", "top", "good", 
+            "monster", "beast", "now", "today", "asap", "quickly", "immediately", "here", "please"
+        ]
         intent_patterns = [
             # 1. Direct Intent: "I need a [gaming laptop] for..."
             r'(?:want|need|buy|get|looking for|search for|find|recommend)\s+(?:a|an|the|some|new|best|top|cheap)?\s*([a-zA-Z0-9\s\-]+?)(?:\s+(?:for|with|under|below|that|which|in|at|from|priced)|$|[.,])',
@@ -1311,19 +1311,30 @@ class AINLUService:
             import re
 
             raw_text = str(ai_response_text)
-            clean_content = " ".join(raw_text.split())
-        
-            clean_content = re.sub(
-                r'[^\w\s\u0600-\u06FF\.,!?:;\-\(\)\[\]%\$£€\u2022\'’"/+]', 
-                ' ',  # 👈 التغيير الجوهري: استبدال بمسافة وليس حذف
-                clean_content
-            )
-            clean_content = re.sub(r'(?<=[;?!])(?=[^\s])|(?<=[.,])(?=[^\s\d])', r' ', clean_content)
-            clean_content = " ".join(clean_content.split())
             
+            no_symbols_text = re.sub(r'[\*\"\_]', '', raw_text)
+            clean_content = re.sub(
+                r'[^\w\s\u0600-\u06FF\.,!?:;\-\(\)\[\]%\$£€\u2022\'’/+\n]',
+                '', # نستبدل بلا شيء بدل المسافة عشان منقطعش الكلمات
+                raw_text
+            )
+            
+            # 3. تصليح المسافات بعد علامات الترقيم (بدون تدمير الأسطر)
+            # التعديل: نستبدل بمسافة فقط لو مفيش سطر جديد
+            clean_content = re.sub(r'(?<=[;?!])(?=[^\s\n])|(?<=[.,])(?=[^\s\d\n])', r' ', clean_content)
+            lines = clean_content.split('\n')
+            # تنظيف المسافات المزدوجة داخل السطر الواحد فقط
+            refined_lines = [line.strip() for line in lines]
+            # إعادة تجميع النص مع الحفاظ على الأسطر
+            clean_content = "\n".join(refined_lines)
+
+            final_text = "\n".join(refined_lines)
+            final_text = re.sub(r'\n{3,}', '\n\n', final_text)
+            # تنظ
+
             safe_products_list = [safe_dump(p) for p in final_products] if final_products else []
             payload = {
-                "content": clean_content,
+                "content": clean_content.strip(),
                 "type": "product_carousel" if final_products else "text",
                 "products": safe_products_list,
                 "reason": "Top choices based on user experience."
@@ -1585,23 +1596,42 @@ class AINLUService:
 
         # 🔥 THE GATEKEEPER (حارس البوابة)
         should_trigger_tavily = False
+        
+        reasoning_triggers = ["should i", "switch", "vs", "compare", "better", "worth", "opinion", "difference", "thoughts", "advice", "review"]
+        is_reasoning_query = any(t in user_query.lower() for t in reasoning_triggers)
 
         if major_version_mismatch:
-            should_trigger_tavily = True # العميل طالب إصدار مش موجود
+            # لو العميل بيسأل عن iPhone 17 (حاجة مش موجودة)، لازم نت
+            should_trigger_tavily = True
+            
+        elif is_reasoning_query:
+            # ✅ التعديل هنا: لو سؤال "رأي" أو "مقارنة"، اقفل النت واعتمد على مخك
+            should_trigger_tavily = False
+            
         elif not is_generic_query and match_score < 0.4:
-            should_trigger_tavily = True # العميل سأل عن "شامبو" واحنا رجعنا "موبايل"
-
+            # لو السؤال محدد بس الكلمات مش راكبة على المنتج، ساعتها بس روح نت
+            should_trigger_tavily = True
         # التنفيذ
         if should_trigger_tavily:
-            logger.warning(f"🕵️ Product Mismatch/Version Gap Detected. Triggering Tavily for: {user_query}")
+
+            logger.warning(f"🕵️ Product Mismatch/Version Gap Detected. Triggering Tavily...")
             is_unknown_product = True
-            # تأكد أن الدالة _perform_web_search متاحة (بشرطة أو بدون حسب تعريفك في FreeLLMService)
-            web_context = await self.llm_service._perform_web_search(user_query)
+
+            search_optimized = user_query[:300]
+
+            # لو الرسالة طويلة، نختصرها
+            if len(user_query) > 100:
+                try:
+                    # نستخدم العنوان المختصر للبحث
+                    search_optimized = f"{p_name} review specs vs competitors"
+                except: 
+                    pass
+
+            web_context = await self.llm_service._perform_web_search(search_optimized)
         else:
-            # ✅ الحالة اللي كانت مجنناك:
-            # لو السؤال Generic ("Best headphone")، حتى لو الاسم مش متطابق، هنعتبر المنتج هو المطلوب ونقفل النت
             is_unknown_product = False
-        
+            web_context = ""
+
         meta_analysis = {"stance": "AUTHORITATIVE", "uncertainty": 0.0}
         
         try:
@@ -1710,34 +1740,60 @@ class AINLUService:
 
         # 4. هندسة الـ Prompt المتكيفة (Adaptive Prompt)
         specs_context = json.dumps({k: v for k, v in product_data.items() if k in ['name', 'price', 'brand', 'rating']}, default=str)
-
-        system_prompt = f"""
-        YOU ARE 'airdeliver', a Context-Aware AI.
         
-        🎯 USER STATE:
-        - Persona: {persona} (Tier: {tier})
-        - Cognitive State: {stance} (We are {style_guide})
+        tone_instruction = "You are the Ultimate Tech Strategist. You don't just sell phones; you optimize lives. Your advice is brutal, data-driven, and final."
 
-        💎 PRODUCT: {specs_context}
+        response_structure = """
+        STRUCTURE YOUR RESPONSE EXACTLY LIKE THIS:
+        1. Start DIRECTLY with the decision sentence, immediately followed by "Why?" on the same line.
+           (Example: "Stay with Apple. Why?")
+        2. Insert TWO NEW LINES (\\n\\n).
+        3. Write the numbered list with DOUBLE SPACING between items (Insert an empty line between each point):
+           1. Workflow: [Details]
+           [Insert Empty Line Here]
+           2. Specs: [Details]
+           [Insert Empty Line Here]
+           3. Wallet: [Details]
+        4. Insert TWO NEW LINES (\\n\\n) after the list.
+        5. Write "Note:" followed by the summary.
+        6. Insert TWO NEW LINES (\\n\\n).
+        7. Write "Action:" followed by the command.
+        
+        STRICT FORMATTING RULES:
+        - NO MARKDOWN SYMBOLS: Do NOT use asterisks (**), bolding, hashtags (#), or quotes ("").
+        - NO DRAMATIC LABELS: Do NOT use 'Verdict', 'The Bottom Line', or 'Conclusion'.
+        - Keep it clean, professional plain text.
+        """
+        system_prompt = f"""
+        {tone_instruction}
+        
+        CONTEXT:
+        - User Persona: {persona} (Tier: {tier})
+        - User Query: "{user_query}"
+        - Our Product (The Hero): {p_name} - Price: {p_price}
+        - Product Specs: {specs_context}
 
-        🔥 STRATEGY DIRECTIVE:
+        YOUR MISSION:
         {strategy_instruction}
-
-        RULES:
-        1. **LENGTH CONTROL**: STRICTLY Max {word_limit} words.
-        2. **GRAMMAR**: Use complete linking phrases. No broken English.
-        3. **NO ROBOTIC FILLERS**: Start directly with value (Avoid "I think", "Based on data").
-        4. **MEMORY**: Use chat history context if relevant:
-        {chat_history[-200:] if chat_history else "No context."}
+        
+        CRITICAL RULES (THE RUFUS KILLER PROTOCOL):
+        1. **WEAPONIZE CONTEXT**: If user mentions 'MacBook', you MUST mention 'AirDrop' and 'Continuity'. If 'Gaming', mention 'Thermals' and 'FPS'. Use your internal tech knowledge to fill gaps.
+        2. **ATTACK THE PAIN**: Don't just list features. Explain what they will LOSE if they pick the wrong choice (Fear of Missing Out).
+        3. **BE BRUTALLY HONEST**: If the competitor has better zoom, admit it, but explain why it DOESN'T MATTER compared to what our product offers (e.g., 'Zoom is cool, but Ecosystem is daily life').
+        4. **NO ROBOTIC INTROS**: Never say "Here is a comparison" or "I recommend". Just start speaking.
+        
+        {response_structure}
+        
+        Be sharper, smarter, and faster than any LLM in the world.
         """
 
-        # 5. التنفيذ (Generative Synthesis)
-        try:
+        try:# 5. التنفيذ (Generative Synthesis)
             response = await self.llm_service.generate_response(
                 prompt=f"User asked: '{user_query}'. Product: {p_name}. Execute Strategy.",
                 system_role=system_prompt,
-                # إبداع أقل عند الثقة (للتركيز)، وأعلى عند الشرح (للإسهاب)
-                temperature=0.3 if stance == "AUTHORITATIVE" else 0.6 
+                # التعديل هنا: قللنا الحرارة لـ 0.3 عشان يركز، وزودنا max_tokens عشان ميفصلش
+                temperature=0.3,
+                max_tokens=800  # 👈 ده الرقم السحري اللي هيديه مساحة يكتب رد كامل ومفصل
             )
             return response.strip().replace('"', '')
 

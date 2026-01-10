@@ -97,7 +97,8 @@ class FreeLLMService:
         system_role: str = "You are a helpful AI assistant.",
         context: Any = None,
         temperature: float = 0.7,
-        json_mode: bool = False
+        json_mode: bool = False,
+        max_tokens: int = 2048
     ) -> str:
         """
         🚀 Universal Generator:
@@ -128,7 +129,7 @@ class FreeLLMService:
                 "messages": messages,
                 "model": self.brain_model,  
                 "temperature": temperature if temperature is not None else 0.5,
-                "max_tokens": 2048,
+                "max_tokens": max_tokens,
                 "top_p": 0.9,
             }
 
