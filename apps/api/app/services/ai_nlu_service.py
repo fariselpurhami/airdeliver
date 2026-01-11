@@ -1308,20 +1308,31 @@ class AINLUService:
 
         # 📦 FINAL DELIVERY
         try:
-            import re
 
             raw_text = str(ai_response_text)
             
             no_symbols_text = re.sub(r'[\*\"\_]', '', raw_text)
             clean_content = re.sub(
-                r'[^\w\s\u0600-\u06FF\.,!?:;\-\(\)\[\]%\$£€\u2022\'’/+\n]',
+                r'[^\w\s\u0600-\u06FF\.,!?:;\-\(\)\[\]%\$£€\u2022\'’/+\n\u25CF]',
                 '', # نستبدل بلا شيء بدل المسافة عشان منقطعش الكلمات
                 raw_text
             )
             
+            clean_content = re.sub(r'\n{3,}', '\n\n', clean_content)
+
+            # - أي سطر يحتوي على مسافات فقط يتم مسحه
+            clean_content = re.sub(r'^\s+$', '', clean_content, flags=re.MULTILINE)
             # 3. تصليح المسافات بعد علامات الترقيم (بدون تدمير الأسطر)
             # التعديل: نستبدل بمسافة فقط لو مفيش سطر جديد
-            clean_content = re.sub(r'(?<=[;?!])(?=[^\s\n])|(?<=[.,])(?=[^\s\d\n])', r' ', clean_content)
+            clean_content = re.sub(r'(?<!\n\n)(?<!\w)(\d+\.\s)', r'\n\n\1', clean_content)
+        
+            
+            clean_content = re.sub(r'(?<!\n\n)(Note:|Action:|CTA:|●)', r'\n\n\1', clean_content)
+            
+            clean_content = clean_content.replace('●', '● ').replace('●  ', '● ')
+
+            clean_content = clean_content.strip()
+
             lines = clean_content.split('\n')
             # تنظيف المسافات المزدوجة داخل السطر الواحد فقط
             refined_lines = [line.strip() for line in lines]
@@ -1741,51 +1752,73 @@ class AINLUService:
         # 4. هندسة الـ Prompt المتكيفة (Adaptive Prompt)
         specs_context = json.dumps({k: v for k, v in product_data.items() if k in ['name', 'price', 'brand', 'rating']}, default=str)
         
+        
         tone_instruction = "You are the Ultimate Tech Strategist. You don't just sell phones; you optimize lives. Your advice is brutal, data-driven, and final."
 
-        response_structure = """
-        STRUCTURE YOUR RESPONSE EXACTLY LIKE THIS:
-        1. Start DIRECTLY with the decision sentence, immediately followed by "Why?" on the same line.
-           (Example: "Stay with Apple. Why?")
-        2. Insert TWO NEW LINES (\\n\\n).
-        3. Write the numbered list with DOUBLE SPACING between items (Insert an empty line between each point):
-           1. Workflow: [Details]
-           [Insert Empty Line Here]
-           2. Specs: [Details]
-           [Insert Empty Line Here]
-           3. Wallet: [Details]
-        4. Insert TWO NEW LINES (\\n\\n) after the list.
-        5. Write "Note:" followed by the summary.
-        6. Insert TWO NEW LINES (\\n\\n).
-        7. Write "Action:" followed by the command.
-        
-        STRICT FORMATTING RULES:
-        - NO MARKDOWN SYMBOLS: Do NOT use asterisks (**), bolding, hashtags (#), or quotes ("").
-        - NO DRAMATIC LABELS: Do NOT use 'Verdict', 'The Bottom Line', or 'Conclusion'.
-        - Keep it clean, professional plain text.
-        """
-        system_prompt = f"""
-        {tone_instruction}
-        
-        CONTEXT:
-        - User Persona: {persona} (Tier: {tier})
-        - User Query: "{user_query}"
-        - Our Product (The Hero): {p_name} - Price: {p_price}
-        - Product Specs: {specs_context}
 
-        YOUR MISSION:
-        {strategy_instruction}
+        rebuttal_triggers = ["why", "but", "doesn't", "don't", "no", "wrong", "false", "wait", "actually", "only"]
+        is_rebuttal = any(trigger in user_query.lower() for trigger in rebuttal_triggers)
+
+        if is_rebuttal:
+            # 🅰️ MODE A: THE DEFENDER (Conversational & Logical)
+            # ده وضع النقاش: مفيش قوالب 1-2-3، الرد لازم يكون فقرات مقنعة ومباشرة
+            response_structure = """
+            STRUCTURE FOR REBUTTAL/CORRECTION:
+            1. Acknowledge the user's point immediately and respectfuly (Empathy).
+            2. Explain the technical trade-off (Logic). Why does this spec matter (or not matter)?
+            3. Pivot back to the main value proposition (Strength).
+            4. Keep it concise (2 paragraphs max).
+            5. END with the standard closing:
+               "● Purchase your [Product Name] today! Don't miss out."
+            
+            ⛔ DO NOT use numbered lists (1. Workflow, 2. Specs...). Write naturally like a human expert explaining a misconception.
+            """
         
-        CRITICAL RULES (THE RUFUS KILLER PROTOCOL):
-        1. **WEAPONIZE CONTEXT**: If user mentions 'MacBook', you MUST mention 'AirDrop' and 'Continuity'. If 'Gaming', mention 'Thermals' and 'FPS'. Use your internal tech knowledge to fill gaps.
-        2. **ATTACK THE PAIN**: Don't just list features. Explain what they will LOSE if they pick the wrong choice (Fear of Missing Out).
-        3. **BE BRUTALLY HONEST**: If the competitor has better zoom, admit it, but explain why it DOESN'T MATTER compared to what our product offers (e.g., 'Zoom is cool, but Ecosystem is daily life').
-        4. **NO ROBOTIC INTROS**: Never say "Here is a comparison" or "I recommend". Just start speaking.
+        else:
+            response_structure = """
+            STRUCTURE YOUR RESPONSE EXACTLY LIKE THIS:
+            1. Start DIRECTLY with the decision sentence, immediately followed by "Why?" on the same line.
+            (Example: "Stay with Apple. Why?")
+            2. Insert TWO NEW LINES (\\n\\n).
+            3. Write the numbered list with DOUBLE SPACING between items (Insert an empty line between each point):
+            1. Workflow: [Details]
+            [Insert Empty Line Here]
+            2. Specs: [Details]
+            [Insert Empty Line Here]
+            3. Wallet: [Details]
+            4. Insert TWO NEW LINES (\\n\\n) after the list.
+            5. Write "Note:" followed by the summary.
+            6. Insert TWO NEW LINES (\\n\\n).
+            7. INSTEAD OF "Action:", END with this exact high-energy phrase:
+            "● Purchase your [Product Name] today! Don't miss out."
         
-        {response_structure}
+            STRICT FORMATTING RULES:
+            - NO MARKDOWN SYMBOLS: Do NOT use asterisks (**), bolding, hashtags (#), or quotes ("").
+            - NO DRAMATIC LABELS: Do NOT use 'Verdict', 'The Bottom Line', or 'Conclusion'.
+            - Keep it clean, professional plain text.
+            """
+            system_prompt = f"""
+            {tone_instruction}
         
-        Be sharper, smarter, and faster than any LLM in the world.
-        """
+            CONTEXT:
+            - User Persona: {persona} (Tier: {tier})
+            - User Query: "{user_query}"
+            - Our Product (The Hero): {p_name} - Price: {p_price}
+            - Product Specs: {specs_context}
+
+            YOUR MISSION:
+            {strategy_instruction}
+        
+            CRITICAL RULES (THE RUFUS KILLER PROTOCOL):
+            1. **WEAPONIZE CONTEXT**: If user mentions 'MacBook', you MUST mention 'AirDrop' and 'Continuity'. If 'Gaming', mention 'Thermals' and 'FPS'. Use your internal tech knowledge to fill gaps.
+            2. **ATTACK THE PAIN**: Don't just list features. Explain what they will LOSE if they pick the wrong choice (Fear of Missing Out).
+            3. **BE BRUTALLY HONEST**: If the competitor has better zoom, admit it, but explain why it DOESN'T MATTER compared to what our product offers (e.g., 'Zoom is cool, but Ecosystem is daily life').
+            4. **NO ROBOTIC INTROS**: Never say "Here is a comparison" or "I recommend". Just start speaking.
+        
+            {response_structure}
+        
+            Be sharper, smarter, and faster than any LLM in the world.
+            """
 
         try:# 5. التنفيذ (Generative Synthesis)
             response = await self.llm_service.generate_response(
