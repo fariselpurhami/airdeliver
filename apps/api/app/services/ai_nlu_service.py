@@ -1793,7 +1793,7 @@ class AINLUService:
                 system_role=system_prompt,
                 # التعديل هنا: قللنا الحرارة لـ 0.3 عشان يركز، وزودنا max_tokens عشان ميفصلش
                 temperature=0.3,
-                max_tokens=800  # 👈 ده الرقم السحري اللي هيديه مساحة يكتب رد كامل ومفصل
+                max_tokens=2500  # 👈 ده الرقم السحري اللي هيديه مساحة يكتب رد كامل ومفصل
             )
             return response.strip().replace('"', '')
 
