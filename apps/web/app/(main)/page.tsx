@@ -329,75 +329,61 @@ const stepsWithPositions = [
   { ...timelineSteps[3], id: 'card-4', x: 800, y: 1700, width: CARD_W, height: CARD_H },
 ];
 
-// ============================================================================
+/// ============================================================================
 // --- 2. 3D BACKGROUND COMPONENT (BlueEnergyStars) ---
 // ============================================================================
 
 const BlueEnergyStars = () => {
-    const ref = useRef<THREE.Points>(null!);
+    const groupRef = useRef<THREE.Group>(null!);
 
-    const starTexture = useMemo(() => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        const context = canvas.getContext('2d');
-
-        if (context) {
-            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
-            gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.4, 'rgba(255,255,255,0.9)');
-            gradient.addColorStop(1, 'rgba(255,255,255,0)');
-
-            context.fillStyle = gradient;
-            context.fillRect(0, 0, 32, 32);
-        }
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.premultiplyAlpha = true;
-        return texture;
-    }, []);
-
-    useFrame((state, delta) => {
-        if (ref.current) {
-            ref.current.rotation.y -= delta * 0.05;
-            ref.current.rotation.x += delta * 0.01;
-        }
-    });
-
-    const stars = useMemo(() => {
-        const count = 90000;
+    const sphere = useMemo(() => {
+        // 1. نفس الكثافة العالية (Density)
+        const count = 400000; 
+        const radius = 66; // نصف القطر (موسع قليلاً ليغطي مساحة السكشن)
+        
         const positions = new Float32Array(count * 3);
 
         for (let i = 0; i < count; i++) {
-           
-            positions[i * 3] = (Math.random() - 0.5) * 100;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 80;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
+            // استخدام توزيع كروي (Spherical Distribution) مثل الـ Hero Section
+            const r = radius * Math.cbrt(Math.random());
+            const theta = Math.random() * 2 * Math.PI;
+            const phi = Math.acos(2 * Math.random() - 1);
+
+            const x = r * Math.sin(phi) * Math.cos(theta);
+            const y = r * Math.sin(phi) * Math.sin(theta);
+            const z = r * Math.cos(phi);
+
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
         }
         return positions;
     }, []);
 
+    useFrame((_, delta) => {
+        if (groupRef.current) {
+            // 2. نفس فيزياء الحركة (Movement Physics)
+            groupRef.current.rotation.x -= delta * 0.0005;
+            groupRef.current.rotation.y -= delta * 0.0005;
+            groupRef.current.rotation.z -= delta * 0.005;
+        }
+    });
+
     return (
-        <points ref={ref}>
-            <bufferGeometry>
-                <bufferAttribute
-                    attach="attributes-position"
-                    count={stars.length / 3}
-                    array={stars}
-                    itemSize={3}
+        // تعديل الموقع Z قليلاً ليظهر بشكل جيد مع كاميرا هذا القسم
+        <group ref={groupRef} position={[0, 0, -60]}>
+            <Points positions={sphere} stride={3} frustumCulled={false}>
+                <PointMaterial
+                    transparent
+                    color="#3b82f6"       // حافظنا على اللون الأزرق (Blue Energy)
+                    size={0.067}          // 3. نفس الحجم الصغير والدقيق (Size)
+                    sizeAttenuation={true}
+                    depthWrite={false}
+                    toneMapped={false}
+                    opacity={1}
                 />
-            </bufferGeometry>
-            <pointsMaterial
-                size={0.18}
-		map={starTexture}
-                color="#3b82f6"     
-                transparent
-                opacity={1.0}
-                sizeAttenuation={true}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-            />
-        </points>
+            </Points>
+        </group>
     );
 };
 
@@ -912,65 +898,58 @@ const testimonials = [
 ];
 
 const PurpleEnergyStars = () => {
-    const ref = useRef<THREE.Points>(null!);
+    const groupRef = useRef<THREE.Group>(null!);
 
-    const starTexture = useMemo(() => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        const context = canvas.getContext('2d');
-        if (context) {
-            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
-            gradient.addColorStop(0, 'rgba(255,255,255,1)');
-            gradient.addColorStop(0.5, 'rgba(255,255,255,0.9)');
-            gradient.addColorStop(1, 'rgba(255,255,255,0)');
-            context.fillStyle = gradient;
-            context.fillRect(0, 0, 32, 32);
-        }
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.premultiplyAlpha = true;
-        return texture;
-    }, []);
-
-    useFrame((state, delta) => {
-        if (ref.current) {
-            ref.current.rotation.y -= delta * 0.05;
-            ref.current.rotation.x += delta * 0.01;
-        }
-    });
-
-    const stars = useMemo(() => {
-
-        const count = 90000;
+    const sphere = useMemo(() => {
+        // 1. نفس الكثافة العالية (Density)
+        const count = 400000; 
+        const radius = 66; // نصف القطر (موسع قليلاً ليغطي مساحة السكشن)
+        
         const positions = new Float32Array(count * 3);
+
         for (let i = 0; i < count; i++) {
-            
-            positions[i * 3] = (Math.random() - 0.5) * 100;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * 80;
-            positions[i * 3 + 2] = (Math.random() - 0.5) * 30;
+            // استخدام توزيع كروي (Spherical Distribution) مثل الـ Hero Section
+            const r = radius * Math.cbrt(Math.random());
+            const theta = Math.random() * 2 * Math.PI;
+            const phi = Math.acos(2 * Math.random() - 1);
+
+            const x = r * Math.sin(phi) * Math.cos(theta);
+            const y = r * Math.sin(phi) * Math.sin(theta);
+            const z = r * Math.cos(phi);
+
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
         }
         return positions;
     }, []);
 
+    useFrame((_, delta) => {
+        if (groupRef.current) {
+            // 2. نفس فيزياء الحركة (Movement Physics)
+            groupRef.current.rotation.x -= delta * 0.0005;
+            groupRef.current.rotation.y -= delta * 0.0005;
+            groupRef.current.rotation.z -= delta * 0.005;
+        }
+    });
+
     return (
-        <points ref={ref}>
-            <bufferGeometry>
-                <bufferAttribute attach="attributes-position" count={stars.length / 3} array={stars} itemSize={3} />
-            </bufferGeometry>
-            <pointsMaterial
-                size={0.18}
-                map={starTexture}
-                color="#c084fc" 
-                transparent
-                opacity={1.0}
-                sizeAttenuation={true}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-            />
-        </points>
+        // تعديل الموقع Z قليلاً ليظهر بشكل جيد مع كاميرا هذا القسم
+        <group ref={groupRef} position={[0, 0, -60]}>
+            <Points positions={sphere} stride={3} frustumCulled={false}>
+                <PointMaterial
+                    transparent
+                    color="#c084fc"    
+                    size={0.067}          // 3. نفس الحجم الصغير والدقيق (Size)
+                    sizeAttenuation={true}
+                    depthWrite={false}
+                    toneMapped={false}
+                    opacity={1}
+                />
+            </Points>
+        </group>
     );
 };
-
 const TrustSignalCard = ({ icon: Icon, title, description, delay }: { icon: any, title: string, description: string, delay: number }) => (
     <motion.div
         initial={{ opacity: 0, y: 30 }}

@@ -584,7 +584,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
     }, [messages]);
 
     return (
-        <div className="hidden lg:flex w-[350px] xl:w-[400px] flex-shrink-0 backdrop-blur-3xl bg-black/60 border-l border-white/5 flex-col overflow-hidden relative z-20">
+        <div className="hidden lg:flex w-[350px] xl:w-[400px] flex-shrink-0 backdrop-blur-3xl bg-black/80 border-l border-white/5 flex-col overflow-hidden relative z-20">
             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" />
             
             <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent relative z-10">
@@ -598,7 +598,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                         {cart.items.length === 0 ? (
                             <motion.div 
                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                className="flex flex-col items-center justify-center h-48 text-gray-600 gap-3 border border-dashed border-white/5 rounded-3xl bg-white/[0.02]"
+				className="flex flex-col items-center justify-center h-48 text-gray-600 gap-3"
                             >
                                 <ShoppingCart size={32} className="opacity-30" />
                                 <p className="text-xs uppercase tracking-widest font-mono">Empty | Cart</p>
