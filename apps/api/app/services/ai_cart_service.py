@@ -169,7 +169,7 @@ class AICartService:
                         "type": "product_carousel",
                         "products": [p.model_dump(mode='json') for p in bundle_items], # 🛡️ Safe Dump
                         "secondary_suggestions": True, # UI Hint
-                        "reason": "Carefully selected to provide the best user experience."
+                        "reason": "Rigorously curated with uncompromising attention to detail, ensuring a seamless and superior experience that sets the gold standard for satisfaction."
                     })
             except Exception as e:
                 logger.warning(f"Bundling Logic Warning: {e}")
@@ -322,7 +322,7 @@ class AICartService:
                 await asyncio.sleep(0.5)
 
                 await self._send_to_ui(user_id, {
-                    "content": "You still have items in your manifest. Ready to proceed?",
+                    "content": None,
                     "type": "confirmation_prompt",
                     "options": ["Confirm Order", "Keep Shopping"]
                 })

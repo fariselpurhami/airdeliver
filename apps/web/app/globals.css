@@ -265,12 +265,12 @@ html, body, * {
 
   header .container,
   [role="banner"] .container {
-    max-width: 1450px !important;
+    max-width: 1410px !important;
     width: 100% !important;
   }
 
   .container {
-    max-width: 1610px !important;
+    max-width: 1570px !important;
     margin-left: auto !important;
     margin-right: auto !important;
     padding-left: 2rem !important;

@@ -223,7 +223,7 @@ class AINLUService:
                     "content": headline,
                     "type": "product_carousel",
                     "products": [p.model_dump(mode='json') for p in final_selection],
-                    "reason": "Quality Upgrade"
+                    "reason": "A superior tier of performance, engineered to surpass the limitations of your previous selection and redefine your standard of excellence."
                 })
 
                 await asyncio.sleep(0.5)
@@ -234,7 +234,7 @@ class AINLUService:
                 # 3. إذا وجدنا منتجات متبقية، نعرض الخيارات
                 if cart and cart.get("items") and len(cart["items"]) > 0:
                     await self._send_to_ui(user_id, {
-                        "content": "You still have items in your manifest. Ready to proceed?",
+                        "content": None,
                         "type": "confirmation_prompt",
                         "options": ["Confirm Order"]
                     })
@@ -363,12 +363,12 @@ class AINLUService:
 
         # 🕒 Temporal Context
         if 5 <= hour < 12: 
-            return f"Good Morning. Start your day with these {vibe} picks {tone}."
+            return f"Good Morning. As you rise to conquer new horizons today, ignite your potential with this Trending selection, meticulously curated just for you to elevate your lifestyle from the very first moment."
         if 12 <= hour < 18: 
-            return f"Good Afternoon. Have you checked these {vibe} arrivals yet?"
+            return f"Good Afternoon. Amidst the momentum of your day, take a moment to inspect these collection arrivals."
         if 18 <= hour < 22:
-            return f"Good Evening. Relax and browse these {vibe} collections."
-        return f"Late Night Shopping? We found some {vibe} gems for night owls."
+            return f"Good Evening. As the day unwinds, immerse yourself in the sophistication of our best collection."
+        return f"The Pursuit of Excellence Never Sleeps. Discover our elite treasures."
 
     def _get_seen_key(self, user_id: int) -> str:
         """Standardized Redis Key for Seen Products (Session Scoped)"""
@@ -1348,7 +1348,7 @@ class AINLUService:
                 "content": clean_content.strip(),
                 "type": "product_carousel" if final_products else "text",
                 "products": safe_products_list,
-                "reason": "Top choices based on user experience."
+                "reason": "Selected as the optimal matches proven to deliver the highest caliber of user satisfaction and performance."
             }
             
             # إرسال الطرد المحصن للـ UI (استبدال السطر 592)
@@ -2033,7 +2033,7 @@ class AINLUService:
             # إبلاغ الواجهة
             await self._send_to_ui(user_id, {"content": "Session & Memory Cleared. Starting Fresh. 🔄", "type": "system"})
             return
-
+      
     # 💎 DYNAMIC HOMEPAGE ENGINE (The Smart Matrix)
     async def _handle_initial_suggestions(self, user_id: int):
         """
@@ -2202,7 +2202,7 @@ class AINLUService:
                 "content": greeting,
                 "type": "proactive_suggestion", # Special UI Type
                 "products": [p.model_dump(mode='json') for p in products_personal],
-                "reason": "Specially curated for you."
+                "reason": "Exclusively curated to align with your distinct taste and elevated lifestyle standards."
             })
             await asyncio.sleep(0.3) # Micro-pause for UX flow
 
@@ -2214,11 +2214,12 @@ class AINLUService:
             filtered_bs = [p for p in products_bestsellers if p.id not in personal_ids][:8]
             
             if filtered_bs:
+
                 await self._send_to_ui(user_id, {
-                    "content": "Check out the best selling products right now.",
+                    "content": "Discover our most acclaimed masterpieces, rigorously validated by the community to guarantee a superior experience and lasting satisfaction.",
                     "type": "product_carousel",
                     "products": [p.model_dump(mode='json') for p in filtered_bs],
-                    "reason": "Based on market analysis."
+                    "reason": "dentified through rigorous global market analysis as the undisputed leaders currently commanding consumer attention."
                 })
                 await asyncio.sleep(0.3)
 
@@ -2230,11 +2231,12 @@ class AINLUService:
             filtered_tr = [p for p in products_trending if p.id not in seen_so_far][:8]
             
             if filtered_tr:
+
                 await self._send_to_ui(user_id, {
-                    "content": "Trending products right Now.",
+                    "content": "Experience the momentum of now with our definitive collection of the most sought-after products defining this season.",
                     "type": "product_carousel",
                     "products": [p.model_dump(mode='json') for p in filtered_tr],
-                    "reason": "Based on user trends."
+                    "reason": "Surfaced by real-time interaction metrics as the high-velocity products currently capturing the global market pulse."
                 })
                 await asyncio.sleep(0.3)
 
@@ -2245,11 +2247,13 @@ class AINLUService:
             filtered_deals = [p for p in products_deals if p.id not in seen_so_far][:8]
             
             if filtered_deals:
+
+                
                 await self._send_to_ui(user_id, {
-                    "content": "See our high value products here.",
+                    "content": "Explore an exclusive curation of investment-worthy masterpieces, meticulously selected to redefine your standards of quality and excellence.",
                     "type": "product_carousel",
                     "products": [p.model_dump(mode='json') for p in filtered_deals],
-                    "reason": "Selected for best value."
+                    "reason": "Strategically identified as high-yield opportunities where superior performance perfectly aligns with the optimal price point."
                 })
 
         
