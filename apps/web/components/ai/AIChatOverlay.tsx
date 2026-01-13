@@ -1195,10 +1195,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         onClick={(e) => e.stopPropagation()}
                         className="w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617] backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
                     >
-                       
-                        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
-                        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full" />
-
+                      
                         <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-black/20 backdrop-blur-sm">
                             <h3 className="font-bold text-2xl normal-case tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 <motion.span
@@ -1217,7 +1214,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                             </h3>
                             <button 
                                 onClick={handleClose} 
-                                className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30 transition-all duration-300"
+                                className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all duration-300 hover:scale-110"
                             >
                                 <X size={20} />
                             </button>
