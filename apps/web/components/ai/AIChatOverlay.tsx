@@ -351,20 +351,6 @@ const ProductCarousel = React.memo(({ products, onViewDetails, onSelect }: { pro
 });
 ProductCarousel.displayName = 'ProductCarousel';
 
-const AIReasoning = React.memo(({ text }: { text: string }) => (
-    <motion.div
-        initial={{ opacity: 0, height: 0, scale: 0.95 }}
-        animate={{ opacity: 1, height: 'auto', scale: 1 }}
-        className="flex items-start gap-3 mt-4 max-w-lg relative"
-    >
-        <div className="absolute -right-4 -top-4 w-16 h-16 bg-cyan-500/10 blur-xl rounded-full" />
-        <div>
-            <span className="block text-[10px] font-black text-cyan-300 tracking-widest mb-1">vision by air</span>
-            <p className="text-sm text-cyan-100/80 font-sans leading-relaxed">{text}</p>
-        </div>
-    </motion.div>
-));
-AIReasoning.displayName = 'AIReasoning';
 
 // --- ARCHITECTURAL UPGRADE: Refined Message Design ---
 const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
@@ -482,7 +468,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
                         <ProductCarousel products={message.products || []} onSelect={onProductSelect} onViewDetails={onViewDetails} />
                         {(message.reason || message.ai_notes) && (
                             <div className="px-2">
-                                <AIReasoning text={message.reason || message.ai_notes} />
+                                
                             </div>
                         )}
                     </div>
@@ -584,7 +570,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
     }, [messages]);
 
     return (
-        <div className="hidden lg:flex w-[350px] xl:w-[400px] flex-shrink-0 backdrop-blur-3xl bg-black/80 border-l border-white/5 flex-col overflow-hidden relative z-20">
+        <div className="hidden lg:flex w-[350px] xl:w-[400px] flex-shrink-0 backdrop-blur-3xl bg-[#020617]/50 border-l border-white/5 flex-col overflow-hidden relative z-20">
             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" />
             
             <div className="flex-grow px-4 lg:px-12 py-8 space-y-8 overflow-y-auto no-scrollbar">
@@ -649,7 +635,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
                 </div>
             </div>
 
-            <div className="flex-shrink-0 p-6 border-t border-white/10 bg-[#050B14] space-y-6 relative z-20">
+            <div className="flex-shrink-0 p-6 border-t border-white/10 bg-[#020617]/50 space-y-6 relative z-20">
                 
                 <div>
                     <h3 className="text-[10px] font-bold text-gray-500 tracking-widest mb-3 flex items-center gap-2">
@@ -1196,7 +1182,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         className="w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617] backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
                     >
                       
-                        <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-black/20 backdrop-blur-sm">
+                        <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-[#020617]/50 backdrop-blur-sm">
                             <h3 className="font-bold text-2xl normal-case tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 <motion.span
                                     className="text-transparent bg-clip-text bg-gradient-to-r text-white"

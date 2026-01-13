@@ -143,7 +143,11 @@ class NeuralCoreService:
             text="",
             confidence=0.95,
             explain=f"Processed via Native Groq ({intent})",
-            telemetry={"intent": intent}
+            telemetry={
+                "intent": intent,
+                "entities": [],  # ✅ Fix: Added required field
+                "turn": len(context["history"]) // 2
+            }
         )
 
         # 2. 🚦 Traffic Control
