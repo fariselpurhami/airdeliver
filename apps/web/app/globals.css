@@ -75,14 +75,17 @@
   }
 
   html {
+    
     -webkit-text-size-adjust: 100%;
     -moz-tab-size: 4;
     tab-size: 4;
     font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-
+   
   }
   body {
+
+   
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-smoothing: antialiased;
@@ -104,7 +107,7 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-
+  
   .gpu-accelerated {
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
@@ -226,21 +229,27 @@
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important; /* لإلغاء اللون الأبيض */
+  -webkit-appearance: none !important;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background));
+  background: transparent !important;
+  display: none !important;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.3);
-  border-radius: 4px;
+  background: transparent !important;
+  display: none !important;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #06b6d4;
+/* 2. إخفاء الشريط لمتصفحات فايرفوكس وإيدج */
+html, body, * {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -587,7 +587,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
         <div className="hidden lg:flex w-[350px] xl:w-[400px] flex-shrink-0 backdrop-blur-3xl bg-black/80 border-l border-white/5 flex-col overflow-hidden relative z-20">
             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" />
             
-            <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent relative z-10">
+            <div className="flex-grow px-4 lg:px-12 py-8 space-y-8 overflow-y-auto no-scrollbar">
                 <div className="flex items-center justify-between mb-8">
                     <h3 className="text-sm font-bold uppercase text-white tracking-widest flex items-center gap-2">
                     </h3>
@@ -835,7 +835,7 @@ const ChatInput = React.memo(
                 }}
                 placeholder={isListening ? 'Listening...' : isInputLocked ? 'Thinking...' : 'Ask order with air...'}
                 disabled={isInputLocked}
-                className="w-full bg-[#0F172A] border border-white/10 rounded-full py-4 pr-16 pl-6 text-white placeholder-gray-500 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/40 focus:outline-none transition-all duration-300 font-medium shadow-inner resize-none overflow-hidden min-h-[56px] leading-relaxed"
+                className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800 focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
 		style={{
                     // نظهر السكرول فقط لو الكلام زاد عن 150 بيكسل
                     overflowY: textareaRef.current && textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden'
@@ -844,7 +844,7 @@ const ChatInput = React.memo(
              <button
                 disabled={isSendButtonDisabled}
                 onClick={handleTriggerSend}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-transparent disabled:text-gray-600 text-white transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-transparent disabled:text-gray-500 text-white transition-all"
             >
                 {isInputLocked ? <Loader2 size={18} className="animate-spin" /> : <CornerDownRight size={18} />}
             </button>
@@ -1193,7 +1193,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617]/80 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
+                        className="w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617] backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
                     >
                        
                         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />

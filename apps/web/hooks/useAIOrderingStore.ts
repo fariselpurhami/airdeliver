@@ -101,13 +101,6 @@ let messageIdCounter = 1;
 const generateMessageId = () => Date.now() + messageIdCounter++;
 const generateUUID = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-const initialWelcomeMessage: Message = {
-  id: 0,
-  sender: 'ai',
-  contentType: 'text',
-  content: 'Welcome! Describe what you need. order with air: From cart to your door. Easy and Effortless',
-  timestamp: Date.now(),
-};
 
 const getWebSocketURL = () => {
   if (typeof window === 'undefined') return '';
@@ -124,7 +117,7 @@ const getWebSocketURL = () => {
 
 export const useAIOrderingStore = create<AIOrderingState>()(
   (set, get) => ({
-    messages: [initialWelcomeMessage],
+    messages: [],
     paymentDetails: null,
     recoveryOrderDetails: null,
     suggestedProductIds: null,
@@ -603,7 +596,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     resetChat: () => {
         get().clearCart();
         set({
-            messages: [initialWelcomeMessage],
+            messages: [],
             isLoading: false,
             isProcessing: false,
             paymentDetails: null,
