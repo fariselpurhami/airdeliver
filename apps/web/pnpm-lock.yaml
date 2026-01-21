@@ -50,8 +50,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       critters:
-        specifier: npm:beasties@^0.3.5
-        version: beasties@0.3.5
+        specifier: npm:beasties@^0.4.0
+        version: beasties@0.4.0
       embla-carousel-autoplay:
         specifier: ^8.6.0
         version: 8.6.0(embla-carousel@8.6.0)
@@ -59,8 +59,8 @@ importers:
         specifier: ^8.6.0
         version: 8.6.0(react@19.2.3)
       framer-motion:
-        specifier: ^12.27.2
-        version: 12.27.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        specifier: ^12.27.5
+        version: 12.27.5(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       immer:
         specifier: ^11.1.3
         version: 11.1.3
@@ -1264,9 +1264,9 @@ packages:
     resolution: {integrity: sha512-ZCQ9GEWl73BVm8bu5Fts8nt7MHdbt5vY9bP6WGnUh+r3l8M7CgfyTlwsgCbMC66BNxPr6Xoce3j66Ms5YUQTNA==}
     hasBin: true
 
-  beasties@0.3.5:
-    resolution: {integrity: sha512-NaWu+f4YrJxEttJSm16AzMIFtVldCvaJ68b1L098KpqXmxt9xOLtKoLkKxb8ekhOrLqEJAbvT6n6SEvB/sac7A==}
-    engines: {node: '>=14.0.0'}
+  beasties@0.4.0:
+    resolution: {integrity: sha512-PPlV0h4hHCjXLIL92saq2kRodoxunksRCuQTTyWY7+uqkErFW4xq5fvHXus1wFyHpow0Xg9fbHr5QiUoRaXORA==}
+    engines: {node: '>=18.0.0'}
 
   bidi-js@1.0.3:
     resolution: {integrity: sha512-RKshQI1R3YQ+n9YJz2QQ147P66ELpa1FQEg20Dk8oW9t2KgLbpDLLp9aGZ7y8WHSshDknG0bknqGw5/tyCs5tw==}
@@ -1807,8 +1807,8 @@ packages:
   fraction.js@5.3.4:
     resolution: {integrity: sha512-1X1NTtiJphryn/uLQz3whtY6jK3fTqoE3ohKs0tT+Ujr1W59oopxmoEh7Lu5p6vBaPbgoM0bzveAW4Qi5RyWDQ==}
 
-  framer-motion@12.27.2:
-    resolution: {integrity: sha512-a6MRrna8mQLdSoNtDr6VwVHujVB9Bzkbm+lmlejgGOFtqAPlEpeZHN8IHhrk9LxE4E0+5jRO77tXdvWl4+lfQg==}
+  framer-motion@12.27.5:
+    resolution: {integrity: sha512-yUFof7Y2Y2qDJxLKeA91qMazuA6QBOoLOZ0No2J5VIQuhJLWMmGwT/5qyCfpa9mNNS3C7lOR6NhlC3mLZjLw4g==}
     peerDependencies:
       '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0
@@ -2364,8 +2364,8 @@ packages:
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
 
-  motion-dom@12.27.2:
-    resolution: {integrity: sha512-NJQNr+S6CthEx4AyLWKvM+vPfIBCJjTGMWRjO0n3mele1WueJLV+WRw4GYnOUzfZ58za9oHrIFEHy+fg4uaLqA==}
+  motion-dom@12.27.5:
+    resolution: {integrity: sha512-UwBv2AUOkA7/TCHr67NGjg3aRT7nbsanmmenRoR7T6IJXZp34OZB+pooGnKjMd8CqqCsF/+qwT657EkukjgmiQ==}
 
   motion-utils@12.27.2:
     resolution: {integrity: sha512-B55gcoL85Mcdt2IEStY5EEAsrMSVE2sI14xQ/uAdPL+mfQxhKKFaEag9JmfxedJOR4vZpBGoPeC/Gm13I/4g5Q==}
@@ -2527,6 +2527,12 @@ packages:
 
   postcss-media-query-parser@0.2.3:
     resolution: {integrity: sha512-3sOlxmbKcSHMjlUXQZKQ06jOswE7oVkXPxmZdoB1r5l0q6gTFTQSHxNxOrCccElbW7dxNytifNEo8qidX2Vsig==}
+
+  postcss-safe-parser@7.0.1:
+    resolution: {integrity: sha512-0AioNCJZ2DPYz5ABT6bddIqlhgwhpHZ/l65YAYo0BCIn0xiDpsnTHz0gnoTGk0OXZW0JRs+cDwL8u/teRdz+8A==}
+    engines: {node: '>=18.0'}
+    peerDependencies:
+      postcss: ^8.4.31
 
   postcss-selector-parser@6.0.10:
     resolution: {integrity: sha512-IQ7TZdoaqbT+LCpShg46jnZVlhWD2w6iQYAcYXfHARZ7X1t/UGhhceQDs5X0cGqKvYlHNOuv7Oa1xmb0oQuA3w==}
@@ -4257,7 +4263,7 @@ snapshots:
 
   baseline-browser-mapping@2.9.4: {}
 
-  beasties@0.3.5:
+  beasties@0.4.0:
     dependencies:
       css-select: 6.0.0
       css-what: 7.0.0
@@ -4267,6 +4273,7 @@ snapshots:
       picocolors: 1.1.1
       postcss: 8.5.6
       postcss-media-query-parser: 0.2.3
+      postcss-safe-parser: 7.0.1(postcss@8.5.6)
 
   bidi-js@1.0.3:
     dependencies:
@@ -4926,9 +4933,9 @@ snapshots:
 
   fraction.js@5.3.4: {}
 
-  framer-motion@12.27.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  framer-motion@12.27.5(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
-      motion-dom: 12.27.2
+      motion-dom: 12.27.5
       motion-utils: 12.27.2
       tslib: 2.8.1
     optionalDependencies:
@@ -5469,7 +5476,7 @@ snapshots:
 
   minimist@1.2.8: {}
 
-  motion-dom@12.27.2:
+  motion-dom@12.27.5:
     dependencies:
       motion-utils: 12.27.2
 
@@ -5619,6 +5626,10 @@ snapshots:
   possible-typed-array-names@1.1.0: {}
 
   postcss-media-query-parser@0.2.3: {}
+
+  postcss-safe-parser@7.0.1(postcss@8.5.6):
+    dependencies:
+      postcss: 8.5.6
 
   postcss-selector-parser@6.0.10:
     dependencies:
