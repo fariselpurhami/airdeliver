@@ -32,7 +32,7 @@ class AIVoiceOrchestrator:
 
     # --- ⚙️ PHYSICS CONSTANTS ---
     # Threshold for "Silence" (0-32768). Below this, we don't wake up the GPU.
-    SILENCE_THRESHOLD = 500  
+    SILENCE_THRESHOLD = 50
     # Max queued audio chunks before we start dropping frames (Load Shedding)
     MAX_QUEUE_SIZE = 50 
 
@@ -75,7 +75,8 @@ class AIVoiceOrchestrator:
             # A. Network Reader: Reads WS -> Pushes to Queue
             reader_task = asyncio.create_task(self._network_reader(websocket, input_queue))
             # B. Model Feeder: Pulls Queue -> Filters Silence -> Pushes to GPU
-            feeder_task = asyncio.create_task(self._model_feeder(model_session, input_queue))
+        
+            feeder_task = asyncio.create_task(self._model_feeder(model_session, input_queue, websocket))
             # C. Speaker: Pulls Model Output -> Sends to WS
             speaker_task = asyncio.create_task(self._output_loop(websocket, model_session))
             
@@ -142,11 +143,16 @@ class AIVoiceOrchestrator:
                 
                 # 🛡️ RESOURCE GUARD: Lightweight VAD
                 # Don't wake up the 7B Model for background noise.
-                if self._is_silence(audio_chunk):
+                is_silent, rms = self._check_silence_debug(audio_chunk)
+                if is_silent:
                     continue 
-
+                logger.info(f"🎤 VOICE DETECTED! (RMS: {rms}) - Sending confirmation...")
                 # ⚡ Push to GPU
-                await session.push_audio(audio_chunk)
+                #await session.push_audio(audio_chunk)
+                await websocket.send_text(json.dumps({
+                    "type": "text_stream",
+                    "text": "🔊 I heard you! (Server Connected)"
+                }))
                 
         except asyncio.CancelledError:
             pass
