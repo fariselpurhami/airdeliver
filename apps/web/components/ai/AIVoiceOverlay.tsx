@@ -1,59 +1,17 @@
-//** apps/web/components/ai/AIVoiceOverlay.tsx **//
-
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mic, Zap, BrainCircuit, Sparkles, Activity } from 'lucide-react';
+import { X, Mic, Zap, BrainCircuit, Activity } from 'lucide-react';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 
-// --- 🌌 Sub-Component: Particle Field Background ---
-const ParticleField = () => {
-    const particles = useMemo(() => {
-        return Array.from({ length: 40 }).map((_, i) => ({
-            id: i,
-            x: Math.random() * 100,
-            y: Math.random() * 100,
-            size: Math.random() * 3 + 1,
-            duration: Math.random() * 10 + 10,
-            delay: Math.random() * 5
-        }));
-    }, []);
-
-    return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-            {particles.map((p) => (
-                <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, x: `${p.x}%`, y: `${p.y}%` }}
-                    animate={{ 
-                        opacity: [0, 0.4, 0], 
-                        y: [`${p.y}%`, `${p.y - 20}%`],
-                        x: [`${p.x}%`, `${p.x + (Math.random() > 0.5 ? 10 : -10)}%`]
-                    }}
-                    transition={{ 
-                        duration: p.duration, 
-                        repeat: Infinity, 
-                        delay: p.delay, 
-                        ease: "linear" 
-                    }}
-                    className="absolute rounded-full bg-white blur-[1px]"
-                    style={{ width: p.size, height: p.size }}
-                />
-            ))}
-        </div>
-    );
-};
-
 export const AIVoiceOverlay = () => {
+    // ... (كل الـ Hooks والمنطق يظل كما هو تماماً بدون تغيير) ...
     const { isVoiceMode, setVoiceMode, addSocketAIMessage } = useAIOrderingStore();
     const [status, setStatus] = useState<'listening' | 'processing' | 'speaking'>('listening');
     const [aiResponse, setAiResponse] = useState('');
-    
-    // 🎚️ Audio Physics State (Real-time Volume)
     const [audioLevel, setAudioLevel] = useState(1); 
 
-    // 🛠️ Refs for Hardware Control
     const wsRef = useRef<WebSocket | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -61,8 +19,8 @@ export const AIVoiceOverlay = () => {
     const audioQueueRef = useRef<ArrayBuffer[]>([]);
     const isPlayingRef = useRef(false);
     const animationFrameRef = useRef<number>();
-
-    // 🎨 Ultra-Modern Color Palette
+    
+    // Theme Colors
     const statusColors = {
         listening: { bg: 'bg-cyan-500', glow: 'shadow-cyan-500/50', text: 'text-cyan-400', hex: '#06b6d4' },
         processing: { bg: 'bg-fuchsia-600', glow: 'shadow-fuchsia-500/50', text: 'text-fuchsia-400', hex: '#c026d3' },
@@ -70,239 +28,206 @@ export const AIVoiceOverlay = () => {
     };
     const currentTheme = statusColors[status];
 
-    // --- 🔊 HELPER: Play Audio Queue (Gapless Playback) ---
+    // ... (نفس دالة processAudioQueue) ...
     const processAudioQueue = async () => {
         if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
-        
         isPlayingRef.current = true;
         const chunk = audioQueueRef.current.shift();
-        
         if (chunk && audioContextRef.current) {
             try {
-                // Decode & Play
                 const audioBuffer = await audioContextRef.current.decodeAudioData(chunk);
                 const source = audioContextRef.current.createBufferSource();
                 source.buffer = audioBuffer;
                 source.connect(audioContextRef.current.destination);
-                
-                // Connect to Analyzer for Visuals (Make the Orb dance to AI voice)
-                if (analyserRef.current) {
-                    source.connect(analyserRef.current);
-                }
-
+                if (analyserRef.current) source.connect(analyserRef.current);
                 source.start(0);
                 setStatus('speaking');
-
                 source.onended = () => {
                     isPlayingRef.current = false;
-                    if (audioQueueRef.current.length === 0) {
-                        setStatus('listening');
-                    } else {
-                        processAudioQueue(); // Play next chunk
-                    }
+                    if (audioQueueRef.current.length === 0) setStatus('listening');
+                    else processAudioQueue(); 
                 };
             } catch (e) {
-                console.error("Audio Decode Error", e);
+                console.error("Decode Error", e);
                 isPlayingRef.current = false;
                 processAudioQueue();
             }
         }
     };
 
-    // --- 🎙️ MAIN LOGIC ---
+    // ... (نفس دالة useEffect) ...
     useEffect(() => {
         if (!isVoiceMode) return;
+        let localStream: MediaStream | null = null;
+        const initVoiceSession = async () => {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+                const ctx = new AudioContextClass();
+                audioContextRef.current = ctx;
+                const analyser = ctx.createAnalyser();
+                analyser.fftSize = 256;
+                analyserRef.current = analyser;
+                const source = ctx.createMediaStreamSource(localStream);
+                source.connect(analyser);
 
-        // 1. Initialize Audio Context (The Engine)
-        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-        const ctx = new AudioContextClass();
-        audioContextRef.current = ctx;
-        
-        // Setup Analyzer (Visual Physics)
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        analyserRef.current = analyser;
+                const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/api/v1/ordering/voice-stream?ticket=DEMO`; 
+                const ws = new WebSocket(wsUrl);
+                ws.binaryType = 'arraybuffer';
+                wsRef.current = ws;
 
-        // 2. WebSocket Setup (Binary Mode)
-        const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/api/v1/ordering/voice-stream?ticket=DEMO`;
-        const ws = new WebSocket(wsUrl);
-        ws.binaryType = 'arraybuffer'; // 👈 CRITICAL: We expect raw bytes
-        wsRef.current = ws;
+                const mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
+                mediaRecorderRef.current = mediaRecorder;
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(e.data);
+                };
+                mediaRecorder.start(250); 
 
-        ws.onopen = () => {
-            console.log('🎙️ Binary Voice Link Active');
-            startMicrophone(ws, ctx, analyser);
-        };
-        
-        ws.onmessage = async (event) => {
-            // A. Receive Audio Bytes (AI Voice)
-            if (event.data instanceof ArrayBuffer) {
-                audioQueueRef.current.push(event.data);
-                processAudioQueue();
-            } 
-            // B. Receive Control Text (Metadata/Subtitles)
-            else if (typeof event.data === 'string') {
-                const data = JSON.parse(event.data);
-                if (data.type === 'text_stream') {
-                    setAiResponse(data.text);
-                } else if (data.type === 'control' && data.payload.action === 'VOICE_SEARCH') {
-                    addSocketAIMessage({
-                        id: Date.now(),
-                        sender: 'user',
-                        contentType: 'text',
-                        content: data.payload.query,
-                        status: 'sent'
-                    });
-                }
+                ws.onopen = () => console.log('🌐 Socket Connected');
+                ws.onmessage = async (event) => {
+                    if (event.data instanceof ArrayBuffer) {
+                        audioQueueRef.current.push(event.data);
+                        processAudioQueue();
+                    } else if (typeof event.data === 'string') {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'text_stream') setAiResponse(data.text);
+                        if (data.type === 'control') {
+                            addSocketAIMessage({ id: Date.now(), sender: 'user', contentType: 'text', content: data.payload.query, status: 'sent' });
+                        }
+                    }
+                };
+                ws.onclose = () => console.log("🔌 Socket Closed");
+
+                const updateVisuals = () => {
+                    if (analyser) {
+                        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                        analyser.getByteFrequencyData(dataArray);
+                        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                        const scale = 1 + (average / 255) * 1.5; 
+                        setAudioLevel(scale);
+                    }
+                    animationFrameRef.current = requestAnimationFrame(updateVisuals);
+                };
+                updateVisuals();
+            } catch (err) {
+                console.error("❌ Failed to initialize voice:", err);
+                alert("Please allow microphone access to use Voice Mode.");
+                setVoiceMode(false);
             }
         };
-
-        ws.onclose = () => stopMicrophone();
-
-        // 3. Visualization Loop
-        const updateVisuals = () => {
-            if (analyserRef.current) {
-                const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-                analyserRef.current.getByteFrequencyData(dataArray);
-                
-                // Calculate Average Volume
-                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-                // Normalize to 1.0 - 2.0 range for scaling
-                const scale = 1 + (average / 255) * 1.5; 
-                setAudioLevel(scale);
-            }
-            animationFrameRef.current = requestAnimationFrame(updateVisuals);
-        };
-        updateVisuals();
-
+        initVoiceSession();
         return () => {
-            stopMicrophone();
-            ws.close();
-            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            if (wsRef.current) wsRef.current.close();
             if (audioContextRef.current) audioContextRef.current.close();
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
     }, [isVoiceMode]);
 
-    // --- 🎤 Hardware Access ---
-    const startMicrophone = async (ws: WebSocket, ctx: AudioContext, analyser: AnalyserNode) => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            // Connect Mic to Analyzer (So the orb moves when YOU speak)
-            const source = ctx.createMediaStreamSource(stream);
-            source.connect(analyser);
-
-            // Setup Recorder (Send Chunks to Server)
-            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' }); // Chrome standard
-            mediaRecorderRef.current = mediaRecorder;
-
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-                    // Send Binary Blob directly
-                    ws.send(e.data); 
-                }
-            };
-
-            // Slice every 250ms for low latency streaming
-            mediaRecorder.start(250); 
-        } catch (e) {
-            console.error("Mic Access Denied", e);
-            setVoiceMode(false);
-        }
-    };
-
-    const stopMicrophone = () => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-            mediaRecorderRef.current.stop();
-        }
-        mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
-    };
-
     if (!isVoiceMode) return null;
 
+    // 🔥🔥🔥 التغيير الشامل في التصميم (Matching AIChatOverlay) 🔥🔥🔥
     return (
         <AnimatePresence>
+            {/* 1. الخلفية الشفافة (Backdrop) التي تغطي الشاشة بالكامل */}
             <motion.div
-                initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                animate={{ opacity: 1, backdropFilter: "blur(20px)" }}
-                exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-                className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90"
+                key="voice-overlay-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 md:p-8"
+                onClick={() => setVoiceMode(false)} // اغلاق عند الضغط في الخارج
             >
-                {/* 🌌 1. Cinematic Background */}
-                <div className={`absolute inset-0 bg-gradient-to-b from-black via-gray-900 to-black opacity-80`} />
-                <div className={`absolute inset-0 opacity-20 transition-colors duration-1000 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-${currentTheme.bg.split('-')[1]}-900 via-transparent to-transparent`} />
-                <ParticleField />
-
-                {/* 🧠 2. The Living Core (Orb) */}
-                <div className="relative z-20 flex flex-col items-center gap-16 w-full max-w-4xl">
-                    <div className="relative flex items-center justify-center">
-                        {/* Orbitals */}
-                        <motion.div 
-                            animate={{ rotate: 360 }}
-                            transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
-                            className={`absolute w-80 h-80 rounded-full border border-white/5 border-t-${currentTheme.bg.split('-')[1]}-500/30 border-r-transparent`}
-                        />
-                        <motion.div 
-                            animate={{ rotate: -360 }}
-                            transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
-                            className="absolute w-64 h-64 rounded-full border border-white/5 border-b-white/20 border-l-transparent"
-                        />
-
-                        {/* 🔥 THE REACTIVE ORB (Moves with Volume) */}
-                        <motion.div
-                            layoutId="core-orb"
-                            animate={{ 
-                                scale: audioLevel, // 👈 Driven by Real-time Physics
-                                boxShadow: status === 'speaking' 
-                                    ? `0 0 ${60 * audioLevel}px ${currentTheme.hex}88` 
-                                    : `0 0 40px ${currentTheme.hex}33`
-                            }}
-                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                            className={`relative w-32 h-32 rounded-full ${currentTheme.bg} flex items-center justify-center backdrop-blur-md bg-opacity-90 z-10 transition-colors duration-300`}
+                {/* 2. الكارت الرئيسي (Main Card) - نفس أبعاد وتصميم الشات */}
+                <motion.div
+                    key="voice-overlay-card"
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                    transition={{ duration: 0.3, type: "spring", damping: 25, stiffness: 300 }}
+                    onClick={(e) => e.stopPropagation()} // منع الاغلاق عند الضغط داخل الكارت
+                    // 👇 هذه الكلاسات تجعله مطابق للصورة (أسود، حواف دائرية كبيرة، بوردر خفيف)
+                    className="relative w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617]/90 border border-white/10 rounded-[73px] overflow-hidden shadow-2xl flex flex-col items-center justify-center"
+                >
+                    {/* 🟢 زر الإغلاق (Top Right) */}
+                    <div className="absolute top-6 right-6 z-50">
+                        <button 
+                            onClick={() => setVoiceMode(false)}
+                            className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all border border-white/5"
                         >
-                            <motion.div key={status} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                {status === 'listening' && <Mic size={40 * (audioLevel * 0.8)} className="text-white drop-shadow-md" />}
-                                {status === 'processing' && <BrainCircuit size={40} className="text-white drop-shadow-md animate-pulse" />}
-                                {status === 'speaking' && <Activity size={40 * (audioLevel * 0.8)} className="text-white drop-shadow-md" />}
-                            </motion.div>
-                            {/* Liquid Surface */}
-                            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/40 to-transparent opacity-50" />
-                        </motion.div>
+                            <X size={24} />
+                        </button>
                     </div>
 
-                    {/* 📝 3. Cinematic Typography */}
-                    <div className="text-center space-y-6 px-4 w-full min-h-[120px]">
-                        <motion.div layout className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md ${currentTheme.text}`}>
-                            <div className={`w-2 h-2 rounded-full ${currentTheme.bg} animate-pulse`} />
-                            <span className="text-xs font-mono uppercase tracking-[0.2em] font-bold">
-                                {status === 'listening' ? 'Listening' : status === 'processing' ? 'Thinking' : 'Speaking'}
-                            </span>
-                        </motion.div>
+                    {/* 🟢 محتوى الكارت (Center Content) */}
+                    <div className="flex flex-col items-center justify-center gap-12 w-full max-w-3xl px-6 relative z-10">
+                        
+                        {/* الخلفية الجمالية داخل الكارت */}
+                        <div className={`absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-${currentTheme.bg.split('-')[1]}-900 via-transparent to-transparent pointer-events-none blur-3xl`} />
 
-                        <AnimatePresence mode="wait">
-                            <motion.p 
-                                key={status === 'listening' ? 'listen-txt' : aiResponse}
-                                initial={{ opacity: 0, y: 10, filter: 'blur(10px)' }}
-                                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                                exit={{ opacity: 0, y: -10, filter: 'blur(10px)' }}
-                                transition={{ duration: 0.5 }}
-                                className={`text-3xl md:text-5xl font-medium leading-tight ${status === 'listening' ? 'text-white/40 font-light' : 'text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-100 to-gray-400'}`}
+                        {/* 🧠 The Living Core (بحجم متوسط يناسب الكارت الكبير) */}
+                        <div className="relative flex items-center justify-center scale-125"> 
+                            {/* Orbitals */}
+                            <motion.div 
+                                animate={{ rotate: 360 }}
+                                transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
+                                className={`absolute w-64 h-64 rounded-full border border-white/5 border-t-${currentTheme.bg.split('-')[1]}-500/30 border-r-transparent`}
+                            />
+                            <motion.div 
+                                animate={{ rotate: -360 }}
+                                transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
+                                className="absolute w-52 h-52 rounded-full border border-white/5 border-b-white/20 border-l-transparent"
+                            />
+
+                            {/* 🔥 REACTIVE ORB */}
+                            <motion.div
+                                layoutId="core-orb-card"
+                                animate={{ 
+                                    scale: audioLevel, 
+                                    boxShadow: status === 'speaking' 
+                                        ? `0 0 ${50 * audioLevel}px ${currentTheme.hex}88` 
+                                        : `0 0 30px ${currentTheme.hex}33`
+                                }}
+                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                                className={`relative w-32 h-32 rounded-full ${currentTheme.bg} flex items-center justify-center backdrop-blur-md bg-opacity-90 z-10 transition-colors duration-300`}
                             >
-                                {status === 'listening' ? "I'm listening..." : aiResponse}
-                            </motion.p>
-                        </AnimatePresence>
-                    </div>
+                                <motion.div key={status} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                    {status === 'listening' && <Mic size={40 * (audioLevel * 0.8)} className="text-white drop-shadow-md" />}
+                                    {status === 'processing' && <BrainCircuit size={40} className="text-white drop-shadow-md animate-pulse" />}
+                                    {status === 'speaking' && <Activity size={40 * (audioLevel * 0.8)} className="text-white drop-shadow-md" />}
+                                </motion.div>
+                                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/40 to-transparent opacity-50" />
+                            </motion.div>
+                        </div>
 
-                    {/* ❌ 4. Close Control */}
-                    <motion.button 
-                        whileHover={{ scale: 1.1, rotate: 90 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => setVoiceMode(false)}
-                        className="mt-8 p-4 rounded-full bg-white/5 border border-white/10 text-white/50 hover:bg-red-500/20 hover:border-red-500 hover:text-white transition-all duration-300"
-                    >
-                        <X size={28} />
-                    </motion.button>
-                </div>
+                        {/* 📝 Typography */}
+                        <div className="text-center space-y-6 w-full relative z-20 mt-8">
+                            {/* Status Badge */}
+                            <motion.div layout className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md ${currentTheme.text}`}>
+                                <div className={`w-2 h-2 rounded-full ${currentTheme.bg} animate-pulse`} />
+                                <span className="text-xs font-mono uppercase tracking-[0.2em] font-bold">
+                                    {status === 'listening' ? 'Listening' : status === 'processing' ? 'Thinking' : 'Speaking'}
+                                </span>
+                            </motion.div>
+
+                            {/* AI Text Response */}
+                            <div className="min-h-[100px] flex items-center justify-center">
+                                <AnimatePresence mode="wait">
+                                    <motion.p 
+                                        key={status === 'listening' ? 'listen-txt' : aiResponse}
+                                        initial={{ opacity: 0, y: 10, filter: 'blur(8px)' }}
+                                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                                        exit={{ opacity: 0, y: -10, filter: 'blur(8px)' }}
+                                        transition={{ duration: 0.4 }}
+                                        className={`text-3xl md:text-5xl font-medium leading-tight max-w-4xl ${status === 'listening' ? 'text-white/30 font-light' : 'text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-100 to-gray-400'}`}
+                                    >
+                                        {status === 'listening' ? "I'm listening..." : aiResponse}
+                                    </motion.p>
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
             </motion.div>
         </AnimatePresence>
     );
