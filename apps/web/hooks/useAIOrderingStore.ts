@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { produce } from 'immer';
-
+import { devtools } from 'zustand/middleware';
 // --- TYPES ---
 type PaymentGateway = {
   provider: string;
@@ -53,6 +53,7 @@ interface AIOrderingState {
   isLoading: boolean;
   isProcessing: boolean;
   isOverlayVisible: boolean;
+  isVoiceMode: boolean;
   recoveryMode: boolean;
   recoveryReason: string;
   glowingProductId: number | null;
@@ -74,6 +75,7 @@ interface AIOrderingState {
   sendImage: (fullDataUrl: string, base64: string, caption?: string) => void;
 
   setOverlayVisible: (isVisible: boolean) => void;
+  setVoiceMode: (isActive: boolean) => void;
   addProductById: (product: any, startElementId: string) => void;
   removeFlyItem: (animationId: string) => void;
   removeProductById: (productId: number) => void;
@@ -132,6 +134,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     isLoading: false,
     isProcessing: false,
     isOverlayVisible: false,
+    isVoiceMode: false,
     recoveryMode: false,
     recoveryReason: 'price',
     glowingProductId: null,
@@ -533,6 +536,7 @@ export const useAIOrderingStore = create<AIOrderingState>()(
     },
 
     setOverlayVisible: (isVisible) => set({ isOverlayVisible: isVisible }),
+    setVoiceMode: (isActive) => set({ isVoiceMode: isActive }),
     setSuggestedProductIds: (ids) => set({ suggestedProductIds: ids }),
 
     addProductById: (product, startElementId) => {

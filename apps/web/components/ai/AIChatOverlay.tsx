@@ -21,6 +21,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { AIPaymentForm } from './AIPaymentForm';
 import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
+import { AIVoiceOverlay } from './AIVoiceOverlay';
 
 const DEFAULT_PLACEHOLDER = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC";
 const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
@@ -805,15 +806,11 @@ const ChatInput = React.memo(
           {/* 🎤 Voice Trigger */}
           <button
             type="button"
-            onClick={toggleVoice}
-            className={`p-3 rounded-full transition-all border border-white/5 ${
-                isListening 
-                ? 'bg-red-500/20 text-red-400 animate-pulse border-red-500/50' 
-                : 'bg-white/5 text-white hover:bg-cyan-500/20 hover:border-cyan-500/50'
-            }`}
-            title="Activate Voice Command"
+            onClick={() => useAIOrderingStore.getState().setVoiceMode(true)}
+            className="p-3 rounded-full bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-white transition-all border border-cyan-500/20 group"
+            title="Talk to order with air"
           >
-            <Mic size={20} />
+            <Mic size={20} className="group-hover:scale-110 transition-transform" />
           </button>
 
           {/* Text Input */}
@@ -1154,8 +1151,10 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
     return (
         <AnimatePresence>
+	    <AIVoiceOverlay />
             {isOpen && (
                 <motion.div
+		    key="chat-window"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

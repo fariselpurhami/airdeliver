@@ -10,6 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocketState
+from app.services.ai_voice_service import AIVoiceOrchestrator
 
 # Internal Imports
 from app import models
@@ -310,3 +311,65 @@ async def handle_chat_websocket(
             if websocket.client_state != WebSocketState.DISCONNECTED:
                 await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
         except: pass
+
+@router.websocket("/voice-stream")
+async def handle_voice_stream(
+    websocket: WebSocket,
+    ticket: str = Query(None),
+    session: AsyncSession = Depends(deps.get_session),
+    commerce_engine = Depends(deps.get_ai_commerce_engine),
+    llm_service = Depends(deps.get_llm_service),
+    cache: IAsyncCacheClient = Depends(deps.get_cache_client),
+):
+    """
+    🎤 REAL-TIME VOICE CHANNEL (TITANIUM GUARDED).
+    Dedicated WebSocket for Audio/Video streaming with Concurrency Locking.
+    """
+    # 1. 🎫 FAST AUTH & TICKET VALIDATION
+    # التحقق من التذكرة لضمان أن الاتصال آمن ومصرح به
+    user_id_str = await cache.get(f"ws_ticket:{ticket}")
+    if not user_id_str:
+        logger.warning(f"⛔ Voice Access Denied: Invalid Ticket {ticket}")
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    user_id = int(user_id_str)
+
+    # 2. 🔒 CONCURRENCY GUARD (The Titanium Shield)
+    # منع المستخدم من فتح أكثر من جلسة صوتية في نفس الوقت
+    # لو حاول يفتح تابة تانية، بنقفل في وشه فوراً عشان نحمي موارد السيرفر
+    lock_key = f"voice_session_lock:{user_id}"
+    is_locked = await cache.get(lock_key)
+
+    if is_locked:
+        logger.warning(f"🚫 Voice Session Rejected: User {user_id} already speaking in another tab.")
+        await websocket.accept()
+        await websocket.send_json({"type": "error", "content": "Voice mode is active in another tab."})
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    # 3. 🏁 INITIALIZE ORCHESTRATOR
+    orchestrator = AIVoiceOrchestrator(llm_service, commerce_engine)
+
+    # 4. 🛡️ SAFE EXECUTION BLOCK (Try/Finally)
+    # نضع علامة "مشغول" في الـ Redis، ولازم نمسحها لما يخلص
+    try:
+        # Set Lock (Expire in 5 mins to prevent deadlocks if server crashes)
+        await cache.set(lock_key, "active", ttl=300)
+
+        # Handover control to the Brain
+        await orchestrator.process_voice_session(websocket, user_id)
+
+    except Exception as e:
+        logger.error(f"🔥 Critical Voice Crash User {user_id}: {e}", exc_info=True)
+        try:
+            await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+        except: pass
+
+    finally:
+        # 5. 🧹 CLEANUP PROTOCOL
+        # أهم خطوة: تحرير القفل فوراً عند قطع الاتصال
+        await cache.delete(lock_key)
+        # مسح التذكرة لضمان عدم استخدامها مرة أخرى (Replay Attack Protection)
+        await cache.delete(f"ws_ticket:{ticket}")
+        logger.info(f"🔌 Voice Session Cleaned User {user_id}")
