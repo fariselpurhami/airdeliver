@@ -350,6 +350,7 @@ services:
       - DATABASE_URI=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_SERVER}:${POSTGRES_PORT}/${POSTGRES_DB}
       - POSTGRES_SERVER=${POSTGRES_SERVER}
       - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
+      - VOICE_MODEL_PATH=/data/storage/models_cache/huggingface/personaplex-7b-v1
       - RABBITMQ_HOST=mq
       - REDIS_HOST=redis
       - REDIS_URL=redis://redis:6379/0

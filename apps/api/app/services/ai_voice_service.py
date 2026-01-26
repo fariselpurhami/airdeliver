@@ -13,34 +13,37 @@ from fastapi import WebSocket, WebSocketDisconnect
 # Internal Services
 from app.services.ai_commerce_engine import AICommerceEngine, ai_manager 
 
-# 💎 SOTA LOGGING WITH TELEMETRY
+# 💎 SOTA LOGGING WITH TELEMETRY (Hybrid Mode)
 logger = logging.getLogger("airdeliver.voice_core")
 
+def force_log(message: str, level: str = "INFO"):
+    """
+    🚀 NUCLEAR LOGGING: Bypasses standard logger buffering.
+    Ensures logs appear in Docker instantly.
+    """
+    if level == "ERROR":
+        logger.error(message)
+    else:
+        logger.info(message)
 class AIVoiceOrchestrator:
     """
-    🎤 TITANIUM VOICE ORCHESTRATOR (V5.0 - GLOBAL SCALE EDITION).
+    🎤 TITANIUM VOICE ORCHESTRATOR (V5.1 - DEBUG & WARFARE EDITION).
     
     Architectural Pattern: Full-Duplex Async Pipeline with Backpressure Management.
     Model: nvidia/personaplex-7b-v1 (Native Audio-to-Audio).
-    
-    🛡️ DEFENSE MECHANISMS:
-    1. 🔇 Pre-Inference VAD: Discards silence/noise BEFORE hitting the GPU (Resource Saver).
-    2. 🌊 Backpressure Queue: Prevents memory overflow during network spikes.
-    3. ⚡ Zero-Copy Streaming: Direct binary piping for microsecond latency.
-    4. 🧘 Self-Healing State: Auto-recovers from packet loss or model hiccups.
     """
 
     # --- ⚙️ PHYSICS CONSTANTS ---
-    # Threshold for "Silence" (0-32768). Below this, we don't wake up the GPU.
-    SILENCE_THRESHOLD = 50
-    # Max queued audio chunks before we start dropping frames (Load Shedding)
+    # 🛑 FORCE OPEN GATE: 0 means "Process Everything" (Even Silence)
+    SILENCE_THRESHOLD = 500 
+    
+    # Max buffer size (approx 1-2 seconds of audio)
     MAX_QUEUE_SIZE = 50 
 
     def __init__(self, llm_service=None, commerce_engine: AICommerceEngine = None):
         self.commerce = commerce_engine
         
         # 🎭 SYSTEM CONDITIONING
-        # Optimized for short latency and high precision triggers
         self.system_condition = """
         You are AirDeliver.
         ROLE: High-end Shopping Assistant.
@@ -55,31 +58,37 @@ class AIVoiceOrchestrator:
         # 1. Handshake & Lock
         await websocket.accept()
         start_time = time.perf_counter()
-        logger.info(f"🎙️ Voice Tunnel Opened: User {user_id}")
+        force_log(f"🎙️ Voice Tunnel Opened: User {user_id}")
         
         model_session = None
 
         try:
-            # 2. Initialize Model Session (Lazy Loading if needed)
-            model_session = await ai_manager.create_voice_session(
-                user_id=user_id,
-                system_prompt=self.system_condition
-            )
+            # 2. Initialize Model Session
+            force_log("⏳ [1/4] Requesting Session from AI Manager...")
             
+            # 🛡️ PROTECTED CALL: Wraps external dependency
+            try:
+                model_session = await ai_manager.create_voice_session(
+                    user_id=user_id,
+                    system_prompt=self.system_condition
+                )
+                force_log(f"✅ [2/4] Session Created ID: {id(model_session)}")
+            except Exception as session_err:
+                force_log(f"🔥 FATAL: AI Manager failed to create session: {session_err}", "ERROR")
+                raise session_err
+
             # 3. Task Management (The Engine Room)
-            # We use an asyncio.Queue to decouple Network IO from Model IO
-            # This prevents the socket from blocking the model and vice-versa.
             input_queue = asyncio.Queue(maxsize=self.MAX_QUEUE_SIZE)
             
             # 4. Launch Micro-Services (Concurrent Coroutines)
-            # A. Network Reader: Reads WS -> Pushes to Queue
+            force_log("🚀 [3/4] Launching Async Micro-Kernels...")
+            
             reader_task = asyncio.create_task(self._network_reader(websocket, input_queue))
-            # B. Model Feeder: Pulls Queue -> Filters Silence -> Pushes to GPU
-        
-            feeder_task = asyncio.create_task(self._model_feeder(model_session, input_queue, websocket))
-            # C. Speaker: Pulls Model Output -> Sends to WS
+            feeder_task = asyncio.create_task(self._model_feeder(model_session, input_queue)) # Fixed Args
             speaker_task = asyncio.create_task(self._output_loop(websocket, model_session))
             
+            force_log("💎 [4/4] ALL SYSTEMS GO. Waiting for Audio Packets...")
+
             # 5. Watchdog (Wait for any failure or closure)
             done, pending = await asyncio.wait(
                 [reader_task, feeder_task, speaker_task], 
@@ -87,19 +96,24 @@ class AIVoiceOrchestrator:
             )
             
             # 6. Cleanup Protocol
-            logger.info(f"🛑 Voice Session Closing... (Duration: {time.perf_counter() - start_time:.2f}s)")
-            for task in pending: task.cancel()
+            force_log(f"🛑 Voice Session Closing... (Duration: {time.perf_counter() - start_time:.2f}s)")
+            for task in pending: 
+                task.cancel()
+                try: 
+                    await task 
+                except: 
+                    pass
 
         except WebSocketDisconnect:
-            logger.info(f"👋 User Disconnected: {user_id}")
+            force_log(f"👋 User Disconnected: {user_id}")
         except Exception as e:
-            logger.error(f"🔥 Critical Voice Failure: {e}", exc_info=True)
-            # Fail-safe: Try to send error frame if socket is open
+            force_log(f"🔥 Critical Voice Failure: {e}", "ERROR")
             try:
                 await websocket.send_text(json.dumps({"type": "error", "message": "Voice Core Restarting..."}))
             except: pass
         finally:
             if model_session:
+                force_log("🧹 Cleaning up Model Session...")
                 await model_session.close()
 
     async def _network_reader(self, websocket: WebSocket, queue: asyncio.Queue):
@@ -107,14 +121,13 @@ class AIVoiceOrchestrator:
         📡 NETWORK INGRESS (Layer 1).
         Reads bytes from socket fast. Pushes to buffer.
         """
+        force_log("📡 Network Reader: ACTIVE")
         try:
             while True:
                 message = await websocket.receive()
                 
                 if "bytes" in message:
-                    # 🌊 Backpressure Handling:
-                    # If queue is full, drop oldest frame (Drop-Tail Strategy)
-                    # This guarantees real-time performance over completeness.
+                    # 🌊 Backpressure Handling: Drop-Tail Strategy
                     if queue.full():
                         try: queue.get_nowait()
                         except: pass
@@ -122,62 +135,68 @@ class AIVoiceOrchestrator:
                     await queue.put(message["bytes"])
 
                 elif "text" in message:
-                    # Handle Control Signals (Interrupts) immediately
+                    # Handle Control Signals
                     data = json.loads(message["text"])
                     if data.get("type") == "INTERRUPT":
-                        # We don't queue interrupts, we fire them directly
-                        # This logic would need access to session, handled via shared state or manager in prod
+                        force_log("⚡ INTERRUPT RECEIVED")
                         pass 
 
         except Exception as e:
-            logger.debug(f"Network Reader Stopped: {e}")
+            force_log(f"❌ Network Reader Stopped: {e}")
 
     async def _model_feeder(self, session, queue: asyncio.Queue):
         """
-        🧠 INTELLIGENT ROUTER (Layer 2).
-        Filters noise. Protects GPU. Feeds Model.
+        🧠 INTELLIGENT ROUTER (Layer 2 - DEBUG MODE).
+        Feeds Model directly without VAD filtering.
         """
+        force_log("🟢 Model Feeder: ACTIVE")
+        chunk_count = 0
+
         try:
             while True:
+                # 1. Pull Audio
                 audio_chunk = await queue.get()
+                chunk_count += 1
                 
-                # 🛡️ RESOURCE GUARD: Lightweight VAD
-                # Don't wake up the 7B Model for background noise.
-                is_silent, rms = self._check_silence_debug(audio_chunk)
-                if is_silent:
-                    continue 
-                logger.info(f"🎤 VOICE DETECTED! (RMS: {rms}) - Sending confirmation...")
-                # ⚡ Push to GPU
-                #await session.push_audio(audio_chunk)
-                await websocket.send_text(json.dumps({
-                    "type": "text_stream",
-                    "text": "🔊 I heard you! (Server Connected)"
-                }))
+                # 2. Debug Logging (Every 20 chunks ~ 1 sec)
+                if chunk_count % 20 == 0:
+                     force_log(f"🎤 [Feeding GPU] Chunk #{chunk_count} | Size: {len(audio_chunk)} bytes")
+
+                # 3. Direct Push (No Logic, No Delay)
+                try:
+                    await session.push_audio(audio_chunk)
+                except Exception as e:
+                    force_log(f"🔥 Model Push Error: {e}", "ERROR")
                 
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error(f"Model Feeder Error: {e}")
+            force_log(f"❌ Model Feeder Died: {e}", "ERROR")
 
     async def _output_loop(self, websocket: WebSocket, session):
         """
         🗣️ EGRESS & UI CONTROLLER (Layer 3).
         Streams audio back. Detects UI commands.
         """
-        text_buffer = "" # To catch split tokens like "[SH", "OW:]"
+        force_log("🔊 Speaker Loop: ACTIVE (Listening to Brain...)")
+        text_buffer = "" 
 
         try:
             async for output in session.stream_output():
                 
-                # A. Fast Audio Path (Zero Latency)
+                # A. Debug Trace
+                if output.text_token:
+                    force_log(f"🗣️ [AI SAID]: {output.text_token}")
+
+                # B. Fast Audio Path
                 if output.audio_bytes:
                     await websocket.send_bytes(output.audio_bytes)
                 
-                # B. Logic Path (UI Triggers)
+                # C. Logic Path (UI Triggers)
                 if output.text_token:
                     text_buffer += output.text_token
                     
-                    # Optimization: Keep buffer small to save memory
+                    # Optimization: Keep buffer small
                     if len(text_buffer) > 100: 
                         text_buffer = text_buffer[-50:] 
 
@@ -191,46 +210,24 @@ class AIVoiceOrchestrator:
                     }))
                     
         except Exception as e:
-            logger.debug(f"Output Loop Stopped: {e}")
+            force_log(f"❌ Output Loop Stopped: {e}")
 
     async def _check_ui_triggers(self, text_buffer: str, websocket: WebSocket):
         """
         🕵️ Pattern Matching Engine.
         """
-        # Regex to find [SHOW: xxxx]
-        # We look at the buffer to catch commands split across tokens
-        match = re.search(r'\[SHOW:\s*(.*?)\]', text_buffer)
-        if match:
-            query = match.group(1).strip()
-            # Debounce: Ensure we don't trigger same search twice in ms (Logic handled in frontend usually)
-            logger.info(f"⚡ UI Command Detected: {query}")
-            
-            await websocket.send_text(json.dumps({
-                "type": "control",
-                "payload": {
-                    "action": "VOICE_SEARCH",
-                    "query": query
-                }
-            }))
-            # Note: We don't clear buffer here to allow overlapping logic if needed
-
-    def _is_silence(self, audio_bytes: bytes) -> bool:
-        """
-        🧮 CPU-Cheap Voice Activity Detection (RMS).
-        Returns True if chunk is just noise/silence.
-        """
         try:
-            # Assume 16-bit PCM for calculation (approximate for WebM/Opus packets)
-            # This is a heuristic. For strict Opus streams, this might need decoding first.
-            # If Raw PCM:
-            count = len(audio_bytes) // 2
-            format_str = f"<{count}h" 
-            if len(audio_bytes) % 2 != 0: return False # Partial frame
-
-            shorts = struct.unpack(format_str, audio_bytes)
-            sum_squares = sum(s**2 for s in shorts)
-            rms = math.sqrt(sum_squares / count)
-            
-            return rms < self.SILENCE_THRESHOLD
-        except:
-            return False # Fail-open (Assume speech if unsure)
+            match = re.search(r'\[SHOW:\s*(.*?)\]', text_buffer)
+            if match:
+                query = match.group(1).strip()
+                force_log(f"⚡ UI TRIGGER DETECTED: {query}")
+                
+                await websocket.send_text(json.dumps({
+                    "type": "control",
+                    "payload": {
+                        "action": "VOICE_SEARCH",
+                        "query": query
+                    }
+                }))
+        except Exception as e:
+            force_log(f"⚠️ Trigger Error: {e}")

@@ -2,16 +2,129 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mic, Zap, BrainCircuit, Activity } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 
+// --- 🌊 MATH ENGINE: Generative Organic Waves ---
+// محرك رياضي لرسم خطوط منحنية طبيعية تتفاعل مع مستوى الصوت
+const generateOrganicPath = (points: number, radius: number, audioLevel: number, offset: number) => {
+    let d = "";
+    const angleStep = (Math.PI * 2) / points;
+
+    for (let i = 0; i <= points; i++) {
+        const angle = i * angleStep;
+        
+        // دمج موجتين بترددات مختلفة لخلق العشوائية المنظمة
+        const wave1 = Math.sin(angle * 6 + offset) * (20 * audioLevel); 
+        const wave2 = Math.cos(angle * 3 - offset) * (15 * audioLevel); 
+        
+        const r = radius + wave1 + wave2;
+        
+        // مركز الـ SVG هو 300,300
+        const x = 300 + Math.cos(angle) * r; 
+        const y = 300 + Math.sin(angle) * r;
+
+        if (i === 0) d += `M ${x} ${y}`;
+        else d += ` L ${x} ${y}`;
+    }
+    d += " Z"; 
+    return d;
+};
+
+// --- 🧬 COMPONENT: The Living Hologram (No Icons, Just Energy) ---
+const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
+    const [time, setTime] = useState(0);
+
+    // حلقة تحريك الزمن للموجات
+    useEffect(() => {
+        let frameId: number;
+        const animate = () => {
+            setTime(t => t + 0.02); 
+            frameId = requestAnimationFrame(animate);
+        };
+        animate();
+        return () => cancelAnimationFrame(frameId);
+    }, []);
+
+    // توليد 3 طبقات من الموجات بألوان وتوقيتات مختلفة
+    const path1 = useMemo(() => generateOrganicPath(100, 90, audioLevel, time), [audioLevel, time]);
+    const path2 = useMemo(() => generateOrganicPath(100, 95, audioLevel * 0.8, time + 2), [audioLevel, time]);
+    const path3 = useMemo(() => generateOrganicPath(100, 85, audioLevel * 1.2, time - 1), [audioLevel, time]);
+
+    return (
+        <div className="relative w-full h-full flex items-center justify-center">
+             <svg width="600" height="600" viewBox="0 0 600 600" className="absolute w-[160%] h-[160%] opacity-90 pointer-events-none">
+                <defs>
+                    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.8" />
+                    </linearGradient>
+                    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+                    </linearGradient>
+                    <linearGradient id="grad3" x1="100%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#ec4899" stopOpacity="0.8" />
+                        <stop offset="100%" stopColor="#d946ef" stopOpacity="0" />
+                    </linearGradient>
+                    <filter id="glow">
+                        <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+                        <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+
+                {/* الطبقة الأساسية (بنفسجي/أزرق) */}
+                <motion.path 
+                    d={path1} 
+                    fill="none" 
+                    stroke="url(#grad1)" 
+                    strokeWidth="2"
+                    filter="url(#glow)"
+                />
+
+                {/* الطبقة الثانوية (سماوي) - وضع الشاشة Screen Mode */}
+                <motion.path 
+                    d={path2} 
+                    fill="none" 
+                    stroke="url(#grad2)" 
+                    strokeWidth="1.5"
+                    className="mix-blend-screen"
+                />
+
+                {/* الطبقة الثالثة (وردي) - نبض الطاقة */}
+                <motion.path 
+                    d={path3} 
+                    fill="none" 
+                    stroke="url(#grad3)" 
+                    strokeWidth="1.5"
+                    className="mix-blend-screen"
+                />
+            </svg>
+            
+            {/* النواة المركزية (طاقة خالصة بدون أيقونة) */}
+            <motion.div 
+                className="absolute w-24 h-24 rounded-full blur-2xl bg-cyan-500/20"
+                animate={{ 
+                    scale: [1, 1.3, 1], 
+                    opacity: [0.4, 0.7, 0.4] 
+                }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            />
+        </div>
+    );
+};
+
 export const AIVoiceOverlay = () => {
-    // ... (كل الـ Hooks والمنطق يظل كما هو تماماً بدون تغيير) ...
+    // --- STATE & HOOKS ---
     const { isVoiceMode, setVoiceMode, addSocketAIMessage } = useAIOrderingStore();
     const [status, setStatus] = useState<'listening' | 'processing' | 'speaking'>('listening');
     const [aiResponse, setAiResponse] = useState('');
     const [audioLevel, setAudioLevel] = useState(1); 
 
+    // --- REFS ---
     const wsRef = useRef<WebSocket | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -19,16 +132,8 @@ export const AIVoiceOverlay = () => {
     const audioQueueRef = useRef<ArrayBuffer[]>([]);
     const isPlayingRef = useRef(false);
     const animationFrameRef = useRef<number>();
-    
-    // Theme Colors
-    const statusColors = {
-        listening: { bg: 'bg-cyan-500', glow: 'shadow-cyan-500/50', text: 'text-cyan-400', hex: '#06b6d4' },
-        processing: { bg: 'bg-fuchsia-600', glow: 'shadow-fuchsia-500/50', text: 'text-fuchsia-400', hex: '#c026d3' },
-        speaking: { bg: 'bg-emerald-500', glow: 'shadow-emerald-500/50', text: 'text-emerald-400', hex: '#10b981' }
-    };
-    const currentTheme = statusColors[status];
 
-    // ... (نفس دالة processAudioQueue) ...
+    // --- AUDIO QUEUE PROCESSOR ---
     const processAudioQueue = async () => {
         if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
         isPlayingRef.current = true;
@@ -48,34 +153,42 @@ export const AIVoiceOverlay = () => {
                     else processAudioQueue(); 
                 };
             } catch (e) {
-                console.error("Decode Error", e);
                 isPlayingRef.current = false;
                 processAudioQueue();
             }
         }
     };
 
-    // ... (نفس دالة useEffect) ...
+    // --- INITIALIZATION (Mic + WebSocket) ---
     useEffect(() => {
         if (!isVoiceMode) return;
         let localStream: MediaStream | null = null;
+        
         const initVoiceSession = async () => {
             try {
+                // 1. طلب المايكروفون أولاً
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // 2. إعداد الـ AudioContext
                 const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
                 const ctx = new AudioContextClass();
                 audioContextRef.current = ctx;
+                
                 const analyser = ctx.createAnalyser();
                 analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = 0.8; // نعومة الحركة
                 analyserRef.current = analyser;
+                
                 const source = ctx.createMediaStreamSource(localStream);
                 source.connect(analyser);
 
+                // 3. الاتصال بالسيرفر
                 const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/api/v1/ordering/voice-stream?ticket=DEMO`; 
                 const ws = new WebSocket(wsUrl);
                 ws.binaryType = 'arraybuffer';
                 wsRef.current = ws;
 
+                // 4. تسجيل وإرسال الصوت
                 const mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
                 mediaRecorderRef.current = mediaRecorder;
                 mediaRecorder.ondataavailable = (e) => {
@@ -83,7 +196,7 @@ export const AIVoiceOverlay = () => {
                 };
                 mediaRecorder.start(250); 
 
-                ws.onopen = () => console.log('🌐 Socket Connected');
+                // 5. استقبال الرسائل
                 ws.onmessage = async (event) => {
                     if (event.data instanceof ArrayBuffer) {
                         audioQueueRef.current.push(event.data);
@@ -91,31 +204,42 @@ export const AIVoiceOverlay = () => {
                     } else if (typeof event.data === 'string') {
                         const data = JSON.parse(event.data);
                         if (data.type === 'text_stream') setAiResponse(data.text);
+                        
+                        // توجيه الأوامر والمنتجات للـ Store (عشان تظهر في الشات العادي)
                         if (data.type === 'control') {
                             addSocketAIMessage({ id: Date.now(), sender: 'user', contentType: 'text', content: data.payload.query, status: 'sent' });
                         }
+                        if (data.type === 'product_carousel' || (data.products && data.products.length > 0)) {
+                            addSocketAIMessage(data); 
+                        }
                     }
                 };
-                ws.onclose = () => console.log("🔌 Socket Closed");
 
+                // 6. حلقة التحديث البصري (Visualization Loop)
                 const updateVisuals = () => {
                     if (analyser) {
                         const dataArray = new Uint8Array(analyser.frequencyBinCount);
                         analyser.getByteFrequencyData(dataArray);
-                        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-                        const scale = 1 + (average / 255) * 1.5; 
-                        setAudioLevel(scale);
+                        
+                        // التركيز على ترددات الصوت البشري
+                        const relevantFreqs = dataArray.slice(10, 80);
+                        const average = relevantFreqs.reduce((a, b) => a + b) / relevantFreqs.length;
+                        
+                        // معادلة لوغاريتمية لحساسية طبيعية
+                        const scale = 1 + Math.log(1 + average / 40); 
+                        setAudioLevel(Math.max(1, scale));
                     }
                     animationFrameRef.current = requestAnimationFrame(updateVisuals);
                 };
                 updateVisuals();
             } catch (err) {
-                console.error("❌ Failed to initialize voice:", err);
-                alert("Please allow microphone access to use Voice Mode.");
+                console.error("Voice Error:", err);
                 setVoiceMode(false);
             }
         };
         initVoiceSession();
+
+        // تنظيف الموارد عند الإغلاق
         return () => {
             if (localStream) localStream.getTracks().forEach(track => track.stop());
             if (wsRef.current) wsRef.current.close();
@@ -126,108 +250,77 @@ export const AIVoiceOverlay = () => {
 
     if (!isVoiceMode) return null;
 
-    // 🔥🔥🔥 التغيير الشامل في التصميم (Matching AIChatOverlay) 🔥🔥🔥
     return (
         <AnimatePresence>
-            {/* 1. الخلفية الشفافة (Backdrop) التي تغطي الشاشة بالكامل */}
+            {/* 1. Backdrop (خلفية ضبابية لكامل الشاشة) */}
             <motion.div
-                key="voice-overlay-backdrop"
+                key="voice-backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 md:p-8"
-                onClick={() => setVoiceMode(false)} // اغلاق عند الضغط في الخارج
+                className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+                onClick={() => setVoiceMode(false)}
+            />
+
+            {/* 2. THE FLOATING CARD (في المنتصف تماماً) */}
+            <motion.div
+                key="voice-card"
+                // الحركة: تكبير من المنتصف (Pop effect)
+                initial={{ opacity: 0, scale: 0.8, x: "-50%", y: "-40%" }} 
+                animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
+                exit={{ opacity: 0, scale: 0.8, x: "-50%", y: "-40%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                
+                // التموضع والتصميم:
+                className="fixed top-1/2 left-1/2 z-[101] w-full  max-w-7xl h-[93vh]  bg-[#020617] border border-white/10 rounded-[73px] overflow-hidden shadow-2xl flex flex-col"
+                
+                // منع إغلاق الكارت عند الضغط بداخله
+                onClick={(e) => e.stopPropagation()}
             >
-                {/* 2. الكارت الرئيسي (Main Card) - نفس أبعاد وتصميم الشات */}
-                <motion.div
-                    key="voice-overlay-card"
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    transition={{ duration: 0.3, type: "spring", damping: 25, stiffness: 300 }}
-                    onClick={(e) => e.stopPropagation()} // منع الاغلاق عند الضغط داخل الكارت
-                    // 👇 هذه الكلاسات تجعله مطابق للصورة (أسود، حواف دائرية كبيرة، بوردر خفيف)
-                    className="relative w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617]/90 border border-white/10 rounded-[73px] overflow-hidden shadow-2xl flex flex-col items-center justify-center"
-                >
-                    {/* 🟢 زر الإغلاق (Top Right) */}
-                    <div className="absolute top-6 right-6 z-50">
-                        <button 
-                            onClick={() => setVoiceMode(false)}
-                            className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all border border-white/5"
+                {/* A. Header (Status & Close) */}
+                <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-50">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${status === 'speaking' ? 'bg-green-500' : 'bg-cyan-500'} animate-pulse`} />
+                        <span className="text-[10px] font-mono text-cyan-500/80 tracking-widest uppercase">
+                            {status === 'listening' ? 'Listening' : status === 'processing' ? 'Thinking' : 'Speaking'}
+                        </span>
+                    </div>
+                    <button 
+                        onClick={() => setVoiceMode(false)}
+                        className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors border border-white/5"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* B. The Hologram Container (Energy Core) */}
+                <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+                    {/* إضاءة خلفية خفيفة */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-900/5 to-transparent opacity-40 pointer-events-none" />
+                    
+                    {/* 🔥 THE ORGANIC HOLOGRAM (NO ICONS) */}
+                    <HolographicBlob audioLevel={audioLevel} />
+                </div>
+
+                {/* C. Live Transcription Text */}
+                <div className="p-8 pb-12 min-h-[140px] flex items-end justify-center text-center z-50">
+                    <AnimatePresence mode="wait">
+                        <motion.p 
+                            key={aiResponse || "default-text"}
+                            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                            exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                            className={`text-2xl font-medium leading-relaxed max-w-[280px] ${
+                                status === 'listening' 
+                                ? 'text-white/30 italic font-light' 
+                                : 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-100 via-white to-purple-200 shadow-lg'
+                            }`}
                         >
-                            <X size={24} />
-                        </button>
-                    </div>
+                            {status === 'listening' ? "I'm listening..." : aiResponse}
+                        </motion.p>
+                    </AnimatePresence>
+                </div>
 
-                    {/* 🟢 محتوى الكارت (Center Content) */}
-                    <div className="flex flex-col items-center justify-center gap-12 w-full max-w-3xl px-6 relative z-10">
-                        
-                        {/* الخلفية الجمالية داخل الكارت */}
-                        <div className={`absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-${currentTheme.bg.split('-')[1]}-900 via-transparent to-transparent pointer-events-none blur-3xl`} />
-
-                        {/* 🧠 The Living Core (بحجم متوسط يناسب الكارت الكبير) */}
-                        <div className="relative flex items-center justify-center scale-125"> 
-                            {/* Orbitals */}
-                            <motion.div 
-                                animate={{ rotate: 360 }}
-                                transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
-                                className={`absolute w-64 h-64 rounded-full border border-white/5 border-t-${currentTheme.bg.split('-')[1]}-500/30 border-r-transparent`}
-                            />
-                            <motion.div 
-                                animate={{ rotate: -360 }}
-                                transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
-                                className="absolute w-52 h-52 rounded-full border border-white/5 border-b-white/20 border-l-transparent"
-                            />
-
-                            {/* 🔥 REACTIVE ORB */}
-                            <motion.div
-                                layoutId="core-orb-card"
-                                animate={{ 
-                                    scale: audioLevel, 
-                                    boxShadow: status === 'speaking' 
-                                        ? `0 0 ${50 * audioLevel}px ${currentTheme.hex}88` 
-                                        : `0 0 30px ${currentTheme.hex}33`
-                                }}
-                                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                                className={`relative w-32 h-32 rounded-full ${currentTheme.bg} flex items-center justify-center backdrop-blur-md bg-opacity-90 z-10 transition-colors duration-300`}
-                            >
-                                <motion.div key={status} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    {status === 'listening' && <Mic size={40 * (audioLevel * 0.8)} className="text-white drop-shadow-md" />}
-                                    {status === 'processing' && <BrainCircuit size={40} className="text-white drop-shadow-md animate-pulse" />}
-                                    {status === 'speaking' && <Activity size={40 * (audioLevel * 0.8)} className="text-white drop-shadow-md" />}
-                                </motion.div>
-                                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-white/40 to-transparent opacity-50" />
-                            </motion.div>
-                        </div>
-
-                        {/* 📝 Typography */}
-                        <div className="text-center space-y-6 w-full relative z-20 mt-8">
-                            {/* Status Badge */}
-                            <motion.div layout className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md ${currentTheme.text}`}>
-                                <div className={`w-2 h-2 rounded-full ${currentTheme.bg} animate-pulse`} />
-                                <span className="text-xs font-mono uppercase tracking-[0.2em] font-bold">
-                                    {status === 'listening' ? 'Listening' : status === 'processing' ? 'Thinking' : 'Speaking'}
-                                </span>
-                            </motion.div>
-
-                            {/* AI Text Response */}
-                            <div className="min-h-[100px] flex items-center justify-center">
-                                <AnimatePresence mode="wait">
-                                    <motion.p 
-                                        key={status === 'listening' ? 'listen-txt' : aiResponse}
-                                        initial={{ opacity: 0, y: 10, filter: 'blur(8px)' }}
-                                        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                                        exit={{ opacity: 0, y: -10, filter: 'blur(8px)' }}
-                                        transition={{ duration: 0.4 }}
-                                        className={`text-3xl md:text-5xl font-medium leading-tight max-w-4xl ${status === 'listening' ? 'text-white/30 font-light' : 'text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-100 to-gray-400'}`}
-                                    >
-                                        {status === 'listening' ? "I'm listening..." : aiResponse}
-                                    </motion.p>
-                                </AnimatePresence>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
             </motion.div>
         </AnimatePresence>
     );
