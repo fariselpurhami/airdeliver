@@ -125,7 +125,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
   opensearch:
     image: opensearchproject/opensearch:2.11.1
@@ -148,9 +148,10 @@ services:
       - global-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9200"]
-      interval: 20s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 20
+      start_period: 60s
     logging:
       driver: "json-file"
       options:
@@ -257,9 +258,9 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      - DATABASE_URI=${DATABASE_URL_SYNC}
+      - DATABASE_URI=${DATABASE_URL_SYNC}    
     volumes:
-      - poetry-cache:/opt/venv
+      - /opt/venv
     command: >
       sh -c "/opt/venv/bin/alembic upgrade head &&
              /opt/venv/bin/python -m app.db.initial_data"
@@ -307,7 +308,7 @@ services:
       - ./apps/api:/app:delegated
       - api-static-data:/app/static
       - ${PWD}/data/storage:/data/storage
-      - poetry-cache:/opt/venv
+      - /opt/venv
     depends_on:
       postgres:
         condition: service_healthy
@@ -382,7 +383,7 @@ services:
     volumes:
       - ./apps/api:/app:delegated
       - ${PWD}/data/storage:/data/storage
-      - poetry-cache:/opt/venv
+      - /opt/venv
     depends_on:
       api:
         condition: service_healthy
@@ -393,8 +394,7 @@ services:
     command: >
       sh -c "
       echo '🚀 Starting Optimized Worker...' &&
-      /opt/venv/bin/watchfiles '/opt/venv/bin/python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'
-      "
+      watchfiles 'python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'"
     logging:
       driver: "json-file"
       options:
@@ -501,7 +501,6 @@ volumes:
   pnpm-store:             
     driver: local
   web_build_cache:
-  poetry-cache:
   huggingface-cache:
 
 networks:

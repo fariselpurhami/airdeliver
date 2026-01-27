@@ -39,9 +39,10 @@ RUN python -m venv $VIRTUAL_ENV
 
 COPY pyproject.toml poetry.lock ./
 
-RUN python -m venv $VIRTUAL_ENV && \
-    poetry config virtualenvs.create false && \
-    poetry install --no-root --only main --no-interaction --no-ansi
+
+RUN $VIRTUAL_ENV/bin/pip install --upgrade pip && \
+    poetry export --without-hashes --format=requirements.txt > requirements.txt && \
+    $VIRTUAL_ENV/bin/pip install --no-cache-dir -r requirements.txt
 
 FROM base AS runtime-base
 
