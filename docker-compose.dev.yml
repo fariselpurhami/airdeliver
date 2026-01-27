@@ -426,6 +426,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - EMBEDDING_MODEL_PATH=Alibaba-NLP/gte-Qwen2-1.5B-instruct
       - OMP_NUM_THREADS=4
+      - HF_HOME=/data/storage/models_cache/huggingface
     volumes:
       - ./apps/api:/app:delegated
       - ${PWD}/data/storage:/data/storage

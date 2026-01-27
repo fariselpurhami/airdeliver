@@ -33,9 +33,14 @@ class Product(SQLModel, table=True):
     # FINANCIAL HARDENING: Never use Float for money. Use Decimal(10, 2)
     price: Decimal = Field(default=0.0, sa_column=Column(Numeric(10, 2), nullable=False))
     
+    # 🔥 [Architectural Fix 1] Added Currency Field
+    currency: str = Field(default="USD", max_length=10, nullable=False, description="ISO 4217 Currency Code")
+
     inventory: int = Field(default=0, nullable=False)
     
-    image_url: Optional[str] = None
+    # 🔥 [Architectural Fix 2] Renamed from image_url to image to match Seeder & DB Schema
+    image: Optional[str] = Field(default=None)
+    
     category: str = Field(default="uncategorized", index=True)
     
     # Store tags as JSONB for high-performance querying

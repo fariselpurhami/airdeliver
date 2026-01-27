@@ -134,7 +134,7 @@ class AIModelSingleton:
                     # تحميل الموديل الأصلي
                     self._text_model = SentenceTransformer(
                         self.MODEL_TEXT_SOTA, # 👈 ده موديل Alibaba اللي انت عايزه
-                        trust_remote_code=True, 
+                        trust_remote_code=False, 
                         device=device,
                         # تحسين: استخدام الذاكرة المضغوطة لو كارت الشاشة قوي
                         model_kwargs=model_kwargs
