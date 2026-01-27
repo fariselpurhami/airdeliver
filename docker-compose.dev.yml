@@ -120,6 +120,12 @@ services:
           memory: 1.5G
         reservations:
           memory: 512M
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   opensearch:
     image: opensearchproject/opensearch:2.11.1

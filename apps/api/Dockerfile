@@ -30,18 +30,17 @@ RUN --mount=type=cache,target=/var/cache/apt/archives,sharing=locked \
     curl \
     git
 
+
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --default-timeout=600 "poetry==$POETRY_VERSION" && \
+    pip install --default-timeout=600 "poetry==$POETRY_VERSION" poetry-plugin-export && \
     poetry config installer.max-workers 10
 
 RUN python -m venv $VIRTUAL_ENV
 
-COPY pyproject.toml .
+COPY pyproject.toml poetry.lock ./
 
-RUN poetry lock
-
-RUN --mount=type=cache,target=/root/.cache/pypoetry \
-    --mount=type=cache,target=/root/.cache/pip \
+RUN python -m venv $VIRTUAL_ENV && \
+    poetry config virtualenvs.create false && \
     poetry install --no-root --only main --no-interaction --no-ansi
 
 FROM base AS runtime-base
