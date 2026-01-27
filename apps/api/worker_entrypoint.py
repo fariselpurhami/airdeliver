@@ -5,6 +5,7 @@ import sys
 import uvloop
 import psutil # 👈 ضيف ده عشان مراقبة البروسيسور
 import torch  # 👈 ضيف ده عشان مراقبة كارت الشاشة
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
 import json
@@ -69,8 +70,12 @@ logging.getLogger("aio_pika").setLevel(logging.WARNING)
 logging.getLogger("aiormq").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("accelerate").setLevel(logging.ERROR)
+
 logger = logging.getLogger("airdeliver.worker")
 
+warnings.filterwarnings("ignore", category=UserWarning, module="torch.nn.modules.transformer")
 # 3. 🚀 HIGH PERFORMANCE LOOP
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
