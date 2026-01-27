@@ -1,6 +1,6 @@
 # infrastructure/router/Dockerfile         
 
-FROM python:3.9-slim-bullseye as builder
+FROM python:3.9-slim-bullseye AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
