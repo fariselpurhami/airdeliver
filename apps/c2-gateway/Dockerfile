@@ -52,6 +52,7 @@ COPY pyproject.toml poetry.lock ./
 RUN poetry export --format=requirements.txt --output=requirements.txt --without-hashes && \
     $VIRTUAL_ENV/bin/pip install --no-cache-dir -r requirements.txt
     
+RUN /opt/venv/bin/pip install --no-cache-dir gunicorn uvicorn
 
 FROM base AS production
 
