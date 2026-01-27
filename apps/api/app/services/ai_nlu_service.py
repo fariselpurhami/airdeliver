@@ -1271,29 +1271,53 @@ class AINLUService:
         # --- CASE B: STOCKOUT OR VISION RESEARCH (Deep Research DDGS) ---
         elif is_specs_query or base64_image:
             try:
+
+                if not final_products:
+                    recovery_mode = True
+                    final_products = await self._perform_smart_recovery(search_query)
+
+                # 2. تحضير سياق المنتج البديل (لو لقينا واحد)
+                alternative_context = ""
+                p_name_override = ""
+                if final_products:
+                    p_safe = final_products[0]
+                    p_name_override = safe_get(p_safe, 'name')
+                    p_desc = safe_get(p_safe, 'description')
+                    p_price = safe_get(p_safe, 'price')
+                    alternative_context = f"WE HAVE THIS IN STOCK: {p_name_override} (Price: ${p_price}). Specs: {p_desc}"
+
                 # 🌐 Engaging Deep Research (DDGS)
                 web_intel = await asyncio.wait_for(
                     self.llm_service._perform_web_search(search_query), 
-                    timeout=12.0
+                    timeout=8.0
                 )
                 
                 system_instruction = (
-                     f"You are the airdeliver Elite Personal Shopping Concierge. {NO_MARKDOWN_GUARD} "
-                     "Your objective is to convert a 'Stockout' into a 'Success'. "
-                     "1. THE PIVOT: If the exact item is missing, briefly acknowledge it WITHOUT being negative. "
-                     "2. THE UPGRADE: Immediately present the 'Alternatives' or 'Accessories' provided in context as superior available options or essential completions. "
-                     "3. EXPERT TONE: Speak with authority, enthusiasm, and zero fluff. "
-                     "4. TYPOGRAPHY: STRICTLY use standard Sentence case. Do NOT use ALL CAPS. Do NOT use markdown symbols"
+                    f"You are the airdeliver Elite Personal Shopping Concierge. {NO_MARKDOWN_GUARD} "
+                    "Your objective: Convert a 'Stockout' into a 'High-Value Conversion'. "
+    
+                    "1. THE TRUTH & PIVOT: Briefly state the requested item is out of stock. Immediately transition with: 'However, I have curated a superior alternative that exceeds those specifications.' "
+    
+                    "2. THE COMPARATIVE ADVANTAGE: Don't just list the alternative; explain why it's a BETTER investment right now (e.g., Immediate shipping, newer tech, or better value). "
+    
+                    "3. PSYCHOLOGICAL CLOSING: Use 'Presumptive Closing'—speak as if the user already values the alternative. Focus on what they GAIN by choosing what's in stock. "
+    
+                    "4. COMMANDING ELEGANCE: Use authoritative, sophisticated language. No fluff, no 'I think'. Use 'This is' and 'You will'. "
+    
+                    "5. FORMATTING: STRICT Sentence case. ZERO Markdown. ZERO All-Caps."
                 )
                 
                 ai_response_text = await self.llm_service.generate_response(
-                    prompt=f"Identify/Specs for: {search_query}. User Query: {message_text}",
+                    prompt=f"User wanted: {search_query}. But we only have: {p_name_override}. Sell {p_name_override}!",
                     system_role=system_instruction,
-                    context=f"VISUAL: {vision_description}\n\nWEB INTEL: {web_intel}"
+                    context=f"VISUAL ANALYSIS: {vision_description}\n\nOUR STOCK ITEM: {alternative_context}\n\nWEB INTEL (Use carefully): {web_intel}"
                 )
             except Exception as e:
                 logger.error(f"🌐 Deep Research Failure: {e}")
-                ai_response_text = "I'm currently sourcing live market data for you. Check out these top matches in the meantime!"
+                if final_products:
+                     ai_response_text = f"The exact item isn't available, but I highly recommend the **{safe_get(final_products[0], 'name')}**. It's the best alternative in our collection!"
+                else:
+                     ai_response_text = "I'm checking our live inventory global warehouses... please wait a moment."
 
             if not final_products:
                 recovery_mode = True
@@ -1314,7 +1338,7 @@ class AINLUService:
             no_symbols_text = re.sub(r'[\*\"\_]', '', raw_text)
             clean_content = re.sub(
                 r'[^\w\s\u0600-\u06FF\.,!?:;\-\(\)\[\]%\$£€\u2022\'’/+\n\u25CF]',
-                '', # نستبدل بلا شيء بدل المسافة عشان منقطعش الكلمات
+                ' ', # نستبدل بلا شيء بدل المسافة عشان منقطعش الكلمات
                 raw_text
             )
             
