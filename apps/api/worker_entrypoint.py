@@ -67,6 +67,7 @@ logging.basicConfig(
 )
 logging.getLogger("aio_pika").setLevel(logging.WARNING)
 logging.getLogger("aiormq").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger("airdeliver.worker")
 

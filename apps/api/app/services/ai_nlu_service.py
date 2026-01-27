@@ -1330,6 +1330,8 @@ class AINLUService:
             clean_content = re.sub(r'(?<!\n\n)(Note:|Action:|CTA:|●)', r'\n\n\1', clean_content)
             
             clean_content = clean_content.replace('●', '● ').replace('●  ', '● ')
+            
+            clean_content = re.sub(r'([\$£€])[\s\n]+(\d)', r'\1\2', clean_content)
 
             clean_content = clean_content.strip()
 
@@ -1709,33 +1711,86 @@ class AINLUService:
             stance = "INQUISITIVE"
 
         elif stance == "AUTHORITATIVE":
-            is_comparison = any(w in user_query.lower() for w in ["vs", "compare", "better", "difference", "or"])
+
+            p_name_lower = p_name.lower() if p_name else ""
+            q_lower = user_query.lower()
+
+            # 1. قائمة كلمات التجاهل (عشان منقارنش بكلمات عامة)
+            # دي كلمات مينفعش نحكم بيها على المنتج
+            universal_stopwords = [
+                "want", "need", "buy", "price", "cost", "how much", "looking for", "find",
+                "best", "top", "cheap", "expensive", "good", "new", "available", "stock",
+                "color", "size", "with", "for", "and", "the", "a", "an", "in", "of",
+                "عايز", "بكام", "سعر", "شراء", "افضل", "احسن", "موجود", "عندك", "ارخص"
+            ]
+
+            # 2. استخراج "الكلمات الجوهرية" من طلب المستخدم
+            query_tokens = [
+                w for w in q_lower.split()
+                if w not in universal_stopwords and len(w) > 2 # تجاهل الكلمات القصيرة جداً
+            ]
+
+            # 3. كشف الاختلاف (Universal Mismatch Detection)
+            # لو المستخدم قال كلمة جوهرية (زي "Milk" أو "T-shirt") والكلمة دي مش في اسم المنتج -> يبقى فيه مشكلة
+            is_different_product = False
+
+            # بنعمل لوب على كلمات اليوزر، لو لقينا كلمة مهمة مش موجودة في المنتج، يبقى ده منتج بديل
+            missing_keywords = []
+            for token in query_tokens:
+                if token not in p_name_lower:
+                    missing_keywords.append(token)
+
+            # لو فيه كلمات مفقودة، نتأكد إنها مش مجرد اختلاف بسيط (زي جمع/مفرد)
+            if missing_keywords:
+                # شرط إضافي: لو أكثر من 30% من كلمات اليوزر مش موجودة، نعتبره منتج مختلف
+                if len(missing_keywords) / len(query_tokens) > 0.3:
+                    is_different_product = True
+
+            if is_different_product:
+                word_limit = "80"
+                style_guide = "Honest, Helpful, Pivot-Master."
+
+                # الرسالة دي بتجبر الـ AI يعترف لأي نوع منتج (مش بس إلكترونيات)
+                strategy_instruction = f"""
+                🚨 STOCKOUT / VARIANT ALERT:
+                The user asks for '{user_query}', but we ONLY have '{p_name}' in stock.
+
+                YOUR STRICT EXECUTION PLAN:
+                1. 🛑 STOP: Do NOT pretend {p_name} is exactly what they asked for.
+                2. 📢 ADMIT: Start by saying: "We don't have the exact item '{user_query}' right now."
+                3. 🔀 PIVOT: Immediately say: "However, we have a great alternative: {p_name}."
+                4. 💡 SELL: Explain why {p_name} is a good choice (focus on its Quality/Features/Taste depending on category).
+
+                Tone: Transparent but confident.
+                """
+            else:
+                is_comparison = any(w in user_query.lower() for w in ["vs", "compare", "better", "difference", "or"])
             
-            if is_comparison:
-               word_limit = "90"
-               style_guide = "Persuasive, Comparative, Product-Focused."
+                if is_comparison:
+                    word_limit = "90"
+                    style_guide = "Persuasive, Comparative, Product-Focused."
                
                # 🔥 التعديل هنا: بنجبره يخلي المنتج اللي في الداتابيز (p_name) هو البطل
-               strategy_instruction = f"""
-               You are selling **{p_name}**. The user is comparing it to a competitor.
+                    strategy_instruction = f"""
+                    You are selling **{p_name}**. The user is comparing it to a competitor.
                
-               YOUR MISSION:
-               1. Acknowledge the competitor briefly (e.g., 'While the iPhone ecosystem is smooth...').
-               2. **BUT**, declare **{p_name}** the 'Winner' specifically for the user's priority (Performance/Camera).
-               3. Highlight 2 KILLER SPECS of {p_name} that the competitor lacks.
-               4. Frame the 'Switch' as an upgrade, not a loss.
+                    YOUR MISSION:
+                    1. Acknowledge the competitor briefly (e.g., 'While the iPhone ecosystem is smooth...').
+                    2. **BUT**, declare **{p_name}** the 'Winner' specifically for the user's priority (Performance/Camera).
+                    3. Highlight 2 KILLER SPECS of {p_name} that the competitor lacks.
+                    4. Frame the 'Switch' as an upgrade, not a loss.
                
-               CRITICAL: DO NOT declare the competitor as the winner if we are selling {p_name}. 
-               Align your verdict with the product we have in stock.
-               """
+                    CRITICAL: DO NOT declare the competitor as the winner if we are selling {p_name}. 
+                    Align your verdict with the product we have in stock.
+                    """
                 # ... (باقي الكود للعادي)
-            else:
+                else:
             # تخصيص البيع حسب الشخصية
-                style_guide = "Direct, Punchy, Decision-Oriented."
-                if "Impulsive" in persona: strategy_instruction = "Focus on FOMO & Speed."
-                elif tier == "HIGH": strategy_instruction = "Focus on Status & Luxury."
-                elif tier == "LOW": strategy_instruction = "Focus on Value & Savings."
-                else: strategy_instruction = "Focus on the 'One Big Reason' to buy. No fluff."
+                    style_guide = "Direct, Punchy, Decision-Oriented."
+                    if "Impulsive" in persona: strategy_instruction = "Focus on FOMO & Speed."
+                    elif tier == "HIGH": strategy_instruction = "Focus on Status & Luxury."
+                    elif tier == "LOW": strategy_instruction = "Focus on Value & Savings."
+                    else: strategy_instruction = "Focus on the 'One Big Reason' to buy. No fluff."
 
         # الحالة 2: الدبلوماسي (Diplomat) - انحراف السياق -> رد متوسط للتبرير
         elif stance == "ADAPTIVE_SHOCK":

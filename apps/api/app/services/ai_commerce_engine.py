@@ -131,6 +131,8 @@ class AIModelSingleton:
                         
                         "dtype": torch.float16 if device == "cuda" else torch.float32
                     }
+
+                    logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
                     # تحميل الموديل الأصلي
                     self._text_model = SentenceTransformer(
                         self.MODEL_TEXT_SOTA, # 👈 ده موديل Alibaba اللي انت عايزه
