@@ -328,7 +328,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
-    command: /opt/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: /opt/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     logging:
       driver: "json-file"
       options:
@@ -394,7 +394,7 @@ services:
     command: >
       sh -c "
       echo '🚀 Starting Optimized Worker...' &&
-      watchfiles 'python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'"
+      /opt/venv/bin/watchfiles '/opt/venv/bin/python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'"
     logging:
       driver: "json-file"
       options:

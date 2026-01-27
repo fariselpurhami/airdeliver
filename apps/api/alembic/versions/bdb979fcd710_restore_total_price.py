@@ -8,7 +8,7 @@ Create Date: 2025-12-22 13:07:32.095311
 from alembic import op
 import sqlalchemy as sa
 import sqlmodel
-
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = 'bdb979fcd710'
@@ -23,7 +23,11 @@ def upgrade() -> None:
     op.add_column('orders', sa.Column('is_paid', sa.Boolean(), nullable=False))
     op.add_column('orders', sa.Column('paid_at', sa.DateTime(), nullable=True))
     op.add_column('orders', sa.Column('stripe_payment_id', sqlmodel.sql.sqltypes.AutoString(), nullable=True))
-    op.drop_column('products', 'image')
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    columns = [c['name'] for c in inspector.get_columns('products')]
+    if 'image' in columns:
+        op.drop_column('products', 'image')
     # ### end Alembic commands ###
 
 
