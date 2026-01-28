@@ -1736,33 +1736,59 @@ class AINLUService:
 
         elif stance == "AUTHORITATIVE":
 
+            missing_keywords = []
+            is_different_product = False
+
+            discovery_triggers = [
+                # 🇬🇧 English Triggers (High Frequency)
+                "best", "top", "recommend", "suggest", "advice", "guide", 
+                "review", "what", "which", "option", "choice", "selection",
+                "vs", "compare", "difference", "better", "worse", # Comparative Discovery
+                "cheap", "budget", "expensive", "cost", "price", "deal", "offer", # Value Seeking
+                "latest", "new", "trend", "popular", "hot", # Trend Seeking
+                "suitable", "perfect for", "good for", "looking for", "help", 
+            ]
+
+            # هل السؤال "استكشافي"؟ (يحتوي على كلمة من القائمة)
+            is_discovery_intent = any(trigger in user_query.lower() for trigger in discovery_triggers)
+
             p_name_lower = p_name.lower() if p_name else ""
             q_lower = user_query.lower()
 
-            # 1. قائمة كلمات التجاهل (عشان منقارنش بكلمات عامة)
-            # دي كلمات مينفعش نحكم بيها على المنتج
-            universal_stopwords = [
-                "want", "need", "buy", "price", "cost", "how much", "looking for", "find",
-                "best", "top", "cheap", "expensive", "good", "new", "available", "stock",
-                "color", "size", "with", "for", "and", "the", "a", "an", "in", "of",
-                "عايز", "بكام", "سعر", "شراء", "افضل", "احسن", "موجود", "عندك", "ارخص"
-            ]
-
-            # 2. استخراج "الكلمات الجوهرية" من طلب المستخدم
-            query_tokens = [
-                w for w in q_lower.split()
-                if w not in universal_stopwords and len(w) > 2 # تجاهل الكلمات القصيرة جداً
-            ]
-
-            # 3. كشف الاختلاف (Universal Mismatch Detection)
-            # لو المستخدم قال كلمة جوهرية (زي "Milk" أو "T-shirt") والكلمة دي مش في اسم المنتج -> يبقى فيه مشكلة
+            # 2️⃣ كشف الاختلاف (فقط لو كان السؤال محدداً!)
             is_different_product = False
 
-            # بنعمل لوب على كلمات اليوزر، لو لقينا كلمة مهمة مش موجودة في المنتج، يبقى ده منتج بديل
-            missing_keywords = []
-            for token in query_tokens:
-                if token not in p_name_lower:
-                    missing_keywords.append(token)
+            if not is_discovery_intent:
+
+            # 1. قائمة كلمات التجاهل (عشان منقارنش بكلمات عامة)
+            # دي كلمات مينفعش نحكم بيها على المنتج
+                universal_stopwords = [
+                # 🇬🇧 English: Intent & Action
+                    "want", "need", "buy", "purchase", "get", "find", "search", "looking", "order",
+                    "show", "me", "give", "suggest", "recommend", "advice", "help",
+                
+                # 🇬🇧 English: Value & Status
+                    "price", "cost", "how", "much", "many", "cheap", "expensive", "deal", "offer",
+                    "best", "top", "good", "great", "bad", "new", "latest", "trending",
+                    "available", "stock", "in", "out", "ready",
+                
+                # 🇬🇧 English: Grammar & Fillers
+                    "the", "a", "an", "is", "are", "can", "will", "do", "does",
+                    "with", "without", "for", "from", "at", "on", "by", "and", "or",
+                    "color", "size", "weight", "please", "hello", "hi", "hey",
+                ]
+
+            # 2. استخراج "الكلمات الجوهرية" من طلب المستخدم
+                query_tokens = [
+                    w for w in q_lower.split()
+                    if w not in universal_stopwords and len(w) > 2 # تجاهل الكلمات القصيرة جداً
+                ]
+
+        
+                missing_keywords = []
+                for token in query_tokens:
+                    if token not in p_name_lower:
+                        missing_keywords.append(token)
 
             # لو فيه كلمات مفقودة، نتأكد إنها مش مجرد اختلاف بسيط (زي جمع/مفرد)
             if missing_keywords:
@@ -1771,7 +1797,7 @@ class AINLUService:
                     is_different_product = True
 
             if is_different_product:
-                word_limit = "80"
+                word_limit = "90"
                 style_guide = "Honest, Helpful, Pivot-Master."
 
                 # الرسالة دي بتجبر الـ AI يعترف لأي نوع منتج (مش بس إلكترونيات)
@@ -1786,6 +1812,30 @@ class AINLUService:
                 4. 💡 SELL: Explain why {p_name} is a good choice (focus on its Quality/Features/Taste depending on category).
 
                 Tone: Transparent but confident.
+                """
+
+            elif is_discovery_intent:
+                # 💡 مسار 2: الإجابة على سؤال عام (Advisor Protocol) - 🔥 ده اللي هيحل مشكلتك
+                word_limit = "95"
+                style_guide = "Expert, Advisory, Solution-Oriented."
+                strategy_instruction = f"""
+                🎯 ADVISOR MODE ACTIVATED:
+                The user asked a general/discovery question: "{user_query}".
+                You identified **{p_name}** as the PERFECT ANSWER.
+            
+                EXECUTION PROTOCOL:
+                1. Direct Mapping: Start by validating the user's specific need (e.g., 'speed', 'comfort', 'budget') and declaring {p_name} as the top recommendation.
+            
+                2. Proof of Value: Highlight 2 key attributes of {p_name} that specifically solve the user's intent. 
+                   - If Tech: Mention Specs (Ram, Screen).
+                   - If Fashion: Mention Material/Fit.
+                   - If Food: Mention Taste/Ingredients.
+            
+                3. Authority Closing: End with a confident recommendation to secure it now.
+            
+                ⛔ CRITICAL RULES:
+                - DO NOT say "We don't have...". Treat {p_name} as the exact answer they need.
+                - Match the TONE to the Category (Excited for Tech, Warm for Home, Professional for Tools).
                 """
             else:
                 is_comparison = any(w in user_query.lower() for w in ["vs", "compare", "better", "difference", "or"])
