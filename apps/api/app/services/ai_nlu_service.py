@@ -22,6 +22,93 @@ from app.services.ai_meta_cognition import MetaCognitionLayer
 
 logger = logging.getLogger("airdeliver.nlu")
 
+class DiamondInterceptor:
+    """
+    🔥 DIAMOND INTERCEPTOR v2.0 (The Strategic Firewall)
+    ----------------------------------------------------
+    Architecture: Identity-First Validation
+    Logic: Prioritizes 'What it is' (Category/Brand) over 'What it does' (Attributes).
+    Resilience: Immune to long queries (700+ words) via Signal Distillation.
+    """
+
+    # 1. القائمة السوداء الديناميكية (Dynamic Noise Filter)
+    AGGRESSIVE_STOPWORDS = {
+        "i", "need", "want", "looking", "for", "can", "run", "is", "a", "an", "the", "with", "without",
+        "buy", "find", "get", "search", "could", "would", "be", "have", "has", "do", "does", "that",
+        "of", "in", "on", "at", "to", "from", "by", "and", "or", "but", "so", "extremely", "enough",
+        "also", "it", "maintain", "possible", "after", "two", "years", "what", "should", "choose",
+        "right", "now", "trade-offs", "official", "current", "availability", "specs", "review",
+        "heavy", "light", "workloads", "silent", "battery", "price", "cost", "budget", "cheap",
+        "expensive", "best", "top", "recommend", "suggestion", "vs", "versus", "better", "than",
+        "عايز", "محتاج", "ابحث", "عن", "لو", "سمحت", "ممكن", "من", "فضلك", "بالله", "الي", "اللي", "ده", "دي"
+    }
+
+    def __init__(self):
+        self.matcher_threshold = 0.25  # Strict but fair
+
+    def _get_attr(self, obj: Any, attr: str) -> str:
+        """Safe extraction of attributes specifically for AirDeliver product objects."""
+        return str(getattr(obj, attr, "") or "").lower().strip()
+
+    def _distill_signal(self, text: str) -> set:
+        """
+        💎 The Diamond Distiller: Extracts the 'Core Signal' from a noisy user query.
+        """
+        import re
+        clean_text = re.sub(r'[^\w\s]', '', text.lower())
+        words = clean_text.split()
+
+        # Filter: Length > 2 AND Not in Stopwords
+        signal = {w for w in words if len(w) > 2 and w not in self.AGGRESSIVE_STOPWORDS}
+        return signal
+
+    def validate_alignment(self, user_query: str, top_candidate: Any, nlu_intent: Optional[str] = None) -> float:
+        """
+        The Main Logic: Calculates the 'Resonance Score' between User and Product.
+        """
+        # 1. The 'Iron Dome' Check (NLU Intent Override)
+        p_category = self._get_attr(top_candidate, 'category')
+        p_name = self._get_attr(top_candidate, 'name')
+
+        if nlu_intent and nlu_intent != "UNKNOWN":
+            normalized_intent = nlu_intent.lower()
+            if normalized_intent in p_category or normalized_intent in p_name:
+                return 1.0 # Perfect Match
+
+        # 2. Signal Extraction
+        user_signal_words = self._distill_signal(user_query)
+
+        if not user_signal_words:
+            return 1.0 # Fail open
+
+        # 3. Product Signature Construction
+        p_brand = self._get_attr(top_candidate, 'brand')
+        product_signature = f"{p_name} {p_category} {p_brand}"
+
+        # 4. The 'Golden Spike' Calculation (Matches)
+        hits = 0
+
+        for w in user_signal_words:
+            # Direct Match
+            if w in product_signature:
+                hits += 1
+            # Singular/Plural Match (Laptop <-> Laptops)
+            elif w.endswith('s') and w[:-1] in product_signature:
+                hits += 1
+            elif (w + 's') in product_signature:
+                hits += 1
+
+        # 5. The Architecture of Justice (The Denominator)
+        # 🔥 The Magic Number: We cap the denominator at 3.
+        effective_denominator = min(len(user_signal_words), 3)
+        effective_denominator = max(effective_denominator, 1)
+
+        resonance_score = hits / effective_denominator
+
+        if resonance_score < self.matcher_threshold:
+            logger.warning(f"🔍 Analysis: Query Signal {list(user_signal_words)[:5]}... | Product: {p_name} | Score: {resonance_score:.2f}")
+
+        return resonance_score
 class AINLUService:
     """
     🧠 THE ORDER WITH AIR BRAIN (V30.0 - UNIVERSAL DIAMOND EDITION).
@@ -53,7 +140,7 @@ class AINLUService:
         self.llm_service = llm_service
         self.behavior_engine = behavior_engine
         self.meta_cognition = MetaCognitionLayer()
-
+        self.interceptor = DiamondInterceptor()
         # ⚙️ SOTA Configuration
         self.seen_cache_ttl = 3600
         self.context_window_size = 8 # ⬆️ رفعنا حجم الذاكرة لاستيعاب سياق أعمق
@@ -1238,109 +1325,44 @@ class AINLUService:
         final_products = candidates[:8] if candidates else []
 
         # 🔥 DIAMOND INTERCEPTOR (THE STRATEGIC SWITCH - UNIVERSAL EDITION)
-        # هذا هو "العقل المدبر" الذي يمنع عرض كروت غبية ويقوم باستبدال المنتج أوتوماتيكياً
-        # يدعم الآن: اللغة العربية، الإنجليزية، وتجاهل الرموز، والبحث العميق.
 
-        # 1. فلتر الأسئلة العامة (Enhanced Broad Query Filter)
-        # لو العميل بيسأل "اقتراحات"، "أفضل العروض"، "تريند".. مش محتاجين تطابق دقيق
-        broad_triggers = [
-            "best", "recommend", "suggestion", "what is", "top", "trending", "collection", "show me",
-            "افضل", "احسن", "اقتراح", "ترشيح", "وريني", "عايز اشوف", "الجديد", "تريند"
-        ]
+        broad_triggers = ["best", "recommend", "suggestion", "what is", "top", "trending", "collection", "show me", "افضل", "اقتراح", "ترشيح", "وريني"]
         is_broad_query = any(t in lower_text for t in broad_triggers) and len(lower_text.split()) < 4
-
+        
         if final_products and not is_broad_query and not base64_image:
             top_candidate = final_products[0]
+            
+            # 1. استخدام كلاس DiamondInterceptor لحساب النسبة
+            match_ratio = self.interceptor.validate_alignment(
+                user_query=message_text,
+                top_candidate=top_candidate
+            )
 
-            # 2. تنظيف النص العالمي (Universal Tokenizer)
-            # لازم نشيل كلمات الحشو بجميع اللغات عشان نمسك "اسم المنتج" بس
-            universal_stopwords = [
-                # English
-                "want", "need", "looking", "with", "buy", "find", "get", "search", "for", "a", "an", "the",
-                # Arabic (Egypt + Gulf)
-                "عايز", "عاوز", "محتاج", "بدي", "ابغى", "ابي", "ادور", "ابحث", "عن", "مع", "في", "على", "اشتري", "شراء"
-            ]
-
-            # تنظيف الرموز لضمان مقارنة كلمات صافية
-            import re
-            clean_msg = re.sub(r'[^\w\s]', '', lower_text)
-
-            user_core_words = [
-                w for w in clean_msg.split()
-                if len(w) > 2 and w not in universal_stopwords
-            ]
-
-            # تكوين بصمة المنتج (الاسم + التصنيف)
-            # بنركز على الاسم والتصنيف أكتر من الوصف عشان الدقة
-            p_text_signature = f"{top_candidate.name} {top_candidate.category}".lower()
-            # بنضيف الوصف بس لو قصير، عشان لو طويل ممكن يخدعنا بكلمات عشوائية
-            if top_candidate.description and len(top_candidate.description) < 200:
-                p_text_signature += f" {top_candidate.description.lower()}"
-
-            # 3. حساب نسبة التطابق (Strict Matching)
-            match_hits = 0
-            for w in user_core_words:
-                # التحقق الذكي: الكلمة موجودة، أو جمعها/مفردها موجود (للانجليزي)
-                if w in p_text_signature:
-                    match_hits += 1
-                elif w.endswith('s') and w[:-1] in p_text_signature: # Laptops -> Laptop
-                    match_hits += 1
-                elif (w + 's') in p_text_signature: # Laptop -> Laptops
-                    match_hits += 1
-
-            match_ratio = match_hits / len(user_core_words) if user_core_words else 1.0
-
-            # 4. لحظة الحقيقة (Decision Time)
-            # لو النسبة أقل من 20%، ده غالباً Mismatch كارثي (لابتوب vs درون)
-            if match_ratio < 0.20:
-                logger.warning(f"🚨 Strategic Mismatch Detected: User wants '{message_text}' but DB gave '{top_candidate.name}' (Match: {match_ratio:.2f}). Initiating Swap...")
-
-                # 5. تشغيل "الاسترداد الذكي" لإيجاد البديل الحقيقي
-                # بنبعت "نص رسالة العميل" عشان الـ LLM يستخرج المنتج الصح (Laptop) ويبحث عنه
+            # 2. الحكم النهائي
+            if match_ratio < self.interceptor.matcher_threshold:
+                logger.warning(f"🚨 Strategic Mismatch: Score {match_ratio:.2f} is below threshold. Swapping...")
+                
                 strategic_alternatives = await self._perform_smart_recovery(message_text)
-
+                
                 if strategic_alternatives:
-                    # 🔥 THE SAFETY VALVE (صمام الأمان النووي)
-                    # نتأكد إن المنتج البديل فعلاً مطابق بنسبة 100%
                     new_candidate = strategic_alternatives[0]
+                    # إعادة الفحص للبديل
+                    new_ratio = self.interceptor.validate_alignment(
+                        user_query=message_text,
+                        top_candidate=new_candidate
+                    )
                     
-                    # 1. تكوين "بصمة شاملة" للمنتج الجديد (الاسم + التصنيف + البراند + نبذة من الوصف)
-                    # بنستخدم safe_get عشان لو الحقول دي مش موجودة الكود ميضربش
-                    def get_attr(obj, attr): return getattr(obj, attr, "") or ""
-                    
-                    p_name = get_attr(new_candidate, 'name')
-                    p_cat = get_attr(new_candidate, 'category')
-                    p_brand = get_attr(new_candidate, 'brand') # 👈 إضافة مهمة
-                    p_desc = get_attr(new_candidate, 'description')[:100] # 👈 أول 100 حرف بس عشان الدقة
-                    
-                    new_signature = f"{p_name} {p_cat} {p_brand} {p_desc}".lower()
-                    
-                    # 2. حساب التطابق مع كلمات العميل الجوهرية (user_core_words)
-                    # (user_core_words جاية من الكود اللي فوقيه في Diamond Interceptor)
-                    new_hits = 0
-                    for w in user_core_words:
-                        if w in new_signature:
-                            new_hits += 1
-                        # دعم الجمع والمفرد (S-Check)
-                        elif w.endswith('s') and w[:-1] in new_signature:
-                            new_hits += 1
-                        elif (w + 's') in new_signature:
-                            new_hits += 1
-
-                    new_ratio = new_hits / len(user_core_words) if user_core_words else 1.0
-                    
-                    # 3. الحكم النهائي (The Verdict)
-                    # لو المنتج الجديد لسه غلط (أقل من 20% تطابق)، يبقى الداتابيز مفهاش طلب العميل
-                    if new_ratio < 0.20:
-                        logger.warning(f"❌ Recovery Failed: Swapped product '{p_name}' is STILL a mismatch (Score: {new_ratio:.2f}). Nuking Cards. 💣")
-                        final_products = [] # 💣 الخيار النووي: امسح الكروت وخليك نصي
+                    if new_ratio < self.interceptor.matcher_threshold:
+                         logger.warning(f"❌ Recovery Failed: Swapped product still mismatch (Score: {new_ratio:.2f}). Nuking Cards. 💣")
+                         final_products = [] 
                     else:
-                        logger.info(f"💎 Strategic Swap Success: Locked on '{p_name}' (Score: {new_ratio:.2f})")
-                        final_products = strategic_alternatives
+                         logger.info(f"💎 Strategic Swap Success: Locked on '{new_candidate.name}' (Score: {new_ratio:.2f})")
+                         final_products = strategic_alternatives
                 else:
-                    # ❌ الحالة الثانية: مفيش بديل أصلاً
                     logger.info("❌ No Alternative Found. Switching to Text-Only Mode.")
                     final_products = []
+
+            
         # =========================================================================
         # 🧠 GATEWAY 5: GENERATIVE INTELLIGENCE & DEEP RESEARCH (DDGS)
         # =========================================================================
@@ -1389,15 +1411,18 @@ class AINLUService:
                 if final_products:
                     p_safe = final_products[0]
                     p_name_override = safe_get(p_safe, 'name')
-                    p_desc = safe_get(p_safe, 'description')
+                    p_desc = safe_get(p_safe, 'description')[:400]
                     p_price = safe_get(p_safe, 'price')
                     alternative_context = f"WE HAVE THIS IN STOCK: {p_name_override} (Price: ${p_price}). Specs: {p_desc}"
-
+                
+                short_search_query = search_query[:400]
                 # 🌐 Engaging Deep Research (DDGS)
                 web_intel = await asyncio.wait_for(
                     self.llm_service._perform_web_search(search_query), 
                     timeout=8.0
                 )
+
+                web_intel_safe = str(web_intel)[:1900]
                 
                 system_instruction = (
                     f"You are the airdeliver Elite Personal Shopping Concierge. {NO_MARKDOWN_GUARD} "
@@ -1417,7 +1442,9 @@ class AINLUService:
                 ai_response_text = await self.llm_service.generate_response(
                     prompt=f"User wanted: {search_query}. But we only have: {p_name_override}. Sell {p_name_override}!",
                     system_role=system_instruction,
-                    context=f"VISUAL ANALYSIS: {vision_description}\n\nOUR STOCK ITEM: {alternative_context}\n\nWEB INTEL (Use carefully): {web_intel}"
+                    context=f"VISUAL ANALYSIS: {vision_description}\n\nOUR STOCK ITEM: {alternative_context}\n\nWEB INTEL (Use carefully): {web_intel}",
+                    max_tokens=1500, # 🚀 رفعنا التوكنز لـ 1000 (كانت 400) عشان يتكلم براحته
+                    temperature=0.7  # حرارة متوسطة لإبداع موز
                 )
             except Exception as e:
                 logger.error(f"🌐 Deep Research Failure: {e}")
