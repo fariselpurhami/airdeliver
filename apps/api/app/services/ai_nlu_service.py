@@ -1234,6 +1234,113 @@ class AINLUService:
         
         ai_response_text = ""
         recovery_mode = False
+
+        final_products = candidates[:8] if candidates else []
+
+        # 🔥 DIAMOND INTERCEPTOR (THE STRATEGIC SWITCH - UNIVERSAL EDITION)
+        # هذا هو "العقل المدبر" الذي يمنع عرض كروت غبية ويقوم باستبدال المنتج أوتوماتيكياً
+        # يدعم الآن: اللغة العربية، الإنجليزية، وتجاهل الرموز، والبحث العميق.
+
+        # 1. فلتر الأسئلة العامة (Enhanced Broad Query Filter)
+        # لو العميل بيسأل "اقتراحات"، "أفضل العروض"، "تريند".. مش محتاجين تطابق دقيق
+        broad_triggers = [
+            "best", "recommend", "suggestion", "what is", "top", "trending", "collection", "show me",
+            "افضل", "احسن", "اقتراح", "ترشيح", "وريني", "عايز اشوف", "الجديد", "تريند"
+        ]
+        is_broad_query = any(t in lower_text for t in broad_triggers) and len(lower_text.split()) < 4
+
+        if final_products and not is_broad_query and not base64_image:
+            top_candidate = final_products[0]
+
+            # 2. تنظيف النص العالمي (Universal Tokenizer)
+            # لازم نشيل كلمات الحشو بجميع اللغات عشان نمسك "اسم المنتج" بس
+            universal_stopwords = [
+                # English
+                "want", "need", "looking", "with", "buy", "find", "get", "search", "for", "a", "an", "the",
+                # Arabic (Egypt + Gulf)
+                "عايز", "عاوز", "محتاج", "بدي", "ابغى", "ابي", "ادور", "ابحث", "عن", "مع", "في", "على", "اشتري", "شراء"
+            ]
+
+            # تنظيف الرموز لضمان مقارنة كلمات صافية
+            import re
+            clean_msg = re.sub(r'[^\w\s]', '', lower_text)
+
+            user_core_words = [
+                w for w in clean_msg.split()
+                if len(w) > 2 and w not in universal_stopwords
+            ]
+
+            # تكوين بصمة المنتج (الاسم + التصنيف)
+            # بنركز على الاسم والتصنيف أكتر من الوصف عشان الدقة
+            p_text_signature = f"{top_candidate.name} {top_candidate.category}".lower()
+            # بنضيف الوصف بس لو قصير، عشان لو طويل ممكن يخدعنا بكلمات عشوائية
+            if top_candidate.description and len(top_candidate.description) < 200:
+                p_text_signature += f" {top_candidate.description.lower()}"
+
+            # 3. حساب نسبة التطابق (Strict Matching)
+            match_hits = 0
+            for w in user_core_words:
+                # التحقق الذكي: الكلمة موجودة، أو جمعها/مفردها موجود (للانجليزي)
+                if w in p_text_signature:
+                    match_hits += 1
+                elif w.endswith('s') and w[:-1] in p_text_signature: # Laptops -> Laptop
+                    match_hits += 1
+                elif (w + 's') in p_text_signature: # Laptop -> Laptops
+                    match_hits += 1
+
+            match_ratio = match_hits / len(user_core_words) if user_core_words else 1.0
+
+            # 4. لحظة الحقيقة (Decision Time)
+            # لو النسبة أقل من 20%، ده غالباً Mismatch كارثي (لابتوب vs درون)
+            if match_ratio < 0.20:
+                logger.warning(f"🚨 Strategic Mismatch Detected: User wants '{message_text}' but DB gave '{top_candidate.name}' (Match: {match_ratio:.2f}). Initiating Swap...")
+
+                # 5. تشغيل "الاسترداد الذكي" لإيجاد البديل الحقيقي
+                # بنبعت "نص رسالة العميل" عشان الـ LLM يستخرج المنتج الصح (Laptop) ويبحث عنه
+                strategic_alternatives = await self._perform_smart_recovery(message_text)
+
+                if strategic_alternatives:
+                    # 🔥 THE SAFETY VALVE (صمام الأمان النووي)
+                    # نتأكد إن المنتج البديل فعلاً مطابق بنسبة 100%
+                    new_candidate = strategic_alternatives[0]
+                    
+                    # 1. تكوين "بصمة شاملة" للمنتج الجديد (الاسم + التصنيف + البراند + نبذة من الوصف)
+                    # بنستخدم safe_get عشان لو الحقول دي مش موجودة الكود ميضربش
+                    def get_attr(obj, attr): return getattr(obj, attr, "") or ""
+                    
+                    p_name = get_attr(new_candidate, 'name')
+                    p_cat = get_attr(new_candidate, 'category')
+                    p_brand = get_attr(new_candidate, 'brand') # 👈 إضافة مهمة
+                    p_desc = get_attr(new_candidate, 'description')[:100] # 👈 أول 100 حرف بس عشان الدقة
+                    
+                    new_signature = f"{p_name} {p_cat} {p_brand} {p_desc}".lower()
+                    
+                    # 2. حساب التطابق مع كلمات العميل الجوهرية (user_core_words)
+                    # (user_core_words جاية من الكود اللي فوقيه في Diamond Interceptor)
+                    new_hits = 0
+                    for w in user_core_words:
+                        if w in new_signature:
+                            new_hits += 1
+                        # دعم الجمع والمفرد (S-Check)
+                        elif w.endswith('s') and w[:-1] in new_signature:
+                            new_hits += 1
+                        elif (w + 's') in new_signature:
+                            new_hits += 1
+
+                    new_ratio = new_hits / len(user_core_words) if user_core_words else 1.0
+                    
+                    # 3. الحكم النهائي (The Verdict)
+                    # لو المنتج الجديد لسه غلط (أقل من 20% تطابق)، يبقى الداتابيز مفهاش طلب العميل
+                    if new_ratio < 0.20:
+                        logger.warning(f"❌ Recovery Failed: Swapped product '{p_name}' is STILL a mismatch (Score: {new_ratio:.2f}). Nuking Cards. 💣")
+                        final_products = [] # 💣 الخيار النووي: امسح الكروت وخليك نصي
+                    else:
+                        logger.info(f"💎 Strategic Swap Success: Locked on '{p_name}' (Score: {new_ratio:.2f})")
+                        final_products = strategic_alternatives
+                else:
+                    # ❌ الحالة الثانية: مفيش بديل أصلاً
+                    logger.info("❌ No Alternative Found. Switching to Text-Only Mode.")
+                    final_products = []
         # =========================================================================
         # 🧠 GATEWAY 5: GENERATIVE INTELLIGENCE & DEEP RESEARCH (DDGS)
         # =========================================================================
@@ -1388,97 +1495,137 @@ class AINLUService:
 
     async def _perform_smart_recovery(self, user_query: str):
         """
-        💎 UNIVERSAL LOGIC: Zero-Shot Product Analysis.
-        Uses LLM to dynamically understand 'Any Product' and suggest relevant
-        alternatives and accessories without hardcoded lists.
+        💎 UNIVERSAL STRATEGIC RECOVERY (THE OMNI-ADAPTER).
+        analyzes 'The Essence' of the missing item to find the perfect logic replacement,
+        regardless of category (Food, Tech, Industrial, Fashion).
         """
         try:
-            # 1. نسأل الـ AI: "يا ذكي، المستخدم عايز المنتج ده ومش لاقينه.
-            # قول لي إيه هو 'التصنيف العام' للمنتج ده (عشان أجيب بدائل)،
-            # وقول لي إيه أهم 2 اكسسوارات تمشي معاه؟"
+            # 1. هندسة البرومبت العالمي (The Universal Prompt)
+            # لاحظ إني شلت كلمات زي "Accessories" واستبدلتها بـ "Logical Complements"
+            # عشان تمشي مع الأكل (صوص)، ومع العدة (مسامير)، ومع اللبس (حزام).
             
-            # نستخدم Prompt هندسي دقيق عشان الرد يكون جاهز للبحث فوراً
             system_instruction = (
-                "You are an Elite Merchandising Algorithm designed for High-Performance Sales Recovery. "
-                "Your objective is to convert a 'Stockout' event into a 'Cross-sell' opportunity. "
-                "Analyze the user's missing item request and output a STRICT search strategy. "
+                "You are a Universal Category Strategist. Your goal is to salvage a 'Stockout' by finding the next best thing."
+                "Analyze the user's missing item request and define the BROAD SEARCH STRATEGY."
                 
-                "PROCESS:"
-                "1. Core Extraction: Strip brands, model numbers, and adjectives to find the 'Core Utility Class' (e.g., 'Nike Jordan 4' -> 'Basketball Sneakers'). "
-                "2. Cross-Sell Logic: Identify 2 distinct, high-attach-rate accessories or complementary items that complete the experience. "
+                "Your Output must be strictly: 'Broad_Category_Name | Complement_1_Keyword Complement_2_Keyword'"
                 
-                "OUTPUT FORMAT (Strictly separated by a pipe '|'):"
-                "Core Utility Keywords | Accessory_1_Keyword Accessory_2_Keyword"
+                "LOGIC PROTOCOL:"
+                "1. Identify the 'Parent Category' (The Alternative). If user wants 'Nike Air Jordan', Parent is 'Basketball Sneakers'."
+                "2. Identify 'Logical Complements' (The Bundle). Items that are usually bought WITH the target."
+                
+                "UNIVERSAL EXAMPLES (FROM NEEDLE TO ROCKET):"
+                "- Input: 'Drill' -> Output: 'Power Tools | Drill Bits Safety Goggles'"
+                "- Input: 'Pasta' -> Output: 'Italian Food | Pasta Sauce Parmesan Cheese'"
+                "- Input: 'Red Lipstick' -> Output: 'Makeup | Lip Liner Makeup Remover'"
+                "- Input: 'Gaming Laptop' -> Output: 'High Performance Laptops | Gaming Mouse Cooling Pad'"
+                "- Input: 'Cement' -> Output: 'Construction Materials | Trowel Bricks'"
                 
                 "RULES:"
-                "- Keywords must be English, broad, and search-engine optimized."
-                "- Accessory 1 should be functional (e.g., Charger, Socks)."
-                "- Accessory 2 should be protective/care (e.g., Case, Cleaner)."
-                "- If input is ambiguous/gibberish, default to: 'Trending Products | Gadgets Fashion'."
-                "- Output ONLY the string. No formatting, no markdown."
-                
-                "EXAMPLES:"
-                "Input: 'iPhone 15 Pro Max' -> Output: 'Flagship Smartphone | Phone Case Screen Protector'"
-                "Input: 'Adidas Yeezy Black' -> Output: 'Urban Running Shoes | Sneaker Cleaning Kit Sport Socks'"
-                "Input: 'Rolex Submariner'   -> Output: 'Luxury Diving Watch | Watch Winder Polishing Cloth'"
-                "Input: 'Whiskas for Kittens'-> Output: 'Kitten Wet Food | Cat Toys Water Fountain'"
+                "- Output ONLY the string separated by '|'."
+                "- Keywords must be English and Search-Optimized."
+                "- Do not assume tech. Adapt to the item's DNA."
             )
 
-            # استدعاء سريع للـ LLM (يفضل موديل سريع زي Haiku/Flash لو متاح، أو الحالي)
+            # استدعاء سريع للـ LLM
             llm_analysis = await self.llm_service.generate_response(
-                prompt=f"Request: {user_query}",
+                prompt=f"Missing Item: {user_query}",
                 system_role=system_instruction,
-                context="Analyze this stockout request."
+                temperature=0.1, # حرارة منخفضة جداً للدقة
+                max_tokens=200
             )
             
-            # تنظيف الرد (لضمان عدم وجود كلام زيادة)
+            # تنظيف الرد
             llm_analysis = llm_analysis.strip().replace('"', '').replace("'", "")
             
-            # 2. تحليل الرد (Parsing)
+            # 2. التحليل والتقسيم
             if "|" in llm_analysis:
                 parts = llm_analysis.split("|")
-                generic_category = parts[0].strip() # ده البديل (مثلاً: Running Shoes)
-                accessories_keywords = parts[1].strip() # دي الاكسسوارات (مثلاً: Socks Cleaner)
+                parent_category = parts[0].strip()     # ده البديل (مثلاً: Power Tools)
+                complements_keywords = parts[1].strip() # دي المكملات (مثلاً: Drill Bits)
             else:
-                # Fallback لو الـ LLM مهنج
-                generic_category = user_query
-                accessories_keywords = "trending accessories"
-
-            logger.info(f"🧠 AI Recovery Strategy: Search for [{generic_category}] + Add [{accessories_keywords}]")
-
+                # 🛡️ GLOBAL FALLBACK PROTECTION (التقطير الذكي للكلمات)
+                # الهدف: استخراج اسم المنتج الصافي بغض النظر عن اللغة أو طريقة الكلام
+                
+                # 1. قائمة التجاهل العالمية (Universal Noise Filter)
+                # بتشيل كلمات الترحيب، الطلب، والضمائر (عربي + إنجليزي)
+                noise_words = {
+                    # English
+                    "i", "me", "my", "we", "want", "need", "looking", "look", "for", "search", "find",
+                    "can", "could", "would", "is", "are", "am", "was", "be", "have", "has", "do", "does",
+                    "a", "an", "the", "in", "on", "at", "with", "without", "and", "or", "but", "so",
+                    "please", "hello", "hi", "hey", "dear", "sir", "madam", "recommend", "suggest",
+                    "best", "top", "good", "great", "cheap", "expensive", "new", "latest", "review",
+                    # Arabic (Generic + Dialects)
+                    "انا", "عايز", "عاوز", "محتاج", "بدي", "ابغى", "ابي", "ادور", "ابحث", "لو", "سمحت",
+                    "ممكن", "من", "فضلك", "بالله", "عن", "مع", "في", "على", "الي", "اللي", "ده", "دي",
+                    "افضل", "احسن", "ارخص", "اغلى", "اجدد", "اقوى", "ترشيح", "اقتراح", "ساعدني", "وريني",
+                    "شو", "شنو", "ايش", "هل", "فيه", "عندك", "موجود", "بكام", "سعر"
+                }
+                
+                # 2. التقطير (Distillation Process)
+                import re
+                # تنظيف الرموز أولاً
+                clean_text = re.sub(r'[^\w\s]', '', user_query.lower())
+                words = clean_text.split()
+                
+                # فلترة الكلمات: لازم تكون مش في القائمة، وطولها أكبر من حرفين
+                core_keywords = [w for w in words if w not in noise_words and len(w) > 1]
+                
+                # 3. الاختيار الاستراتيجي
+                if core_keywords:
+                    # بناخد أول 4 كلمات جوهرية فقط (الزبدة)
+                    parent_category = " ".join(core_keywords[:4])
+                else:
+                    # لو الجملة كلها كانت رغي، نرجع لأول 50 حرف وخلاص
+                    parent_category = user_query[:50] 
+                
+                complements_keywords = "Best Sellers"
+                
+                logger.warning(f"⚠️ LLM Recovery Fallback Triggered. Distilled Query: '{parent_category}'")
             # 3. تنفيذ البحث المتوازي (Parallel Execution)
-            # البحث أ: عن الفئة العامة (لإيجاد بدائل من ماركات أخرى)
-            task_alternatives = await self.search_engine.perform_hybrid_search_pure(self.db, generic_category)
+            # البحث أ: عن الفئة العامة (لإيجاد البديل الأساسي)
+            task_alternatives = await self.search_engine.perform_hybrid_search_pure(self.db, parent_category, limit=5)
             
-            # البحث ب: عن الاكسسوارات المقترحة
-            task_accessories = await self.search_engine.perform_hybrid_search_pure(self.db, accessories_keywords)
+            # البحث ب: عن المكملات (لعمل Bundle ذكي)
+            task_complements = await self.search_engine.perform_hybrid_search_pure(self.db, complements_keywords, limit=3)
             
             found_alternatives = task_alternatives
-            found_accessories = task_accessories
+            found_complements = task_complements
             
-            # 4. دمج ذكي (Smart Merge)
-            # نأخذ أول 3 بدائل + أول 2 اكسسوار
-            # ونضمن عدم التكرار
-            seen_ids = set()
+            # 4. الخلطة الذكية (The Mix)
+            # نأخذ أول 2 بدائل (عشان نعوض المنتج الناقص) + 1 مكمل (عشان نرفع قيمة الطلب)
             final_mix = []
+            seen_ids = set()
             
-            for p in found_alternatives[:3]:
+            # نضيف أقوى بديلين
+            for p in found_alternatives[:2]:
                 if p.id not in seen_ids:
                     final_mix.append(p)
                     seen_ids.add(p.id)
             
-            for p in found_accessories[:2]:
+            # نضيف أقوى مكمل
+            for p in found_complements[:1]:
                 if p.id not in seen_ids:
                     final_mix.append(p)
                     seen_ids.add(p.id)
             
+            # لو مفيش مكملات، كمل القائمة ببدائل
+            if len(final_mix) < 3:
+                for p in found_alternatives[2:5]:
+                    if p.id not in seen_ids:
+                        final_mix.append(p)
+                        seen_ids.add(p.id)
+                        if len(final_mix) >= 3: break
+
             return final_mix
 
         except Exception as e:
-            logger.error(f"⚠️ Universal Recovery Failed: {e}")
-            # في أسوأ الظروف، نبحث عن الكلمة الأصلية
-            return []
-
+            logger.error(f"⚠️ Omni-Recovery Failed: {e}")
+            # خطة الهروب الأخيرة: بحث واسع عن أي كلمة من كلام العميل
+            safe_fallback = user_query.split()[0] if user_query else "Trending"
+            return await self.search_engine.perform_hybrid_search_pure(self.db, safe_fallback, limit=3)        
+    
     async def _handle_text_commands(self, user_id: int, text: str, payload: dict) -> bool:
         """
         🕵️‍♀️ Semantic Command Interceptor.
@@ -1608,7 +1755,7 @@ class AINLUService:
         p_name = product_data.get('name')
         p_price = product_data.get('price')
         
-        word_limit = "70"
+        word_limit = "150"
         style_guide = "Direct and Helpful"
         strategy_instruction = "Focus on the value proposition."
         web_context = ""

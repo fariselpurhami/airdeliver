@@ -849,27 +849,6 @@ const ChatInput = React.memo(
   }
 );
 
-const TypingIndicator = React.memo(() => (
-    <motion.div
-        layout
-        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0 }}
-        className="flex items-center gap-3 mb-4"
-    >
-    
-      <div className="flex items-center gap-2 px-5 py-4 bg-black/40 border border-white/5 rounded-full rounded-tl-none">
-        <span className="text-[10px] text-cyan-500 font-bold tracking-widest animate-pulse">ANALYZING</span>
-        <div className="flex gap-1">
-            <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, repeat: Infinity }} />
-            <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, delay: 0.2, repeat: Infinity }} />
-            <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, delay: 0.4, repeat: Infinity }} />
-        </div>
-      </div>
-    </motion.div>
-));
-TypingIndicator.displayName = 'TypingIndicator';
-
 // --- ARCHITECTURAL UPGRADE: Physics-Based Animation (1000x smoother) ---
 const FlyToCartAnimator = React.memo(() => {
   const flyQueue = useAIOrderingStore((state) => state.flyQueue);
@@ -1289,7 +1268,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                     />
                                                 ))}
                                             </AnimatePresence>
-                                            {isLoading && <TypingIndicator />}
+                                           
                                             <div ref={chatEndRef} />
                                         </div>
                                         <ChatInput onSend={handleSendMessage} onSendImage={actions.sendImage} isTyping={isLoading} isProcessing={isProcessing} />
