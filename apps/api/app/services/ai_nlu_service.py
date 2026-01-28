@@ -1658,11 +1658,7 @@ class AINLUService:
 
             # لو الرسالة طويلة، نختصرها
             if len(user_query) > 100:
-                try:
-                    # نستخدم العنوان المختصر للبحث
-                    search_optimized = f"{p_name} review specs vs competitors"
-                except: 
-                    pass
+                 search_optimized = user_query[:300]
 
             web_context = await self.llm_service._perform_web_search(search_optimized)
         else:
@@ -1951,30 +1947,30 @@ class AINLUService:
         YOUR MISSION:
         {strategy_instruction}
         
-        CRITICAL RULES (THE RUFUS KILLER PROTOCOL - GLOBAL EDITION):
-        1. **WEAPONIZE DEEP DOMAIN KNOWLEDGE**: 
-           - You must immediately detect the *Category* of the product (Tech, Fashion, Automotive, Culinary, etc.).
-           - Speak the **"Insider Language"** of that category. 
-             > If selling Clothes: Focus on Fabric, Fit, Stitching, and Breathability.
-             > If selling Food: Focus on Ingredients, Taste Profile, and Sourcing.
-             > If selling Tools: Focus on Durability, Torque, and Material Grade.
-             > If selling Tech: Focus on Specs, Ecosystem, and Performance.
-           - **NEVER** be generic. Use specific vocabulary that proves you are an expert in *this specific item*.
+        1. **🛡️ THE SANITY CHECK (Most Important)**: 
+           - Compare User Intent ("{user_query}") with The Candidate Solution ("{p_name}").
+           - **IF THEY DON'T MATCH** (e.g., User wants Laptop, Context is Drone/Watch/Shoe):
+             > **IGNORE the Candidate Solution completely.** Do not try to sell it. Do not say "We are out of stock of X".
+             > **ANSWER the user's question directly** using the [WEB INTEL] provided.
+             > Act as an independent expert consultant. Give them the specific model names/solutions they need based on market reality.
+        
+        2. **🧠 DEEP DOMAIN ADAPTATION**: 
+           - If matched, speak the specific language of the category.
+           - Tech = Specs & Performance. Fashion = Fit & Fabric. Food = Taste & Ingredients.
+           - Do not use generic fluff. Be precise.
 
-        2. **ATTACK THE "OPPORTUNITY COST"**: 
-           - Don't just say what the product has. Explain what the user will **SUFFER** if they choose a lesser alternative.
-           - (e.g., "Cheap shoes mean back pain," "Slow laptops mean missed deadlines," "Low-quality tools mean stripped screws").
-           - Make the "Fear of Missing Out" (FOMO) about *quality of life*, not just features.
-
-        3. **BRUTAL HONESTY (THE TRUST BUILDER)**: 
-           - If the product has a weakness (e.g., High Price), OWN IT. 
-           - Frame the weakness as a strength (e.g., "Yes, it's expensive, because it uses surgical-grade steel that lasts a lifetime").
-           - This makes you sound like a consultant, not a desperate salesperson.
-
-        4. **ORGANIC FLOW**: 
-           - No robotic intros ("Here is the recommendation"). 
+        3. **📉 OPPORTUNITY COST (The Killer Argument)**: 
+           - Explain what they lose by making the wrong choice. 
+           - (e.g., "Buying a cheap laptop now means spending double on repairs later" OR "Low-quality fabric ruins your skin").
+        
+        4. **🚫 NO ROBOTIC APOLOGIES**:
+           - Never say "I apologize" or "As an AI". 
+           - If the user asks for something impossible (e.g., Gaming Laptop for $200), challenge them respectfully: "That budget won't get you performance; here is the realistic entry point."
+        
+        5. **ORGANIC FLOW**: 
            - Jump straight into the value. Use the {response_structure} defined above.
-        4. **NO ROBOTIC INTROS**: Never say "Here is a comparison" or "I recommend". Just start speaking.
+
+        6. **NO ROBOTIC INTROS**: Never say "Here is a comparison" or "I recommend". Just start speaking.
         
         {response_structure}
         
