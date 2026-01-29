@@ -1443,7 +1443,7 @@ class AINLUService:
                     prompt=f"User wanted: {search_query}. But we only have: {p_name_override}. Sell {p_name_override}!",
                     system_role=system_instruction,
                     context=f"VISUAL ANALYSIS: {vision_description}\n\nOUR STOCK ITEM: {alternative_context}\n\nWEB INTEL (Use carefully): {web_intel}",
-                    max_tokens=1500, # 🚀 رفعنا التوكنز لـ 1000 (كانت 400) عشان يتكلم براحته
+                    max_tokens=2500, # 🚀 رفعنا التوكنز لـ 1000 (كانت 400) عشان يتكلم براحته
                     temperature=0.7  # حرارة متوسطة لإبداع موز
                 )
             except Exception as e:
@@ -1559,7 +1559,7 @@ class AINLUService:
                 prompt=f"Missing Item: {user_query}",
                 system_role=system_instruction,
                 temperature=0.1, # حرارة منخفضة جداً للدقة
-                max_tokens=200
+                max_tokens=2500
             )
             
             # تنظيف الرد
@@ -2038,13 +2038,13 @@ class AINLUService:
 
         # الحالة 2: الدبلوماسي (Diplomat) - انحراف السياق -> رد متوسط للتبرير
         elif stance == "ADAPTIVE_SHOCK":
-            word_limit = "75"
+            word_limit = "190"
             style_guide = "Reassuring, Bridge-Building, explanatory."
             strategy_instruction = "Acknowledge the shift in taste. Explain 'Why this fits' the new context."
 
         # الحالة 3: البروفيسور (Professor) - شك أو سؤال -> رد طويل للشرح
         else: # INQUISITIVE
-            word_limit = "100" 
+            word_limit = "150" 
             style_guide = "Educational, Humble, collaborative."
             strategy_instruction = "Teach the user about the feature. Then ask a guiding question."
 

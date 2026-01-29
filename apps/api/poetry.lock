@@ -237,14 +237,14 @@ typing-extensions = {version = ">=4.2", markers = "python_version < \"3.13\""}
 
 [[package]]
 name = "alembic"
-version = "1.18.1"
+version = "1.18.2"
 description = "A database migration tool for SQLAlchemy."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "alembic-1.18.1-py3-none-any.whl", hash = "sha256:f1c3b0920b87134e851c25f1f7f236d8a332c34b75416802d06971df5d1b7810"},
-    {file = "alembic-1.18.1.tar.gz", hash = "sha256:83ac6b81359596816fb3b893099841a0862f2117b2963258e965d70dc62fb866"},
+    {file = "alembic-1.18.2-py3-none-any.whl", hash = "sha256:18a5f6448af4864cc308aadf33eb37c0116da9a60fd9bb3f31ccb1b522b4a9b9"},
+    {file = "alembic-1.18.2.tar.gz", hash = "sha256:1c3ddb635f26efbc80b1b90c5652548202022d4e760f6a78d6d85959280e3684"},
 ]
 
 [package.dependencies]
@@ -4433,14 +4433,14 @@ starlette = ">=0.12.2"
 
 [[package]]
 name = "stripe"
-version = "14.2.0"
+version = "14.3.0"
 description = "Python bindings for the Stripe API"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
-    {file = "stripe-14.2.0-py3-none-any.whl", hash = "sha256:0a1413ca5eff55df40de49f72f4e17ad51e684600b7876a330ba012e9caae689"},
-    {file = "stripe-14.2.0.tar.gz", hash = "sha256:9c707cb0503e179c2d9f18731e94f1333705b5cd9dcaae692db09995ad28d411"},
+    {file = "stripe-14.3.0-py3-none-any.whl", hash = "sha256:3e36b68b256c8970e99b703e195d947e2a2919095758788c7074ac4485ac255e"},
+    {file = "stripe-14.3.0.tar.gz", hash = "sha256:4c76137d741bd43e8bb433a596c198ca20f4cdf17a8fe04604faf37c74b01978"},
 ]
 
 [package.dependencies]
@@ -4482,14 +4482,14 @@ dev = ["hypothesis (>=6.70.0)", "pytest (>=7.1.0)"]
 
 [[package]]
 name = "tavily-python"
-version = "0.7.19"
+version = "0.7.20"
 description = "Python wrapper for the Tavily API"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "tavily_python-0.7.19-py3-none-any.whl", hash = "sha256:b3d95041f22c5dff37255f65308379e4f8ccef8fe0d92b860815812b570f5ef2"},
-    {file = "tavily_python-0.7.19.tar.gz", hash = "sha256:b5c195f58f8df0886814e50e641ba10ef8e5ec72be1e884b8f4b3b99c49934cf"},
+    {file = "tavily_python-0.7.20-py3-none-any.whl", hash = "sha256:a3735afcac030c229a380d06dd6eac3323f2ce441bba77a069aff134d2ff6e42"},
+    {file = "tavily_python-0.7.20.tar.gz", hash = "sha256:23e231fa34ddfda8d49c0ed052cb04ed0a051b3818eb373a4c5da4ef62de2b19"},
 ]
 
 [package.dependencies]
@@ -5551,4 +5551,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11.9"
-content-hash = "a8cffcf347ce0e254abf6b145c57e8c49ae24531b9e23373a59a31d99fa67139"
+content-hash = "6d4eacc3adae45a45567d6d6290c946310215f7831d2a6f4488b4200868f6f56"
