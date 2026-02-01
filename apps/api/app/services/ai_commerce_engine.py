@@ -575,7 +575,7 @@ class AICommerceEngine:
 
             try:
                 # 🛡️ Circuit Breaker
-                results_groups = await asyncio.wait_for(asyncio.gather(*tasks), timeout=120.0)
+                results_groups = await asyncio.wait_for(asyncio.gather(*tasks), timeout=600.0)
             except asyncio.TimeoutError:
                 logger.warning(f"⚠️ Bundle Timeout for {anchor.id}. Triggering Fallback.")
                 return await self._get_emergency_fallback(db, anchor_cat, price_filter)

@@ -38,18 +38,18 @@
     "recharts": "^3.7.0",
     "sharp": "^0.34.5",
     "sonner": "^2.0.7",
-    "swr": "^2.3.8",
+    "swr": "^2.4.0",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
     "uuid": "^13.0.0",
-    "zustand": "^5.0.10"
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
-    "@types/node": "^25.1.0",
+    "@types/node": "^25.2.0",
     "@types/react": "npm:types-react@rc",
     "@types/react-dom": "^19.2.3",
-    "autoprefixer": "^10.4.23",
+    "autoprefixer": "^10.4.24",
     "eslint": "^9.39.2",
     "eslint-config-next": "16.1.6",
     "glslify-loader": "^2.0.0",
