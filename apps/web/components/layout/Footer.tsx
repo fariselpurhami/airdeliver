@@ -69,7 +69,7 @@ const Footer = () => {
                     </div>
                     
                     <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
-                        We Soar In The Sky By Delivering Your Orders.
+                        Instant Commerce. No Gravity.
                     </p>
                 </div>
 
@@ -108,7 +108,7 @@ const Footer = () => {
 
             <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
                 <p className="font-mono text-[10px] tracking-widest">
-                    © {new Date().getFullYear()} airdeliver INC. ALL RIGHTS RESERVERD.
+                    © {new Date().getFullYear()} airdeliver INC. ALL RIGHTS RESERVED.
                 </p>
 
                 <div className="flex gap-6">

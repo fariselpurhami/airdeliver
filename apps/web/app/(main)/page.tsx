@@ -116,7 +116,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           transition={{ duration: 1, delay: 1.2 }}
           className="mt-6 max-w-2xl text-base md:text-lg text-white"
         >
-           Experience the world’s first AI-driven delivery infrastructure — faster, smarter, and fully autonomous.
+           We don't deliver. We arrive.
         </motion.p>
 
         <motion.div
