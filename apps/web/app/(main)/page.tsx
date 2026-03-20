@@ -91,7 +91,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           transition={{ duration: 1, delay: 0.5 }}
           className="mb-4 text-sm font-light tracking-[0.3em] text-white uppercase relative z-20" 
         >
-           AI. AUTONOMY. REDEFINING E-COMMERCE. 
+           SHOPPING AT THE SPEED OF THOUGHT. 
         </motion.p>
     <div className="flex flex-col items-center leading-none z-20 relative mix-blend-screen">
         <motion.h1
@@ -102,11 +102,11 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           style={{ fontFamily: "'Helvetica Neue', Inter, Arial, sans-serif" }}
         >
           <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] text-white/90 drop-shadow-2xl">
-            COMMERCE
+            STOP SCROLLING
           </span>
           
           <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] text-white/90 drop-shadow-2xl">
-            TAKES FLIGHT
+            START LIVING
           </span>
         </motion.h1>
     </div>
@@ -116,7 +116,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           transition={{ duration: 1, delay: 1.2 }}
           className="mt-6 max-w-2xl text-base md:text-lg text-white"
         >
-           We don't deliver. We arrive.
+           Tell our AI what you want. We secure the best deal and fly it to your door in minutes.
         </motion.p>
 
         <motion.div
@@ -541,14 +541,9 @@ const HowItWorksSection = () => {
   return (
     <section ref={containerRef} className="relative w-full min-h-screen bg-black flex flex-col justify-center overflow-hidden">
       <div className="absolute inset-0 z-0">
-          <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
-              <Suspense fallback={null}>
-                  <ambientLight intensity={0.5} />
-                  <BlueEnergyStars /> 
-              </Suspense>
-      </Canvas>
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
-  </div>
+          
+         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
+      </div>
 
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000000_90%)] pointer-events-none" />
@@ -796,16 +791,7 @@ const GlobalScaleSection = () => {
                     <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
                     <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
 
-                    <Stars
-                        radius={100}
-                        depth={100}
-                        count={64000}
-                        factor={24}
-                        saturation={1}
-                        fade
-                        speed={0.2}
-                    />
-
+               
                     <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
                         <group position={[5.5, 0, 0]}>
                             <Suspense fallback={null}><Globe /></Suspense>
@@ -1022,12 +1008,6 @@ export const TestimonialsSection = () => {
   return (
     <section className="py-32 px-4 relative bg-black overflow-hidden">
         <div className="absolute inset-0 z-0">
-            <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
-                <Suspense fallback={null}>
-                    <ambientLight intensity={0.5} />
-                    <PurpleEnergyStars /> 
-                </Suspense>
-            </Canvas>
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/60 pointer-events-none" />
         </div>
 
