@@ -69,7 +69,7 @@ const Footer = () => {
                     </div>
                     
                     <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
-                        Instant Commerce. No Gravity.
+                        COMMERCE. TAKES FLIGHT.
                     </p>
                 </div>
 
