@@ -102,11 +102,11 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           style={{ fontFamily: "'Helvetica Neue', Inter, Arial, sans-serif" }}
         >
           <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] text-white/90 drop-shadow-2xl">
-            STOP SCROLLING
+            START LIVING
           </span>
           
           <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] text-white/90 drop-shadow-2xl">
-            START LIVING
+            STOP SCROLLING
           </span>
         </motion.h1>
     </div>
