@@ -278,7 +278,7 @@ export default function AboutPage() {
             <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
                 <div>
                     <h2 className="text-4xl md:text-5xl font-bold mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>Human Intelligence</h2>
-                    <p className="text-gray-400 max-w-md">Behind every line of code, there’s a visionary mind shaping the intelligence that drives airdeliver.</p>
+                    <p className="text-gray-400 max-w-md">Behind every line of code, hardware, design, there’s a visionary mind shaping the intelligence that drives airdeliver.</p>
                 </div>
                 <button className="px-8 py-3 rounded-full border border-white/20 hover:bg-white/10 hover:border-cyan-400/50 transition-all text-sm font-bold uppercase tracking-wider text-white">
                     Access Personnel Files
