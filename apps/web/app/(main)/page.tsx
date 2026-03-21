@@ -89,7 +89,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.5 }}
-          className="mb-4 text-sm font-light tracking-[0.3em] text-white uppercase relative z-20" 
+          className="mb-4 text-base font-medium tracking-[0.3em] text-white uppercase relative z-20" 
         >
            SHOPPING AT THE SPEED OF THOUGHT. 
         </motion.p>
@@ -114,7 +114,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 1.2 }}
-          className="mt-6 max-w-2xl text-base md:text-lg text-white"
+          className="mt-6 max-w-2xl text-base font-medium  md:text-lg text-white"
         >
            Tell our AI what you want. We secure the best deal and fly it to your door in minutes.
         </motion.p>
