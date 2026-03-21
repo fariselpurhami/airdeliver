@@ -286,9 +286,9 @@ export default function AboutPage() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <TeamOperative image="/team/faris.png" name="Faris Elpurhami" role="CEO & CO-Founder" delay={0} />
-                <TeamOperative image="/team/maria.png" name="Maria" role="Head of AI" delay={0.2} />
-                <TeamOperative image="/team/chen.png" name="Chen" role="Drone Engineering" delay={0.4} />
+                <TeamOperative image="/team/faris.png" name="Faris Elpurhami" role="Founder & CEO" delay={0} />
+                <TeamOperative image="/team/maria.png" name="Maria" role="Co-Founder" delay={0.2} />
+                <TeamOperative image="/team/chen.png" name="Usama Meraj" role="Principal Head of Aerodynamics and Propulsion Management" delay={0.4} />
             </div>
         </div>
       </section>
