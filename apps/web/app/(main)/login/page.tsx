@@ -266,11 +266,11 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
             className="space-y-8"
         >
             <div className="text-center space-y-3 mb-10">
-                <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                    Access Network
+                <h2 className="text-3xl font-medium text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                    LET'S GET STARTED
                 </h2>
-                <p className="text-sm text-cyan-300/60 tracking-[0.2em] uppercase font-medium">
-                    Secure Command Center Login
+                <p className="text-sm text-cyan-300/60 tracking-[0.2em] font-medium">
+                    Login in to manage your deliveries without the headache
                 </p>
             </div>
 
@@ -315,7 +315,7 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
                 <p className="text-gray-500 text-sm">
                     Create a new account?{' '}
                     <button onClick={onSwitch} className="text-cyan-400 hover:text-white font-bold transition-all duration-300 underline decoration-cyan-500/30 underline-offset-8 hover:decoration-cyan-400">
-                        Sign Up
+                        SIGN UP
                     </button>
                 </p>
             </div>
@@ -370,9 +370,9 @@ export default function AuthPage() {
                     {/* Decorative Top Accent */}
                     <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[1px] h-12 bg-gradient-to-b from-transparent to-cyan-500/50" />
                     
-                    <h1 className="text-7xl md:text-8xl font-black text-white tracking-tighter lowercase leading-none drop-shadow-[0_0_40px_rgba(6,182,212,0.3)]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                    <h1 className="text-5xl md:text-5xl font-medium text-white tracking-tighter leading-none drop-shadow-[0_0_40px_rgba(6,182,212,0.3)]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                         <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-cyan-100 to-cyan-900">
-                            airdeliver
+                            Turning every interaction into a moment of delight.
                         </span>
                     </h1>
                     
@@ -384,7 +384,7 @@ export default function AuthPage() {
                             className="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/30 border border-cyan-500/20 backdrop-blur-md"
                         >
                             <Gem size={10} className="text-cyan-400" />
-                            <span className="text-[10px] font-mono text-cyan-300 uppercase tracking-[0.2em]">Global Nexus</span>
+                            <span className="text-[10px] font-mono text-cyan-300 uppercase tracking-[0.2em]">Frictinless</span>
                         </motion.div>
                         <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-cyan-500/50" />
                     </div>
@@ -395,7 +395,7 @@ export default function AuthPage() {
                         transition={{ delay: 0.8 }}
                         className="text-xs text-gray-500 mt-4 uppercase tracking-[0.4em] font-light"
                     >
-                        Beyond Logistics
+                        Delivering pure peace of mind
                     </motion.p>
                 </motion.div>
 
@@ -448,7 +448,7 @@ export default function AuthPage() {
                 >
                     <div className="w-1 h-8 bg-gradient-to-b from-cyan-500/20 to-transparent" />
                     <p className="text-gray-600 text-[10px] uppercase tracking-[0.2em] font-mono">
-                        © 2025 airdeliver systems. Operating globally.
+                        © 2026 airdeliver systems. Operating globally.
                     </p>
                 </motion.div>
             </div>
