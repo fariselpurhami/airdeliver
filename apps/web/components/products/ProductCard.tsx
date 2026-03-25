@@ -142,8 +142,8 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
                         </span>
                     </div>
                     {product.predicted_delivery && (
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 border border-white/5 text-[10px] text-gray-400 group-hover:text-cyan-400 group-hover:border-cyan-500/20 transition-colors">
-                            <Rocket size={10} />
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 max-w-[50%] -mr-1.5 rounded bg-white/5 border border-white/5 text-[10px] text-gray-400 group-hover:text-cyan-400 group-hover:border-cyan-500/20 transition-colors">
+                            <Rocket size={8} />
                             <span>{product.predicted_delivery}</span>
                         </div>
                     )}

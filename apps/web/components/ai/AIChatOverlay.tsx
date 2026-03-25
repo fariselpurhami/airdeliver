@@ -1175,25 +1175,10 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
                         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full" />
 
-                        <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-black/20 backdrop-blur-sm">
-                            <h3 className="font-bold text-2xl normal-case tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                                <motion.span
-                                    className="text-transparent bg-clip-text bg-gradient-to-r text-white"
-                                    animate={{
-                                        textShadow: [
-                                            '0 0 10px rgba(6,182,212,0)',
-                                            '0 0 20px rgba(6,182,212,0.3)',
-                                            '0 0 10px rgba(6,182,212,0)'
-                                        ]
-                                    }}
-                                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                                >
-                                    {paymentDetails ? 'Secure Checkout' : 'order with air'}
-                                </motion.span>
-                            </h3>
-                            <button 
+                        <header className="px-8 py-6 flex items-center flex-shrink-0 relative z-10">
+                            <button
                                 onClick={handleClose} 
-                                className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30 transition-all duration-300"
+                                className="ml-auto p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
                             >
                                 <X size={20} />
                             </button>

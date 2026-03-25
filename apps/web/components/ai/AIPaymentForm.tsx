@@ -17,10 +17,7 @@ interface AIPaymentFormProps {
 const SecurityBadge = () => (
     <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
         <div className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
         </div>
-        <span className="text-[10px] font-mono text-green-400 uppercase tracking-wider">Uplink Secure</span>
     </div>
 );
 
@@ -101,18 +98,15 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
             <div className="bg-gradient-to-b from-white/5 to-transparent p-8 pb-6 border-b border-white/5">
                 <div className="flex justify-between items-start mb-4">
                     <div className="p-3 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                        <CreditCard size={24} />
+                        <CreditCard size={18} />
                     </div>
-                    <SecurityBadge />
                 </div>
                 
-                <h2 className="text-2xl font-bold text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                    Global Payment
+                <h2 className="text-2xl font-medium uppercase text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                    Secured Checkout
                 </h2>
                 <div className="flex items-center gap-2 text-xs text-gray-500 font-mono">
                     <span>REF: {`ORD-${orderId.toString().padStart(6, '0')}`}</span>
-                    <span>•</span>
-                    <span className="text-cyan-500">AES-256 ENCRYPTED</span>
                 </div>
             </div>
 
@@ -120,7 +114,7 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
                 <div className="mb-8 rounded-2xl bg-white/[0.03] border border-white/5 p-4 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/50" />
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                        <ScanLine size={12} /> Transaction Manifest
+                        <ScanLine size={12} /> Manifest
                     </div>
                     
                     <div className="space-y-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 pr-2">
@@ -137,7 +131,7 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-end">
-                        <span className="text-xs text-gray-500 uppercase tracking-wider">Total Authorization</span>
+                        <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
                         <div className="flex items-baseline gap-1">
                             <span className="text-3xl font-black text-white tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                 ${total.toFixed(2)}
@@ -191,8 +185,8 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
                                     </>
                                 ) : (
                                     <>
-                                        <span className="font-black text-white tracking-widest uppercase text-sm group-hover:text-cyan-200 transition-colors">
-                                            Initiate Transfer
+                                        <span className="font-black text-white tracking-widest text-sm group-hover:text-cyan-200 transition-colors">
+                                            airpay
                                         </span>
                                         <div className="p-1 rounded-full bg-cyan-500/20 text-cyan-400 group-hover:translate-x-1 transition-transform">
                                             <ArrowRight size={16} />

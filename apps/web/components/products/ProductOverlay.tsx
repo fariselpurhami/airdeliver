@@ -171,11 +171,6 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                                 </h3>
                                 <div className="flex items-center gap-2 mt-1.5 ml-1">
                                     <span className="relative flex h-2 w-2">
-                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                    </span>
-                                    <span className="text-[10px] text-gray-500 font-mono tracking-[0.2em] uppercase">
-                                        Live Catalog Access
                                     </span>
                                 </div>
                             </div>
@@ -184,7 +179,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
 
                                 <button
                                     onClick={onClose}
-                                    className="group p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all duration-300 backdrop-blur-sm"
+                                    className="group p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-red-500/10 hover:text-gray-300 hover:border-gray-500/30 transition-all duration-300 backdrop-blur-sm"
                                 >
                                     <X size={22} className="group-hover:rotate-90 transition-transform duration-300" />
                                 </button>
@@ -219,17 +214,11 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                         <div className="px-8 py-3 border-t border-white/5 bg-black/40 backdrop-blur-md flex justify-between items-center text-[10px] text-gray-500 font-mono uppercase tracking-widest relative z-20">
                             <div className="flex items-center gap-4">
                                 <span className="flex items-center gap-2">
-                                    <Wifi size={10} className="text-green-500" />
-                                    System: Online
+        
                                 </span>
                                 <span className="hidden sm:inline-block text-gray-700">|</span>
-                                <span className="hidden sm:inline-block">Latency: 12ms</span>
-                            </div>
-                            <span className="flex items-center gap-2 text-purple-400/80">
-                                <Sparkles size={10} />
-                                AI Curation Active
-                            </span>
-                        </div>
+                           </div>
+		       </div>
 
                     </motion.div>
                 </motion.div>
