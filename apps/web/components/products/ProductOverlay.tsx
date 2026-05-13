@@ -149,26 +149,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                   
                         <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-black/20">
                             <div className="flex flex-col">
-                                <h3 className="font-bold text-xl normal-case tracking-tight flex items-center gap-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                                   
-                                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500/10 to-cyan-500/10 border border-white/5 shadow-inner">
-                                        <PackageSearch size={22} className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-purple-400 stroke-current" />
-                                    </div>
-                                    
-                                    <motion.span
-                                        className="text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-200 to-purple-400"
-                                        animate={{
-                                            textShadow: [
-                                                '0 0 10px rgba(168,85,247,0)',
-                                                '0 0 20px rgba(168,85,247,0.2)',
-                                                '0 0 10px rgba(168,85,247,0)'
-                                            ]
-                                        }}
-                                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                                    >
-                                        Explore Products
-                                    </motion.span>
-                                </h3>
+                               
                                 <div className="flex items-center gap-2 mt-1.5 ml-1">
                                     <span className="relative flex h-2 w-2">
                                     </span>
@@ -179,7 +160,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
 
                                 <button
                                     onClick={onClose}
-                                    className="group p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-red-500/10 hover:text-gray-300 hover:border-gray-500/30 transition-all duration-300 backdrop-blur-sm"
+                                    className="group p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300 backdrop-blur-sm"
                                 >
                                     <X size={22} className="group-hover:rotate-90 transition-transform duration-300" />
                                 </button>

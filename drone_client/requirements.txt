@@ -1,6 +1,0 @@
-mavsdk==1.4.1 
-websockets>=11.0 
-python-dotenv>=0.20
-structlog>=23.0 
-httpx>=0.25 
-pydantic

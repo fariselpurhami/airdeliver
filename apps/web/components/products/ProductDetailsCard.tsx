@@ -55,7 +55,7 @@ export const ProductDetailsCard = ({ product, onClose }: { product: Product, onC
                 animate={{ opacity: 1, rotate: 0 }}
                 transition={{ delay: 0.2 }}
                 onClick={onClose}
-                className="absolute top-6 right-6 z-50 p-2.5 rounded-full bg-black/40 border border-white/10 text-gray-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 transition-all duration-300"
+                className="absolute top-6 right-6 z-50 p-2.5 rounded-full bg-black/40 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
                 aria-label="Close"
             >
                 <X size={20} />

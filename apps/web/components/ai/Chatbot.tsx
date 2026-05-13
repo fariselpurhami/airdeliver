@@ -147,7 +147,7 @@ const ChatInput = memo(({ onSend, isTyping }: ChatInputProps) => {
             onChange={handleAutoResize}
             onKeyDown={handleKeyDown}
             rows={1}
-            placeholder={isTyping ? "System processing..." : "Ask air intelligence..."}
+            placeholder={isTyping ? "Thinking..." : "Ask air assistance..."}
             disabled={isTyping}
             className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800 focus:border-cyan-500/30 focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none no-scrollbar min-h-[52px] leading-relaxed"
             style={{
@@ -256,7 +256,7 @@ export default function Chatbot() {
                                             }}
                                             transition={{ duration: 4, repeat: Infinity }}
                                         >
-                                            air intelligence
+                                            air assistance
                                         </motion.span>
                                     </h3>
                                 </div>
