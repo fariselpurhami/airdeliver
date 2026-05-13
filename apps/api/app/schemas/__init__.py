@@ -6,7 +6,6 @@ from .token import Token, TokenData, TokenPayload
 from .audit_trail import AuditTrail
 from .user import User, UserCreate, UserUpdate, UserRead 
 from .product import Product, ProductCreate, ProductUpdate, ProductRead 
-from .drone import DroneRead, DroneCreate, DroneUpdate
 from .order import Order, OrderCreate, OrderUpdate, OrderItemRead, OrderItemCreate, OrderRead, PaginatedOrders 
 from .payment import PaymentIntent
 from .notification import NotificationRead
@@ -26,9 +25,6 @@ __all__ = [
     "ProductCreate",
     "ProductUpdate",
     "ProductRead",
-    "DroneRead", 
-    "DroneCreate", 
-    "DroneUpdate",
     "Order",
     "OrderCreate",
     "OrderUpdate",

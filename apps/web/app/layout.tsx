@@ -1,10 +1,11 @@
-//** apps/web/app/layout.tsx **//
+// apps/web/app/layout.tsx
 
 import type { Metadata, Viewport } from 'next';
 import { Inter, Orbitron, Montserrat } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Toaster } from 'sonner';
+
 import { Providers } from '@/lib/providers';
 import AppShell from '@/components/layout/AppShell';
 import '@/app/globals.css';
@@ -48,7 +49,7 @@ export const metadata: Metadata = {
     template: '%s | airdeliver',
   },
   description: "World's First AI-Driven Delivery Infrastructure.",
-  keywords: ['AI', 'Delivery', 'Drone', 'Logistics', 'Infrastructure', 'Autonomous'],
+  keywords: ['AI', 'Delivery', 'Logistics', 'Infrastructure', 'Autonomous'],
   authors: [{ name: 'airdeliver Team' }],
   creator: 'airdeliver',
   openGraph: {
@@ -91,35 +92,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${orbitron.variable} ${montserrat.variable} dark`}
       suppressHydrationWarning
+      className={`${inter.variable} ${orbitron.variable} ${montserrat.variable}`}
     >
-      <head />
-      <body className="min-h-screen bg-background font-sans antialiased selection:bg-cyan-500/30">
+      <body className="min-h-screen bg-background font-sans antialiased overflow-x-hidden selection:bg-primary/20 selection:text-primary">
         <Providers>
-          <AppShell>
-	    <div className="w-full h-full">
-            {children}
-	    </div>
-          </AppShell>
-          <Toaster
-            position="bottom-right"
-            richColors
-            theme="dark"
-            closeButton
-            toastOptions={{
-              style: {
-                background: 'rgba(17, 17, 17, 0.8)',
-                border: '1px solid rgba(51, 51, 51, 0.5)',
-                color: '#eee',
-                backdropFilter: 'blur(8px)'
-              },
-              className: 'group toast-group',
-            }}
-          />
-          <Analytics />
-          <SpeedInsights />
+          <AppShell>{children}</AppShell>
+          <Toaster position="bottom-right" richColors closeButton expand={false} />
         </Providers>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

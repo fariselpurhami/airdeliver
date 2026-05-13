@@ -482,47 +482,6 @@ services:
     deploy: *default-core-deploy
     command: python /app/worker_entrypoint.py
 
-  c2_gateway:
-    container_name: airdeliver-c2-gateway
-    build:
-      context: ./apps/c2-gateway
-      dockerfile: Dockerfile
-    restart: always
-    stop_grace_period: 70s
-    environment:
-      - RABBITMQ_HOST=mq
-      - API_BASE_URL=http://api:8000/api/v1
-      - RABBITMQ_USER_FILE=/run/secrets/rabbitmq_user
-      - RABBITMQ_PASS_FILE=/run/secrets/rabbitmq_pass
-      - WEB_CONCURRENCY=3
-    secrets:
-      - rabbitmq_user
-      - rabbitmq_pass
-    depends_on:
-      mq:
-        condition: service_healthy
-      api:
-        condition: service_healthy
-    networks:
-      - global-net
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8001/ws/health || exit 1"]
-      interval: 5s
-      timeout: 2s
-      retries: 5
-      start_period: 30s
-    command: gunicorn app.main:app -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8001 --keep-alive 60
-    logging: *default-logging
-    deploy: *default-app-deploy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=airdeliver-public"
-      - "traefik.http.routers.c2.rule=Host(`c2.airdeliver.com`)"
-      - "traefik.http.routers.c2.entrypoints=websecure"
-      - "traefik.http.routers.c2.tls.certresolver=letsencrypt"
-      - "traefik.http.services.c2.loadbalancer.server.port=8001"
-      - "traefik.http.routers.c2.middlewares=security-headers"
-
   web:
     container_name: airdeliver-web
     build:
