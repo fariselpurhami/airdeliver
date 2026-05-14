@@ -53,7 +53,7 @@ class CoreSettings(BaseSettings):
     OPENSEARCH_PASS: Optional[str] = Field(None, env="OPENSEARCH_PASS")
 
     MILVUS_URI: str = Field("http://milvus:19530", env="MILVUS_URI")
-
+    MILVUS_TOKEN: Optional[str] = Field(None, env="MILVUS_TOKEN")
     @computed_field
     @property
     def DATABASE_URI(self) -> str:

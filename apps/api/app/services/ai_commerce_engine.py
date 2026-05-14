@@ -1208,7 +1208,7 @@ async def get_opensearch_client(settings: CoreSettings = Depends(get_core_settin
     # محرك اتصال معزز بخوارزميات إعادة المحاولة (Exponential Backoff)
     client = AsyncOpenSearch(
         hosts=hosts,
-        use_ssl=False,
+        use_ssl=True,
         verify_certs=False,
         timeout=120,
         retry_on_timeout=True,
