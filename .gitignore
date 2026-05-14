@@ -14,3 +14,5 @@ huggingface_cache/
 *.pth
 *.bin
 *.safetensors
+.vercel
+.env*.local
