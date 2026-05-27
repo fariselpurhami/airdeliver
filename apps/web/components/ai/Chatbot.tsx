@@ -24,7 +24,7 @@ const ExplainabilityChip = memo(({ text }: { text: string }) => (
         <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" />
         <Cpu size={14} className="text-cyan-400 flex-shrink-0 mt-0.5 animate-pulse"/>
         <div>
-            <span className="block text-[9px] font-bold text-cyan-500 tracking-widest mb-1">air OS</span>
+            <span className="block text-[9px] font-bold text-cyan-500 tracking-widest mb-1">airdeliverOS</span>
             <p className="text-[11px] text-cyan-100/70 font-mono leading-relaxed">{text}</p>
         </div>
     </motion.div>
