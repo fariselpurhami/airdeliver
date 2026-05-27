@@ -1,0 +1,10 @@
+{
+  "name": "airdeliver",
+  "short_name": "airdeliver",
+  "description": "Commerce. Takes flight.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#00C6FF",
+  "icons": []
+}

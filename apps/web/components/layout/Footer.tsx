@@ -5,8 +5,7 @@
 import React, { useRef } from 'react';
 import Link from 'next/link';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
-import { Linkedin, Youtube, X, Facebook, Instagram } from 'lucide-react';
-
+import { FaLinkedin, FaYoutube, FaXTwitter, FaFacebook, FaInstagram } from 'react-icons/fa6';
 const Tiktok = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" {...props}>
     <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-2.43.03-4.83-.95-6.43-2.88-1.59-1.92-2.3-4.45-2.2-6.87.02-1.11.23-2.21.62-3.25.39-1.04.9-2 1.52-2.81 1.1-1.45 2.7-2.45 4.5-2.87.03-.01.06-.02.09-.03z" />
@@ -14,11 +13,11 @@ const Tiktok = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 const socialLinks = [
-  { name: 'LinkedIn', href: '#', icon: Linkedin, hoverColor: '#0077b5' },
-  { name: 'X (Twitter)', href: '#', icon: X, hoverColor: '#ffffff' },
-  { name: 'YouTube', href: '#', icon: Youtube, hoverColor: '#ff0000' },
-  { name: 'Facebook', href: '#', icon: Facebook, hoverColor: '#1877F2' },
-  { name: 'Instagram', href: '#', icon: Instagram, hoverColor: '#E4405F' },
+  { name: 'LinkedIn', href: '#', icon: FaLinkedin, hoverColor: '#0077b5' },
+  { name: 'X (Twitter)', href: '#', icon: FaXTwitter, hoverColor: '#ffffff' },
+  { name: 'YouTube', href: '#', icon: FaYoutube, hoverColor: '#ff0000' },
+  { name: 'Facebook', href: '#', icon: FaFacebook, hoverColor: '#1877F2' },
+  { name: 'Instagram', href: '#', icon: FaInstagram, hoverColor: '#E4405F' },
   { name: 'TikTok', href: '#', icon: Tiktok, hoverColor: '#00f2ea' },
 ];
 
@@ -108,7 +107,7 @@ const Footer = () => {
 
             <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
                 <p className="font-mono text-[10px] tracking-widest">
-                    © {new Date().getFullYear()} airdeliver INC. ALL RIGHTS RESERVED.
+                    © {new Date().getFullYear()} airdeliver Inc. All Rights Reserved.
                 </p>
 
                 <div className="flex gap-6">

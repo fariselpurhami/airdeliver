@@ -10,16 +10,11 @@ import { Stars, Float } from '@react-three/drei';
 import { AtSign, Lock, User, ArrowRight, Zap, Globe, ShieldCheck, Gem } from 'lucide-react';
 import * as THREE from 'three';
 
-// ============================================================================
-// --- 1. ARCHITECTURAL VISUALS (The Diamond Atmosphere) ---
-// ============================================================================
-
 const DiamondDust = () => {
     const particlesRef = React.useRef<THREE.Points>(null!);
     
     useFrame(({ clock, mouse }) => {
         if (particlesRef.current) {
-            // Slow, majestic rotation
             particlesRef.current.rotation.y = clock.getElapsedTime() * 0.02;
             particlesRef.current.rotation.x = -mouse.y * 0.02;
             particlesRef.current.rotation.z = mouse.x * 0.02;
@@ -47,7 +42,7 @@ const DiamondDust = () => {
             <pointsMaterial 
                 attach="material" 
                 size={0.03} 
-                color="#b3e5fc" // Ice Blue
+                color="#b3e5fc" 
                 transparent 
                 opacity={0.6} 
                 sizeAttenuation={true} 
@@ -57,7 +52,6 @@ const DiamondDust = () => {
     );
 };
 
-// [COMPONENT] Crystal Input Field
 const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>) => (
     <div className="relative group">
         <div className="absolute left-5 top-1/2 -translate-y-1/2 text-cyan-500/50 group-focus-within:text-cyan-400 transition-colors duration-500">
@@ -66,16 +60,12 @@ const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.I
         <input
             {...props}
             suppressHydrationWarning={true}
-            className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-white placeholder-gray-500 
-                       focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-500/30 focus:bg-black/40 focus:outline-none 
-                       transition-all duration-500 font-medium tracking-wide backdrop-blur-sm"
+            className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-white placeholder-gray-500 focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-500/30 focus:bg-black/40 focus:outline-none transition-all duration-500 font-medium tracking-wide backdrop-blur-sm"
         />
-        {/* Prismatic Border Glow */}
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-700 pointer-events-none" />
     </div>
 );
 
-// [COMPONENT] Diamond Action Button
 const ActionButton = ({ children, isLoading, onClick }: { children: React.ReactNode, isLoading: boolean, onClick?: () => void }) => (
     <motion.button 
         whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(6, 182, 212, 0.4)" }} 
@@ -89,8 +79,7 @@ const ActionButton = ({ children, isLoading, onClick }: { children: React.ReactN
             fontFamily: "'Orbitron', sans-serif"
         }}
     >
-        {/* Diamond Sheen */}
-        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10" />
+        <div className="absolute inset-0 opacity-20 mix-blend-overlay" style={{ backgroundImage: "radial-gradient(transparent 1px, #fff 1px)", backgroundSize: "4px 4px", backdropFilter: "contrast(1.5)" }} />
         <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50" />
         
         <span className="relative z-10 flex items-center justify-center gap-3 drop-shadow-md">
@@ -103,7 +92,6 @@ const ActionButton = ({ children, isLoading, onClick }: { children: React.ReactN
             ) : children}
         </span>
         
-        {/* Shine Animation */}
         <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12" />
     </motion.button>
 );
@@ -114,10 +102,6 @@ const TrustBadge = ({ icon, text }: { icon: React.ReactNode, text: string }) => 
         {text}
     </div>
 );
-
-// ============================================================================
-// --- 2. FORMS (Logic & Layout) ---
-// ============================================================================
 
 const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
     const [isLoading, setIsLoading] = useState(false);
@@ -133,7 +117,6 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
         setError('');
 
         try {
-            // Simulation
             const result = await signIn('credentials', {
                 redirect: false,
                 email,
@@ -323,135 +306,140 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
     );
 };
 
-// ============================================================================
-// --- 3. MAIN AUTH PAGE (The Global Gateway) ---
-// ============================================================================
-
 export default function AuthPage() {
     const [variant, setVariant] = useState<'SIGNIN' | 'SIGNUP'>('SIGNIN');
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     const toggleVariant = () => setVariant(prev => prev === 'SIGNIN' ? 'SIGNUP' : 'SIGNIN');
 
     return (
-        <main className="relative min-h-screen w-full bg-[#050505] text-gray-100 flex items-center justify-center overflow-hidden selection:bg-cyan-500/30">
-            
-            {/* 1. Cinematic Background Layer - The Cosmos */}
-            <div className="absolute inset-0 z-0">
-	    <CinematicBackground />
-                <Canvas camera={{ position: [0, 0, 20], fov: 40 }}> 
-                    <Suspense fallback={null}>
-                        <color attach="background" args={['#000000']} />
-                        {/* Dense Diamond Field */}
-                        <Stars radius={150} depth={80} count={12000} factor={6} saturation={0} fade speed={0.5} />
-                        <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.4}>
-                             <DiamondDust />
-			     
-                        </Float>
-                        <ambientLight intensity={0.2} />
-                        <pointLight position={[10, 10, 10]} intensity={1.5} color="#00C6FF" />
-                        <pointLight position={[-10, -10, -10]} intensity={0.5} color="#7F00FF" />
-                    </Suspense>
-                </Canvas>
-                {/* Vignette & Gradients */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none opacity-80" />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50 pointer-events-none" />
-                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none" />
-            </div>
-
-            {/* 2. Content Layer - The Monolith */}
-            <div className="relative z-10 w-full max-w-[500px] px-6">
-                
-                {/* Brand Header - Massive Architectural Scale */}
-                <motion.div 
-                    initial={{ y: -80, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                    className="text-center mb-12 relative"
-                >
-                    {/* Decorative Top Accent */}
-                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[1px] h-12 bg-gradient-to-b from-transparent to-cyan-500/50" />
-                    
-                    <h1 className="text-5xl md:text-5xl font-medium text-white tracking-tighter leading-none drop-shadow-[0_0_40px_rgba(6,182,212,0.3)]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-cyan-100 to-cyan-900">
-                            Turning every interaction into a moment of delight.
-                        </span>
-                    </h1>
-                    
-                    <div className="flex items-center justify-center gap-4 mt-6">
-                        <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-cyan-500/50" />
-                        <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: "auto" }}
-                            className="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/30 border border-cyan-500/20 backdrop-blur-md"
+        <>
+            <style dangerouslySetInnerHTML={{ __html: `
+                html, body {
+                    background-color: #050505 !important;
+                }
+            ` }} />
+            <main className="relative min-h-screen w-full bg-[#050505] text-gray-100 flex items-center justify-center pt-24 overflow-hidden selection:bg-cyan-500/30">
+                <div className="absolute inset-0 z-0">
+                    {isClient && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 1 }}
+                            className="absolute inset-0"
                         >
-                            <Gem size={10} className="text-cyan-400" />
-                            <span className="text-[10px] font-mono text-cyan-300 uppercase tracking-[0.2em]">Frictinless</span>
+                            <CinematicBackground />
+                            <Canvas camera={{ position: [0, 0, 20], fov: 40 }}> 
+                                <Suspense fallback={null}>
+                                    <color attach="background" args={['#000000']} />
+                                    <Stars radius={150} depth={80} count={12000} factor={6} saturation={0} fade speed={0.5} />
+                                    <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.4}>
+                                         <DiamondDust />
+                                    </Float>
+                                    <ambientLight intensity={0.2} />
+                                    <pointLight position={[10, 10, 10]} intensity={1.5} color="#00C6FF" />
+                                    <pointLight position={[-10, -10, -10]} intensity={0.5} color="#7F00FF" />
+                                </Suspense>
+                            </Canvas>
                         </motion.div>
-                        <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-cyan-500/50" />
-                    </div>
+                    )}
                     
-                    <motion.p
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none opacity-80" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50 pointer-events-none" />
+                    <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none" />
+                </div>
+
+                <div className="relative z-10 w-full max-w-[500px] px-6">
+                    <motion.div 
+                        initial={{ y: -80, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="text-center mb-12 relative"
+                    >
+                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[1px] h-12 bg-gradient-to-b from-transparent to-cyan-500/50" />
+                        
+                        <h1 className="text-5xl md:text-5xl font-medium text-white tracking-tighter leading-none drop-shadow-[0_0_40px_rgba(6,182,212,0.3)]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                            <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-cyan-100 to-cyan-900">
+                                Turning every interaction into a moment of delight.
+                            </span>
+                        </h1>
+                        
+                        <div className="flex items-center justify-center gap-4 mt-6">
+                            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-cyan-500/50" />
+                            <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: "auto" }}
+                                className="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/30 border border-cyan-500/20 backdrop-blur-md"
+                            >
+                                <Gem size={10} className="text-cyan-400" />
+                                <span className="text-[10px] font-mono text-cyan-300 uppercase tracking-[0.2em]">Frictionless</span>
+                            </motion.div>
+                            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-cyan-500/50" />
+                        </div>
+                        
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.8 }}
+                            className="text-xs text-gray-500 mt-4 uppercase tracking-[0.4em] font-light"
+                        >
+                            Delivering pure peace of mind
+                        </motion.p>
+                    </motion.div>
+
+                    <motion.div
+                        layout
+                        initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ duration: 0.8, type: "spring", stiffness: 80, damping: 25 }}
+                        className="relative overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-3xl rounded-[40px] border border-white/10 shadow-2xl shadow-cyan-900/10" />
+                        
+                        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                        <div className="absolute bottom-0 right-0 w-64 h-64 bg-cyan-500/5 blur-[80px] rounded-full pointer-events-none" />
+                        <div className="absolute top-0 left-0 w-64 h-64 bg-purple-500/5 blur-[80px] rounded-full pointer-events-none" />
+
+                        <div className="relative p-10 md:p-12 z-10">
+                            <Suspense fallback={
+                                <div className="flex flex-col items-center justify-center min-h-[300px] text-cyan-400 font-mono text-xs tracking-widest animate-pulse gap-4">
+                                    <Gem size={24} className="animate-spin duration-3000" />
+                                    <span>INITIALIZING INTERFACE...</span>
+                                </div>
+                            }>
+                                <AnimatePresence mode="wait">
+                                    {variant === 'SIGNIN' ? (
+                                        <SignInForm key="signin" onSwitch={toggleVariant} />
+                                    ) : (
+                                        <SignUpForm key="signup" onSwitch={toggleVariant} />
+                                    )}
+                                </AnimatePresence>
+                            </Suspense>
+                        </div>
+
+                        <div className="relative bg-black/20 border-t border-white/5 p-5 flex justify-between items-center px-10 backdrop-blur-md">
+                            <TrustBadge icon={<Globe size={12} />} text="Global Network" />
+                            <TrustBadge icon={<ShieldCheck size={12} />} text="Quantum Secure" />
+                        </div>
+                    </motion.div>
+                    
+                    <motion.div 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ delay: 0.8 }}
-                        className="text-xs text-gray-500 mt-4 uppercase tracking-[0.4em] font-light"
+                        transition={{ delay: 1.5 }}
+                        className="text-center mt-12 flex flex-col items-center gap-2"
                     >
-                        Delivering pure peace of mind
-                    </motion.p>
-                </motion.div>
-
-                {/* The Crystal Card */}
-                <motion.div
-                    layout
-                    initial={{ opacity: 0, scale: 0.9, y: 40 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.8, type: "spring", stiffness: 80, damping: 25 }}
-                    className="relative overflow-hidden"
-                >
-                    {/* Glass Container */}
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-3xl rounded-[40px] border border-white/10 shadow-2xl shadow-cyan-900/10" />
-                    
-                    {/* Prismatic Effects */}
-                    <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                    <div className="absolute bottom-0 right-0 w-64 h-64 bg-cyan-500/5 blur-[80px] rounded-full pointer-events-none" />
-                    <div className="absolute top-0 left-0 w-64 h-64 bg-purple-500/5 blur-[80px] rounded-full pointer-events-none" />
-
-                    <div className="relative p-10 md:p-12 z-10">
-                        {/* 💎 GOLDEN STANDARD FIX: Wrapped Content in Suspense 💎 */}
-                        <Suspense fallback={
-                            <div className="flex flex-col items-center justify-center min-h-[300px] text-cyan-400 font-mono text-xs tracking-widest animate-pulse gap-4">
-                                <Gem size={24} className="animate-spin duration-3000" />
-                                <span>INITIALIZING INTERFACE...</span>
-                            </div>
-                        }>
-                            <AnimatePresence mode="wait">
-                                {variant === 'SIGNIN' ? (
-                                    <SignInForm key="signin" onSwitch={toggleVariant} />
-                                ) : (
-                                    <SignUpForm key="signup" onSwitch={toggleVariant} />
-                                )}
-                            </AnimatePresence>
-                        </Suspense>
-                    </div>
-
-                    {/* Architectural Footer Bar */}
-                    <div className="relative bg-black/20 border-t border-white/5 p-5 flex justify-between items-center px-10 backdrop-blur-md">
-                        <TrustBadge icon={<Globe size={12} />} text="Global Network" />
-                        <TrustBadge icon={<ShieldCheck size={12} />} text="Quantum Secure" />
-                    </div>
-                </motion.div>
-                
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1.5 }}
-                    className="text-center mt-12 flex flex-col items-center gap-2"
-                >
-                    <div className="w-1 h-8 bg-gradient-to-b from-cyan-500/20 to-transparent" />
-                    <p className="text-gray-600 text-[10px] uppercase tracking-[0.2em] font-mono">
-                        © 2026 airdeliver systems. Operating globally.
-                    </p>
-                </motion.div>
-            </div>
-        </main>
+                        <div className="w-1 h-8 bg-gradient-to-b from-cyan-500/20 to-transparent" />
+                        <p className="text-gray-600 text-[10px] uppercase tracking-[0.2em] font-mono">
+                            © 2026 airdeliver systems. Operating globally.
+                        </p>
+                    </motion.div>
+                </div>
+            </main>
+        </>
     );
 }

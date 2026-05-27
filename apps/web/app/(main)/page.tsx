@@ -1,4 +1,5 @@
-//** apps/web/app/(main)/page.tsx **//
+///** apps/web/app/(main)/page.tsx **//
+//
 
 'use client';
 
@@ -15,7 +16,7 @@ import React, { Suspense, useRef, useMemo, useEffect, useState, ReactNode } from
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Preload, Float, Line, Text, useTexture, OrbitControls, Stars, Points, PointMaterial } from '@react-three/drei';
 import { motion, useScroll, AnimatePresence, useSpring, useInView, useTransform, useMotionValue, type MotionValue } from 'framer-motion';
-import { Bot, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map } from 'lucide-react';
+import { Bot, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map, ArrowDown } from 'lucide-react';
 import { X } from 'lucide-react'; 
 import * as THREE from 'three';
 import dynamic from 'next/dynamic';
@@ -74,7 +75,7 @@ const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => voi
   return (
     <section ref={containerRef} className="relative h-screen w-full overflow-hidden">
       <div className="absolute inset-0 z-0">
-        <Suspense fallback={<div className="w-full h-full bg-transparent" />}>
+        <Suspense fallback={<div className="w-full h-full bg-[rgba(0,0,0,0)]" />}>
           <Canvas camera={{ position: [0, 0, 15], fov: 75 }}>
             <Hero3DBackground />
             <Preload all />
@@ -1115,9 +1116,9 @@ const FinalCTA = () => {
             Don't wait for traffic. Shop thousands of products and watch them arrive from the clouds in minutes.
           </p>
 
-          <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
+          <div className="flex flex-col  gap-6 justify-center items-center">
 
-            <Link href="/profile" className="group relative px-12 py-6 bg-white text-black font-black text-xl rounded-full overflow-hidden transition-all duration-300 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)]">
+            <Link href="/profile" className="group relative px-12 py-7 bg-white text-black font-black text-xl rounded-full overflow-hidden transition-all duration-300 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)]">
               <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
               <span className="relative flex items-center gap-3">
                 SIGN UP
@@ -1125,11 +1126,11 @@ const FinalCTA = () => {
               </span>
             </Link>
 
-            <button className="px-12 py-7 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-2">
-              <span className="flex flex-col items-start leading-none">
+            <button className="group px-12 py-7 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-3">
 
-                <span>Get The App</span>
-              </span>
+                <span>DOWNLOAD</span>
+		<ArrowDown className="w-6 h-6 group-hover:translate-y-1 transition-transform" />
+
             </button>
           </div>
 
