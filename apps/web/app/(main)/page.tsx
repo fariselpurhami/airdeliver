@@ -3,6 +3,7 @@
 
 'use client';
 
+import AIChatOverlay from '@/components/ai/AIChatOverlay';
 import CinematicBackground from '@/components/ui/CinematicBackground';
 import { ShieldCheck, Lock, Clock, MapIcon, Quote, GlobeIcon, CheckCircle2, Activity } from 'lucide-react';
 import { useUIStore } from '@/hooks/useUIStore';
@@ -1217,6 +1218,7 @@ export default function Page() {
 	<CinematicBackground />
       </main>
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />
+      <AIChatOverlay isOpen={isOverlayVisible} onClose={() => setOverlayVisible(false)} />
     </div>
   );
 }
