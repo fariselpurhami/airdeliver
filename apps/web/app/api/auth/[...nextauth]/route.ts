@@ -1,7 +1,7 @@
 // apps/web/app/api/auth/[...nextauth]/route.ts
+import NextAuth from "next-auth"
+import { authOptions } from "@/lib/authOptions"
 
-// 💎 SOTA ARCHITECTURE: Import handlers directly from the central configuration file
-import { handlers } from "@/auth"
+const handler = NextAuth(authOptions)
 
-// Export standard HTTP methods for App Router (The correct v5 syntax)
-export const { GET, POST } = handlers
+export { handler as GET, handler as POST }
