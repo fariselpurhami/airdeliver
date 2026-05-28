@@ -321,7 +321,7 @@ export default function AboutPage() {
                 </motion.button>
             </div>
             
-            <div className="mt-24 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-gray-600 gap-4 uppercase tracking-widest">
+            <div className="mt-24 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-gray-600 gap-4 tracking-widest">
                 <p> © {new Date().getFullYear()} airdeliver</p>
                 <div className="flex gap-6">
                     <span className="hover:text-cyan-400 cursor-pointer transition-colors">PRIVACY PROTOCOL</span>
