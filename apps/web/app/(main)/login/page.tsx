@@ -434,8 +434,9 @@ export default function AuthPage() {
                         className="text-center mt-12 flex flex-col items-center gap-2"
                     >
                         <div className="w-1 h-8 bg-gradient-to-b from-cyan-500/20 to-transparent" />
-                        <p className="text-gray-600 text-[10px] uppercase tracking-[0.2em] font-mono">
-                            © 2026 airdeliver systems. Operating globally.
+                        <p className="text-gray-600 text-[10px] tracking-[0.2em] font-mono">
+                            © 2026 airdeliver systems. operating globally.
+
                         </p>
                     </motion.div>
                 </div>

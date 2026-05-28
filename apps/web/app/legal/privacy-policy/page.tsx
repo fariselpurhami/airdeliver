@@ -284,7 +284,7 @@ export default function PrivacyPage() {
                                 Need deeper access? Contact our Data Protection Officer at <span className="text-green-400 cursor-pointer hover:underline">privacy@airdeliver.com</span>
                             </p>
                             <p className="text-[10px] text-gray-700 uppercase tracking-widest">
-                                Protocol Version 4.1 | Last Encrypted Update: Nov 2025
+                                Protocol Version 6.0 | Last Encrypted Update: Jun 2026
                             </p>
                         </div>
                     </div>

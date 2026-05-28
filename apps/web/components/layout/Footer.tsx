@@ -106,8 +106,8 @@ const Footer = () => {
             </div>
 
             <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-500">
-                <p className="font-mono text-[10px] tracking-widest">
-                    © {new Date().getFullYear()} airdeliver Inc. All Rights Reserved.
+                <p className="font-sans text-[11px] tracking-normal opacity-70">
+                    © {new Date().getFullYear()} airdeliver inc. all rights reserved.
                 </p>
 
                 <div className="flex gap-6">

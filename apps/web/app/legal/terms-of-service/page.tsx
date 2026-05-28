@@ -277,7 +277,7 @@ export default function TermsPage() {
                                 By accessing the airdeliver network, you acknowledge these protocols.
                             </p>
                             <p className="text-xs text-gray-600 uppercase tracking-widest">
-                                Last Updated: November 27, 2025
+                                Last Updated: June 01, 2026
                             </p>
                         </div>
                     </div>

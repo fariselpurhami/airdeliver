@@ -275,10 +275,10 @@ export default function HelpPage() {
             </section>
 
             <footer className="relative z-10 py-12 text-center border-t border-white/5 bg-black/40 backdrop-blur-lg">
-                <div className="flex flex-col md:flex-row justify-center items-center gap-6 text-xs text-gray-600 uppercase tracking-widest">
-                    <span className="flex items-center gap-2"><Activity size={14} className="text-green-500" /> Support Systems Online</span>
-                    <span className="flex items-center gap-2"><ShieldCheck size={14} className="text-cyan-500" /> Secure Connection</span>
-                    <span>© 2025 airdeliver</span>
+                <div className="flex flex-col md:flex-row justify-center items-center gap-6 text-xs text-gray-600 tracking-widest">
+                    <span className="flex items-center gap-2"><Activity size={14} className="text-green-500" /> support system online</span>
+                    <span className="flex items-center gap-2"><ShieldCheck size={14} className="text-cyan-500" /> secure connection</span>
+                    <span>© {new Date().getFullYear()} airdeliver</span>
                 </div>
             </footer>
 
