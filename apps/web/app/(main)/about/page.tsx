@@ -288,7 +288,7 @@ export default function AboutPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <TeamOperative image="/team/faris.png" name="Faris Elpurhami" role="Founder & CEO" delay={0} />
                 <TeamOperative image="/team/maria.png" name="Maria" role="Co-Founder" delay={0.2} />
-                <TeamOperative image="/team/chen.png" name="Usama Meraj" role="Principal Head of Aerodynamics and Propulsion Management" delay={0.4} />
+                <TeamOperative image="/team/usama.png" name="Usama Meraj" role="Principal Head of Aerodynamics and Propulsion Management" delay={0.4} />
             </div>
         </div>
       </section>
@@ -322,7 +322,7 @@ export default function AboutPage() {
             </div>
             
             <div className="mt-24 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-xs text-gray-600 gap-4 uppercase tracking-widest">
-                <p>AIRDELIVER SYSTEMS © 2025</p>
+                <p> © {new Date().getFullYear()} airdeliver</p>
                 <div className="flex gap-6">
                     <span className="hover:text-cyan-400 cursor-pointer transition-colors">PRIVACY PROTOCOL</span>
                     <span className="hover:text-cyan-400 cursor-pointer transition-colors">TERMS OF ENGAGEMENT</span>
