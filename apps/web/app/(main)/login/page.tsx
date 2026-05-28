@@ -73,7 +73,7 @@ const ActionButton = ({ children, isLoading, onClick }: { children: React.ReactN
         onClick={onClick}
         type="submit" 
         disabled={isLoading}
-        className="relative w-full overflow-hidden rounded-2xl py-5 text-lg font-black text-white uppercase tracking-[0.15em] group border border-cyan-500/30"
+        className="relative w-full overflow-hidden rounded-2xl py-5 text-lg font-black text-white tracking-[0.15em] group border border-cyan-500/30"
         style={{ 
             background: 'linear-gradient(135deg, rgba(6,182,212,0.8) 0%, rgba(59,130,246,0.8) 100%)',
             fontFamily: "'Orbitron', sans-serif"
