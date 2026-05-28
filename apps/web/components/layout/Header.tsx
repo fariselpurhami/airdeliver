@@ -1,8 +1,10 @@
+// apps/web/components/layout/Header.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation"; // 1. استيراد useRouter
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
@@ -17,10 +19,17 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const navItems = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/products", label: "Products", icon: Package },
-  { href: "/profile", label: "Profile", icon: User },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  isProtected: boolean;
+}
+
+const navItems: NavItem[] = [
+  { href: "/", label: "Home", icon: Home, isProtected: false },
+  { href: "/products", label: "Products", icon: Package, isProtected: false },
+  { href: "/profile", label: "Profile", icon: User, isProtected: true },
 ];
 
 const ThemeToggle = () => {
@@ -72,6 +81,10 @@ const ThemeToggle = () => {
 
 export default function Header() {
   const pathname = usePathname();
+  // 2. تعريف المتغيرات المفقودة لحل الـ ReferenceError
+  const router = useRouter();
+  const { status } = useSession();
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -87,6 +100,22 @@ export default function Header() {
 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleProtectedRouting = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>, item: NavItem) => {
+      if (item.isProtected && status === "unauthenticated") {
+        e.preventDefault();
+
+        const targetUrl = `/login?callbackUrl=${encodeURIComponent(item.href)}`;
+        router.push(targetUrl);
+      }
+
+      if (mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    },
+    [status, router, mobileMenuOpen] // المتغيرات الآن معرفة في النطاق الصحيح
+  );
 
   const fogVariants = {
     transparent: {
@@ -177,6 +206,7 @@ export default function Header() {
                   key={item.href}
                   href={item.href}
                   prefetch={true}
+                  onClick={(e) => handleProtectedRouting(e, item)}
                   className={`relative px-8 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-300 ${
                     isActive ? "text-black" : "text-gray-400 hover:text-white"
                   }`}
@@ -207,6 +237,7 @@ export default function Header() {
                 href="/notifications"
                 className="relative p-3 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all"
                 aria-label="Notifications"
+                onClick={(e) => handleProtectedRouting(e, { href: '/notifications', label: 'Notifications', icon: Bell, isProtected: true })}
               >
                 <Bell size={18} />
               </Link>
@@ -281,7 +312,7 @@ export default function Header() {
                     key={item.href}
                     href={item.href}
                     prefetch={true}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={(e) => handleProtectedRouting(e, item)}
                     className={`flex items-center gap-4 p-5 rounded-2xl text-sm font-bold uppercase tracking-widest transition-all ${
                       pathname === item.href
                         ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]"

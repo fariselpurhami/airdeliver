@@ -190,7 +190,7 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
 
                 <div className="pt-4">
                     <ActionButton isLoading={isLoading}>
-                        SIGN UP <ArrowRight size={20} />
+                        Sign Up <ArrowRight size={20} />
                     </ActionButton>
                 </div>
             </form>
