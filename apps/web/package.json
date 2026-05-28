@@ -7,9 +7,7 @@
     "dev": "next dev --turbo -H 0.0.0.0 -p 3000",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint",
-    "gate:user": "GATEKEEPER_KIND=user GATEKEEPER_SUBJECT=visitor-access GATEKEEPER_TTL_SECONDS=300 tsx scripts/generate-gate-link.ts",
-    "gate:admin": "GATEKEEPER_KIND=admin GATEKEEPER_SUBJECT=owner-admin GATEKEEPER_TTL_SECONDS=31536000 tsx scripts/generate-gate-link.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
