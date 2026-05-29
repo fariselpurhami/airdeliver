@@ -11,14 +11,14 @@ const PUBLIC_EXACT_ROUTES = new Set([
   '/about',
   '/help',
   '/tracking',
-  '/legal'
 ]);
 
 const PUBLIC_PREFIX_ROUTES = [
   '/api/auth',
   '/products',
   '/product',
-  '/_next'
+  '/_next',
+  '/legal'
 ];
 
 const AUTH_COOKIES = [
