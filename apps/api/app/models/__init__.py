@@ -9,6 +9,7 @@ from .enums import (
     CancellationReason, # Added this
 )
 
+from .audit_trail import AuditTrail
 from .gamification import Badge, UserBadge, UserActivity # Added UserActivity
 from .mission import Mission
 from .notification_subscription import NotificationSubscription

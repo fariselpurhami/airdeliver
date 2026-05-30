@@ -1,5 +1,3 @@
-# apps/api/Dockerfile
-
 FROM python:3.11-slim-bookworm AS base
 
 ENV PYTHONUNBUFFERED=1 \
@@ -15,7 +13,7 @@ ENV PYTHONUNBUFFERED=1 \
     DATA_DIR="/datastorage" \
     HF_HOME="/datastorage/models/cache/huggingface" \
     SENTENCE_TRANSFORMERS_HOME="/datastorage/models/cache/sentence_transformers" \
-    PATH="/opt/poetry/bin:$VIRTUAL_ENV/bin:$PATH"
+    PATH="/opt/poetry/bin:/opt/venv/bin:$PATH"
 
 FROM base AS builder
 
@@ -30,7 +28,6 @@ RUN --mount=type=cache,target=/var/cache/apt/archives,sharing=locked \
     curl \
     git
 
-
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --default-timeout=600 "poetry==$POETRY_VERSION" poetry-plugin-export && \
     poetry config installer.max-workers 10
@@ -38,7 +35,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN python -m venv $VIRTUAL_ENV
 
 COPY pyproject.toml poetry.lock ./
-
 
 RUN $VIRTUAL_ENV/bin/pip install --upgrade pip && \
     poetry export --without-hashes --format=requirements.txt > requirements.txt && \
@@ -52,7 +48,7 @@ ARG APP_USER=airdeliver
 ARG APP_UID=1001
 ARG APP_GID=1001
 
-RUN groupadd -g $APP_GID $APP_USER || true && \
+RUN groupadd -g $APP_GID $APP_USER && \
     useradd -u $APP_UID -g $APP_GID -d /home/$APP_USER -s /bin/bash -m $APP_USER
 
 RUN --mount=type=cache,target=/var/cache/apt/archives,sharing=locked \
@@ -64,28 +60,32 @@ RUN --mount=type=cache,target=/var/cache/apt/archives,sharing=locked \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder --chown=$APP_USER:$APP_USER $VIRTUAL_ENV $VIRTUAL_ENV
+COPY --from=builder --chown=$APP_UID:$APP_GID $VIRTUAL_ENV $VIRTUAL_ENV
 
-RUN mkdir -p $DATA_DIR && chown -R $APP_USER:$APP_USER $DATA_DIR
+RUN mkdir -p $DATA_DIR && chown -R $APP_UID:$APP_GID $DATA_DIR
 
 FROM runtime-base AS development
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install watchfiles
 
-COPY --chown=$APP_USER:$APP_USER . .
+COPY --chown=$APP_UID:$APP_GID . .
 
 USER $APP_USER
 EXPOSE 8000
 
 FROM runtime-base AS production
 
-COPY --chown=$APP_USER:$APP_USER alembic.ini .
-COPY --chown=$APP_USER:$APP_USER alembic ./alembic
-COPY --chown=$APP_USER:$APP_USER seed_data.json .
-COPY --chown=$APP_USER:$APP_USER app ./app
-COPY --chown=$APP_USER:$APP_USER *.py .
+COPY --chown=$APP_UID:$APP_GID alembic.ini .
+COPY --chown=$APP_UID:$APP_GID alembic ./alembic
+COPY --chown=$APP_UID:$APP_GID seed_data.json .
+COPY --chown=$APP_UID:$APP_GID app ./app
+COPY --chown=$APP_UID:$APP_GID *.py .
 
 USER $APP_USER
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
 CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

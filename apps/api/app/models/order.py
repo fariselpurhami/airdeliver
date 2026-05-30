@@ -10,7 +10,6 @@ from .enums import OrderStatus, CancellationReason
 
 if TYPE_CHECKING:
     from .user import User
-    from .drone import Drone
     from .product import Product
     from .audit_trail import AuditTrail
     from .mission import Mission
@@ -47,8 +46,6 @@ class Order(SQLModel, table=True):
     delivery_lat: float = Field(default=0.0)
     delivery_lon: float = Field(default=0.0)
 
-    drone_id: Optional[int] = Field(default=None, foreign_key="drones.id", index=True)
-
     cancellation_reason: Optional[CancellationReason] = Field(
         sa_column=Column(
             SAEnum(CancellationReason, name="cancellation_reason_enum", native_enum=False),
@@ -68,9 +65,6 @@ class Order(SQLModel, table=True):
     )
     mission: Mapped[Optional["Mission"]] = Relationship(
         sa_relationship=relationship("Mission", back_populates="order", uselist=False)
-    )
-    drone: Mapped[Optional["Drone"]] = Relationship(
-        sa_relationship=relationship("Drone", back_populates="assigned_orders")
     )
     audit_trails: Mapped[List["AuditTrail"]] = Relationship(
         sa_relationship=relationship(

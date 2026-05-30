@@ -1,5 +1,3 @@
-# docker-compose.dev.yml
-
 services:
   setup-fs:
     image: alpine:3.19
@@ -326,7 +324,7 @@ services:
        start_period: 30s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.rule=(Host(`localhost`) || Host(`192.168.1.3`)) && PathPrefix(`/api`)"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
     command: /opt/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     logging:
@@ -445,11 +443,11 @@ services:
       dockerfile: Dockerfile
       target: development
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000
+        - NEXT_PUBLIC_API_URL=http://192.168.1.3:8000
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     restart: always
     environment:
-      - AUTH_URL=http://localhost:3000
+      - AUTH_URL=http://192.168.1.3:3000
       - AUTH_SECRET=${AUTH_SECRET}
       - AUTH_TRUST_HOST=true
       - NODE_ENV=development
@@ -472,7 +470,7 @@ services:
         - global-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`localhost`)"
+      - "traefik.http.routers.web.rule=Host(`localhost`) || Host(`192.168.1.3`)"
       - "traefik.http.services.web.loadbalancer.server.port=3000"
     command: pnpm dev 
     logging:

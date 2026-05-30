@@ -11,7 +11,6 @@ from .enums import NotificationType
 if TYPE_CHECKING:
     from .user import User
     from .order import Order
-    from .drone import Drone
 
 class NotificationBase(SQLModel):
     title: str = Field(index=True)
@@ -41,7 +40,6 @@ class Notification(NotificationBase, table=True):
     user_id: int = Field(foreign_key="users.id", index=True, nullable=False)
 
     related_order_id: Optional[int] = Field(default=None, foreign_key="orders.id", nullable=True)
-    related_drone_id: Optional[int] = Field(default=None, foreign_key="drones.id", nullable=True)
 
     meta: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
 
@@ -50,6 +48,4 @@ class Notification(NotificationBase, table=True):
     )
 
     order: Mapped[Optional["Order"]] = Relationship(sa_relationship=relationship("Order"))
-    drone: Mapped[Optional["Drone"]] = Relationship(sa_relationship=relationship("Drone"))
-
     model_config = { "from_attributes": True }

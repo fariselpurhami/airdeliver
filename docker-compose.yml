@@ -1,14 +1,9 @@
-
-# --- 🏗️ GLOBAL ARCHITECTURAL ANCHORS ---
-
-# 1. Standard Logging Policy
 x-logging: &default-logging
   driver: "json-file"
   options:
     max-size: "10m"
     max-file: "3"
 
-# 2. Core Infrastructure Policy (High Availability)
 x-core-deploy: &default-core-deploy
   restart_policy:
     condition: any
@@ -18,7 +13,6 @@ x-core-deploy: &default-core-deploy
     reservations:
       memory: 1G
 
-# 3. Application Logic Policy (Fault Tolerance)
 x-app-deploy: &default-app-deploy
   restart_policy:
     condition: on-failure
@@ -27,8 +21,6 @@ x-app-deploy: &default-app-deploy
       memory: 2G
     reservations:
       memory: 512M
-
-# --- SERVICES ---
 
 services:
   setup-fs:
@@ -62,7 +54,7 @@ services:
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--entrypoints.websecure.address=:443"
       - "--entrypoints.websecure.http3"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?ACME_EMAIL is required}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
       - "--metrics.prometheus=true"
@@ -95,7 +87,7 @@ services:
     volumes:
       - ./monitoring/promtail.yaml:/etc/promtail/config.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     command: -config.file=/etc/promtail/config.yml -config.expand-env=true
     networks:
       - global-net
@@ -132,8 +124,8 @@ services:
     image: grafana/grafana:10.2.0
     container_name: airdeliver-grafana
     environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:?GRAFANA_USER is required}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?GRAFANA_PASSWORD is required}
       - GF_USERS_ALLOW_SIGN_UP=false
     networks:
       - global-net
@@ -146,7 +138,7 @@ services:
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
       - "traefik.http.routers.grafana.middlewares=auth-monitor"
-      - "traefik.http.middlewares.auth-monitor.basicauth.users=${TRAEFIK_DASHBOARD_USER}:${TRAEFIK_DASHBOARD_PASS_HASH}"
+      - "traefik.http.middlewares.auth-monitor.basicauth.users=${TRAEFIK_DASHBOARD_USER:?TRAEFIK_DASHBOARD_USER is required}:${TRAEFIK_DASHBOARD_PASS_HASH:?TRAEFIK_DASHBOARD_PASS_HASH is required}"
 
   postgres:
     image: postgres:16-bullseye
@@ -206,7 +198,7 @@ services:
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq/
     environment:
-      - RABBITMQ_ERLANG_COOKIE=${RABBITMQ_COOKIE:-secretcookie}
+      - RABBITMQ_ERLANG_COOKIE=${RABBITMQ_COOKIE:?RABBITMQ_COOKIE is required}
     secrets:
       - rabbitmq_user
       - rabbitmq_pass
@@ -214,15 +206,15 @@ services:
       - sh
       - -c
       - |
-        export RABBITMQ_DEFAULT_USER=$(cat /run/secrets/rabbitmq_user)
-        export RABBITMQ_DEFAULT_PASS=$(cat /run/secrets/rabbitmq_pass)
+        export RABBITMQ_DEFAULT_USER=$$(cat /run/secrets/rabbitmq_user)
+        export RABBITMQ_DEFAULT_PASS=$$(cat /run/secrets/rabbitmq_pass)
         docker-entrypoint.sh rabbitmq-server
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 30s
+      interval: 10s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 90s
     networks:
       - global-net
     logging: *default-logging
@@ -254,7 +246,7 @@ services:
       - bootstrap.memory_lock=true
       - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"
       - "DISABLE_INSTALL_DEMO_CONFIG=true"
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-REMOVED_COMMITTED_SECRET}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:?OPENSEARCH_ADMIN_PASSWORD is required}
     ulimits:
       memlock:
         soft: -1
@@ -295,8 +287,8 @@ services:
     image: minio/minio:RELEASE.2023-03-20T20-16-18Z
     container_name: airdeliver-minio
     environment:
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
     volumes:
       - minio-data:/minio_data
     command: minio server /minio_data
@@ -317,8 +309,8 @@ services:
     environment:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
-      MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
     volumes:
       - milvus-data:/var/lib/milvus
     depends_on:
@@ -383,13 +375,13 @@ services:
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - OPENSEARCH_USER=admin
-      - OPENSEARCH_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-REMOVED_COMMITTED_SECRET}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:?OPENSEARCH_ADMIN_PASSWORD is required}
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
       - RABBITMQ_USER_FILE=/run/secrets/rabbitmq_user
       - RABBITMQ_PASS_FILE=/run/secrets/rabbitmq_pass
-      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?STRIPE_PUBLISHABLE_KEY is required}
       - WEB_CONCURRENCY=5
     secrets:
       - postgres_user
@@ -448,7 +440,7 @@ services:
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - OPENSEARCH_USER=admin
-      - OPENSEARCH_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-REMOVED_COMMITTED_SECRET}
+      - OPENSEARCH_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:?OPENSEARCH_ADMIN_PASSWORD is required}
       - MILVUS_URI=http://milvus:19530
       - HF_HOME=/data/storage/models_cache/huggingface
       - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
@@ -457,8 +449,7 @@ services:
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
       - RABBITMQ_USER_FILE=/run/secrets/rabbitmq_user
       - RABBITMQ_PASS_FILE=/run/secrets/rabbitmq_pass
-      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-      # Secrets from .env will be passed automatically by Docker Compose
+      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?STRIPE_PUBLISHABLE_KEY is required}
     secrets:
       - postgres_user
       - postgres_password
@@ -489,8 +480,8 @@ services:
       dockerfile: Dockerfile
       target: runner
       args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is required}
     restart: always
     environment:
       - NEXTAUTH_URL=https://airdeliver.com
