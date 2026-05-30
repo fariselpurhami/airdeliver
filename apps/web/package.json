@@ -2,7 +2,6 @@
   "name": "web",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@11.5.0+sha512.dbfcc4f81cf48597afd4bc391ffdf12c11f1a9fb83a395bfa6b0a2d9cc2fd8ffebafdb1ccbd529632153f793904c2615b7f09fe1a345473fd1c35845172a8eb1",
   "scripts": {
     "dev": "next dev --turbo -H 0.0.0.0 -p 3000",
     "build": "next build --webpack",
@@ -63,17 +62,8 @@
     "typescript": "^6.0.3"
   },
   "overrides": {
-    "react-reconciler": "^0.31.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "sharp",
-      "unrs-resolver"
-    ],
-    "overrides": {
-      "@types/react": "npm:types-react@rc",
-      "@types/react-dom": "npm:types-react-dom@rc",
-      "react-reconciler": "^0.32.0"
-    }
+    "@types/react": "npm:types-react@rc",
+    "@types/react-dom": "npm:types-react-dom@rc",
+    "react-reconciler": "^0.32.0"
   }
 }

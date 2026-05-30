@@ -18,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+
 LOGGER_NAME: Final[str] = "ultra_scale_seeder"
 UTC = timezone.utc
 DEFAULT_CURRENCY: Final[str] = "USD"
@@ -65,7 +66,7 @@ def request_error_text(error: RequestError) -> str:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    postgres_dsn: str = Field(..., alias="POSTGRES_DSN")
+    postgres_dsn: str = Field(..., alias="DATABASE_URI")
     opensearch_host: str = Field(..., alias="OPENSEARCH_HOST")
     opensearch_port: int = Field(9200, alias="OPENSEARCH_PORT")
     opensearch_index: str = Field("airdeliver_products", alias="OPENSEARCH_INDEX")
@@ -89,6 +90,10 @@ class Settings(BaseSettings):
     retry_attempts: PositiveInt = Field(5, alias="RETRY_ATTEMPTS")
     retry_min_seconds: PositiveInt = Field(1, alias="RETRY_MIN_SECONDS")
     retry_max_seconds: PositiveInt = Field(16, alias="RETRY_MAX_SECONDS")
+    milvus_enabled: bool = Field(True, alias="MILVUS_ENABLED")
+    opensearch_enabled: bool = Field(True, alias="OPENSEARCH_ENABLED")
+    fail_on_milvus_error: bool = Field(False, alias="FAIL_ON_MILVUS_ERROR")
+    fail_on_opensearch_error: bool = Field(True, alias="FAIL_ON_OPENSEARCH_ERROR")
 
     @field_validator("opensearch_user")
     @classmethod
@@ -315,7 +320,7 @@ class ProductGenerator:
                     f"Experience the pinnacle of {category} technology with the {full_name}.",
                     f"Designed in a {color} finish and equipped with {spec}.",
                     "Built for demanding customers who care about performance, quality, and reliability.",
-                    "Official AirDeliver global stock.",
+                    "Official airdeliver global stock.",
                 )
             )
             inventory = self._rng.randint(5, 500)
@@ -437,21 +442,45 @@ class MilvusRepository:
     def __init__(self, settings: Settings, logger: logging.Logger, retry_policy: RetryPolicy) -> None:
         self._logger = logger
         self._retry = retry_policy
-        token = settings.milvus_token.get_secret_value() if settings.milvus_token else None
-        self._client = MilvusClient(uri=settings.milvus_uri, token=token)
+        self._enabled = settings.milvus_enabled
+        self._uri = settings.milvus_uri
+        self._token = settings.milvus_token.get_secret_value() if settings.milvus_token else None
+        self._client: MilvusClient | None = None
         self._collection_name = settings.milvus_collection
         self._dimension = 0
 
+    async def _ensure_client(self) -> MilvusClient:
+        if not self._enabled:
+            raise RuntimeError("milvus is disabled")
+        if self._client is not None:
+            return self._client
+
+        async def operation() -> MilvusClient:
+            def connect() -> MilvusClient:
+                return MilvusClient(uri=self._uri, token=self._token)
+
+            client = await asyncio.to_thread(connect)
+            return client
+
+        self._client = await self._retry.run(operation)
+        json_log(self._logger, logging.INFO, "milvus_connected", collection=self._collection_name)
+        return self._client
+
     async def initialize_schema(self, dimension: int, drop_existing: bool) -> None:
+        if not self._enabled:
+            json_log(self._logger, logging.INFO, "milvus_disabled")
+            return
         if dimension <= 0:
             raise ValueError("dimension must be positive")
         self._dimension = dimension
 
         async def operation() -> None:
+            client = await self._ensure_client()
+
             def sync_init() -> None:
-                has_collection = self._client.has_collection(self._collection_name)
+                has_collection = client.has_collection(self._collection_name)
                 if has_collection and drop_existing:
-                    self._client.drop_collection(self._collection_name)
+                    client.drop_collection(self._collection_name)
                     has_collection = False
                 if not has_collection:
                     schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=False)
@@ -460,9 +489,9 @@ class MilvusRepository:
                     schema.add_field("price", DataType.DOUBLE)
                     schema.add_field("rating", DataType.DOUBLE)
                     schema.add_field("category", DataType.VARCHAR, max_length=255)
-                    index_params = self._client.prepare_index_params()
+                    index_params = client.prepare_index_params()
                     index_params.add_index(field_name="vector", metric_type="COSINE", index_type="AUTOINDEX")
-                    self._client.create_collection(collection_name=self._collection_name, schema=schema, index_params=index_params)
+                    client.create_collection(collection_name=self._collection_name, schema=schema, index_params=index_params)
 
             await asyncio.to_thread(sync_init)
 
@@ -470,10 +499,11 @@ class MilvusRepository:
         json_log(self._logger, logging.INFO, "milvus_schema_initialized", dimension=dimension, collection=self._collection_name)
 
     async def insert_batch(self, vectors: Sequence[ProductVector]) -> None:
-        if not vectors:
+        if not self._enabled or not vectors:
             return
 
         async def operation() -> None:
+            client = await self._ensure_client()
             data = [
                 {
                     "id": vector.product_id,
@@ -484,12 +514,13 @@ class MilvusRepository:
                 }
                 for vector in vectors
             ]
-            await asyncio.to_thread(self._client.insert, collection_name=self._collection_name, data=data)
+            await asyncio.to_thread(client.insert, collection_name=self._collection_name, data=data)
 
         await self._retry.run(operation)
         json_log(self._logger, logging.INFO, "milvus_batch_inserted", inserted=len(vectors))
 
     async def close(self) -> None:
+        self._client = None
         json_log(self._logger, logging.INFO, "milvus_closed")
 
 
@@ -497,6 +528,7 @@ class OpenSearchRepository:
     def __init__(self, settings: Settings, logger: logging.Logger, retry_policy: RetryPolicy) -> None:
         self._logger = logger
         self._retry = retry_policy
+        self._enabled = settings.opensearch_enabled
         self._index_name = settings.opensearch_index
         self._bulk_chunk_size = settings.opensearch_bulk_chunk_size
         self._bulk_max_chunk_bytes = settings.opensearch_bulk_max_chunk_bytes
@@ -596,6 +628,9 @@ class OpenSearchRepository:
         return "source_only"
 
     async def initialize_schema(self, dimension: int, drop_existing: bool) -> None:
+        if not self._enabled:
+            json_log(self._logger, logging.INFO, "opensearch_disabled")
+            return
         if dimension <= 0:
             raise ValueError("dimension must be positive")
 
@@ -644,7 +679,7 @@ class OpenSearchRepository:
         await self._retry.run(operation)
 
     async def insert_batch(self, products: Sequence[Product], vectors: Sequence[ProductVector]) -> int:
-        if not products:
+        if not self._enabled or not products:
             return 0
         if len(products) != len(vectors):
             raise ValueError("products and vectors length mismatch")
@@ -709,7 +744,7 @@ class EmbeddingService:
         self._logger = logger
         self._encode_batch_size = settings.embedding_encode_batch_size
         self._model = SentenceTransformer(settings.embedding_model, device="cpu", trust_remote_code=False)
-        self._dimension = int(self._model.get_sentence_embedding_dimension())
+        self._dimension = int(self._model.get_embedding_dimension())
         if self._dimension <= 0:
             raise ValueError("embedding dimension must be positive")
         json_log(self._logger, logging.INFO, "embedding_model_loaded", model=settings.embedding_model, dimension=self._dimension)
@@ -730,7 +765,7 @@ class EmbeddingService:
                 normalize_embeddings=True,
                 batch_size=self._encode_batch_size,
                 convert_to_numpy=True,
-                show_progress_bar=False,
+                show_progress_bar=True,
             )
             return [row.astype(float).tolist() for row in embeddings]
 
@@ -778,8 +813,7 @@ class SeederService:
         start_id = (max_id or 0) + 1
         fresh_start = start_id == 1
 
-        await self._milvus.initialize_schema(self._embedding.dimension, drop_existing=fresh_start)
-        await self._opensearch.initialize_schema(self._embedding.dimension, drop_existing=fresh_start)
+        await self._initialize_indexes(fresh_start)
 
         if start_id > self._settings.target_count:
             json_log(
@@ -803,11 +837,12 @@ class SeederService:
             embeddings = await self._embedding.embed_products(products)
             vectors = self._build_product_vectors(products, embeddings)
 
-            postgres_task = self._postgres.insert_batch(products)
-            milvus_task = self._milvus.insert_batch(vectors)
-            opensearch_task = self._opensearch.insert_batch(products, vectors)
-
-            postgres_inserted, _, _ = await asyncio.gather(postgres_task, milvus_task, opensearch_task)
+            postgres_result, milvus_result, opensearch_result = await asyncio.gather(
+                self._postgres.insert_batch(products),
+                self._run_optional_sink(self._milvus.insert_batch(vectors), "milvus", self._settings.fail_on_milvus_error),
+                self._run_optional_sink(self._opensearch.insert_batch(products, vectors), "opensearch", self._settings.fail_on_opensearch_error),
+                return_exceptions=False,
+            )
 
             current_id += len(products)
             total_generated += len(products)
@@ -817,7 +852,9 @@ class SeederService:
                 logging.INFO,
                 "seeding_progress",
                 batch_size=len(products),
-                postgres_inserted=postgres_inserted,
+                postgres_inserted=postgres_result,
+                milvus_status=milvus_result,
+                opensearch_status=opensearch_result,
                 next_id=current_id,
                 total_generated=total_generated,
                 target_count=self._settings.target_count,
@@ -830,6 +867,35 @@ class SeederService:
             total_generated=total_generated,
             final_target=self._settings.target_count,
         )
+
+    async def _initialize_indexes(self, fresh_start: bool) -> None:
+        await self._run_optional_sink(
+            self._milvus.initialize_schema(self._embedding.dimension, drop_existing=fresh_start),
+            "milvus",
+            self._settings.fail_on_milvus_error,
+        )
+        await self._run_optional_sink(
+            self._opensearch.initialize_schema(self._embedding.dimension, drop_existing=fresh_start),
+            "opensearch",
+            self._settings.fail_on_opensearch_error,
+        )
+
+    async def _run_optional_sink(self, operation: Any, sink_name: str, fail_hard: bool) -> str:
+        try:
+            await operation
+            return "ok"
+        except Exception as exc:
+            json_log(
+                self._logger,
+                logging.ERROR,
+                "sink_operation_failed",
+                sink=sink_name,
+                error=type(exc).__name__,
+                message=str(exc),
+            )
+            if fail_hard:
+                raise
+            return "degraded"
 
     @staticmethod
     def _build_product_vectors(products: Sequence[Product], embeddings: Sequence[list[float]]) -> list[ProductVector]:

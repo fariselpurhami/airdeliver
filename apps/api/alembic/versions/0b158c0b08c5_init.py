@@ -1,8 +1,8 @@
-"""full_schema_refresh
+"""init
 
-Revision ID: ddc4c9ef8bf7
+Revision ID: 0b158c0b08c5
 Revises: 
-Create Date: 2025-11-19 00:08:54.277124
+Create Date: 2026-05-30 19:33:25.507963
 
 """
 from alembic import op
@@ -11,7 +11,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision = 'ddc4c9ef8bf7'
+revision = '0b158c0b08c5'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -24,47 +24,44 @@ def upgrade() -> None:
     sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('description', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('icon_url', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name')
-    )
-    op.create_table('drones',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('drone_id_str', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-    sa.Column('model', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-    sa.Column('home_base_lat', sa.Float(), nullable=True),
-    sa.Column('home_base_lon', sa.Float(), nullable=True),
-    sa.Column('meta', sa.JSON(), nullable=True),
-    sa.Column('status', sa.Enum('IDLE', 'CHARGING', 'PREPARING', 'READY', 'IN_MISSION', 'RETURNING', 'MAINTENANCE', 'OFFLINE', name='dronestatus', native_enum=False), nullable=False),
-    sa.Column('current_battery_pct', sa.Integer(), nullable=True),
-    sa.Column('last_seen', sa.DateTime(), nullable=True),
-    sa.Column('current_lat', sa.Float(), nullable=True),
-    sa.Column('current_lon', sa.Float(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_drones_drone_id_str'), 'drones', ['drone_id_str'], unique=True)
+    op.create_index(op.f('ix_badges_name'), 'badges', ['name'], unique=True)
     op.create_table('products',
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('sku', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('description', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-    sa.Column('price', sa.Float(), nullable=False),
+    sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('currency', sqlmodel.sql.sqltypes.AutoString(length=10), nullable=False),
     sa.Column('inventory', sa.Integer(), nullable=False),
-    sa.Column('image_url', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+    sa.Column('image', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('category', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-    sa.Column('tags', sa.JSON(), nullable=True),
+    sa.Column('tags', sa.JSON(), nullable=False),
     sa.Column('rating', sa.Float(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.CheckConstraint('inventory >= 0', name='check_inventory_positive'),
+    sa.CheckConstraint('price >= 0', name='check_price_positive'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_products_category'), 'products', ['category'], unique=False)
+    op.create_index(op.f('ix_products_is_active'), 'products', ['is_active'], unique=False)
     op.create_index(op.f('ix_products_name'), 'products', ['name'], unique=False)
     op.create_index(op.f('ix_products_rating'), 'products', ['rating'], unique=False)
+    op.create_index(op.f('ix_products_sku'), 'products', ['sku'], unique=True)
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('full_name', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('email', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('hashed_password', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.Column('role', sa.Enum('USER', 'ADMIN', 'OPERATOR', name='userrole', native_enum=False), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('last_login', sa.DateTime(), nullable=True),
     sa.Column('phone_number', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('address', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('city', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
@@ -74,7 +71,9 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
+    op.create_index(op.f('ix_users_full_name'), 'users', ['full_name'], unique=False)
     op.create_index(op.f('ix_users_phone_number'), 'users', ['phone_number'], unique=False)
+    op.create_index(op.f('ix_users_role'), 'users', ['role'], unique=False)
     op.create_index(op.f('ix_users_stripe_customer_id'), 'users', ['stripe_customer_id'], unique=False)
     op.create_table('ai_memory',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -82,39 +81,9 @@ def upgrade() -> None:
     sa.Column('context_data', sa.JSON(), nullable=True),
     sa.Column('last_updated', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('user_id')
-    )
-    op.create_table('drone_events',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('drone_id', sa.Integer(), nullable=False),
-    sa.Column('timestamp', sa.DateTime(), nullable=False),
-    sa.Column('mission_id_str', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-    sa.Column('event_type', sa.Enum('PREFLIGHT_OK', 'PREFLIGHT_FAILED', 'ARMED', 'TAKEOFF', 'PAYLOAD_DROPPED', 'LANDED', 'MISSION_COMPLETED', 'EMERGENCY_LANDING', name='eventtype', native_enum=False), nullable=False),
-    sa.Column('details', sa.JSON(), nullable=True),
-    sa.ForeignKeyConstraint(['drone_id'], ['drones.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_drone_events_drone_id'), 'drone_events', ['drone_id'], unique=False)
-    op.create_index(op.f('ix_drone_events_mission_id_str'), 'drone_events', ['mission_id_str'], unique=False)
-    op.create_index(op.f('ix_drone_events_timestamp'), 'drone_events', ['timestamp'], unique=False)
-    op.create_table('drone_telemetry',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('drone_id', sa.Integer(), nullable=False),
-    sa.Column('timestamp', sa.DateTime(), nullable=False),
-    sa.Column('mission_id_str', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-    sa.Column('lat', sa.Float(), nullable=False),
-    sa.Column('lon', sa.Float(), nullable=False),
-    sa.Column('alt_m', sa.Float(), nullable=False),
-    sa.Column('speed_m_s', sa.Float(), nullable=False),
-    sa.Column('battery_pct', sa.Integer(), nullable=False),
-    sa.Column('flight_mode', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-    sa.ForeignKeyConstraint(['drone_id'], ['drones.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_drone_telemetry_drone_id'), 'drone_telemetry', ['drone_id'], unique=False)
-    op.create_index(op.f('ix_drone_telemetry_mission_id_str'), 'drone_telemetry', ['mission_id_str'], unique=False)
-    op.create_index(op.f('ix_drone_telemetry_timestamp'), 'drone_telemetry', ['timestamp'], unique=False)
+    op.create_index(op.f('ix_ai_memory_user_id'), 'ai_memory', ['user_id'], unique=True)
     op.create_table('notification_subscriptions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -128,19 +97,22 @@ def upgrade() -> None:
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('status', sa.Enum('PENDING', 'PROCESSING', 'ASSIGNED', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED', 'FAILED', 'SAVED_FOR_LATER', name='orderstatus', native_enum=False), nullable=False),
     sa.Column('total_price', sa.Float(), nullable=False),
+    sa.Column('is_paid', sa.Boolean(), nullable=False),
+    sa.Column('paid_at', sa.DateTime(), nullable=True),
+    sa.Column('stripe_payment_id', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('delivery_address', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('delivery_lat', sa.Float(), nullable=False),
     sa.Column('delivery_lon', sa.Float(), nullable=False),
-    sa.Column('drone_id', sa.Integer(), nullable=True),
     sa.Column('cancellation_reason', sa.Enum('PRICE', 'PAYMENT_METHOD', 'SHIPPING', 'CHANGED_MIND', 'OTHER', name='cancellation_reason_enum', native_enum=False), nullable=True),
     sa.Column('recovery_token', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-    sa.ForeignKeyConstraint(['drone_id'], ['drones.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_orders_recovery_token'), 'orders', ['recovery_token'], unique=False)
+    op.create_index(op.f('ix_orders_status'), 'orders', ['status'], unique=False)
+    op.create_index(op.f('ix_orders_user_id'), 'orders', ['user_id'], unique=False)
     op.create_table('user_activities',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -170,22 +142,22 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_audit_trails_order_id'), 'audit_trails', ['order_id'], unique=False)
     op.create_table('missions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('mission_id_str', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('order_id', sa.Integer(), nullable=False),
-    sa.Column('assigned_drone_id', sa.Integer(), nullable=True),
-    sa.Column('status', sa.Enum('CREATED', 'ASSIGNED', 'PREFLIGHT_CHECKS', 'ARMED', 'TAKEOFF', 'IN_TRANSIT', 'APPROACH', 'DROPPING', 'RETURNING', 'LANDING', 'COMPLETED', 'ABORTED', 'FAILED_PREFLIGHT', 'FAILED_COMMS_TIMEOUT', 'FAILED_LOW_BATTERY', 'FAILED_GPS_LOSS', 'FAILED_PAYLOAD', 'FAILED_HARDWARE', 'FAILED_EMERGENCY_LANDING', name='missionstatus', native_enum=False), nullable=False),
-    sa.Column('waypoints_json', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'CREATED', 'ASSIGNED', 'PREFLIGHT_CHECKS', 'ARMED', 'TAKEOFF', 'IN_TRANSIT', 'APPROACH', 'DROPPING', 'RETURNING', 'LANDING', 'COMPLETED', 'ABORTED', 'FAILED_PREFLIGHT', 'FAILED_COMMS_TIMEOUT', 'FAILED_LOW_BATTERY', 'FAILED_GPS_LOSS', 'FAILED_PAYLOAD', 'FAILED_HARDWARE', 'FAILED_EMERGENCY_LANDING', name='missionstatus', native_enum=False), nullable=False),
+    sa.Column('waypoints', sa.JSON(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('failure_reason', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-    sa.ForeignKeyConstraint(['assigned_drone_id'], ['drones.id'], ),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('order_id')
     )
     op.create_index(op.f('ix_missions_mission_id_str'), 'missions', ['mission_id_str'], unique=True)
+    op.create_index(op.f('ix_missions_status'), 'missions', ['status'], unique=False)
     op.create_table('notifications',
     sa.Column('title', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('body', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -195,15 +167,14 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('related_order_id', sa.Integer(), nullable=True),
-    sa.Column('related_drone_id', sa.Integer(), nullable=True),
     sa.Column('meta', sa.JSON(), nullable=True),
-    sa.ForeignKeyConstraint(['related_drone_id'], ['drones.id'], ),
     sa.ForeignKeyConstraint(['related_order_id'], ['orders.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_notifications_title'), 'notifications', ['title'], unique=False)
     op.create_index(op.f('ix_notifications_user_id'), 'notifications', ['user_id'], unique=False)
+    op.create_index('ix_notifications_user_read_created', 'notifications', ['user_id', 'read', 'created_at'], unique=False)
     op.create_table('order_items',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('order_id', sa.Integer(), nullable=False),
@@ -214,44 +185,49 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_order_items_order_id'), 'order_items', ['order_id'], unique=False)
+    op.create_index(op.f('ix_order_items_product_id'), 'order_items', ['product_id'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_order_items_product_id'), table_name='order_items')
+    op.drop_index(op.f('ix_order_items_order_id'), table_name='order_items')
     op.drop_table('order_items')
+    op.drop_index('ix_notifications_user_read_created', table_name='notifications')
     op.drop_index(op.f('ix_notifications_user_id'), table_name='notifications')
     op.drop_index(op.f('ix_notifications_title'), table_name='notifications')
     op.drop_table('notifications')
+    op.drop_index(op.f('ix_missions_status'), table_name='missions')
     op.drop_index(op.f('ix_missions_mission_id_str'), table_name='missions')
     op.drop_table('missions')
+    op.drop_index(op.f('ix_audit_trails_order_id'), table_name='audit_trails')
     op.drop_table('audit_trails')
     op.drop_table('user_badges')
     op.drop_index(op.f('ix_user_activities_user_id'), table_name='user_activities')
     op.drop_index(op.f('ix_user_activities_activity_type'), table_name='user_activities')
     op.drop_table('user_activities')
+    op.drop_index(op.f('ix_orders_user_id'), table_name='orders')
+    op.drop_index(op.f('ix_orders_status'), table_name='orders')
     op.drop_index(op.f('ix_orders_recovery_token'), table_name='orders')
     op.drop_table('orders')
     op.drop_index(op.f('ix_notification_subscriptions_user_id'), table_name='notification_subscriptions')
     op.drop_table('notification_subscriptions')
-    op.drop_index(op.f('ix_drone_telemetry_timestamp'), table_name='drone_telemetry')
-    op.drop_index(op.f('ix_drone_telemetry_mission_id_str'), table_name='drone_telemetry')
-    op.drop_index(op.f('ix_drone_telemetry_drone_id'), table_name='drone_telemetry')
-    op.drop_table('drone_telemetry')
-    op.drop_index(op.f('ix_drone_events_timestamp'), table_name='drone_events')
-    op.drop_index(op.f('ix_drone_events_mission_id_str'), table_name='drone_events')
-    op.drop_index(op.f('ix_drone_events_drone_id'), table_name='drone_events')
-    op.drop_table('drone_events')
+    op.drop_index(op.f('ix_ai_memory_user_id'), table_name='ai_memory')
     op.drop_table('ai_memory')
     op.drop_index(op.f('ix_users_stripe_customer_id'), table_name='users')
+    op.drop_index(op.f('ix_users_role'), table_name='users')
     op.drop_index(op.f('ix_users_phone_number'), table_name='users')
+    op.drop_index(op.f('ix_users_full_name'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
+    op.drop_index(op.f('ix_products_sku'), table_name='products')
     op.drop_index(op.f('ix_products_rating'), table_name='products')
     op.drop_index(op.f('ix_products_name'), table_name='products')
+    op.drop_index(op.f('ix_products_is_active'), table_name='products')
     op.drop_index(op.f('ix_products_category'), table_name='products')
     op.drop_table('products')
-    op.drop_index(op.f('ix_drones_drone_id_str'), table_name='drones')
-    op.drop_table('drones')
+    op.drop_index(op.f('ix_badges_name'), table_name='badges')
     op.drop_table('badges')
     # ### end Alembic commands ###

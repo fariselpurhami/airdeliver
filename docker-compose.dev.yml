@@ -123,10 +123,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
 
   opensearch:
-    image: opensearchproject/opensearch:2.11.1
+    image: opensearchproject/opensearch:3.6.0
     container_name: airdeliver-opensearch
     environment:
       - discovery.type=single-node
@@ -213,7 +213,7 @@ services:
           memory: 512M
 
   milvus:
-    image: milvusdb/milvus:v2.3.13
+    image: milvusdb/milvus:v2.6.17
     container_name: airdeliver-milvus
     command: ["milvus", "run", "standalone"]
     environment:
@@ -234,9 +234,9 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
-      timeout: 10s
-      retries: 4
-      start_period: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 90s
     logging:
       driver: "json-file"
       options:
@@ -294,6 +294,7 @@ services:
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - HF_HOME=/data/storage/models_cache/huggingface
+      - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
       - MILVUS_URI=http://milvus:19530
       - EMBEDDING_MODEL_PATH=Alibaba-NLP/gte-Qwen2-1.5B-instruct
       - HF_HUB_DISABLE_SYMLINKS_WARNING=1
@@ -306,6 +307,7 @@ services:
       - ./apps/api:/app:delegated
       - api-static-data:/app/static
       - ${PWD}/data/storage:/data/storage
+      - huggingface-cache:/data/storage/models_cache/huggingface
       - /opt/venv
     depends_on:
       postgres:
@@ -381,6 +383,7 @@ services:
     volumes:
       - ./apps/api:/app:delegated
       - ${PWD}/data/storage:/data/storage
+      - huggingface-cache:/data/storage/models_cache/huggingface
       - /opt/venv
     depends_on:
       api:
@@ -443,19 +446,22 @@ services:
       dockerfile: Dockerfile
       target: development
       args:
-        - NEXT_PUBLIC_API_URL=http://192.168.1.3:8000
+        - NEXT_PUBLIC_API_URL=http://192.168.1.3/api
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     restart: always
     environment:
-      - AUTH_URL=http://192.168.1.3:3000
-      - AUTH_SECRET=${AUTH_SECRET}
-      - AUTH_TRUST_HOST=true
-      - NODE_ENV=development
-      - HOSTNAME=0.0.0.0
-      - NEXT_TELEMETRY_DISABLED=1
-      - PNPM_HOME=/pnpm
-      - PATH=/pnpm:$PATH
-      - WATCHPACK_POLLING=true
+     - AUTH_URL=http://192.168.1.3:3000
+     - AUTH_SECRET=${AUTH_SECRET}
+     - AUTH_TRUST_HOST=true
+     - NODE_ENV=development
+     - HOSTNAME=0.0.0.0
+     - NEXT_TELEMETRY_DISABLED=1
+     - PNPM_HOME=/pnpm
+     - PATH=/pnpm:$PATH
+     - WATCHPACK_POLLING=true
+     - CI=true
+     - PNPM_CONFIG_CONFIRM_MODULES_PURGE=false
+     - PNPM_CONFIG_ALLOW_BUILD=esbuild,sharp,unrs-resolver
     volumes:
       - ./apps/web:/app:delegated
       - pnpm-store:/pnpm
@@ -468,11 +474,7 @@ services:
         - "3000:3000"
     networks:
         - global-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`localhost`) || Host(`192.168.1.3`)"
-      - "traefik.http.services.web.loadbalancer.server.port=3000"
-    command: pnpm dev 
+    command: sh -c "pnpm install --no-frozen-lockfile --ignore-scripts=false && pnpm dev --hostname 0.0.0.0 --port 3000"
     logging:
       driver: "json-file"
       options:
@@ -501,6 +503,7 @@ volumes:
     driver: local
   web_build_cache:
   huggingface-cache:
+  sentence-transformers-cache:
 
 networks:
   global-net:
