@@ -65,11 +65,3 @@
     "react-reconciler": "^0.32.0"
   }
 }
-
-"pnpm": {
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "tailwindcss": "4.x"
-      }
-    }
-  }
