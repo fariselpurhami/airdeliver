@@ -1091,10 +1091,23 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         if (status === 'authenticated' && socketStatus === 'connected') {
             actions.sendMessage(text, false);
         } else if (status === 'authenticated' && socketStatus !== 'connected') {
-            actions.addSocketAIMessage({
-                type: 'error',
-                content: "Establishing uplink to Autonomous Engine... standby.",
-            });
+            useAIOrderingStore.setState(state => ({
+                messages: [...state.messages, { id: Date.now(), sender: 'user', contentType: 'text', content: text }],
+                isLoading: true
+            }));
+            
+            // محاولة إعادة الاتصال تلقائياً
+            if (currentAccessToken) {
+                actions.connectSocket(currentAccessToken);
+            }
+            
+            setTimeout(() => {
+                actions.addSocketAIMessage({
+                    type: 'error',
+                    content: "Uplink disconnected due to system update. Re-establishing connection... Please refresh the page.",
+                });
+                useAIOrderingStore.setState({ isLoading: false });
+            }, 800);
         } else {
              useAIOrderingStore.setState(state => ({
                 messages: [...state.messages, { id: Date.now(), sender: 'user', contentType: 'text', content: text }],
@@ -1103,13 +1116,13 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
             setTimeout(() => {
                 actions.addSocketAIMessage({
                     type: 'confirmation_prompt',
-                    content: "Access to Autonomous Commerce is personalized. Identify yourself to proceed.",
-                    options: ["Sign In", "Create Account"],
+                    content: "HI, Welcome to order with air 😊.",
+                    options: ["Sign In", "Sign Up"],
                 });
+                useAIOrderingStore.setState({ isLoading: false });
             }, 500);
         }
-    }, [status, socketStatus, actions.sendMessage, actions.addSocketAIMessage]);
-
+    }, [status, socketStatus, currentAccessToken, actions]);
     const handleProductSelect = useCallback((product: any, elementId: string) => {
         if (status === 'authenticated' && socketStatus === 'connected') {
             actions.addProductById(product, elementId);

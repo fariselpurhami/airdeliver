@@ -1,19 +1,28 @@
-//** apps/web/lib/providers.tsx **//
+// apps/web/lib/providers.tsx
 
 "use client";
 
+import { type ReactNode } from "react";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
-import { ReactNode } from "react";
 import { LazyMotion, domAnimation } from "framer-motion";
 
-export function Providers({ children }: { children: ReactNode }) {
+export interface ProvidersProps {
+  readonly children: ReactNode;
+}
+
+export function Providers({ children }: ProvidersProps) {
   return (
     <SessionProvider>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+      <ThemeProvider 
+        attribute="class" 
+        defaultTheme="system" 
+        enableSystem 
+        disableTransitionOnChange
+      >
         <LazyMotion features={domAnimation}>
           {children}
-	</LazyMotion>
+        </LazyMotion>
       </ThemeProvider>
     </SessionProvider>
   );
