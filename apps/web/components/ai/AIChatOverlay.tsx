@@ -1037,12 +1037,19 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
     useEffect(() => {
         if (status === 'authenticated' && currentAccessToken && !isConnectedRef.current) {
+            console.log("🔌 Initiating FRESH WebSocket connection...");
             isConnectedRef.current = true; 
             actions.connectSocket(currentAccessToken);
         } else if (status === 'unauthenticated') {
-             isConnectedRef.current = false;
-             actions.disconnectSocket();
+            console.log("🔌 User unauthenticated. Disconnecting...");
+            isConnectedRef.current = false;
+            actions.disconnectSocket();
         }
+        
+        // تنظيف الاتصال لو الصفحة اتقفلت أو اتعملها Refresh
+        return () => {
+            isConnectedRef.current = false;
+        };
     }, [status, currentAccessToken, actions]);
 
     useEffect(() => {
@@ -1086,42 +1093,32 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         onClose();
         actions.resetChat();
     }, [onClose, actions.setOverlayVisible, actions.resetChat]);
+    
+    //
+    const handleSendMessage = useCallback((rawText: string) => {
+        const text = rawText.trim();
+        if (!text) return;
 
-    const handleSendMessage = useCallback((text: string) => {
-        if (status === 'authenticated' && socketStatus === 'connected') {
-            actions.sendMessage(text, false);
-        } else if (status === 'authenticated' && socketStatus !== 'connected') {
+        if (status !== 'authenticated') {
             useAIOrderingStore.setState(state => ({
-                messages: [...state.messages, { id: Date.now(), sender: 'user', contentType: 'text', content: text }],
-                isLoading: true
-            }));
-            
-            // محاولة إعادة الاتصال تلقائياً
-            if (currentAccessToken) {
-                actions.connectSocket(currentAccessToken);
-            }
-            
-            setTimeout(() => {
-                actions.addSocketAIMessage({
-                    type: 'error',
-                    content: "Uplink disconnected due to system update. Re-establishing connection... Please refresh the page.",
-                });
-                useAIOrderingStore.setState({ isLoading: false });
-            }, 800);
-        } else {
-             useAIOrderingStore.setState(state => ({
                 messages: [...state.messages, { id: Date.now(), sender: 'user', contentType: 'text', content: text }],
                 isLoading: true
             }));
             setTimeout(() => {
                 actions.addSocketAIMessage({
                     type: 'confirmation_prompt',
-                    content: "HI, Welcome to order with air 😊.",
+                    content: "Hi, welcome to order with air 😊",
                     options: ["Sign In", "Sign Up"],
                 });
                 useAIOrderingStore.setState({ isLoading: false });
             }, 500);
+            return;
         }
+
+        // لو اليوزر مسجل، ابعت الرسالة للباك إند فوراً
+        console.log("🚀 Sending Payload to Engine:", text);
+        actions.sendMessage(text, false);
+
     }, [status, socketStatus, currentAccessToken, actions]);
     const handleProductSelect = useCallback((product: any, elementId: string) => {
         if (status === 'authenticated' && socketStatus === 'connected') {
