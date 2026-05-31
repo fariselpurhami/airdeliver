@@ -1192,33 +1192,38 @@ def get_embedding_model() -> SentenceTransformer:
     """Provides the Central Intelligence Hub (Alibaba Qwen2)."""
     return ai_manager.get_text_model()
 
-def get_milvus_client(settings: CoreSettings = Depends(get_core_settings)) -> MilvusClient:
-    """Provides a Resilient Connection to the Vector Storage."""
-    try:
-        # اتصال محمي يدعم الفتح المتكرر والـ Pooling
-        return MilvusClient(uri=settings.MILVUS_URI, timeout=30)
-    except Exception as e:
-        logger.error(f"❌ Milvus Connection Shield Triggered: {e}")
-        raise e
+def get_milvus_client(
+    settings: CoreSettings = Depends(get_core_settings),
+) -> MilvusClient:
+    token = settings.MILVUS_TOKEN.get_secret_value() if settings.MILVUS_TOKEN else None
+    return MilvusClient(
+        uri=str(settings.MILVUS_URI),
+        token=token,
+        timeout=30.0,
+    )
 
-async def get_opensearch_client(settings: CoreSettings = Depends(get_core_settings)) -> AsyncGenerator[AsyncOpenSearch, None]:
-    """Provides a Persistent and High-Performance OpenSearch Session."""
-    hosts = [{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}]
-
-    # محرك اتصال معزز بخوارزميات إعادة المحاولة (Exponential Backoff)
+async def get_opensearch_client(
+    settings: CoreSettings = Depends(get_core_settings),
+) -> AsyncGenerator[AsyncOpenSearch, None]:
     client = AsyncOpenSearch(
-        hosts=hosts,
-        use_ssl=True,
-        verify_certs=False,
-        timeout=120,
+        hosts=[{"host": settings.OPENSEARCH_HOST, "port": settings.OPENSEARCH_PORT}],
+        use_ssl=settings.OPENSEARCH_USE_SSL,
+        verify_certs=settings.OPENSEARCH_VERIFY_CERTS,
+        ssl_show_warn=False,
+        http_auth=(
+            settings.OPENSEARCH_USER,
+            settings.OPENSEARCH_PASS.get_secret_value(),
+        )
+        if settings.OPENSEARCH_USER and settings.OPENSEARCH_PASS
+        else None,
+        request_timeout=120,
         retry_on_timeout=True,
-        max_retries=5, # زيادة عدد المحاولات لضمان الاستقرار
-        pool_maxsize=20 # توسيع حجم مجمع الاتصالات للضغط العالي
+        max_retries=5,
+        pool_maxsize=20,
     )
     try:
         yield client
     finally:
-        # إغلاق آمن للجلسة لضمان عدم تسريب الذاكرة
         await client.close()
 
 def get_ai_commerce_engine(

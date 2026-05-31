@@ -8,6 +8,13 @@ import { Bot, Rocket, Zap, ScanLine, ShoppingBag, Eye, Check } from 'lucide-reac
 import Image from 'next/image';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; 
 
+// --- ARCHITECTURAL UTILITY: SAFE DATA LAYER ---
+const formatPrice = (value: number | string | undefined | null): string => {
+    if (value === undefined || value === null) return '0.00';
+    const num = Number(value);
+    return isNaN(num) ? '0.00' : num.toFixed(2);
+};
+
 const useParallax = (ref: React.RefObject<HTMLDivElement>) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -40,7 +47,7 @@ export interface Product {
   id: number;
   name: string;
   description: string;
-  price: number;
+  price: number | string;
   image_url: string | null;
   inventory: number;
   predicted_delivery?: string;
@@ -58,11 +65,11 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
   
   const [isAdded, setIsAdded] = useState(false);
   const uniqueBtnId = `card-add-btn-${product.id}`; 
+  const safePrice = formatPrice(product.price); // تأمين السعر لمنع الكراش
 
   const handleAddToCart = (e: React.MouseEvent) => {
       e.stopPropagation(); 
-      
-      addProductById(product, uniqueBtnId);
+      addProductById(product as any, uniqueBtnId);
       setIsAdded(true);
       setTimeout(() => setIsAdded(false), 2000);
   };
@@ -71,14 +78,14 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
     <motion.div
       layoutId={`product-card-${product.id}`}
       ref={cardRef}
-      onClick={() => onOpen(product)}
+      onClick={() => onOpen(product as any)}
       variants={{ hidden: { opacity: 0, scale: 0.9 }, visible: { opacity: 1, scale: 1 } }}
       style={{ perspective: 1200 }}
       className="group relative h-[450px] w-full cursor-pointer z-0 hover:z-20"
     >
       <motion.div
-        style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-        className="relative w-full h-full rounded-[36px] bg-[#050505] border border-white/10 overflow-hidden transition-all duration-500 group-hover:border-cyan-500/50 group-hover:shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col"
+        style={{ rotateX, rotateY }} // شيلنا الـ preserve-3d من هنا
+        className="relative w-full h-full rounded-[36px] bg-[#050505] border border-white/10 overflow-hidden transition-all duration-500 group-hover:border-cyan-500/50 group-hover:shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col md:[transform-style:preserve-3d]" // ضفناه للشاشات الكبيرة بس
       >
         <div className="relative w-full flex-grow bg-gradient-to-b from-white/5 to-transparent p-6 flex items-center justify-center overflow-hidden">
             
@@ -86,15 +93,14 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
             
             {isRecommendedByAI && (
                 <div 
-                    className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.2)]"
-                    style={{ transform: "translateZ(40px)" }}
+                    className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.2)] md:[transform:translateZ(40px)]"
                 >
                     <Bot size={12} className="text-cyan-400 animate-pulse" />
                     <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">AI Pick</span>
                 </div>
             )}
 
-            <div className="relative w-full h-full max-h-[220px]" style={{ transform: "translateZ(60px)" }}>
+            <div className="relative w-full h-full max-h-[220px] md:[transform:translateZ(60px)]">
                 {product.image_url ? (
                     <Image
                         src={product.image_url}
@@ -113,8 +119,7 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
         </div>
 
         <div 
-            className="relative w-full bg-[#080808]/95 backdrop-blur-xl border-t border-white/5 p-5 flex flex-col justify-between transition-colors duration-500 group-hover:bg-[#0a0a0a]"
-            style={{ transform: "translateZ(20px)" }}
+            className="relative w-full bg-[#080808]/95 backdrop-blur-xl border-t border-white/5 p-5 flex flex-col justify-between transition-colors duration-500 group-hover:bg-[#0a0a0a] md:[transform:translateZ(20px)]"
         >
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -138,7 +143,7 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
                     <div className="flex flex-col">
                         <span className="text-[10px] text-gray-600 uppercase font-bold">Unit Price</span>
                         <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            ${product.price.toFixed(2)}
+                            ${safePrice}
                         </span>
                     </div>
                     {product.predicted_delivery && (
@@ -175,7 +180,7 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
                             </motion.button>
                             <motion.button
                                 key="view"
-                                onClick={(e) => { e.stopPropagation(); onOpen(product); }}
+                                onClick={(e) => { e.stopPropagation(); onOpen(product as any); }}
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 className="px-3 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/20 hover:border-white/30 transition-all flex items-center justify-center"

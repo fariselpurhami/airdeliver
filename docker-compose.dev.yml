@@ -294,6 +294,9 @@ services:
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - HF_HOME=/data/storage/models_cache/huggingface
+      - HF_HUB_CACHE=/data/storage/models_cache/huggingface/hub
+      - TRANSFORMERS_CACHE=/data/storage/models_cache/huggingface/transformers
+      - HF_DATASETS_CACHE=/data/storage/models_cache/huggingface/datasets
       - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
       - MILVUS_URI=http://milvus:19530
       - EMBEDDING_MODEL_PATH=Alibaba-NLP/gte-Qwen2-1.5B-instruct
@@ -303,11 +306,11 @@ services:
       - MKL_NUM_THREADS=1
       - EMBEDDING_MODEL_REVISION=main
       - HF_HUB_DISABLE_DOWNLOAD_PROGRESS=1
+
     volumes:
       - ./apps/api:/app:delegated
       - api-static-data:/app/static
       - ${PWD}/data/storage:/data/storage
-      - huggingface-cache:/data/storage/models_cache/huggingface
       - /opt/venv
     depends_on:
       postgres:
@@ -374,6 +377,10 @@ services:
       - HF_TOKEN=${HF_TOKEN}
       - EMBEDDING_MODEL_REVISION=main
       - HF_HUB_DISABLE_DOWNLOAD_PROGRESS=1
+      - HF_DATASETS_CACHE=/data/storage/models_cache/huggingface/datasets
+      - HF_HUB_CACHE=/data/storage/models_cache/huggingface/hub
+      - HF_DATASETS_CACHE=/data/storage/models_cache/huggingface/datasets
+      
     shm_size: '2gb'
     ulimits:
       memlock: -1
@@ -383,7 +390,6 @@ services:
     volumes:
       - ./apps/api:/app:delegated
       - ${PWD}/data/storage:/data/storage
-      - huggingface-cache:/data/storage/models_cache/huggingface
       - /opt/venv
     depends_on:
       api:

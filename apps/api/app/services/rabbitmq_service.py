@@ -26,10 +26,7 @@ class RabbitMQService:
         self.exchange: Optional[aio_pika.abc.AbstractExchange] = None
         self.exchange_name = "airdeliver_main_exchange"
         
-        self.connection_uri = (
-            f"amqp://{self.settings.RABBITMQ_USER}:{self.settings.RABBITMQ_PASS}"
-            f"@{self.settings.RABBITMQ_HOST}:{self.settings.RABBITMQ_PORT}/"
-        )
+        self.connection_uri = self.settings.RABBITMQ_URL
         self._conn_lock = asyncio.Lock()
 
     async def connect(self):
