@@ -47,8 +47,8 @@
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^25.9.1",
-    "@types/react": "npm:types-react@19.0.0-rc.1",
-    "@types/react-dom": "npm:types-react-dom@19.0.0-rc.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.0",
     "dotenv": "^17.4.2",
     "eslint": "^9.39.4",
@@ -62,8 +62,6 @@
     "typescript": "^6.0.3"
   },
   "overrides": {
-    "@types/react": "npm:types-react@rc",
-    "@types/react-dom": "npm:types-react-dom@rc",
     "react-reconciler": "^0.32.0"
   }
 }
