@@ -228,13 +228,12 @@ const DroneTelemetryWidget = React.memo(() => {
 });
 DroneTelemetryWidget.displayName = 'DroneTelemetryWidget';
 
-// --- ARCHITECTURAL UPGRADE: Enhanced Product Card ---
+// --- ARCHITECTURAL UPGRADE: Enhanced Product Card (Responsive Fix) ---
 const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, onViewDetails: (product: any) => void, totalItems: number }) => {
     const confirmOrder = useAIOrderingStore(state => state.confirmCurrentOrder);
-    // Made cards significantly larger for better UX (85% width on mobile, 55% on desktop)
-    const slideWidthClass = totalItems === 1 
-    ? "flex-[0_0_100%] sm:flex-[0_0_auto] sm:w-[300px] md:w-[350px]" 
-    : "flex-[0_0_85%] sm:flex-[0_0_60%] md:flex-[0_0_49%]";
+    
+    // التعديل السحري: إعطاء الكارت عرض ثابت مرن يمنع الانضغاط على الموبايل
+    const slideWidthClass = "flex-none w-[280px] sm:w-[320px] md:w-[350px] snap-center";
     
     const rawImagePath = product.image_url || product.image;
     const imageUrl = useMemo(() => getAbsoluteImageUrl(rawImagePath), [rawImagePath]);
@@ -246,7 +245,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
     }, [product, rawImagePath, elementId, onSelect]);
 
     return (
-        <div className={`embla__slide ${slideWidthClass} px-4 py-4`}>
+        <div className={`embla__slide ${slideWidthClass} px-2 py-4`}>
             <motion.div
                 className="flex flex-col p-0 bg-gradient-to-br from-[#0F172A] to-[#020617] backdrop-blur-3xl rounded-[32px] border border-white/10 h-full text-left shadow-2xl relative group overflow-hidden"
                 whileHover={{ 
@@ -268,8 +267,8 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                 >
                     <Eye size={18} strokeWidth={2.5} />
                 </motion.button>
-                {/* Image Section with Atmospheric Glow */}
-                <div className="relative h-56 w-full flex items-center justify-center bg-gradient-to-b from-white/5 to-transparent p-6 overflow-hidden">
+                {/* Image Section with Atmospheric Glow - Adjusted height for mobile */}
+                <div className="relative h-48 sm:h-56 w-full flex items-center justify-center bg-gradient-to-b from-white/5 to-transparent p-4 overflow-hidden">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     <Image
                         id={elementId}
@@ -279,18 +278,15 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                         height={250}
                         className="w-auto h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] group-hover:scale-110 group-hover:-rotate-2 transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)"
                     />
-                    
-                    {/* Floating Price Tag */}
-                    
                 </div>
 
                 {/* Content Section */}
-                <div className="p-6 flex flex-col flex-grow relative z-10">
+                <div className="p-5 sm:p-6 flex flex-col flex-grow relative z-10">
 		    <div className="absolute -top-4 right-3 z-20 flex items-center gap-1">
                        <span className="text-cyan-300 font-bold font-mono text-lg">${(Number(product.price) || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-start mb-2">
-                         <h4 className="text-xl font-bold text-white leading-snug tracking-tight line-clamp-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{product.name}</h4>
+                         <h4 className="text-lg sm:text-xl font-bold text-white leading-snug tracking-tight line-clamp-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{product.name}</h4>
                     </div>
                    
                     <div className="flex items-center gap-2 mb-6">
@@ -300,17 +296,15 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                                 <span className="text-xs font-bold text-yellow-200">{product.rating}</span>
                             </div>
                         )}
-                        <span className="text-xs text-gray-500 font-mono">ID: {product.id}</span>
+                        <span className="text-[10px] sm:text-xs text-gray-500 font-mono">ID: {product.id}</span>
                     </div>
 
                     <div className="mt-auto pt-4 border-t border-white/5">
                         <motion.button
-                 
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.96 }}
 			    onClick={handleSelect}
-
-                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold px-4.5 py-4 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
+                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold px-4 py-3 sm:py-4 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
                         >
                             <span className="relative z-10 flex items-center gap-2 tracking-wide text-xs">
                                 <ShoppingBag size={16} strokeWidth={2.5} />
@@ -327,23 +321,24 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
 CarouselProductCard.displayName = 'CarouselProductCard';
 
 const ProductCarousel = React.memo(({ products, onViewDetails, onSelect }: { products: any[], onSelect: (product: any, elementId: string) => void }) => {
-    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'center', containScroll: 'trimSnaps' });
+    // تفعيل السحب اليدوي للموبايل بشكل سلس
+    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start', containScroll: 'trimSnaps', dragFree: true });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
     const totalItems = products.length;
     const canScroll = totalItems > 1;
 
     return (
-        <div className="relative my-6 px-1 group/carousel w-full">
-            <div className="overflow-hidden p-2 -m-2" ref={emblaRef}>
-                <div className="flex gap-4 pl-4 pr-12 md:px-4">
+        <div className="relative my-6 px-0 sm:px-1 group/carousel w-full overflow-visible">
+            <div className="overflow-hidden p-2 -mx-4 sm:-m-2" ref={emblaRef}>
+                <div className="flex gap-2 sm:gap-4 pl-4 pr-8 sm:pr-12 md:px-4 snap-x snap-mandatory">
                     {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} onViewDetails={onViewDetails} totalItems={totalItems} />)}
                 </div>
             </div>
             {canScroll && (
                 <>
-                    <button onClick={scrollPrev} className="absolute top-1/2 -translate-y-1/2 left-0 p-3 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full z-20 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all opacity-0 group-hover/carousel:opacity-100 -translate-x-2 group-hover/carousel:translate-x-2 duration-300 shadow-xl"><ChevronLeft size={20}/></button>
-                    <button onClick={scrollNext} className="absolute top-1/2 -translate-y-1/2 right-0 p-3 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full z-20 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all opacity-0 group-hover/carousel:opacity-100 translate-x-2 group-hover/carousel:translate-x-0 duration-300 shadow-xl"><ChevronRight size={20}/></button>
+                    <button onClick={scrollPrev} className="hidden sm:flex absolute top-1/2 -translate-y-1/2 left-0 p-3 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full z-20 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all opacity-0 group-hover/carousel:opacity-100 -translate-x-2 group-hover/carousel:translate-x-2 duration-300 shadow-xl"><ChevronLeft size={20}/></button>
+                    <button onClick={scrollNext} className="hidden sm:flex absolute top-1/2 -translate-y-1/2 right-0 p-3 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full z-20 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all opacity-0 group-hover/carousel:opacity-100 translate-x-2 group-hover/carousel:translate-x-0 duration-300 shadow-xl"><ChevronRight size={20}/></button>
                 </>
             )}
         </div>
@@ -360,7 +355,7 @@ const AIReasoning = React.memo(({ text }: { text: string }) => (
         <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" />
         <div className="absolute -right-4 -top-4 w-16 h-16 bg-cyan-500/10 blur-xl rounded-full" />
         <div>
-            <span className="block text-[10px] font-black text-cyan-300 tracking-widest mb-1">vision by air</span>
+            <span className="block text-[10px] font-black text-cyan-300 tracking-widest mb-1">airdeliverOS</span>
             <p className="text-sm text-cyan-100/80 font-sans leading-relaxed">{text}</p>
         </div>
     </motion.div>
@@ -564,11 +559,13 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
 });
 ChatMessage.displayName = 'ChatMessage';
 
-const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: {
+const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, onConfirmOrder, isMobileOpen, onCloseMobile }: {
     messages: Message[],
     glowingProductId: number | null,
     onRemoveItem: (productId: number) => void
-    onConfirmOrder: () => void
+    onConfirmOrder: () => void,
+    isMobileOpen: boolean,
+    onCloseMobile: () => void
 }) => {
    
     const { cart, aiNote } = useMemo(() => {
@@ -581,93 +578,122 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem }: 
     }, [messages]);
 
     return (
-        <div className="hidden lg:flex w-[350px] xl:w-[400px] flex-shrink-0 backdrop-blur-3xl bg-black/60 border-l border-white/5 flex-col overflow-hidden relative z-20">
-            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" />
-            
-            <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent relative z-10">
-                <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-sm font-bold uppercase text-white tracking-widest flex items-center gap-2">
-                    </h3>
-                </div>
+        <>
+            {/* Mobile Backdrop */}
+            <AnimatePresence>
+                {isMobileOpen && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={onCloseMobile}
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden"
+                    />
+                )}
+            </AnimatePresence>
 
-                <div className="space-y-4 flex-grow">
-                    <AnimatePresence>
-                        {cart.items.length === 0 ? (
-                            <motion.div 
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                className="flex flex-col items-center justify-center h-48 text-gray-600 gap-3 border border-dashed border-white/5 rounded-3xl bg-white/[0.02]"
-                            >
-                                <ShoppingCart size={32} className="opacity-30" />
-                                <p className="text-xs uppercase tracking-widest font-mono">Empty | Cart</p>
-                            </motion.div>
-                        ) : cart.items.map((item: any, index: number) => (
-                            <motion.div
-                                key={item.product_id || index}
-                                layout
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{
-                                    opacity: 1,
-                                    x: 0,
-                                    backgroundColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.15)" : "rgba(255, 255, 255, 0.03)",
-                                    borderColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.5)" : "rgba(255, 255, 255, 0.05)",
-                                }}
-                                exit={{ opacity: 0, x: 20 }}
-                                className="flex justify-between items-center p-3 rounded-2xl border transition-colors group relative overflow-hidden"
-                            >
-                                {item.product_id === glowingProductId && (
-                                    <motion.div layoutId="glow" className="absolute inset-0 bg-cyan-500/5" transition={{ duration: 0.3 }} />
-                                )}
-                                <div className="flex items-center gap-3 flex-1 min-w-0 relative z-10">
-                                    <div className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden">
-                                         <ShoppingBag size={16} className="text-gray-500" />
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-gray-100 text-sm font-bold truncate tracking-tight" title={item.name}>
-                                            {item.name}
-                                        </span>
-                                        <span className="text-[10px] text-gray-400 font-mono mt-0.5">QTY: {item.quantity}</span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-end gap-1 relative z-10">
-                                    <span className="font-bold text-cyan-300 font-mono text-sm">
-                                        ${(item.price * item.quantity).toFixed(2)}
-                                    </span>
-                                    <motion.button
-                                        onClick={() => onRemoveItem(item.product_id)}
-                                        className="text-white hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
-                                        title="Jettison Item"
-                                    >
-                                        <X size={14} />
-                                    </motion.button>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-                </div>
-            </div>
-
-            <div className="flex-shrink-0 p-6 border-t border-white/10 bg-[#050B14] space-y-6 relative z-20">
+            <div className={`
+                absolute inset-0 z-[110] w-full transform transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)
+                lg:relative lg:translate-x-0 lg:flex lg:w-[350px] xl:w-[400px]
+                backdrop-blur-3xl bg-[#050B14]/95 lg:bg-black/60 border-l border-white/10 flex-col overflow-hidden
+                ${isMobileOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
+                ${!isMobileOpen ? 'hidden lg:flex' : 'flex'}
+            `}>
+                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" />
                 
-                <div>
-                    <h3 className="text-[10px] font-bold text-gray-500 tracking-widest mb-3 flex items-center gap-2">
-                        <Signal size={12} /> airaero X
-                    </h3>
-                    <DroneTelemetryWidget />
+                {/* Mobile Header */}
+                <div className="lg:hidden flex justify-between items-center p-5 border-b border-white/10 bg-black/20">
+                    <span className="text-sm font-bold uppercase text-white tracking-widest flex items-center gap-2">
+                        <ShoppingBag size={16} strokeWidth={2.5} />
+                    </span>
+                    <button onClick={onCloseMobile} className="p-2 rounded-full bg-white/5 text-white hover:bg-red-500/80 transition-colors">
+                        <X size={18} />
+                    </button>
                 </div>
 
-                <div className="w-full h-[1px] bg-white/10" />
-
-                <div className="flex justify-between items-end">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total</span>
-                        <span className="text-[10px] text-gray-600">Including Service Fees</span>
+                <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent relative z-10">
+                    <div className="flex items-center justify-between mb-8 hidden lg:flex">
+                        <h3 className="text-sm font-bold uppercase text-white tracking-widest flex items-center gap-2">
+                        </h3>
                     </div>
-                    <span className="text-3xl font-bold text-white font-mono tracking-tighter">
-                        ${Number(cart.total || 0).toFixed(2)}
-                    </span>
+
+                    <div className="space-y-4 flex-grow">
+                        <AnimatePresence>
+                            {cart.items.length === 0 ? (
+                                <motion.div 
+                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                    className="flex flex-col items-center justify-center h-48 text-gray-600 gap-3 border border-dashed border-white/5 rounded-3xl bg-white/[0.02]"
+                                >
+                                    <ShoppingCart size={32} className="opacity-30" />
+                                    <p className="text-xs uppercase tracking-widest font-mono">Empty | Cart</p>
+                                </motion.div>
+                            ) : cart.items.map((item: any, index: number) => (
+                                <motion.div
+                                    key={item.product_id || index}
+                                    layout
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{
+                                        opacity: 1,
+                                        x: 0,
+                                        backgroundColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.15)" : "rgba(255, 255, 255, 0.03)",
+                                        borderColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.5)" : "rgba(255, 255, 255, 0.05)",
+                                    }}
+                                    exit={{ opacity: 0, x: 20 }}
+                                    className="flex justify-between items-center p-3 rounded-2xl border transition-colors group relative overflow-hidden"
+                                >
+                                    {item.product_id === glowingProductId && (
+                                        <motion.div layoutId="glow" className="absolute inset-0 bg-cyan-500/5" transition={{ duration: 0.3 }} />
+                                    )}
+                                    <div className="flex items-center gap-3 flex-1 min-w-0 relative z-10">
+                                        <div className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden">
+                                            <ShoppingBag size={16} className="text-gray-500" />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-gray-100 text-sm font-bold truncate tracking-tight" title={item.name}>
+                                                {item.name}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400 font-mono mt-0.5">QTY: {item.quantity}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1 relative z-10">
+                                        <span className="font-bold text-cyan-300 font-mono text-sm">
+                                            ${(item.price * item.quantity).toFixed(2)}
+                                        </span>
+                                        <motion.button
+                                            onClick={() => onRemoveItem(item.product_id)}
+                                            className="text-white hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                            title="Jettison Item"
+                                        >
+                                            <X size={14} />
+                                        </motion.button>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </div>
+                </div>
+
+                <div className="flex-shrink-0 p-6 border-t border-white/10 bg-[#050B14] space-y-6 relative z-20">
+                    
+                    <div>
+                        <h3 className="text-[10px] font-bold text-gray-500 tracking-widest mb-3 flex items-center gap-2">
+                            <Signal size={12} /> airaero X
+                        </h3>
+                        <DroneTelemetryWidget />
+                    </div>
+
+                    <div className="w-full h-[1px] bg-white/10" />
+
+                    <div className="flex justify-between items-end">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total</span>
+                            <span className="text-[10px] text-gray-600">Including Service Fees</span>
+                        </div>
+                        <span className="text-3xl font-bold text-white font-mono tracking-tighter">
+                            ${Number(cart.total || 0).toFixed(2)}
+                        </span>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 });
 AIChatSidebar.displayName = 'AIChatSidebar';
@@ -828,7 +854,7 @@ const ChatInput = React.memo(
                 }}
                 placeholder={isListening ? 'Listening...' : isInputLocked ? 'Thinking...' : 'Ask order with air...'}
                 disabled={isInputLocked}
-                className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeh     older-gray-400 focus:bg-gray-800 focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
+                className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800 focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
 		style={{
                     // نظهر السكرول فقط لو الكلام زاد عن 150 بيكسل
                     overflowY: textareaRef.current && textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden'
@@ -945,6 +971,8 @@ PaymentFatalError.displayName = 'PaymentFatalError';
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     
     const [detailProduct, setDetailProduct] = useState<any | null>(null);
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    
     const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
     const stripePromise: Promise<Stripe | null> | null = useMemo(() => {
         if (STRIPE_PUBLISHABLE_KEY) {
@@ -1175,6 +1203,23 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full" />
 
                         <header className="px-8 py-6 flex items-center flex-shrink-0 relative z-10">
+                            {!isPaymentMode && (
+                                <div className="lg:hidden flex-shrink-0">
+                                    <button
+                                        onClick={() => setIsMobileSidebarOpen(true)}
+                                        className="p-3 rounded-full bg-cyan-600/20 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-600/40 transition-all flex items-center justify-center relative"
+                                    >
+                                        <ShoppingBag size={20} />
+                                        {cartItems.length > 0 && (
+                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                                {cartItems.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* زر الإغلاق (أعلى اليمين) */}
                             <button
                                 onClick={handleClose} 
                                 className="ml-auto p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
@@ -1259,21 +1304,21 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                     </motion.div>
                                 )}
                             </AnimatePresence>
-                            
-                           
+                                 
                             {!(isPaymentMode) && (
                                  <AIChatSidebar
-                                    messages={messages}
-                                    glowingProductId={glowingProductId}
-                                    onRemoveItem={actions.removeProductById}
-				    onConfirmOrder={actions.confirmCurrentOrder}
+                                     messages={messages}
+                                     glowingProductId={glowingProductId}
+  			             onRemoveItem={actions.removeProductById}
+                                     onConfirmOrder={actions.confirmCurrentOrder}
+                                     isMobileOpen={isMobileSidebarOpen}
+                                     onCloseMobile={() => setIsMobileSidebarOpen(false)}
                                  />
                             )}
-                        </div>
-                    </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-    );
+                       </div>
+                   </motion.div>
+               </motion.div>
+           )}
+       </AnimatePresence>
+   );
 }
-

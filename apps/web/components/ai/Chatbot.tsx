@@ -272,15 +272,7 @@ export default function Chatbot() {
                             {/* Messages Area */}
                             <main className="flex-grow px-4 lg:px-12 py-8 space-y-2 overflow-y-auto no-scrollbar relative z-10">
                                 
-                                {/* Empty State Hero */}
-                                {messages.length === 0 && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center opacity-10 pointer-events-none select-none">
-                                        <BrainCircuit size={120} strokeWidth={0.5} className="text-white mb-4" />
-                                        <h2 className="text-2xl font-bold text-white tracking-[0.2em] font-orbitron">
-                                            AIR INTELLIGENCE
-                                        </h2>
-                                    </div>
-                                )}
+                             
 
                                 <AnimatePresence initial={false}>
                                     {messages.map((msg) => (
