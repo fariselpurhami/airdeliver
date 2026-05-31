@@ -35,6 +35,7 @@ const ADMIN_PREFIXES = [
 
 const ADMIN_ROLES = new Set([
   'admin',
+  'ADMIN',
   'SUPER_ADMIN'
 ]);
 
@@ -96,43 +97,67 @@ export async function proxy(req: NextRequest) {
   }
 
   if (!hasAuthCookie(req)) {
+    console.log("🚨 MIDDLEWARE BLOCKED: No Auth Cookie found in browser!");
     return createLoginRedirect(req, pathname);
   }
 
   const secret = process.env.AUTH_SECRET;
 
   if (!secret) {
+    console.log("🚨 MIDDLEWARE BLOCKED: AUTH_SECRET is missing in .env!");
     return createLoginRedirect(req, pathname);
   }
 
   try {
-    const token = await getToken({ req, secret });
+    const isSecureRequest =
+      req.nextUrl.protocol === "https:" ||
+      req.headers.get("x-forwarded-proto") === "https";
+
+    const cookieCandidates = isSecureRequest
+      ? [
+          "__Secure-authjs.session-token",
+          "__Secure-next-auth.session-token",
+          "authjs.session-token",
+          "next-auth.session-token",
+        ]
+      : ["authjs.session-token", "next-auth.session-token"];
+
+    let token = null;
+
+    for (const cookieName of cookieCandidates) {
+      if (!req.cookies.has(cookieName)) {
+        continue;
+      }
+
+      token = await getToken({
+        req,
+        secret,
+        secureCookie: isSecureRequest,
+        cookieName,
+        salt: cookieName,
+      });
+
+      if (token) {
+        break;
+      }
+    }
 
     if (!token) {
       return createLoginRedirect(req, pathname);
     }
 
-    let requiresAdmin = false;
-    for (let i = 0; i < ADMIN_PREFIXES.length; i++) {
-      if (pathname.startsWith(ADMIN_PREFIXES[i])) {
-        requiresAdmin = true;
-        break;
-      }
+    const requiresAdmin = ADMIN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+    const role = typeof token.role === "string" ? token.role : null;
+
+    if (requiresAdmin && (!role || !ADMIN_ROLES.has(role))) {
+      return NextResponse.redirect(new URL("/", req.url));
     }
 
-    if (requiresAdmin && (!token.role || !ADMIN_ROLES.has(token.role as string))) {
-      return NextResponse.redirect(new URL('/', req.url));
-    }
-
-    const response = applySecurityHeaders(NextResponse.next());
-    response.headers.set('x-user-id', (token.sub as string) || 'unknown');
-
-    return response;
-
-  } catch (error) {
+    return applySecurityHeaders(NextResponse.next());
+  } catch {
     return createLoginRedirect(req, pathname);
   }
-}
+} // <--- القوس ده اللي كان ناقص وبيعمل المشكلة
 
 export const config = {
   matcher: [

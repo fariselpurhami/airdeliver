@@ -69,10 +69,7 @@ tavily-python = "^0.7.25"
 
 # --- MACHINE LEARNING & AI ---
 # 🛑 PINNED TO EXPLICIT CPU SOURCE TO PREVENT RESOLVER CRASH & BLOAT
-torch = [
-    {version = "2.6.0", markers = "sys_platform == 'darwin'"},
-    {version = "2.6.0+cpu", source = "pytorch-cpu", markers = "sys_platform == 'linux'"}
-]
+torch = ">=2.4.0"
 torchvision = [
     {version = "0.21.0", markers = "sys_platform == 'darwin'"},
     {version = "0.21.0+cpu", source = "pytorch-cpu", markers = "sys_platform == 'linux'"}
@@ -82,7 +79,7 @@ torchaudio = [
     {version = "2.6.0+cpu", source = "pytorch-cpu", markers = "sys_platform == 'linux'"}
 ]
 numpy = "^2.4.6"
-transformers = "^5.9.0"
+transformers = ">=4.44.0"
 sentence-transformers = "^5.5.1"
 sentencepiece = "^0.2.1"
 accelerate = "^1.13.0"

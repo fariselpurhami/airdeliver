@@ -28,7 +28,7 @@ from app.api.deps import get_websocket_manager
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-STATIC_DIRECTORY_STR = "/app/static"
+STATIC_DIRECTORY_STR = "static"
 
 async def create_db_and_tables():
     async with engine.begin() as conn:
