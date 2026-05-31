@@ -41,7 +41,7 @@ async def get_current_user(
 ) -> models.User:
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+            token, settings.SECRET_KEY.get_secret_value(), algorithms=[security.ALGORITHM]
         )
         token_data = schemas.TokenPayload(**payload)
     except (JWTError, ValidationError):

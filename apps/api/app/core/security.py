@@ -28,7 +28,7 @@ def create_access_token(
         )
     to_encode.update({"exp": expire})
     to_encode.setdefault("role", "user")
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY.get_secret_value(), algorithm=ALGORITHM)
     return encoded_jwt
 
 def create_refresh_token(
@@ -42,7 +42,7 @@ def create_refresh_token(
             minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES
         )
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.REFRESH_SECRET_KEY.get_secret_value(), algorithm=ALGORITHM)
     return encoded_jwt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -73,7 +73,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Opti
 def verify_refresh_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         payload = jwt.decode(
-            token, settings.REFRESH_SECRET_KEY, algorithms=[ALGORITHM]
+            token, settings.REFRESH_SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM]
         )
 
         if payload.get("sub") is None:
