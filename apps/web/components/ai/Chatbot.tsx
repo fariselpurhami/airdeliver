@@ -197,7 +197,7 @@ export default function Chatbot() {
             {/* Trigger Button (FAB) */}
             <motion.button
                 onClick={() => setIsOpen(!isOpen)}
-                className="fixed bottom-3 right-6 z-[60] p-0 rounded-full shadow-[0_0_40px_rgba(6,182,212,0.4)] focus:outline-none group"
+                className="fixed bottom-3 right-6 z-[60] p-0 rounded-full shadow-[0_0_72px_rgba(6,182,212,0.7)] focus:outline-none group"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
             >
