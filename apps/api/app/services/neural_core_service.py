@@ -175,7 +175,7 @@ class NeuralCoreService:
         else: # SOCIAL_CHAT
             ai_reply = decision.get("social_reply", "I'm just happy to be chatting with you! 😊")
             response.text = ai_reply
-            response.explain = "Generative Social Intelligence"
+            response.explain = "Personalized Congnitive Engine"
 
         # 3. 💾 Memory Update
         await self._save_context(session_id, context, message, response.text)

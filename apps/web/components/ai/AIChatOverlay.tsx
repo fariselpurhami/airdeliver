@@ -407,11 +407,11 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
 	    case 'info':
 	    
             case 'success_text':
-                return <p className={`whitespace-pre-wrap text-[15px] md:text-base leading-7 text-white font-medium ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
+                return <p className={`whitespace-pre-wrap text-sm sm:text-base leading-relaxed sm:leading-7 text-white/90 font-normal ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
 	    case 'FLIGHT_MANIFEST': // New Case
                 return (
                     <div className="w-full -ml-2 sm:ml-0">
-                         <p className="whitespace-pre-wrap mb-2 text-[15px] px-2 leading-7 text-white font-medium">
+                         <p className="whitespace-pre-wrap mb-2 text-sm sm:text-base px-2 leading-relaxed text-white font-medium">
                              {message.content}
                          </p>
                          <HolographicFlightDeck data={message.flight_data} />
@@ -420,7 +420,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
             case 'confirmation_prompt':
                 return (
                     <div>
-                        <p className="whitespace-pre-wrap mb-5 text-[15px] leading-7">{message.content}</p>
+                        <p className="whitespace-pre-wrap mb-4 text-sm sm:text-base leading-relaxed text-white/90 font-normal">{message.content}</p>
                         <div className="flex flex-wrap gap-3">
                             {(message.options as string[])?.map((option: string) => {
                                 const isPrimary = option === 'Confirm Order' || option === 'Retry Payment' || option === 'Switch to PayPal';
@@ -470,7 +470,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
             case 'proactive_suggestion':
                 return (
                     <div className="w-full -ml-2 sm:ml-0">
-                        <p className="whitespace-pre-wrap mb-2 text-[15px] px-2 leading-7">{message.content}</p>
+                        <p className="whitespace-pre-wrap mb-2 text-sm sm:text-base px-2 leading-relaxed text-white/90 font-normal">{message.content}</p>
                         <ProductCarousel products={message.products || []} onSelect={onProductSelect} onViewDetails={onViewDetails} />
                         {(message.reason || message.ai_notes) && (
                             <div className="px-2">
@@ -544,10 +544,10 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
             layout
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            className={`flex items-end gap-3 w-full mb-6 ${isAI ? 'justify-start' : 'justify-end'}`}
+            className={`flex items-end gap-2 sm:gap-3 w-full mb-4 sm:mb-6 ${isAI ? 'justify-start' : 'justify-end'}`}
         >
             
-            <div className={`w-auto max-w-[90%] md:max-w-3xl px-6 py-5 ${
+            <div className={`w-full sm:w-auto max-w-[97%] sm:max-w-[88%] md:max-w-3xl px-4 py-3 sm:px-6 sm:py-5 ${
                 isAI 
                     ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20' 
                     : 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm'
