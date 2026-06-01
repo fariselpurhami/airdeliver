@@ -63,6 +63,10 @@ interface AIOrderingState {
   ackTimeouts: Record<string, NodeJS.Timeout>;
   abortController: AbortController | null;
 
+  // المتغيرات الجديدة للاتصال الآمن
+  socketConnectionAttemptId: number;
+  socketError: string | null;
+
   connectSocket: (token: string) => Promise<void>;
   disconnectSocket: () => void;
   sendMessage: (text: string, isButtonCommand?: boolean) => void;
@@ -73,6 +77,11 @@ interface AIOrderingState {
   removeFlyItem: (animationId: string) => void;
   removeProductById: (productId: number) => void;
   addSocketAIMessage: (message: Record<string, unknown>) => void;
+  
+  // الدوال الجديدة لمعالجة السوكت
+  handleSocketMessage: (payload: Record<string, unknown>) => void;
+  appendSystemMessage: (message: { type: string; content: string }) => void;
+
   processOfflineQueue: () => void;
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
@@ -136,58 +145,146 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   ackTimeouts: {},
   abortController: null,
 
-  connectSocket: async (token) => {
-    const { socket, socketStatus, abortController } = get();
+  // القيم الابتدائية الجديدة
+  socketConnectionAttemptId: 0,
+  socketError: null,
 
-    if (abortController) {
-      abortController.abort();
+  connectSocket: async (token: string) => {
+    const {
+      socket,
+      socketStatus,
+      abortController,
+      socketConnectionAttemptId = 0,
+      disconnectSocket,
+    } = get();
+
+    const hasLiveSocket =
+      socket?.readyState === WebSocket.OPEN ||
+      socket?.readyState === WebSocket.CONNECTING;
+
+    if (hasLiveSocket || socketStatus === 'connecting') {
+      return;
     }
 
-    const newController = new AbortController();
-    set({ abortController: newController });
+    abortController?.abort();
 
-    if (socket?.readyState === WebSocket.OPEN || socketStatus === 'connecting') return;
+    if (socket && socket.readyState !== WebSocket.CLOSED) {
+      try {
+        socket.close();
+      } catch {
+        // no-op
+      }
+    }
 
-    set({ socketStatus: 'connecting' });
+    const nextAttemptId = socketConnectionAttemptId + 1;
+    const controller = new AbortController();
+
+    set({
+      abortController: controller,
+      socketStatus: 'connecting',
+      socketError: null,
+      socketConnectionAttemptId: nextAttemptId,
+    });
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-      const ticketRes = await fetch(`${apiBase}/ai-ordering/ticket`, {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api/v1';
+
+      const ticketResponse = await fetch(`${apiBase}/ai-ordering/ticket`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        signal: newController.signal
+        signal: controller.signal,
       });
 
-      if (!ticketRes.ok) {
-        set({ socketStatus: 'error', abortController: null });
+      if (!ticketResponse.ok) {
+        if (get().socketConnectionAttemptId !== nextAttemptId) {
+          return;
+        }
+
+        set({
+          socketStatus: 'error',
+          socketError: `Ticket request failed with status ${ticketResponse.status}`,
+          abortController: null,
+        });
         return;
       }
 
-      const { ticket } = await ticketRes.json();
-      const wsUrl = `${getWebSocketURL()}?ticket=${ticket}`;
-      const newSocket = new WebSocket(wsUrl);
+      const ticketPayload: unknown = await ticketResponse.json();
 
-      newSocket.onopen = () => {
-        set({ socket: newSocket, socketStatus: 'connected', reconnectAttempts: 0 });
+      const ticket =
+        typeof ticketPayload === 'object' &&
+        ticketPayload !== null &&
+        'ticket' in ticketPayload &&
+        typeof (ticketPayload as { ticket?: unknown }).ticket === 'string'
+          ? (ticketPayload as { ticket: string }).ticket
+          : null;
 
+      if (!ticket) {
+        if (get().socketConnectionAttemptId !== nextAttemptId) {
+          return;
+        }
+
+        set({
+          socketStatus: 'error',
+          socketError: 'Ticket response is missing a valid ticket.',
+          abortController: null,
+        });
+        return;
+      }
+
+      if (controller.signal.aborted || get().socketConnectionAttemptId !== nextAttemptId) {
+        return;
+      }
+
+      const wsBase =
+        process.env.NEXT_PUBLIC_WS_URL?.trim() ||
+        process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
+
+      const socketUrl = wsBase
+        ? `${wsBase.replace(/\/$/, '')}/ai-ordering/chat?ticket=${encodeURIComponent(ticket)}`
+        : (() => {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            return `${protocol}//${host}/api/v1/ai-ordering/chat?ticket=${encodeURIComponent(ticket)}`;
+          })();
+
+      const nextSocket = new WebSocket(socketUrl);
+
+      nextSocket.onopen = () => {
+        if (get().socketConnectionAttemptId !== nextAttemptId) {
+          nextSocket.close();
+          return;
+        }
+
+        set({
+          socket: nextSocket,
+          socketStatus: 'connected',
+          socketError: null,
+          abortController: null,
+        });
+
+        // تشغيل الوظائف الأساسية بعد نجاح الاتصال
         const hasHistory = get().messages.length > 1;
         if (!hasHistory) {
           get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
           get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__', {}, true);
         }
-
         get().processOfflineQueue();
       };
 
-      newSocket.onmessage = (event) => {
-        try {
-          const response = JSON.parse(event.data);
+      nextSocket.onmessage = (event: MessageEvent<string>) => {
+        if (get().socket !== nextSocket) {
+          return;
+        }
 
-          if (response.type === 'SERVER_ACK') {
-            const { reply_to } = response;
+        try {
+          const payload = JSON.parse(event.data);
+          
+          // معالجة الـ ACK الداخلي
+          if (payload.type === 'SERVER_ACK') {
+            const { reply_to } = payload;
             set(produce((state: AIOrderingState) => {
               const msg = state.messages.find(m => m.msgId === reply_to);
               if (msg) msg.status = 'sent';
@@ -199,48 +296,67 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
             return;
           }
 
-          get().addSocketAIMessage(response);
-        } catch (e) {
-          console.error("Socket Parse Error:", e);
+          get().handleSocketMessage(payload);
+        } catch {
+          get().appendSystemMessage({
+            type: 'error',
+            content: 'Received an invalid socket message.',
+          });
         }
       };
 
-      newSocket.onclose = (event) => {
-        set({ socket: null, socketStatus: 'disconnected', isLoading: false, isProcessing: false });
-
-        if (!event.wasClean) {
-          const { reconnectAttempts } = get();
-          const maxAttempts = 5;
-
-          if (reconnectAttempts < maxAttempts) {
-            const timeoutMs = Math.min(1000 * (2 ** reconnectAttempts), 10000);
-            set({ reconnectAttempts: reconnectAttempts + 1 });
-
-            const timeoutId = setTimeout(() => {
-              if (get().isOverlayVisible) {
-                get().connectSocket(token);
-              }
-            }, timeoutMs);
-
-            set({ reconnectTimeoutId: timeoutId });
-          } else {
-            set({ socketStatus: 'error' });
-            get().addSocketAIMessage({
-              type: 'error',
-              content: 'Connection lost. Please refresh.'
-            });
-          }
+      nextSocket.onerror = () => {
+        if (get().socketConnectionAttemptId !== nextAttemptId) {
+          return;
         }
+
+        set({
+          socketStatus: 'error',
+          socketError: 'WebSocket connection failed.',
+        });
       };
 
-      newSocket.onerror = () => {
-        set({ socketStatus: 'error', isProcessing: false, isLoading: false });
-      };
+      nextSocket.onclose = () => {
+        const state = get();
 
-    } catch (e: unknown) {
-      if (e instanceof Error && e.name !== 'AbortError') {
-        set({ socketStatus: 'error', isProcessing: false, isLoading: false });
+        if (state.socket === nextSocket) {
+          set({
+            socket: null,
+          });
+        }
+
+        if (state.socketConnectionAttemptId !== nextAttemptId) {
+          return;
+        }
+
+        set({
+          socketStatus: 'disconnected',
+          abortController: null,
+        });
+      };
+    } catch (error) {
+      if ((error as DOMException)?.name === 'AbortError') {
+        if (get().socketConnectionAttemptId === nextAttemptId) {
+          set({
+            socketStatus: 'disconnected',
+            abortController: null,
+          });
+        }
+        return;
       }
+
+      if (get().socketConnectionAttemptId !== nextAttemptId) {
+        return;
+      }
+
+      set({
+        socketStatus: 'error',
+        socketError:
+          error instanceof Error ? error.message : 'Unknown socket connection error.',
+        abortController: null,
+      });
+
+      disconnectSocket?.();
     }
   },
 
@@ -262,6 +378,26 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       reconnectTimeoutId: null,
       abortController: null
     });
+  },
+
+  handleSocketMessage: (payload) => {
+    get().addSocketAIMessage(payload);
+  },
+
+  appendSystemMessage: (message) => {
+    set(produce((state: AIOrderingState) => {
+      state.messages = state.messages.filter(m => m.contentType !== 'typing');
+      state.isLoading = false;
+      state.isProcessing = false;
+      
+      state.messages.push({
+        id: generateMessageId(),
+        sender: 'ai',
+        contentType: 'error',
+        content: message.content,
+        timestamp: Date.now(),
+      });
+    }));
   },
 
   processOfflineQueue: () => {
@@ -477,7 +613,6 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         }
       }));
 
-      // محاولة إصلاح الاتصال فوراً
       if (socketStatus !== 'connecting') {
           const token = typeof window !== 'undefined' ? 
               (document.cookie.split('; ').find(row => row.startsWith('next-auth.session-token='))?.split('=')[1] || '') 
@@ -485,7 +620,6 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
           if (token) get().connectSocket(token);
       }
 
-      // 💡 الحماية القصوى: فك الـ Loading بعد 3 ثواني لو الاتصال مرجعش
       setTimeout(() => {
           const currentState = get();
           if (currentState.isLoading && (!currentState.socket || currentState.socket.readyState !== WebSocket.OPEN)) {
