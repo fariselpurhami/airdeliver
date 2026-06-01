@@ -197,11 +197,11 @@ export default function Chatbot() {
             {/* Trigger Button (FAB) */}
             <motion.button
                 onClick={() => setIsOpen(!isOpen)}
-                className="fixed bottom-6 right-6 z-[60] p-0 rounded-full shadow-[0_0_40px_rgba(6,182,212,0.4)] focus:outline-none group"
+                className="fixed bottom-3 right-6 z-[60] p-0 rounded-full shadow-[0_0_40px_rgba(6,182,212,0.4)] focus:outline-none group"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
             >
-                <div className="relative w-16 h-16 rounded-full bg-black overflow-hidden flex items-center justify-center backdrop-blur-xl border border-white/10">
+                <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white overflow-hidden flex items-center justify-center backdrop-blur-xl border border-white/10">
                     <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 to-transparent group-hover:opacity-100 transition-opacity duration-500" />
                     <motion.div
                         key={isOpen ? "close" : "open"}
@@ -211,10 +211,10 @@ export default function Chatbot() {
                         transition={{ duration: 0.3 }}
                     >
                          {isOpen ? (
-                             <X size={26} className="text-gray-300 group-hover:text-white transition-colors" />
+                             <X size={20} className="text-black group-hover:text-white transition-colors" />
                          ) : (
                              <div className="relative">
-                                 <Sparkles size={26} className="text-white animate-pulse" />
+                                 <Sparkles size={20} className="text-black animate-pulse" />
                              </div>
                          )}
                     </motion.div>

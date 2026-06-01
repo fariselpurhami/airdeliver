@@ -547,7 +547,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
             className={`flex items-end gap-2 sm:gap-3 w-full mb-4 sm:mb-6 ${isAI ? 'justify-start' : 'justify-end'}`}
         >
             
-            <div className={`w-full sm:w-auto max-w-[97%] sm:max-w-[88%] md:max-w-3xl px-4 py-3 sm:px-6 sm:py-5 ${
+            <div className={`w-fit max-w-[97%] sm:max-w-[88%] md:max-w-3xl px-4 py-3 sm:px-6 sm:py-5 ${
                 isAI 
                     ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20' 
                     : 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm'
