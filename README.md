@@ -1,83 +1,84 @@
-# airdeliver
 
-*we soar in the sky by delivering your orders.*
+
+```markdown
+# 🛸 airdeliverOS
+**The AI-Native Commerce Operating System for Autonomous eVTOL Delivery**
+
+[![Monorepo](https://img.shields.io/badge/Architecture-Monorepo-black?style=flat-square&logo=pnpm)](https://pnpm.io/)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js_14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![AI Core](https://img.shields.io/badge/Neural_Engine-Qwen2_1.5B-blue?style=flat-square)](#)
+[![Infrastructure](https://img.shields.io/badge/Deploy-Kubernetes_|_Docker-326ce5?style=flat-square&logo=kubernetes)](#)
+
+> *Bridging the gap between digital intent and physical reality. We don't just process orders; we fly them to you.*
 
 **Author:** Faris Elpurhami
 
 ---
 
-## 🚀 Overview
+## 🌌 Vision & Architecture
 
-**airdeliver** is a fully automated, intelligent eCommerce and drone delivery platform — designed for next-generation commerce.
-It unifies online shopping, AI-powered order handling, and autonomous drone delivery in one production-grade system built for global scale and operational excellence.
+**airdeliver** is not just an application; it is a full-scale **Commerce Operating System (OS)**. It is built from the ground up to orchestrate the entire lifecycle of an autonomous transaction—from cognitive AI-driven user interactions to the physical routing of eVTOL (Electric Vertical Takeoff and Landing) fleets.
 
----
-
-## 🌍 Core Features
-
-### 🛒 End-to-End eCommerce Platform
-
-A modern, high-performance **Next.js** frontend and **FastAPI** backend delivering a seamless shopping experience from browsing to checkout.
-
-### 🚁 Intelligent Drone Control System
-
-A dedicated microservice manages the drone fleet in real time using **REST** and **WebSocket APIs**, supported by:
-
-* Automated task queueing and mission scheduling.
-* Dynamic no-fly zone compliance.
-* Virtual simulation for development and testing.
-
-### 💳 Global Payment Orchestration
-
-A modular backend service routes payments intelligently across gateways (**Stripe**, **PayPal**, etc.) depending on region, with built-in failover and easy scalability.
-
-### 📊 Advanced Observability
-
-Integrated **Prometheus** and **Grafana** dashboards for complete visibility.
-Centralized structured logging and defined **SLOs** ensure reliability in production environments.
-
-### 🧱 Production-Ready Infrastructure
-
-* **Docker Compose** for local development.
-* **Kubernetes manifests** for autoscaling, CI/CD, and resilient deployments.
-
-### 🧪 Comprehensive Testing
-
-Automated **unit**, **integration**, and **load testing** for both frontend and backend.
-Includes a **virtual drone simulator** for end-to-end validation without hardware.
+The system is decoupled into three primary pillars within a high-performance **pnpm Monorepo**:
+1. **The Neural Commerce Engine (`apps/api`):** A sophisticated AI brain featuring embedded Meta-Cognition, NLU (Natural Language Understanding), and Vector Search (Milvus/PgVector) to process hybrid multimodal inputs (Voice, Vision, Text).
+2. **The Command & Control Gateway (`apps/c2-gateway`):** An ultra-low latency, RabbitMQ/WebSocket-driven gateway that handles live fleet telemetry, no-fly zone compliance, and real-time eVTOL routing.
+3. **The Immersive Client (`apps/web`):** A Next.js 14 App Router frontend delivering a 60FPS fluid UI, physics-based animations (Framer Motion), holographic flight tracking, and cinematic checkout experiences.
 
 ---
 
-## 🧠 Tech Stack
+## 🧠 Core Subsystems
 
-| Layer              | Technologies                                                                     |
-| ------------------ | -------------------------------------------------------------------------------- |
-| **Frontend**       | Next.js, React, TypeScript, Tailwind CSS, Framer Motion, Zustand                 |
-| **Backend**        | FastAPI (Python), SQLModel, PostgreSQL, Alembic                                  |
-| **Real-time**      | WebSockets                                                                       |
-| **Infrastructure** | Docker, Kubernetes, Prometheus, Grafana, GitHub Actions                          |
-| **Testing**        | Pytest (Backend), Jest & React Testing Library (Frontend), Locust (Load Testing) |
-| **Monorepo**       | pnpm Workspaces                                                                  |
+### 🤖 AI Behavior & Meta-Cognition Engine
+* **Local SLM Integration:** Embedded `Alibaba-NLP/gte-Qwen2-1.5B-instruct` models for hyper-fast, privacy-preserving semantic routing and embedding generation.
+* **Proactive State Management:** The AI doesn't just answer questions; it actively manages user carts, predicts intent, and triggers autonomous checkout recovery via the `ai_behavior_engine`.
+
+### 🚁 eVTOL Fleet Command (C2)
+* **Real-time Telemetry:** Live WebSocket pipelines streaming Drone GPS, Altitude, Speed, and Gyroscopic Stability directly to the user's browser.
+* **Distributed Task Queueing:** Highly resilient message brokering via RabbitMQ to orchestrate fleet dispatches and mission state updates.
+
+### 💳 Cryptographic Commerce & UI
+* **Floating Mobile-Optimized Overlays:** Context-aware, AI-driven UI modules that act as desktop applets (`max-w-[460px]`) to maintain laser-focused conversion funnels.
+* **Payment Orchestration:** Adaptive, multi-gateway secure tunneling (Stripe) with graceful failover mechanics.
 
 ---
 
-## 🏗️ Monorepo Structure
+## 🏗️ Monorepo Topography
 
-```
+Our workspace is structured for enterprise scalability and strict separation of concerns:
+
+```text
 /airdeliver
 ├── apps/
-│   ├── api/            # Main eCommerce Backend (FastAPI)
-│   ├── drone-control/  # Drone Fleet Management Service (FastAPI)
-│   └── web/            # Customer-Facing Frontend (Next.js)
-├── docs/               # High-Level Documentation (DR, Incident Response)
-├── drone-client/       # Python Client for Drone Hardware
-├── drone-simulator/    # Virtual Drone Fleet for Testing
-├── infra/              # Infrastructure-as-Code (Kubernetes, Grafana)
-├── packages/           # Shared Libraries (UI Components, Configs)
-├── README.md           # This File
-├── RUNBOOK.md          # Developer & Operations Manual
-└── SECURITY.md         # Security Policy
+│   ├── api/                 # The Neural Engine (FastAPI, SQLModel, Vector DB)
+│   │   ├── app/services/    # AI Cores (NLU, Meta-Cognition, Behavior Engine)
+│   │   └── app/websockets/  # Live Tracking & Telemetry Pipelines
+│   ├── c2-gateway/          # eVTOL Command & Control Router (RabbitMQ / WebSockets)
+│   └── web/                 # Customer-Facing Frontend (Next.js 14, Zustand, Tailwind)
+│       └── app/components/  # Cinematic UI, AI Voice Overlays, Holographic Dashboards
+├── infra/                   # Infrastructure-as-Code
+│   ├── k8s/                 # Kubernetes Manifests (Deployments, Ingress, Services)
+│   └── grafana/             # Observability Dashboards
+├── monitoring/              # Prometheus Configurations & Promtail Logs
+├── data/                    # HuggingFace Model Caches & Persistent Volumes
+├── tests/                   # End-to-End, Integration, and Global Architecture Tests
+└── docs/                    # Architectural Decision Records (ADRs) & Runbooks
+
 ```
+
+---
+
+## 🛠️ Technology Stack
+
+| Domain | Core Technologies |
+| --- | --- |
+| **Cognitive AI** | HuggingFace (Qwen2 1.5B), Vector DBs (Milvus/pgvector), Web Speech API |
+| **Frontend Ecosystem** | Next.js 14, React, TypeScript, Tailwind CSS, Framer Motion, Zustand |
+| **Backend Engines** | FastAPI (Python 3.11), SQLModel, Alembic, PostgreSQL |
+| **Real-Time & Broker** | WebSockets, RabbitMQ, Redis |
+| **Infrastructure** | Docker Compose, Kubernetes, NGINX |
+| **Observability** | Prometheus, Grafana, Structured Logging |
+| **Package Management** | `pnpm` Workspaces, `poetry` |
 
 ---
 
@@ -85,67 +86,64 @@ Includes a **virtual drone simulator** for end-to-end validation without hardwar
 
 ### Prerequisites
 
-* Docker & Docker Compose
-* Node.js **v20+** and **pnpm v9+**
-* Python **v3.11+** and **Poetry**
+* **Node.js** `v20+` and **pnpm** `v9+`
+* **Python** `v3.11+` and **Poetry**
+* **Docker** & Docker Compose
+* *(Optional but recommended)* NVIDIA GPU with CUDA for local AI model acceleration.
 
-### Installation
+### 1. Bootstrap the Ecosystem
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-repo/airdeliver.git
+git clone [https://github.com/fariselpurhami/airdeliver.git](https://github.com/fariselpurhami/airdeliver.git)
 cd airdeliver
 
-# Install all dependencies
+# Install frontend workspace dependencies
 pnpm install
-poetry install --all-extras
-```
 
----
-
-## 🧭 Running the Stack
-
-### 1. Configure Environment Variables
-
-Create `.env.local` inside `apps/web` with:
+# Install backend dependencies
+cd apps/api && poetry install
 
 ```
-NEXTAUTH_SECRET=your-secret
-NEXTAUTH_URL=http://localhost:3000
-```
 
-Backend `.env` files are preconfigured for Docker-based local development.
+### 2. Configure Environment Secrets
 
-### 2. Launch with Docker Compose
+Create local environment files. See `docs/` for necessary keys (Stripe, NextAuth, DB URLs).
+
+* Frontend: `apps/web/.env.local`
+* Backend/AI: `apps/api/.env`
+
+### 3. Ignite the Cluster
+
+Launch the entire localized microservices infrastructure (DBs, Message Brokers, APIs, C2 Gateway):
 
 ```bash
 docker-compose up --build
+
 ```
 
-Once started:
-
-* 🌐 **Frontend:** [http://localhost:3000](http://localhost:3000)
-* 📦 **Main API:** [http://localhost:8000](http://localhost:8000)
-* 🚁 **Drone Control API:** [http://localhost:8001](http://localhost:8001)
+> **Services Online:**
+> * 🌐 **Web UI:** `http://localhost:3000`
+> * 🧠 **API / Neural Core:** `http://localhost:8000`
+> * 🚁 **C2 Gateway:** `http://localhost:8001`
+> * 📊 **Grafana:** `http://localhost:3001`
+> 
+> 
 
 ---
 
-## 📚 Documentation
+## 🛡️ Operations & Reliability
 
-| Document        | Description                                                         |
-| --------------- | ------------------------------------------------------------------- |
-| **RUNBOOK.md**  | Complete guide for setup, deployment, migrations, and service SLOs. |
-| **SECURITY.md** | Security measures and vulnerability reporting.                      |
-| **docs/**       | Disaster Recovery, Incident Response, and architectural overviews.  |
+For production deployments, disaster recovery, and architecture testing, please refer to our internal documentation:
+
+* 📖 **[RUNBOOK.md](https://www.google.com/search?q=./RUNBOOK.md)** - System operations, scaling metrics, and SLOs.
+* 🚨 **[INCIDENT_RESPONSE.md](https://www.google.com/search?q=./docs/INCIDENT_RESPONSE.md)** - Outage mitigation and failover strategies.
+* 🧠 **[AI_ORDERING_AGENT.md](https://www.google.com/search?q=./docs/AI_ORDERING_AGENT.md)** - Behavior trees and prompt engineering architecture.
+* 🔒 **[SECURITY.md](https://www.google.com/search?q=./SECURITY.md)** - Payload encryption and vulnerability protocols.
 
 ---
 
 ## 🪪 License
 
-This project is licensed under the **MIT License**.
-See the `LICENSE` file for details.
+This project is proprietary and licensed under the conditions outlined in [LICENSE.txt](https://www.google.com/search?q=./LICENSE.txt).
 
 ---
-
-**airdeliver — redefining how commerce takes flight.**
-
