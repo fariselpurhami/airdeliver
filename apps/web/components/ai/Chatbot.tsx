@@ -239,7 +239,7 @@ export default function Chatbot() {
                             animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                             exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-[460px] h-[93vh] flex flex-col bg-[#020617] border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
+                            className="w-full max-w-[460px] h-[93vh] max-h-[1050px] flex flex-col bg-[#020617] border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
                         >
                             {/* Header */}
                             <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-[#050B14]">
