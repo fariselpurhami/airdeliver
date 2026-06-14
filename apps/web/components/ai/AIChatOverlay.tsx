@@ -579,28 +579,27 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, on
 
     return (
         <>
-            {/* Mobile Backdrop */}
+            {/* Unified Backdrop for all screens */}
             <AnimatePresence>
                 {isMobileOpen && (
                     <motion.div 
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         onClick={onCloseMobile}
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden"
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[100]"
                     />
                 )}
             </AnimatePresence>
 
             <div className={`
-                absolute inset-0 z-[110] w-full transform transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)
-                lg:relative lg:translate-x-0 lg:flex lg:w-[350px] xl:w-[400px]
-                backdrop-blur-3xl bg-[#050B14]/95 lg:bg-black/60 border-l border-white/10 flex-col overflow-hidden
-                ${isMobileOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
-                ${!isMobileOpen ? 'hidden lg:flex' : 'flex'}
+                absolute top-0 right-0 bottom-0 z-[110] w-full md:w-[460px] transform transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)
+                backdrop-blur-3xl bg-[#050B14]/95 border-l border-white/10 flex-col overflow-hidden
+                ${isMobileOpen ? 'translate-x-0' : 'translate-x-full'}
+                ${!isMobileOpen ? 'hidden' : 'flex'}
             `}>
                 <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" />
                 
-                {/* Mobile Header */}
-                <div className="lg:hidden flex justify-between items-center p-5 border-b border-white/10 bg-black/20">
+                {/* Unified Header */}
+                <div className="flex justify-between items-center p-5 border-b border-white/10 bg-black/20">
                     <span className="text-sm font-bold uppercase text-white tracking-widest flex items-center gap-2">
                         <ShoppingBag size={16} strokeWidth={2.5} />
                     </span>
@@ -610,11 +609,6 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, on
                 </div>
 
                 <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent relative z-10">
-                    <div className="flex items-center justify-between mb-8 hidden lg:flex">
-                        <h3 className="text-sm font-bold uppercase text-white tracking-widest flex items-center gap-2">
-                        </h3>
-                    </div>
-
                     <div className="space-y-4 flex-grow">
                         <AnimatePresence>
                             {cart.items.length === 0 ? (
@@ -1206,7 +1200,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()}
-                        className="w-full max-w-7xl h-[93vh] flex flex-col bg-[#020617]/40 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
+                        className="w-full max-w-[460px] h-[93vh] flex flex-col bg-[#020617]/40 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
                     >
                        
                         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
@@ -1214,7 +1208,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
                         <header className="px-8 py-6 flex items-center flex-shrink-0 relative z-10">
                             {!isPaymentMode && (
-                                <div className="lg:hidden flex-shrink-0">
+                                <div className="flex-shrink-0">
                                     <button
                                         onClick={() => setIsMobileSidebarOpen(true)}
                                         className="p-3 rounded-full bg-cyan-600/20 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-600/40 transition-all flex items-center justify-center relative"

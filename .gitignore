@@ -16,3 +16,4 @@ huggingface_cache/
 *.safetensors
 .vercel
 .env*.local
+node_modules/
