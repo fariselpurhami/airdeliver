@@ -1161,7 +1161,6 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
     return (
         <AnimatePresence>
-	    <AIVoiceOverlay />
             {isOpen && (
                 <motion.div
 		    key="chat-window"
@@ -1202,6 +1201,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         onClick={(e) => e.stopPropagation()}
                         className="w-full max-w-[460px] h-[93vh] max-h-[1050px] flex flex-col bg-[#020617]/40 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
                     >
+		        <div className="absolute inset-[-1px] z-[120] rounded-[73px] overflow-hidden pointer-events-none [&>*]:pointer-events-auto">
+                            <AIVoiceOverlay />
+                        </div>
                        
                         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
                         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full" />

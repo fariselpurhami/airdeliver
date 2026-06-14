@@ -1,3 +1,5 @@
+//** apps/web/components/ai/AIVoiceOverlay.tsx **//
+
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
@@ -166,6 +168,11 @@ export const AIVoiceOverlay = () => {
         
         const initVoiceSession = async () => {
             try {
+		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert("المايكروفون غير مدعوم في هذا المتصفح. تأكد من تشغيل الموقع عبر HTTPS أو Localhost، ومنح الصلاحية للموقع.");
+                    setVoiceMode(false);
+                    return;
+                }
                 // 1. طلب المايكروفون أولاً
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
@@ -252,34 +259,33 @@ export const AIVoiceOverlay = () => {
 
     return (
         <AnimatePresence>
-            {/* 1. Backdrop (خلفية ضبابية لكامل الشاشة) */}
+            {/* 1. Backdrop (خلفية ضبابية لكامل الشاشة الداخلية) */}
             <motion.div
                 key="voice-backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm"
+                className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-md"
                 onClick={() => setVoiceMode(false)}
             />
 
-            {/* 2. THE FLOATING CARD (في المنتصف تماماً) */}
+            {/* 2. THE FLOATING CARD (متطابق بالمللي مع حاوية الموبايل) */}
             <motion.div
                 key="voice-card"
-                // الحركة: تكبير من المنتصف (Pop effect)
-                initial={{ opacity: 0, scale: 0.8, x: "-50%", y: "-40%" }} 
-                animate={{ opacity: 1, scale: 1, x: "-50%", y: "-50%" }}
-                exit={{ opacity: 0, scale: 0.8, x: "-50%", y: "-40%" }}
+                initial={{ opacity: 0, scale: 0.95 }} 
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 
-                // التموضع والتصميم:
-                className="fixed top-1/2 left-1/2 z-[101] w-full  max-w-7xl h-[93vh]  bg-[#020617] border border-white/10 rounded-[73px] overflow-hidden shadow-2xl flex flex-col"
+                // التموضع والتصميم الجديد (absolute لتعبئة الشاشة الأب):
+                className="absolute inset-0 z-[101] w-full h-full bg-[#020617]/95 backdrop-blur-3xl flex flex-col"
                 
                 // منع إغلاق الكارت عند الضغط بداخله
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* A. Header (Status & Close) */}
-                <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-50">
-                    <div className="flex items-center gap-2">
+                {/* A. Header (Status & Close) متطابق مع الـ AIChatOverlay */}
+                <div className="absolute top-0 left-0 w-full px-8 py-6 flex justify-between items-start z-50">
+                    <div className="flex items-center gap-2 mt-2">
                         <div className={`w-1.5 h-1.5 rounded-full ${status === 'speaking' ? 'bg-green-500' : 'bg-cyan-500'} animate-pulse`} />
                         <span className="text-[10px] font-mono text-cyan-500/80 tracking-widest uppercase">
                             {status === 'listening' ? 'Listening' : status === 'processing' ? 'Thinking' : 'Speaking'}
@@ -287,7 +293,7 @@ export const AIVoiceOverlay = () => {
                     </div>
                     <button 
                         onClick={() => setVoiceMode(false)}
-                        className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-colors border border-white/5"
+                        className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
                     >
                         <X size={20} />
                     </button>
