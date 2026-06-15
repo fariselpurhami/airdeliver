@@ -93,9 +93,9 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${inter.variable} ${orbitron.variable} ${montserrat.variable}`}
+      className={`${inter.variable} ${orbitron.variable} ${montserrat.variable} no-scrollbar`}
     >
-      <body className="min-h-screen bg-background font-sans antialiased overflow-x-hidden selection:bg-primary/20 selection:text-primary">
+      <body className="min-h-screen bg-background font-sans antialiased no-scrollbar selection:bg-primary/20 selection:text-primary">
         <Providers>
           <AppShell>{children}</AppShell>
           <Toaster position="bottom-right" richColors closeButton expand={false} />
