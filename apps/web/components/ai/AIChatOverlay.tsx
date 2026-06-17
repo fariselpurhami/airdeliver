@@ -2,6 +2,7 @@
 
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { ProductDetailsCard } from '../products/ProductDetailsCard';
 import { Eye } from 'lucide-react';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -363,7 +364,7 @@ const AIReasoning = React.memo(({ text }: { text: string }) => (
 AIReasoning.displayName = 'AIReasoning';
 
 // --- ARCHITECTURAL UPGRADE: Refined Message Design ---
-const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
+const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAuth, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
     const isAI = message.sender === 'ai';
 
     const renderContent = () => {
@@ -445,6 +446,14 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onProductSelec
                                             else if (option === 'Clear Cart') {
                                                 onClearCart();
                                             }
+
+					    else if (option === 'Sign In') {
+                                                onNavigateToAuth('SIGNIN');
+					    }
+
+					    else if (option === 'Sign Up') {
+                                                onNavigateToAuth('SIGNUP');
+					    }
                                             // 3. باقي الأزرار
                                             else if (option === 'Switch to PayPal') {
                                                 onSend("I want to use PayPal");
@@ -963,7 +972,7 @@ PaymentFatalError.displayName = 'PaymentFatalError';
 // ============================================================================
 
 export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    
+    const router = useRouter();   
     const [detailProduct, setDetailProduct] = useState<any | null>(null);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     
@@ -1158,7 +1167,12 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const isPaymentMode = !!paymentDetails; 
     const isKeyMissing = !STRIPE_PUBLISHABLE_KEY;
     const isReadyToRender = stripeObj && stripeOptions && !isStripeError;
-
+    const handleNavigateToAuth = (mode: 'SIGNIN' | 'SIGNUP') => {
+        actions.setOverlayVisible(false); // إغلاق الشات
+        onClose();
+        // توجيه المستخدم مع تمرير المتغير في الرابط (تأكد أن المسار /auth صحيح حسب مشروعك)
+        router.push(`/auth?mode=${mode}`);
+    };
     return (
         <AnimatePresence>
             {isOpen && (
@@ -1293,6 +1307,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                         key={msg.id}
                                                         message={msg}
                                                         onSend={handleSendMessage}
+							onNavigateToAuth={handleNavigateToAuth}
                                                         onProductSelect={handleProductSelect}
 							onViewDetails={setDetailProduct}
                                                         onConfirmOrder={actions.confirmCurrentOrder}

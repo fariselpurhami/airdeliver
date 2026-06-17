@@ -312,6 +312,12 @@ export default function AuthPage() {
 
     useEffect(() => {
         setIsClient(true);
+        const params = new URLSearchParams(window.location.search);
+        const mode = params.get('mode');
+        
+        if (mode === 'SIGNUP' || mode === 'SIGNIN') {
+            setVariant(mode);
+        }
     }, []);
 
     const toggleVariant = () => setVariant(prev => prev === 'SIGNIN' ? 'SIGNUP' : 'SIGNIN');
