@@ -52,7 +52,10 @@ const StarryBackground = () => {
 // --- 1. HERO SECTION (Definition) ---
 // ============================================================================
 
-// --- إعدادات الحركة الخاصة بقسم الـ Hero ---
+// ============================================================================
+// --- 1. HERO SECTION & 3D STARS ---
+// ============================================================================
+ 
 const premiumEasing = [0.16, 1, 0.3, 1];
 
 const fadeUpVariant = {
@@ -66,8 +69,53 @@ const CheckCircleIcon = () => (
     <path d="m9 11 3 3L22 4"/>
   </svg>
 );
+// 1. مكون النجوم الكثيفة الخاص بالـ Hero
+const HeroStars = () => {
+  const groupRef = useRef<THREE.Group>(null!);
 
-// --- قسم الـ Hero المُحدث (متوافق تماماً مع الهواتف الذكية) ---
+  const sphere = useMemo(() => {
+    const count = 800000; // عدد النجوم: مليون إلا ربع لتأثير المجرة
+    const radius = 66;
+
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const r = radius * Math.cbrt(Math.random());
+      const theta = Math.random() * 2 * Math.PI;
+      const phi = Math.acos(2 * Math.random() - 1);
+
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+    }
+    return positions;
+  }, []);
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.x -= delta * 0.0005;
+      groupRef.current.rotation.y -= delta * 0.0005;
+      groupRef.current.rotation.z -= delta * 0.005;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={[0, 0, -60]}>
+      <Points positions={sphere} stride={3} frustumCulled={false}>
+        <PointMaterial
+          transparent
+          color="#ffffff" // لون أبيض ساطع للنجوم
+          size={0.05}     // الحجم الصغير جداً لزيادة الكثافة والنعومة
+          sizeAttenuation={true}
+          depthWrite={false}
+          toneMapped={false}
+          opacity={0.8}
+        />
+      </Points>
+    </group>
+  );
+};
+
+// 2. قسم الـ Hero المُحدث والمدمج معه النجوم
 const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
@@ -76,6 +124,16 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
 
   return (
     <section ref={containerRef} className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-0 lg:pb-0">
+
+      {/* خلفية النجوم 3D */}
+      <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden="true">
+        <Suspense fallback={null}>
+          <Canvas camera={{ position: [0, 0, 15], fov: 75 }} dpr={[1, 1.5]} gl={{ antialias: false }}>
+            <HeroStars />
+            <Preload all />
+          </Canvas>
+        </Suspense>
+      </div>
 
       {/* Premium Cinematic Background Elements */}
       <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/10 blur-[120px] pointer-events-none mix-blend-screen" />
@@ -143,7 +201,7 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
             </motion.div>
           </div>
 
-          {/* Right Column: Floating Product Showcase (Global Distributed Scale) */}
+          {/* Right Column: Floating Product Showcase */}
           <div className="relative h-[400px] sm:h-[500px] lg:h-[700px] w-full flex items-center justify-center perspective-1000 mt-8 lg:mt-0">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
@@ -151,7 +209,7 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
               transition={{ duration: 1.2, ease: premiumEasing, delay: 0.2 }}
               className="relative w-full max-w-md h-full flex items-center justify-center"
             >
-              {/* Product Card 1 - Main (Responsive Width) */}
+              {/* Product Card 1 - Main */}
               <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/10 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.6)] overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
                 <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000&auto=format&fit=crop" alt="Sony Headphones" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -1142,4 +1200,3 @@ export default function Page() {
     </div>
   );
 }
-
