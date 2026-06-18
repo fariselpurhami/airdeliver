@@ -233,8 +233,8 @@ DroneTelemetryWidget.displayName = 'DroneTelemetryWidget';
 const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, totalItems }: { product: any, onSelect: (product: any, elementId: string) => void, onViewDetails: (product: any) => void, totalItems: number }) => {
     const confirmOrder = useAIOrderingStore(state => state.confirmCurrentOrder);
     
-    // التعديل السحري: إعطاء الكارت عرض ثابت مرن يمنع الانضغاط على الموبايل
-    const slideWidthClass = "flex-none w-[280px] sm:w-[320px] md:w-[350px] snap-center";
+    // التعديل السحري: إعطاء الكارت عرض ثابت مرن يمنع الانضغاط
+    const slideWidthClass = "flex-none w-[280px] snap-center";
     
     const rawImagePath = product.image_url || product.image;
     const imageUrl = useMemo(() => getAbsoluteImageUrl(rawImagePath), [rawImagePath]);
@@ -268,8 +268,8 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                 >
                     <Eye size={18} strokeWidth={2.5} />
                 </motion.button>
-                {/* Image Section with Atmospheric Glow - Adjusted height for mobile */}
-                <div className="relative h-48 sm:h-56 w-full flex items-center justify-center bg-gradient-to-b from-white/5 to-transparent p-4 overflow-hidden">
+                {/* Image Section with Atmospheric Glow */}
+                <div className="relative h-48 w-full flex items-center justify-center bg-gradient-to-b from-white/5 to-transparent p-4 overflow-hidden">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
                     <Image
                         id={elementId}
@@ -282,12 +282,12 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                 </div>
 
                 {/* Content Section */}
-                <div className="p-5 sm:p-6 flex flex-col flex-grow relative z-10">
+                <div className="p-5 flex flex-col flex-grow relative z-10">
 		    <div className="absolute -top-4 right-3 z-20 flex items-center gap-1">
                        <span className="text-cyan-300 font-bold font-mono text-lg">${(Number(product.price) || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-start mb-2">
-                         <h4 className="text-lg sm:text-xl font-bold text-white leading-snug tracking-tight line-clamp-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{product.name}</h4>
+                         <h4 className="text-lg font-bold text-white leading-snug tracking-tight line-clamp-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{product.name}</h4>
                     </div>
                    
                     <div className="flex items-center gap-2 mb-6">
@@ -297,7 +297,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                                 <span className="text-xs font-bold text-yellow-200">{product.rating}</span>
                             </div>
                         )}
-                        <span className="text-[10px] sm:text-xs text-gray-500 font-mono">ID: {product.id}</span>
+                        <span className="text-[10px] text-gray-500 font-mono">ID: {product.id}</span>
                     </div>
 
                     <div className="mt-auto pt-4 border-t border-white/5">
@@ -305,7 +305,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.96 }}
 			    onClick={handleSelect}
-                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold px-4 py-3 sm:py-4 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
+                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold px-4 py-3 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300"
                         >
                             <span className="relative z-10 flex items-center gap-2 tracking-wide text-xs">
                                 <ShoppingBag size={16} strokeWidth={2.5} />
@@ -322,7 +322,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
 CarouselProductCard.displayName = 'CarouselProductCard';
 
 const ProductCarousel = React.memo(({ products, onViewDetails, onSelect }: { products: any[], onSelect: (product: any, elementId: string) => void }) => {
-    // تفعيل السحب اليدوي للموبايل بشكل سلس
+    // تفعيل السحب اليدوي بشكل سلس
     const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start', containScroll: 'trimSnaps', dragFree: true });
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
@@ -330,9 +330,9 @@ const ProductCarousel = React.memo(({ products, onViewDetails, onSelect }: { pro
     const canScroll = totalItems > 1;
 
     return (
-        <div className="relative my-6 px-0 sm:px-1 group/carousel w-full overflow-visible">
-            <div className="overflow-hidden p-2 -mx-4 sm:-m-2" ref={emblaRef}>
-                <div className="flex gap-2 sm:gap-4 pl-4 pr-8 sm:pr-12 md:px-4 snap-x snap-mandatory">
+        <div className="relative my-6 px-0 group/carousel w-full overflow-visible">
+            <div className="overflow-hidden p-2 -mx-4" ref={emblaRef}>
+                <div className="flex gap-2 pl-4 pr-8 snap-x snap-mandatory">
                     {products.map((p, i) => <CarouselProductCard key={p.id || i} product={p} onSelect={onSelect} onViewDetails={onViewDetails} totalItems={totalItems} />)}
                 </div>
             </div>
@@ -376,12 +376,10 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
                 const hasImg = !!message.imageUrl;
 
                 return (
-                    // 1. العرض: بنسمح للفقاعة توصل لـ 450px عشان الصورة تاخد راحتها
-                    <div className="flex flex-col w-full min-w-[300px] max-w-[350px] sm:max-w-[450px]">
+                    // 1. العرض
+                    <div className="flex flex-col w-full min-w-[300px] max-w-[350px]">
                         
                         {/* 2. صندوق الصورة: */}
-                        {/* aspect-[4/3]: بيخلي البوكس ياخد نسبة الكاميرا الطبيعية (زي يوتيوب القديم) وده بيبين تفاصيل أكتر */}
-                        {/* h-auto: الطول بيظبط نفسه حسب العرض */}
                         {hasImg && (
                             <div className={`relative w-full aspect-[4/3] flex-none overflow-hidden shadow-2xl ${hasCaption ? 'rounded-t-[32px] border-b-0' : 'rounded-[32px]'}`}>
                                 <Image
@@ -389,7 +387,6 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
                                     alt="Uploaded"
                                     fill
                                     // 3. object-contain: الصورة كاملة بدون قص
-                                    // شيلنا p-2 عشان الصورة تلمس الحواف وتبان أكبر
                                     className="object-cover" 
                                 />
                             </div>
@@ -408,11 +405,11 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
 	    case 'info':
 	    
             case 'success_text':
-                return <p className={`whitespace-pre-wrap text-sm sm:text-base leading-relaxed sm:leading-7 text-white/90 font-normal ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
+                return <p className={`whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
 	    case 'FLIGHT_MANIFEST': // New Case
                 return (
-                    <div className="w-full -ml-2 sm:ml-0">
-                         <p className="whitespace-pre-wrap mb-2 text-sm sm:text-base px-2 leading-relaxed text-white font-medium">
+                    <div className="w-full -ml-2">
+                         <p className="whitespace-pre-wrap mb-2 text-sm px-2 leading-relaxed text-white font-medium">
                              {message.content}
                          </p>
                          <HolographicFlightDeck data={message.flight_data} />
@@ -421,7 +418,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
             case 'confirmation_prompt':
                 return (
                     <div>
-                        <p className="whitespace-pre-wrap mb-4 text-sm sm:text-base leading-relaxed text-white/90 font-normal">{message.content}</p>
+                        <p className="whitespace-pre-wrap mb-4 text-sm leading-relaxed text-white/90 font-normal">{message.content}</p>
                         <div className="flex flex-wrap gap-3">
                             {(message.options as string[])?.map((option: string) => {
                                 const isPrimary = option === 'Confirm Order' || option === 'Retry Payment' || option === 'Switch to PayPal';
@@ -478,8 +475,8 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
             case 'product_carousel':
             case 'proactive_suggestion':
                 return (
-                    <div className="w-full -ml-2 sm:ml-0">
-                        <p className="whitespace-pre-wrap mb-2 text-sm sm:text-base px-2 leading-relaxed text-white/90 font-normal">{message.content}</p>
+                    <div className="w-full -ml-2">
+                        <p className="whitespace-pre-wrap mb-2 text-sm px-2 leading-relaxed text-white/90 font-normal">{message.content}</p>
                         <ProductCarousel products={message.products || []} onSelect={onProductSelect} onViewDetails={onViewDetails} />
                         {(message.reason || message.ai_notes) && (
                             <div className="px-2">
@@ -553,10 +550,10 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
             layout
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            className={`flex items-end gap-2 sm:gap-3 w-full mb-4 sm:mb-6 ${isAI ? 'justify-start' : 'justify-end'}`}
+            className={`flex items-end gap-2 w-full mb-4 ${isAI ? 'justify-start' : 'justify-end'}`}
         >
             
-            <div className={`w-fit max-w-[97%] sm:max-w-[88%] md:max-w-3xl px-4 py-3 sm:px-6 sm:py-5 ${
+            <div className={`w-fit max-w-[97%] px-4 py-3 ${
                 isAI 
                     ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20' 
                     : 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm'
@@ -1110,7 +1107,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
             setTimeout(() => {
                 actions.addSocketAIMessage({
                     type: 'confirmation_prompt',
-                    content: "Hey there! Ready to experience smart shopping? Let's get you set up in seconds. ⚡️",
+                    content: "Hey there! Ready to experience smart shopping? Let's get you set up in seconds.",
                     options: ["Sign In", "Sign Up"],
                 });
                 useAIOrderingStore.setState({ isLoading: false });
