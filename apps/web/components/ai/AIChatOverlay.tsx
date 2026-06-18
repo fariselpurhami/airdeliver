@@ -1110,7 +1110,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
             setTimeout(() => {
                 actions.addSocketAIMessage({
                     type: 'confirmation_prompt',
-                    content: "Hi, welcome to order with air 😊",
+                    content: "Hey there! Ready to experience smart shopping? Let's get you set up in seconds. ⚡️",
                     options: ["Sign In", "Sign Up"],
                 });
                 useAIOrderingStore.setState({ isLoading: false });

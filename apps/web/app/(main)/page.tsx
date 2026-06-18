@@ -13,11 +13,11 @@ import Link from 'next/link';
 import Autoplay from 'embla-carousel-autoplay';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Star } from 'lucide-react';
-import React, { Suspense, useRef, useMemo, useEffect, useState, ReactNode } from 'react';
+import React, { Suspense, useRef, useMemo, useEffect, useState, ReactNode, memo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Preload, Float, Line, Text, useTexture, OrbitControls, Stars, Points, PointMaterial } from '@react-three/drei';
 import { motion, useScroll, AnimatePresence, useSpring, useInView, useTransform, useMotionValue, type MotionValue } from 'framer-motion';
-import { Bot, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map, ArrowDown } from 'lucide-react';
+import { Bot, Sparkles, ChevronRight, BrainCircuit, Leaf, Rocket, Zap, ArrowRight, Cpu, Map, ArrowDown } from 'lucide-react';
 import { X } from 'lucide-react'; 
 import * as THREE from 'three';
 import dynamic from 'next/dynamic';
@@ -51,238 +51,158 @@ const StarryBackground = () => {
 // ============================================================================
 // --- 1. HERO SECTION (Definition) ---
 // ============================================================================
-const HeroSection = ({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
+
+// --- إعدادات الحركة الخاصة بقسم الـ Hero ---
+const premiumEasing = [0.16, 1, 0.3, 1];
+
+const fadeUpVariant = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: premiumEasing } }
+};
+
+const CheckCircleIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+    <path d="m9 11 3 3L22 4"/>
+  </svg>
+);
+
+// --- قسم الـ Hero المُحدث (متوافق تماماً مع الهواتف الذكية) ---
+const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ['start start', 'end start'],
-  });
-  const parallaxY = useTransform(scrollYProgress, [0, 1], ['0%', '50%']);
-  const messages = useAIOrderingStore((state) => state.messages);
-
-  const hasActiveOrder = useMemo(() => {
-    
-    const cartUpdates = messages.filter(m => m.contentType === 'cart_preview');
-    
-    if (cartUpdates.length === 0) return false;
-
-    const latestCartMsg = cartUpdates[cartUpdates.length - 1];
-
-    const items = latestCartMsg?.content?.items;
-    return Array.isArray(items) && items.length > 0;
-  }, [messages]);
-
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
+  const yParallax = useTransform(scrollYProgress, [0, 1], ['0%', '25%']);
+  const opacityFade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   return (
-    <section ref={containerRef} className="relative h-screen w-full overflow-hidden">
-      <div className="absolute inset-0 z-0">
-        <Suspense fallback={<div className="w-full h-full bg-[rgba(0,0,0,0)]" />}>
-          <Canvas camera={{ position: [0, 0, 15], fov: 75 }}>
-            <Hero3DBackground />
-            <Preload all />
-	        <Cleanup />
-          </Canvas>
-        </Suspense>
-      </div>
+    <section ref={containerRef} className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-0 lg:pb-0">
 
-      <motion.div style={{ y: parallaxY }} className="relative z-10 h-full flex flex-col items-center justify-center text-center px-4 will-change-transform transform-gpu">
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vw] h-[100vh] bg-[radial-gradient(circle,rgba(80,80,90,0.15)_0%,transparent_60%)] blur-3xl -z-10 pointer-events-none" />
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.5 }}
-          className="mb-4 text-base font-medium tracking-[0.3em] text-white uppercase relative z-20" 
-        >
-           SHOPPING AT THE SPEED OF THOUGHT. 
-        </motion.p>
-    <div className="flex flex-col items-center leading-none z-20 relative mix-blend-screen">
-        <motion.h1
-          initial={{ opacity: 0, y: 40, filter: "blur(10px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 1.2, delay: 0.2 }}
-          className="w-full text-center font-black uppercase tracking-tighter" 
-          style={{ fontFamily: "'Helvetica Neue', Inter, Arial, sans-serif" }}
-        >
-          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] text-white/90 drop-shadow-2xl">
-            START LIVING
-          </span>
-          
-          <span className="block text-[12vw] sm:text-[10vw] md:text-[9vw] text-white/90 drop-shadow-2xl">
-            STOP SCROLLING
-          </span>
-        </motion.h1>
-    </div>
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1.2 }}
-          className="mt-6 max-w-2xl text-base font-medium  md:text-lg text-white"
-        >
-           Tell our AI what you want. We secure the best deal and fly it to your door in minutes.
-        </motion.p>
+      {/* Premium Cinematic Background Elements */}
+      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/10 blur-[120px] pointer-events-none mix-blend-screen" />
+      <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-600/10 blur-[120px] pointer-events-none mix-blend-screen" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)] opacity-50 pointer-events-none" />
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1.5 }}
-          className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
-        >
+      <motion.div
+        style={{ y: yParallax, opacity: opacityFade }}
+        className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
 
-          <motion.button
-            onClick={onOrderClick}
-            whileHover={{ scale: 1.05 }} 
-            whileTap={{ scale: 0.95 }}
-           
-            animate={hasActiveOrder ? {
-                scale: [1, 1.02, 1], 
-                boxShadow: [
-                    "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                    "0 0 30px rgba(0, 198, 255, 0.4)",
-                    "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
-                ]
-            } : {
-                scale: 1,
-                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
-            }}
-            transition={{ 
-                duration: 2.5, 
-                repeat: Infinity, 
-                ease: "easeInOut" 
-            }}
-            
-            className="group relative inline-flex items-center justify-center px-6 py-10 text-black font-light bg-white text-xl rounded-full shadow-lg overflow-hidden transition-transform duration-300 hover:scale-105"
-          >
-           
-            <span className={`absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#00FF] transition-opacity duration-500 ${
-                hasActiveOrder ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-            }`} />
-            
-            <span className="relative flex items-center font-base text-xl z-10">
-               
-                <span className={`transition-colors duration-300 ${hasActiveOrder ? 'text-white' : 'text-black group-hover:text-white'}`}>
-		    order with air
-                </span>
-                
-               
-                <Bot className={`ml-2 h-5 w-5 transition-all duration-300 ${
-                    hasActiveOrder 
-                        ? 'text-white animate-bounce' 
-                        : 'text-black group-hover:text-white'
-                }`} />
-            </span>
+          {/* Left Column: Copy & AI Interaction */}
+          <div className="flex flex-col items-start max-w-2xl mt-8 lg:mt-0">
+            <motion.h1
+              initial="hidden" animate="visible" variants={fadeUpVariant}
+              className="text-[11vw] sm:text-6xl lg:text-7xl font-black tracking-tighter text-white leading-[1.05] mb-6 font-sans"
+            >
+              Shopping at the <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-100 via-zinc-400 to-zinc-600 drop-shadow-sm">
+                speed of thought.
+              </span>
+            </motion.h1>
 
-           
-            <AnimatePresence>
-                {hasActiveOrder && (
-                    <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        exit={{ scale: 0 }}
-                        className="absolute top-4 right-4 flex h-3 w-3 z-20"
-                    >
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
-                    </motion.span>
-                )}
-            </AnimatePresence>
-          </motion.button>
+            <motion.p
+              initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.1 }}
+              className="text-base sm:text-lg md:text-xl text-zinc-400 mb-10 leading-relaxed font-light max-w-lg"
+            >
+              Tell our AI exactly what you need. We secure the best deal across our global inventory and drop it at your door in minutes.
+            </motion.p>
 
-          <button
-	    onClick={onExploreClick}
-	    className="group relative inline-flex items-center justify-center px-6 py-10 text-base font-bold text-white bg-transparent border-2 border-white/70 rounded-full shadow-lg transition-all duration-300 hover:border-white/50 hover:bg-white/10">
-            Explore Products <ArrowRight className="ml-2 h-5 w-5" />
-          </button>
-        </motion.div>
+            {/* AI Mock Input Component (Mobile Optimized) */}
+            <motion.div
+              initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.2 }}
+              className="w-full max-w-xl"
+            >
+              <div
+                onClick={onOrderClick}
+                className="group relative flex items-center p-1.5 sm:p-2 rounded-2xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:border-cyan-500/40 hover:bg-zinc-900/80 cursor-text"
+              >
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-sm" />
+
+                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0">
+                  <Bot size={20} strokeWidth={1.5} className="sm:w-6 sm:h-6" />
+                </div>
+
+                <div className="flex-1 px-3 sm:px-4 min-w-0">
+                  <p className="text-zinc-500 text-[11px] sm:text-sm md:text-base font-light truncate">
+                    "I need noise-canceling headphones..."
+                  </p>
+                </div>
+
+                <button
+                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-white text-black font-bold text-[11px] sm:text-sm hover:bg-zinc-200 transition-colors shrink-0 whitespace-nowrap"
+                >
+                  order with air
+                </button>
+              </div>
+
+              <div className="mt-6 flex items-center gap-6 pl-2">
+                <button onClick={onExploreClick} className="text-xs sm:text-sm font-medium text-zinc-400 hover:text-white transition-colors flex items-center gap-1 group">
+                  Explore trending products <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Right Column: Floating Product Showcase (Global Distributed Scale) */}
+          <div className="relative h-[400px] sm:h-[500px] lg:h-[700px] w-full flex items-center justify-center perspective-1000 mt-8 lg:mt-0">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
+              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+              transition={{ duration: 1.2, ease: premiumEasing, delay: 0.2 }}
+              className="relative w-full max-w-md h-full flex items-center justify-center"
+            >
+              {/* Product Card 1 - Main (Responsive Width) */}
+              <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/10 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.6)] overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
+                <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000&auto=format&fit=crop" alt="Sony Headphones" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-20 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
+                  <div>
+                    <h3 className="text-white font-bold text-sm sm:text-lg tracking-tight">Sony WH-1000XM5</h3>
+                    <p className="text-zinc-400 text-[10px] sm:text-sm font-medium">Arriving in 12 min</p>
+                  </div>
+                  <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm">
+                    $348
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Card 2 - Floating Back Left */}
+              <motion.div
+                animate={{ y: [0, -12, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute top-[10%] sm:top-[12%] left-[2%] sm:-left-[10%] w-[35%] sm:w-48 aspect-square rounded-3xl bg-zinc-900 border border-white/10 p-2 sm:p-3 shadow-2xl z-10 overflow-hidden"
+              >
+                <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=600&auto=format&fit=crop" alt="Smart Watch" className="absolute inset-0 w-full h-full object-cover opacity-70" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 text-white text-[9px] sm:text-xs font-bold px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg">
+                  Found best deal
+                </div>
+              </motion.div>
+
+              {/* Product Card 3 - Floating Bottom Right */}
+              <motion.div
+                animate={{ y: [0, 12, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                className="absolute bottom-[5%] sm:-bottom-[2%] right-[2%] sm:-right-[10%] w-[42%] sm:w-56 aspect-[4/3] rounded-3xl bg-zinc-900 border border-white/10 shadow-2xl z-30 overflow-hidden"
+              >
+                <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop" alt="Nike Sneakers" className="absolute inset-0 w-full h-full object-cover opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
+                <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between">
+                   <p className="text-white text-[10px] sm:text-sm font-bold tracking-tight">Nike Air Max</p>
+                   <div className="flex items-center gap-1 text-cyan-400 text-[9px] sm:text-xs font-medium">
+                     <CheckCircleIcon />
+                     <span className="hidden sm:inline">In Stock</span>
+                   </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
+
+        </div>
       </motion.div>
     </section>
   );
-};
+});
+HeroSection.displayName = 'HeroSection';
 
-const Starfield = (props: any) => {
-  const groupRef = useRef<THREE.Group>(null!);
-
-  const sphere = useMemo(() => {
-    
-    const count = 400000; 
-    
-    const radius = 66;  
-    
-    const positions = new Float32Array(count * 3);
-
-    for (let i = 0; i < count; i++) {
-     
-      const r = radius * Math.cbrt(Math.random());
-      const theta = Math.random() * 2 * Math.PI;
-      const phi = Math.acos(2 * Math.random() - 1);
-
-      const x = r * Math.sin(phi) * Math.cos(theta);
-      const y = r * Math.sin(phi) * Math.sin(theta);
-      const z = r * Math.cos(phi);
-
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
-    }
-    return positions;
-  }, []);
-
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.x -= delta * 0.0005;
-      groupRef.current.rotation.y -= delta * 0.0005;
-      groupRef.current.rotation.z -= delta * 0.005;
-    }
-  });
-
-  return (
-    <group ref={groupRef} {...props} position={[0, 0, -60]}>
-      <Points positions={sphere} stride={3} frustumCulled={false}>
-        <PointMaterial
-          transparent
-          color={[6, 6, 6]}    
-          size={0.067}            
-          sizeAttenuation={true} 
-          depthWrite={false}     
-          toneMapped={false}     
-          opacity={1}            
-        />
-      </Points>
-    </group>
-  );
-};
-
-const Hero3DBackground = () => {
-  const light1Ref = useRef<THREE.PointLight>(null!);
-  const light2Ref = useRef<THREE.PointLight>(null!);
-
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-
-    if (light1Ref.current) {
-      light1Ref.current.position.x = Math.sin(time * 0.5) * 10;
-      light1Ref.current.position.y = Math.cos(time * 0.5) * 10;
-      light1Ref.current.position.z = Math.cos(time * 0.5) * 10;
-    }
-    if (light2Ref.current) {
-      light2Ref.current.position.x = Math.sin(time * 0.3) * -10;
-      light2Ref.current.position.y = Math.cos(time * 0.3) * -10;
-      light2Ref.current.position.z = Math.sin(time * 0.3) * 5;
-    }
-  });
-
-  return (
-    <>
-      <fog attach="fog" args={['#000000', 10, 40]} />
-     
-      <ambientLight intensity={1.5} />
-      
-      <pointLight ref={light1Ref} position={[10, 10, 10]} intensity={200} color="#00C6FF" />
-      <pointLight ref={light2Ref} position={[-10, -10, 5]} intensity={150} color="#7F00FF" />
-      
-      <Starfield />
-    </>
-  );
-};  
 // ============================================================================
 // --- 2. HOW IT WORKS SECTION  ---
 // ============================================================================
@@ -321,7 +241,7 @@ const timelineSteps = [
 ];
 
 const stepsWithPositions = [
- 
+
   { ...timelineSteps[0], id: 'card-1', x: 50, y: 300, width: CARD_W, height: CARD_H },
 
   { ...timelineSteps[1], id: 'card-2', x: 800, y: 700, width: CARD_W, height: CARD_H },
@@ -340,9 +260,9 @@ const BlueEnergyStars = () => {
 
     const sphere = useMemo(() => {
         // 1. نفس الكثافة العالية (Density)
-        const count = 400000; 
+        const count = 400000;
         const radius = 66; // نصف القطر (موسع قليلاً ليغطي مساحة السكشن)
-        
+
         const positions = new Float32Array(count * 3);
 
         for (let i = 0; i < count; i++) {
@@ -403,9 +323,9 @@ const getConnectorPoints = (fromCard: any, toCard: any, type: 'vertical' | 'hori
     }
 
     if (type === 'horizontal-z') {
-       
+
         const start = { x: fromCard.x + fromCard.width, y: fromCard.y + (fromCard.height * 0.5) };
-        
+
         if (fromCard.x < toCard.x) {
              const midX = fromCard.x + fromCard.width + (toCard.x - (fromCard.x + fromCard.width)) / 2;
              return `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${toCard.y + toCard.height/2} L ${toCard.x} ${toCard.y + toCard.height/2}`;
@@ -466,7 +386,7 @@ const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number>
 const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
   return (
     <div className="relative group h-full w-full">
-       
+
         {/* 1. التوهج الخارجي - غيرناه للأزرق والبنفسجي ليشبه الغلاف الجوي للأرض */}
         <div className="absolute -inset-[1px] bg-gradient-to-r from-blue-600/0 via-blue-600/50 to-purple-600/0 rounded-[32px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-sm" />
         <div className="absolute inset-0 bg-blue-900/10 rounded-[30px] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-700" />
@@ -543,7 +463,7 @@ const HowItWorksSection = () => {
   return (
     <section ref={containerRef} className="relative w-full min-h-screen bg-black flex flex-col justify-center overflow-hidden">
       <div className="absolute inset-0 z-0">
-          
+
          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
       </div>
 
@@ -793,7 +713,7 @@ const GlobalScaleSection = () => {
                     <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
                     <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
 
-               
+
                     <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
                         <group position={[5.5, 0, 0]}>
                             <Suspense fallback={null}><Globe /></Suspense>
@@ -890,9 +810,9 @@ const PurpleEnergyStars = () => {
 
     const sphere = useMemo(() => {
         // 1. نفس الكثافة العالية (Density)
-        const count = 400000; 
+        const count = 400000;
         const radius = 66; // نصف القطر (موسع قليلاً ليغطي مساحة السكشن)
-        
+
         const positions = new Float32Array(count * 3);
 
         for (let i = 0; i < count; i++) {
@@ -927,7 +847,7 @@ const PurpleEnergyStars = () => {
             <Points positions={sphere} stride={3} frustumCulled={false}>
                 <PointMaterial
                     transparent
-                    color="#c084fc"    
+                    color="#c084fc"
                     size={0.067}          // 3. نفس الحجم الصغير والدقيق (Size)
                     sizeAttenuation={true}
                     depthWrite={false}
@@ -1222,3 +1142,4 @@ export default function Page() {
     </div>
   );
 }
+
