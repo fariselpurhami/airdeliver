@@ -115,7 +115,7 @@ const HeroStars = () => {
   );
 };
 
-// 2. قسم الـ Hero المُحدث والمدمج معه النجوم
+// 2. قسم الـ Hero المُحدث والمدمج معه النجوم بألوان ونصوص احترافية
 const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
@@ -136,8 +136,8 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
       </div>
 
       {/* Premium Cinematic Background Elements */}
-      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/10 blur-[120px] pointer-events-none mix-blend-screen" />
-      <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-600/10 blur-[120px] pointer-events-none mix-blend-screen" />
+      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/15 blur-[120px] pointer-events-none mix-blend-screen" />
+      <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-600/15 blur-[120px] pointer-events-none mix-blend-screen" />
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)] opacity-50 pointer-events-none" />
 
       <motion.div
@@ -150,17 +150,17 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
           <div className="flex flex-col items-start max-w-2xl mt-8 lg:mt-0">
             <motion.h1
               initial="hidden" animate="visible" variants={fadeUpVariant}
-              className="text-[11vw] sm:text-6xl lg:text-7xl font-black tracking-tighter text-white leading-[1.05] mb-6 font-sans"
+              className="text-[11vw] sm:text-6xl lg:text-7xl font-black tracking-tighter text-white leading-[1.05] mb-6 font-sans drop-shadow-2xl"
             >
               Shopping at the <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-100 via-zinc-400 to-zinc-600 drop-shadow-sm">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-zinc-400 drop-shadow-[0_0_15px_rgba(255,255,255,0.15)]">
                 speed of thought.
               </span>
             </motion.h1>
 
             <motion.p
               initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.1 }}
-              className="text-base sm:text-lg md:text-xl text-zinc-400 mb-10 leading-relaxed font-light max-w-lg"
+              className="text-base sm:text-lg md:text-xl text-zinc-300 mb-10 leading-relaxed font-light max-w-lg drop-shadow-md"
             >
               Tell our AI exactly what you need. We secure the best deal across our global inventory and drop it at your door in minutes.
             </motion.p>
@@ -172,29 +172,29 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
             >
               <div
                 onClick={onOrderClick}
-                className="group relative flex items-center p-1.5 sm:p-2 rounded-2xl bg-zinc-900/60 border border-zinc-800 backdrop-blur-xl shadow-2xl transition-all duration-500 hover:border-cyan-500/40 hover:bg-zinc-900/80 cursor-text"
+                className="group relative flex items-center p-1.5 sm:p-2 rounded-2xl bg-zinc-900/70 border border-white/10 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)] transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900/90 cursor-text"
               >
-                <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-sm" />
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/40 to-purple-500/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-md" />
 
                 <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0">
                   <Bot size={20} strokeWidth={1.5} className="sm:w-6 sm:h-6" />
                 </div>
 
                 <div className="flex-1 px-3 sm:px-4 min-w-0">
-                  <p className="text-zinc-500 text-[11px] sm:text-sm md:text-base font-light truncate">
+                  <p className="text-zinc-300 text-[11px] sm:text-sm md:text-base font-light truncate">
                     "I need noise-canceling headphones..."
                   </p>
                 </div>
 
                 <button
-                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-white text-black font-bold text-[11px] sm:text-sm hover:bg-zinc-200 transition-colors shrink-0 whitespace-nowrap"
+                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-white text-black font-bold text-[11px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10"
                 >
                   order with air
                 </button>
               </div>
 
               <div className="mt-6 flex items-center gap-6 pl-2">
-                <button onClick={onExploreClick} className="text-xs sm:text-sm font-medium text-zinc-400 hover:text-white transition-colors flex items-center gap-1 group">
+                <button onClick={onExploreClick} className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-cyan-300 transition-colors flex items-center gap-1 group drop-shadow-md">
                   Explore trending products <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
@@ -210,15 +210,15 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
               className="relative w-full max-w-md h-full flex items-center justify-center"
             >
               {/* Product Card 1 - Main */}
-              <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/10 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.6)] overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
+              <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/15 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent z-10" />
                 <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000&auto=format&fit=crop" alt="Sony Headphones" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-20 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
                   <div>
-                    <h3 className="text-white font-bold text-sm sm:text-lg tracking-tight">Sony WH-1000XM5</h3>
-                    <p className="text-zinc-400 text-[10px] sm:text-sm font-medium">Arriving in 12 min</p>
+                    <h3 className="text-white font-bold text-sm sm:text-lg tracking-tight drop-shadow-md">Sony WH-1000XM5</h3>
+                    <p className="text-zinc-300 text-[10px] sm:text-sm font-medium drop-shadow-md">Arriving in 12 min</p>
                   </div>
-                  <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm">
+                  <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/30 text-white font-bold text-xs sm:text-sm shadow-lg">
                     $348
                   </div>
                 </div>
@@ -227,11 +227,11 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
               {/* Product Card 2 - Floating Back Left */}
               <motion.div
                 animate={{ y: [0, -12, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute top-[10%] sm:top-[12%] left-[2%] sm:-left-[10%] w-[35%] sm:w-48 aspect-square rounded-3xl bg-zinc-900 border border-white/10 p-2 sm:p-3 shadow-2xl z-10 overflow-hidden"
+                className="absolute top-[10%] sm:top-[12%] left-[2%] sm:-left-[10%] w-[35%] sm:w-48 aspect-square rounded-3xl bg-zinc-900 border border-white/15 p-2 sm:p-3 shadow-2xl z-10 overflow-hidden"
               >
                 <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=600&auto=format&fit=crop" alt="Smart Watch" className="absolute inset-0 w-full h-full object-cover opacity-70" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-                <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 text-white text-[9px] sm:text-xs font-bold px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+                <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 text-white text-[9px] sm:text-xs font-bold px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 shadow-lg">
                   Found best deal
                 </div>
               </motion.div>
@@ -239,13 +239,13 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
               {/* Product Card 3 - Floating Bottom Right */}
               <motion.div
                 animate={{ y: [0, 12, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute bottom-[5%] sm:-bottom-[2%] right-[2%] sm:-right-[10%] w-[42%] sm:w-56 aspect-[4/3] rounded-3xl bg-zinc-900 border border-white/10 shadow-2xl z-30 overflow-hidden"
+                className="absolute bottom-[5%] sm:-bottom-[2%] right-[2%] sm:-right-[10%] w-[42%] sm:w-56 aspect-[4/3] rounded-3xl bg-zinc-900 border border-white/15 shadow-2xl z-30 overflow-hidden"
               >
                 <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop" alt="Nike Sneakers" className="absolute inset-0 w-full h-full object-cover opacity-90" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
                 <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between">
-                   <p className="text-white text-[10px] sm:text-sm font-bold tracking-tight">Nike Air Max</p>
-                   <div className="flex items-center gap-1 text-cyan-400 text-[9px] sm:text-xs font-medium">
+                   <p className="text-white text-[10px] sm:text-sm font-bold tracking-tight drop-shadow-md">Nike Air Max</p>
+                   <div className="flex items-center gap-1 text-cyan-400 text-[9px] sm:text-xs font-medium drop-shadow-md">
                      <CheckCircleIcon />
                      <span className="hidden sm:inline">In Stock</span>
                    </div>
