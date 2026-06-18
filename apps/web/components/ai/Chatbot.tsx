@@ -19,7 +19,7 @@ const ExplainabilityChip = memo(({ text }: { text: string }) => (
     <motion.div
         initial={{ opacity: 0, height: 0, scale: 0.95 }}
         animate={{ opacity: 1, height: 'auto', scale: 1 }}
-        className="flex items-start gap-3 p-3 ml-2 mt-2 mb-4 bg-[#0A1116] border border-cyan-900/50 rounded-xl max-w-[90%] relative overflow-hidden"
+        className="flex items-start gap-3 p-3 ml-2 mt-2 mb-4 bg-[#050B14]/80 backdrop-blur-xl border border-cyan-900/50 rounded-xl max-w-[90%] relative overflow-hidden shadow-xl shadow-black/20"
     >
         <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" />
         <Cpu size={14} className="text-cyan-400 flex-shrink-0 mt-0.5 animate-pulse"/>
@@ -50,10 +50,10 @@ const MessageBubble = memo(({ message, onSend }: MessageBubbleProps) => {
             
             <div className={`flex flex-col max-w-[85%] md:max-w-2xl ${isUser ? 'items-end' : 'items-start'}`}>
                 {/* Message Content */}
-                <div className={`px-6 py-5 text-[15px] leading-7 backdrop-blur-sm ${
+                <div className={`px-6 py-5 text-[15px] leading-7 ${
                     isUser 
-                        ? 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white' 
-                        : 'rounded-[32px] rounded-bl-none bg-[#0A1116] border border-white/5 text-gray-100'
+                        ? 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm' 
+                        : 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20'
                 }`}>
                     <p className="whitespace-pre-wrap font-medium">{message.data.text}</p>
                 </div>
@@ -93,7 +93,7 @@ const TypingIndicator = memo(() => (
         exit={{ opacity: 0 }}
         className="flex items-center gap-3 mb-4"
     >
-      <div className="flex items-center gap-2 px-5 py-4 bg-black/40 border border-white/5 rounded-full rounded-tl-none">
+      <div className="flex items-center gap-2 px-5 py-4 bg-[#050B14]/80 backdrop-blur-xl border border-white/5 shadow-xl shadow-black/20 rounded-full rounded-tl-none">
         <div className="flex gap-1">
             <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, repeat: Infinity }} />
             <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }} transition={{ duration: 0.6, delay: 0.2, repeat: Infinity }} />
@@ -139,7 +139,7 @@ const ChatInput = memo(({ onSend, isTyping }: ChatInputProps) => {
     };
 
     return (
-      <div className="p-6 border-t border-white/5 flex-shrink-0 bg-[#050B14] relative z-20">
+      <div className="p-6 border-t border-white/5 flex-shrink-0 bg-[#020617]/50 backdrop-blur-md relative z-20">
         <div className="relative group max-w-4xl mx-auto">
           <textarea
             ref={inputRef}
@@ -229,6 +229,7 @@ export default function Chatbot() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 overflow-hidden"
+                        style={{ colorScheme: 'dark' }}
                         onClick={() => setIsOpen(false)}
                     >
                         {/* Background Gradient Line */}
@@ -239,10 +240,14 @@ export default function Chatbot() {
                             animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                             exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-[460px] h-[93vh] max-h-[1050px] flex flex-col bg-[#020617] border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
+                            className="w-full max-w-[460px] h-[93vh] max-h-[1050px] flex flex-col bg-[#020617]/55 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative"
                         >
+                            {/* Ambient Glow Effects */}
+                            <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
+                            <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full" />
+
                             {/* Header */}
-                            <header className="px-8 py-6 border-b border-white/5 flex justify-between items-center flex-shrink-0 relative z-10 bg-[#050B14]">
+                            <header className="px-8 py-6 flex justify-between items-center flex-shrink-0 relative z-10">
                                 <div>
                                     <h3 className="font-bold text-2xl tracking-tight flex items-center gap-2 text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                                         <motion.span
@@ -263,17 +268,15 @@ export default function Chatbot() {
                                 
                                 <button 
                                     onClick={() => setIsOpen(false)}
-                                    className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all duration-300 hover:scale-110"
+                                    className="ml-auto p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
                                 >
                                     <X size={20} />
                                 </button>
                             </header>
 
                             {/* Messages Area */}
-                            <main className="flex-grow px-4 lg:px-12 py-8 space-y-2 overflow-y-auto no-scrollbar relative z-10">
+                            <main className="flex-grow px-4 lg:px-12 py-8 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/10 scrollbar-track-transparent relative z-10">
                                 
-                             
-
                                 <AnimatePresence initial={false}>
                                     {messages.map((msg) => (
                                         <React.Fragment key={msg.id}>
