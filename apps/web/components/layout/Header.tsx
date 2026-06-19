@@ -3,7 +3,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation"; // 1. استيراد useRouter
+import Image from "next/image"; // 1. استيراد مكون الصورة
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
@@ -16,7 +17,6 @@ import {
   Menu,
   X as CloseIcon,
   Bell,
-  Sparkles,
 } from "lucide-react";
 
 interface NavItem {
@@ -81,7 +81,6 @@ const ThemeToggle = () => {
 
 export default function Header() {
   const pathname = usePathname();
-  // 2. تعريف المتغيرات المفقودة لحل الـ ReferenceError
   const router = useRouter();
   const { status } = useSession();
 
@@ -114,7 +113,7 @@ export default function Header() {
         setMobileMenuOpen(false);
       }
     },
-    [status, router, mobileMenuOpen] // المتغيرات الآن معرفة في النطاق الصحيح
+    [status, router, mobileMenuOpen]
   );
 
   const fogVariants = {
@@ -174,20 +173,28 @@ export default function Header() {
               prefetch={true}
               className="group flex items-center gap-2 relative z-10"
             >
-              <div className="relative">
-                <span
-                  className="text-2xl font-bold text-white tracking-tighter transition-colors duration-500 group-hover:text-gray-200 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]"
-                  style={{ fontFamily: "Orbitron, sans-serif" }}
-                >
-                  airdeliver
-                </span>
-                <span
-                  className="absolute top-0 left-0 text-2xl font-bold text-white opacity-0 group-hover:opacity-40 blur-md transition-opacity duration-300"
-                  style={{ fontFamily: "Orbitron, sans-serif" }}
-                >
-                  airdeliver
-                </span>
+              {/* بداية التعديل: استبدال النص باللوجو */}
+              <div className="relative flex items-center mb-1">
+                {/* اللوجو الأساسي - تم ضبط الارتفاع h-7 ليناسب text-2xl */}
+                <Image
+                  src="/logo.png" // قم بتغيير هذا لمسار اللوجو الخاص بك في مجلد public
+                  alt="airdeliver logo"
+                  width={150} // عرض تقديري، سيتم ضبطه تلقائياً بواسطة h-7 w-auto
+                  height={28} // h-7 تساوي 28px
+                  priority // تحميل الصورة بأولوية لأنها في الهيدر
+                  className="h-7 w-auto object-contain transition-opacity duration-500 group-hover:opacity-80 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]"
+                />
+                {/* نسخة اللوجو لعمل تأثير الـ Glow عند الـ Hover */}
+                <Image
+                  src="/logo.png" // نفس المسار أعلاه
+                  alt=""
+                  width={150}
+                  height={28}
+                  className="absolute top-0 left-0 h-7 w-auto object-contain opacity-0 group-hover:opacity-40 blur-md transition-opacity duration-300"
+                  aria-hidden="true"
+                />
               </div>
+              {/* نهاية التعديل */}
             </Link>
           </motion.div>
 
@@ -290,12 +297,14 @@ export default function Header() {
               className="absolute right-0 top-0 bottom-0 w-[85vw] max-w-sm bg-[#050505] border-l border-white/10 p-8 flex flex-col shadow-2xl"
             >
               <div className="flex justify-between items-center mb-12 border-b border-white/5 pb-6">
-                <span
-                  className="text-xl font-bold text-white tracking-wider"
-                  style={{ fontFamily: "Orbitron, sans-serif" }}
-                >
-                  airdeliver
-                </span>
+                {/* تعديل اللوجو في القائمة الجانبية أيضاً */}
+                <Image
+                  src="/logo.png" // نفس مسار الصورة
+                  alt="airdeliver logo"
+                  width={120}
+                  height={24} // h-6 تناسب text-xl في الموبايل
+                  className="h-6 w-auto object-contain"
+                />
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-2 text-gray-400 hover:text-white hover:rotate-90 transition-all duration-300"
