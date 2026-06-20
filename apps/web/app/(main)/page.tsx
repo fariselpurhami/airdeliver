@@ -291,370 +291,262 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
     </section>
   );
 });
-HeroSection.displayName = 'HeroSection';
+HeroSection.displayName = 'HeroSection'
 
-// ============================================================================
-// --- 2. HOW IT WORKS SECTION  ---
-// ============================================================================
 
-const VIEWBOX_WIDTH = 1450;
-const VIEWBOX_HEIGHT = 2100;
+type ProductionStep = {
+  icon: LucideIcon;
+  step: string;
+  title: string;
+  description: string;
+};
 
-const CARD_W = 600;
-const CARD_H = 400;
-
-const timelineSteps = [
+const PRODUCTION_STEPS: ProductionStep[] = [
   {
     icon: Bot,
-    step: 1,
-    title: "order with air",
-    description: "Core intelligence parses your request in real time, cross-checking behavioral signals and product context to predict delivery intent with high accuracy."
+    step: "01",
+    title: "AI Intent Recognition",
+    description:
+      "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product in our global network without you scrolling through catalogs.",
   },
   {
     icon: Cpu,
-    step: 2,
-    title: "Auto Compute",
-    description: "Multimodal neural models generate an adaptive 4D flight plan—factoring weather layers, airspace corridors, energy usage, and real-time city topology."
+    step: "02",
+    title: "Global Inventory Sync",
+    description:
+      "Within milliseconds, the system queries local hubs and global databases to secure the best price and immediate availability, reserving your item autonomously.",
   },
   {
     icon: MapIcon,
-    step: 3,
-    title: " Live airaero X",
-    description: "Continuous telemetry sync streams through low-latency mesh nodes. The drone updates position, stability, and power stats in real time with centimeter precision."
+    step: "03",
+    title: "4D Route Computation",
+    description:
+      "An adaptive flight plan is generated. The AI factors in live weather layers, urban topology, and airspace corridors to chart the absolute fastest drone vector.",
   },
   {
     icon: Rocket,
-    step: 4,
-    title: "airaero X Drop",
-    description:  "Autonomous landing protocol takes over. The drone aligns approach vectors, stabilizes micro-thrusters, and completes a contactless, self-verified handoff."
+    step: "04",
+    title: "Precision Doorstep Drop",
+    description:
+      "The autonomous drone arrives. Using computer vision and micro-thruster stabilization, it completes a contactless, verified handoff directly to your location.",
   },
 ];
 
-const stepsWithPositions = [
+const BLUE_STAR_COUNT = 150000;
+const BLUE_STAR_RADIUS = 66;
+const BLUE_STAR_POSITION: [number, number, number] = [0, 0, -60];
+const BLUE_STAR_COLOR = "#3b82f6";
+const BLUE_STAR_SIZE = 0.005;
+const BLUE_STAR_OPACITY = 0.8;
 
-  { ...timelineSteps[0], id: 'card-1', x: 50, y: 300, width: CARD_W, height: CARD_H },
+const BLUE_STAR_ROTATION = {
+  x: -0.0005,
+  y: -0.0005,
+  z: -0.005,
+} as const;
 
-  { ...timelineSteps[1], id: 'card-2', x: 800, y: 700, width: CARD_W, height: CARD_H },
+function createBlueStarPositions(count: number, radius: number): Float32Array {
+  const positions = new Float32Array(count * 3);
 
-  { ...timelineSteps[2], id: 'card-3', x: 50, y: 1300, width: CARD_W, height: CARD_H },
+  for (let index = 0; index < count; index += 1) {
+    const offset = index * 3;
+    const distance = radius * Math.cbrt(Math.random());
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const sinPhi = Math.sin(phi);
 
-  { ...timelineSteps[3], id: 'card-4', x: 800, y: 1700, width: CARD_W, height: CARD_H },
-];
+    positions[offset] = distance * sinPhi * Math.cos(theta);
+    positions[offset + 1] = distance * sinPhi * Math.sin(theta);
+    positions[offset + 2] = distance * Math.cos(phi);
+  }
 
-/// ============================================================================
-// --- 2. 3D BACKGROUND COMPONENT (BlueEnergyStars) ---
-// ============================================================================
+  return positions;
+}
 
-const BlueEnergyStars = () => {
-    const groupRef = useRef<THREE.Group>(null!);
+export function BlueEnergyStars() {
+  const groupRef = useRef<THREE.Group | null>(null);
 
-    const sphere = useMemo(() => {
-        // 1. نفس الكثافة العالية (Density)
-        const count = 400000;
-        const radius = 66; // نصف القطر (موسع قليلاً ليغطي مساحة السكشن)
-
-        const positions = new Float32Array(count * 3);
-
-        for (let i = 0; i < count; i++) {
-            // استخدام توزيع كروي (Spherical Distribution) مثل الـ Hero Section
-            const r = radius * Math.cbrt(Math.random());
-            const theta = Math.random() * 2 * Math.PI;
-            const phi = Math.acos(2 * Math.random() - 1);
-
-            const x = r * Math.sin(phi) * Math.cos(theta);
-            const y = r * Math.sin(phi) * Math.sin(theta);
-            const z = r * Math.cos(phi);
-
-            positions[i * 3] = x;
-            positions[i * 3 + 1] = y;
-            positions[i * 3 + 2] = z;
-        }
-        return positions;
-    }, []);
-
-    useFrame((_, delta) => {
-        if (groupRef.current) {
-            // 2. نفس فيزياء الحركة (Movement Physics)
-            groupRef.current.rotation.x -= delta * 0.0005;
-            groupRef.current.rotation.y -= delta * 0.0005;
-            groupRef.current.rotation.z -= delta * 0.005;
-        }
-    });
-
-    return (
-        // تعديل الموقع Z قليلاً ليظهر بشكل جيد مع كاميرا هذا القسم
-        <group ref={groupRef} position={[0, 0, -60]}>
-            <Points positions={sphere} stride={3} frustumCulled={false}>
-                <PointMaterial
-                    transparent
-                    color="#3b82f6"       // حافظنا على اللون الأزرق (Blue Energy)
-                    size={0.067}          // 3. نفس الحجم الصغير والدقيق (Size)
-                    sizeAttenuation={true}
-                    depthWrite={false}
-                    toneMapped={false}
-                    opacity={1}
-                />
-            </Points>
-        </group>
-    );
-};
-
-// ============================================================================
-// --- 3. HELPER COMPONENTS (Paths, Cards) ---
-// ============================================================================
-
-const getConnectorPoints = (fromCard: any, toCard: any, type: 'vertical' | 'horizontal-z') => {
-    const fromCenter = { x: fromCard.x + fromCard.width / 2, y: fromCard.y + fromCard.height / 2 };
-
-    if (type === 'vertical') {
-        const start = { x: fromCenter.x, y: fromCard.y + fromCard.height };
-        const end = { x: fromCenter.x, y: toCard.y };
-        return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
-    }
-
-    if (type === 'horizontal-z') {
-
-        const start = { x: fromCard.x + fromCard.width, y: fromCard.y + (fromCard.height * 0.5) };
-
-        if (fromCard.x < toCard.x) {
-             const midX = fromCard.x + fromCard.width + (toCard.x - (fromCard.x + fromCard.width)) / 2;
-             return `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${toCard.y + toCard.height/2} L ${toCard.x} ${toCard.y + toCard.height/2}`;
-        }
-
-        const startBottom = { x: fromCard.x + fromCard.width/2, y: fromCard.y + fromCard.height };
-        const endTop = { x: toCard.x + toCard.width/2, y: toCard.y };
-        const midY = startBottom.y + (endTop.y - startBottom.y) / 2;
-
-        return `M ${startBottom.x} ${startBottom.y} L ${startBottom.x} ${midY} L ${endTop.x} ${midY} L ${endTop.x} ${endTop.y}`;
-    }
-    return '';
-};
-
-const DiagramPath = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
-  const pathLength = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
-
-  const path1 = getConnectorPoints(stepsWithPositions[0], stepsWithPositions[1], 'horizontal-z');
-
-  const path2 = getConnectorPoints(stepsWithPositions[1], stepsWithPositions[2], 'horizontal-z');
-
-  const path3 = getConnectorPoints(stepsWithPositions[2], stepsWithPositions[3], 'horizontal-z');
-
-  const allPaths = `${path1} ${path2} ${path3}`;
-
-  return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`} preserveAspectRatio="xMidYMin meet">
-      <path d={allPaths} fill="none" stroke="rgba(255, 255, 255, 0.05)" strokeWidth={6} strokeLinecap="square" />
-      <motion.path
-        d={allPaths}
-        fill="none"
-        stroke="url(#architectural-gradient)"
-        strokeWidth={4}
-        strokeLinecap="square"
-        style={{ pathLength, filter: 'drop-shadow(0 0 10px rgba(0, 240, 255, 0.5))' }}
-      />
-
-      <circle cx={stepsWithPositions[0].x + CARD_W} cy={stepsWithPositions[0].y + CARD_H/2} r="8" fill="#00C6FF" />
-      <circle cx={stepsWithPositions[1].x} cy={stepsWithPositions[1].y + CARD_H/2} r="8" fill="#00C6FF" />
-
-      <circle cx={stepsWithPositions[1].x + CARD_W/2} cy={stepsWithPositions[1].y + CARD_H} r="8" fill="#7F00FF" />
-      <circle cx={stepsWithPositions[2].x + CARD_W/2} cy={stepsWithPositions[2].y} r="8" fill="#7F00FF" />
-
-      <circle cx={stepsWithPositions[2].x + CARD_W} cy={stepsWithPositions[2].y + CARD_H/2} r="8" fill="#FF00AA" />
-      <circle cx={stepsWithPositions[3].x} cy={stepsWithPositions[3].y + CARD_H/2} r="8" fill="#FF00AA" />
-
-      <defs>
-        <linearGradient id="architectural-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#00C6FF" />
-          <stop offset="50%" stopColor="#7F00FF" />
-          <stop offset="100%" stopColor="#FF00AA" />
-        </linearGradient>
-      </defs>
-    </svg>
+  const positions = useMemo(
+    () => createBlueStarPositions(BLUE_STAR_COUNT, BLUE_STAR_RADIUS),
+    [],
   );
+
+  useFrame((_, delta) => {
+    const group = groupRef.current;
+    if (!group) return;
+
+    group.rotation.x += delta * BLUE_STAR_ROTATION.x;
+    group.rotation.y += delta * BLUE_STAR_ROTATION.y;
+    group.rotation.z += delta * BLUE_STAR_ROTATION.z;
+  });
+
+  return (
+    <group ref={groupRef} position={BLUE_STAR_POSITION}>
+      <Points positions={positions} stride={3} frustumCulled={false}>
+        <PointMaterial
+          transparent
+          color={BLUE_STAR_COLOR}
+          size={BLUE_STAR_SIZE}
+          sizeAttenuation
+          depthWrite={false}
+          toneMapped={false}
+          opacity={BLUE_STAR_OPACITY}
+        />
+      </Points>
+    </group>
+  );
+}
+
+type ModernStepCardProps = {
+  item: ProductionStep;
+  index: number;
+  isLast: boolean;
 };
 
-const StepCard = ({ item }: { item: (typeof stepsWithPositions)[0] }) => {
-  return (
-    <div className="relative group h-full w-full">
+const sectionReveal = {
+  initial: { opacity: 0, y: 20 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, amount: 0.3 },
+} as const;
 
-        {/* 1. التوهج الخارجي - غيرناه للأزرق والبنفسجي ليشبه الغلاف الجوي للأرض */}
-        <div className="absolute -inset-[1px] bg-gradient-to-r from-blue-600/0 via-blue-600/50 to-purple-600/0 rounded-[32px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-sm" />
-        <div className="absolute inset-0 bg-blue-900/10 rounded-[30px] blur-2xl opacity-0 group-hover:opacity-40 transition-opacity duration-700" />
+const canvasConfig = {
+  camera: { position: [0, 0, 15] as [number, number, number], fov: 75 },
+  dpr: 1,
+  gl: { antialias: false, powerPreference: "high-performance" as const },
+} as const;
 
-        {/* 2. جسم البطاقة - أصبح أزرق داكن جداً بدلاً من الأسود الصريح */}
-        <div className="relative h-full w-full rounded-[30px] bg-[#020410]/95 backdrop-blur-xl border border-white/10 p-5 flex flex-col items-start justify-start transition-all duration-500 group-hover:border-blue-500/40 group-hover:translate-y-[-4px] group-hover:shadow-[0_20px_40px_-10px_rgba(2,6,23,0.8)] overflow-hidden z-20">
+const ModernStepCard = ({ item, index, isLast }: ModernStepCardProps) => {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const { scrollYProgress } = useScroll({
+    target: cardRef,
+    offset: ["start 80%", "center center"],
+  });
 
-            {/* الخلفية الشبكية */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:20px_20px] opacity-20" />
-
-            {/* 3. النقاط المضيئة في الزاوية - أزرق وبنفسجي */}
-            <div className="absolute top-5 right-5 flex gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/20 border border-blue-500/50 group-hover:bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.4)] transition-all duration-500" />
-                <div className="w-1.5 h-1.5 rounded-full bg-purple-500/20 border border-purple-500/50 group-hover:bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.4)] transition-all duration-500 delay-75" />
-            </div>
-
-            {/* 4. الأيقونة - أصبحت زرقاء مثل المحيطات */}
-            <div className="relative z-30 mb-3 inline-flex items-center justify-center p-2 rounded-lg bg-blue-950/50 border border-blue-500/30 text-blue-400 group-hover:text-white group-hover:bg-blue-600 group-hover:scale-105 transition-all duration-500 shadow-lg shadow-black/50">
-                <item.icon size={37} strokeWidth={1.5} />
-            </div>
-
-            {/* 5. رقم المرحلة - أزرق فاتح */}
-            <div className="flex items-center gap-2 mb-2 relative z-20">
-                <span className="text-[9px] font-mono text-blue-300/80 tracking-[0.2em] uppercase border border-blue-500/20 px-2 py-0.5 rounded bg-blue-950/30">
-                    Phase 0{item.step}
-                </span>
-            </div>
-
-            {/* 6. العنوان - يتدرج للبنفسجي عند التحويم */}
-            <h3 className="text-xl font-bold text-white mb-2 tracking-wide group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-purple-300 transition-all relative z-20" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                {item.title}
-            </h3>
-
-            <div className="relative z-20">
-                <p className="text-[9px] text-gray-300 leading-relaxed font-light max-w-[95%]">
-                    {item.description}
-                </p>
-            </div>
-
-            {/* 7. الخط السفلي - أزرق مشع */}
-            <div className="absolute bottom-5 left-5 w-8 h-[1px] bg-white/10 group-hover:w-16 group-hover:bg-blue-500/50 transition-all duration-700" />
-        </div>
-    </div>
+  const opacity = useTransform(scrollYProgress, [0, 1], [0.35, 1]);
+  const scale = useTransform(scrollYProgress, [0, 1], [0.96, 1]);
+  const glowOpacity = useTransform(scrollYProgress, [0, 1], [0, 0.35]);
+  const boxShadow = useTransform(
+    glowOpacity,
+    (value) => `0 0 20px 2px rgba(59, 130, 246, ${value})`,
   );
-};;
 
-const PositionedStepCard = ({ step }: { step: (typeof stepsWithPositions)[0] }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, amount: 0.1 });
+  const Icon = item.icon;
 
   return (
-    <motion.div
-      ref={ref}
-      className="absolute z-10"
-      style={{
-        left: `${(step.x / VIEWBOX_WIDTH) * 100}%`,
-        top: `${(step.y / VIEWBOX_HEIGHT) * 100}%`,
-        width: `${(step.width / VIEWBOX_WIDTH) * 100}%`,
-        height: `${(step.height / VIEWBOX_HEIGHT) * 100}%`,
-      }}
-      initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
-      animate={isInView ? { opacity: 1, scale: 1, filter: "blur(0px)" } : {}}
-      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+    <motion.article
+      ref={cardRef}
+      style={{ opacity, scale }}
+      className="group relative flex w-full gap-5 pb-20 md:gap-10 md:pb-24 last:pb-0"
     >
-      <StepCard item={step} />
-    </motion.div>
-  );
-};
+      <div className="relative flex shrink-0 flex-col items-center">
+        <motion.div
+          style={{ boxShadow }}
+          className="z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-blue-500/50 bg-blue-950/80 transition-colors duration-500 group-hover:border-blue-400 group-hover:bg-blue-900 md:h-14 md:w-14"
+        >
+          <span className="font-mono text-sm font-bold text-blue-400 md:text-base">
+            {item.step}
+          </span>
+        </motion.div>
 
-const HowItWorksSection = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
-
-  return (
-    <section ref={containerRef} className="relative w-full min-h-screen bg-black flex flex-col justify-center overflow-hidden">
-      <div className="absolute inset-0 z-0">
-
-         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 pointer-events-none" />
+        {!isLast && (
+          <div className="absolute bottom-[-5rem] top-10 w-px bg-gradient-to-b from-blue-500/50 to-transparent md:top-14 md:bottom-[-6rem]" />
+        )}
       </div>
 
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100px_100px] pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#000000_90%)] pointer-events-none" />
+      <div className="mt-1 flex-1 md:mt-2">
+        <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#020410]/80 p-6 transition-[transform,border-color,box-shadow] duration-500 group-hover:-translate-y-2 group-hover:border-blue-500/40 group-hover:shadow-[0_20px_40px_-10px_rgba(59,130,246,0.15)] md:p-8">
+          <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-blue-500/10 blur-[50px]" />
 
-      <div className="container mx-auto relative z-10 px-4 py-12 lg:py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start lg:items-center">
+          <div className="mb-6 inline-flex items-center justify-center rounded-xl border border-blue-500/20 bg-blue-500/10 p-3 text-blue-400 transition-all duration-500 group-hover:scale-110 group-hover:bg-blue-500 group-hover:text-white">
+            <Icon size={24} strokeWidth={1.5} />
+          </div>
 
-            <div className="lg:col-span-7 w-full order-2 lg:order-1">
-                 <div className="relative w-full" style={{ aspectRatio: `${VIEWBOX_WIDTH} / ${VIEWBOX_HEIGHT}` }}>
-                    <div className="absolute inset-0 z-0">
-                        <DiagramPath scrollYProgress={scrollYProgress} />
-                    </div>
-                    {stepsWithPositions.map((step) => (
-                        <PositionedStepCard key={step.step} step={step} />
-                    ))}
-                </div>
-            </div>
+          <h3
+            className="mb-4 text-2xl font-bold tracking-tight text-white md:text-3xl"
+            style={{ fontFamily: "'Orbitron', sans-serif" }}
+          >
+            {item.title}
+          </h3>
 
-            <div className="lg:col-span-5 w-full order-1 lg:order-2 flex flex-col items-start lg:pl-12 sticky top-24">
+          <p className="text-sm font-light leading-relaxed text-gray-400 md:text-base">
+            {item.description}
+          </p>
+        </div>
+      </div>
+    </motion.article>
+  );
+};
 
-                 <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8"
-                 >
-                    <Activity size={16} className="text-cyan-400 animate-pulse" />
-                    <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">System Architecture v2.1</span>
-                </motion.div>
+export const HowItWorksSection = () => {
+  return (
+    <section className="relative min-h-screen w-full overflow-hidden bg-black py-24 lg:py-40">
+      <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+        <Suspense fallback={null}>
+          <Canvas
+            camera={canvasConfig.camera}
+            dpr={canvasConfig.dpr}
+            gl={canvasConfig.gl}
+          >
+            <BlueEnergyStars />
+            <Preload all />
+          </Canvas>
+        </Suspense>
 
-                <motion.h2
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.1 }}
-                    className="text-5xl md:text-7xl font-black mb-6 tracking-tighter text-white leading-[0.9]"
-                    style={{ fontFamily: "'Orbitron', sans-serif" }}
-                >
-                    NEURAL<br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-500">
-                        NETWORK FLOW
-                    </span>
-                </motion.h2>
+        <div className="absolute inset-0 bg-gradient-to-b from-black via-black/40 to-black" />
+      </div>
 
-                <motion.p
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.2 }}
-                    className="text-xl text-gray-400 border-l-4 border-cyan-500/50 pl-6 mb-12 leading-relaxed"
-                >
-                    From the moment you tap order with air, our autonomous AI network takes over — analyzing millions of signals in real time to chart the fastest, safest aerial route straight to your doorstep.
-                </motion.p>
+      <div className="container relative z-10 mx-auto px-5 sm:px-6 lg:px-12">
+        <div className="grid grid-cols-1 items-start gap-16 lg:grid-cols-12 lg:gap-8">
+          <div className="flex flex-col items-start lg:col-span-5 lg:sticky lg:top-40">
+            <motion.div
+              {...sectionReveal}
+              className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-950/30 px-4 py-2 backdrop-blur-md"
+            >
+              <Activity size={16} className="animate-pulse text-blue-400" />
+              <span className="font-mono text-xs uppercase tracking-widest text-blue-300">
+                Delivery Protocol v2.0
+              </span>
+            </motion.div>
 
-                <motion.ul
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.3 }}
-                    className="space-y-6 w-full"
-                >
-                    <li className="flex items-center gap-4 group cursor-pointer">
-                        <div className="relative">
-                            <div className="w-3 h-3 rounded-full bg-cyan-400 z-10 relative" />
-                            <div className="absolute inset-0 bg-cyan-400 blur-sm group-hover:blur-md transition-all duration-300" />
-                        </div>
-                        <span className="font-mono text-sm text-cyan-100/70 tracking-widest uppercase group-hover:text-cyan-400 transition-colors">
-                            Latencyless AI Processing
-                        </span>
-                    </li>
+            <motion.h2
+              {...sectionReveal}
+              transition={{ delay: 0.1 }}
+              className="mb-6 text-5xl font-black leading-[1.1] tracking-tighter text-white md:text-6xl lg:text-7xl"
+              style={{ fontFamily: "'Orbitron', sans-serif" }}
+            >
+              THE <br />
+              <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent">
+                AUTONOMOUS
+              </span>
+              <br />
+              JOURNEY
+            </motion.h2>
 
-                    <li className="flex items-center gap-4 group cursor-pointer">
-                         <div className="relative">
-                            <div className="w-3 h-3 rounded-full bg-purple-500 z-10 relative" />
-                            <div className="absolute inset-0 bg-purple-500 blur-sm group-hover:blur-md transition-all duration-300" />
-                        </div>
-                        <span className="font-mono text-sm text-purple-100/70 tracking-widest uppercase group-hover:text-purple-400 transition-colors">
-                            4D Spatial Mapping
-                        </span>
-                    </li>
+            <motion.p
+              {...sectionReveal}
+              transition={{ delay: 0.2 }}
+              className="max-w-md border-l-2 border-blue-500/50 pl-6 text-lg leading-relaxed text-gray-400 md:text-xl"
+            >
+              Watch how our neural network translates your thoughts into a physical
+              product at your door in under 15 minutes.
+            </motion.p>
+          </div>
 
-                    <li className="flex items-center gap-4 group cursor-pointer">
-                         <div className="relative">
-                            <div className="w-3 h-3 rounded-full bg-white z-10 relative" />
-                            <div className="absolute inset-0 bg-white blur-sm group-hover:blur-md transition-all duration-300" />
-                        </div>
-                        <span className="font-mono text-sm text-gray-400 tracking-widest uppercase group-hover:text-white transition-colors">
-                            End-to-End Encryption
-                        </span>
-                    </li>
-                </motion.ul>
-
-            </div>
-
+          <div className="mt-10 flex w-full flex-col pt-4 lg:col-span-7 lg:mt-0">
+            {PRODUCTION_STEPS.map((step, index) => (
+              <ModernStepCard
+                key={step.step}
+                item={step}
+                index={index}
+                isLast={index === PRODUCTION_STEPS.length - 1}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </section>
   );
-}
+};;
 
 // ============================================================================
 // --- 7. GLOBAL SCALE SECTION (Definition) ---
