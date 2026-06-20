@@ -3,6 +3,7 @@
 
 'use client';
 
+import Image from "next/image";
 import AIChatOverlay from '@/components/ai/AIChatOverlay';
 import CinematicBackground from '@/components/ui/CinematicBackground';
 import { ShieldCheck, Lock, Clock, MapIcon, Quote, GlobeIcon, CheckCircle2, Activity } from 'lucide-react';
@@ -69,52 +70,70 @@ const CheckCircleIcon = () => (
     <path d="m9 11 3 3L22 4"/>
   </svg>
 );
-// 1. مكون النجوم الكثيفة الخاص بالـ Hero
-const HeroStars = () => {
-  const groupRef = useRef<THREE.Group>(null!);
+// 1. مكون النجوم الكثيفة الخاص بالـ Her
 
-  const sphere = useMemo(() => {
-    const count = 800000; // عدد النجوم: مليون إلا ربع لتأثير المجرة
-    const radius = 66;
+const STAR_COUNT = 150000;
+const STAR_FIELD_RADIUS = 66;
+const STAR_FIELD_POSITION: [number, number, number] = [0, 0, -60];
+const STAR_SIZE = 0.05;
+const STAR_OPACITY = 0.8;
+const ROTATION_SPEED = {
+  x: -0.0005,
+  y: -0.0005,
+  z: -0.005,
+} as const;
 
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const r = radius * Math.cbrt(Math.random());
-      const theta = Math.random() * 2 * Math.PI;
-      const phi = Math.acos(2 * Math.random() - 1);
+function createStarPositions(count: number, radius: number): Float32Array {
+  const positions = new Float32Array(count * 3);
 
-      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      positions[i * 3 + 2] = r * Math.cos(phi);
-    }
-    return positions;
-  }, []);
+  for (let index = 0; index < count; index += 1) {
+    const offset = index * 3;
+    const distance = radius * Math.cbrt(Math.random());
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const sinPhi = Math.sin(phi);
+
+    positions[offset] = distance * sinPhi * Math.cos(theta);
+    positions[offset + 1] = distance * sinPhi * Math.sin(theta);
+    positions[offset + 2] = distance * Math.cos(phi);
+  }
+
+  return positions;
+}
+
+export function HeroStars() {
+  const groupRef = useRef<THREE.Group | null>(null);
+
+  const positions = useMemo(
+    () => createStarPositions(STAR_COUNT, STAR_FIELD_RADIUS),
+    [],
+  );
 
   useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.x -= delta * 0.0005;
-      groupRef.current.rotation.y -= delta * 0.0005;
-      groupRef.current.rotation.z -= delta * 0.005;
-    }
+    const group = groupRef.current;
+    if (!group) return;
+
+    group.rotation.x += delta * ROTATION_SPEED.x;
+    group.rotation.y += delta * ROTATION_SPEED.y;
+    group.rotation.z += delta * ROTATION_SPEED.z;
   });
 
   return (
-    <group ref={groupRef} position={[0, 0, -60]}>
-      <Points positions={sphere} stride={3} frustumCulled={false}>
+    <group ref={groupRef} position={STAR_FIELD_POSITION}>
+      <Points positions={positions} stride={3} frustumCulled={false}>
         <PointMaterial
           transparent
-          color="#ffffff" // لون أبيض ساطع للنجوم
-          size={0.05}     // الحجم الصغير جداً لزيادة الكثافة والنعومة
-          sizeAttenuation={true}
+          color="#ffffff"
+          size={STAR_SIZE}
+          sizeAttenuation
           depthWrite={false}
           toneMapped={false}
-          opacity={0.8}
+          opacity={STAR_OPACITY}
         />
       </Points>
     </group>
   );
-};
-
+}
 // 2. قسم الـ Hero المُحدث والمدمج معه النجوم بألوان ونصوص احترافية
 const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -128,7 +147,11 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
       {/* خلفية النجوم 3D */}
       <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden="true">
         <Suspense fallback={null}>
-          <Canvas camera={{ position: [0, 0, 15], fov: 75 }} dpr={[1, 1.5]} gl={{ antialias: false }}>
+          <Canvas
+            camera={{ position: [0, 0, 15], fov: 75 }}
+            dpr={1}
+            gl={{ antialias: false, powerPreference: "high-performance" }}
+          >
             <HeroStars />
             <Preload all />
           </Canvas>
@@ -212,7 +235,14 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
               {/* Product Card 1 - Main */}
               <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/15 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent z-10" />
-                <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000&auto=format&fit=crop" alt="Sony Headphones" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <Image
+                  src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000&auto=format&fit=crop"
+                  alt="Sony headphones"
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 60vw, 30vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                />
                 <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-20 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
                   <div>
                     <h3 className="text-white font-bold text-sm sm:text-lg tracking-tight drop-shadow-md">Sony WH-1000XM5</h3>
@@ -226,8 +256,10 @@ const HeroSection = React.memo(({ onOrderClick, onExploreClick }: { onOrderClick
 
               {/* Product Card 2 - Floating Back Left */}
               <motion.div
-                animate={{ y: [0, -12, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute top-[10%] sm:top-[12%] left-[2%] sm:-left-[10%] w-[35%] sm:w-48 aspect-square rounded-3xl bg-zinc-900 border border-white/15 p-2 sm:p-3 shadow-2xl z-10 overflow-hidden"
+                animate={{ y: [0, -12, 0] }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                style={{ willChange: "transform" }}
+                className="absolute left-[2%] top-[10%] z-10 aspect-square w-[35%] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900 p-2 shadow-2xl transform-gpu sm:-left-[10%] sm:top-[12%] sm:w-48 sm:p-3"
               >
                 <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=600&auto=format&fit=crop" alt="Smart Watch" className="absolute inset-0 w-full h-full object-cover opacity-70" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
