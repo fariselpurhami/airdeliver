@@ -17,7 +17,7 @@ import * as THREE from 'three';
 
 const PremiumDust = memo(() => {
     const particlesRef = React.useRef<THREE.Points>(null!);
-    const count = 3000;
+    const count = 15000;
 
     const positions = useMemo(() => {
         const pos = new Float32Array(count * 3);
@@ -27,7 +27,7 @@ const PremiumDust = memo(() => {
             pos[i * 3 + 2] = (Math.random() - 0.5) * 10;
         }
         return pos;
-    }, []);
+    }, [count]);
 
     useFrame(({ clock, pointer }) => {
         if (particlesRef.current) {
@@ -51,10 +51,6 @@ PremiumDust.displayName = 'PremiumDust';
 
 const AuthBackground = memo(() => (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.5 }} className="absolute inset-0 z-0 pointer-events-none">
-        {/* Subtle Aurora Gradients */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[50vh] bg-cyan-900/20 blur-[120px] rounded-full mix-blend-screen" />
-        <div className="absolute bottom-0 left-0 w-[50vw] h-[50vh] bg-blue-900/10 blur-[120px] rounded-full mix-blend-screen" />
-        
         <Canvas camera={{ position: [0, 0, 10], fov: 45 }} dpr={[1, 1.5]} gl={{ powerPreference: "high-performance", antialias: false, alpha: true }}>
             <Suspense fallback={null}>
                 <PremiumDust />
