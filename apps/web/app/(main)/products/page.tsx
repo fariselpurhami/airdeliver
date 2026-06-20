@@ -128,13 +128,12 @@ const AICatalogHero = React.memo(() => {
             {/* --- FLOATING SPATIAL CARDS --- */}
             {/* Left Side */}
             <FloatingCategoryCard align="left" size="w-56 h-72 top-[10%] left-[8%]" yOffset={yFast} delay={0.1} rotation={-8} category="Neural Tech" title="Sony WH-1000XM5" image="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-cyan-500/20 text-cyan-400" />
-            <FloatingCategoryCard align="left" size="w-48 h-60 top-[45%] left-[2%]" yOffset={ySlow} delay={0.3} rotation={-4} category="Aesthetic" title="Dyson Airwrap" image="https://images.unsplash.com/photo-1596462502278-27bf85033e5a?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-pink-500/20 text-pink-400" />
-            <FloatingCategoryCard align="left" size="w-52 h-64 top-[65%] left-[12%]" yOffset={yMedium} delay={0.5} rotation={6} category="Wearables" title="Apple Watch Ultra" image="https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-amber-500/20 text-amber-400" />
-            
+            <FloatingCategoryCard align="left" size="w-48 h-60 top-[45%] left-[2%]" yOffset={ySlow} delay={0.3} rotation={-4} category="Aesthetic" title="Dyson" image="https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-pink-500/20 text-pink-400" />
+            <FloatingCategoryCard align="left" size="w-52 h-64 top-[65%] left-[12%]" yOffset={yMedium} delay={0.5} rotation={6} category="Wearables" title="Apple Watch Ultra" image="https://images.unsplash.com/photo-1590688560938-57c514814ddb?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-amber-500/20 text-amber-400" />
             {/* Right Side */}
             <FloatingCategoryCard align="right" size="w-56 h-72 top-[15%] right-[8%]" yOffset={yMedium} delay={0.2} rotation={8} category="Performance" title="Nike Air Max" image="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-purple-500/20 text-purple-400" />
-            <FloatingCategoryCard align="right" size="w-48 h-64 top-[50%] right-[3%]" yOffset={yFast} delay={0.4} rotation={4} category="Vitality" title="Premium Supplements" image="https://images.unsplash.com/photo-1584308666744-24d5e4b6c310?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-emerald-500/20 text-emerald-400" />
-            <FloatingCategoryCard align="right" size="w-52 h-56 top-[70%] right-[15%]" yOffset={ySlow} delay={0.6} rotation={-6} category="Aero Hardware" title="DJI Mavic 3" image="https://images.unsplash.com/photo-1504274066651-8d31a536b11a?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-blue-500/20 text-blue-400" />
+            <FloatingCategoryCard align="right" size="w-48 h-64 top-[50%] right-[3%]" yOffset={yFast} delay={0.4} rotation={4} category="Electronics" title="Iphone 17 pro max" image="https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-emerald-500/20 text-emerald-400" />
+            <FloatingCategoryCard align="right" size="w-52 h-56 top-[70%] right-[15%]" yOffset={ySlow} delay={0.6} rotation={-6} category="Fashion" title="Yellow Tracksuit" image="https://images.unsplash.com/photo-1550639525-c97d455acf70?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-blue-500/20 text-blue-400" />
 
 
             {/* --- CORE CONTENT --- */}
