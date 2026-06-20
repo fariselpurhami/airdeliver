@@ -127,7 +127,7 @@ const AICatalogHero = React.memo(() => {
 
             {/* --- FLOATING SPATIAL CARDS --- */}
             {/* Left Side */}
-            <FloatingCategoryCard align="left" size="w-56 h-72 top-[10%] left-[8%]" yOffset={yFast} delay={0.1} rotation={-8} category="Neural Tech" title="Sony WH-1000XM5" image="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-cyan-500/20 text-cyan-400" />
+            <FloatingCategoryCard align="left" size="w-56 h-72 top-[10%] left-[8%]" yOffset={yFast} delay={0.1} rotation={-8} category="Neural Tech" title="Sony WH-1000XM5" image="https://images.unsplash.com/photo-1612858249816-5a91a9fb9886?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-cyan-500/20 text-cyan-400" />
             <FloatingCategoryCard align="left" size="w-48 h-60 top-[45%] left-[2%]" yOffset={ySlow} delay={0.3} rotation={-4} category="Aesthetic" title="Dyson" image="https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-pink-500/20 text-pink-400" />
             <FloatingCategoryCard align="left" size="w-52 h-64 top-[65%] left-[12%]" yOffset={yMedium} delay={0.5} rotation={6} category="Wearables" title="Apple Watch Ultra" image="https://images.unsplash.com/photo-1590688560938-57c514814ddb?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-amber-500/20 text-amber-400" />
             {/* Right Side */}
