@@ -16,6 +16,7 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { ProductDetailsCard } from '@/components/products/ProductDetailsCard';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
+import AIChatOverlay from '@/components/ai/AIChatOverlay';
 
 // ============================================================================
 // --- INFRASTRUCTURE & UTILS ---
@@ -155,7 +156,7 @@ const AICatalogHero = React.memo(() => {
                     Don't search. Just ask. Our neural engine scans millions of products globally and secures them for instant air-drop.
                 </p>
 
-                {/* AI Interactive Trigger (Replicates page_2.tsx "Order with Air" button logic) */}
+                {/* AI Interactive Trigger */}
                 <div className="w-full max-w-xl mx-auto relative group cursor-pointer" onClick={() => setOverlayVisible(true)}>
                     <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-[73px] blur-md opacity-70 group-hover:opacity-100 group-hover:blur-xl transition duration-500 -z-10" />
                     
@@ -368,6 +369,7 @@ export default function ProductsPage() {
     const [page, setPage] = useState(1);
     const [category, setCategory] = useState("ALL");
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const { isOverlayVisible, setOverlayVisible } = useAIOrderingStore();
 
     const queryKey = `/products/?page=${page}&limit=${ITEMS_PER_PAGE}&category=${category !== 'ALL' ? category.toLowerCase() : ''}`;
     
@@ -465,6 +467,9 @@ export default function ProductsPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* AIChatOverlay explicitly injected into DOM root to listen to Global State */}
+            <AIChatOverlay isOpen={isOverlayVisible} onClose={() => setOverlayVisible(false)} />
         </div>
     );
 }
