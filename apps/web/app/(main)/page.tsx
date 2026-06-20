@@ -168,8 +168,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                 onClick={onOrderClick}
                 className="group relative flex items-center p-1.5 sm:p-2 rounded-2xl bg-zinc-900/70 border border-white/10 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)] transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900/90 cursor-text"
               >
-                <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/40 to-purple-500/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-md transform-gpu" />
-
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/40 to-purple-500/40 rounded-2xl opacity-80 blur-md transition-all duration-500 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl -z-10 transform-gpu" />
                 <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0">
                   <Bot size={20} strokeWidth={1.5} className="sm:w-6 sm:h-6" />
                 </div>
