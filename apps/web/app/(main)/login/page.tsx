@@ -1,7 +1,9 @@
+// 'apps/web/app/(main)/login/page.tsx'
+
 'use client';
 
 import CinematicBackground from '@/components/ui/CinematicBackground';
-import React, { useState, Suspense, useEffect } from 'react';
+import React, { useState, Suspense, useEffect, useMemo, memo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,49 +12,86 @@ import { Stars, Float } from '@react-three/drei';
 import { AtSign, Lock, User, ArrowRight, Zap, Globe, ShieldCheck, Gem } from 'lucide-react';
 import * as THREE from 'three';
 
-const DiamondDust = () => {
+const DiamondDust = memo(() => {
     const particlesRef = React.useRef<THREE.Points>(null!);
-    
-    useFrame(({ clock, mouse }) => {
+    const numParticles = 8000;
+
+    const positions = useMemo(() => {
+        const pos = new Float32Array(numParticles * 3);
+        for (let i = 0; i < numParticles; i++) {
+            const theta = 2 * Math.PI * Math.random();
+            const phi = Math.acos(2 * Math.random() - 1);
+            const r = 10 + Math.random() * 10;
+
+            pos[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+            pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            pos[i * 3 + 2] = r * Math.cos(phi);
+        }
+        return pos;
+    }, []);
+
+    useFrame(({ clock, pointer }) => {
         if (particlesRef.current) {
             particlesRef.current.rotation.y = clock.getElapsedTime() * 0.02;
-            particlesRef.current.rotation.x = -mouse.y * 0.02;
-            particlesRef.current.rotation.z = mouse.x * 0.02;
+            particlesRef.current.rotation.x = -pointer.y * 0.02;
+            particlesRef.current.rotation.z = pointer.x * 0.02;
         }
     });
-
-    const numParticles = 8000; 
-    const positions = new Float32Array(numParticles * 3);
-    
-    for (let i = 0; i < numParticles; i++) {
-        const theta = 2 * Math.PI * Math.random();
-        const phi = Math.acos(2 * Math.random() - 1);
-        const r = 10 + Math.random() * 10; 
-
-        positions[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-        positions[i * 3 + 2] = r * Math.cos(phi);
-    }
 
     return (
         <points ref={particlesRef}>
             <bufferGeometry attach="geometry">
-                <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
+                <bufferAttribute
+                    attach="attributes-position"
+                    count={positions.length / 3}
+                    array={positions}
+                    itemSize={3}
+                />
             </bufferGeometry>
-            <pointsMaterial 
-                attach="material" 
-                size={0.03} 
-                color="#b3e5fc" 
-                transparent 
-                opacity={0.6} 
-                sizeAttenuation={true} 
+            <pointsMaterial
+                attach="material"
+                size={0.05}
+                color="#b3e5fc"
+                transparent
+                opacity={0.8}
+                sizeAttenuation={true}
                 blending={THREE.AdditiveBlending}
+                depthWrite={false}
             />
         </points>
     );
-};
+});
+DiamondDust.displayName = 'DiamondDust';
 
-const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>) => (
+const BackgroundScene = memo(() => (
+    <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+        className="absolute inset-0"
+    >
+        <CinematicBackground />
+        <Canvas
+            camera={{ position: [0, 0, 20], fov: 40 }}
+            dpr={[1, 1.5]}
+            gl={{ powerPreference: "high-performance", antialias: false }}
+        >
+            <Suspense fallback={null}>
+                <color attach="background" args={['#000000']} />
+                <Stars radius={150} depth={80} count={12000} factor={6} saturation={0} fade speed={0.5} />
+                <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.4}>
+                     <DiamondDust />
+                </Float>
+                <ambientLight intensity={0.2} />
+                <pointLight position={[10, 10, 10]} intensity={1.5} color="#00C6FF" />
+                <pointLight position={[-10, -10, -10]} intensity={0.5} color="#7F00FF" />
+            </Suspense>
+        </Canvas>
+    </motion.div>
+));
+BackgroundScene.displayName = 'BackgroundScene';
+
+const FuturisticInput = memo(({ icon, ...props }: { icon: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>) => (
     <div className="relative group">
         <div className="absolute left-5 top-1/2 -translate-y-1/2 text-cyan-500/50 group-focus-within:text-cyan-400 transition-colors duration-500">
             {icon}
@@ -64,24 +103,25 @@ const FuturisticInput = ({ icon, ...props }: { icon: React.ReactNode } & React.I
         />
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-700 pointer-events-none" />
     </div>
-);
+));
+FuturisticInput.displayName = 'FuturisticInput';
 
-const ActionButton = ({ children, isLoading, onClick }: { children: React.ReactNode, isLoading: boolean, onClick?: () => void }) => (
-    <motion.button 
-        whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(6, 182, 212, 0.4)" }} 
-        whileTap={{ scale: 0.98 }} 
+const ActionButton = memo(({ children, isLoading, onClick }: { children: React.ReactNode, isLoading: boolean, onClick?: () => void }) => (
+    <motion.button
+        whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(6, 182, 212, 0.4)" }}
+        whileTap={{ scale: 0.98 }}
         onClick={onClick}
-        type="submit" 
+        type="submit"
         disabled={isLoading}
         className="relative w-full overflow-hidden rounded-2xl py-5 text-lg font-black text-white tracking-[0.15em] group border border-cyan-500/30"
-        style={{ 
+        style={{
             background: 'linear-gradient(135deg, rgba(6,182,212,0.8) 0%, rgba(59,130,246,0.8) 100%)',
             fontFamily: "'Orbitron', sans-serif"
         }}
     >
         <div className="absolute inset-0 opacity-20 mix-blend-overlay" style={{ backgroundImage: "radial-gradient(transparent 1px, #fff 1px)", backgroundSize: "4px 4px", backdropFilter: "contrast(1.5)" }} />
         <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50" />
-        
+
         <span className="relative z-10 flex items-center justify-center gap-3 drop-shadow-md">
             {isLoading ? (
                 <span className="flex items-center gap-2">
@@ -91,19 +131,21 @@ const ActionButton = ({ children, isLoading, onClick }: { children: React.ReactN
                 </span>
             ) : children}
         </span>
-        
+
         <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12" />
     </motion.button>
-);
+));
+ActionButton.displayName = 'ActionButton';
 
-const TrustBadge = ({ icon, text }: { icon: React.ReactNode, text: string }) => (
+const TrustBadge = memo(({ icon, text }: { icon: React.ReactNode, text: string }) => (
     <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-black/40 px-4 py-1.5 rounded-full border border-white/5 shadow-inner">
         <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]">{icon}</span>
         {text}
     </div>
-);
+));
+TrustBadge.displayName = 'TrustBadge';
 
-const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
+const SignUpForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
@@ -125,22 +167,22 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
 
             if (result?.error) {
                 setError('Invalid credentials. Access Denied.');
-                setIsLoading(false);
             } else if (result?.ok) {
                 router.refresh();
                 router.push('/');
             }
         } catch (err) {
             setError('System Error. Please try again.');
+        } finally {
             setIsLoading(false);
         }
     };
 
     return (
-         <motion.div 
-            initial={{ opacity: 0, x: 50, filter: "blur(10px)" }} 
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }} 
-            exit={{ opacity: 0, x: -50, filter: "blur(10px)" }} 
+         <motion.div
+            initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="space-y-8"
         >
@@ -155,32 +197,32 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
 
             <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-1 gap-5">
-                    <FuturisticInput 
-                        icon={<User size={20} />} 
-                        name="fullName" 
-                        type="text" 
-                        placeholder="Enter Your Name" 
-                        required 
+                    <FuturisticInput
+                        icon={<User size={20} />}
+                        name="fullName"
+                        type="text"
+                        placeholder="Enter Your Name"
+                        required
                         disabled={isLoading}
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                     />
-                    <FuturisticInput 
-                        icon={<AtSign size={20} />} 
-                        name="email" 
-                        type="email" 
-                        placeholder="Enter Your Email" 
-                        required 
+                    <FuturisticInput
+                        icon={<AtSign size={20} />}
+                        name="email"
+                        type="email"
+                        placeholder="Enter Your Email"
+                        required
                         disabled={isLoading}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                     />
-                    <FuturisticInput 
-                        icon={<Lock size={20} />} 
-                        name="password" 
-                        type="password" 
-                        placeholder="Enter Your Password" 
-                        required 
+                    <FuturisticInput
+                        icon={<Lock size={20} />}
+                        name="password"
+                        type="password"
+                        placeholder="Enter Your Password"
+                        required
                         disabled={isLoading}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -198,18 +240,18 @@ const SignUpForm = ({ onSwitch }: { onSwitch: () => void }) => {
             <div className="text-center pt-6">
                 <p className="text-gray-500 text-sm">
                     Already have account?{' '}
-                    <button onClick={onSwitch} className="text-cyan-400 hover:text-white font-bold transition-all duration-300 underline decoration-cyan-500/30 underline-offset-8 hover:decoration-cyan-400">
-                        Sign In 
+                    <button type="button" onClick={onSwitch} className="text-cyan-400 hover:text-white font-bold transition-all duration-300 underline decoration-cyan-500/30 underline-offset-8 hover:decoration-cyan-400">
+                        Sign In
                     </button>
                 </p>
             </div>
         </motion.div>
     );
-};
+});
+SignUpForm.displayName = 'SignUpForm';
 
-const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
+const SignInForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -229,22 +271,22 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
 
             if (result?.error) {
                 setError('Invalid credentials. Access Denied.');
-                setIsLoading(false);
             } else if (result?.ok) {
                 router.refresh();
                 router.push('/');
             }
         } catch (err) {
             setError('System Error. Please try again.');
+        } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <motion.div 
-            initial={{ opacity: 0, x: -50, filter: "blur(10px)" }} 
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }} 
-            exit={{ opacity: 0, x: 50, filter: "blur(10px)" }} 
+        <motion.div
+            initial={{ opacity: 0, x: -50, filter: "blur(10px)" }}
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, x: 50, filter: "blur(10px)" }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="space-y-8"
         >
@@ -258,29 +300,29 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-                <FuturisticInput 
-                    icon={<AtSign size={20} />} 
-                    name="email" 
-                    type="email" 
-                    placeholder="ID / Email" 
-                    required 
+                <FuturisticInput
+                    icon={<AtSign size={20} />}
+                    name="email"
+                    type="email"
+                    placeholder="ID / Email"
+                    required
                     disabled={isLoading}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                 />
-                <FuturisticInput 
-                    icon={<Lock size={20} />} 
-                    name="password" 
-                    type="password" 
-                    placeholder="Enter Your Password" 
-                    required 
+                <FuturisticInput
+                    icon={<Lock size={20} />}
+                    name="password"
+                    type="password"
+                    placeholder="Enter Your Password"
+                    required
                     disabled={isLoading}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                 />
-                
+
                 {error && <p className="text-xs text-red-400 text-center bg-red-500/10 p-2 rounded-lg border border-red-500/20">{error}</p>}
-                
+
                 <div className="flex justify-end">
                     <button type="button" className="text-xs text-gray-500 hover:text-cyan-400 transition-colors duration-300 font-medium">
                         Forgot Your Password?
@@ -297,14 +339,15 @@ const SignInForm = ({ onSwitch }: { onSwitch: () => void }) => {
             <div className="text-center pt-6">
                 <p className="text-gray-500 text-sm">
                     Create a new account?{' '}
-                    <button onClick={onSwitch} className="text-cyan-400 hover:text-white font-bold transition-all duration-300 underline decoration-cyan-500/30 underline-offset-8 hover:decoration-cyan-400">
+                    <button type="button" onClick={onSwitch} className="text-cyan-400 hover:text-white font-bold transition-all duration-300 underline decoration-cyan-500/30 underline-offset-8 hover:decoration-cyan-400">
                         SIGN UP
                     </button>
                 </p>
             </div>
         </motion.div>
     );
-};
+});
+SignInForm.displayName = 'SignInForm';
 
 export default function AuthPage() {
     const [variant, setVariant] = useState<'SIGNIN' | 'SIGNUP'>('SIGNIN');
@@ -314,7 +357,7 @@ export default function AuthPage() {
         setIsClient(true);
         const params = new URLSearchParams(window.location.search);
         const mode = params.get('mode');
-        
+
         if (mode === 'SIGNUP' || mode === 'SIGNIN') {
             setVariant(mode);
         }
@@ -331,52 +374,30 @@ export default function AuthPage() {
             ` }} />
             <main className="relative min-h-screen w-full bg-[#050505] text-gray-100 flex items-center justify-center pt-24 overflow-hidden selection:bg-cyan-500/30">
                 <div className="absolute inset-0 z-0">
-                    {isClient && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 1 }}
-                            className="absolute inset-0"
-                        >
-                            <CinematicBackground />
-                            <Canvas camera={{ position: [0, 0, 20], fov: 40 }}> 
-                                <Suspense fallback={null}>
-                                    <color attach="background" args={['#000000']} />
-                                    <Stars radius={150} depth={80} count={12000} factor={6} saturation={0} fade speed={0.5} />
-                                    <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.4}>
-                                         <DiamondDust />
-                                    </Float>
-                                    <ambientLight intensity={0.2} />
-                                    <pointLight position={[10, 10, 10]} intensity={1.5} color="#00C6FF" />
-                                    <pointLight position={[-10, -10, -10]} intensity={0.5} color="#7F00FF" />
-                                </Suspense>
-                            </Canvas>
-                        </motion.div>
-                    )}
-                    
+                    {isClient && <BackgroundScene />}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none opacity-80" />
                     <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50 pointer-events-none" />
                     <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none" />
                 </div>
 
                 <div className="relative z-10 w-full max-w-[500px] px-6">
-                    <motion.div 
+                    <motion.div
                         initial={{ y: -80, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
                         className="text-center mb-12 relative"
                     >
                         <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[1px] h-12 bg-gradient-to-b from-transparent to-cyan-500/50" />
-                        
+
                         <h1 className="text-5xl md:text-5xl font-medium text-white tracking-tighter leading-none drop-shadow-[0_0_40px_rgba(6,182,212,0.3)]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                             <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-cyan-100 to-cyan-900">
                                 Turning every interaction into a moment of delight.
                             </span>
                         </h1>
-                        
+
                         <div className="flex items-center justify-center gap-4 mt-6">
                             <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-cyan-500/50" />
-                            <motion.div 
+                            <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: "auto" }}
                                 className="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/30 border border-cyan-500/20 backdrop-blur-md"
@@ -386,7 +407,7 @@ export default function AuthPage() {
                             </motion.div>
                             <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-cyan-500/50" />
                         </div>
-                        
+
                         <motion.p
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -405,7 +426,7 @@ export default function AuthPage() {
                         className="relative overflow-hidden"
                     >
                         <div className="absolute inset-0 bg-black/40 backdrop-blur-3xl rounded-[40px] border border-white/10 shadow-2xl shadow-cyan-900/10" />
-                        
+
                         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                         <div className="absolute bottom-0 right-0 w-64 h-64 bg-cyan-500/5 blur-[80px] rounded-full pointer-events-none" />
                         <div className="absolute top-0 left-0 w-64 h-64 bg-purple-500/5 blur-[80px] rounded-full pointer-events-none" />
@@ -432,17 +453,16 @@ export default function AuthPage() {
                             <TrustBadge icon={<ShieldCheck size={12} />} text="Quantum Secure" />
                         </div>
                     </motion.div>
-                    
-                    <motion.div 
+
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 1.5 }}
-                        className="text-center mt-12 flex flex-col items-center gap-2"
+                        className="text-center mt-12 flex flex-col items-center gap-2 pb-12"
                     >
                         <div className="w-1 h-8 bg-gradient-to-b from-cyan-500/20 to-transparent" />
                         <p className="text-gray-600 text-[10px] tracking-[0.2em] font-mono">
                             © 2026 airdeliver systems. operating globally.
-
                         </p>
                     </motion.div>
                 </div>
