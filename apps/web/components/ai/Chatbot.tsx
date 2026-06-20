@@ -261,7 +261,6 @@ export default function Chatbot() {
                                             }}
                                             transition={{ duration: 4, repeat: Infinity }}
                                         >
-                                            air assistance
                                         </motion.span>
                                     </h3>
                                 </div>
