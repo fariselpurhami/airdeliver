@@ -133,7 +133,7 @@ const AICatalogHero = React.memo(() => {
             {/* Right Side */}
             <FloatingCategoryCard align="right" size="w-56 h-72 top-[15%] right-[8%]" yOffset={yMedium} delay={0.2} rotation={8} category="Performance" title="Nike Air Max" image="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-purple-500/20 text-purple-400" />
             <FloatingCategoryCard align="right" size="w-48 h-64 top-[50%] right-[3%]" yOffset={yFast} delay={0.4} rotation={4} category="Electronics" title="Iphone 17 pro max" image="https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-emerald-500/20 text-emerald-400" />
-            <FloatingCategoryCard align="right" size="w-52 h-56 top-[70%] right-[15%]" yOffset={ySlow} delay={0.6} rotation={-6} category="Fashion" title="Yellow Tracksuit" image="https://images.unsplash.com/photo-1550639525-c97d455acf70?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-blue-500/20 text-blue-400" />
+            <FloatingCategoryCard align="right" size="w-52 h-56 top-[70%] right-[15%]" yOffset={ySlow} delay={0.6} rotation={-6} category="Fashion" title="Yellow Tracksuit" image="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-blue-500/20 text-blue-400" />
 
 
             {/* --- CORE CONTENT --- */}
