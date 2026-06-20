@@ -1,247 +1,171 @@
-// 'apps/web/app/(main)/login/page.tsx'
+//** apps/web/app/(main)/login/page.tsx **//
 
 'use client';
 
-import CinematicBackground from '@/components/ui/CinematicBackground';
 import React, { useState, Suspense, useEffect, useMemo, memo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Float } from '@react-three/drei';
-import { AtSign, Lock, User, ArrowRight, Zap, Globe, ShieldCheck, Gem } from 'lucide-react';
+import { Points, PointMaterial } from '@react-three/drei';
+import { Mail, Lock, User, ArrowRight, ShieldCheck, Globe, Zap } from 'lucide-react';
 import * as THREE from 'three';
 
-const DiamondDust = memo(() => {
+// ============================================================================
+// --- 1. PREMIUM BACKGROUND: SUBTLE MICRO-DUST ---
+// ============================================================================
+
+const PremiumDust = memo(() => {
     const particlesRef = React.useRef<THREE.Points>(null!);
-    const numParticles = 8000;
+    const count = 3000;
 
     const positions = useMemo(() => {
-        const pos = new Float32Array(numParticles * 3);
-        for (let i = 0; i < numParticles; i++) {
-            const theta = 2 * Math.PI * Math.random();
-            const phi = Math.acos(2 * Math.random() - 1);
-            const r = 10 + Math.random() * 10;
-
-            pos[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-            pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-            pos[i * 3 + 2] = r * Math.cos(phi);
+        const pos = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+            pos[i * 3] = (Math.random() - 0.5) * 20;
+            pos[i * 3 + 1] = (Math.random() - 0.5) * 20;
+            pos[i * 3 + 2] = (Math.random() - 0.5) * 10;
         }
         return pos;
     }, []);
 
     useFrame(({ clock, pointer }) => {
         if (particlesRef.current) {
-            particlesRef.current.rotation.y = clock.getElapsedTime() * 0.02;
-            particlesRef.current.rotation.x = -pointer.y * 0.02;
-            particlesRef.current.rotation.z = pointer.x * 0.02;
+            // Very slow, elegant rotation
+            particlesRef.current.rotation.y = clock.getElapsedTime() * 0.01;
+            particlesRef.current.rotation.x = THREE.MathUtils.lerp(particlesRef.current.rotation.x, -pointer.y * 0.05, 0.05);
+            particlesRef.current.rotation.z = THREE.MathUtils.lerp(particlesRef.current.rotation.z, pointer.x * 0.05, 0.05);
         }
     });
 
     return (
         <points ref={particlesRef}>
             <bufferGeometry attach="geometry">
-                <bufferAttribute
-                    attach="attributes-position"
-                    count={positions.length / 3}
-                    array={positions}
-                    itemSize={3}
-                />
+                <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
             </bufferGeometry>
-            <pointsMaterial
-                attach="material"
-                size={0.05}
-                color="#b3e5fc"
-                transparent
-                opacity={0.8}
-                sizeAttenuation={true}
-                blending={THREE.AdditiveBlending}
-                depthWrite={false}
-            />
+            <PointMaterial transparent color="#ffffff" size={0.015} sizeAttenuation={true} depthWrite={false} opacity={0.3} />
         </points>
     );
 });
-DiamondDust.displayName = 'DiamondDust';
+PremiumDust.displayName = 'PremiumDust';
 
-const BackgroundScene = memo(() => (
-    <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-        className="absolute inset-0"
-    >
-        <CinematicBackground />
-        <Canvas
-            camera={{ position: [0, 0, 20], fov: 40 }}
-            dpr={[1, 1.5]}
-            gl={{ powerPreference: "high-performance", antialias: false }}
-        >
+const AuthBackground = memo(() => (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.5 }} className="absolute inset-0 z-0 pointer-events-none">
+        {/* Subtle Aurora Gradients */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[50vh] bg-cyan-900/20 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-0 left-0 w-[50vw] h-[50vh] bg-blue-900/10 blur-[120px] rounded-full mix-blend-screen" />
+        
+        <Canvas camera={{ position: [0, 0, 10], fov: 45 }} dpr={[1, 1.5]} gl={{ powerPreference: "high-performance", antialias: false, alpha: true }}>
             <Suspense fallback={null}>
-                <color attach="background" args={['#000000']} />
-                <Stars radius={150} depth={80} count={12000} factor={6} saturation={0} fade speed={0.5} />
-                <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.4}>
-                     <DiamondDust />
-                </Float>
-                <ambientLight intensity={0.2} />
-                <pointLight position={[10, 10, 10]} intensity={1.5} color="#00C6FF" />
-                <pointLight position={[-10, -10, -10]} intensity={0.5} color="#7F00FF" />
+                <PremiumDust />
             </Suspense>
         </Canvas>
     </motion.div>
 ));
-BackgroundScene.displayName = 'BackgroundScene';
+AuthBackground.displayName = 'AuthBackground';
 
-const FuturisticInput = memo(({ icon, ...props }: { icon: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>) => (
-    <div className="relative group">
-        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-cyan-500/50 group-focus-within:text-cyan-400 transition-colors duration-500">
-            {icon}
+// ============================================================================
+// --- 2. ENTERPRISE UI COMPONENTS ---
+// ============================================================================
+
+const PremiumInput = memo(({ icon: Icon, label, ...props }: { icon: any, label: string } & React.InputHTMLAttributes<HTMLInputElement>) => (
+    <div className="space-y-1.5">
+        <label className="text-xs font-medium text-gray-400 pl-1 tracking-wide">{label}</label>
+        <div className="relative group w-full">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-cyan-400 transition-colors duration-300">
+                <Icon size={18} />
+            </div>
+            <input
+                {...props}
+                suppressHydrationWarning={true}
+                className="w-full bg-[#0A0A0A]/80 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-gray-600 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 focus:bg-black transition-all duration-300 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
+            />
         </div>
-        <input
-            {...props}
-            suppressHydrationWarning={true}
-            className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-5 pl-14 pr-6 text-white placeholder-gray-500 focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-500/30 focus:bg-black/40 focus:outline-none transition-all duration-500 font-medium tracking-wide backdrop-blur-sm"
-        />
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-700 pointer-events-none" />
     </div>
 ));
-FuturisticInput.displayName = 'FuturisticInput';
+PremiumInput.displayName = 'PremiumInput';
 
-const ActionButton = memo(({ children, isLoading, onClick }: { children: React.ReactNode, isLoading: boolean, onClick?: () => void }) => (
-    <motion.button
-        whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(6, 182, 212, 0.4)" }}
-        whileTap={{ scale: 0.98 }}
-        onClick={onClick}
-        type="submit"
+const SubmitButton = memo(({ children, isLoading }: { children: React.ReactNode, isLoading: boolean }) => (
+    <motion.button 
+        whileHover={{ scale: 1.01 }} 
+        whileTap={{ scale: 0.99 }} 
+        type="submit" 
         disabled={isLoading}
-        className="relative w-full overflow-hidden rounded-2xl py-5 text-lg font-black text-white tracking-[0.15em] group border border-cyan-500/30"
-        style={{
-            background: 'linear-gradient(135deg, rgba(6,182,212,0.8) 0%, rgba(59,130,246,0.8) 100%)',
-            fontFamily: "'Orbitron', sans-serif"
-        }}
+        className="relative w-full overflow-hidden rounded-xl py-4 text-sm font-semibold text-white bg-white/10 hover:bg-white border border-white/10 hover:text-black transition-all duration-300 shadow-lg group"
     >
-        <div className="absolute inset-0 opacity-20 mix-blend-overlay" style={{ backgroundImage: "radial-gradient(transparent 1px, #fff 1px)", backgroundSize: "4px 4px", backdropFilter: "contrast(1.5)" }} />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-50" />
-
-        <span className="relative z-10 flex items-center justify-center gap-3 drop-shadow-md">
+        <span className="relative z-10 flex items-center justify-center gap-2">
             {isLoading ? (
                 <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-white rounded-full animate-bounce" />
-                    <span className="w-2 h-2 bg-white rounded-full animate-bounce delay-100" />
-                    <span className="w-2 h-2 bg-white rounded-full animate-bounce delay-200" />
+                    <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
+                    <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce delay-100" />
+                    <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce delay-200" />
                 </span>
             ) : children}
         </span>
-
-        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12" />
     </motion.button>
 ));
-ActionButton.displayName = 'ActionButton';
+SubmitButton.displayName = 'SubmitButton';
 
-const TrustBadge = memo(({ icon, text }: { icon: React.ReactNode, text: string }) => (
-    <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-black/40 px-4 py-1.5 rounded-full border border-white/5 shadow-inner">
-        <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]">{icon}</span>
-        {text}
+const ValueProp = memo(({ icon: Icon, title }: { icon: any, title: string }) => (
+    <div className="flex items-center gap-2 text-xs text-gray-400">
+        <Icon size={14} className="text-cyan-500" />
+        <span>{title}</span>
     </div>
 ));
-TrustBadge.displayName = 'TrustBadge';
+ValueProp.displayName = 'ValueProp';
+
+// ============================================================================
+// --- 3. FORMS (Login / Register) ---
+// ============================================================================
 
 const SignUpForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
-        setError('');
+        setIsLoading(true); setError('');
 
         try {
-            const result = await signIn('credentials', {
-                redirect: false,
-                email,
-                password,
-            });
-
-            if (result?.error) {
-                setError('Invalid credentials. Access Denied.');
-            } else if (result?.ok) {
-                router.refresh();
-                router.push('/');
-            }
-        } catch (err) {
-            setError('System Error. Please try again.');
-        } finally {
-            setIsLoading(false);
-        }
+            const result = await signIn('credentials', { redirect: false, email, password });
+            if (result?.error) setError('Registration failed. Please check your details.');
+            else if (result?.ok) { router.refresh(); router.push('/'); }
+        } catch (err) { setError('An error occurred. Please try again later.'); } 
+        finally { setIsLoading(false); }
     };
 
     return (
-         <motion.div
-            initial={{ opacity: 0, x: 50, filter: "blur(10px)" }}
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, x: -50, filter: "blur(10px)" }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="space-y-8"
-        >
-            <div className="text-center space-y-3 mb-10">
-                <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                    SECURE & FAST
-                </h2>
-                <p className="text-sm text-cyan-300/60 tracking-[0.2em] uppercase font-medium">
-                    Join the Autonomous Logistics Revolution
+         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4 }} className="space-y-8">
+            <div className="space-y-2">
+                <h2 className="text-3xl font-semibold text-white tracking-tight">Create an account</h2>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                    Join airdeliver to experience the future of shopping.
                 </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="grid grid-cols-1 gap-5">
-                    <FuturisticInput
-                        icon={<User size={20} />}
-                        name="fullName"
-                        type="text"
-                        placeholder="Enter Your Name"
-                        required
-                        disabled={isLoading}
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                    />
-                    <FuturisticInput
-                        icon={<AtSign size={20} />}
-                        name="email"
-                        type="email"
-                        placeholder="Enter Your Email"
-                        required
-                        disabled={isLoading}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                    />
-                    <FuturisticInput
-                        icon={<Lock size={20} />}
-                        name="password"
-                        type="password"
-                        placeholder="Enter Your Password"
-                        required
-                        disabled={isLoading}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                    />
-                </div>
-                 {error && <p className="text-xs text-red-400 text-center bg-red-500/10 p-2 rounded-lg border border-red-500/20">{error}</p>}
+                <PremiumInput icon={User} label="Full Name" name="fullName" type="text" placeholder="John Doe" required disabled={isLoading} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                <PremiumInput icon={Mail} label="Email Address" name="email" type="email" placeholder="john@example.com" required disabled={isLoading} value={email} onChange={(e) => setEmail(e.target.value)} />
+                <PremiumInput icon={Lock} label="Password" name="password" type="password" placeholder="••••••••" required disabled={isLoading} value={password} onChange={(e) => setPassword(e.target.value)} />
+                
+                {error && <p className="text-xs text-red-400 bg-red-500/10 p-3 rounded-lg border border-red-500/20">{error}</p>}
 
-                <div className="pt-4">
-                    <ActionButton isLoading={isLoading}>
-                        Sign Up <ArrowRight size={20} />
-                    </ActionButton>
+                <div className="pt-2">
+                    <SubmitButton isLoading={isLoading}>
+                        Create Account <ArrowRight size={16} />
+                    </SubmitButton>
                 </div>
             </form>
 
-            <div className="text-center pt-6">
-                <p className="text-gray-500 text-sm">
-                    Already have account?{' '}
-                    <button type="button" onClick={onSwitch} className="text-cyan-400 hover:text-white font-bold transition-all duration-300 underline decoration-cyan-500/30 underline-offset-8 hover:decoration-cyan-400">
-                        Sign In
+            <div className="text-center pt-2">
+                <p className="text-gray-400 text-sm">
+                    Already have an account?{' '}
+                    <button type="button" onClick={onSwitch} className="text-white hover:text-cyan-400 font-medium transition-colors duration-300">
+                        Sign in
                     </button>
                 </p>
             </div>
@@ -259,88 +183,57 @@ const SignInForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
-        setError('');
+        setIsLoading(true); setError('');
 
         try {
-            const result = await signIn('credentials', {
-                redirect: false,
-                email,
-                password,
-            });
-
-            if (result?.error) {
-                setError('Invalid credentials. Access Denied.');
-            } else if (result?.ok) {
-                router.refresh();
-                router.push('/');
-            }
-        } catch (err) {
-            setError('System Error. Please try again.');
-        } finally {
-            setIsLoading(false);
-        }
+            const result = await signIn('credentials', { redirect: false, email, password });
+            if (result?.error) setError('Invalid email or password.');
+            else if (result?.ok) { router.refresh(); router.push('/'); }
+        } catch (err) { setError('An error occurred. Please try again later.'); } 
+        finally { setIsLoading(false); }
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0, x: -50, filter: "blur(10px)" }}
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, x: 50, filter: "blur(10px)" }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="space-y-8"
-        >
-            <div className="text-center space-y-3 mb-10">
-                <h2 className="text-3xl font-medium text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 drop-shadow-2xl" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                    LET'S GET STARTED
-                </h2>
-                <p className="text-sm text-cyan-300/60 tracking-[0.2em] font-medium">
-                    Login in to manage your deliveries without the headache
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4 }} className="space-y-8">
+            <div className="space-y-2">
+                <h2 className="text-3xl font-semibold text-white tracking-tight">Welcome back</h2>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                    Sign in to manage your deliveries and track your orders.
                 </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-                <FuturisticInput
-                    icon={<AtSign size={20} />}
-                    name="email"
-                    type="email"
-                    placeholder="ID / Email"
-                    required
-                    disabled={isLoading}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
-                <FuturisticInput
-                    icon={<Lock size={20} />}
-                    name="password"
-                    type="password"
-                    placeholder="Enter Your Password"
-                    required
-                    disabled={isLoading}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
-
-                {error && <p className="text-xs text-red-400 text-center bg-red-500/10 p-2 rounded-lg border border-red-500/20">{error}</p>}
-
-                <div className="flex justify-end">
-                    <button type="button" className="text-xs text-gray-500 hover:text-cyan-400 transition-colors duration-300 font-medium">
-                        Forgot Your Password?
-                    </button>
+                <PremiumInput icon={Mail} label="Email Address" name="email" type="email" placeholder="name@company.com" required disabled={isLoading} value={email} onChange={(e) => setEmail(e.target.value)} />
+                <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                        <label className="text-xs font-medium text-gray-400 pl-1 tracking-wide">Password</label>
+                        <button type="button" className="text-xs text-gray-500 hover:text-white transition-colors">Forgot password?</button>
+                    </div>
+                    <div className="relative group w-full">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-cyan-400 transition-colors duration-300">
+                            <Lock size={18} />
+                        </div>
+                        <input
+                            type="password" name="password" placeholder="••••••••" required disabled={isLoading} value={password} onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-[#0A0A0A]/80 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-white placeholder-gray-600 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 focus:bg-black transition-all duration-300 text-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]"
+                        />
+                    </div>
                 </div>
+                
+                {error && <p className="text-xs text-red-400 bg-red-500/10 p-3 rounded-lg border border-red-500/20">{error}</p>}
 
-                <div className="pt-4">
-                    <ActionButton isLoading={isLoading}>
-                        SIGN IN  <Zap size={20} className="fill-current ml-2" />
-                    </ActionButton>
+                <div className="pt-2">
+                    <SubmitButton isLoading={isLoading}>
+                        Sign In
+                    </SubmitButton>
                 </div>
             </form>
 
-            <div className="text-center pt-6">
-                <p className="text-gray-500 text-sm">
-                    Create a new account?{' '}
-                    <button type="button" onClick={onSwitch} className="text-cyan-400 hover:text-white font-bold transition-all duration-300 underline decoration-cyan-500/30 underline-offset-8 hover:decoration-cyan-400">
-                        SIGN UP
+            <div className="text-center pt-2">
+                <p className="text-gray-400 text-sm">
+                    Don't have an account?{' '}
+                    <button type="button" onClick={onSwitch} className="text-white hover:text-cyan-400 font-medium transition-colors duration-300">
+                        Create an account
                     </button>
                 </p>
             </div>
@@ -348,6 +241,10 @@ const SignInForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
     );
 });
 SignInForm.displayName = 'SignInForm';
+
+// ============================================================================
+// --- 4. PAGE ORCHESTRATOR ---
+// ============================================================================
 
 export default function AuthPage() {
     const [variant, setVariant] = useState<'SIGNIN' | 'SIGNUP'>('SIGNIN');
@@ -357,116 +254,47 @@ export default function AuthPage() {
         setIsClient(true);
         const params = new URLSearchParams(window.location.search);
         const mode = params.get('mode');
-
-        if (mode === 'SIGNUP' || mode === 'SIGNIN') {
-            setVariant(mode);
-        }
+        if (mode === 'SIGNUP' || mode === 'SIGNIN') setVariant(mode);
     }, []);
 
     const toggleVariant = () => setVariant(prev => prev === 'SIGNIN' ? 'SIGNUP' : 'SIGNIN');
 
     return (
-        <>
-            <style dangerouslySetInnerHTML={{ __html: `
-                html, body {
-                    background-color: #050505 !important;
-                }
-            ` }} />
-            <main className="relative min-h-screen w-full bg-[#050505] text-gray-100 flex items-center justify-center pt-24 overflow-hidden selection:bg-cyan-500/30">
-                <div className="absolute inset-0 z-0">
-                    {isClient && <BackgroundScene />}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none opacity-80" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50 pointer-events-none" />
-                    <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none" />
-                </div>
+        <main className="relative min-h-screen w-full bg-[#050505] text-gray-100 flex items-center justify-center pt-20 pb-10 overflow-hidden selection:bg-cyan-500/30 font-sans">
+            {isClient && <AuthBackground />}
+            
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.02] pointer-events-none z-0" />
 
-                <div className="relative z-10 w-full max-w-[500px] px-6">
-                    <motion.div
-                        initial={{ y: -80, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-                        className="text-center mb-12 relative"
-                    >
-                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[1px] h-12 bg-gradient-to-b from-transparent to-cyan-500/50" />
+            <div className="relative z-10 w-full max-w-md px-6">
+                
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                >
+                    {/* Premium Glass Panel */}
+                    <div className="relative bg-[#0D0D0C]/60 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] p-8 md:p-10 overflow-hidden">
+                        
+                        {/* Subtle top edge highlight */}
+                        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                        
+                        <Suspense fallback={<div className="h-[400px] flex items-center justify-center"><div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" /></div>}>
+                            <AnimatePresence mode="wait">
+                                {variant === 'SIGNIN' ? <SignInForm key="signin" onSwitch={toggleVariant} /> : <SignUpForm key="signup" onSwitch={toggleVariant} />}
+                            </AnimatePresence>
+                        </Suspense>
 
-                        <h1 className="text-5xl md:text-5xl font-medium text-white tracking-tighter leading-none drop-shadow-[0_0_40px_rgba(6,182,212,0.3)]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            <span className="bg-clip-text text-transparent bg-gradient-to-b from-white via-cyan-100 to-cyan-900">
-                                Turning every interaction into a moment of delight.
-                            </span>
-                        </h1>
+                    </div>
 
-                        <div className="flex items-center justify-center gap-4 mt-6">
-                            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-cyan-500/50" />
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: "auto" }}
-                                className="flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/30 border border-cyan-500/20 backdrop-blur-md"
-                            >
-                                <Gem size={10} className="text-cyan-400" />
-                                <span className="text-[10px] font-mono text-cyan-300 uppercase tracking-[0.2em]">Frictionless</span>
-                            </motion.div>
-                            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-cyan-500/50" />
-                        </div>
+                    {/* Trust Signals Footer */}
+                    <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
+                        <ValueProp icon={ShieldCheck} title="End-to-end encrypted" />
+                        <ValueProp icon={Zap} title="Instant autonomous delivery" />
+                        <ValueProp icon={Globe} title="Global logistics network" />
+                    </div>
 
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.8 }}
-                            className="text-xs text-gray-500 mt-4 uppercase tracking-[0.4em] font-light"
-                        >
-                            Delivering pure peace of mind
-                        </motion.p>
-                    </motion.div>
-
-                    <motion.div
-                        layout
-                        initial={{ opacity: 0, scale: 0.9, y: 40 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        transition={{ duration: 0.8, type: "spring", stiffness: 80, damping: 25 }}
-                        className="relative overflow-hidden"
-                    >
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-3xl rounded-[40px] border border-white/10 shadow-2xl shadow-cyan-900/10" />
-
-                        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                        <div className="absolute bottom-0 right-0 w-64 h-64 bg-cyan-500/5 blur-[80px] rounded-full pointer-events-none" />
-                        <div className="absolute top-0 left-0 w-64 h-64 bg-purple-500/5 blur-[80px] rounded-full pointer-events-none" />
-
-                        <div className="relative p-10 md:p-12 z-10">
-                            <Suspense fallback={
-                                <div className="flex flex-col items-center justify-center min-h-[300px] text-cyan-400 font-mono text-xs tracking-widest animate-pulse gap-4">
-                                    <Gem size={24} className="animate-spin duration-3000" />
-                                    <span>INITIALIZING INTERFACE...</span>
-                                </div>
-                            }>
-                                <AnimatePresence mode="wait">
-                                    {variant === 'SIGNIN' ? (
-                                        <SignInForm key="signin" onSwitch={toggleVariant} />
-                                    ) : (
-                                        <SignUpForm key="signup" onSwitch={toggleVariant} />
-                                    )}
-                                </AnimatePresence>
-                            </Suspense>
-                        </div>
-
-                        <div className="relative bg-black/20 border-t border-white/5 p-5 flex justify-between items-center px-10 backdrop-blur-md">
-                            <TrustBadge icon={<Globe size={12} />} text="Global Network" />
-                            <TrustBadge icon={<ShieldCheck size={12} />} text="Quantum Secure" />
-                        </div>
-                    </motion.div>
-
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 1.5 }}
-                        className="text-center mt-12 flex flex-col items-center gap-2 pb-12"
-                    >
-                        <div className="w-1 h-8 bg-gradient-to-b from-cyan-500/20 to-transparent" />
-                        <p className="text-gray-600 text-[10px] tracking-[0.2em] font-mono">
-                            © 2026 airdeliver systems. operating globally.
-                        </p>
-                    </motion.div>
-                </div>
-            </main>
-        </>
+                </motion.div>
+            </div>
+        </main>
     );
 }

@@ -170,8 +170,8 @@ const AICatalogHero = React.memo(() => {
                             </p>
                         </div>
 
-                        <button className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white text-black font-bold text-xs hover:bg-cyan-50 transition-colors shrink-0 shadow-lg shadow-white/10 uppercase tracking-widest">
-                            Order with Air
+                        <button className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white text-black font-bold text-xs hover:bg-cyan-50 transition-colors shrink-0 shadow-lg shadow-white/10 tracking-widest">
+                            order with air
                         </button>
                     </div>
                 </div>
