@@ -78,9 +78,9 @@ const STAR_FIELD_POSITION: [number, number, number] = [0, 0, -60];
 const STAR_SIZE = 0.05;
 const STAR_OPACITY = 0.8;
 const ROTATION_SPEED = {
-  x: -0.0005,
-  y: -0.0005,
-  z: -0.005,
+  x: -0.0001,
+  y: -0.0001,
+  z: -0.001,
 } as const;
 
 function createStarPositions(count: number, radius: number): Float32Array {
