@@ -1,4 +1,4 @@
-//** apps/web/app/(main)/page.tsx **//
+///** apps/web/app/(main)/page.tsx **//
 
 'use client';
 
@@ -125,7 +125,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               radius={66} 
               color="#ffffff" 
               size={0.05} 
-              rotationSpeed={{ x: -0.005, y: -0.005, z: -0.05 }} 
+              rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} 
             />
             <Preload all />
           </Canvas>
