@@ -5,7 +5,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import List, Dict, Any
 from app import models, schemas
-from app.db.session import get_session
+from app.db.session import get_async_session
 from app.api import deps
 import random
 
@@ -15,7 +15,7 @@ router = APIRouter()
 @router.get("", response_model=List[Dict[str, Any]], include_in_schema=False)
 @router.get("/", response_model=List[Dict[str, Any]])
 async def read_products(
-    db: AsyncSession = Depends(get_session),
+    db: AsyncSession = Depends(get_async_session),
     skip: int = 0,
     limit: int = 100,
 ):
@@ -48,7 +48,7 @@ async def read_products(
 @router.post("/", response_model=schemas.Product, status_code=201)
 async def create_product(
     *,
-    db: AsyncSession = Depends(get_session),
+    db: AsyncSession = Depends(get_async_session),
     product_in: schemas.ProductCreate,
     current_user: models.User = Depends(deps.get_current_admin_user),
 ):
@@ -62,7 +62,7 @@ async def create_product(
 @router.get("/suggestions", response_model=List[Dict[str, Any]])
 async def get_product_suggestions(
     product_id: int,
-    db: AsyncSession = Depends(get_session),
+    db: AsyncSession = Depends(get_async_session),
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
     source_product = await db.get(models.Product, product_id)
@@ -121,7 +121,7 @@ async def get_product_suggestions(
 
 @router.get("/featured-recommendation", response_model=Dict[str, Any])
 async def get_featured_recommendation(
-    db: AsyncSession = Depends(get_session),
+    db: AsyncSession = Depends(get_async_session),
 ):
     result = await db.exec(
         select(models.Product).order_by(models.Product.inventory.asc()).limit(1)

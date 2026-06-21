@@ -70,7 +70,7 @@ async def check_rate_limit(user_id: int, cache: IAsyncCacheClient) -> bool:
 async def handle_chat_websocket(
     websocket: WebSocket,
     ticket: str = Query(None),
-    session: AsyncSession = Depends(deps.get_session),
+    session: AsyncSession = Depends(deps.get_async_session),
     rabbitmq: RabbitMQService = Depends(deps.get_rabbitmq_service),
     cache: IAsyncCacheClient = Depends(deps.get_cache_client),
 ):
@@ -316,7 +316,7 @@ async def handle_chat_websocket(
 async def handle_voice_stream(
     websocket: WebSocket,
     ticket: str = Query(None),
-    session: AsyncSession = Depends(deps.get_session),
+    session: AsyncSession = Depends(deps.get_async_session),
     commerce_engine = Depends(deps.get_ai_commerce_engine),
     llm_service = Depends(deps.get_llm_service),
     cache: IAsyncCacheClient = Depends(deps.get_cache_client),

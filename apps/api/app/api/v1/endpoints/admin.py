@@ -53,7 +53,7 @@ def get_current_admin_user(
     response_model=AdminStatsResponse,
     dependencies=[Depends(get_current_admin_user)],
 )
-async def get_admin_stats(db: AsyncSession = Depends(deps.get_session)):
+async def get_admin_stats(db: AsyncSession = Depends(deps.get_async_session)):
     total_revenue = (
         await db.exec(
             select(func.sum(models.Order.total_price)).where(
@@ -98,7 +98,7 @@ async def get_admin_stats(db: AsyncSession = Depends(deps.get_session)):
     dependencies=[Depends(get_current_admin_user)],
 )
 async def get_admin_orders(
-    db: AsyncSession = Depends(deps.get_session),
+    db: AsyncSession = Depends(deps.get_async_session),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
 ):

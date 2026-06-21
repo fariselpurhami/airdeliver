@@ -1,51 +1,65 @@
-# apps/api/app/api/v1/endpoints/health.py
+#  apps/api/app/api/v1/endpoints/health.py
 
-from fastapi import APIRouter, Depends, status, Response
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlalchemy import text
-from app.db.session import get_session
-from app.services.cache_service import IAsyncCacheClient, get_cache_client
-from app.core.config import settings
+from __future__ import annotations
+
 import logging
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Response, status
+from sqlalchemy import text
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app.core.config import CoreSettings, get_core_settings
+from app.db.session import get_async_session
+from app.services.cache_service import IAsyncCacheClient, get_cache_client
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+
+router = APIRouter(tags=["health"])
+
+
+ComponentStatus = Literal["connected", "disconnected", "disabled", "error"]
+OverallStatus = Literal["ok", "error"]
+
 
 @router.get("/health", status_code=status.HTTP_200_OK)
 async def health_check(
     response: Response,
-    db: AsyncSession = Depends(get_session),
+    settings: CoreSettings = Depends(get_core_settings),
+    db: AsyncSession = Depends(get_async_session),
     cache: IAsyncCacheClient = Depends(get_cache_client),
-):
-    status_data = {
-        "status": "ok",
-        "database": "unknown",
-        "redis": "disabled"
-    }
+) -> dict[str, str]:
+    overall_status: OverallStatus = "ok"
+    database_status: ComponentStatus = "unknown"  # type: ignore[assignment]
+    redis_status: ComponentStatus = "disabled"
 
     try:
-        await db.exec(text("SELECT 1"))
-        status_data["database"] = "connected"
-    except Exception as e:
-        logger.error(f"DB Health Fail: {e}")
-        status_data["database"] = "disconnected"
-        status_data["status"] = "error"
-        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        await db.execute(text("SELECT 1"))
+        database_status = "connected"
+    except Exception:
+        logger.exception("Database readiness check failed.")
+        database_status = "disconnected"
+        overall_status = "error"
 
     if settings.USE_REDIS:
         try:
-            is_connected = await cache.ping()
-            if is_connected:
-                status_data["redis"] = "connected"
+            redis_reachable = await cache.ping()
+            if redis_reachable:
+                redis_status = "connected"
             else:
-                logger.error("Health Check: Redis Ping Failed (check connection params)")
-                status_data["redis"] = "disconnected"
-                status_data["status"] = "error"
-                response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        except Exception as e:
-            logger.error(f"Health Check Redis Exception: {e}")
-            status_data["redis"] = "error"
-            status_data["status"] = "error"
-            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+                redis_status = "disconnected"
+                overall_status = "error"
+                logger.error("Redis readiness check returned an unhealthy ping result.")
+        except Exception:
+            logger.exception("Redis readiness check failed.")
+            redis_status = "error"
+            overall_status = "error"
 
-    return status_data
+    if overall_status == "error":
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
+    return {
+        "status": overall_status,
+        "database": database_status,
+        "redis": redis_status,
+    }

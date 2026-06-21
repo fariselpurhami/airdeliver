@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.get("/", response_model=Cart)
 async def get_cart(
-    db: AsyncSession = Depends(deps.get_session),
+    db: AsyncSession = Depends(deps.get_async_session),
     user: User = Depends(deps.get_current_user),
 ):
     """Retrieve the current user's cart."""
@@ -23,7 +23,7 @@ async def get_cart(
 @router.post("/add", response_model=Cart)
 async def add_to_cart(
     item: CartItemCreate,
-    db: AsyncSession = Depends(deps.get_session),
+    db: AsyncSession = Depends(deps.get_async_session),
     user: User = Depends(deps.get_current_user),
 ):
     """Add an item to the current user's cart."""

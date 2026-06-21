@@ -3,7 +3,7 @@
 from app.models.product import Product
 from fastapi import APIRouter, Depends, Query
 from app.api import deps
-from app.db.session import get_session
+from app.db.session import get_async_session
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import List, Dict, Any
@@ -28,7 +28,7 @@ FAKE_USER_MEMORY_DB = {
 @router.get("/PRODUCT_SEARCH")
 async def product_search(
     query: str = Query(..., description="Product name to search for"),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
 ):
     search_query = f"%{query.lower()}%"
 

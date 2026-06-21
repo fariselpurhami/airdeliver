@@ -8,7 +8,7 @@ from sqlmodel import SQLModel
 from typing import Optional
 from app.api import deps
 from app import models
-from app.db.session import get_session
+from app.db.session import get_async_session
 from app.services.neural_core_service import NeuralCoreService, get_neural_core_service
 from app.schemas.ai_actions import NeuralCoreResponse
 
@@ -22,7 +22,7 @@ class SupportRequest(SQLModel):
 @router.post("/chat", response_model=NeuralCoreResponse)
 async def handle_support_chat(
     *,
-    db: AsyncSession = Depends(get_session),
+    db: AsyncSession = Depends(get_async_session),
     request_data: SupportRequest = Body(...),
     current_user: Optional[models.User] = Depends(deps.get_optional_current_user),
     neural_service: NeuralCoreService = Depends(get_neural_core_service),

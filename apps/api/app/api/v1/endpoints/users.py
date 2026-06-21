@@ -13,7 +13,7 @@ from app.schemas.user import UserRead, UserCreate, UserUpdate
 from app.schemas.msg import Msg
 from app.api import deps
 from app.crud import crud_user
-from app.db.session import get_session
+from app.db.session import get_async_session
 from app.core import security
 from app.core.config import StripeSettings, get_stripe_settings
 
@@ -28,7 +28,7 @@ class DefaultPaymentMethod(BaseModel):
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def create_user(
-    *, session: AsyncSession = Depends(get_session), user_in: UserCreate
+    *, session: AsyncSession = Depends(get_async_session), user_in: UserCreate
 ):
     user = await crud_user.user.get_by_email(db=session, email=user_in.email)
     if user:
@@ -56,7 +56,7 @@ class ChangePasswordRequest(BaseModel):
 @router.post("/me/change-password", response_model=Msg, status_code=status.HTTP_200_OK)
 async def change_user_password(
     *,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     password_data: ChangePasswordRequest,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
@@ -78,7 +78,7 @@ async def change_user_password(
 async def upload_user_avatar(
     *,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     current_user: models.User = Depends(deps.get_current_active_user),
     file: UploadFile = File(...),
 ):
@@ -123,7 +123,7 @@ def export_user_data(
 @router.delete("/me/delete-account", response_model=Msg, status_code=status.HTTP_200_OK)
 async def delete_account(
     *,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
     if current_user.id is None:
@@ -141,7 +141,7 @@ async def delete_account(
 @router.put("/me", response_model=UserRead)
 async def update_user_me(
     *,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     user_in: UserUpdate,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):

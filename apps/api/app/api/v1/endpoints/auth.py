@@ -19,7 +19,7 @@ from typing import Optional
 from app.core import security
 from app.core.config import settings
 from app import schemas, models
-from app.db.session import get_session
+from app.db.session import get_async_session
 
 router = APIRouter()
 
@@ -51,7 +51,7 @@ async def get_refresh_token_from_cookie_or_header(
 async def login_for_access_token(
     request: Request,
     response: Response,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
     user = await security.authenticate_user(
@@ -98,7 +98,7 @@ async def login_for_access_token(
 async def refresh_access_token(
     request: Request,
     refresh_token: str = Depends(get_refresh_token_from_cookie_or_header),
-    db: AsyncSession = Depends(get_session),
+    db: AsyncSession = Depends(get_async_session),
 ):
     payload = security.verify_refresh_token(refresh_token)
     if not payload:

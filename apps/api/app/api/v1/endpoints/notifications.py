@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, update
 from typing import Any, List
-from app.db.session import get_session
+from app.db.session import get_async_session
 from app.api import deps
 from app.models.user import User
 from app.models.notification import Notification
@@ -36,7 +36,7 @@ def format_timestamp(dt: datetime) -> str:
 @router.get("", response_model=List[NotificationRead])
 async def get_notifications(
     *,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(deps.get_current_active_user),
 ):
     """
@@ -62,7 +62,7 @@ async def get_notifications(
 @router.post("/{id}/read", response_model=NotificationRead)
 async def mark_notification_as_read(
     *,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(deps.get_current_active_user),
     id: int,
 ):
@@ -84,7 +84,7 @@ async def mark_notification_as_read(
 @router.post("/read-all", status_code=status.HTTP_204_NO_CONTENT)
 async def mark_all_notifications_as_read(
     *,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(deps.get_current_active_user),
 ):
     statement = (
@@ -100,7 +100,7 @@ async def mark_all_notifications_as_read(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def dismiss_notification(
     *,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(deps.get_current_active_user),
     id: int,
 ):
@@ -121,7 +121,7 @@ async def dismiss_notification(
 @router.post("/subscribe")
 async def subscribe_to_push_notifications(
     *,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(deps.get_current_active_user),
     subscription_info: Any = Body(...),
 ):

@@ -1,226 +1,330 @@
 # apps/api/app/api/deps.py
 
-from fastapi import Depends, HTTPException, status, WebSocket, Query, WebSocketDisconnect
-from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
-from pydantic import ValidationError
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select  
-from typing import Dict, Optional, Set
-import logging
+from __future__ import annotations
+
 import asyncio
-from app.services.rabbitmq_service import RabbitMQService
-from app.db.session import get_session
-from app.core.config import get_core_settings, CoreSettings
-from app.core import security
-from app.crud import crud_user
-from app import models, schemas
-from app.models.user import UserRole
-from app.services.cache_service import get_cache_client, IAsyncCacheClient
-from app.services.ai_commerce_engine import get_ai_commerce_engine
-from app.services.free_llm_service import FreeLLMService
+import logging
+from collections.abc import AsyncGenerator
 from functools import lru_cache
+from typing import Optional
+
+from fastapi import Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from pydantic import ValidationError
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app import models, schemas
+from app.core import security
+from app.core.config import CoreSettings, get_core_settings
+from app.db.session import get_async_session
+from app.models.user import UserRole
+from app.services.ai_commerce_engine import get_ai_commerce_engine
+from app.services.cache_service import IAsyncCacheClient, get_cache_client
+from app.services.free_llm_service import FreeLLMService
+from app.services.rabbitmq_service import RabbitMQService
 
 logger = logging.getLogger(__name__)
 
-logger.info("🚀 GOLDEN DEPS LOADED: Version 2.0 (SQLModel Fix Applied)")
-
-reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{get_core_settings().API_V1_STR}/auth/token"
-)
-
-optional_oauth2 = OAuth2PasswordBearer(
+oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"{get_core_settings().API_V1_STR}/auth/token",
-    auto_error=False
 )
+
+optional_oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{get_core_settings().API_V1_STR}/auth/token",
+    auto_error=False,
+)
+
+
+def _get_secret_key_value(settings: CoreSettings) -> str:
+    secret = settings.SECRET_KEY
+    return secret.get_secret_value() if hasattr(secret, "get_secret_value") else str(secret)
+
+
+def _forbidden_credentials_exception() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Could not validate credentials",
+    )
+
+
+async def _load_user_by_subject(session: AsyncSession, subject: str) -> models.User | None:
+    result = await session.exec(select(models.User).where(models.User.email == subject))
+    return result.first()
+
+
+def _decode_token_subject(token: str, settings: CoreSettings) -> str:
+    try:
+        payload = jwt.decode(
+            token,
+            _get_secret_key_value(settings),
+            algorithms=[security.ALGORITHM],
+        )
+        token_data = schemas.TokenPayload(**payload)
+    except (JWTError, ValidationError) as exc:
+        raise _forbidden_credentials_exception() from exc
+
+    if not token_data.sub:
+        raise _forbidden_credentials_exception()
+
+    return token_data.sub
+
+
+async def _get_user_from_token(
+    token: str,
+    session: AsyncSession,
+    settings: CoreSettings,
+) -> models.User:
+    subject = _decode_token_subject(token, settings)
+    user = await _load_user_by_subject(session, subject)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    return user
+
+
+def _ensure_active_user(user: models.User) -> models.User:
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user",
+        )
+    return user
+
+
+def _ensure_admin_user(user: models.User) -> models.User:
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user doesn't have enough privileges",
+        )
+    return user
+
 
 async def get_current_user(
     settings: CoreSettings = Depends(get_core_settings),
-    session: AsyncSession = Depends(get_session),
-    token: str = Depends(reusable_oauth2),
+    session: AsyncSession = Depends(get_async_session),
+    token: str = Depends(oauth2_scheme),
 ) -> models.User:
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY.get_secret_value(), algorithms=[security.ALGORITHM]
-        )
-        token_data = schemas.TokenPayload(**payload)
-    except (JWTError, ValidationError):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Could not validate credentials",
-        )
+    return await _get_user_from_token(token=token, session=session, settings=settings)
 
-    result = await session.exec(select(models.User).where(models.User.email == token_data.sub))
-    user = result.first()
-    
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return user
 
 async def get_current_active_user(
     current_user: models.User = Depends(get_current_user),
 ) -> models.User:
-    if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
-    return current_user
+    return _ensure_active_user(current_user)
+
 
 async def get_current_admin_user(
     current_user: models.User = Depends(get_current_active_user),
 ) -> models.User:
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=403, detail="The user doesn't have enough privileges"
-        )
-    return current_user
+    return _ensure_admin_user(current_user)
+
 
 async def get_optional_current_user(
     settings: CoreSettings = Depends(get_core_settings),
-    session: AsyncSession = Depends(get_session),
-    token: Optional[str] = Depends(optional_oauth2)
-) -> Optional[models.User]:
-    if not token:
+    session: AsyncSession = Depends(get_async_session),
+    token: Optional[str] = Depends(optional_oauth2_scheme),
+) -> models.User | None:
+    if token is None:
         return None
 
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
-        )
-        token_data = schemas.TokenPayload(**payload)
-    except (JWTError, ValidationError):
+        user = await _get_user_from_token(token=token, session=session, settings=settings)
+    except HTTPException:
         return None
 
-    result = await session.exec(select(models.User).where(models.User.email == token_data.sub))
-    user = result.first()
-    
-    if not user or not user.is_active:
-        return None
-    return user
+    return user if user.is_active else None
+
 
 class WebSocketManager:
-    def __init__(self):
-        self.active_connections: Dict[int, Set[WebSocket]] = {}
+    def __init__(self) -> None:
+        self._active_connections: dict[int, set[WebSocket]] = {}
         self._lock = asyncio.Lock()
 
-    async def connect(self, user_id: int, websocket: WebSocket):
+    async def connect(self, user_id: int, websocket: WebSocket) -> None:
         async with self._lock:
-            if user_id not in self.active_connections:
-                self.active_connections[user_id] = set()
-            self.active_connections[user_id].add(websocket)
-            logger.info(f"User {user_id} connected via WebSocket. Total sessions: {len(self.active_connections[user_id])}")
+            connections = self._active_connections.setdefault(user_id, set())
+            connections.add(websocket)
+            logger.info(
+                "WebSocket connected.",
+                extra={
+                    "user_id": user_id,
+                    "active_connections": len(connections),
+                },
+            )
 
-    async def disconnect(self, user_id: int, websocket: WebSocket):
+    async def disconnect(self, user_id: int, websocket: WebSocket) -> None:
         async with self._lock:
-            if user_id in self.active_connections:
-                self.active_connections[user_id].discard(websocket)
-                if not self.active_connections[user_id]:
-                    del self.active_connections[user_id]
-                logger.info(f"User {user_id} disconnected. Active sessions left: {len(self.active_connections.get(user_id, []))}")
+            connections = self._active_connections.get(user_id)
+            if not connections:
+                return
 
-    async def send_to_user(self, user_id: int, message: str):
-        connections = self.active_connections.get(user_id, set()).copy()
+            connections.discard(websocket)
+            remaining = len(connections)
+
+            if not connections:
+                self._active_connections.pop(user_id, None)
+
+            logger.info(
+                "WebSocket disconnected.",
+                extra={
+                    "user_id": user_id,
+                    "active_connections": remaining,
+                },
+            )
+
+    async def send_to_user(self, user_id: int, message: str) -> None:
+        async with self._lock:
+            connections = tuple(self._active_connections.get(user_id, set()))
 
         if not connections:
-            logger.debug(f"No active connections for user {user_id} to send message.")
+            logger.debug("No active WebSocket connections for user.", extra={"user_id": user_id})
             return
+
+        stale_connections: list[WebSocket] = []
 
         for websocket in connections:
             try:
-                if websocket.client_state.value == 1:
-                    await websocket.send_text(message)
-            except (WebSocketDisconnect, RuntimeError) as e:
-                logger.warning(f"Failed to send to user {user_id} (Socket closed): {e}")
-            except Exception as e:
-                logger.error(f"Unexpected error sending to user {user_id}: {e}")
+                await websocket.send_text(message)
+            except (WebSocketDisconnect, RuntimeError):
+                stale_connections.append(websocket)
+            except Exception:
+                stale_connections.append(websocket)
+                logger.exception(
+                    "Unexpected WebSocket send failure.",
+                    extra={"user_id": user_id},
+                )
 
-_websocket_manager_instance: Optional[WebSocketManager] = None
+        if stale_connections:
+            async with self._lock:
+                current_connections = self._active_connections.get(user_id)
+                if current_connections is not None:
+                    for websocket in stale_connections:
+                        current_connections.discard(websocket)
+                    if not current_connections:
+                        self._active_connections.pop(user_id, None)
+
+    async def disconnect_all(self, user_id: int) -> None:
+        async with self._lock:
+            self._active_connections.pop(user_id, None)
+
+
+_websocket_manager = WebSocketManager()
+
 
 def get_websocket_manager() -> WebSocketManager:
-    global _websocket_manager_instance
-    if _websocket_manager_instance is None:
-        _websocket_manager_instance = WebSocketManager()
-    return _websocket_manager_instance
+    return _websocket_manager
+
 
 async def get_current_active_user_ws(
     websocket: WebSocket,
-    token: Optional[str] = Query(None),
+    token: str | None = Query(default=None),
     settings: CoreSettings = Depends(get_core_settings),
-    session: AsyncSession = Depends(get_session),
- ) -> models.User:
-
-    if token is None:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing auth token")
-        raise HTTPException(status_code=403, detail="Missing auth token")
+    session: AsyncSession = Depends(get_async_session),
+) -> models.User:
+    if token is None or not token.strip():
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Missing auth token",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Missing auth token",
+        )
 
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+        user = await _get_user_from_token(token=token, session=session, settings=settings)
+        return _ensure_active_user(user)
+    except HTTPException as exc:
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason=str(exc.detail),
         )
-        token_data = schemas.TokenPayload(**payload)
-    except (JWTError, ValidationError):
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid credentials")
-        raise HTTPException(status_code=403, detail="Invalid credentials")
+        raise
 
-    result = await session.exec(select(models.User).where(models.User.email == token_data.sub))
-    user = result.first()
 
-    if not user:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="User not found")
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if not user.is_active:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Inactive user")
-        raise HTTPException(status_code=400, detail="Inactive user")
-
-    return user
-
-@lru_cache()
-def get_llm_service() -> FreeLLMService:
-    """
-    💎 TITANIUM SINGLETON PROVIDER (V5.0).
-    
-    Architectural Pattern: Singleton via LRU Cache.
-    Performance: Zero-Overhead Instantiation (Nanosecond Access).
-    
-    Why this is World-Class:
-    1. 🧠 Memory Efficient: Creates the Heavy LLM Service ONCE in memory.
-    2. ⚡ Ultra Fast: Subsequent calls return the cached object instantly.
-    3. 🛡️ Thread-Safe: Python's GIL ensures safe instantiation.
-    """
-    return FreeLLMService()
 async def get_current_active_user_ws_ticket(
     websocket: WebSocket,
-    ticket: str = Query(None),
-    session: AsyncSession = Depends(get_session),
-    cache: IAsyncCacheClient = Depends(get_cache_client)
+    ticket: str | None = Query(default=None),
+    session: AsyncSession = Depends(get_async_session),
+    cache: IAsyncCacheClient = Depends(get_cache_client),
 ) -> models.User:
-    if not ticket:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing ticket")
-        raise HTTPException(status_code=403, detail="Missing auth ticket")
+    if ticket is None or not ticket.strip():
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Missing ticket",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Missing auth ticket",
+        )
 
     ticket_key = f"ws_ticket:{ticket}"
-    user_id = await cache.get(ticket_key)
+    user_id_raw = await cache.get(ticket_key)
 
-    if not user_id:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid or expired ticket")
-        raise HTTPException(status_code=403, detail="Invalid or expired ticket")
+    if not user_id_raw:
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Invalid or expired ticket",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or expired ticket",
+        )
 
     await cache.delete(ticket_key)
 
-    user = await session.get(models.User, int(user_id))
+    try:
+        user_id = int(user_id_raw)
+    except (TypeError, ValueError) as exc:
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="Invalid ticket payload",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid ticket payload",
+        ) from exc
 
-    if not user:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="User not found")
-        raise HTTPException(status_code=404, detail="User not found")
+    user = await session.get(models.User, user_id)
 
-    if not user.is_active:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Inactive user")
-        raise HTTPException(status_code=400, detail="Inactive user")
+    if user is None:
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION,
+            reason="User not found",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
 
-    return user
+    return _ensure_active_user(user)
 
-def get_rabbitmq_service() -> RabbitMQService:
-    """
-    Dependency to provide a RabbitMQ Service instance.
-    """
-    settings = get_core_settings()
+
+@lru_cache(maxsize=1)
+def get_llm_service() -> FreeLLMService:
+    return FreeLLMService()
+
+
+def get_rabbitmq_service_dependency(
+    settings: CoreSettings = Depends(get_core_settings),
+) -> RabbitMQService:
     return RabbitMQService(settings)
+
+
+def get_ai_engine():
+    return get_ai_commerce_engine()
+
+get_async_session = get_async_session
+
+import fastapi
+
+def get_rabbitmq_service(request: fastapi.Request):
+    return request.app.state.rabbitmq
+

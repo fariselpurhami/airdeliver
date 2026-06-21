@@ -1,162 +1,207 @@
-# apps/api/app/main.py
+from __future__ import annotations
 
-import logging
 import asyncio
+import contextlib
 import json
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any, AsyncIterator
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
-from starlette.middleware.cors import CORSMiddleware
-from sqlmodel import SQLModel
-from prometheus_fastapi_instrumentator import Instrumentator
-from slowapi.errors import RateLimitExceeded
-from slowapi import _rate_limit_exceeded_handler
 from aio_pika.abc import AbstractIncomingMessage
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
+from prometheus_fastapi_instrumentator import Instrumentator
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.cors import CORSMiddleware
 
-from app.db.session import engine
-from app.api.v1.api import api_router
-from app.core.config import get_core_settings, CoreSettings
-from app.core.limiter import limiter
-from app.websockets.tracking_ws import router as tracking_router
-from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
-from app.services.cache_service import RedisCacheClient, NoOpCacheClient, get_cache_client, IAsyncCacheClient
 from app.api.deps import get_websocket_manager
+from app.api.v1.api import api_router
+from app.core.config import CoreSettings, get_core_settings
+from app.core.limiter import limiter
+from app.services.cache_service import IAsyncCacheClient, NoOpCacheClient, RedisCacheClient
+from app.services.rabbitmq_service import get_rabbitmq_service
+from app.websockets.tracking_ws import router as tracking_router
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-STATIC_DIRECTORY_STR = "static"
+STATIC_DIRECTORY = Path("static")
+RESPONSE_QUEUE_NAME = "q.ai.response.out"
+RESPONSE_ROUTING_KEY = "airdeliver.ai.response.out"
 
-async def create_db_and_tables():
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
 
-async def start_response_consumer(app: FastAPI):
-    logger.info("--- Starting AI Response Consumer ---")
-    rabbitmq = app.state.rabbitmq
-    manager = get_websocket_manager()
-    response_queue_name = "q.ai.response.out"
-    routing_key = "airdeliver.ai.response.out"
+def configure_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
 
+
+def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        logger.exception(
+            "Unhandled application exception.",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+            },
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"message": "Internal Server Error"},
+        )
+
+
+def register_middleware(app: FastAPI, settings: CoreSettings) -> None:
+    if settings.BACKEND_CORS_ORIGINS:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+            allow_credentials=True,
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "Accept", "Origin"],
+        )
+
+    @app.middleware("http")
+    async def ensure_response_charset(request: Request, call_next) -> Response:
+        response = await call_next(request)
+        content_type = response.headers.get("content-type", "")
+
+        if content_type.startswith("application/json") and "charset=" not in content_type.lower():
+            response.headers["Content-Type"] = "application/json; charset=utf-8"
+
+        return response
+
+
+def decode_message_body(body: bytes) -> dict[str, Any]:
     try:
-        queue = await rabbitmq.channel.declare_queue(response_queue_name, durable=True)
-        await queue.bind(rabbitmq.exchange_name, routing_key=routing_key)
+        decoded = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        logger.warning("Dropping malformed AI response message.", exc_info=exc)
+        raise
 
-        async def on_response_message(message: AbstractIncomingMessage):
-            async with message.process():
-                try:
-                    body = message.body.decode()
-                    payload = json.loads(body)
-                    user_id = payload.get("user_id")
+    if not isinstance(decoded, dict):
+        raise ValueError("Expected RabbitMQ payload to be a JSON object.")
 
-                    if user_id:
-                        logger.info(f"Relaying response type '{payload.get('type')}' to user {user_id}")
-                        await manager.send_to_user(user_id, body)
-                    else:
-                        logger.warning("Received AI response with no user_id.")
-                except Exception as e:
-                    logger.error(f"Failed to process response message: {e}")
+    return decoded
 
-        logger.info(f"Consumer listening on {response_queue_name} for {routing_key}")
-        await queue.consume(on_response_message)
 
-    except asyncio.CancelledError:
-        logger.info("AI Response Consumer stopping.")
-    except Exception as e:
-        logger.error(f"AI Response Consumer failed: {e}", exc_info=True)
+async def start_response_consumer(app: FastAPI) -> None:
+    rabbitmq = app.state.rabbitmq
+    websocket_manager = get_websocket_manager()
+
+    queue = await rabbitmq.channel.declare_queue(RESPONSE_QUEUE_NAME, durable=True)
+    await queue.bind(rabbitmq.exchange_name, routing_key=RESPONSE_ROUTING_KEY)
+
+    async def on_response_message(message: AbstractIncomingMessage) -> None:
+        async with message.process(requeue=False):
+            payload = decode_message_body(message.body)
+
+            user_id = payload.get("user_id")
+            if not isinstance(user_id, str) or not user_id.strip():
+                logger.warning("Dropping AI response without a valid user_id.")
+                return
+
+            message_type = payload.get("type", "unknown")
+            logger.info(
+                "Relaying AI response.",
+                extra={
+                    "user_id": user_id,
+                    "message_type": message_type,
+                },
+            )
+            await websocket_manager.send_to_user(
+                user_id,
+                json.dumps(payload, separators=(",", ":")),
+            )
+
+    logger.info(
+        "AI response consumer started.",
+        extra={
+            "queue": RESPONSE_QUEUE_NAME,
+            "routing_key": RESPONSE_ROUTING_KEY,
+        },
+    )
+    await queue.consume(on_response_message)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("--- Lifespan: Startup ---")
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings = get_core_settings()
 
-    current_settings = get_core_settings()
+    cache_client: IAsyncCacheClient = NoOpCacheClient()
+    rabbitmq = None
+    consumer_task: asyncio.Task[None] | None = None
 
-    await create_db_and_tables()
+    try:
+        if settings.USE_REDIS and settings.REDIS_URL:
+            cache_client = RedisCacheClient(url=settings.REDIS_URL)
+            await cache_client.connect()
 
-    logger.info("--- Lifespan: Warming up Cache connection ---")
-    cache_client: IAsyncCacheClient
-    if current_settings.USE_REDIS and current_settings.REDIS_URL:
-        cache_client = RedisCacheClient(url=current_settings.REDIS_URL)
-        await cache_client.connect()
-    else:
-        cache_client = NoOpCacheClient()
-    app.state.cache = cache_client
+        app.state.cache = cache_client
 
-    logger.info("--- Lifespan: Connecting RabbitMQ ---")
-    rabbitmq_instance = await get_rabbitmq_service(current_settings)
-    app.state.rabbitmq = rabbitmq_instance
+        rabbitmq = await get_rabbitmq_service(settings)
+        app.state.rabbitmq = rabbitmq
 
-    logger.info("--- Lifespan: Starting AI Response Consumer Task ---")
-    consumer_task = asyncio.create_task(start_response_consumer(app))
-    app.state.response_consumer_task = consumer_task
+        STATIC_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
-    Path(STATIC_DIRECTORY_STR).mkdir(parents=True, exist_ok=True)
-    app.mount("/static", StaticFiles(directory=STATIC_DIRECTORY_STR), name="static")
+        consumer_task = asyncio.create_task(
+            start_response_consumer(app),
+            name="ai-response-consumer",
+        )
+        app.state.response_consumer_task = consumer_task
 
-    logger.info("--- Lifespan: API Ready ---")
-    yield
+        logger.info("Application startup complete.")
+        yield
 
-    logger.info("--- Lifespan: Shutdown ---")
+    finally:
+        if consumer_task is not None:
+            consumer_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await consumer_task
 
-    if hasattr(app.state, 'response_consumer_task'):
-        logger.info("--- Lifespan: Stopping AI Response Consumer ---")
-        app.state.response_consumer_task.cancel()
-        try:
-            await app.state.response_consumer_task
-        except asyncio.CancelledError:
-            pass
+        if rabbitmq is not None:
+            await rabbitmq.close()
 
-    if hasattr(app.state, 'rabbitmq') and app.state.rabbitmq:
-        await app.state.rabbitmq.close()
-    if hasattr(app.state, 'cache') and app.state.cache:
-        await app.state.cache.disconnect()
-    logger.info("--- Lifespan: Services disconnected ---")
+        await cache_client.disconnect()
+        logger.info("Application shutdown complete.")
 
-app = FastAPI(
-    title="airdeliver API",
-    openapi_url=f"{get_core_settings().API_V1_STR}/openapi.json",
-    lifespan=lifespan,
-)
 
-Instrumentator().instrument(app).expose(app, endpoint="/metrics")
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+def create_application() -> FastAPI:
+    settings = get_core_settings()
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Global Handler: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"message": "Internal Server Error"},
+    app = FastAPI(
+        title="airdeliver API",
+        openapi_url=f"{settings.API_V1_STR}/openapi.json",
+        lifespan=lifespan,
     )
 
-@app.middleware("http")
-async def ensure_utf8_encoding(request: Request, call_next):
-    response = await call_next(request)
-    if "charset" not in response.headers.get("content-type", ""):
-        response.headers["Content-Type"] = "application/json; charset=utf-8"
-    return response
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-if get_core_settings().BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in get_core_settings().BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    register_middleware(app, settings)
+    register_exception_handlers(app)
 
-app.include_router(api_router, prefix=get_core_settings().API_V1_STR)
-app.include_router(tracking_router, prefix="/ws")
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
-@app.get("/debug-routes")
-async def get_all_routes():
-    return JSONResponse(content=[{"path": route.path, "name": route.name} for route in app.routes])
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIRECTORY)), name="static")
 
-@app.get("/")
-def read_root():
-    return {"message": "airdeliver API", "env": get_core_settings().APP_ENV}
+    app.include_router(api_router, prefix=settings.API_V1_STR)
+    app.include_router(tracking_router, prefix="/ws")
+
+    @app.get("/", tags=["health"])
+    async def read_root() -> dict[str, str]:
+        return {
+            "service": "airdeliver-api",
+            "environment": settings.APP_ENV,
+            "status": "ok",
+        }
+
+    return app
+
+
+configure_logging()
+app = create_application()

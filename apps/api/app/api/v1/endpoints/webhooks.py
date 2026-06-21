@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, Header, HTTPException, Depends, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from app.core.config import get_core_settings, CoreSettings
-from app.api.deps import get_session
+from app.api.deps import get_async_session
 from app.models.order import Order
 from app.models.enums import OrderStatus
 from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
@@ -21,7 +21,7 @@ async def stripe_webhook(
     request: Request,
     stripe_signature: str = Header(None),
     settings: CoreSettings = Depends(get_core_settings),
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_async_session),
     rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
 ):
 

@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get("/me", response_model=schemas.PaginatedOrders)
 async def read_my_orders(
     *,
-    session: AsyncSession = Depends(deps.get_session),
+    session: AsyncSession = Depends(deps.get_async_session),
     current_user: models.User = Depends(deps.get_current_active_user),
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
