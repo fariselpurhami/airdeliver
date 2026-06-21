@@ -365,7 +365,7 @@ class AICartService:
                 Order.user_id == user_id, 
                 Order.status == OrderStatus.PENDING
             )
-            results = (await self.db.exec(statement)).all()
+            results = (await self.db.execute(statement)).all()
             
             if results:
                 for order in results:

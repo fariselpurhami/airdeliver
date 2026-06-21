@@ -117,7 +117,7 @@ async def refresh_access_token(
         )
 
     user = (
-        await db.exec(select(models.User).where(models.User.email == user_email))
+        await db.execute(select(models.User).where(models.User.email == user_email))
     ).first()
     if not user:
         raise HTTPException(

@@ -17,7 +17,7 @@ async def _process_event_message(db, payload: dict):
     event_in = DroneEventIngest(**payload)
     drone_id_str = event_in.drone_id
     
-    drone = (await db.exec(
+    drone = (await db.execute(
         select(models.Drone).where(models.Drone.drone_id_str == drone_id_str)
     )).first()
     
@@ -31,7 +31,7 @@ async def _process_event_message(db, payload: dict):
         
         if event_in.mission_id_str:
             mission_statement = select(models.Mission).where(models.Mission.mission_id_str == event_in.mission_id_str)
-            mission = (await db.exec(mission_statement)).first()
+            mission = (await db.execute(mission_statement)).first()
             if mission and mission.status not in [models.MissionStatus.COMPLETED, models.MissionStatus.FAILED_EMERGENCY_LANDING]:
                 final_status = models.MissionStatus.COMPLETED
                 if event_in.details and event_in.details.get("reason") == "RTL":
@@ -45,7 +45,7 @@ async def _process_event_message(db, payload: dict):
         db.add(drone)
         if event_in.mission_id_str:
             mission_statement = select(models.Mission).where(models.Mission.mission_id_str == event_in.mission_id_str)
-            mission = (await db.exec(mission_statement)).first()
+            mission = (await db.execute(mission_statement)).first()
             if mission:
                 mission.status = models.MissionStatus.FAILED_EMERGENCY_LANDING
                 mission.failure_reason = event_in.details.get("reason", "Emergency Landing Triggered") if event_in.details else "Emergency Landing Triggered"

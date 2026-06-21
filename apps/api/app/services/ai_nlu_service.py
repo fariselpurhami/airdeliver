@@ -1720,7 +1720,7 @@ class AINLUService:
         # (نفس المنطق السابق لكن مع تحديث model_dump)
         try:
              statement = select(Product).order_by(col(Product.rating).desc()).limit(3)
-             products = (await self.db.exec(statement)).all()
+             products = (await self.db.execute(statement)).all()
              
              if products:
                 msg = f"Still thinking? Check out these top-rated items!"
@@ -2454,14 +2454,14 @@ class AINLUService:
         products_bestsellers = []
         try:
             stmt = select(Product).order_by(col(Product.rating).desc()).limit(8)
-            products_bestsellers = (await self.db.exec(stmt)).all()
+            products_bestsellers = (await self.db.execute(stmt)).all()
         except: pass
 
         # Row 3: Trending Now
         products_trending = []
         try:
             stmt = select(Product).limit(40)
-            pool = (await self.db.exec(stmt)).all()
+            pool = (await self.db.execute(stmt)).all()
             if pool:
                 import random
                 products_trending = random.sample(pool, min(len(pool), 8))
@@ -2471,7 +2471,7 @@ class AINLUService:
         products_deals = []
         try:
             stmt = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
-            products_deals = (await self.db.exec(stmt)).all()
+            products_deals = (await self.db.execute(stmt)).all()
         except: pass
 
         # ⚠️ Removed asyncio.gather causing the "concurrent operations" error
@@ -2489,7 +2489,7 @@ class AINLUService:
             # بما أن المبيعات وهمية، نعتبر "التقييم العالي" هو المبيعات
             try:
                 statement = select(Product).order_by(col(Product.rating).desc()).limit(8)
-                return (await self.db.exec(statement)).all()
+                return (await self.db.execute(statement)).all()
             except: return []
 
         async def fetch_row_3_trending():
@@ -2497,7 +2497,7 @@ class AINLUService:
             # نأخذ عينة كبيرة (30) ثم نخلطها ونختار 8 لضمان التجديد في كل مرة
             try:
                 statement = select(Product).limit(40) # Fetch pool
-                pool = (await self.db.exec(statement)).all()
+                pool = (await self.db.execute(statement)).all()
                 if pool:
                     import random
                     return random.sample(pool, min(len(pool), 8))
@@ -2510,7 +2510,7 @@ class AINLUService:
             try:
                 # نستخدم ترتيب السعر التصاعدي مع التقييم العالي
                 statement = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
-                return (await self.db.exec(statement)).all()
+                return (await self.db.execute(statement)).all()
             except: return []
 
         # �� Execute all strategies in parallel

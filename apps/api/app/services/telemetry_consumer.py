@@ -15,7 +15,7 @@ async def _process_telemetry_message(db, payload: dict):
     telemetry_in = DroneTelemetryIngest(**payload)
     drone_id_str = telemetry_in.drone_id
     
-    drone = (await db.exec(
+    drone = (await db.execute(
         select(models.Drone).where(models.Drone.drone_id_str == drone_id_str)
     )).first()
     

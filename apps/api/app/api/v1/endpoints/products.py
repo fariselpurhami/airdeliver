@@ -20,7 +20,7 @@ async def read_products(
     limit: int = 100,
 ):
     products_from_db = (
-        await db.exec(select(models.Product).offset(skip).limit(limit))
+        await db.execute(select(models.Product).offset(skip).limit(limit))
     ).all()
 
     enriched_products = []
@@ -82,7 +82,7 @@ async def get_product_suggestions(
     suggestions = []
     if source_product.category:
         suggestions = (
-            await db.exec(
+            await db.execute(
                 select(models.Product)
                 .where(
                     models.Product.category == source_product.category,
@@ -95,7 +95,7 @@ async def get_product_suggestions(
     if not suggestions or len(suggestions) < 3:
         needed = 3 - len(suggestions)
         fallback_suggestions = (
-            await db.exec(
+            await db.execute(
                 select(models.Product)
                 .where(models.Product.id.notin_(purchased_product_ids))
                 .limit(needed)
@@ -123,7 +123,7 @@ async def get_product_suggestions(
 async def get_featured_recommendation(
     db: AsyncSession = Depends(get_async_session),
 ):
-    result = await db.exec(
+    result = await db.execute(
         select(models.Product).order_by(models.Product.inventory.asc()).limit(1)
     )
     featured_product = result.first()

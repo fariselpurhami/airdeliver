@@ -714,7 +714,7 @@ class AICommerceEngine:
                 else:
                     statement = statement.order_by(col(Product.rating).desc())
                 
-                candidates = (await db.exec(statement.limit(20))).all()
+                candidates = (await db.execute(statement.limit(20))).all()
 
             # 5. 🧹 Freshness & Entropy Filter
             fresh_products = []
@@ -768,7 +768,7 @@ class AICommerceEngine:
                     )
                     if search_res and search_res[0]:
                         ids = [hit["entity"]["id"] for hit in search_res[0]]
-                        alternatives = (await db.exec(select(Product).where(col(Product.id).in_(ids)))).all()
+                        alternatives = (await db.execute(select(Product).where(col(Product.id).in_(ids)))).all()
             except: pass
 
             # --- STRATEGY B: Semantic Text Pivot (Fallback) ---
@@ -786,7 +786,7 @@ class AICommerceEngine:
                     Product.price >= price_min,
                     Product.price <= price_max
                 ).order_by(col(Product.rating).desc()).limit(limit)
-                alternatives = (await db.exec(stmt)).all()
+                alternatives = (await db.execute(stmt)).all()
 
             return alternatives
         except Exception as e:
@@ -812,7 +812,7 @@ class AICommerceEngine:
                 if cached_ids:
                     # ✅ Cache Hit: Fetch from DB directly (Sub-5ms)
                     stmt = select(Product).where(col(Product.id).in_(cached_ids))
-                    res = (await db.exec(stmt)).all()
+                    res = (await db.execute(stmt)).all()
                     # Keep original order from cache
                     res.sort(key=lambda p: cached_ids.index(p.id))
                     return res
@@ -849,7 +849,7 @@ class AICommerceEngine:
         try:
             product_ids_int = [int(pid) for pid in sorted_ids]
             statement = select(Product).where(col(Product.id).in_(product_ids_int)) 
-            products_db = (await db.exec(statement)).all()
+            products_db = (await db.execute(statement)).all()
             
             # Restore RRF Winning Order
             products_db.sort(key=lambda p: reranked_scores.get(str(p.id), 0), reverse=True)
@@ -1065,7 +1065,7 @@ class AICommerceEngine:
                 )
             ).order_by(col(Product.rating).desc()).limit(limit)
             
-            return (await db.exec(statement)).all()
+            return (await db.execute(statement)).all()
         except Exception as e:
             logger.error(f"❌ SQL Fallback Failed: {e}")
             return []

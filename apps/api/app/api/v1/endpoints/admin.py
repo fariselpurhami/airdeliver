@@ -55,17 +55,17 @@ def get_current_admin_user(
 )
 async def get_admin_stats(db: AsyncSession = Depends(deps.get_async_session)):
     total_revenue = (
-        await db.exec(
+        await db.execute(
             select(func.sum(models.Order.total_price)).where(
                 models.Order.status.in_(["Delivered", "In Transit"])
             )
         )
     ).first() or 0.0
 
-    total_orders = (await db.exec(select(func.count(models.Order.id)))).first() or 0
-    total_products = (await db.exec(select(func.count(models.Product.id)))).first() or 0
+    total_orders = (await db.execute(select(func.count(models.Order.id)))).first() or 0
+    total_products = (await db.execute(select(func.count(models.Product.id)))).first() or 0
     active_drones = (
-        await db.exec(
+        await db.execute(
             select(func.count(models.Drone.id)).where(
                 models.Drone.status.in_(["active", "idle", "charging"])
             )
@@ -73,7 +73,7 @@ async def get_admin_stats(db: AsyncSession = Depends(deps.get_async_session)):
     ).first() or 0
 
     pending_deliveries = (
-        await db.exec(
+        await db.execute(
             select(func.count(models.Order.id)).where(
                 models.Order.status == "Processing"
             )
@@ -103,7 +103,7 @@ async def get_admin_orders(
     limit: int = Query(10, ge=1, le=100, description="Items per page"),
 ):
     offset = (page - 1) * limit
-    total_orders = (await db.exec(select(func.count(models.Order.id)))).first() or 0
+    total_orders = (await db.execute(select(func.count(models.Order.id)))).first() or 0
 
     orders_query = (
         select(models.Order)
@@ -111,6 +111,6 @@ async def get_admin_orders(
         .offset(offset)
         .limit(limit)
     )
-    orders = (await db.exec(orders_query)).all()
+    orders = (await db.execute(orders_query)).all()
 
     return PaginatedAdminOrdersResponse(total_orders=total_orders, orders=orders)

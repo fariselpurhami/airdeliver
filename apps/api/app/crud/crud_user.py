@@ -11,7 +11,7 @@ from app.schemas.user import UserCreate, UserUpdate
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     async def get_by_email(self, db: AsyncSession, *, email: str) -> Optional[User]:
-        return (await db.exec(select(User).where(User.email == email))).first()
+        return (await db.execute(select(User).where(User.email == email))).first()
 
     async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> User:
         create_data = obj_in.model_dump()

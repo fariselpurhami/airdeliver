@@ -16,7 +16,7 @@ class PaymentCompletionService:
 
     async def finalize_successful_payment(self, order_id: int, user_id: int, transaction_id: str):
         statement = select(Order).where(Order.id == order_id).with_for_update()
-        result = await self.db.exec(statement)
+        result = await self.db.execute(statement)
         order = result.one_or_none()
 
         if not order:

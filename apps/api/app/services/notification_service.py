@@ -20,7 +20,7 @@ class NotificationService:
     async def send_web_push(self, db: AsyncSession, user_id: int, title: str, body: str):
 
         try:
-            result = await db.exec(
+            result = await db.execute(
                 select(NotificationSubscription).where(NotificationSubscription.user_id == user_id)
             )
             subscriptions = result.all()

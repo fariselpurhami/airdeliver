@@ -61,8 +61,8 @@ def get_password_hash(password: str) -> str:
     return password_hash.hash(password)
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> Optional[models.User]:
-    result = await db.exec(select(models.User).where(models.User.email == email))
-    user = result.first()
+    result = await db.execute(select(models.User).where(models.User.email == email))
+    user = result.scalars().first()
 
     if not user:
         return None
