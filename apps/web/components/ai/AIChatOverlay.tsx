@@ -10,7 +10,7 @@ import {
     Bot, User, CornerDownRight, ShoppingCart, Cpu, X, 
     ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, 
     ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap, 
-    Activity, Signal, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock, Eye
+    Activity, Signal, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock, Eye, ShieldCheck
 } from 'lucide-react';
 import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
 import Image from 'next/image';
@@ -1099,29 +1099,46 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full backface-hidden" />
 
                         <header className="px-8 py-6 flex items-center flex-shrink-0 relative z-10">
-                            {!isPaymentMode && (
-                                <div className="flex-shrink-0">
-                                    <button
-                                        onClick={() => setIsMobileSidebarOpen(true)}
-                                        className="p-3 rounded-full bg-cyan-600/20 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-600/40 transition-all flex items-center justify-center relative"
-                                    >
-                                        <ShoppingBag size={20} />
-                                        {cartItems.length > 0 && (
-                                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                                                {cartItems.length}
-                                            </span>
-                                        )}
-                                    </button>
+			    <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-300">
+                                    <Bot size={18} />
                                 </div>
-                            )}
+                                <div>
+                                    <h2 className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
+                                       <Cpu size={12} className="text-cyan-500" />
+                                       Real-time shopping
+                                    </h2>
+                                    <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
+                                        <ShieldCheck size={12} className="text-cyan-500" />
+                                        Secured
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 ml-auto">
+                                {!isPaymentMode && (
+                                    <div className="flex-shrink-0">
+                                        <button
+                                            onClick={() => setIsMobileSidebarOpen(true)}
+                                            className="p-3 rounded-full bg-cyan-600/20 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-600/40 transition-all flex items-center justify-center relative"
+                                        >
+                                            <ShoppingBag size={18} />
+                                            {cartItems.length > 0 && (
+                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                                    {cartItems.length}
+                                                </span>
+                                            )}
+                                            </button>
+                                    </div>
+                                )}
 
-                            <button
-                                onClick={handleClose} 
-                                className="ml-auto p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
-                            >
-                                <X size={20} />
-                            </button>
-                        </header>
+                                <button
+                                    onClick={handleClose} 
+                                    className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                          </header>
 
                         <div className="flex-grow flex overflow-hidden relative z-10">
                             <AnimatePresence mode="wait">
