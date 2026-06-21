@@ -175,7 +175,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
 
                 <div className="flex-1 px-3 sm:px-4 min-w-0">
                   <p className="text-zinc-300 text-[11px] sm:text-sm md:text-base font-light truncate">
-                    "I need noise-canceling headphones..."
+                    I need noise-canceling headphones...
                   </p>
                 </div>
 

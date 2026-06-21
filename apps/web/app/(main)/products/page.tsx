@@ -170,7 +170,7 @@ const AICatalogHero = React.memo(() => {
 
                         <div className="flex-1 px-3 sm:px-4 min-w-0 text-left">
                             <p className="text-gray-300 text-xs sm:text-sm md:text-base font-light truncate group-hover:text-white transition-colors">
-                                "I need noise-canceling headphones..."
+                                I need a black leather jacket...
                             </p>
                         </div>
 
