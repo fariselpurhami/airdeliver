@@ -206,8 +206,8 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/15 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group transform-gpu">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent z-10" />
                 <Image
-                  src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=1000&auto=format&fit=crop"
-                  alt="Sony headphones"
+                  src="https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop"
+                  alt="Apple Vision Pro"
                   fill
                   priority
                   sizes="(max-width: 768px) 60vw, 30vw"
@@ -215,7 +215,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                 />
                 <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-20 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
                   <div>
-                    <h3 className="text-white font-bold text-sm sm:text-lg tracking-tight">Sony WH-1000XM5</h3>
+                    <h3 className="text-white font-bold text-sm sm:text-lg tracking-tight">Apple Vision Pro</h3>
                     <p className="text-zinc-300 text-[10px] sm:text-sm font-medium">Arriving in 12 min</p>
                   </div>
                   <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/30 text-white font-bold text-xs sm:text-sm shadow-lg">
@@ -231,7 +231,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                 className="absolute left-[2%] top-[10%] z-10 aspect-square w-[35%] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900 p-2 shadow-2xl sm:-left-[10%] sm:top-[12%] sm:w-48 sm:p-3"
                 style={{ willChange: "transform" }}
               >
-                <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=600&auto=format&fit=crop" alt="Smart Watch" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-70" />
+                <img src="https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop" alt="Smart Watch" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-70" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
                 <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 text-white text-[9px] sm:text-xs font-bold px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 shadow-lg">
                   Found best deal
