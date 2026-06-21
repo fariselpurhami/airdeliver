@@ -217,8 +217,8 @@ export default function Chatbot() {
             <X size={22} />
           </div>
         ) : (
-          <div className="w-14 h-14 rounded-full bg-cyan-500 flex items-center justify-center text-black">
-            <Sparkles size={22} />
+          <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-black">
+            <Bot size={22} />
           </div>
         )}
       </motion.button>
@@ -253,9 +253,9 @@ export default function Chatbot() {
                     <Bot size={18} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold uppercase tracking-widest text-white flex items-center gap-2">
-                      <Cpu size={14} className="text-cyan-400" />
-                      air support
+                    <h2 className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
+                      <Cpu size={14} className="text-cyan-500" />
+                      Real-time AI assistance
                     </h2>
                     <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
                       <ShieldCheck size={12} className="text-cyan-500" />
