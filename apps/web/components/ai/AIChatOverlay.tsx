@@ -608,7 +608,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, is
                 <div className="flex-shrink-0 p-6 border-t border-white/10 bg-[#050B14] space-y-6 relative z-20">
                     <div>
                         <h3 className="text-[10px] font-bold text-gray-500 tracking-widest mb-3 flex items-center gap-2">
-                            <Signal size={12} /> airaero X
+                            <Signal size={12} /> airdeliver X
                         </h3>
                         <DroneTelemetryWidget />
                     </div>
