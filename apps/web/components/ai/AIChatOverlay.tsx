@@ -389,7 +389,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
             case 'FLIGHT_MANIFEST':
                 return (
                     <div className="w-full -ml-2">
-                         <p className="whitespace-pre-wrap mb-2 text-sm px-2 leading-relaxed text-white font-medium">
+                         <p className="whitespace-pre-line mb-2 text-sm px-2 leading-relaxed text-white font-medium">
                              {message.content}
                          </p>
                          <HolographicFlightDeck data={message.flight_data} />
@@ -489,7 +489,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
             style={{ willChange: 'transform, opacity' }}
             className={`flex items-end gap-2 w-full mb-4 transform-gpu ${isAI ? 'justify-start' : 'justify-end'}`}
         >
-            <div className={`w-fit max-w-[97%] px-4 py-3 ${
+            <div className={`w-fit max-w-[98%] px-4 py-3 ${
                 isAI 
                     ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20 transform-gpu' 
                     : 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm transform-gpu'
@@ -1058,7 +1058,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={handleClose}
-                    style={{ colorScheme: 'dark', willChange: 'opacity' }}
+                    style={{ colorScheme: 'dark', willChange: 'opacity', fontFamily: "'Montserrat', sans-serif" }}
                     className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 overflow-hidden transform-gpu"
                 >
                    
