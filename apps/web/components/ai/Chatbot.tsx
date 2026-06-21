@@ -161,7 +161,7 @@ const ChatInput = memo(({ onSend, isTyping }: ChatInputProps) => {
             onChange={handleAutoResize}
             rows={1}
             onKeyDown={handleKeyDown}
-            placeholder={isTyping ? 'Thinking...' : 'Ask air support...'}
+            placeholder={isTyping ? 'Thinking...' : 'Ask air assistance...'}
             disabled={isTyping}
             className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800 focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
             style={{
@@ -254,12 +254,12 @@ export default function Chatbot() {
                   </div>
                   <div>
                     <h2 className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
-                      <Cpu size={14} className="text-cyan-500" />
-                      Real-time AI assistance
+                      <Cpu size={12} className="text-cyan-500" />
+                      Real-time assistance
                     </h2>
                     <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
                       <ShieldCheck size={12} className="text-cyan-500" />
-                      Secure intelligent assistance
+                      Secured
                     </p>
                   </div>
                 </div>
