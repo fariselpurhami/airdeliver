@@ -5,7 +5,7 @@ import json
 import aio_pika
 from sqlmodel import select
 from app.core.config import settings
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionFactory
 from app import models
 from app.schemas.drone import DroneEventIngest
 from aio_pika.abc import AbstractIncomingMessage
@@ -75,7 +75,7 @@ def get_event_handler(app_dependencies: dict):
                      logger.warning("Received event message without 'payload' field.")
                      return
 
-                async with SessionLocal() as db:
+                async with AsyncSessionFactory() as db:
                     await _process_event_message(db, payload)
             
             except json.JSONDecodeError:

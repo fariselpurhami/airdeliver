@@ -3,7 +3,7 @@
 import json
 import logging
 from aio_pika.abc import AbstractIncomingMessage
-from app.db.session import SessionLocal
+from app.db.session import AsyncSessionFactory
 from app import models
 from app.schemas.drone import DroneTelemetryIngest
 from sqlmodel import select
@@ -64,7 +64,7 @@ def get_telemetry_handler(app_dependencies: dict):
                      logger.warning("Received telemetry message without 'payload' field.")
                      return
 
-                async with SessionLocal() as db:
+                async with AsyncSessionFactory() as db:
                     await _process_telemetry_message(db, payload)
             except json.JSONDecodeError:
                 logger.error("Failed to decode telemetry JSON")

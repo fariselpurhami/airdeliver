@@ -17,7 +17,7 @@ from app.services.rabbitmq_service import RabbitMQService
 from app.services.cache_service import IAsyncCacheClient
 from app.services.free_llm_service import FreeLLMService
 from app.models.product import Product
-from app.db.session import SessionLocal 
+from app.db.session import AsyncSessionFactory 
 from app.services.ai_meta_cognition import MetaCognitionLayer
 
 logger = logging.getLogger("airdeliver.nlu")
@@ -2408,12 +2408,12 @@ class AINLUService:
 
         async def fetch_row_1_personal():
             # Row 1: Personalized
-            async with SessionLocal() as session:
+            async with AsyncSessionFactory() as session:
                 return await self.search_engine.get_fresh_homepage_matrix(session, user_id, seen_ids, spending_tier)
 
         async def fetch_row_2_bestsellers():
             # Row 2: Best Sellers
-            async with SessionLocal() as session:
+            async with AsyncSessionFactory() as session:
                 try:
                     statement = select(Product).order_by(col(Product.rating).desc()).limit(8)
                     return (await session.exec(statement)).all()
@@ -2421,7 +2421,7 @@ class AINLUService:
 
         async def fetch_row_3_trending():
             # Row 3: Trending Now
-            async with SessionLocal() as session:
+            async with AsyncSessionFactory() as session:
                 try:
                     statement = select(Product).limit(40)
                     pool = (await session.exec(statement)).all()
@@ -2433,7 +2433,7 @@ class AINLUService:
 
         async def fetch_row_4_smart_deals():
             # Row 4: Smart Deals
-            async with SessionLocal() as session:
+            async with AsyncSessionFactory() as session:
                 try:
                     statement = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
                     return (await session.exec(statement)).all()
