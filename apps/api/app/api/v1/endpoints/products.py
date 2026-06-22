@@ -19,9 +19,10 @@ async def read_products(
     skip: int = 0,
     limit: int = 100,
 ):
+    # 🚀 التعديل هنا: إضافة .scalars() لاستخراج الكائنات النظيفة
     products_from_db = (
         await db.execute(select(models.Product).offset(skip).limit(limit))
-    ).all()
+    ).scalars().all()
 
     enriched_products = []
     for p in products_from_db:
@@ -81,6 +82,7 @@ async def get_product_suggestions(
 
     suggestions = []
     if source_product.category:
+        # 🚀 التعديل هنا: إضافة .scalars()
         suggestions = (
             await db.execute(
                 select(models.Product)
@@ -90,17 +92,18 @@ async def get_product_suggestions(
                 )
                 .limit(3)
             )
-        ).all()
+        ).scalars().all()
 
     if not suggestions or len(suggestions) < 3:
         needed = 3 - len(suggestions)
+        # 🚀 التعديل هنا: إضافة .scalars()
         fallback_suggestions = (
             await db.execute(
                 select(models.Product)
                 .where(models.Product.id.notin_(purchased_product_ids))
                 .limit(needed)
             )
-        ).all()
+        ).scalars().all()
         suggestions.extend(fallback_suggestions)
 
     formatted_suggestions = []
@@ -126,7 +129,8 @@ async def get_featured_recommendation(
     result = await db.execute(
         select(models.Product).order_by(models.Product.inventory.asc()).limit(1)
     )
-    featured_product = result.first()
+    # 🚀 التعديل هنا: إضافة .scalars() قبل .first()
+    featured_product = result.scalars().first()
 
     if not featured_product:
         raise HTTPException(
