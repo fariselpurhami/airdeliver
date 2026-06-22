@@ -34,7 +34,7 @@ def create_superuser(session: Session, settings: Any) -> None:
         raise ValueError("Missing critical superuser configuration.")
     raw_password = admin_password.get_secret_value() if hasattr(admin_password, "get_secret_value") else admin_password
     try:
-        user_in_db = session.exec(
+        user_in_db = session.execute(
             select(models.User).where(models.User.email == admin_email)
         ).first()
 
@@ -97,7 +97,7 @@ def seed_products(session: Session, products_data: List[Dict[str, Any]]) -> None
             return
 
         # 2. Bulk fetch existing SKUs (Eliminates N+1 DB calls)
-        existing_products = session.exec(
+        existing_products = session.execute(
             select(models.Product.sku).where(models.Product.sku.in_(incoming_skus))
         ).all()
         existing_skus: Set[str] = set(existing_products)

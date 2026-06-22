@@ -21,7 +21,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         self, session: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> List[ModelType]:
         statement = select(self.model).offset(skip).limit(limit)
-        response = await session.exec(statement)
+        response = await session.execute(statement)
         return response.all()
 
     async def create(self, session: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:

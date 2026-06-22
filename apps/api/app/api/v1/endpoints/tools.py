@@ -33,7 +33,7 @@ async def product_search(
     search_query = f"%{query.lower()}%"
 
     statement = select(Product).where(Product.name.ilike(search_query))
-    result = await session.exec(statement)
+    result = await session.execute(statement)
     products = result.all()
 
     if not products:

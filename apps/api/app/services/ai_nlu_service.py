@@ -2416,7 +2416,7 @@ class AINLUService:
             async with AsyncSessionFactory() as session:
                 try:
                     statement = select(Product).order_by(col(Product.rating).desc()).limit(8)
-                    return (await session.exec(statement)).all()
+                    return (await session.execute(statement)).all()
                 except: return []
 
         async def fetch_row_3_trending():
@@ -2424,7 +2424,7 @@ class AINLUService:
             async with AsyncSessionFactory() as session:
                 try:
                     statement = select(Product).limit(40)
-                    pool = (await session.exec(statement)).all()
+                    pool = (await session.execute(statement)).all()
                     if pool:
                         import random
                         return random.sample(pool, min(len(pool), 8))
@@ -2436,7 +2436,7 @@ class AINLUService:
             async with AsyncSessionFactory() as session:
                 try:
                     statement = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
-                    return (await session.exec(statement)).all()
+                    return (await session.execute(statement)).all()
                 except: return []
 
         results = await asyncio.gather(

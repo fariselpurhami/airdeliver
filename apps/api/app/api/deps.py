@@ -50,8 +50,13 @@ def _forbidden_credentials_exception() -> HTTPException:
 
 
 async def _load_user_by_subject(session: AsyncSession, subject: str) -> models.User | None:
-    result = await session.exec(select(models.User).where(models.User.email == subject))
-    return result.first()
+
+    result = await session.execute(select(models.User).where(models.User.email == subject))
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
 def _decode_token_subject(token: str, settings: CoreSettings) -> str:

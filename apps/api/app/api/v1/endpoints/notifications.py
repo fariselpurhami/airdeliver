@@ -48,7 +48,7 @@ async def get_notifications(
         .order_by(Notification.created_at.desc())
         .limit(100)
     )
-    notifications = (await session.exec(statement)).all()
+    notifications = (await session.execute(statement)).all()
 
     response_notifications = []
     for notif in notifications:
@@ -92,7 +92,7 @@ async def mark_all_notifications_as_read(
         .where(Notification.user_id == current_user.id, Notification.read == False)
         .values(read=True)
     )
-    await session.exec(statement)
+    await session.execute(statement)
     await session.commit()
     return None
 
