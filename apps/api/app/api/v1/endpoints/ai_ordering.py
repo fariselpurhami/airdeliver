@@ -15,7 +15,7 @@ from app.services.ai_voice_service import AIVoiceOrchestrator
 # Internal Imports
 from app import models
 from app.api import deps
-from app.services.rabbitmq_service import RabbitMQService
+from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
 from app.services.cache_service import IAsyncCacheClient
 from app.core.config import settings
 
@@ -71,7 +71,7 @@ async def handle_chat_websocket(
     websocket: WebSocket,
     ticket: str = Query(None),
     session: AsyncSession = Depends(deps.get_async_session),
-    rabbitmq: RabbitMQService = Depends(deps.get_rabbitmq_service),
+    rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
     cache: IAsyncCacheClient = Depends(deps.get_cache_client),
 ):
     """

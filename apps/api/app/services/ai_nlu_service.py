@@ -19,8 +19,23 @@ from app.services.free_llm_service import FreeLLMService
 from app.models.product import Product
 from app.db.session import AsyncSessionFactory 
 from app.services.ai_meta_cognition import MetaCognitionLayer
+from dataclasses import dataclass
+from typing import Set, Sequence
 
 logger = logging.getLogger("airdeliver.nlu")
+
+@dataclass(frozen=True)
+class MatrixConfig:
+    MAX_ITEMS_PER_ROW: int = 8
+    TRENDING_POOL_LIMIT: int = 40
+    DEALS_MIN_RATING: float = 4.0
+    STREAM_DELAY_SEC: float = 0.3
+    DEFAULT_SPENDING_TIER: str = "MEDIUM"
+
+    COPY_BESTSELLERS = "Discover our most acclaimed masterpieces, rigorously validated by the community."
+    COPY_TRENDING = "Experience the momentum of now with our definitive collection."
+    COPY_DEALS = "Explore an exclusive curation of investment-worthy masterpieces."
+    COPY_FALLBACK = "Welcome! Feel free to ask me about any product."
 
 class DiamondInterceptor:
     """
@@ -2364,232 +2379,122 @@ class AINLUService:
             # إبلاغ الواجهة
             await self._send_to_ui(user_id, {"content": "Session & Memory Cleared. Starting Fresh. 🔄", "type": "system"})
             return
-      
-    # 💎 DYNAMIC HOMEPAGE ENGINE (The Smart Matrix)
-    async def _handle_initial_suggestions(self, user_id: int):
-        """
-        🏠 Builds the User's Homepage Matrix with 4 Strategic Layers.
-        
-        ARCHITECTURE:
-        1. 🧬 Financial DNA Analysis (Live).
-        2. 🚀 Row 1: "For You" (Personalized based on Tier & Time).
-        3. 🔥 Row 2: "Global Best Sellers" (Simulated via High Ratings).
-        4. 📈 Row 3: "Trending Now" (Simulated via Random Shuffle Algorithm).
-        5. 💎 Row 4: "Smart Deals" (Simulated via High Value/Low Price Ratio).
-        
-        PROTOCOL:
-        - Executes DB queries in PARALLEL for sub-millisecond latency.
-        - Streams responses sequentially to create an engaging "Loading" effect in UI.
-        - Uses 'Safe Dump' to prevent Decimal serialization errors.
-        """
-        
-        # 1. 🧬 ALWAYS ANALYZE DNA (Live)
-        spending_tier = "MEDIUM"
-        seen_ids = []
-        
+
+    async def _handle_initial_suggestions(self, user_id: int) -> None:
+        logger.info("matrix_generation_started", extra={"user_id": user_id})
+
+        # 1. Telemetry & DNA Acquisition
+        spending_tier = MatrixConfig.DEFAULT_SPENDING_TIER
+        global_seen_ids: Set[int] = set()
+
         if self.behavior_engine:
             try:
-                # Parallel DNA Extraction
-                analyze_func = getattr(self.behavior_engine, 'analyze_financial_dna', None)
-                seen_func = getattr(self.behavior_engine, 'get_recently_seen_ids', None)
-                
-                tasks = []
-                if analyze_func: tasks.append(analyze_func(user_id))
-                if seen_func: tasks.append(seen_func(user_id))
-                
-                if tasks:
-                    results = await asyncio.gather(*tasks, return_exceptions=True)
-                    if analyze_func and not isinstance(results[0], Exception): spending_tier = results[0]
-                    # Handle index shift if analyze_func is missing
-                    idx = 1 if analyze_func else 0
-                    if seen_func and len(results) > idx and not isinstance(results[idx], Exception): seen_ids = results[idx]
+                if hasattr(self.behavior_engine, 'analyze_financial_dna'):
+                    spending_tier = await self.behavior_engine.analyze_financial_dna(user_id)
+                if hasattr(self.behavior_engine, 'get_recently_seen_ids'):
+                    recent_ids = await self.behavior_engine.get_recently_seen_ids(user_id)
+                    if recent_ids:
+                        global_seen_ids.update(recent_ids)
             except Exception as e:
-                logger.warning(f"Behavior Engine Telemetry Glitch: {e}")
+                logger.warning("behavior_engine_telemetry_degraded", extra={"user_id": user_id, "error": str(e)})
 
-        async def fetch_row_1_personal():
-            # Row 1: Personalized
-            async with AsyncSessionFactory() as session:
-                return await self.search_engine.get_fresh_homepage_matrix(session, user_id, seen_ids, spending_tier)
+        # 2. Data Acquisition Pipeline (Sequential Execution for DB Safety)
+        personal_products = await self._fetch_personal(user_id, global_seen_ids, spending_tier)
+        self._register_seen(global_seen_ids, personal_products)
 
-        async def fetch_row_2_bestsellers():
-            # Row 2: Best Sellers
-            async with AsyncSessionFactory() as session:
-                try:
-                    statement = select(Product).order_by(col(Product.rating).desc()).limit(8)
-                    return (await session.execute(statement)).all()
-                except: return []
+        bestsellers = await self._fetch_bestsellers(global_seen_ids)
+        self._register_seen(global_seen_ids, bestsellers)
 
-        async def fetch_row_3_trending():
-            # Row 3: Trending Now
-            async with AsyncSessionFactory() as session:
-                try:
-                    statement = select(Product).limit(40)
-                    pool = (await session.execute(statement)).all()
-                    if pool:
-                        import random
-                        return random.sample(pool, min(len(pool), 8))
-                    return []
-                except: return []
+        trending = await self._fetch_trending(global_seen_ids)
+        self._register_seen(global_seen_ids, trending)
 
-        async def fetch_row_4_smart_deals():
-            # Row 4: Smart Deals
-            async with AsyncSessionFactory() as session:
-                try:
-                    statement = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
-                    return (await session.execute(statement)).all()
-                except: return []
+        deals = await self._fetch_deals(global_seen_ids)
+        self._register_seen(global_seen_ids, deals)
 
-        results = await asyncio.gather(
-            fetch_row_1_personal(),
-            fetch_row_2_bestsellers(),
-            fetch_row_3_trending(),
-            fetch_row_4_smart_deals(),
-            return_exceptions=True
-        )
+        # 3. Progressive Delivery Pipeline
+        streamed_any = False
 
-        
-        products_personal = await self.search_engine.get_fresh_homepage_matrix(self.db, user_id, seen_ids, spending_tier)
+        if personal_products:
+            await self._stream_row(
+                user_id, self._get_time_aware_greeting(spending_tier), "proactive_suggestion",
+                personal_products, "Exclusively curated to align with your distinct taste."
+            )
+            streamed_any = True
 
-        # Row 2: Best Sellers
-        products_bestsellers = []
+        if bestsellers:
+            await self._stream_row(
+                user_id, MatrixConfig.COPY_BESTSELLERS, "product_carousel",
+                bestsellers, "Global Market Leaders"
+            )
+            streamed_any = True
+
+        if trending:
+            await self._stream_row(
+                user_id, MatrixConfig.COPY_TRENDING, "product_carousel",
+                trending, "High-Velocity Trending"
+            )
+            streamed_any = True
+
+        if deals:
+            await self._stream_row(
+                user_id, MatrixConfig.COPY_DEALS, "product_carousel",
+                deals, "Optimal Price Point", apply_delay=False 
+            )
+            streamed_any = True
+
+        if not streamed_any:
+            await self._send_to_ui(user_id, {"content": MatrixConfig.COPY_FALLBACK, "type": "text"})
+
+
+    # --- 🛠️ Matrix Helper Methods ---
+
+    def _register_seen(self, memory_set: Set[int], products: Sequence[Product]) -> None:
+        """يضيف المنتجات المسترجعة لقائمة الـ Seen لمنع تكرارها في الصفوف التالية"""
+        for p in products:
+            memory_set.add(p.id)
+
+    async def _stream_row(self, user_id: int, content: str, ui_type: str, products: Sequence[Product], reason: str, apply_delay: bool = True) -> None:
+        """تغليف عملية الإرسال للواجهة مع إضافة Delay لتأثير الـ Streaming"""
         try:
-            stmt = select(Product).order_by(col(Product.rating).desc()).limit(8)
-            products_bestsellers = (await self.db.execute(stmt)).all()
-        except: pass
+            payload = {
+                "content": content,
+                "type": ui_type,
+                "products": [p.model_dump(mode='json') for p in products],
+                "reason": reason
+            }
+            await self._send_to_ui(user_id, payload)
+            if apply_delay:
+                await asyncio.sleep(MatrixConfig.STREAM_DELAY_SEC)
+        except Exception as e:
+            logger.error("stream_row_transport_failure", extra={"error": str(e)})
 
-        # Row 3: Trending Now
-        products_trending = []
+    async def _fetch_personal(self, user_id: int, seen_ids: Set[int], tier: str) -> Sequence[Product]:
         try:
-            stmt = select(Product).limit(40)
-            pool = (await self.db.execute(stmt)).all()
-            if pool:
-                import random
-                products_trending = random.sample(pool, min(len(pool), 8))
-        except: pass
+            return await self.search_engine.get_fresh_homepage_matrix(self.db, user_id, list(seen_ids), tier)
+        except Exception: return []
 
-        # Row 4: Smart Deals
-        products_deals = []
+    async def _fetch_bestsellers(self, seen_ids: Set[int]) -> Sequence[Product]:
         try:
-            stmt = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
-            products_deals = (await self.db.execute(stmt)).all()
-        except: pass
+            stmt = select(Product)
+            if seen_ids: stmt = stmt.where(Product.id.not_in(seen_ids))
+            stmt = stmt.order_by(col(Product.rating).desc()).limit(MatrixConfig.MAX_ITEMS_PER_ROW)
+            return (await self.db.execute(stmt)).scalars().all()
+        except: return []
 
-        # ⚠️ Removed asyncio.gather causing the "concurrent operations" error
-        results = [products_personal, products_bestsellers, products_trending, products_deals]
-        # 2. 🏗️ CONSTRUCTING THE MATRIX (PARALLEL EXECUTION)
-        # We launch 4 parallel operations to fetch data for all rows simultaneously.
-        
-        async def fetch_row_1_personal():
-            # Row 1: Personalized (Tier Based)
-            # تعتمد على محرك البحث الخاص بنا لجلب منتجات تناسب الفئة المالية
-            return await self.search_engine.get_fresh_homepage_matrix(self.db, user_id, seen_ids, spending_tier)
+    async def _fetch_trending(self, seen_ids: Set[int]) -> Sequence[Product]:
+        try:
+            stmt = select(Product)
+            if seen_ids: stmt = stmt.where(Product.id.not_in(seen_ids))
+            stmt = stmt.limit(MatrixConfig.TRENDING_POOL_LIMIT)
+            pool = list((await self.db.execute(stmt)).scalars().all())
+            if not pool: return []
+            return random.sample(pool, min(len(pool), MatrixConfig.MAX_ITEMS_PER_ROW))
+        except: return []
 
-        async def fetch_row_2_bestsellers():
-            # Row 2: Best Sellers (Simulation: Highest Rated)
-            # بما أن المبيعات وهمية، نعتبر "التقييم العالي" هو المبيعات
-            try:
-                statement = select(Product).order_by(col(Product.rating).desc()).limit(8)
-                return (await self.db.execute(statement)).all()
-            except: return []
-
-        async def fetch_row_3_trending():
-            # Row 3: Trending Now (Simulation: Randomized Shuffle)
-            # نأخذ عينة كبيرة (30) ثم نخلطها ونختار 8 لضمان التجديد في كل مرة
-            try:
-                statement = select(Product).limit(40) # Fetch pool
-                pool = (await self.db.execute(statement)).all()
-                if pool:
-                    import random
-                    return random.sample(pool, min(len(pool), 8))
-                return []
-            except: return []
-
-        async def fetch_row_4_smart_deals():
-            # Row 4: Smart Deals (Simulation: High Rating + Reasonable Price)
-            # نبحث عن منتجات تقييمها فوق 4.0 وسعرها "منطقي" (أقل من 1000 مثلاً)
-            try:
-                # نستخدم ترتيب السعر التصاعدي مع التقييم العالي
-                statement = select(Product).where(Product.rating >= 4.0).order_by(col(Product.price).asc()).limit(8)
-                return (await self.db.execute(statement)).all()
-            except: return []
-
-        # �� Execute all strategies in parallel
-        results = await asyncio.gather(
-            fetch_row_1_personal(),
-            fetch_row_2_bestsellers(),
-            fetch_row_3_trending(),
-            fetch_row_4_smart_deals(),
-            return_exceptions=True
-        )
-
-        # 3. 📦 STREAMING THE EXPERIENCE (Sequenced Delivery)
-        # نرسل الصفوف بتتابع زمني بسيط لكي يشعر المستخدم أن النظام "يبني" الواجهة له
-        
-        # --- Row 1: Personal (The Hero) ---
-        products_personal = results[0] if not isinstance(results[0], Exception) else []
-        if products_personal:
-            greeting = self._get_time_aware_greeting(spending_tier)
-            await self._send_to_ui(user_id, {
-                "content": greeting,
-                "type": "proactive_suggestion", # Special UI Type
-                "products": [p.model_dump(mode='json') for p in products_personal],
-                "reason": "Exclusively curated to align with your distinct taste and elevated lifestyle standards."
-            })
-            await asyncio.sleep(0.3) # Micro-pause for UX flow
-
-        # --- Row 2: Best Sellers (Social Proof) ---
-        products_bestsellers = results[1] if not isinstance(results[1], Exception) else []
-        if products_bestsellers:
-            # فلترة التكرار (عشان منعرضش نفس منتجات الصف الأول)
-            personal_ids = {p.id for p in products_personal}
-            filtered_bs = [p for p in products_bestsellers if p.id not in personal_ids][:8]
-            
-            if filtered_bs:
-
-                await self._send_to_ui(user_id, {
-                    "content": "Discover our most acclaimed masterpieces, rigorously validated by the community to guarantee a superior experience and lasting satisfaction.",
-                    "type": "product_carousel",
-                    "products": [p.model_dump(mode='json') for p in filtered_bs],
-                    "reason": "dentified through rigorous global market analysis as the undisputed leaders currently commanding consumer attention."
-                })
-                await asyncio.sleep(0.3)
-
-        # --- Row 3: Trending (Freshness) ---
-        products_trending = results[2] if not isinstance(results[2], Exception) else []
-        if products_trending:
-            # فلترة التكرار التراكمي
-            seen_so_far = {p.id for p in products_personal} | {p.id for p in products_bestsellers}
-            filtered_tr = [p for p in products_trending if p.id not in seen_so_far][:8]
-            
-            if filtered_tr:
-
-                await self._send_to_ui(user_id, {
-                    "content": "Experience the momentum of now with our definitive collection of the most sought-after products defining this season.",
-                    "type": "product_carousel",
-                    "products": [p.model_dump(mode='json') for p in filtered_tr],
-                    "reason": "Surfaced by real-time interaction metrics as the high-velocity products currently capturing the global market pulse."
-                })
-                await asyncio.sleep(0.3)
-
-        products_deals = results[3] if not isinstance(results[3], Exception) else []
-        if products_deals:
-            
-            seen_so_far = {p.id for p in products_personal} | {p.id for p in products_bestsellers} | {p.id for p in products_trending}
-            filtered_deals = [p for p in products_deals if p.id not in seen_so_far][:8]
-            
-            if filtered_deals:
-
-                
-                await self._send_to_ui(user_id, {
-                    "content": "Explore an exclusive curation of investment-worthy masterpieces, meticulously selected to redefine your standards of quality and excellence.",
-                    "type": "product_carousel",
-                    "products": [p.model_dump(mode='json') for p in filtered_deals],
-                    "reason": "Strategically identified as high-yield opportunities where superior performance perfectly aligns with the optimal price point."
-                })
-
-        
-        if not any([products_personal, products_bestsellers, products_trending, products_deals]):
-            await self._send_to_ui(user_id, {
-                "content": "Welcome! Feel free to ask me about any product.", 
-                "type": "text"
-            })
+    async def _fetch_deals(self, seen_ids: Set[int]) -> Sequence[Product]:
+        try:
+            stmt = select(Product).where(Product.rating >= MatrixConfig.DEALS_MIN_RATING)
+            if seen_ids: stmt = stmt.where(Product.id.not_in(seen_ids))
+            stmt = stmt.order_by(col(Product.price).asc()).limit(MatrixConfig.MAX_ITEMS_PER_ROW)
+            return (await self.db.execute(stmt)).scalars().all()
+        except: return []
