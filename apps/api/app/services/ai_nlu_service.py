@@ -1855,22 +1855,60 @@ class AINLUService:
             web_context = ""
 
         meta_analysis = {"stance": "AUTHORITATIVE", "uncertainty": 0.0}
-        
+       
+        current_vector = None
         try:
-            # نجلب بيانات الشبح من الكاش
-            ghost_json = await self.cache.get_json(f"u:{user_id}:ghost_v2")
-            
-            # نحول سؤال المستخدم الحالي لـ Vector باستخدام موديل البحث
-            if hasattr(self.search_engine, 'embedding_model'):
-                current_vector = self.search_engine.embedding_model.encode(user_query).tolist()
-                
-                if ghost_json:
-                    # نسأل "الضمير": هل أنا فاهم صح؟
-                    meta_analysis = self.meta_cognition.evaluate_confidence(ghost_json, current_vector)
-                    logger.info(f"🧘 Meta-Cognition: {meta_analysis}")
-        except Exception as e:
-            logger.warning(f"⚠️ Meta-Cognition Skipped: {e}")
+           ghost_cache_key = f"u:{user_id}:ghost_v2"
+           ghost_json = await self.cache.get_json(ghost_cache_key)
 
+           embedding_provider = getattr(self.search_engine, "get_query_embedding", None)
+           if embedding_provider is None or not callable(embedding_provider):
+               logger.debug(
+                   "Meta-cognition skipped: embedding capability unavailable",
+                   extra={"user_id": user_id, "cache_key": ghost_cache_key},
+               )
+           else:
+               current_vector = await asyncio.wait_for(
+                   embedding_provider(user_query),
+                   timeout=30,
+               )
+
+               if ghost_json is not None and current_vector is not None:
+                   meta_analysis = self.meta_cognition.evaluate_confidence(
+                       ghost_json,
+                       current_vector,
+                   )
+                   logger.info(
+                       "Meta-cognition completed",
+                       extra={
+                           "user_id": user_id,
+                           "cache_key": ghost_cache_key,
+                           "has_ghost": True,
+                           "vector_dimensions": len(current_vector),
+                           "meta_analysis": meta_analysis,
+                       },
+                   )
+               else:
+                   logger.debug(
+                       "Meta-cognition skipped: missing ghost profile or embedding",
+                       extra={
+                           "user_id": user_id,
+                           "cache_key": ghost_cache_key,
+                           "has_ghost": ghost_json is not None,
+                           "has_embedding": current_vector is not None,
+                       },
+                   )
+
+       except asyncio.TimeoutError:
+           logger.warning(
+               "Meta-cognition skipped: embedding generation timed out",
+               extra={"user_id": user_id},
+           )
+       except Exception:
+           logger.exception(
+               "Meta-cognition failed unexpectedly",
+               extra={"user_id": user_id},
+           )
         # 3. 🧠 THE "DYNAMIC VERBOSITY" LOGIC (تحديد الاستراتيجية وطول الرد)
         stance = meta_analysis.get("stance", "AUTHORITATIVE")
         is_comparison = any(w in user_query.lower() for w in ["vs", "compare", "better", "difference", "or", "مقارنة", "الفرق", "أحسن"])
