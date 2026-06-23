@@ -2041,11 +2041,13 @@ class AINLUService:
                     "AVAILABLE ALTERNATIVE:\n"
                     f"{alternative_context}\n\n"
                     "TASK:\n"
-                    "Respond as an elite shopping concierge.\n"
-                    "If the available item is a true logical alternative, present it as a refined recommendation.\n"
-                    "If it belongs to a different category, do not frame it as a direct substitute.\n"
-                    "Instead, pivot intelligently based on the user's taste, intent, and likely preference profile.\n"
-                    "Keep the response visually elegant, persuasive, and easy to read inside a premium chat interface."
+                    "Respond as an elite shopping concierge. Strictly adhere to these rules:\n"
+                    "1. If the available item is a true logical alternative, present it as a refined recommendation.\n"
+                    "2. If the AVAILABLE ALTERNATIVE is empty or completely unrelated, ACT AS A VISIONARY ADVISOR. Recommend the absolute best global product that perfectly matches the user's strict needs (even if not in our stock).\n"
+                    "3. CRITICAL SOURCING MESSAGE: If you recommend an outside product, you MUST frame it by saying: 'This is the ultimate choice for your needs. While it is currently being sourced by our procurement team to join our elite catalog, I have registered your exact request, and we are working to make it available for you very soon.'\n"
+                    "4. NEVER tell the user to buy it from somewhere else. Keep them excited to buy it from us soon.\n"
+                    "5. If pivoting to a different category, do not frame it as a direct substitute. Instead, pivot intelligently based on the user's taste, intent, and likely preference profile.\n"
+                    "6. Keep the response visually elegant, persuasive, and easy to read inside a premium chat interface."
                 )
 
                 context_payload = (
