@@ -12,7 +12,8 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+_PRICE_CLEAN_RE = re.compile(r"[^\d.]+")
 from enum import Enum
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Sequence, Set, Tuple, Union
 
@@ -784,7 +785,7 @@ class ConstraintExtractor:
             singular = candidate[:-1] if candidate.endswith("s") and len(candidate) > 3 else candidate
             if singular not in self.ignored_anchors and len(singular) > 2:
                 category_filter = singular
-                clean_query = f"{clean_query} {(singular + ' ') * 5}".strip()
+                clean_query = f"{clean_query} {singular}".strip()
                 break
 
         if any(trigger in lower_text for trigger in self.open_budget_triggers):
@@ -978,7 +979,8 @@ class AINLUService:
     - Response synthesis
     - Async background telemetry
     """
-
+    _RECOVERY_FIELD_MAX_LEN = 160
+    _RECOVERY_RAW_PREVIEW_LEN = 200
     def __init__(
         self,
         db: AsyncSession,
@@ -1718,10 +1720,11 @@ class AINLUService:
             candidates = filtered
 
         if plan.constraints.price_max and candidates:
-            price_filtered = [
-                p for p in candidates
-                if float(ProductAccess.get(p, "price", 0) or 0) <= plan.constraints.price_max
-            ]
+            # الاستدعاء النظيف للدالة الجديدة
+            price_filtered = self._filter_candidates_by_price(
+                candidates, 
+                plan.constraints.price_max
+            )
         
 
             if not price_filtered:
@@ -1925,6 +1928,101 @@ class AINLUService:
     # -------------------------------------------------------------------------
     # RESPONSE SYNTHESIS
     # -------------------------------------------------------------------------
+    
+    def _clamp_text(self, value: str, limit: int) -> str:
+        return (value or "").strip()[:limit]
+
+    def _parse_recovery_analysis(self, llm_analysis: str) -> Optional[Tuple[str, str]]:
+        raw_text = (llm_analysis or "").strip()
+        if not raw_text:
+            return None
+
+        left, sep, right = raw_text.partition("|")
+        if not sep:
+            return None
+
+        parent_category = self._clamp_text(left, self._RECOVERY_FIELD_MAX_LEN)
+        complements_keywords = self._clamp_text(right, self._RECOVERY_FIELD_MAX_LEN)
+
+        if not parent_category or not complements_keywords:
+            StructuredLog.warning(
+                "recovery_analysis_invalid_format",
+                raw_preview=self._clamp_text(raw_text, self._RECOVERY_RAW_PREVIEW_LEN),
+            )
+            return None
+
+        return parent_category, complements_keywords
+
+    async def _safe_web_search(self, raw_query: str) -> str:
+        query = self._clamp_text(raw_query, 350)
+        if not query:
+            return ""
+
+        try:
+            web_intel = await asyncio.wait_for(
+                self.llm_service._perform_web_search(query),
+                timeout=self.config.web_search_timeout_sec,
+            )
+            return self._clamp_text(str(web_intel), self.config.max_web_context_chars)
+
+        except asyncio.TimeoutError:
+            StructuredLog.warning(
+                "recovery_web_search_timeout",
+                query_preview=query[:120],
+                query_len=len(query),
+                timeout_sec=self.config.web_search_timeout_sec,
+            )
+            return ""
+
+        except Exception as exc:
+            StructuredLog.warning(
+                "recovery_web_search_failed",
+                query_preview=query[:120],
+                query_len=len(query),
+                error_type=type(exc).__name__,
+                error=str(exc),
+            )
+            return ""
+    
+    def _parse_price_value(self, raw_price: object) -> Decimal | None:
+        if raw_price is None:
+            return None
+        text = str(raw_price).strip()
+        if not text:
+            return None
+        normalized = _PRICE_CLEAN_RE.sub("", text)
+        if not normalized:
+            return None
+        try:
+            return Decimal(normalized)
+        except (InvalidOperation, ValueError, TypeError):
+            return None
+
+    def _filter_candidates_by_price(self, candidates: list, price_max: object) -> list:
+        try:
+            max_price = Decimal(str(price_max))
+        except (InvalidOperation, ValueError, TypeError):
+            return candidates
+
+        filtered: list = []
+        skipped_invalid_price = 0
+
+        for product in candidates:
+            parsed_price = self._parse_price_value(ProductAccess.get(product, "price", None))
+            if parsed_price is None:
+                skipped_invalid_price += 1
+                continue
+            if parsed_price <= max_price:
+                filtered.append(product)
+
+        if skipped_invalid_price:
+            StructuredLog.info(
+                "price_filter_skipped_invalid_prices",
+                skipped_count=skipped_invalid_price,
+                candidate_count=len(candidates),
+                price_max=str(max_price),
+            )
+        return filtered
 
     async def _synthesize_response(
         self,
@@ -2003,11 +2101,7 @@ class AINLUService:
                         f"WE HAVE THIS IN STOCK: {p_name_override} (Price: ${p_price}). Specs: {p_desc}"
                     )
 
-                web_intel = await asyncio.wait_for(
-                    self.llm_service._perform_web_search(plan.search_query),
-                    timeout=self.config.web_search_timeout_sec,
-                )
-                web_intel_safe = str(web_intel)[: self.config.max_web_context_chars]
+                web_intel_safe = await self._safe_web_search(plan.search_query)
 
                 system_instruction = """
                   ROLE: airdeliver Elite Personal Shopping Concierge.
@@ -2121,10 +2215,10 @@ class AINLUService:
 
             llm_analysis = llm_analysis.strip().replace('"', "").replace("'", "")
 
-            if "|" in llm_analysis:
-                parts = llm_analysis.split("|", 1)
-                parent_category = parts[0].strip()
-                complements_keywords = parts[1].strip()
+            parsed_recovery = self._parse_recovery_analysis(llm_analysis)
+            
+            if parsed_recovery:
+                parent_category, complements_keywords = parsed_recovery
             else:
                 parent_category = self._distill_fallback_parent_category(user_query)
                 complements_keywords = "Best Sellers"
@@ -2524,11 +2618,7 @@ class AINLUService:
 
         if should_trigger_web:
             is_unknown_product = True
-            search_optimized = user_query[:300]
-            try:
-                web_context = await self.llm_service._perform_web_search(search_optimized)
-            except Exception:
-                web_context = ""
+            web_context = await self._safe_web_search(user_query)
         else:
             is_unknown_product = False
 
@@ -2608,35 +2698,135 @@ Admit the exact item is unavailable.
 Immediately present {p_name} as the closest strong alternative.
 Explain why it is a good choice in this category.
 """
-            elif is_discovery_intent:
+            elif is_discovery_intent or is_comparison:
                 word_limit = "500"
-                style_guide = "Expert, advisory, solution-oriented."
-                strategy_instruction = f"""
-The user asked a discovery question: '{user_query}'.
-Present {p_name} as the top recommendation.
-Highlight two attributes that map directly to the user's intent.
-End with a confident recommendation.
-"""
-            else:
-                if is_comparison:
-                    word_limit = "500"
-                    style_guide = "Persuasive, comparative, product-focused."
+
+                if not query_numbers:
+                    style_guide = "Objective, informative, consultative."
                     strategy_instruction = f"""
-The user is comparing alternatives.
-You are selling {p_name}.
-Acknowledge the competitor briefly, but position {p_name} as the better fit for the user's priority.
-Highlight two strong specs or category strengths of {p_name}.
+ROLE:
+You are an elite commerce advisor operating inside a sales platform. Your job is not casual chatting. Your job is to answer discovery and comparison questions intelligently, build trust first, and only then connect the user to the strongest in-stock option.
+
+PRIMARY SITUATION:
+The user asked a general discovery or comparison question without naming a specific model:
+"{user_query}"
+
+CORE DECISION RULE:
+Because the user did not specify a model, treat this as a broad advisory question first, not a direct product pitch.
+
+SUCCESS CRITERIA:
+- Answer the general question objectively and usefully.
+- Show balanced reasoning before mentioning inventory.
+- Avoid sounding defensive, pushy, or scripted.
+- Transition into inventory only after the advisory answer is established.
+- Present {p_name} as a recommendation, not as the forced answer to the whole category.
+
+RESPONSE STRATEGY:
+1. Open as a neutral consultant.
+Briefly answer the broader question in plain language.
+If brands, ecosystems, or product families are being compared, explain the main trade-offs clearly and fairly.
+
+2. Build trust before selling.
+Do not aggressively push {p_name} in the opening paragraph.
+Do not pretend that one brand is always superior in every situation.
+If the answer depends on user priorities, say so explicitly.
+
+3. Make a controlled pivot into inventory.
+After the neutral explanation, transition naturally using this exact framing:
+"Based on our current inventory, if you prefer this route, our top recommendation is {p_name}."
+
+4. Justify the recommendation intelligently.
+Explain why {p_name} fits the likely preference behind the user's question.
+Map the recommendation to the user's apparent priorities such as productivity, camera quality, battery life, ecosystem fit, durability, gaming, value, or premium feel.
+
+5. Respect active constraints.
+If there is a real constraint such as budget, excluded brands, platform preference, or use-case limitation, address it honestly.
+If {p_name} exceeds budget or conflicts with a stated preference, acknowledge that calmly instead of forcing the sale.
+
+6. End with a guided conclusion.
+Close with a composed, confident recommendation that helps the user move forward without sounding like an advertisement.
+
+HARD RULES:
+- No exaggerated superiority claims.
+- No fake neutrality followed by obvious hard selling.
+- No cheap marketing phrases such as "ultimate choice", "best ever", "unbeatable", or "game changer".
+- Do not invent facts about competitors.
+- Do not imply {p_name} is the answer for everyone.
+- Keep the response elegant and easy to read inside a premium commerce chat interface.
+
+OUTPUT SHAPE:
+- Paragraph 1: neutral answer to the general question.
+- Paragraph 2: smooth transition to inventory.
+- Paragraph 3: recommendation logic and constraint handling.
+- Final sentence: calm forward guidance.
+
+If the user question is very broad, prioritize clarity over detail.
 """
                 else:
-                    style_guide = "Direct, punchy, decision-oriented."
-                    if "Impulsive" in persona:
-                        strategy_instruction = "Focus on speed, urgency, and fear of missing out."
-                    elif tier == "HIGH":
-                        strategy_instruction = "Focus on status, premium quality, and exclusivity."
-                    elif tier == "LOW":
-                        strategy_instruction = "Focus on value, savings, and efficiency."
-                    else:
-                        strategy_instruction = "Focus on the one big reason to buy. No fluff."
+                    style_guide = "Persuasive, comparative, product-focused."
+                    strategy_instruction = f"""
+ROLE:
+You are an elite sales engineer inside a commerce platform. The user has asked about a specific device, model family, or product-level comparison, so your role is to give a sharp, credible, product-centered recommendation.
+
+PRIMARY SITUATION:
+The user asked a specific discovery or comparison question:
+"{user_query}"
+
+CORE DECISION RULE:
+Because the question points to a specific model or product-level intent, you may recommend {p_name} directly, but only with logic that clearly maps to the user's priority.
+
+SUCCESS CRITERIA:
+- Make {p_name} feel like the strongest available fit.
+- Anchor the recommendation in real product reasoning.
+- Briefly acknowledge the competing model, brand, or option when relevant.
+- Keep the tone confident, not loud.
+- Help the user reach a decision quickly.
+
+RESPONSE STRATEGY:
+1. Lead with a clear recommendation.
+Open by positioning {p_name} as the strongest available recommendation for this request.
+
+2. Map directly to intent.
+Highlight two attributes that most directly answer the user's underlying goal.
+Choose the most relevant dimensions only, such as performance, battery, display, portability, camera, productivity, build quality, software environment, value, or ecosystem fit.
+
+3. Handle the comparison with discipline.
+If a competitor is mentioned, acknowledge it briefly and fairly.
+Do not spend too many words praising the competitor.
+Use the comparison only to clarify why {p_name} is the better fit for the user's stated priority.
+
+4. Handle constraints honestly.
+If there is a budget issue, category mismatch, or partial trade-off, mention it without weakening the recommendation unnecessarily.
+Never hide a relevant drawback if it materially affects the buying decision.
+
+5. Close decisively.
+End with a confident recommendation that feels earned by reasoning, not by hype.
+
+HARD RULES:
+- No generic hype.
+- No vague praise without support.
+- No fake claims of total superiority.
+- No overlong comparison tables in prose.
+- Do not drift into a general brand essay if the question is product-specific.
+
+OUTPUT SHAPE:
+- Paragraph 1: direct recommendation.
+- Paragraph 2: two strongest fit attributes.
+- Paragraph 3: concise comparison logic.
+- Final sentence: confident recommendation.
+
+The answer should feel premium, persuasive, and grounded in the user's actual intent.
+"""
+            else:
+                style_guide = "Direct, punchy, decision-oriented."
+                if "Impulsive" in persona:
+                    strategy_instruction = "Focus on speed, urgency, and fear of missing out."
+                elif tier == "HIGH":
+                    strategy_instruction = "Focus on status, premium quality, and exclusivity."
+                elif tier == "LOW":
+                    strategy_instruction = "Focus on value, savings, and efficiency."
+                else:
+                    strategy_instruction = "Focus on the one big reason to buy. No fluff."
 
         elif stance == "ADAPTIVE_SHOCK":
             word_limit = "500"
