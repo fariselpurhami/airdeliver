@@ -385,7 +385,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
             case 'error':
             case 'info':
             case 'success_text':
-                return <p className={`whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
+                return <p className={`whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal ${message.contentType ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
             case 'FLIGHT_MANIFEST':
                 return (
                     <div className="w-full -ml-2">

@@ -107,7 +107,7 @@ const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
-  content: 'Welcome! Ask what you need. order with air: From your intent to reality. Fast and Effortless.',
+  content: `Welcome to order with air. Tell us what you need, and we’ll turn intent into action. Fast, clear, and effortless.`,
   timestamp: Date.now(),
 };
 

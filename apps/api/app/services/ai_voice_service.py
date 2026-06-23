@@ -11,8 +11,7 @@ from typing import AsyncGenerator, Dict, Any, List, Optional
 from fastapi import WebSocket, WebSocketDisconnect
 
 # Internal Services
-from app.services.ai_commerce_engine import AICommerceEngine, ai_manager 
-
+from app.services.ai_commerce_engine import AICommerceEngine, get_ai_commerce_engine
 # 💎 SOTA LOGGING WITH TELEMETRY (Hybrid Mode)
 logger = logging.getLogger("airdeliver.voice_core")
 
