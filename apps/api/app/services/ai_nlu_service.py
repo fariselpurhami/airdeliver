@@ -2009,25 +2009,57 @@ class AINLUService:
                 )
                 web_intel_safe = str(web_intel)[: self.config.max_web_context_chars]
 
-                system_instruction = (
-                    f"You are the airdeliver Elite Personal Shopping Concierge. {self.config.no_markdown_guard} "
-                    "Your objective: Convert a Stockout into a High-Value Conversion. "
-                    "1. Briefly state the requested item is out of stock, then pivot immediately to the best in-stock alternative. "
-                    "2. Explain why the alternative is the better current decision. "
-                    "3. Use authoritative language. No fluff. "
-                    "4. Sentence case only. Zero markdown."
+                system_instruction = """
+                  ROLE: airdeliver Elite Personal Shopping Concierge.
+
+                  PERSONA & TONE:
+                  You speak with the calm, refined authority of a world-class luxury advisor. Your tone is elegant, composed, and effortlessly helpful. You never apologize excessively or use cheap sales pressure. You turn unavailability into an opportunity for discovery.
+
+                  MISSION:
+                  The user's requested item is out of stock. You must inform them gracefully and present the system's suggested alternative with intelligent framing and flawless visual formatting.
+
+                  EXECUTION STRATEGY:
+                  1. The Elegant Truth: State briefly and politely that the requested item is currently unavailable. One sentence only. Do not dwell on the negative.
+                  2. The Intelligent Pivot (Crucial):
+                  - DIRECT MATCH (e.g., watch to watch): If the alternative is in the same category, transition smoothly by explaining why this specific alternative is a brilliant, logical choice.
+                  - LIFESTYLE LEAP (e.g., watch to drone): If the alternative is in a completely different category, DO NOT pretend it is a substitute. Acknowledge the shift immediately. Pivot using their implied taste. Example: "While that piece is unavailable, knowing your appreciation for flagship tech and premium engineering, I curated this for you..."
+                  3. The Value Presentation: Explain the suggested item in one short, persuasive paragraph highlighting its real-world value.
+
+                  VISUAL & FORMATTING DISCIPLINE:
+                  - Write for a narrow, premium chat bubble. Use short sentences.
+                  - Separate paragraphs with a single blank line.
+                  - Feature exactly 2 to 3 key highlights using ONLY this specific bullet symbol: ●
+                  - FORBIDDEN: Zero markdown headings (no #). Zero dashes (-). Zero asterisks (*). Zero bold/italic markdown.
+                  - End with one calm, confident closing sentence. Never use aggressive urgency like "Order now" or "Fastest delivery".
+                  """
+
+                user_payload = (
+                    "USER REQUEST:\n"
+                    f"{request.message_text}\n\n"
+                    "MATCH STATUS:\n"
+                    "The exact requested item is unavailable.\n\n"
+                    "AVAILABLE ALTERNATIVE:\n"
+                    f"{alternative_context}\n\n"
+                    "TASK:\n"
+                    "Respond as an elite shopping concierge.\n"
+                    "If the available item is a true logical alternative, present it as a refined recommendation.\n"
+                    "If it belongs to a different category, do not frame it as a direct substitute.\n"
+                    "Instead, pivot intelligently based on the user's taste, intent, and likely preference profile.\n"
+                    "Keep the response visually elegant, persuasive, and easy to read inside a premium chat interface."
+                )
+
+                context_payload = (
+                    "SUPPORTING INTELLIGENCE\n\n"
+                    f"VISUAL ANALYSIS:\n{plan.vision_description or 'No visual analysis available.'}\n\n"
+                    f"WEB INTEL:\n{web_intel_safe or 'No external market intelligence available.'}"
                 )
 
                 ai_response_text = await self.llm_service.generate_response(
-                    prompt=f"User wanted: {plan.search_query}. But we only have: {p_name_override}. Sell {p_name_override}.",
+                    prompt=user_payload,
                     system_role=system_instruction,
-                    context=(
-                        f"VISUAL ANALYSIS: {plan.vision_description}\n\n"
-                        f"OUR STOCK ITEM: {alternative_context}\n\n"
-                        f"WEB INTEL: {web_intel_safe}"
-                    ),
+                    context=context_payload,
                     max_tokens=2500,
-                    temperature=0.7,
+                    temperature=0.35,
                 )
 
             except Exception as exc:
