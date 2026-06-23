@@ -64,10 +64,10 @@ class InternalCommand(str, Enum):
 
 @dataclass(frozen=True)
 class MatrixConfig:
-    max_items_per_row: int = 180
-    trending_pool_limit: int = 180
-    deals_min_rating: float = 180.0
-    stream_delay_sec: float = 180
+    max_items_per_row: int = 10
+    trending_pool_limit: int = 50
+    deals_min_rating: float = 40.0
+    stream_delay_sec: float = 0.8
     default_spending_tier: str = "MEDIUM"
 
     seen_cache_ttl_sec: int = 3600
@@ -99,8 +99,9 @@ class MatrixConfig:
 
     no_markdown_guard: str = (
         "STRICT RULE: ZERO MARKDOWN. "
-        "DO NOT use asterisks (**), hashes (#), or underscores (_). "
-        "Use ONLY plain text. No markdown bullets, no headings, no code fences."
+        "DO NOT use asterisks (**), hashes (#), dashes (-) or underscores (_). "
+        "Use ONLY plain text. "
+        "IMPORTANT: When listing features, strictly use the thick bullet symbol '●' at the start of each feature."
     )
 
     internal_prefix: str = "__"
@@ -387,30 +388,37 @@ class SafeJson:
 
 
 class TextSanitizer:
-    _strip_markdown_symbols = re.compile(r"[\*\_\"`#]")
+    _strip_markdown_symbols = re.compile(r"[\*\_\"`#\-]")
     _allow_pattern = re.compile(
-        r"[^\w\s\u0600-\u06FF\.,!?:;\-\(\)\[\]%\$\£\€\'’\/\+\n\u25CF]",
+        r"[^\w\s\u0600-\u06FF\.,!?:;\(\)\[\]%\$\£\€\'’\/\+\n\u25CF]",
         re.UNICODE,
     )
     _collapse_many_newlines = re.compile(r"\n{3,}")
     _collapse_spaces = re.compile(r"[ \t]{2,}")
     _currency_gap = re.compile(r"([\$£€])[\s\n]+(\d)")
-    _list_spacing = re.compile(r"(?<!\n\n)(?<!\w)(\d+\.\s)")
-    _note_spacing = re.compile(r"(?<!\n\n)(Note:|Action:|CTA:|●)")
-    _punctuation_gap = re.compile(r"\s+([,.;:!?])")
+    _punctuation_gap = re.compile(r"\s+([,;:!?])")
+
+    # السر هنا: التقاط نهاية الجملة (نقطة وبعدها مسافة وحرف)
+    _sentence_break = re.compile(r"([.!?])\s+(?=[A-Z\u0600-\u06FF])")
+    # التقاط النقطة العريضة لإجبارها على سطر جديد
+    _bullet_break = re.compile(r"(?<!\n)\s*(●)")
 
     @classmethod
     def sanitize_response_text(cls, raw_text: str) -> str:
         text = str(raw_text or "")
         text = cls._strip_markdown_symbols.sub("", text)
         text = cls._allow_pattern.sub(" ", text)
-        text = cls._collapse_many_newlines.sub("\n\n", text)
-        text = re.sub(r"^\s+$", "", text, flags=re.MULTILINE)
-        text = cls._list_spacing.sub(r"\n\n\1", text)
-        text = cls._note_spacing.sub(r"\n\n\1", text)
+
+        # إجبار أي نقطة عريضة تنزل في سطر جديد قبلها
+        text = cls._bullet_break.sub(r"\n\n\1 ", text)
+
+        # إجبار أي نقطة في نهاية الجملة إنها تنزل سطرين 
+        text = cls._sentence_break.sub(r"\1\n\n", text)
+
         text = text.replace("●", "● ").replace("●  ", "● ")
         text = cls._currency_gap.sub(r"\1\2", text)
         text = cls._punctuation_gap.sub(r"\1", text)
+
         lines = [cls._collapse_spaces.sub(" ", line).strip() for line in text.split("\n")]
         text = "\n".join(lines).strip()
         text = cls._collapse_many_newlines.sub("\n\n", text)
@@ -1977,7 +1985,7 @@ class AINLUService:
                 reason="Selected as the optimal matches proven to deliver the highest caliber of user satisfaction and performance.",
             )
 
-        if plan.is_specs_query or request.image_b64:
+        if not products or plan.is_specs_query or request.image_b64:
             try:
                 if not products:
                     recovery_mode = True
@@ -2451,7 +2459,7 @@ class AINLUService:
         p_name = str(product_data.get("name", "this product"))
         p_price = product_data.get("price", "")
 
-        word_limit = "150"
+        word_limit = "500"
         style_guide = "Direct and helpful."
         strategy_instruction = "Focus on the value proposition."
         web_context = ""
@@ -2514,7 +2522,7 @@ class AINLUService:
 
         current_date_str = datetime.now().strftime("%B %d, %Y")
         if is_unknown_product:
-            word_limit = "120"
+            word_limit = "500"
             style_guide = "Sophisticated, expert, conversational, knowledgeable, up-to-date."
             strategy_instruction = f"""
 TODAY'S DATE: {current_date_str}
@@ -2558,7 +2566,7 @@ Max word count: {word_limit}
                     is_different_product = True
 
             if is_different_product:
-                word_limit = "90"
+                word_limit = "500"
                 style_guide = "Honest, helpful, pivot-master."
                 strategy_instruction = f"""
 The user asks for '{user_query}', but we only have '{p_name}' in stock.
@@ -2567,7 +2575,7 @@ Immediately present {p_name} as the closest strong alternative.
 Explain why it is a good choice in this category.
 """
             elif is_discovery_intent:
-                word_limit = "95"
+                word_limit = "500"
                 style_guide = "Expert, advisory, solution-oriented."
                 strategy_instruction = f"""
 The user asked a discovery question: '{user_query}'.
@@ -2577,7 +2585,7 @@ End with a confident recommendation.
 """
             else:
                 if is_comparison:
-                    word_limit = "90"
+                    word_limit = "500"
                     style_guide = "Persuasive, comparative, product-focused."
                     strategy_instruction = f"""
 The user is comparing alternatives.
@@ -2597,11 +2605,11 @@ Highlight two strong specs or category strengths of {p_name}.
                         strategy_instruction = "Focus on the one big reason to buy. No fluff."
 
         elif stance == "ADAPTIVE_SHOCK":
-            word_limit = "190"
+            word_limit = "500"
             style_guide = "Reassuring, explanatory, bridge-building."
             strategy_instruction = "Acknowledge the shift in taste and explain why this product fits the new context."
         else:
-            word_limit = "150"
+            word_limit = "500"
             style_guide = "Educational, humble, collaborative."
             strategy_instruction = "Teach the user about the feature, then guide the decision."
 
@@ -2651,29 +2659,13 @@ Forbidden:
 """
         else:
             response_structure = """
-Start with one direct opening sentence that answers the user clearly.
+Start with one direct opening sentence.
 
-Then write 2 to 4 well-spaced paragraphs, with one blank line between each paragraph.
-Each paragraph should explain a new idea and should not repeat the previous one.
+If you mention features, benefits, or important product points, you MUST use the thick bullet point symbol "●" for each item.
+Do not use dashes (-) or numbers.
 
-If you mention features, benefits, or important product points, place each one on its own separate line.
-Format them as clean short lines starting with a bullet point or a dash.
-Keep each bullet concise, meaningful, and easy to scan.
-
-Use the following visual rules:
-- Do not write everything as one continuous block.
-- Leave blank lines between sections.
-- Keep sentences readable and balanced.
-- Use separate lines for features, advantages, or key details.
-- Avoid long dense paragraphs.
-- Make the response look elegant and well-structured on mobile and desktop.
-
+Keep each bullet concise and meaningful.
 End with one calm, confident closing sentence.
-
-Do not use markdown headings.
-Do not use tables.
-Do not use unnecessary symbols.
-Do not make the response feel crowded.
 """
 
         system_prompt = f"""

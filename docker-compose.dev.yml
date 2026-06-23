@@ -480,7 +480,7 @@ services:
         - "3000:3000"
     networks:
         - global-net
-    command: sh -c "pnpm install --no-frozen-lockfile --ignore-scripts=false && pnpm dev --hostname 0.0.0.0 --port 3000"
+    command: pnpm dev --turbo --hostname 0.0.0.0 --port 3000
     logging:
       driver: "json-file"
       options:
