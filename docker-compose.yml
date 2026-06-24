@@ -369,6 +369,8 @@ services:
     restart: always
     stop_grace_period: 125s
     environment:
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
       - POSTGRES_SERVER=postgres
       - RABBITMQ_HOST=mq
       - REDIS_HOST=redis
@@ -434,6 +436,8 @@ services:
     restart: always
     stop_grace_period: 125s
     environment:
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
       - POSTGRES_SERVER=postgres
       - RABBITMQ_HOST=mq
       - REDIS_HOST=redis

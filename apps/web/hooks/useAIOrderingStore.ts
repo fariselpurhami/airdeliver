@@ -5,6 +5,8 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
 
+// --- Domain Types ---
+
 export type PaymentGateway = {
   provider: string;
   clientSecret?: string;
@@ -25,11 +27,26 @@ export type FlyItem = {
   startElementId: string;
 };
 
+export type MessageContentType = 
+  | 'text' 
+  | 'cart_preview' 
+  | 'error' 
+  | 'typing' 
+  | 'confirmation_prompt' 
+  | 'product_carousel' 
+  | 'proactive_suggestion' 
+  | 'payment_intent' 
+  | 'success_text' 
+  | 'ORDER_CANCELLED' 
+  | 'recovery_prompt' 
+  | 'reset_prompt' 
+  | 'image_user_upload';
+
 export interface Message {
   id: number;
   msgId?: string;
   sender: 'user' | 'ai';
-  contentType: 'text' | 'cart_preview' | 'error' | 'typing' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'payment_intent' | 'success_text' | 'ORDER_CANCELLED' | 'recovery_prompt' | 'reset_prompt' | 'image_user_upload';
+  contentType: MessageContentType;
   flight_data?: Record<string, unknown>;
   imageUrl?: string;
   content: unknown;
@@ -42,11 +59,19 @@ export interface Message {
   status?: 'sending' | 'sent' | 'failed';
 }
 
+export type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+// --- State Interface ---
+
 interface AIOrderingState {
+  // Data
   messages: Message[];
   paymentDetails: PaymentDetails | null;
   recoveryOrderDetails: PaymentDetails | null;
   suggestedProductIds: number[] | null;
+  flyQueue: FlyItem[];
+  
+  // UI Flags
   isLoading: boolean;
   isProcessing: boolean;
   isOverlayVisible: boolean;
@@ -54,38 +79,42 @@ interface AIOrderingState {
   recoveryMode: boolean;
   recoveryReason: string;
   glowingProductId: number | null;
-  flyQueue: FlyItem[];
+  
+  // Networking / Socket State
   socket: WebSocket | null;
-  socketStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+  socketStatus: SocketStatus;
   reconnectAttempts: number;
   messageQueue: Record<string, unknown>[];
   reconnectTimeoutId: NodeJS.Timeout | null;
   ackTimeouts: Record<string, NodeJS.Timeout>;
   abortController: AbortController | null;
-
-  // المتغيرات الجديدة للاتصال الآمن
   socketConnectionAttemptId: number;
   socketError: string | null;
 
+  // Actions - Socket
   connectSocket: (token: string) => Promise<void>;
   disconnectSocket: () => void;
+  handleSocketMessage: (payload: Record<string, unknown>) => void;
+  appendSystemMessage: (message: { type: string; content: string }) => void;
+  processOfflineQueue: () => void;
+
+  // Actions - Messaging
   sendMessage: (text: string, isButtonCommand?: boolean) => void;
   sendImage: (fullDataUrl: string, base64: string, caption?: string) => void;
+  addSocketAIMessage: (message: Record<string, unknown>) => void;
+  _sendInternalCommand: (command: string, payload?: Record<string, unknown>, silent?: boolean) => void;
+
+  // Actions - UI & Cart
   setOverlayVisible: (isVisible: boolean) => void;
   setVoiceMode: (isActive: boolean) => void;
   addProductById: (product: { id: number; image_url?: string; image?: string; [key: string]: unknown }, startElementId: string) => void;
   removeFlyItem: (animationId: string) => void;
   removeProductById: (productId: number) => void;
-  addSocketAIMessage: (message: Record<string, unknown>) => void;
-  
-  // الدوال الجديدة لمعالجة السوكت
-  handleSocketMessage: (payload: Record<string, unknown>) => void;
-  appendSystemMessage: (message: { type: string; content: string }) => void;
+  clearCart: () => void;
 
-  processOfflineQueue: () => void;
+  // Actions - Checkout & Flow
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
-  clearCart: () => void;
   confirmCurrentOrder: () => void;
   triggerResetConfirmation: () => void;
   cancelReset: () => void;
@@ -96,12 +125,14 @@ interface AIOrderingState {
   hardCancelOrder: (reason: string | unknown) => void;
   setRecoveryReason: (reason: string) => void;
   cancelPaymentIntent: () => Promise<void>;
-  _sendInternalCommand: (command: string, payload?: Record<string, unknown>, silent?: boolean) => void;
 }
+
+// --- Utilities ---
 
 let messageIdCounter = 1;
 const generateMessageId = () => Date.now() + messageIdCounter++;
-const generateUUID = () => Math.random().toString(36).substring(2) + Date.now().toString(36);
+// Faster UUID generation for UI tasks
+const generateUUID = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
 const initialWelcomeMessage: Message = {
   id: 0,
@@ -111,20 +142,20 @@ const initialWelcomeMessage: Message = {
   timestamp: Date.now(),
 };
 
-const getWebSocketURL = () => {
-  if (typeof window === 'undefined') return '';
-  const apiURL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-  const url = new URL(apiURL, window.location.origin);
-  url.protocol = url.protocol.replace('http', 'ws');
+const SILENT_COMMAND_TRIGGERS = new Set([
+  "clear cart", "confirm order", "checkout", "pay now",
+  "cancel order", "save for later", "retry payment"
+]);
 
-  let pathname = url.pathname;
-  if (pathname.endsWith('/')) pathname = pathname.slice(0, -1);
-  url.pathname = `${pathname}/ai-ordering/chat`;
+const NOISY_TEXT_FRAGMENTS = [
+  "secured in manifest",
+  "added to order"
+];
 
-  return url.href;
-};
+// --- Store Implementation ---
 
 export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
+  // --- Initial State ---
   messages: [initialWelcomeMessage],
   paymentDetails: null,
   recoveryOrderDetails: null,
@@ -144,17 +175,16 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   reconnectTimeoutId: null,
   ackTimeouts: {},
   abortController: null,
-
-  // القيم الابتدائية الجديدة
   socketConnectionAttemptId: 0,
   socketError: null,
 
+  // --- Socket Logic ---
   connectSocket: async (token: string) => {
     const {
       socket,
       socketStatus,
       abortController,
-      socketConnectionAttemptId = 0,
+      socketConnectionAttemptId,
       disconnectSocket,
     } = get();
 
@@ -172,7 +202,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       try {
         socket.close();
       } catch {
-        // no-op
+        // Ignore close errors on stale sockets
       }
     }
 
@@ -199,10 +229,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       });
 
       if (!ticketResponse.ok) {
-        if (get().socketConnectionAttemptId !== nextAttemptId) {
-          return;
-        }
-
+        if (get().socketConnectionAttemptId !== nextAttemptId) return;
         set({
           socketStatus: 'error',
           socketError: `Ticket request failed with status ${ticketResponse.status}`,
@@ -211,21 +238,11 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         return;
       }
 
-      const ticketPayload: unknown = await ticketResponse.json();
-
-      const ticket =
-        typeof ticketPayload === 'object' &&
-        ticketPayload !== null &&
-        'ticket' in ticketPayload &&
-        typeof (ticketPayload as { ticket?: unknown }).ticket === 'string'
-          ? (ticketPayload as { ticket: string }).ticket
-          : null;
+      const ticketPayload = await ticketResponse.json() as { ticket?: string };
+      const ticket = ticketPayload?.ticket;
 
       if (!ticket) {
-        if (get().socketConnectionAttemptId !== nextAttemptId) {
-          return;
-        }
-
+        if (get().socketConnectionAttemptId !== nextAttemptId) return;
         set({
           socketStatus: 'error',
           socketError: 'Ticket response is missing a valid ticket.',
@@ -234,21 +251,19 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         return;
       }
 
-      if (controller.signal.aborted || get().socketConnectionAttemptId !== nextAttemptId) {
-        return;
-      }
+      if (controller.signal.aborted || get().socketConnectionAttemptId !== nextAttemptId) return;
 
       const wsBase =
         process.env.NEXT_PUBLIC_WS_URL?.trim() ||
         process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
 
-      const socketUrl = wsBase
-        ? `${wsBase.replace(/\/$/, '')}/ai-ordering/chat?ticket=${encodeURIComponent(ticket)}`
-        : (() => {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.host;
-            return `${protocol}//${host}/api/v1/ai-ordering/chat?ticket=${encodeURIComponent(ticket)}`;
-          })();
+      let socketUrl = '';
+      if (wsBase) {
+         socketUrl = `${wsBase.replace(/\/$/, '')}/ai-ordering/chat?ticket=${encodeURIComponent(ticket)}`;
+      } else {
+         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+         socketUrl = `${protocol}//${window.location.host}/api/v1/ai-ordering/chat?ticket=${encodeURIComponent(ticket)}`;
+      }
 
       const nextSocket = new WebSocket(socketUrl);
 
@@ -265,9 +280,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
           abortController: null,
         });
 
-        // تشغيل الوظائف الأساسية بعد نجاح الاتصال
-        const hasHistory = get().messages.length > 1;
-        if (!hasHistory) {
+        // Initialize session if needed
+        if (get().messages.length <= 1) {
           get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
           get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__', {}, true);
         }
@@ -275,22 +289,24 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       };
 
       nextSocket.onmessage = (event: MessageEvent<string>) => {
-        if (get().socket !== nextSocket) {
-          return;
-        }
+        if (get().socket !== nextSocket) return;
 
         try {
           const payload = JSON.parse(event.data);
           
-          // معالجة الـ ACK الداخلي
           if (payload.type === 'SERVER_ACK') {
-            const { reply_to } = payload;
+            const replyTo = payload.reply_to;
             set(produce((state: AIOrderingState) => {
-              const msg = state.messages.find(m => m.msgId === reply_to);
-              if (msg) msg.status = 'sent';
-              if (state.ackTimeouts[reply_to]) {
-                clearTimeout(state.ackTimeouts[reply_to]);
-                delete state.ackTimeouts[reply_to];
+              // Optimizing lookup from end of array since messages are chronological
+              for (let i = state.messages.length - 1; i >= 0; i--) {
+                  if (state.messages[i].msgId === replyTo) {
+                      state.messages[i].status = 'sent';
+                      break;
+                  }
+              }
+              if (state.ackTimeouts[replyTo]) {
+                clearTimeout(state.ackTimeouts[replyTo]);
+                delete state.ackTimeouts[replyTo];
               }
             }));
             return;
@@ -306,10 +322,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       };
 
       nextSocket.onerror = () => {
-        if (get().socketConnectionAttemptId !== nextAttemptId) {
-          return;
-        }
-
+        if (get().socketConnectionAttemptId !== nextAttemptId) return;
         set({
           socketStatus: 'error',
           socketError: 'WebSocket connection failed.',
@@ -318,45 +331,33 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
       nextSocket.onclose = () => {
         const state = get();
-
         if (state.socket === nextSocket) {
-          set({
-            socket: null,
-          });
+          set({ socket: null });
         }
-
-        if (state.socketConnectionAttemptId !== nextAttemptId) {
-          return;
-        }
-
+        if (state.socketConnectionAttemptId !== nextAttemptId) return;
         set({
           socketStatus: 'disconnected',
           abortController: null,
         });
       };
+
     } catch (error) {
       if ((error as DOMException)?.name === 'AbortError') {
         if (get().socketConnectionAttemptId === nextAttemptId) {
-          set({
-            socketStatus: 'disconnected',
-            abortController: null,
-          });
+          set({ socketStatus: 'disconnected', abortController: null });
         }
         return;
       }
 
-      if (get().socketConnectionAttemptId !== nextAttemptId) {
-        return;
-      }
+      if (get().socketConnectionAttemptId !== nextAttemptId) return;
 
       set({
         socketStatus: 'error',
-        socketError:
-          error instanceof Error ? error.message : 'Unknown socket connection error.',
+        socketError: error instanceof Error ? error.message : 'Unknown socket connection error.',
         abortController: null,
       });
 
-      disconnectSocket?.();
+      disconnectSocket();
     }
   },
 
@@ -368,6 +369,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
     if (socket) {
       socket.onclose = null;
+      socket.onmessage = null;
+      socket.onerror = null;
       socket.close();
     }
 
@@ -386,6 +389,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
   appendSystemMessage: (message) => {
     set(produce((state: AIOrderingState) => {
+      // Filter mutates array in place faster than re-assigning if done manually, 
+      // but immer handles standard filter optimally enough.
       state.messages = state.messages.filter(m => m.contentType !== 'typing');
       state.isLoading = false;
       state.isProcessing = false;
@@ -402,7 +407,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
   processOfflineQueue: () => {
     const { socket, messageQueue } = get();
-    if (socket && socket.readyState === WebSocket.OPEN && messageQueue.length > 0) {
+    if (socket?.readyState === WebSocket.OPEN && messageQueue.length > 0) {
+      // Batch serialization could be done, but individual sends are standard for WS frames
       messageQueue.forEach(msg => socket.send(JSON.stringify(msg)));
       set({ messageQueue: [] });
     }
@@ -415,7 +421,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
       const lastMsg = state.messages[state.messages.length - 1];
 
+      // Dedup logic
       if (lastMsg && lastMsg.contentType === response.type) {
+        // Fast JSON stringify comparison is acceptable for small payloads
         const isIdenticalContent = JSON.stringify(lastMsg.content) === JSON.stringify(response.content);
         if (isIdenticalContent || response.type === 'recovery_prompt') {
           return;
@@ -426,16 +434,16 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         state.isProcessing = false;
       }
 
-      const isNoisyText =
-        (response.type === 'success_text' || response.type === 'text') &&
-        typeof response.content === 'string' &&
-        (response.content.toLowerCase().includes("secured in manifest") ||
-         response.content.toLowerCase().includes("added to order"));
-
-      if (isNoisyText) {
-        return;
+      // Filter noisy text
+      const isTextType = response.type === 'success_text' || response.type === 'text';
+      if (isTextType && typeof response.content === 'string') {
+          const lowerContent = response.content.toLowerCase();
+          for (const fragment of NOISY_TEXT_FRAGMENTS) {
+              if (lowerContent.includes(fragment)) return;
+          }
       }
 
+      // Cleanup prompts if receiving confirmation UI
       const isIncomingContentOrButtons =
         response.type === 'confirmation_prompt' ||
         (Array.isArray(response.products) && response.products.length > 0);
@@ -447,7 +455,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       const aiMessage: Message = {
         id: generateMessageId(),
         sender: 'ai',
-        contentType: response.type as Message['contentType'],
+        contentType: response.type as MessageContentType,
         content: response.content,
         products: response.products as Record<string, unknown>[],
         secondary_suggestions: response.secondary_suggestions as Record<string, unknown>[],
@@ -458,10 +466,11 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         flight_data: response.flight_data as Record<string, unknown>
       };
 
+      // Flow specific states
       if (response.type === 'payment_intent') {
         state.paymentDetails = response.content as PaymentDetails;
         state.recoveryMode = false;
-        return;
+        return; // Don't push to chat
       }
 
       if (response.type === 'ORDER_CANCELLED') {
@@ -473,8 +482,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       }
 
       if (response.type === 'cart_preview') {
-        const isDuplicate = lastMsg &&
-                            lastMsg.contentType === 'cart_preview' &&
+        const isDuplicate = lastMsg?.contentType === 'cart_preview' &&
                             JSON.stringify(lastMsg.content) === JSON.stringify(response.content);
 
         if (isDuplicate) return;
@@ -489,25 +497,32 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     }));
   },
 
+  // --- Actions ---
+
   sendMessage: (text, isButtonCommand = false) => {
     if (!text) return;
+    
+    // Prevent multiple sends if loading, unless it's an explicit button override
     if (get().isLoading && !isButtonCommand) return;
 
     const msgId = generateUUID();
-
-    const silentTriggers = [
-      "clear cart", "confirm order", "checkout", "pay now",
-      "cancel order", "save for later", "retry payment"
-    ];
-
-    if (silentTriggers.some(trigger => text.toLowerCase().includes(trigger))) {
-      isButtonCommand = true;
+    const lowerText = text.toLowerCase();
+    
+    // Auto-detect silent commands
+    let isSilent = isButtonCommand;
+    if (!isSilent) {
+        for (const trigger of SILENT_COMMAND_TRIGGERS) {
+            if (lowerText.includes(trigger)) {
+                isSilent = true;
+                break;
+            }
+        }
     }
 
     set(produce((state: AIOrderingState) => {
       state.messages = state.messages.filter(m => m.contentType !== 'typing');
 
-      if (!isButtonCommand) {
+      if (!isSilent) {
         state.messages.push({
           id: generateMessageId(),
           msgId: msgId,
@@ -532,11 +547,15 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       state.suggestedProductIds = null;
     }));
 
+    // Setup Timeout for ACK
     const timeoutId = setTimeout(() => {
       set(produce((state: AIOrderingState) => {
-        const msg = state.messages.find(m => m.msgId === msgId);
-        if (msg && msg.status === 'sending') {
-          msg.status = 'failed';
+        // Find from end
+        for (let i = state.messages.length - 1; i >= 0; i--) {
+            if (state.messages[i].msgId === msgId && state.messages[i].status === 'sending') {
+                state.messages[i].status = 'failed';
+                break;
+            }
         }
         state.isLoading = false;
         state.isProcessing = false;
@@ -551,12 +570,11 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   },
 
   sendImage: (fullDataUrl, base64Raw, caption) => {
-    const { socketStatus } = get();
-    const isOnline = socketStatus === 'connected';
+    const isOnline = get().socketStatus === 'connected';
 
     set(produce((state: AIOrderingState) => {
       state.messages.push({
-        id: Date.now(),
+        id: generateMessageId(),
         sender: 'user',
         contentType: 'image_user_upload',
         content: caption || 'Analyzing image...',
@@ -577,24 +595,21 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
             state.isProcessing = false;
           }
         }));
-      }, 5000);
+      }, 5000); // 5s timeout on processing flag lock
     }
 
     try {
-      const commandText = caption || "Visual Query";
-
-      get()._sendInternalCommand(commandText, {
+      get()._sendInternalCommand(caption || "Visual Query", {
         type: 'IMAGE_QUERY',
         image: base64Raw
       }, true);
-
     } catch (e) {
       console.error("Image Send Error:", e);
       set({ isLoading: false, isProcessing: false });
     }
   },
 
-  _sendInternalCommand: (command, payload: Record<string, unknown> = {}, silent: boolean = false) => {
+  _sendInternalCommand: (command, payload = {}, silent = false) => {
     const { socket, socketStatus } = get();
 
     const fullPayload = {
@@ -607,23 +622,24 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       set(produce((state: AIOrderingState) => {
         state.messageQueue.push(fullPayload);
-      if (!silent) {
+        if (!silent) {
            state.isLoading = true;
            state.isProcessing = true;
         }
       }));
 
+      // Attempt opportunistic reconnect if not already trying
       if (socketStatus !== 'connecting') {
-          const token = typeof window !== 'undefined' ? 
-              (document.cookie.split('; ').find(row => row.startsWith('next-auth.session-token='))?.split('=')[1] || '') 
-              : '';
+          const token = typeof document !== 'undefined' 
+            ? (document.cookie.split('; ').find(row => row.startsWith('next-auth.session-token='))?.split('=')[1] || '') 
+            : '';
           if (token) get().connectSocket(token);
       }
 
+      // Safety unlock if socket doesn't recover
       setTimeout(() => {
           const currentState = get();
           if (currentState.isLoading && (!currentState.socket || currentState.socket.readyState !== WebSocket.OPEN)) {
-             console.log("🔓 Unlocking UI. Socket still offline.");
              set({ isLoading: false, isProcessing: false });
           }
       }, 3000);
@@ -643,13 +659,23 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
   addProductById: (product, startElementId) => {
     const { recoveryMode, messages } = get();
+    
+    // Auto-restore cart if adding items while in recovery flow
     if (recoveryMode) {
-      const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
-      const contentAsRecord = lastCartMessage?.content as Record<string, unknown> | undefined;
-      const previousItems = Array.isArray(contentAsRecord?.items) ? contentAsRecord.items : [];
+      // Find last cart preview
+      let previousItems: Record<string, unknown>[] = [];
+      for (let i = messages.length - 1; i >= 0; i--) {
+          if (messages[i].contentType === 'cart_preview') {
+              const content = messages[i].content as Record<string, unknown>;
+              if (Array.isArray(content?.items)) {
+                  previousItems = content.items as Record<string, unknown>[];
+              }
+              break;
+          }
+      }
 
       set({ recoveryMode: false, paymentDetails: null, recoveryOrderDetails: null });
-      previousItems.forEach((item: Record<string, unknown>) => {
+      previousItems.forEach((item) => {
         if (item.product_id) {
           get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${item.product_id}`, {}, true);
         }
@@ -659,7 +685,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     }
 
     const newFlyItem: FlyItem = {
-      animationId: `${product.id}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+      animationId: `${product.id}-${generateUUID()}`,
       productId: product.id,
       image: product.image_url || product.image || '',
       startElementId: startElementId,
@@ -684,7 +710,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   },
 
   clearPayment: () => set({ paymentDetails: null }),
+  
   clearCart: () => get()._sendInternalCommand('__INTERNAL_CLEAR_CART__'),
+  
   confirmCurrentOrder: () => {
     set({ isProcessing: true, isLoading: true });
     get()._sendInternalCommand('__INTERNAL_CONFIRM_ORDER__', {}, true);
@@ -735,7 +763,14 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   initiateCheckoutRecovery: () => {
     const { paymentDetails, isProcessing } = get();
     if (!paymentDetails || isProcessing) return;
-    set({ isOverlayVisible: true, paymentDetails: null, recoveryOrderDetails: paymentDetails, recoveryMode: true });
+    
+    set({ 
+        isOverlayVisible: true, 
+        paymentDetails: null, 
+        recoveryOrderDetails: paymentDetails, 
+        recoveryMode: true 
+    });
+    
     get().addSocketAIMessage({
       type: 'recovery_prompt',
       content: "Wait! Your order isn't confirmed yet. Do you want to:",

@@ -1,331 +1,449 @@
 # apps/api/app/services/payment_orchestrator.py
 
-import stripe
-import logging
 import asyncio
-import uuid
+import logging
+import json
+import contextvars
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Union
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from app.core.config import (
-    StripeSettings,
-    PayPalSettings,
-    MpesaSettings,
+from dataclasses import dataclass, field
+from decimal import Decimal, ROUND_HALF_UP
+from enum import Enum, unique
+from typing import Dict, Any, Optional, List
+
+import stripe
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
 )
-from app.services.cache_service import IAsyncCacheClient
 
-logger = logging.getLogger(__name__)
+# -------------------------------------------------------------------------
+# Core Configuration & Interfaces (Simulated for completeness)
+# -------------------------------------------------------------------------
 
-class PaymentGateway(ABC):
+@dataclass(frozen=True)
+class StripeSettings:
+    secret_key: str
+    publishable_key: str
+    webhook_secret: str
+    api_version: str = "2023-10-16"
+
+@dataclass(frozen=True)
+class PayPalSettings:
+    client_id: str
+    client_secret: str
+    environment: str
+
+@dataclass(frozen=True)
+class MpesaSettings:
+    consumer_key: str
+    consumer_secret: str
+    passkey: str
+    environment: str
+
+class IAsyncCacheClient(ABC):
+    @abstractmethod
+    async def get(self, key: str) -> Optional[str]: pass
+    @abstractmethod
+    async def set(self, key: str, value: str, ttl: int) -> None: pass
+
+# -------------------------------------------------------------------------
+# Observability & Structured Logging
+# -------------------------------------------------------------------------
+
+# Context variable for distributed tracing and correlation
+correlation_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("correlation_id", default="unknown")
+
+class StructuredLogger(logging.LoggerAdapter):
+    """Injects correlation IDs and formats logs for JSON aggregation."""
+    def process(self, msg: str, kwargs: Dict[str, Any]) -> tuple[str, Dict[str, Any]]:
+        base_extra = {"correlation_id": correlation_id_var.get()}
+        if "extra" in kwargs:
+            kwargs["extra"].update(base_extra)
+        else:
+            kwargs["extra"] = base_extra
+        # In a real system, this would output JSON. Here we format the string for clarity.
+        formatted_msg = f"[Trace: {base_extra['correlation_id']}] {msg}"
+        return formatted_msg, kwargs
+
+logger = StructuredLogger(logging.getLogger(__name__), {})
+
+# -------------------------------------------------------------------------
+# Domain Models & Enums
+# -------------------------------------------------------------------------
+
+@unique
+class GatewayProvider(str, Enum):
+    STRIPE = "stripe"
+    PAYPAL = "paypal"
+    MPESA = "mpesa"
+
+@unique
+class PaymentStatus(str, Enum):
+    REQUIRES_PAYMENT_METHOD = "requires_payment_method"
+    REQUIRES_ACTION = "requires_action"
+    PENDING_CONFIRMATION = "pending_confirmation"
+    SUCCESS = "success"
+    FAILURE = "failure"
+
+@dataclass(frozen=True)
+class PaymentRequest:
     """
-    💎 UNIVERSAL PAYMENT INTERFACE.
-    Enforces a strict contract for any financial processor (Stripe, PayPal, Crypto).
+    Strict immutable DTO for payment requests.
+    Enforces architectural invariants at the boundary.
     """
+    order_id: str
+    amount: Decimal
+    currency: str
+    region: str
+    idempotency_key: str  # Mandatory: Must be supplied by the caller to guarantee network idempotency
+    metadata: Dict[str, str] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        if not isinstance(self.amount, Decimal):
+            raise ValueError("Amount must be a Decimal to guarantee precision.")
+        if self.amount <= Decimal("0"):
+            raise ValueError("Amount must be strictly positive.")
+        if not self.idempotency_key or len(self.idempotency_key) < 16:
+            raise ValueError("A strong idempotency key is required to prevent double-charging.")
+        # Ensure upper case for standardization
+        object.__setattr__(self, 'currency', self.currency.upper())
+        object.__setattr__(self, 'region', self.region.upper())
 
+@dataclass(frozen=True)
+class GatewayResult:
+    provider: GatewayProvider
+    status: PaymentStatus
+    transaction_id: Optional[str] = None
+    client_secret: Optional[str] = None
+    action_url: Optional[str] = None
+    error_message: Optional[str] = None
+    raw_response: Dict[str, Any] = field(default_factory=dict)
+
+# -------------------------------------------------------------------------
+# Gateway Interfaces
+# -------------------------------------------------------------------------
+
+class IPaymentGateway(ABC):
+    """
+    Strict contract for financial processors.
+    Enforces Liskov Substitution Principle across all payment integrations.
+    """
     @property
     @abstractmethod
-    def provider_key(self) -> str:
-        """Unique identifier (e.g., 'stripe', 'paypal')."""
+    def provider(self) -> GatewayProvider:
         pass
 
     @abstractmethod
-    async def create_payment(
-        self,
-        amount: Decimal,
-        currency: str,
-        region: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
         """
-        Executes a secure transaction intent.
-        Must handle Atomic Decimal Conversion internally.
+        Executes a secure transaction intent asynchronously.
+        Must handle its own specific connectivity, retries, and error mapping.
         """
         pass
 
-# --- 💳 SECTION 2: STRIPE TITANIUM GATEWAY ---
+# -------------------------------------------------------------------------
+# Implementations
+# -------------------------------------------------------------------------
 
-class StripeGateway(PaymentGateway):
+class StripeGateway(IPaymentGateway):
     """
-    🛡️ STRIPE GATEWAY (TITANIUM EDITION).
-    Features:
-    - ⚡ Async Non-Blocking Execution.
-    - 🔒 Idempotency Keys (Prevents double-charging on network retry).
-    - 🎯 Atomic Decimal Conversion (Bank-Grade Precision).
-    - 📝 Rich Metadata Injection (For Reconciliation).
+    Enterprise-Grade Stripe Integration.
+    - Explicit API Key passing (no global state mutation).
+    - Exponential backoff for transient network errors.
+    - Strict cent-conversion and decimal safety.
     """
 
-    def __init__(self, settings: Any):
-        self.settings = settings
-        stripe.api_key = self.settings.STRIPE_SECRET_KEY
-        # Set API version to ensure stability
-        stripe.api_version = "2023-10-16"
+    def __init__(self, settings: StripeSettings):
+        self._settings = settings
 
     @property
-    def provider_key(self) -> str:
-        return "stripe"
+    def provider(self) -> GatewayProvider:
+        return GatewayProvider.STRIPE
 
-    async def create_payment(
-        self,
-        amount: Decimal,
-        currency: str,
-        region: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((stripe.error.RateLimitError, stripe.error.APIConnectionError)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
+    def _execute_stripe_call(self, amount_cents: int, request: PaymentRequest) -> stripe.PaymentIntent:
         """
-        Orchestrates the creation of a Stripe PaymentIntent.
+        Synchronous Stripe SDK wrapper isolated for ThreadPool execution and Retries.
+        Passes authentication explicitly per-request to avoid thread-safety issues with global api_key.
         """
+        return stripe.PaymentIntent.create(
+            api_key=self._settings.secret_key,
+            api_version=self._settings.api_version,
+            amount=amount_cents,
+            currency=request.currency.lower(),
+            automatic_payment_methods={"enabled": True},
+            metadata={
+                **request.metadata,
+                "order_id": request.order_id,
+                "region": request.region,
+                "correlation_id": correlation_id_var.get()
+            },
+            description=f"Order {request.order_id}",
+            idempotency_key=request.idempotency_key
+        )
+
+    async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
         try:
-            # 1. 🛡️ ATOMIC CURRENCY CONVERSION
-            # Stripe requires amounts in "smallest currency unit" (cents for USD).
-            # We use quantize to ensure exactly 2 decimal places before multiplying.
-            safe_amount = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            # 1. Atomic Currency Conversion (Zero-decimal currencies require different logic in a full system)
+            safe_amount = request.amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             amount_in_cents = int(safe_amount * 100)
 
-            # 2. 🔒 IDEMPOTENCY KEY GENERATION
-            # If the caller provided a key (from UUID), use it. Otherwise, generate one.
-            # This ensures if the request is retried, Stripe knows it's the SAME transaction.
-            idem_key = metadata.get("idempotency_key") if metadata else str(uuid.uuid4())
-
-            # 3. 📝 METADATA ENRICHMENT
-            # Add system tags for easier debugging in Stripe Dashboard
-            enriched_metadata = metadata or {}
-            enriched_metadata.update({
-                "region": region,
-                "platform": "AirDeliver AI",
-                "env": "production" # or dynamic
+            logger.info("Initiating Stripe intent", extra={
+                "amount": str(safe_amount),
+                "currency": request.currency,
+                "idempotency_key": request.idempotency_key
             })
 
-            logger.info(f"💳 Initiating Stripe Charge: {safe_amount} {currency} (Idem: {idem_key})")
-
-            # 4. ⚡ ASYNC EXECUTION (Non-Blocking)
+            # 2. Async Execution off the main Event Loop
             loop = asyncio.get_running_loop()
             intent = await loop.run_in_executor(
                 None,
-                lambda: stripe.PaymentIntent.create(
-                    amount=amount_in_cents,
-                    currency=currency.lower(),
-                    automatic_payment_methods={"enabled": True},
-                    metadata=enriched_metadata,
-                    description=f"Order {metadata.get('order_id', 'N/A')}",
-                    idempotency_key=idem_key # 💎 The Safety Net
-                )
+                self._execute_stripe_call,
+                amount_in_cents,
+                request
             )
 
-            # 5. ✅ STANDARDIZED RESPONSE
-            return {
-                "status": "requires_payment_method", # or intent.status
-                "provider": "stripe",
-                "paymentId": intent.id,
-                "clientSecret": intent.client_secret,
-                "publishableKey": self.settings.STRIPE_PUBLISHABLE_KEY,
-                "amount_captured": float(safe_amount) # For UI verification
-            }
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.REQUIRES_PAYMENT_METHOD,
+                transaction_id=intent.id,
+                client_secret=intent.client_secret,
+                raw_response={"publishable_key": self._settings.publishable_key}
+            )
 
-        # --- 🛡️ ROBUST ERROR HANDLING ---
         except stripe.error.CardError as e:
-            # Card declined by bank
-            logger.warning(f"🚫 Stripe Card Error: {e.user_message}")
-            return {"status": "failure", "error": e.user_message}
-
-        except stripe.error.RateLimitError as e:
-            # Too many requests
-            logger.error("⚠️ Stripe Rate Limit Hit. Backing off.")
-            raise Exception("Payment Service Busy. Please retry.")
-
+            logger.warning(f"Stripe Card Error: {e.user_message}", extra={"stripe_code": e.code})
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message=e.user_message or "Card declined."
+            )
         except stripe.error.StripeError as e:
-            # Generic Stripe Error
-            logger.error(f"❌ Stripe API Error: {e}")
-            raise Exception(f"Payment Gateway Error: {e.user_message or 'Processing Failed'}")
-
+            logger.error(f"Stripe API Error: {e}", exc_info=True)
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="Payment processing unavailable via Stripe."
+            )
         except Exception as e:
-            # System Error
-            logger.critical(f"🔥 Stripe Critical Failure: {e}", exc_info=True)
-            raise Exception("Internal Payment System Failure")
+            logger.critical(f"Stripe Critical Failure: {e}", exc_info=True)
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="Internal system error."
+            )
 
 
-class PayPalGateway(PaymentGateway):
+class PayPalGateway(IPaymentGateway):
     """
-    🌐 PAYPAL GATEWAY (SANDBOX/LIVE).
-    Handles redirect-based flows common in e-wallets.
+    Robust PayPal Integration Scaffold.
+    Demonstrates proper async HTTP abstraction and caching of OAuth tokens.
     """
-    def __init__(self, settings: Any, cache: Any):
-        self.settings = settings
-        self.cache = cache # Can store tokens here
+    def __init__(self, settings: PayPalSettings, cache: IAsyncCacheClient):
+        self._settings = settings
+        self._cache = cache
 
     @property
-    def provider_key(self) -> str:
-        return "paypal"
+    def provider(self) -> GatewayProvider:
+        return GatewayProvider.PAYPAL
 
-    async def create_payment(
-        self, 
-        amount: Decimal, 
-        currency: str, 
-        region: str, 
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Simulates PayPal Order Creation.
-        In Prod: Use 'paypal-checkout-server-sdk'.
-        """
+    async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
         try:
-            # Force string format for API compatibility
-            amount_str = str(amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
-            logger.info(f"🅿️ PayPal Init: {amount_str} {currency} (Order: {metadata.get('order_id')})")
+            amount_str = str(request.amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+            logger.info("Initiating PayPal order", extra={"amount": amount_str, "currency": request.currency})
             
-            # Simulate API Latency
-            await asyncio.sleep(0.1)
+            # In production:
+            # 1. Fetch/Cache OAuth token using self._cache
+            # 2. Use `httpx.AsyncClient` with strict timeouts to hit PayPal /v2/checkout/orders
             
-            return {
-                "status": "requires_approval",
-                "provider": "paypal",
-                "paymentId": f"PAY-{metadata.get('order_id', 'UNKNOWN')}-{uuid.uuid4().hex[:4]}",
-                "clientId": getattr(self.settings, 'PAYPAL_CLIENT_ID', 'sb'),
-                "approval_url": "https://www.sandbox.paypal.com/checkoutnow?token=dummy"
-            }
+            await asyncio.sleep(0.05) # Simulated network I/O
+            
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.REQUIRES_ACTION,
+                transaction_id=f"PAY-{request.order_id}-{request.idempotency_key[:8]}",
+                action_url="https://www.sandbox.paypal.com/checkoutnow?token=dummy_token",
+                raw_response={"client_id": self._settings.client_id}
+            )
         except Exception as e:
-            logger.error(f"PayPal Init Failed: {e}")
-            raise e
+            logger.error(f"PayPal Init Failed: {e}", exc_info=True)
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="PayPal services unreachable."
+            )
 
 
-class MpesaGateway(PaymentGateway):
+class MpesaGateway(IPaymentGateway):
     """
-    📱 MPESA GATEWAY (AFRICA REGION).
-    Handles Mobile Money STK Pushes.
+    M-Pesa STK Push Integration.
+    Requires handling mobile numbers via metadata.
     """
-    def __init__(self, settings: Any, cache: Any):
-        self.settings = settings
-        self.cache = cache
+    def __init__(self, settings: MpesaSettings, cache: IAsyncCacheClient):
+        self._settings = settings
+        self._cache = cache
 
     @property
-    def provider_key(self) -> str:
-        return "mpesa"
-    
-    async def create_payment(
-        self, 
-        amount: Decimal, 
-        currency: str, 
-        region: str, 
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Simulates Safaricom Daraja API STK Push.
-        """
-        try:
-            # M-Pesa deals in Integers usually, but we keep Decimal logic for consistency
-            logger.info(f"📲 M-Pesa STK Push: {amount} {currency} -> {metadata.get('phone_number', 'Unknown')}")
-            
-            await asyncio.sleep(0.1)
-            
-            return {
-                "status": "pending_confirmation",
-                "provider": "mpesa",
-                "checkoutRequestId": f"ws_{metadata.get('order_id')}_{uuid.uuid4().hex[:6]}",
-                "message": "STK Push sent. Check your phone."
-            }
-        except Exception as e:
-            logger.error(f"Mpesa Init Failed: {e}")
-            raise e
+    def provider(self) -> GatewayProvider:
+        return GatewayProvider.MPESA
 
+    async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
+        try:
+            phone_number = request.metadata.get("phone_number")
+            if not phone_number:
+                return GatewayResult(
+                    provider=self.provider,
+                    status=PaymentStatus.FAILURE,
+                    error_message="Phone number required for M-Pesa transactions."
+                )
+
+            logger.info("Initiating M-Pesa STK Push", extra={"phone_number": phone_number})
+            
+            # In production:
+            # 1. Generate Daraja Password using Passkey + Timestamp
+            # 2. httpx.AsyncClient POST to Daraja API with short timeout
+            
+            await asyncio.sleep(0.05) # Simulated network I/O
+            
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.PENDING_CONFIRMATION,
+                transaction_id=f"ws_{request.order_id}_{request.idempotency_key[:8]}",
+                raw_response={"message": "STK Push sent. Awaiting user PIN."}
+            )
+        except Exception as e:
+            logger.error(f"Mpesa Init Failed: {e}", exc_info=True)
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="M-Pesa services unreachable."
+            )
+
+# -------------------------------------------------------------------------
+# Financial Orchestrator
+# -------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class OrchestrationResponse:
+    status: PaymentStatus
+    primary_gateway: Optional[GatewayResult] = None
+    alternative_gateways: List[GatewayResult] = field(default_factory=list)
+    error_message: Optional[str] = None
 
 class PaymentOrchestrator:
     """
-    💎 FINANCIAL CONDUCTOR.
-    Decides WHICH gateways to show based on User Location (Geo-Routing).
-    Executes all eligible options in PARALLEL for max speed.
+    Internet-Scale Financial Conductor.
+    - Decoupled from specific gateway implementations via IPaymentGateway interface.
+    - Geo-routes traffic concurrently.
+    - Enforces bounded timeouts to prevent cascading system failures.
+    - Aggregates partial successes securely.
     """
 
-    def __init__(
-        self,
-        stripe_gateway: PaymentGateway,
-        paypal_gateway: PaymentGateway,
-        mpesa_gateway: PaymentGateway,
-    ):
-        # Registry of available processors
-        self._gateways: Dict[str, PaymentGateway] = {
-            "stripe": stripe_gateway,
-            "paypal": paypal_gateway,
-            "mpesa": mpesa_gateway,
+    # Bounded maximum execution time for ALL payment gateways combined
+    GLOBAL_TIMEOUT_SECONDS = 5.0
+
+    def __init__(self, gateways: List[IPaymentGateway]):
+        self._gateways: Dict[GatewayProvider, IPaymentGateway] = {gw.provider: gw for gw in gateways}
+        
+        # In a real system, this should be injected via configuration or a Rules Engine.
+        self._routing_rules: Dict[str, List[GatewayProvider]] = {
+            "NA": [GatewayProvider.STRIPE, GatewayProvider.PAYPAL],
+            "US": [GatewayProvider.STRIPE, GatewayProvider.PAYPAL],
+            "EU": [GatewayProvider.STRIPE, GatewayProvider.PAYPAL],
+            "KE": [GatewayProvider.MPESA, GatewayProvider.STRIPE],
+            "EG": [GatewayProvider.STRIPE, GatewayProvider.PAYPAL],
+            "DEFAULT": [GatewayProvider.STRIPE],
         }
 
-        # 🌍 Geo-Routing Rules (Smart Logic)
-        self._routing_rules = {
-            "NA": ["stripe", "paypal"],      # North America
-            "US": ["stripe", "paypal"],      # USA
-            "EU": ["stripe", "paypal"],      # Europe
-            "KE": ["mpesa", "stripe"],       # Kenya (Mobile First)
-            "EG": ["stripe", "paypal"],      # Egypt (Cards + Wallet)
-            "DEFAULT": ["stripe"],           # Fallback
-        }
-
-    async def process_payment(
-        self,
-        amount: Union[float, str, Decimal],
-        currency: str,
-        region: str,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    async def process_payment(self, request: PaymentRequest, corr_id: str) -> OrchestrationResponse:
         """
-        🚀 UNIVERSAL PAYMENT EXECUTION.
-        1. Sanitizes Amount (Atomic Conversion).
-        2. Selects Gateways based on Region.
-        3. Launches all Gateways concurrently (Async Gather).
-        4. Returns a unified list of valid payment options.
+        Executes parallel, fault-tolerant payment intent generation based on geo-routing.
         """
-        # 1. Architectural Safety: Force conversion to string first
-        # avoiding float precision issues (e.g. 19.99 -> 19.989999)
-        try:
-            if isinstance(amount, float):
-                decimal_amount = Decimal(str(amount))
-            else:
-                decimal_amount = Decimal(amount)
-                
-            # Normalize scaling (force 2 decimal places for standard fiat)
-            decimal_amount = decimal_amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            
-        except Exception:
-            logger.error(f"Invalid payment amount received: {amount}")
-            return {"status": "failure", "error": "Invalid amount format."}
+        # Set correlation ID for distributed tracing across this entire operation
+        correlation_id_var.set(corr_id)
+        
+        logger.info("Orchestrating payment", extra={
+            "order_id": request.order_id,
+            "region": request.region
+        })
 
-        # 2. Select Routing Strategy
-        gateways_to_try = self._routing_rules.get(
-            region.upper(), self._routing_rules["DEFAULT"]
+        target_providers = self._routing_rules.get(request.region, self._routing_rules["DEFAULT"])
+        active_gateways = [self._gateways[p] for p in target_providers if p in self._gateways]
+
+        if not active_gateways:
+            logger.critical("No valid gateways configured for region", extra={"region": request.region})
+            return OrchestrationResponse(
+                status=PaymentStatus.FAILURE,
+                error_message="Payment processing unavailable for this region."
+            )
+
+        # Execute gateways concurrently with bounded timeouts.
+        # asyncio.wait guarantees we don't hang indefinitely if an underlying library ignores timeouts.
+        tasks = [
+            asyncio.create_task(self._safe_invoke_gateway(gw, request))
+            for gw in active_gateways
+        ]
+        
+        done, pending = await asyncio.wait(
+            tasks, 
+            timeout=self.GLOBAL_TIMEOUT_SECONDS, 
+            return_when=asyncio.ALL_COMPLETED
         )
-        
-        # 3. Parallel Execution (Ferrari Mode)
-        tasks = []
-        for provider_key in gateways_to_try:
-            gateway = self._gateways.get(provider_key)
-            if gateway:
-                tasks.append(self._safe_create_payment(gateway, decimal_amount, currency, region, metadata))
 
-        # 4. Gather Results (Failures don't stop Successes)
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Cancel any stragglers immediately to free up event loop resources
+        for pending_task in pending:
+            pending_task.cancel()
+            logger.error("Gateway request timed out and was cancelled.")
 
-        available_options = []
-        errors = []
-        
-        for res in results:
-            if isinstance(res, dict) and "provider" in res:
-                available_options.append(res)
-            elif isinstance(res, Exception):
-                errors.append(str(res))
-        
-        # 5. Final Decision
-        if not available_options:
-            logger.error(f"All payment gateways failed: {errors}")
-            return {"status": "failure", "error": "Payment processing unavailable at this moment."}
+        # Aggregate results
+        successful_results: List[GatewayResult] = []
+        for task in done:
+            try:
+                result: GatewayResult = task.result()
+                if result.status != PaymentStatus.FAILURE:
+                    successful_results.append(result)
+            except Exception as e:
+                logger.critical(f"Unexpected orchestrator task failure: {e}", exc_info=True)
 
-        # Return list of options for the Frontend to render (e.g., Stripe Form + PayPal Button)
-        return {
-            "status": "success",
-            "available_gateways": available_options,
-            "primary_gateway": available_options[0]["provider"] # Default choice
-        }
+        if not successful_results:
+            logger.error("All selected payment gateways failed or timed out.")
+            return OrchestrationResponse(
+                status=PaymentStatus.FAILURE,
+                error_message="Payment systems are currently experiencing high latency. Please try again."
+            )
 
-    async def _safe_create_payment(self, gateway, amount, currency, region, metadata):
-        """🛡️ Isolation Wrapper: Prevents one gateway crash from killing the whole process."""
+        # Guarantee a deterministic ordering based on the routing rules preference
+        successful_results.sort(key=lambda r: target_providers.index(r.provider))
+
+        return OrchestrationResponse(
+            status=PaymentStatus.SUCCESS,
+            primary_gateway=successful_results[0],
+            alternative_gateways=successful_results[1:]
+        )
+
+    async def _safe_invoke_gateway(self, gateway: IPaymentGateway, request: PaymentRequest) -> GatewayResult:
+        """
+        Strict bulkhead around individual gateway invocations.
+        Catches absolutely all unhandled exceptions from poor SDKs to protect the orchestrator.
+        """
         try:
-            return await gateway.create_payment(amount, currency, region, metadata)
+            return await gateway.create_payment_intent(request)
+        except asyncio.CancelledError:
+            # Re-raise standard CancelledError to satisfy asyncio semantics
+            raise
         except Exception as e:
-            logger.warning(f"Gateway {gateway.provider_key} failed init: {e}")
-            raise e # Re-raise to be caught by gather
+            logger.error(f"Unhandled exception in gateway {gateway.provider.value}: {e}", exc_info=True)
+            return GatewayResult(
+                provider=gateway.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="Gateway encountered a critical internal error."
+            )

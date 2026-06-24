@@ -17,7 +17,7 @@ import Image from 'next/image';
 import useEmblaCarousel from 'embla-carousel-react';
 import { loadStripe, StripeElementsOptions, Stripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import { AIPaymentForm } from './AIPaymentForm';
+import AIPaymentForm  from './AIPaymentForm';
 import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
 import { AIVoiceOverlay } from './AIVoiceOverlay';

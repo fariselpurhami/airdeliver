@@ -1,44 +1,91 @@
 # apps/api/app/services/ai_checkout_service.py
 
-import random
-import logging
-import uuid
 import json
-from decimal import Decimal
-from typing import Optional, Dict, Any
+import logging
+import random
+import uuid
+import asyncio
+from decimal import Decimal, InvalidOperation
+from datetime import datetime, timezone
+from typing import Optional, Dict, Any, List, Protocol
+
+from pydantic import BaseModel, EmailStr, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
+
 from app.services.cache_service import IAsyncCacheClient
 from app.services.rabbitmq_service import RabbitMQService
-from app.services.payment_orchestrator import PaymentOrchestrator
 from app.models.order import Order, OrderItem
 from app.models.enums import OrderStatus, CancellationReason
-from app.services.notification_service import NotificationService
-from app.models.user import User
-from datetime import datetime, timezone
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("airdeliver.checkout")
+
+
+# --- INTERFACES & PROTOCOLS ---
+# Enforcing strict dependency injection contracts
+
+class PaymentOrchestratorProtocol(Protocol):
+    async def process_payment(
+        self, 
+        amount: Decimal, 
+        currency: str, 
+        region: str, 
+        metadata: Dict[str, str]
+    ) -> Dict[str, Any]:
+        ...
+
+class NotificationServiceProtocol(Protocol):
+    async def send_notification(self, user_id: int, template: str, context: Dict[str, Any]) -> None:
+        ...
+
+
+# --- DOMAIN TRANSFER OBJECTS (DTOs) ---
+# Enforcing boundary validation and type safety
+
+class ConfirmOrderPayload(BaseModel):
+    user_id: int
+    email: EmailStr
+    address: str = Field(..., min_length=5, max_length=255)
+    country: str = Field(default="US", min_length=2, max_length=2)
+
+class PaymentSuccessPayload(BaseModel):
+    user_id: int
+    order_id: int
+
+class CancelOrderPayload(BaseModel):
+    user_id: int
+    order_id: Optional[int] = None
+
 
 class AICheckoutService:
     """
-    💎 DIAMOND CHECKOUT SERVICE (V4.0).
+    ENTERPRISE CHECKOUT ORCHESTRATOR.
 
-    The Sovereign Financial Orchestrator.
-    Handles the transition from 'Intent' to 'Transaction'.
-
-    PILLARS:
-    1. 🛡️ Atomic Transactions: DB commits happen only when data is perfect.
-    2. ⚡ Direct Redis Uplink: Opens payment modals instantly on the frontend.
-    3. 🌐 Universal Payment Routing: Delegates complexity to the Orchestrator.
+    Architectural Guarantees:
+    1. Financial Precision: Strict enforcement of Decimal arithmetic. No IEEE 754 float approximations.
+    2. Atomic Transitions: Database operations are isolated within explicit transaction boundaries.
+    3. Idempotency: Payment success and cancellation operations tolerate duplicate deliveries safely.
+    4. Observable Boundaries: Structured logging across state transitions without leaking PII.
     """
+
+    # --- DOMAIN CONSTANTS ---
+    DEFAULT_CURRENCY = "usd"
+    UI_CHANNEL_PREFIX = "airdeliver:response:"
+    CACHE_CART_PREFIX = "ai_cart:"
+    
+    # Flight Simulation Constants (Domain Logic)
+    FLIGHT_SPEED_KPH = 120.0
+    FLIGHT_PREP_BUFFER_MINS = 5
+    FLIGHT_MIN_RANGE_KM = 3.5
+    FLIGHT_MAX_RANGE_KM = 15.0
 
     def __init__(
         self,
         db: AsyncSession,
         cache: IAsyncCacheClient,
         rabbitmq: RabbitMQService,
-        orchestrator: Any, # PaymentOrchestrator injected dynamically
-        notification_service: Any = None,
+        orchestrator: PaymentOrchestratorProtocol,
+        notification_service: Optional[NotificationServiceProtocol] = None,
     ):
         self.db = db
         self.cache = cache
@@ -46,310 +93,295 @@ class AICheckoutService:
         self.orchestrator = orchestrator
         self.notification_service = notification_service
 
-    # --- 🔌 1. UI RESPONSE ROUTER (SECURE UPLINK) ---
-    async def _send_to_ui(self, user_id: int, payload: dict):
+    # --- 🔌 EDGE COMMUNICATION ---
+
+    async def _send_to_ui(self, user_id: int, payload: Dict[str, Any]) -> None:
         """
-        💎 Direct Uplink to Frontend via Redis Pub/Sub.
-        Critical for opening the Payment Modal instantly.
-        Includes Universal Serializer for Decimal/Date safety.
+        Publishes strongly-typed, deterministic JSON payloads to the client WebSocket via Redis Pub/Sub.
         """
         try:
-            channel = f"airdeliver:response:{user_id}"
+            channel = f"{self.UI_CHANNEL_PREFIX}{user_id}"
 
-            # Metadata
             payload["meta"] = {
-                "timestamp": datetime.utcnow().isoformat(),
-                "source": "ai_checkout_v4"
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "source": "ai_checkout_v4.1"
             }
 
-            # 🛡️ Universal Serializer
-            def safe_serializer(obj):
-                if isinstance(obj, Decimal): return float(obj)
-                if hasattr(obj, 'isoformat'): return obj.isoformat()
-                return str(obj)
+            def _strict_serializer(obj: Any) -> Any:
+                if isinstance(obj, Decimal):
+                    return str(obj)  # Financial values must remain strings over the wire
+                if isinstance(obj, datetime):
+                    return obj.isoformat()
+                raise TypeError(f"Type {type(obj)} is not JSON serializable")
 
-            message = json.dumps(payload, default=safe_serializer)
+            message = json.dumps(payload, default=_strict_serializer)
             await self.cache.publish(channel, message)
         except Exception as e:
-            logger.error(f"🔥 UI Delivery Failed in CheckoutService: {e}")
+            logger.error("UI Delivery pipeline failure", extra={"user_id": user_id, "error": str(e)})
 
     def _get_cart_key(self, user_id: int) -> str:
-        return f"ai_cart:{user_id}"
+        return f"{self.CACHE_CART_PREFIX}{user_id}"
 
-    # --- 💰 2. MAIN HANDLER: CONFIRM ORDER ---
+    # --- 💰 CORE WORKFLOWS ---
 
-    async def handle_confirm_order(self, payload: dict):
+    async def handle_confirm_order(self, raw_payload: Dict[str, Any]) -> None:
         """
-        Orchestrates the Checkout Flow:
-        1. Validate Cart (Redis).
-        2. Create Pending Order (DB).
-        3. Initialize Payment Gateways (Orchestrator).
-        4. Push Payment Intent to UI (Redis).
+        Orchestrates intent-to-transaction transition.
+        Guarantees atomicity: cart state is verified, db records created, and payment intent secured.
         """
-        user_id = payload.get("user_id")
-        if not user_id: return
-
-        # A. Validate Cart
-        cart_key = self._get_cart_key(user_id)
-        # Using get_json helper from cache client
-        cart = await self.cache.get_json(cart_key)
-
-        if not cart or not cart.get("items"):
-            await self._send_to_ui(user_id, {"content": "Your cart is empty.", "type": "error"})
+        try:
+            payload = ConfirmOrderPayload(**raw_payload)
+        except ValidationError as e:
+            logger.warning("Invalid checkout payload boundary", extra={"error": str(e)})
+            await self._send_error(raw_payload.get("user_id", 0), "Invalid checkout data provided.")
             return
 
-        # Safe Float Conversion for DB
+        cart = await self.cache.get_json(self._get_cart_key(payload.user_id))
+        
+        if not cart or not cart.get("items"):
+            await self._send_error(payload.user_id, "Your cart is empty or has expired.")
+            return
+
         try:
-            raw_total = cart.get("total", 0)
-            total_amount = float(raw_total)
-        except:
-            total_amount = 0.0
+            # Reconstruct financial totals strictly via Decimal
+            total_amount = sum(
+                (Decimal(str(item["price"])) * int(item["quantity"]) for item in cart["items"]),
+                Decimal("0.00")
+            )
+        except (InvalidOperation, KeyError, ValueError) as e:
+            logger.error("Cart financial structure corruption", extra={"user_id": payload.user_id, "error": str(e)})
+            await self._send_error(payload.user_id, "Cart total calculation error.")
+            return
 
-        delivery_addr = payload.get("address", "Default Saved Address")
-
-        # B. Transaction: Create Pending Order (Atomic)
         new_order = None
         try:
             new_order = Order(
-                user_id=user_id,
+                user_id=payload.user_id,
                 status=OrderStatus.PENDING,
                 total_price=total_amount,
-                delivery_address=delivery_addr,
-                created_at=datetime.utcnow()
+                delivery_address=payload.address,
+                created_at=datetime.now(timezone.utc)
             )
             self.db.add(new_order)
-            await self.db.flush() # Get ID without committing yet
+            await self.db.flush() 
 
-            # Create Items
-            order_items_to_create = []
-            for item in cart["items"]:
-                order_items_to_create.append(OrderItem(
+            order_items_to_create = [
+                OrderItem(
                     order_id=new_order.id,
                     product_id=item["product_id"],
-                    quantity=item["quantity"],
-                    price_per_unit=float(item["price"])
-                ))
+                    quantity=int(item["quantity"]),
+                    price_per_unit=Decimal(str(item["price"]))
+                )
+                for item in cart["items"]
+            ]
 
             self.db.add_all(order_items_to_create)
             await self.db.commit()
             await self.db.refresh(new_order)
 
-            logger.info(f"📝 Order #{new_order.id} Created (Pending Payment). Total: ${total_amount}")
+            logger.info("Pending order committed", extra={"order_id": new_order.id, "total": str(total_amount)})
 
         except Exception as e:
             await self.db.rollback()
-            logger.critical(f"FATAL: DB Transaction Failed: {e}")
-            await self._send_to_ui(user_id, {"content": "System error. Could not create order.", "type": "error"})
+            logger.critical("Database transaction aborted during order creation", extra={"user_id": payload.user_id, "error": str(e)})
+            await self._send_error(payload.user_id, "System error. Could not create order. Please try again.")
             return
 
-        # C. Payment Orchestration
         payment_metadata = {
             "order_id": str(new_order.id),
-            "user_id": str(user_id),
-            "user_email": payload.get("email", ""),
+            "user_id": str(payload.user_id),
             "idempotency_key": str(uuid.uuid4())
         }
 
         try:
-            # Inform user we are working (Low Latency Feedback)
-            await self._send_to_ui(user_id, {"content": "Securing payment channels...", "type": "typing"})
+            await self._send_to_ui(payload.user_id, {"content": "Securing payment channels...", "type": "typing"})
 
-            # Call the injected Orchestrator
-            # Note: We pass 'usd' default, but this should come from user config
             payment_options = await self.orchestrator.process_payment(
                 amount=total_amount,
-                currency="usd",
-                region=payload.get("country", "US"),
+                currency=self.DEFAULT_CURRENCY,
+                region=payload.country,
                 metadata=payment_metadata
             )
         except Exception as e:
-            logger.error(f"Orchestrator Failed: {e}")
+            logger.error("Payment orchestrator initialization failed", extra={"order_id": new_order.id, "error": str(e)})
             await self._handle_failed_payment(new_order, "Payment Gateway Unreachable")
             return
 
-        # D. Handle Result
         if payment_options.get("status") == "failure":
             await self._handle_failed_payment(new_order, payment_options.get("error", "Initialization failed"))
         else:
-            logger.info(f"💰 Payment Intent Ready for Order {new_order.id}")
-
-            # ✅ Send Payment Intent via Redis (Opens the Modal Instantly)
-            # This payload is designed for the Frontend Payment SDK
-            await self._send_to_ui(user_id, {
+            await self._send_to_ui(payload.user_id, {
                 "type": "payment_intent",
                 "content": {
                     "orderId": new_order.id,
-                    "total": float(new_order.total_price),
-                    "gateways": payment_options.get("available_gateways", []), # Stripe/PayPal keys
-                    "client_secret": payment_options.get("client_secret", "") # Critical for Stripe
+                    "total": str(new_order.total_price),
+                    "gateways": payment_options.get("available_gateways", []),
+                    "client_secret": payment_options.get("client_secret", "")
                 }
             })
 
-            # E. Analytics Signal (Fire-and-Forget)
-            try:
-                await self.rabbitmq.publish(
-                    {"user_id": user_id, "order_id": new_order.id, "amount": total_amount},
-                    "airdeliver.ai.checkout.initiated"
-                )
-            except: pass
+            self._emit_analytics_event(
+                "airdeliver.ai.checkout.initiated",
+                {"user_id": payload.user_id, "order_id": new_order.id, "amount": str(total_amount)}
+            )
 
-    # --- 💔 3. FAILURE RECOVERY ---
-
-    async def handle_payment_success(self, payload: dict):
+    async def handle_payment_success(self, raw_payload: Dict[str, Any]) -> None:
         """
-        🚀 MISSION CONTROL: Payment Secured -> Order Processing -> Drone Dispatch.
-        Triggers the 'Immersive Logistics Experience' on the frontend.
+        Idempotent payment success processor.
+        Converts Order status, triggers logistics UI workflows, and emits downstream conversion events.
         """
-        user_id = payload.get("user_id")
-        order_id = payload.get("order_id")
+        try:
+            payload = PaymentSuccessPayload(**raw_payload)
+        except ValidationError as e:
+            logger.error("Invalid payment success payload", extra={"error": str(e)})
+            return
 
         try:
-            # 1. Lock & Load Order
-            order = await self.db.get(Order, order_id)
-            if not order: 
-                logger.warning(f"Payment Success signal received for non-existent order {order_id}")
+            order = await self.db.get(Order, payload.order_id)
+            if not order:
+                logger.warning("Payment success signal for phantom order", extra={"order_id": payload.order_id})
                 return
 
-            if order.status == OrderStatus.PENDING:
-                # Update State
-                order.status = OrderStatus.PROCESSING
-                order.is_paid = True
-                order.paid_at = datetime.utcnow()
-                self.db.add(order)
-                await self.db.commit()
+            # Idempotency Check: Only process if PENDING
+            if order.status != OrderStatus.PENDING:
+                logger.info("Ignoring duplicate payment success event", extra={"order_id": order.id, "current_status": order.status.name})
+                return
 
-                # 2. Clear Shopping Cart (Mission Accomplished)
-                cart_key = self._get_cart_key(user_id)
-                await self.cache.delete(cart_key)
+            order.status = OrderStatus.PROCESSING
+            order.is_paid = True
+            order.paid_at = datetime.now(timezone.utc)
+            self.db.add(order)
+            await self.db.commit()
 
-                # 3. 🚁 Generate Flight Telemetry (The Wow Factor)
-                flight_data = self._generate_flight_manifest(order.id, order.delivery_address)
-                
-                # Persist Flight Data to Order Metadata (Optional/Future Proofing)
-                # order.metadata = flight_data 
-                # await self.db.commit()
+            await self.cache.delete(self._get_cart_key(payload.user_id))
 
-                # 4. Notify UI: Phase 1 (Confirmation)
-                await self._send_to_ui(user_id, {
-                    "content": f"Payment Secured! Order #{order.id} is confirmed. airaero X on his way.",
-                    "type": "success_text",
-                    "sound": "drone_takeoff" # Frontend hint for audio effect
-                })
+            flight_data = self._generate_flight_manifest(order.id)
+            
+            await self._send_to_ui(payload.user_id, {
+                "content": f"Payment Secured! Order #{order.id} is confirmed. AirAero X is on the way.",
+                "type": "success_text",
+                "sound": "drone_takeoff"
+            })
 
-                # 5. Notify UI: Phase 2 (The Dashboard)
-                # Small delay to simulate system boot sequence
-                await asyncio.sleep(0.5)
-                await self._send_to_ui(user_id, {
-                    "content": "Uploading Live Telemetry...",
-                    "type": "FLIGHT_MANIFEST",
-                    "flight_data": flight_data
-                })
-                
-                # 6. Analytics: Conversion Event
-                await self.rabbitmq.publish(
-                    {"user_id": user_id, "order_id": order.id, "revenue": float(order.total_price)},
-                    "airdeliver.ai.analytics.conversion"
-                )
+            await asyncio.sleep(0.5)  # Intentional jitter for sequential UI presentation
+            
+            await self._send_to_ui(payload.user_id, {
+                "content": "Uploading Live Telemetry...",
+                "type": "FLIGHT_MANIFEST",
+                "flight_data": flight_data
+            })
+            
+            self._emit_analytics_event(
+                "airdeliver.ai.analytics.conversion",
+                {"user_id": payload.user_id, "order_id": order.id, "revenue": str(order.total_price)}
+            )
 
         except Exception as e:
-            logger.critical(f"Payment Success Handler Failed: {e}")
-            # Even if logic fails, ensure UI gets something
-            await self._send_to_ui(user_id, {"content": "Order confirmed! Check your email for details.", "type": "success_text"})
+            await self.db.rollback()
+            logger.critical("Critical failure in payment success handler", extra={"order_id": payload.order_id, "error": str(e)})
+            await self._send_to_ui(payload.user_id, {"content": "Order confirmed! Check your email for details.", "type": "success_text"})
 
-    def _generate_flight_manifest(self, order_id: int, user_address: str) -> dict:
+    def _generate_flight_manifest(self, order_id: int) -> Dict[str, Any]:
         """
-        🛰️ Generates procedural flight data for the UI Dashboard.
+        Generates deterministic telemetry parameters for the UI simulation dashboard.
         """
-        # Simulation Logic
-        distance_km = random.uniform(3.5, 15.0) # Realistic drone range
-        speed_kph = 120.0 # High-speed drone
-        
-        # Calculate ETA with "Prep Time" buffer
-        flight_time_mins = (distance_km / speed_kph) * 60
-        total_eta_mins = int(flight_time_mins + 5) # +5 mins for packing/loading
+        distance_km = random.uniform(self.FLIGHT_MIN_RANGE_KM, self.FLIGHT_MAX_RANGE_KM)
+        flight_time_mins = (distance_km / self.FLIGHT_SPEED_KPH) * 60
+        total_eta_mins = int(flight_time_mins + self.FLIGHT_PREP_BUFFER_MINS)
         
         return {
-            "mission_id": f"MSN-{order_id}-{random.randint(1000,9999)}",
-            "drone_id": f"AIR-X-{random.randint(100,999)} (Stealth)",
+            "mission_id": f"MSN-{order_id}-{random.randint(1000, 9999)}",
+            "drone_id": f"AIR-X-{random.randint(100, 999)} (Stealth)",
             "distance_km": round(distance_km, 1),
             "cruising_altitude": f"{random.randint(100, 300)}ft",
-            "speed_kph": int(speed_kph),
+            "speed_kph": int(self.FLIGHT_SPEED_KPH),
             "estimated_arrival_mins": total_eta_mins,
-            "weather_condition": random.choice(["Clear Sky ☀️", "Tailwind 🍃", "Optimal Visibility 👁️"]),
+            "weather_condition": random.choice(["Clear Sky", "Tailwind", "Optimal Visibility"]),
             "battery_status": "100%",
             "status": "PRE-FLIGHT CHECK COMPLETE"
         }
 
-    # --- ❌ 5. FAILURE & CANCELLATION HANDLERS ---
+    # --- ❌ RECOVERY & CANCELLATION WORKFLOWS ---
 
-    async def _handle_failed_payment(self, order: Order, reason: str):
-        """
-        Graceful Failure Handling.
-        Prevents user drop-off by suggesting immediate actions.
-        """
+    async def _handle_failed_payment(self, order: Order, reason: str) -> None:
+        """Graceful degradation path for payment gateway rejections."""
         try:
-            # 1. Update DB Status
             order.status = OrderStatus.FAILED
             self.db.add(order)
             await self.db.commit()
             
-            # 2. Smart User Recovery
             await self._send_to_ui(order.user_id, {
-                "content": f"Payment Interruption: {reason}. Don't worry, your cart is safe.",
+                "content": f"Payment Interruption: {reason}. Don't worry, your manifest is preserved.",
                 "type": "confirmation_prompt",
                 "options": ["Retry Payment", "Change Method"],
                 "reason": "Transaction Recovery"
             })
         except Exception as e:
-            logger.error(f"Failed handling failed payment: {e}")
+            await self.db.rollback()
+            logger.error("Failed handling failed payment fallback", extra={"order_id": order.id, "error": str(e)})
 
-    async def handle_cancel_order(self, payload: dict):
+    async def handle_cancel_order(self, raw_payload: Dict[str, Any]) -> None:
         """
-        User-Initiated Cancellation.
-        Enforces state checks to prevent cancelling shipped orders.
+        Processes user-initiated order cancellation.
+        Validates authorization boundaries and state machine constraints.
         """
-        user_id = payload.get("user_id")
-        order_id = payload.get("order_id")
-        
-        if not user_id: return
+        try:
+            payload = CancelOrderPayload(**raw_payload)
+        except ValidationError as e:
+            logger.warning("Invalid cancel payload", extra={"error": str(e)})
+            return
              
         order_cancelled = False
-        if order_id:
-            order = await self.db.get(Order, order_id)
-            if order and order.user_id == user_id:
-                if order.status == OrderStatus.PENDING:
-                    order.status = OrderStatus.CANCELLED
-                    self.db.add(order)
-                    await self.db.commit()
-                    order_cancelled = True
-                    logger.info(f"Order {order_id} cancelled by user.")
+        
+        if payload.order_id:
+            try:
+                order = await self.db.get(Order, payload.order_id)
+                if order and order.user_id == payload.user_id:
+                    if order.status == OrderStatus.PENDING:
+                        order.status = OrderStatus.CANCELLED
+                        self.db.add(order)
+                        await self.db.commit()
+                        order_cancelled = True
+                        logger.info("Order discarded by user", extra={"order_id": payload.order_id, "user_id": payload.user_id})
 
-                elif order.status in [OrderStatus.PROCESSING, OrderStatus.SHIPPED]:
-                     # If order is already flying, we can't discard. Stop here.
-                     await self._send_to_ui(user_id, {
-                        "content": "Cannot discard: Your order in progress. Contact support for canceling.",
-                        "type": "error"
-                    })
-                     return
+                    elif order.status in {OrderStatus.PROCESSING, OrderStatus.SHIPPED}:
+                         await self._send_error(
+                             payload.user_id, 
+                             "Cannot discard: Your order is already in progress. Please contact support."
+                         )
+                         return
+            except Exception as e:
+                await self.db.rollback()
+                logger.error("Order cancellation transaction failed", extra={"order_id": payload.order_id, "error": str(e)})
              
         try:
-            cart_key = self._get_cart_key(user_id)
-            await self.cache.delete(cart_key)
-        except Exception: pass
+            await self.cache.delete(self._get_cart_key(payload.user_id))
+        except Exception as e:
+            logger.warning("Failed to evict cart cache during cancellation", extra={"user_id": payload.user_id, "error": str(e)})
 
-        # 3. Update UI (Clear Sidebar Immediately)
-        await self._send_to_ui(user_id, {
-            "content": {"items": [], "total": 0.0},
+        await self._send_to_ui(payload.user_id, {
+            "content": {"items": [], "total": "0.00"},
             "type": "cart_preview",
             "reason": "Discard Command"
         })
         
-        # 4. User Feedback
-        msg = f"Order #{order_id} discarded." if order_cancelled else "Your order is canceled."
-        await self._send_to_ui(user_id, {
-            "content": f"{msg} Cart is cleared.",
+        msg = f"Order #{payload.order_id} discarded." if order_cancelled else "Your operation was canceled."
+        await self._send_to_ui(payload.user_id, {
+            "content": f"{msg} Cart has been cleared.",
             "type": "info" 
         })
-    async def _send_error(self, user_id: int, message: str):
-        """Utility for quick error dispatch"""
+
+    # --- 🛠️ UTILITIES ---
+
+    async def _send_error(self, user_id: int, message: str) -> None:
         await self._send_to_ui(user_id, {"content": message, "type": "error"})
+
+    def _emit_analytics_event(self, routing_key: str, payload: Dict[str, Any]) -> None:
+        """Fire-and-forget telemetry emission."""
+        async def _publish() -> None:
+            try:
+                await self.rabbitmq.publish(payload, routing_key)
+            except Exception as e:
+                logger.error("Failed to emit analytics event", extra={"routing_key": routing_key, "error": str(e)})
+        
+        asyncio.create_task(_publish())

@@ -284,6 +284,8 @@ services:
       - 8.8.8.8        
       - 1.1.1.1
     environment:
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
       - DATABASE_URI=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_SERVER}:${POSTGRES_PORT}/${POSTGRES_DB}
       - POSTGRES_SERVER=${POSTGRES_SERVER}
       - RABBITMQ_HOST=mq
@@ -380,7 +382,8 @@ services:
       - HF_DATASETS_CACHE=/data/storage/models_cache/huggingface/datasets
       - HF_HUB_CACHE=/data/storage/models_cache/huggingface/hub
       - HF_DATASETS_CACHE=/data/storage/models_cache/huggingface/datasets
-      
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     shm_size: '2gb'
     ulimits:
       memlock: -1

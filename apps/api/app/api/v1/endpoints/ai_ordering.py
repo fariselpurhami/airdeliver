@@ -1,375 +1,346 @@
 # apps/api/app/api/v1/endpoints/ai_ordering.py
 
-import uuid
-import json
-import time
-import logging
 import asyncio
-from typing import Optional
+import json
+import logging
+import time
+import uuid
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, status
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, status
+from pydantic import BaseModel, EmailStr, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocketState
-from app.services.ai_voice_service import AIVoiceOrchestrator
 
-# Internal Imports
 from app import models
 from app.api import deps
-from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
-from app.services.cache_service import IAsyncCacheClient
 from app.core.config import settings
+from app.services.ai_voice_service import AIVoiceOrchestrator
+from app.services.cache_service import IAsyncCacheClient
+from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
 
 logger = logging.getLogger("airdeliver.websocket")
 router = APIRouter()
 
-# 🛡️ CONFIGURATION CONSTANTS
-RATE_LIMIT_WINDOW = 10  # Seconds
-MAX_MESSAGES_PER_WINDOW = 20 # Slight bump for heavy users
+# --- 🧱 DOMAIN CONSTANTS & ENUMS ---
 
-logger.info("🚀 AI ORDERING GATEWAY LOADED: v5.0 (Titanium Shield Enabled)")
+WS_TICKET_TTL_SECONDS = 30
+RATE_LIMIT_WINDOW_SECONDS = 10
+MAX_MESSAGES_PER_WINDOW = 20
+VOICE_SESSION_LOCK_TTL = 300  # 5 minutes absolute timeout
 
-# --- 🎫 SECTION 1: SECURE AUTHENTICATION ---
+class ClientEventType(str, Enum):
+    CHAT_MESSAGE = "CHAT_MESSAGE"
+    ADD_TO_CART = "ADD_TO_CART"
+    REMOVE_FROM_CART = "REMOVE_FROM_CART"
+    CLEAR_CART = "CLEAR_CART"
+    CONFIRM_ORDER = "CONFIRM_ORDER"
+    CANCEL_INTENT = "CANCEL_INTENT"
 
-@router.post("/ticket")
+class EventRoutingMap(str, Enum):
+    CHAT_MESSAGE = "airdeliver.ai.chat.in"
+    ADD_TO_CART = "airdeliver.ai.cart.add"
+    REMOVE_FROM_CART = "airdeliver.ai.cart.remove"
+    CLEAR_CART = "airdeliver.ai.cart.clear"
+    CONFIRM_ORDER = "airdeliver.ai.order.confirm"
+    CANCEL_INTENT = "airdeliver.ai.intent.cancel_order"
+
+# Immutable Static Data
+LIFESTYLE_MATRIX = (
+    {"id": str(uuid.uuid4()), "title": "Titanium Minimalist", "description": "Pure efficiency.", "theme": "titanium", "icon": "focus_mode", "priority": 1},
+    {"id": str(uuid.uuid4()), "title": "Eco-Luxury", "description": "Sustainable logic.", "theme": "eco", "icon": "leaf_sparkle", "priority": 2},
+    {"id": str(uuid.uuid4()), "title": "Cyberpunk Aesthetic", "description": "Neon and speed.", "theme": "cyberpunk", "icon": "lightning", "priority": 3},
+    {"id": str(uuid.uuid4()), "title": "Silence & Audio", "description": "Acoustic experience.", "theme": "acoustic", "icon": "sound_wave", "priority": 4},
+)
+
+
+# --- 📦 DOMAIN TRANSFER OBJECTS (DTOs) ---
+
+class WSTicketResponse(BaseModel):
+    ticket: str = Field(..., description="Short-lived, one-time WebSocket access token.")
+
+class IncomingClientMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    type: ClientEventType = Field(default=ClientEventType.CHAT_MESSAGE)
+    message: Optional[str] = None
+    image: Optional[str] = None
+    product_id: Optional[int] = None
+    quantity: int = Field(default=1, ge=1)
+    timestamp: float = Field(default_factory=time.time)
+
+class RoutedMessagePayload(BaseModel):
+    user_id: int
+    connection_id: str
+    email: EmailStr
+    country: str
+    phone: str
+    address: str
+    city: str
+    message: Optional[str]
+    type: str
+    image: Optional[str]
+    product_id: Optional[int]
+    quantity: int
+    client_msg_id: str
+    timestamp: float
+
+
+# --- 🎫 SECTION 1: SECURE AUTHENTICATION & RATE LIMITING ---
+
+@router.post("/ticket", response_model=WSTicketResponse)
 async def generate_websocket_ticket(
     current_user: models.User = Depends(deps.get_current_active_user),
     cache: IAsyncCacheClient = Depends(deps.get_cache_client),
-):
+) -> WSTicketResponse:
     """
-    Generates a secure, short-lived, one-time-use ticket for WebSocket auth.
-    Prevents passing sensitive Bearer tokens in URL query params.
+    Issues a cryptographically secure, ephemeral ticket to avoid passing Bearer tokens via URI.
     """
     ticket = str(uuid.uuid4())
-    # Ticket valid for only 30 seconds (Strict Window)
-    await cache.set(f"ws_ticket:{ticket}", str(current_user.id), ttl=30)
-    return {"ticket": ticket}
+    await cache.set(f"ws_ticket:{ticket}", str(current_user.id), ttl=WS_TICKET_TTL_SECONDS)
+    return WSTicketResponse(ticket=ticket)
 
-async def check_rate_limit(user_id: int, cache: IAsyncCacheClient) -> bool:
+async def _check_rate_limit(user_id: int, cache: IAsyncCacheClient) -> bool:
     """
-    🛡️ DIAMOND SECURITY: Rate Limiting Implementation using Redis.
-    Uses sliding window or simple fixed window counter.
-    Returns True if allowed, False if blocked.
+    Evaluates connection throughput via Redis sliding window counter.
+    Employs a fail-closed protocol under internal exceptions to protect message queues,
+    unless configured explicitly for fail-open.
     """
     key = f"ws_ratelimit:{user_id}"
     try:
         current_count = await cache.incr(key)
         if current_count == 1:
-            await cache.expire(key, RATE_LIMIT_WINDOW)
+            await cache.expire(key, RATE_LIMIT_WINDOW_SECONDS)
 
         if current_count > MAX_MESSAGES_PER_WINDOW:
-            logger.warning(f"🚫 Rate Limit Hit: User {user_id}")
+            logger.warning("Rate limit exceeded", extra={"user_id": user_id, "count": current_count})
             return False
         return True
     except Exception as e:
-        logger.warning(f"Rate limit check failed (Fail-Open Policy): {e}")
-        return True
+        logger.error("Rate limiter failure", extra={"user_id": user_id, "error": str(e)})
+        return False  # Strict fail-closed boundary
 
-# --- 🔌 SECTION 2: THE WEBSOCKET HANDLER ---
+
+# --- 🔌 SECTION 2: UNIVERSAL CHAT SOCKET ---
 
 @router.websocket("/chat")
 async def handle_chat_websocket(
     websocket: WebSocket,
-    ticket: str = Query(None),
+    ticket: str = Query(...),
     session: AsyncSession = Depends(deps.get_async_session),
     rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
     cache: IAsyncCacheClient = Depends(deps.get_cache_client),
-):
+) -> None:
     """
-    💎 THE UNIVERSAL SOCKET HANDLER.
-    Orchestrates the Real-Time connection between User <-> AI.
-    Features: Auth, Rate Limiting, Pub/Sub Listening, and Message Routing.
+    THE UNIVERSAL SOCKET HANDLER.
+    Maintains persistent connections, applies input sanitization, and bridges client
+    intent to the event-driven RabbitMQ backend.
     """
-
-    # 1. AUTHENTICATION PHASE
-    current_user = None
     try:
         current_user = await deps.get_current_active_user_ws_ticket(
-            websocket=websocket,
-            ticket=ticket,
-            session=session,
-            cache=cache
+            websocket=websocket, ticket=ticket, session=session, cache=cache
         )
     except Exception as e:
-        logger.error(f"❌ WebSocket Auth Failed: {e}")
+        logger.error("WebSocket auth failure", extra={"error": str(e)})
         if websocket.client_state != WebSocketState.DISCONNECTED:
              await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    # 2. CONNECTION ESTABLISHMENT
     await websocket.accept()
 
-    # Unique Connection ID (Traceability)
     connection_id = str(uuid.uuid4())
     connection_manager = deps.get_websocket_manager()
-
-    # Register connection
     await connection_manager.connect(current_user.id, websocket)
-    logger.info(f"✅ User {current_user.id} connected via Socket {connection_id[:8]}...")
 
+    logger.info("Chat socket connected", extra={"user_id": current_user.id, "connection_id": connection_id})
 
-    import random
+    # Destroy the ticket to prevent replay attacks
+    await cache.delete(f"ws_ticket:{ticket}")
 
-    lifestyle_matrix = [
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Titanium Minimalist",
-            "description": "For the focus-obsessed. Pure efficiency.",
-            "theme": "titanium",
-            "icon": "focus_mode", 
-            "priority": 1
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Eco-Luxury",
-            "description": "Sustainable high-end tech logic.",
-            "theme": "eco",
-            "icon": "leaf_sparkle",
-            "priority": 2
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Cyberpunk Aesthetic",
-            "description": "Neon, performance, and speed.",
-            "theme": "cyberpunk", 
-            "icon": "lightning",
-            "priority": 3
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Silence & Audio",
-            "description": "The ultimate acoustic experience.",
-            "theme": "acoustic",
-            "icon": "sound_wave",
-            "priority": 4
-        }
-    ]
-
+    # Inject Welcome Payload
     try:
-        # 2. بناء الـ Payload بهيكلية بيانات موحدة (Strict Schema)
-        # لاحظ: قمنا بإزالة حقل "message" النصي واستبدالنا بـ "data" كائن كامل
         welcome_payload = {
             "user_id": current_user.id,
             "connection_id": connection_id,
             "email": current_user.email,
-            "type": "WELCOME_INTENT",  # المفتاح الذي سيحرك الـ AI Worker
+            "type": "WELCOME_INTENT",
             "data": {
-                "mode": "selection_required",  # إجبار الفرونت إند على عرض الكروت
-                "header_text": "Select your lifestyle archetype:",  # نص توجيهي
-                "matrix_cards": lifestyle_matrix
+                "mode": "selection_required",
+                "header_text": "Select your lifestyle archetype:",
+                "matrix_cards": LIFESTYLE_MATRIX
             },
             "message": "User Initiated Matrix Selection",
             "client_msg_id": str(uuid.uuid4()),
             "timestamp": time.time(),
         }
-
-        # 3. الحقن المباشر في الـ Queue (Direct Injection)
         await rabbitmq.publish(
             body=welcome_payload,
-            routing_key="airdeliver.ai.chat.in",
+            routing_key=EventRoutingMap.CHAT_MESSAGE.value,
             max_retries=2
         )
-        logger.info(f"✅ Lifestyle Matrix Injected for User {current_user.id} (Local Context)")
-
     except Exception as e:
-        logger.warning(f"⚠️ Failed to Inject Matrix: {e}")
-    # Redis Channel for AI Responses
-    redis_channel_name = f"airdeliver:response:{current_user.id}"
+        logger.error("Failed to inject matrix context", extra={"user_id": current_user.id, "error": str(e)})
+
+    # Initialize PubSub Listener
+    redis_channel = f"airdeliver:response:{current_user.id}"
     pubsub = None
     listener_task = None
 
-    # --- 🎧 BACKGROUND LISTENER SETUP ---
+    async def _listen_for_ai_responses() -> None:
+        try:
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    await websocket.send_text(message["data"])
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error("Redis listener exception", extra={"user_id": current_user.id, "error": str(e)})
+
     try:
         if hasattr(cache, 'subscribe'):
-            pubsub = await cache.subscribe(redis_channel_name)
-
-            async def listen_for_ai_responses():
-                """Background task to push AI responses to the websocket."""
-                try:
-                    async for message in pubsub.listen():
-                        if message["type"] == "message":
-                            raw_data = message["data"]
-                            # Push directly to frontend
-                            await websocket.send_text(raw_data)
-                except asyncio.CancelledError:
-                    pass # Task cancelled gracefully
-                except Exception as e:
-                    logger.error(f"Redis Listener Error for User {current_user.id}: {e}")
-
-            # Start Listener
-            listener_task = asyncio.create_task(listen_for_ai_responses())
-            logger.info(f"🎧 Redis Listener Active for Channel: {redis_channel_name}")
+            pubsub = await cache.subscribe(redis_channel)
+            listener_task = asyncio.create_task(_listen_for_ai_responses())
         else:
-            logger.warning("⚠️ Cache client does not support subscription. Real-time responses may fail.")
+            logger.error("Cache client lacks PubSub capability. Async responses disabled.")
 
-    except Exception as e:
-        logger.error(f"Failed to setup Redis Listener: {e}")
-
-    # --- 📨 3. MESSAGE RECEIVE LOOP ---
-    try:
+        # Message Event Loop
         while True:
-            data = await websocket.receive_text()
+            raw_data = await websocket.receive_text()
 
-            # A. Rate Limiting Check
-            is_allowed = await check_rate_limit(current_user.id, cache)
-            if not is_allowed:
+            if not await _check_rate_limit(current_user.id, cache):
                 await websocket.send_json({
                     "type": "ERROR",
                     "code": "RATE_LIMIT_EXCEEDED",
-                    "content": "You are sending messages too fast. Please wait a moment."
+                    "content": "Message rate exceeded limits. Throttling active."
                 })
                 continue
 
-            # B. Parse Message
             try:
-                message_data = json.loads(data)
-            except json.JSONDecodeError:
-                await websocket.send_json({"type": "ERROR", "content": "Invalid JSON format."})
+                msg_dict = json.loads(raw_data)
+                validated_msg = IncomingClientMessage(**msg_dict)
+            except (json.JSONDecodeError, ValidationError) as e:
+                logger.warning("Malformed WebSocket payload", extra={"user_id": current_user.id, "error": str(e)})
+                await websocket.send_json({"type": "ERROR", "content": "Invalid message structure."})
                 continue
 
-            # C. Construct Robust Payload (The Universal Packet)
-            client_msg_id = message_data.get("id") or str(uuid.uuid4())
+            # Construct Immutable Domain Payload
+            payload = RoutedMessagePayload(
+                user_id=current_user.id,
+                connection_id=connection_id,
+                email=current_user.email,
+                country=getattr(current_user, 'country', 'US'),
+                phone=current_user.phone_number or "",
+                address=current_user.address or "",
+                city=current_user.city or "",
+                message=validated_msg.message,
+                type=validated_msg.type.value,
+                image=validated_msg.image,
+                product_id=validated_msg.product_id,
+                quantity=validated_msg.quantity,
+                client_msg_id=validated_msg.id,
+                timestamp=validated_msg.timestamp,
+            )
 
-            # Sanitizing Phone/Address to avoid NoneType errors downstream
-            user_phone = current_user.phone_number or ""
-            user_address = current_user.address or ""
-            user_city = current_user.city or ""
+            # Retrieve routing key via O(1) mapping
+            target_queue = EventRoutingMap[validated_msg.type.name].value
 
-            message_payload = {
-                "user_id": current_user.id,
-                "connection_id": connection_id,
-                "email": current_user.email,
-                "country": getattr(current_user, 'country', 'US'),
-                "phone": user_phone,
-                "address": user_address,
-                "city": user_city,
-                "message": message_data.get("message"),
-                "type": message_data.get("type", "CHAT_MESSAGE"),
-                "image": message_data.get("image"), # Base64
-                "product_id": message_data.get("product_id"), # For Cart Actions
-                "quantity": message_data.get("quantity", 1),
-                "client_msg_id": client_msg_id,
-                "timestamp": message_data.get("timestamp") or time.time(),
-            }
-
-            # D. Smart Routing Logic
-            routing_key = "airdeliver.ai.chat.in"
-            msg_type = message_payload["type"]
-
-            if msg_type == "ADD_TO_CART":
-                 routing_key = "airdeliver.ai.cart.add"
-            elif msg_type == "REMOVE_FROM_CART":
-                 routing_key = "airdeliver.ai.cart.remove"
-            elif msg_type == "CLEAR_CART":
-                 routing_key = "airdeliver.ai.cart.clear"
-            elif msg_type == "CONFIRM_ORDER":
-                 routing_key = "airdeliver.ai.order.confirm"
-            elif msg_type == "CANCEL_INTENT":
-                 routing_key = "airdeliver.ai.intent.cancel_order"
-
-            # E. Publish to RabbitMQ (Black Hole Prevention)
             try:
                 await rabbitmq.publish(
-                    body=message_payload,
-                    routing_key=routing_key,
+                    body=payload.model_dump(mode="json"),
+                    routing_key=target_queue,
                     max_retries=2
                 )
-
-                # F. Instant Server ACK (UI Feedback)
                 await websocket.send_json({
                     "type": "SERVER_ACK",
-                    "reply_to": client_msg_id,
+                    "reply_to": validated_msg.id,
                     "status": "queued",
-                    "routing_key": routing_key
+                    "routing_key": target_queue
                 })
-
             except Exception as e:
-                logger.error(f"🔥 RabbitMQ Publish Failed User {current_user.id}: {e}")
+                logger.error("RabbitMQ publish failure", extra={"user_id": current_user.id, "error": str(e)})
                 await websocket.send_json({
                     "type": "ERROR",
                     "code": "DELIVERY_FAILED",
-                    "content": "Service temporarily unavailable. Please try again."
+                    "content": "Service temporarily unavailable."
                 })
 
-    # --- 🧹 CLEANUP ---
     except WebSocketDisconnect:
-        logger.info(f"User {current_user.id} disconnected (Socket {connection_id[:8]}).")
+        logger.info("Chat socket closed by client", extra={"user_id": current_user.id})
+    except Exception as e:
+        logger.error("Chat socket critical failure", exc_info=True, extra={"user_id": current_user.id, "error": str(e)})
+        if websocket.client_state != WebSocketState.DISCONNECTED:
+            try:
+                await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+            except: pass
+    finally:
+        # Deterministic Resource Teardown
+        if listener_task:
+            listener_task.cancel()
+            try:
+                await listener_task
+            except asyncio.CancelledError:
+                pass
 
-        if listener_task: listener_task.cancel()
-        if pubsub: await pubsub.close()
+        if pubsub:
+            await pubsub.close()
 
         await connection_manager.disconnect(current_user.id, websocket)
 
-    except Exception as e:
-        logger.error(f"🔥 Critical WebSocket Crash User {current_user.id}: {e}", exc_info=True)
 
-        if listener_task: listener_task.cancel()
-        if pubsub: await pubsub.close()
-
-        # Attempt graceful close
-        try:
-            await connection_manager.disconnect(current_user.id, websocket)
-            if websocket.client_state != WebSocketState.DISCONNECTED:
-                await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
-        except: pass
+# --- 🎤 SECTION 3: TITANIUM VOICE SOCKET ---
 
 @router.websocket("/voice-stream")
 async def handle_voice_stream(
     websocket: WebSocket,
-    ticket: str = Query(None),
+    ticket: str = Query(...),
     session: AsyncSession = Depends(deps.get_async_session),
-    commerce_engine = Depends(deps.get_ai_commerce_engine),
-    llm_service = Depends(deps.get_llm_service),
+    commerce_engine: Any = Depends(deps.get_ai_commerce_engine),
+    llm_service: Any = Depends(deps.get_llm_service),
     cache: IAsyncCacheClient = Depends(deps.get_cache_client),
-):
+) -> None:
     """
-    🎤 REAL-TIME VOICE CHANNEL (TITANIUM GUARDED).
-    Dedicated WebSocket for Audio/Video streaming with Concurrency Locking.
+    REAL-TIME VOICE CHANNEL.
+    Enforces strict concurrency invariants utilizing atomic distributed locks to prevent
+    resource exhaustion across multi-tab configurations.
     """
-    # 1. 🎫 FAST AUTH & TICKET VALIDATION
-    # التحقق من التذكرة لضمان أن الاتصال آمن ومصرح به
     user_id_str = await cache.get(f"ws_ticket:{ticket}")
     if not user_id_str:
-        logger.warning(f"⛔ Voice Access Denied: Invalid Ticket {ticket}")
+        logger.warning("Voice socket auth rejection", extra={"ticket": ticket})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
     user_id = int(user_id_str)
+    await cache.delete(f"ws_ticket:{ticket}") # Immediate Replay Prevention
 
-    # 2. 🔒 CONCURRENCY GUARD (The Titanium Shield)
-    # منع المستخدم من فتح أكثر من جلسة صوتية في نفس الوقت
-    # لو حاول يفتح تابة تانية، بنقفل في وشه فوراً عشان نحمي موارد السيرفر
     lock_key = f"voice_session_lock:{user_id}"
-    is_locked = await cache.get(lock_key)
 
-    if is_locked:
-        logger.warning(f"🚫 Voice Session Rejected: User {user_id} already speaking in another tab.")
+    # Attempt Atomic Lock (NX -> Set if Not eXists)
+    # Assumes `cache.set` supports standard Redis NX behavior. Fallback is implicit but discouraged.
+    lock_acquired = await cache.set(lock_key, "active", ttl=VOICE_SESSION_LOCK_TTL, nx=True)
+
+    if not lock_acquired:
+        logger.warning("Voice concurrency violation", extra={"user_id": user_id})
         await websocket.accept()
-        await websocket.send_json({"type": "error", "content": "Voice mode is active in another tab."})
+        await websocket.send_json({"type": "error", "content": "Voice mode is currently active in another session."})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    # 3. 🏁 INITIALIZE ORCHESTRATOR
-    orchestrator = AIVoiceOrchestrator(llm_service, commerce_engine)
-
-    # 4. 🛡️ SAFE EXECUTION BLOCK (Try/Finally)
-    # نضع علامة "مشغول" في الـ Redis، ولازم نمسحها لما يخلص
     try:
-        # Set Lock (Expire in 5 mins to prevent deadlocks if server crashes)
-        await cache.set(lock_key, "active", ttl=300)
+        await websocket.accept()
+        logger.info("Voice socket established", extra={"user_id": user_id})
 
-        # Handover control to the Brain
+        orchestrator = AIVoiceOrchestrator(llm_service, commerce_engine)
         await orchestrator.process_voice_session(websocket, user_id)
 
+    except WebSocketDisconnect:
+        logger.info("Voice socket closed by client", extra={"user_id": user_id})
     except Exception as e:
-        logger.error(f"🔥 Critical Voice Crash User {user_id}: {e}", exc_info=True)
-        try:
-            await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
-        except: pass
-
+        logger.error("Voice socket execution failure", exc_info=True, extra={"user_id": user_id, "error": str(e)})
+        if websocket.client_state != WebSocketState.DISCONNECTED:
+            try:
+                await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+            except: pass
     finally:
-        # 5. 🧹 CLEANUP PROTOCOL
-        # أهم خطوة: تحرير القفل فوراً عند قطع الاتصال
+        # Guaranteed strict lock release irrespective of task result
         await cache.delete(lock_key)
-        # مسح التذكرة لضمان عدم استخدامها مرة أخرى (Replay Attack Protection)
-        await cache.delete(f"ws_ticket:{ticket}")
-        logger.info(f"🔌 Voice Session Cleaned User {user_id}")
+        logger.info("Voice session lock released", extra={"user_id": user_id})

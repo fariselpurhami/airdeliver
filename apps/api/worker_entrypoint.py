@@ -597,11 +597,12 @@ class WorkerRuntime:
         self.services.ai_degraded = False
 
     def initialize_payment(self, cache_client: RedisCacheClient) -> None:
-        self.services.payment = PaymentOrchestrator(
+
+        self.services.payment = PaymentOrchestrator([
             StripeGateway(get_stripe_settings()),
             PayPalGateway(get_paypal_settings(), cache_client),
             MpesaGateway(get_mpesa_settings(), cache_client),
-        )
+        ])
         self.services.payment_ready = True
         self.services.refresh_readiness()
 

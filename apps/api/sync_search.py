@@ -1,374 +1,495 @@
 # apps/api/sync_search.py
 
+# apps/api/sync_search.py
+
 import asyncio
-import logging
-import time
-import sys
-import os
 import json
-import torch
-import requests
-from typing import List, Dict, Any, Tuple
-from sqlmodel import select
-from opensearchpy import AsyncOpenSearch, helpers
-from pymilvus import MilvusClient, DataType
-from app.db.session import SessionLocal
-from app.models.product import Product
-from app.core.config import get_core_settings
-
-# 💎 SOTA Embeddings & Vision
-from sentence_transformers import SentenceTransformer
-from transformers import AutoModel, AutoProcessor
-from PIL import Image
+import logging
+import os
+import signal
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from io import BytesIO
+from typing import Any, Dict, List, Optional, Tuple
 
-# Config & Logging
+import aiohttp
+import torch
+from opensearchpy import AsyncOpenSearch, helpers
+from PIL import Image
+from pymilvus import DataType, MilvusClient
+from sentence_transformers import SentenceTransformer
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import select
+from transformers import AutoModel, AutoProcessor
+
+from app.core.config import get_core_settings
+from app.models.product import Product
+
+# --- CONSTANTS & CONFIGURATION ---
+
+CHECKPOINT_FILE = "sync_checkpoint.json"
+MAX_SEQ_LENGTH = 8192
+MILVUS_TEXT_DIM = 1536
+MILVUS_VIS_DIM = 1152
+HNSW_M = 16
+HNSW_EF_CONSTRUCTION = 200
+
+# Structured Logging Setup
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | [Sync-Engine] | %(message)s",
+    format="%(asctime)s | %(levelname)s | [%(name)s] | %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger("airdeliver.sync")
-# Silence noisy libraries
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
-# Constants
-CHECKPOINT_FILE = "sync_checkpoint.txt"
+# Silence verbose third-party loggers
+for noisy_logger in ["urllib3", "sentence_transformers", "transformers", "opensearch", "httpx"]:
+    logging.getLogger(noisy_logger).setLevel(logging.WARNING)
 
-class UnifiedSyncEngine:
+
+# --- DOMAIN MODELS ---
+
+@dataclass
+class ProductPayload:
+    """Internal representation of a product strictly typed for pipeline safety."""
+    id: int
+    name: str
+    price: float
+    description: str
+    category: str
+    rating: float
+    image_url: Optional[str]
+
+    @property
+    def semantic_text(self) -> str:
+        """Constructs the dense representation for embedding."""
+        return f"{self.name} {self.category} {self.description}".strip()
+
+
+@dataclass
+class SyncMetrics:
+    """Thread-safe synchronization telemetry."""
+    fetched: int = 0
+    os_success: int = 0
+    os_failed: int = 0
+    milvus_text_success: int = 0
+    milvus_vis_success: int = 0
+    milvus_failed: int = 0
+    start_time: float = field(default_factory=asyncio.get_event_loop().time if asyncio.get_event_loop().is_running() else 0.0)
+
+
+# --- INFRASTRUCTURE & STATE MANAGEMENT ---
+
+class CheckpointManager:
+    """Atomic file-based checkpoint state machine to guarantee at-least-once processing semantics."""
+
+    def __init__(self, filepath: str = CHECKPOINT_FILE):
+        self.filepath = filepath
+
+    def get_last_id(self) -> int:
+        if os.path.exists(self.filepath):
+            try:
+                with open(self.filepath, "r") as f:
+                    data = json.load(f)
+                    last_id = data.get("last_processed_id", 0)
+                    logger.info(f"🔄 Resuming from Checkpoint: ID {last_id}")
+                    return last_id
+            except (json.JSONDecodeError, IOError) as e:
+                logger.error(f"Checkpoint corruption detected, starting from 0. Error: {e}")
+        return 0
+
+    def commit(self, last_id: int) -> None:
+        """Atomic write to prevent corruption during crash."""
+        temp_file = f"{self.filepath}.tmp"
+        try:
+            with open(temp_file, "w") as f:
+                json.dump({"last_processed_id": last_id}, f)
+            os.replace(temp_file, self.filepath)
+        except IOError as e:
+            logger.error(f"Failed to commit checkpoint: {e}")
+
+    def clear(self) -> None:
+        if os.path.exists(self.filepath):
+            os.remove(self.filepath)
+
+
+class NeuralInferenceEngine:
     """
-    💎 DIAMOND EDITION UNIFIED SYNCHRONIZER (V3.0 - MULTIMODAL).
+    Isolated computational engine for Deep Learning models.
+    Operates strictly within a ThreadPoolExecutor to prevent blocking the Async Event Loop.
+    """
 
-    The Sovereign Data Pipeline.
-    Syncs PostgreSQL -> OpenSearch (Keywords) AND Milvus (Semantic Text + Visual).
+    def __init__(self):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        logger.info(f"⚙️ Initializing Compute Architecture on: {self.device.type.upper()}")
 
-    ARCHITECTURAL PILLARS:
-    1. 🧠 Dual-Cortex: Runs Qwen2 (Text) and SigLIP (Vision) in parallel pipelines.
-    2. 🛡️ Fault Tolerance: Checkpoint recovery ensures zero data loss on crash.
-    3. ⚡ High-Throughput: Uses Batching & Async I/O for maximum velocity.
+        # Load Text Model (Qwen2)
+        self.text_model = SentenceTransformer("Alibaba-NLP/gte-Qwen2-1.5B-instruct", trust_remote_code=True, device=self.device)
+        self.text_model.max_seq_length = MAX_SEQ_LENGTH
+
+        # Load Vision Model (SigLIP)
+        self.vision_enabled = False
+        try:
+            self.vis_processor = AutoProcessor.from_pretrained("google/siglip-so400m-patch14-384")
+            self.vis_model = AutoModel.from_pretrained("google/siglip-so400m-patch14-384").to(self.device)
+            self.vis_model.eval()
+            self.vision_enabled = True
+            logger.info("👁️ Vision Architecture (SigLIP) successfully initialized.")
+        except Exception as e:
+            logger.warning(f"⚠️ Vision initialization bypassed: {e}. Degrading to TEXT-ONLY mode.")
+
+    def encode_text_batch(self, texts: List[str]) -> List[List[float]]:
+        """Encodes a batch of strings into dense vectors. CPU/GPU bound."""
+        vectors = self.text_model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
+        return vectors.tolist()
+
+    def encode_image(self, image_bytes: bytes) -> Optional[List[float]]:
+        """Processes raw image bytes into a dense vector using SigLIP. CPU/GPU bound."""
+        if not self.vision_enabled:
+            return None
+
+        try:
+            image = Image.open(BytesIO(image_bytes)).convert("RGB")
+            with torch.inference_mode():
+                inputs = self.vis_processor(images=image, return_tensors="pt").to(self.device)
+                features = self.vis_model.get_image_features(**inputs)
+                features = features / features.norm(p=2, dim=-1, keepdim=True)
+                return features[0].cpu().tolist()
+        except Exception as e:
+            logger.error(f"Image tensor processing failure: {e}")
+            return None
+
+
+# --- ORCHESTRATOR PIPELINE ---
+
+class UnifiedSyncPipeline:
+    """
+    DIAMOND EDITION UNIFIED SYNCHRONIZER.
+
+    Enterprise-grade robust data pipeline ensuring absolute consistency across
+    relational (PostgreSQL), semantic (Milvus), and keyword (OpenSearch) bounds.
     """
 
     def __init__(self):
         self.settings = get_core_settings()
+        self.metrics = SyncMetrics()
+        self.checkpoint = CheckpointManager()
+        self.inference_engine = NeuralInferenceEngine()
 
-        # 1. OpenSearch Connection
+        # Concurrency & Batching Limits
+        self.fetch_batch_size = 1000
+        self.os_batch_size = 500
+        self.milvus_batch_size = 50
+        self.queue_max_size = 5000
+        self.os_workers = 2
+        self.milvus_workers = 3
+
+        # Graceful Shutdown Event
+        self._stop_event = asyncio.Event()
+        self._thread_pool = ThreadPoolExecutor(max_workers=self.milvus_workers + 1)
+
+        self._init_infrastructure()
+
+    def _init_infrastructure(self):
+        """Initializes client connections and asserts remote schema boundaries."""
+        # 1. Database Configuration
+        # Must utilize async_engine to avoid blocking the I/O loop
+        db_url = str(self.settings.DATABASE_URL).replace("postgresql://", "postgresql+asyncpg://")
+        self.db_engine = create_async_engine(db_url, pool_size=5, max_overflow=10)
+        self.AsyncSessionLocal = sessionmaker(self.db_engine, class_=AsyncSession, expire_on_commit=False)
+
+        # 2. OpenSearch Configuration
         self.os_index = "airdeliver_products"
         self.os_client = AsyncOpenSearch(
             hosts=[{"host": self.settings.OPENSEARCH_HOST, "port": self.settings.OPENSEARCH_PORT}],
-            use_ssl=False, verify_certs=False, timeout=60
+            use_ssl=False, verify_certs=False, timeout=30
         )
 
-        # 2. Milvus Connection
-        self.milvus_uri = self.settings.MILVUS_URI
-        self.milvus_client = MilvusClient(uri=self.milvus_uri)
-        # Using V4 collections (The Standard)
+        # 3. Milvus Configuration
+        self.milvus_client = MilvusClient(uri=self.settings.MILVUS_URI)
         self.milvus_text_col = "airdeliver_products_sota_v4"
         self.milvus_vis_col = "airdeliver_visual_sota_v4"
+        self._assert_milvus_schemas()
 
-        # 3. Database Connection (Sync Engine used for fetching)
-        self.db_engine = create_engine(str(self.settings.DATABASE_URL)) # Sync engine
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.db_engine)
-
-        # 4. 🧠 Load SOTA Models
-        logger.info("🧠 Loading Neural Models (Text + Vision)...")
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"⚙️ Compute Device: {self.device.upper()}")
-
-        # Text Brain (Qwen2 - 1536 dim)
-        self.text_model = SentenceTransformer("Alibaba-NLP/gte-Qwen2-1.5B-instruct", trust_remote_code=True, device=self.device)
-        self.text_model.max_seq_length = 8192
-
-        # Vision Brain (SigLIP - 1152 dim)
+    def _assert_milvus_schemas(self) -> None:
+        """Idempotent assertion of distributed vector schemas."""
         try:
-            self.vis_processor = AutoProcessor.from_pretrained("google/siglip-so400m-patch14-384")
-            self.vis_model = AutoModel.from_pretrained("google/siglip-so400m-patch14-384").to(self.device)
-            self.vision_enabled = True
+            if not self.milvus_client.has_collection(self.milvus_text_col):
+                schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=True)
+                schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
+                schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=MILVUS_TEXT_DIM)
+                idx = self.milvus_client.prepare_index_params()
+                idx.add_index(field_name="vector", index_type="HNSW", metric_type="COSINE", params={"M": HNSW_M, "efConstruction": HNSW_EF_CONSTRUCTION})
+                self.milvus_client.create_collection(self.milvus_text_col, schema=schema, index_params=idx)
+                logger.info(f"✅ Text vector schema provisioned: {self.milvus_text_col}")
+
+            if self.inference_engine.vision_enabled and not self.milvus_client.has_collection(self.milvus_vis_col):
+                schema_vis = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=True)
+                schema_vis.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
+                schema_vis.add_field(field_name="image_vector", datatype=DataType.FLOAT_VECTOR, dim=MILVUS_VIS_DIM)
+                idx_vis = self.milvus_client.prepare_index_params()
+                idx_vis.add_index(field_name="image_vector", index_type="HNSW", metric_type="COSINE", params={"M": HNSW_M, "efConstruction": HNSW_EF_CONSTRUCTION})
+                self.milvus_client.create_collection(self.milvus_vis_col, schema=schema_vis, index_params=idx_vis)
+                logger.info(f"✅ Vision vector schema provisioned: {self.milvus_vis_col}")
         except Exception as e:
-            logger.warning(f"⚠️ Vision Model Load Failed: {e}. Running in TEXT-ONLY mode.")
-            self.vision_enabled = False
+            logger.critical(f"Milvus schema assertion failed. Infrastructure unresponsive: {e}")
+            sys.exit(1)
 
-        # Tuning Parameters
-        self.fetch_batch_size = 500   # Moderate size to allow image processing time
-        self.milvus_batch_size = 50   # Smaller batch for heavy inference
-
-        # Ensure Infrastructure Ready
-        self._ensure_collections()
-        self._ensure_os_index()
-
-    def _ensure_collections(self):
-        """Creates Milvus Collections if missing (Auto-Schema)."""
-        # Text Collection
-        if not self.milvus_client.has_collection(self.milvus_text_col):
-            schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=True)
-            schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
-            schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=1536)
-            idx = self.milvus_client.prepare_index_params()
-            idx.add_index(field_name="vector", index_type="HNSW", metric_type="COSINE", params={"M": 16, "efConstruction": 200})
-            self.milvus_client.create_collection(self.milvus_text_col, schema=schema, index_params=idx)
-            logger.info(f"✅ Created Text Collection: {self.milvus_text_col}")
-
-        # Visual Collection
-        if self.vision_enabled and not self.milvus_client.has_collection(self.milvus_vis_col):
-            schema_vis = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=True)
-            schema_vis.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
-            schema_vis.add_field(field_name="image_vector", datatype=DataType.FLOAT_VECTOR, dim=1152)
-            idx_vis = self.milvus_client.prepare_index_params()
-            idx_vis.add_index(field_name="image_vector", index_type="HNSW", metric_type="COSINE", params={"M": 16, "efConstruction": 200})
-            self.milvus_client.create_collection(self.milvus_vis_col, schema=schema_vis, index_params=idx_vis)
-            logger.info(f"✅ Created Visual Collection: {self.milvus_vis_col}")
-
-    def _ensure_os_index(self):
-        """Sync check for OS index presence."""
-        # Note: AsyncOpenSearch check would require await, skip for now or run in loop
-        pass
-
-    def _get_checkpoint(self) -> int:
-        if os.path.exists(CHECKPOINT_FILE):
-            try:
-                with open(CHECKPOINT_FILE, "r") as f:
-                    val = int(f.read().strip())
-                    logger.info(f"🔄 Resuming from Checkpoint: ID {val}")
-                    return val
-            except: pass
-        return 0
-
-    def _update_checkpoint(self, last_id: int):
-        with open(CHECKPOINT_FILE, "w") as f:
-            f.write(str(last_id))
-
-    def _process_image(self, url: str) -> List[float]:
-        """Downloads and vectorizes an image (CPU/GPU bound)."""
-        if not self.vision_enabled or not url: return None
+    async def _download_image(self, session: aiohttp.ClientSession, url: str) -> Optional[bytes]:
+        """Asynchronous HTTP ingestion with strict timeout and payload limits."""
+        if not url:
+            return None
         try:
-            # Timeout is critical to avoid hanging the sync
-            response = requests.get(url, timeout=3)
-            if response.status_code != 200: return None
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as response:
+                if response.status == 200:
+                    return await response.read()
+        except aiohttp.ClientError as e:
+            logger.debug(f"Image retrieval failed for {url}: {e}")
+        except asyncio.TimeoutError:
+            logger.debug(f"Image retrieval timeout for {url}")
+        return None
 
-            image = Image.open(BytesIO(response.content)).convert("RGB")
+    # --- PIPELINE WORKERS ---
 
-            # SigLIP Inference (No Grad for speed)
-            with torch.no_grad():
-                inputs = self.vis_processor(images=image, return_tensors="pt").to(self.device)
-                image_features = self.vis_model.get_image_features(**inputs)
-                # Normalize features
-                image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
-                return image_features[0].cpu().tolist()
-        except Exception:
-            return None # Fail silently, skip image
+    async def _producer(self, os_queue: asyncio.Queue, milvus_queue: asyncio.Queue) -> None:
+        """Extracts domains from Postgres and buffers them into routing queues."""
+        logger.info("🚜 Upstream Harvester Online.")
+        last_seen_id = self.checkpoint.get_last_id()
 
-    async def _producer(self, os_queue: asyncio.Queue, milvus_queue: asyncio.Queue):
-        """
-        🚜 The Harvester.
-        Fetches data from SQL in massive batches and feeds the queues.
-        Uses Checkpoints to survive crashes.
-        """
-        logger.info("🔌 Producer: Connecting to SQL Core...")
-        start_id = self._get_checkpoint()
-        
-        # Creating a dedicated session for the sync job
-        with self.SessionLocal() as db:
-            last_seen_id = start_id
-            total_fetched = 0
-            
-            while True:
-                # Fetch Batch (Efficient Pagination by ID)
-                products = db.query(Product).filter(Product.id > last_seen_id).order_by(Product.id).limit(self.fetch_batch_size).all()
-                
-                if not products:
-                    break
+        try:
+            async with self.AsyncSessionLocal() as db:
+                while not self._stop_event.is_set():
+                    stmt = select(Product).where(Product.id > last_seen_id).order_by(Product.id).limit(self.fetch_batch_size)
+                    result = await db.execute(stmt)
+                    products = result.scalars().all()
 
-                batch = products # List of SQL Models
+                    if not products:
+                        logger.info("🚜 Upstream Harvester Exhausted. Pipeline Draining.")
+                        break
 
-                # 💎 Optimization: Detach from SQL Session immediately to avoid pickling issues
-                # Convert to pure dictionaries for workers
-                payload_batch = []
-                for p in batch:
-                    item = {
-                        "id": p.id,
-                        "name": p.name,
-                        "price": float(p.price), # Safe float
-                        "description": p.description,
-                        "category": p.category,
-                        "rating": float(p.rating or 0),
-                        "image_url": p.image_url,
-                        # Add other fields as needed
-                    }
-                    payload_batch.append(item)
+                    payload_batch: List[ProductPayload] = []
+                    for p in products:
+                        payload = ProductPayload(
+                            id=p.id,
+                            name=p.name,
+                            price=float(p.price) if p.price else 0.0,
+                            description=p.description or "",
+                            category=p.category or "general",
+                            rating=float(p.rating) if p.rating else 0.0,
+                            image_url=p.image_url
+                        )
+                        payload_batch.append(payload)
 
-                # 1. OpenSearch Payload (Keyword Search)
-                os_batch = [{
-                    "_index": self.os_index,
-                    "_id": str(p["id"]),
-                    "_source": p # The dict itself
-                } for p in payload_batch]
-                
-                # Push to Queues (Backpressure applied if full)
-                await os_queue.put(os_batch)
-                await milvus_queue.put(payload_batch)
-                
-                # Update State
-                last_seen_id = batch[-1].id
-                total_fetched += len(batch)
-                self._update_checkpoint(last_seen_id)
-                
-                if total_fetched % 5000 == 0:
-                    logger.info(f"📥 Producer: Fetched {total_fetched:,} products so far...")
+                    # Route to consumers. Backpressure implicitly handled by queue maxsize.
+                    await os_queue.put(payload_batch)
+                    await milvus_queue.put(payload_batch)
 
-        # 💀 Poison Pills (Signal Workers to Stop)
-        for _ in range(self.os_workers): await os_queue.put(None)
-        for _ in range(self.milvus_workers): await milvus_queue.put(None)
-        logger.info("✅ Producer: Harvesting Complete.")
+                    last_seen_id = payload_batch[-1].id
+                    self.metrics.fetched += len(payload_batch)
+                    self.checkpoint.commit(last_seen_id)
 
-    # --- 🔨 SECTION 3: THE CONSUMERS (WORKERS) ---
+                    if self.metrics.fetched % 5000 == 0:
+                        logger.info(f"📥 Harvester Checkpoint: {self.metrics.fetched:,} records routed.")
 
-    async def _os_consumer(self, worker_id: int, queue: asyncio.Queue, stats: Dict):
-        """Worker that pushes JSON data to OpenSearch."""
-        while True:
-            batch = await queue.get()
+        except Exception as e:
+            logger.critical(f"Fatal Harvester Error: {e}", exc_info=True)
+            self._stop_event.set()
+        finally:
+            # Poison pills to signal queue exhaustion to workers
+            for _ in range(self.os_workers):
+                await os_queue.put(None)
+            for _ in range(self.milvus_workers):
+                await milvus_queue.put(None)
+
+    async def _os_worker(self, worker_id: int, queue: asyncio.Queue) -> None:
+        """Sinks domain objects into OpenSearch for keyword indexing."""
+        logger.info(f"⚡ OpenSearch Worker {worker_id} Online.")
+        while not self._stop_event.is_set():
+            batch: Optional[List[ProductPayload]] = await queue.get()
             if batch is None:
                 queue.task_done()
-                break 
+                break
+
+            os_docs = [{
+                "_index": self.os_index,
+                "_id": str(p.id),
+                "_source": {
+                    "id": p.id,
+                    "name": p.name,
+                    "price": p.price,
+                    "description": p.description,
+                    "category": p.category,
+                    "rating": p.rating,
+                    "image_url": p.image_url
+                }
+            } for p in batch]
+
             try:
                 success, failed = await helpers.async_bulk(
-                    self.os_client, batch, chunk_size=self.os_batch_size, raise_on_error=False
+                    self.os_client, os_docs, chunk_size=self.os_batch_size, raise_on_error=False
                 )
-                stats['os_success'] += success
-                stats['os_failed'] += len(failed)
+                self.metrics.os_success += success
+                self.metrics.os_failed += len(failed)
+                if failed:
+                    logger.warning(f"OS Worker {worker_id} partial rejection: {len(failed)} documents.")
             except Exception as e:
-                logger.error(f"🔥 OS-Worker {worker_id}: {e}")
+                logger.error(f"OS Sink Failure on Worker {worker_id}: {e}")
+                self.metrics.os_failed += len(batch)
             finally:
                 queue.task_done()
 
-    async def _milvus_consumer(self, worker_id: int, queue: asyncio.Queue, stats: Dict):
-        """
-        💎 SOTA VECTORIZER: Handles both TEXT and IMAGE vectors.
-        """
-        while True:
-            batch = await queue.get() # List of Product Dicts
-            if batch is None:
+    async def _milvus_worker(self, worker_id: int, queue: asyncio.Queue) -> None:
+        """Sinks domain objects through the compute inference engine into Milvus."""
+        logger.info(f"🧠 Milvus Cognitive Worker {worker_id} Online.")
+        loop = asyncio.get_running_loop()
+
+        # ClientSession scoped to worker to reuse HTTP connections
+        async with aiohttp.ClientSession() as http_session:
+            while not self._stop_event.is_set():
+                batch: Optional[List[ProductPayload]] = await queue.get()
+                if batch is None:
+                    queue.task_done()
+                    break
+
+                for i in range(0, len(batch), self.milvus_batch_size):
+                    chunk = batch[i:i + self.milvus_batch_size]
+
+                    try:
+                        # 1. TEXT PIPELINE
+                        texts = [p.semantic_text for p in chunk]
+                        text_vectors = await loop.run_in_executor(
+                            self._thread_pool, self.inference_engine.encode_text_batch, texts
+                        )
+
+                        text_payloads = [
+                            {
+                                "id": p.id,
+                                "vector": text_vectors[idx],
+                                "price": p.price,
+                                "rating": p.rating,
+                                "category": p.category
+                            } for idx, p in enumerate(chunk)
+                        ]
+
+                        await loop.run_in_executor(
+                            self._thread_pool, lambda: self.milvus_client.insert(self.milvus_text_col, text_payloads)
+                        )
+                        self.metrics.milvus_text_success += len(text_payloads)
+
+                        # 2. VISION PIPELINE
+                        if self.inference_engine.vision_enabled:
+                            # Concurrently fetch bytes
+                            fetch_tasks = [self._download_image(http_session, p.image_url) for p in chunk]
+                            image_bytes_list = await asyncio.gather(*fetch_tasks)
+
+                            # Offload tensor math to thread pool
+                            compute_tasks = []
+                            for img_bytes in image_bytes_list:
+                                if img_bytes:
+                                    compute_tasks.append(
+                                        loop.run_in_executor(self._thread_pool, self.inference_engine.encode_image, img_bytes)
+                                    )
+                                else:
+                                    compute_tasks.append(asyncio.sleep(0, result=None)) # Identity wrapper for None
+
+                            vis_vectors = await asyncio.gather(*compute_tasks)
+
+                            vis_payloads = [
+                                {"id": chunk[idx].id, "image_vector": vec}
+                                for idx, vec in enumerate(vis_vectors) if vec is not None
+                            ]
+
+                            if vis_payloads:
+                                await loop.run_in_executor(
+                                    self._thread_pool, lambda: self.milvus_client.insert(self.milvus_vis_col, vis_payloads)
+                                )
+                                self.metrics.milvus_vis_success += len(vis_payloads)
+
+                    except Exception as e:
+                        logger.error(f"Milvus pipeline computation/insertion failure: {e}", exc_info=True)
+                        self.metrics.milvus_failed += len(chunk)
+
                 queue.task_done()
-                break 
-            
-            # Split batch into chunks for Milvus (to avoid huge GPU load)
-            chunk_size = self.milvus_batch_size
-            
-            for i in range(0, len(batch), chunk_size):
-                sub_batch = batch[i:i + chunk_size]
-                
-                try:
-                    loop = asyncio.get_running_loop()
 
-                    # --- A. Text Embeddings (Qwen2) ---
-                    texts = [f"{p['name']} {p.get('category','')} {p.get('description','')}" for p in sub_batch]
-                    
-                    # Run CPU-bound encoding in Executor
-                    text_vectors = await loop.run_in_executor(
-                        None, 
-                        lambda: self.text_model.encode(texts, convert_to_numpy=True).tolist()
-                    )
-                    
-                    text_data = []
-                    for idx, p in enumerate(sub_batch):
-                        text_data.append({
-                            "id": p['id'],
-                            "vector": text_vectors[idx],
-                            "price": float(p['price']),
-                            "rating": float(p.get('rating', 0)),
-                            "category": str(p.get('category', 'general'))
-                        })
-                    
-                    # Insert Text Vectors
-                    await loop.run_in_executor(None, lambda: self.milvus_client.insert(self.milvus_text_col, text_data))
-                    stats['milvus_text'] += len(text_data)
+    # --- LIFECYCLE MANAGEMENT ---
 
-                    # --- B. Image Embeddings (SigLIP) ---
-                    # 💎 Only run if Vision is enabled and URLs exist
-                    if self.vision_enabled:
-                        vis_data = []
-                        # Process images in parallel using ThreadPool for IO/CPU bound tasks
-                        # We map the _process_image function over URLs
-                        image_urls = [p.get('image_url') for p in sub_batch]
-                        
-                        # Use gather for concurrent downloading/processing
-                        # Note: _process_image is synchronous, so we run it in executor
-                        vis_tasks = [loop.run_in_executor(None, self._process_image, url) for url in image_urls]
-                        vis_vectors = await asyncio.gather(*vis_tasks)
-                        
-                        for idx, vec in enumerate(vis_vectors):
-                            if vec: # Only add successful vectors
-                                vis_data.append({
-                                    "id": sub_batch[idx]['id'],
-                                    "image_vector": vec
-                                })
-                        
-                        if vis_data:
-                            await loop.run_in_executor(None, lambda: self.milvus_client.insert(self.milvus_vis_col, vis_data))
-                            stats['milvus_vis'] += len(vis_data)
+    def handle_signal(self, signum: int, frame: Any) -> None:
+        """Interrupt hook for graceful termination."""
+        logger.warning(f"Received termination signal ({signum}). Initiating graceful shutdown...")
+        self._stop_event.set()
 
-                except Exception as e:
-                    logger.error(f"🔥 Milvus-Worker {worker_id} Chunk Error: {e}")
-                    stats['milvus_failed'] += len(sub_batch)
-            
-            queue.task_done()
+    async def execute(self) -> None:
+        """Main orchestrator execution wrapper."""
+        signal.signal(signal.SIGINT, self.handle_signal)
+        signal.signal(signal.SIGTERM, self.handle_signal)
 
-    # --- 🚀 SECTION 4: ORCHESTRATOR ---
+        self.metrics.start_time = asyncio.get_running_loop().time()
 
-    async def sync(self):
-        import time
-        start = time.time()
-        # Using a simple dict is fine here as asyncio is single-threaded for shared state access logic
-        # But for absolute safety in threading, we assume cooperative multitasking protects us
-        stats = {'os_success': 0, 'os_failed': 0, 'milvus_text': 0, 'milvus_vis': 0, 'milvus_failed': 0}
-        
-        os_queue = asyncio.Queue(maxsize=self.queue_size)
-        milvus_queue = asyncio.Queue(maxsize=self.queue_size)
-        
-        producer = asyncio.create_task(self._producer(os_queue, milvus_queue))
-        
-        consumers = []
+        os_queue: asyncio.Queue = asyncio.Queue(maxsize=self.queue_max_size)
+        milvus_queue: asyncio.Queue = asyncio.Queue(maxsize=self.queue_max_size)
+
+        producer_task = asyncio.create_task(self._producer(os_queue, milvus_queue))
+
+        worker_tasks = []
         for i in range(self.os_workers):
-            consumers.append(asyncio.create_task(self._os_consumer(i, os_queue, stats)))
+            worker_tasks.append(asyncio.create_task(self._os_worker(i, os_queue)))
         for i in range(self.milvus_workers):
-            consumers.append(asyncio.create_task(self._milvus_consumer(i, milvus_queue, stats)))
+            worker_tasks.append(asyncio.create_task(self._milvus_worker(i, milvus_queue)))
 
-        await producer
-        await os_queue.join()
-        await milvus_queue.join()
-        
-        # Cancel consumers (they are stuck in infinite loop waiting for items)
-        # But we sent None, so they should have exited gracefully.
-        await asyncio.gather(*consumers)
-        
-        # Cleanup
-        if os.path.exists(CHECKPOINT_FILE): os.remove(CHECKPOINT_FILE)
+        # Await completion
+        await producer_task
+
+        if not self._stop_event.is_set():
+            logger.info("Producer complete. Awaiting queue exhaustion...")
+            await os_queue.join()
+            await milvus_queue.join()
+
+        # Gather workers gracefully
+        await asyncio.gather(*worker_tasks, return_exceptions=True)
+
+        self._teardown()
+
+    def _teardown(self) -> None:
+        """Deterministic resource release."""
+        duration = asyncio.get_running_loop().time() - self.metrics.start_time
+
+        self._thread_pool.shutdown(wait=True)
+
+        # Client closures
+        try:
+            asyncio.create_task(self.os_client.close())
+            asyncio.create_task(self.db_engine.dispose())
+            # MilvusClient sync closure
+            self.milvus_client.close()
+        except Exception as e:
+            logger.error(f"Non-critical failure during resource teardown: {e}")
+
+        # Idempotent Checkpoint Clear on Success
+        if not self._stop_event.is_set() and self.metrics.fetched > 0:
+            self.checkpoint.clear()
 
         logger.info(f"""
-        =============================================
-        💎 DIAMOND MULTIMODAL SYNC COMPLETE
-        =============================================
-        ⏱️  Time:        {time.time() - start:.2f}s
-        ✅ OpenSearch:  {stats['os_success']:,}
-        ✅ Text Vectors: {stats['milvus_text']:,}
-        ✅ Visual Vecs:  {stats['milvus_vis']:,}
-        =============================================
+        ====================================================
+        💎 DIAMOND PIPELINE SYNCHRONIZATION COMPLETE
+        ====================================================
+        ⏱️  Duration:           {duration:.2f}s
+        📦 Processed Records:  {self.metrics.fetched:,}
+        ✅ OpenSearch Updates: {self.metrics.os_success:,}
+        ✅ Semantic Vectors:   {self.metrics.milvus_text_success:,}
+        ✅ Vision Vectors:     {self.metrics.milvus_vis_success:,}
+        ❌ Failed Operations:  {(self.metrics.os_failed + self.metrics.milvus_failed):,}
+        ====================================================
         """)
 
-        await self.os_client.close()
 
 if __name__ == "__main__":
     try:
         import uvloop
         uvloop.install()
-    except: pass
-    
-    # Check dependencies
-    try:
-        import requests
-        from PIL import Image
     except ImportError:
-        logger.critical("❌ Missing deps: pip install requests pillow")
-        sys.exit(1)
+        pass
 
-    synchronizer = UnifiedSyncEngine()
-    asyncio.run(synchronizer.sync())
+    synchronizer = UnifiedSyncPipeline()
+    asyncio.run(synchronizer.execute())

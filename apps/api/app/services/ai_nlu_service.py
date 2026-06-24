@@ -25,7 +25,7 @@ from app.db.session import AsyncSessionFactory
 from app.models.product import Product
 from app.services.ai_behavior_engine import BehaviorEngine
 from app.services.ai_commerce_engine import AICommerceEngine, get_ai_commerce_engine
-from app.services.ai_meta_cognition import MetaCognitionLayer
+from app.services.ai_meta_cognition import MetaCognitionService
 from app.services.cache_service import IAsyncCacheClient
 from app.services.free_llm_service import FreeLLMService
 from app.services.rabbitmq_service import RabbitMQService
@@ -997,7 +997,7 @@ class AINLUService:
         self.redis = cache
         self.llm_service = llm_service
         self.behavior_engine = behavior_engine
-        self.meta_cognition = MetaCognitionLayer()
+        self.meta_cognition = MetaCognitionService()
 
         self.config = CONFIG
         self.interceptor = DiamondInterceptor(self.config.interceptor_threshold)

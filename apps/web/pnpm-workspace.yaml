@@ -1,4 +1,10 @@
+packages:
+  - "apps/*"
+
 allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+
+overrides:
+  "next-auth>uuid": "^10.0.0"

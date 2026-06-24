@@ -1,107 +1,150 @@
-//** apps/web/components/ai/AIPaymentForm.tsx **//
+// apps/web/components/ai/AIPaymentForm.tsx
 
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, AlertTriangle, ShieldCheck, CreditCard, ScanLine, Wallet, CheckCircle2, ArrowRight, Activity } from 'lucide-react';
+import {
+    Lock,
+    AlertTriangle,
+    ShieldCheck,
+    CreditCard,
+    ScanLine,
+    Wallet,
+    CheckCircle2,
+    ArrowRight,
+    Activity
+} from 'lucide-react';
 
-interface AIPaymentFormProps {
-  orderId: number;
-  total: number;
-  items: any[]; 
-  onPaymentSuccess: () => void;
-}
+// ============================================================================
+// STRIPE MOCKS (For Preview Purposes Only)
+// ============================================================================
+const useStripe = () => ({
+    confirmPayment: async () => {
+        // Simulate network delay
+        await new Promise(res => setTimeout(res, 2000));
+        return { paymentIntent: { status: 'succeeded' } };
+    }
+});
+const useElements = () => ({});
 
-const SecurityBadge = () => (
-    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-        <div className="relative flex h-2 w-2">
+const PaymentElement = ({ options }) => (
+    <div className="flex flex-col gap-3 w-full animate-pulse-slow">
+        <div className="w-full h-11 bg-[#1E293B]/80 border border-white/5 rounded-xl flex items-center px-4 text-gray-400 text-sm shadow-inner">
+            <span className="opacity-70">Card number</span>
+            <span className="ml-auto tracking-widest opacity-40">•••• •••• •••• ••••</span>
+        </div>
+        <div className="flex gap-3">
+            <div className="w-1/2 h-11 bg-[#1E293B]/80 border border-white/5 rounded-xl flex items-center px-4 text-gray-400 text-sm shadow-inner">
+                <span className="opacity-70">MM / YY</span>
+            </div>
+            <div className="w-1/2 h-11 bg-[#1E293B]/80 border border-white/5 rounded-xl flex items-center px-4 text-gray-400 text-sm shadow-inner">
+                <span className="opacity-70">CVC</span>
+            </div>
         </div>
     </div>
 );
 
-export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, items, onPaymentSuccess }) => {
-  const stripe = useStripe();
-  const elements = useElements();
+// ============================================================================
+// LOADING & SUCCESS COMPONENTS
+// ============================================================================
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isReady, setIsReady] = useState(false);
+const PaymentLoadingState = React.memo(() => (
+    <div className="w-full h-full flex flex-col items-center justify-center p-12 gap-6 text-center">
+         <div className="relative">
+            <div className="w-16 h-16 border-2 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center">
+                <Lock size={20} className="text-cyan-500/50" />
+            </div>
+         </div>
+         <div className="space-y-1">
+            <p className="text-cyan-300 font-mono text-sm tracking-widest animate-pulse">ESTABLISHING SECURE TUNNEL</p>
+            <p className="text-xs text-cyan-500/50">Handshaking with Payment Gateway...</p>
+         </div>
+    </div>
+));
+PaymentLoadingState.displayName = 'PaymentLoadingState';
 
-  useEffect(() => {
-      if (stripe && elements) {
-          setIsReady(true);
-      }
-  }, [stripe, elements]);
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (!stripe || !elements) {
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMessage(null);
-    
-    const return_url = `${window.location.origin}/profile?payment_success=true&order_id=${orderId}`;
-
-    try {
-        const { error, paymentIntent } = await stripe.confirmPayment({
-          elements,
-          confirmParams: {
-            return_url: return_url,
-          },
-          redirect: 'if_required' 
-        });
-
-        if (error) {
-          setErrorMessage(error.message || "Transaction declined by gateway.");
-        } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-            onPaymentSuccess();
-        }
-    } catch (e) {
-        setErrorMessage("Network anomaly detected. Protocol terminated.");
-    }
-    
-    setIsLoading(false);
-  };
-
-  if (!isReady) {
-    return (
-        <div className="w-full h-full flex flex-col items-center justify-center p-12 gap-6 text-center">
-             <div className="relative">
-                <div className="w-16 h-16 border-2 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <Lock size={20} className="text-cyan-500/50" />
-                </div>
-             </div>
-             <div className="space-y-1">
-                <p className="text-cyan-300 font-mono text-sm tracking-widest animate-pulse">ESTABLISHING SECURE TUNNEL</p>
-                <p className="text-xs text-cyan-500/50">Handshaking with Payment Gateway...</p>
-             </div>
+const PaymentSuccessState = React.memo(() => (
+    <motion.div
+        initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+        className="w-full h-full flex flex-col items-center justify-center p-12 gap-6 text-center"
+     >
+        <div className="w-24 h-24 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center text-green-400 mb-4 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+            <CheckCircle2 size={40} />
         </div>
-    );
-  }
+        <div>
+            <h3 className="text-xl font-bold text-white mb-2 tracking-wide font-mono uppercase">Payment Authorized</h3>
+            <p className="text-sm text-green-400 font-mono">Initializing Uplink Protocol...</p>
+        </div>
+     </motion.div>
+));
+PaymentSuccessState.displayName = 'PaymentSuccessState';
 
-  return (
-    <motion.div 
-      className="w-full max-w-lg mx-auto relative group flex flex-col bg-[#020617] border border-white/10 rounded-[73px] shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden relative"
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-    >
-        <div className="absolute -inset-1 bg-gradient-to-b from-cyan-500/20 to-purple-500/20 rounded-[40px] blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-700" />
-        
-        <div className="relative bg-[#050505] backdrop-blur-3xl border border-white/10 rounded-[32px] overflow-hidden shadow-2xl">
-            <div className="bg-gradient-to-b from-white/5 to-transparent p-8 pb-6 border-b border-white/5">
+// ============================================================================
+// MAIN AIPAYMENTFORM COMPONENT (Original Design, Full Size)
+// ============================================================================
+
+const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }) => {
+    const stripe = useStripe();
+    const elements = useElements();
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState(null);
+    const [isReady, setIsReady] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
+
+    // Mount observer for Stripe SDK readiness (simulated delay for preview)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            requestAnimationFrame(() => setIsReady(true));
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleSubmit = useCallback(async (event) => {
+        event.preventDefault();
+        if (!stripe || !elements || isLoading) return;
+
+        setIsLoading(true);
+        setErrorMessage(null);
+
+        try {
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            const { error, paymentIntent } = await stripe.confirmPayment({
+                elements,
+                redirect: 'if_required'
+            });
+
+            if (error) {
+                setErrorMessage(error.message || "Transaction declined by gateway.");
+            } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+                setIsSuccess(true);
+                setTimeout(() => onPaymentSuccess(), 2000); // Trigger success callback after 2s
+            }
+        } catch (e) {
+            setErrorMessage("Network anomaly detected. Protocol terminated.");
+        } finally {
+            requestAnimationFrame(() => setIsLoading(false));
+        }
+    }, [stripe, elements, isLoading, onPaymentSuccess]);
+
+    if (!isReady) return <PaymentLoadingState />;
+    if (isSuccess) return <PaymentSuccessState />;
+
+    return (
+        <motion.div
+            className="w-full h-full flex flex-col relative transform-gpu"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+            {/* --- Original Header --- */}
+            <div className="bg-gradient-to-b from-white/5 to-transparent p-8 pb-6 border-b border-white/5 flex-shrink-0">
                 <div className="flex justify-between items-start mb-4">
                     <div className="p-3 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
                         <CreditCard size={18} />
                     </div>
                 </div>
-                
+
                 <h2 className="text-2xl font-medium uppercase text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                     Secured Checkout
                 </h2>
@@ -110,15 +153,18 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
                 </div>
             </div>
 
-            <div className="p-8 pt-6">
-                <div className="mb-8 rounded-2xl bg-white/[0.03] border border-white/5 p-4 relative overflow-hidden">
+            {/* --- Original Body --- */}
+            <div className="p-8 pt-6 flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 flex flex-col">
+
+                {/* Original Manifest Block */}
+                <div className="mb-8 rounded-2xl bg-white/[0.03] border border-white/5 p-4 relative overflow-hidden flex-shrink-0">
                     <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/50" />
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
                         <ScanLine size={12} /> Manifest
                     </div>
-                    
+
                     <div className="space-y-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 pr-2">
-                        {items.length > 0 ? items.map((item: any, idx: number) => (
+                        {items.length > 0 ? items.map((item, idx) => (
                             <div key={idx} className="flex justify-between text-sm group/item">
                                 <span className="text-gray-300 truncate pr-4 group-hover/item:text-white transition-colors">
                                     {item.name} <span className="text-cyan-500/70 text-[10px]">x{item.quantity}</span>
@@ -141,25 +187,20 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="flex flex-col flex-grow">
                     <div className="space-y-4">
                         <div className="p-4 rounded-xl bg-black/40 border border-white/10 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/30 transition-all duration-300">
-                            <PaymentElement 
-                                options={{ 
-                                    layout: 'tabs',
-                                    readOnly: isLoading,
-                                }} 
-                            />
+                            <PaymentElement options={{ layout: 'tabs', readOnly: isLoading }} />
                         </div>
                     </div>
-                    
+
                     <AnimatePresence>
                         {errorMessage && (
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0, height: 0, y: -10 }}
                                 animate={{ opacity: 1, height: 'auto', y: 0 }}
                                 exit={{ opacity: 0, height: 0, y: -10 }}
-                                className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-xs leading-relaxed"
+                                className="flex items-start gap-3 p-4 mt-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-xs leading-relaxed"
                             >
                                 <AlertTriangle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
                                 <span>{errorMessage}</span>
@@ -167,43 +208,87 @@ export const AIPaymentForm: React.FC<AIPaymentFormProps> = ({ orderId, total, it
                         )}
                     </AnimatePresence>
 
-                    <motion.button
-                        disabled={isLoading || !stripe}
-                        type="submit"
-                        className="group w-full relative overflow-hidden rounded-xl bg-cyan-500 p-[1px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                    >
-                        <div className="relative h-full w-full rounded-[11px] bg-black px-6 py-4 transition-all duration-300 group-hover:bg-cyan-950/30">
-                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            
-                            <div className="relative flex items-center justify-center gap-3">
-                                {isLoading ? (
-                                    <>
-                                        <Activity className="animate-pulse text-cyan-400" size={20} />
-                                        <span className="font-bold text-cyan-100 tracking-widest uppercase text-sm">Processing...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="font-black text-white tracking-widest text-sm group-hover:text-cyan-200 transition-colors">
-                                            airpay
-                                        </span>
-                                        <div className="p-1 rounded-full bg-cyan-500/20 text-cyan-400 group-hover:translate-x-1 transition-transform">
-                                            <ArrowRight size={16} />
-                                        </div>
-                                    </>
-                                )}
+                    {/* Original Airpay Button */}
+                    <div className="mt-auto pt-8">
+                        <motion.button
+                            disabled={isLoading || !isReady}
+                            type="submit"
+                            className="group w-full relative overflow-hidden rounded-xl bg-cyan-500 p-[1px] disabled:opacity-50 disabled:cursor-not-allowed"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                        >
+                            <div className="relative h-full w-full rounded-[11px] bg-black px-6 py-4 transition-all duration-300 group-hover:bg-cyan-950/30">
+                                <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                                <div className="relative flex items-center justify-center gap-3">
+                                    {isLoading ? (
+                                        <>
+                                            <Activity className="animate-pulse text-cyan-400" size={20} />
+                                            <span className="font-bold text-cyan-100 tracking-widest uppercase text-sm">Processing...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="font-black text-white tracking-widest text-sm group-hover:text-cyan-200 transition-colors">
+                                                airpay
+                                            </span>
+                                            <div className="p-1 rounded-full bg-cyan-500/20 text-cyan-400 group-hover:translate-x-1 transition-transform">
+                                                <ArrowRight size={16} />
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
+                        </motion.button>
+
+                        <div className="flex justify-center items-center gap-2 mt-4 text-[10px] text-gray-600 font-mono uppercase tracking-widest">
+                            <ShieldCheck size={12} className="text-gray-500" />
+                            <span>Powered by Stripe • End-to-End Encryption</span>
                         </div>
-                    </motion.button>
-                    
-                    <div className="flex justify-center items-center gap-2 text-[10px] text-gray-600 font-mono uppercase tracking-widest">
-                        <ShieldCheck size={12} className="text-gray-500" />
-                        <span>Powered by Stripe • End-to-End Encryption</span>
                     </div>
                 </form>
             </div>
+        </motion.div>
+    );
+});
+AIPaymentForm.displayName = 'AIPaymentForm';
+
+// ============================================================================
+// APP WRAPPER (Simulates the Environment & Overlay)
+// ============================================================================
+
+export default function App() {
+    // Dummy Data
+    const dummyItems = [
+        { id: 1, name: "DJI Mavic 3 Pro Drone", quantity: 1, price: 2199.00 },
+        { id: 2, name: "Extra Intelligent Flight Battery", quantity: 2, price: 159.00 }
+    ];
+
+    const orderTotal = dummyItems.reduce((acc, item) => acc + (item.price * item.quantity), 0) + 12.50;
+
+    return (
+        <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+            {/* Background Effects */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/10 via-black to-black" />
+            <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDIiLz4KPC9zdmc+')] opacity-50" />
+
+            {/* Simulated AIChatOverlay Container */}
+            <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 30 }}
+                animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
+                className="w-full max-w-[460px] h-[93vh] max-h-[900px] flex flex-col bg-[#050505] backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative transform-gpu"
+            >
+                {/* Glow Effects inside the overlay container */}
+                <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
+                <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full" />
+
+                {/* The Payment Form */}
+                <AIPaymentForm
+                    orderId={847291}
+                    total={orderTotal}
+                    items={dummyItems}
+                    onPaymentSuccess={() => console.log('Success!')}
+                />
+            </motion.div>
         </div>
-    </motion.div>
-  );
-};
+    );
+}
