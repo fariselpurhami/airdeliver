@@ -95,7 +95,7 @@ const Footer = () => {
                                 src="/logo.png" 
                                 alt="airdeliver" 
                                 width={120} 
-                                height={34} 
+                                height={24} 
                                 className="object-contain hover:opacity-80 transition-opacity duration-300"
                                 quality={90}
                                 loading="lazy"

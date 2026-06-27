@@ -1,9 +1,9 @@
 // apps/web/components/layout/Header.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image"; // 1. استيراد مكون الصورة
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -87,12 +87,35 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  
+  // نستخدم useRef لتتبع الحركة لتجنب الـ re-renders غير الضرورية في React
+  const lastScrollY = useRef(0);
 
   useEffect(() => {
     setIsMounted(true);
 
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      const currentScrollY = window.scrollY;
+
+      // تفعيل تأثير الزجاج (Glassmorphism) عند النزول قليلاً
+      setIsScrolled(currentScrollY > 20);
+
+      // تجاوز التأثير السلبي لـ Safari Bounce Scroll
+      if (currentScrollY < 0) return;
+
+      // عتبة (Threshold) لتجاهل الاهتزازات الصغيرة جداً في الماوس/اللمس (10 بيكسل)
+      if (Math.abs(currentScrollY - lastScrollY.current) < 10) return;
+
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        // يتم الإخفاء عند التمرير لأسفل (فقط إذا تجاوزنا مسافة معينة)
+        setIsVisible(false);
+      } else if (currentScrollY < lastScrollY.current) {
+        // يتم الإظهار فور التمرير للأعلى
+        setIsVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -156,8 +179,9 @@ export default function Header() {
     <>
       <motion.header
         initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        // التحكم في الإظهار والإخفاء بناءً على حالة التمرير (تعديل -120 لإخفاء الشريط بالكامل عن الشاشة)
+        animate={{ y: isVisible ? 0 : -120 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="fixed top-0 left-0 right-0 z-50 h-24 pointer-events-none"
       >
         <div className="container mx-auto px-6 h-full flex justify-between items-center relative">
@@ -173,20 +197,17 @@ export default function Header() {
               prefetch={true}
               className="group flex items-center gap-2 relative z-10"
             >
-              {/* بداية التعديل: استبدال النص باللوجو */}
               <div className="relative flex items-center mb-1">
-                {/* اللوجو الأساسي - تم ضبط الارتفاع h-7 ليناسب text-2xl */}
                 <Image
-                  src="/logo.png" // قم بتغيير هذا لمسار اللوجو الخاص بك في مجلد public
+                  src="/logo.png"
                   alt="airdeliver logo"
-                  width={150} // عرض تقديري، سيتم ضبطه تلقائياً بواسطة h-7 w-auto
-                  height={28} // h-7 تساوي 28px
-                  priority // تحميل الصورة بأولوية لأنها في الهيدر
+                  width={150}
+                  height={28}
+                  priority
                   className="h-7 w-auto object-contain transition-opacity duration-500 group-hover:opacity-80 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)]"
                 />
-                {/* نسخة اللوجو لعمل تأثير الـ Glow عند الـ Hover */}
                 <Image
-                  src="/logo.png" // نفس المسار أعلاه
+                  src="/logo.png"
                   alt=""
                   width={150}
                   height={28}
@@ -194,7 +215,6 @@ export default function Header() {
                   aria-hidden="true"
                 />
               </div>
-              {/* نهاية التعديل */}
             </Link>
           </motion.div>
 
@@ -297,12 +317,11 @@ export default function Header() {
               className="absolute right-0 top-0 bottom-0 w-[85vw] max-w-sm bg-[#050505] border-l border-white/10 p-8 flex flex-col shadow-2xl"
             >
               <div className="flex justify-between items-center mb-12 border-b border-white/5 pb-6">
-                {/* تعديل اللوجو في القائمة الجانبية أيضاً */}
                 <Image
-                  src="/logo.png" // نفس مسار الصورة
+                  src="/logo.png"
                   alt="airdeliver logo"
                   width={120}
-                  height={24} // h-6 تناسب text-xl في الموبايل
+                  height={24}
                   className="h-6 w-auto object-contain"
                 />
                 <button
