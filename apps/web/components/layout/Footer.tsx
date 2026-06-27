@@ -90,12 +90,12 @@ const Footer = () => {
                 {/* Branding & Logo */}
                 <div className="md:col-span-5 lg:col-span-4 flex flex-col gap-6">
                     <div className="relative inline-block w-fit">
-                        <Link href="/" aria-label="Airdeliver Homepage">
+                        <Link href="/" aria-label="airdeliver homepage">
                             <Image 
                                 src="/logo.png" 
-                                alt="Airdeliver" 
-                                width={160} 
-                                height={45} 
+                                alt="airdeliver" 
+                                width={120} 
+                                height={34} 
                                 className="object-contain hover:opacity-80 transition-opacity duration-300"
                                 quality={90}
                                 loading="lazy"
@@ -103,7 +103,7 @@ const Footer = () => {
                         </Link>
                     </div>
 
-                    <p className="text-gray-400/80 text-[11px] font-extralight uppercase tracking-[0.4em] max-w-sm mt-2">
+                    <p className="text-gray-400/80 text-[11px] font-extralight tracking-[0.4em] max-w-sm mt-2">
                         Commerce. Takes Flight.
                     </p>
                 </div>
