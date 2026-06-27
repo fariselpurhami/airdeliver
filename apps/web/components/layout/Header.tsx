@@ -93,7 +93,7 @@ export default function Header() {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         // Toggle standard HTML dataset. CSS handles the GPU-accelerated animation.
-        const isScrolled = window.scrollY > 5;
+        const isScrolled = window.scrollY > 1;
         if (el.dataset.scrolled !== String(isScrolled)) {
           el.dataset.scrolled = String(isScrolled);
         }
@@ -158,7 +158,7 @@ export default function Header() {
         data-scrolled="false"
         // CRITICAL PERF: Utilizing tailwind variants combined with data-attributes. 
         // Offloads the -100px translate and opacity to the browser's compositor thread.
-        className="fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-[50ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-[scrolled=true]:-translate-y-[100px] data-[scrolled=true]:opacity-0 data-[scrolled=true]:pointer-events-none transform-gpu will-change-transform"
+        className="fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-[50ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-[scrolled=true]:-translate-y-[100px] data-[scrolled=true]:opacity-0 data-[scrolled=true]:opacity-0 data-[scrolled=true]:pointer-events-none transform-gpu will-change-transform"
       >
         <div className="container mx-auto px-6 h-full flex justify-between items-center relative">
           
