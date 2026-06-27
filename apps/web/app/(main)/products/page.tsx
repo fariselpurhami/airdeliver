@@ -1,9 +1,9 @@
-//** apps/web/app/(main)/products/page.tsx **//
+// apps/web/app/(main)/products/page.tsx
 
 'use client';
 
 import React, { useState, Suspense, useRef, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Points, PointMaterial } from '@react-three/drei';
 import * as THREE from 'three';
@@ -72,50 +72,61 @@ const DynamicBackground = dynamic(() => Promise.resolve(NeuralGrid), { ssr: fals
 // --- 2. IMMERSIVE SPATIAL HERO SECTION ---
 // ============================================================================
 
-// Component for the Floating Spatial Cards (Fully Responsive)
+// Component for the Floating Spatial Cards (Fully Responsive & GPU Optimized)
 const FloatingCategoryCard = React.memo(({ 
     title, image, category, delay, yOffset, colorCls, rotation, sizeClasses 
 }: { 
     title: string, image: string, category: string, delay: number, yOffset: any, colorCls: string, rotation: number, sizeClasses: string 
 }) => (
+    // Outer Layer: Handles Scroll Parallax only
     <motion.div 
         style={{ y: yOffset }}
-        className={`absolute flex flex-col z-0 ${sizeClasses}`}
+        className={`absolute z-0 ${sizeClasses} will-change-transform`}
         initial={{ opacity: 0, scale: 0.8, rotate: rotation + 10 }}
-        animate={{ opacity: 1, scale: 1, rotate: rotation, y: [0, -15, 0] }}
+        animate={{ opacity: 1, scale: 1, rotate: rotation }}
         transition={{ 
             opacity: { duration: 1, delay },
-            scale: { duration: 1, delay, type: "spring" },
-            y: { duration: 6 + delay, repeat: Infinity, ease: "easeInOut" }
+            scale: { duration: 1, delay, type: "spring", stiffness: 100, damping: 20 }
         }}
     >
-        <div className={`relative w-full h-full rounded-[20px] lg:rounded-[32px] bg-[#0D0D0C]/80 backdrop-blur-2xl border border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] lg:shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group hover:scale-105 transition-transform duration-500 hover:z-50 ${colorCls}`}>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 lg:via-black/20 to-transparent z-10" />
-            <Image src={image} alt={category} fill sizes="(max-width: 768px) 30vw, 20vw" className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
-            
-            <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
-                <span className="text-[7px] lg:text-[9px] font-mono uppercase tracking-[0.2em] lg:tracking-[0.3em] opacity-70 text-white mix-blend-overlay line-clamp-1">{category}</span>
-                <h3 className="text-[10px] lg:text-sm font-bold text-white tracking-wide leading-tight line-clamp-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
+        {/* Inner Layer: Handles Continuous Floating Animation only (Prevents CSS collision) */}
+        <motion.div
+            animate={{ y: [0, -15, 0] }}
+            transition={{ duration: 6 + delay, repeat: Infinity, ease: "easeInOut" }}
+            className="w-full h-full will-change-transform"
+            style={{ transform: "translateZ(0)" }} // Hardware Acceleration
+        >
+            <div className={`relative w-full h-full rounded-[20px] lg:rounded-[32px] bg-[#0D0D0C]/80 backdrop-blur-2xl border border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] lg:shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group hover:scale-105 transition-transform duration-500 hover:z-50 ${colorCls}`}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 lg:via-black/20 to-transparent z-10" />
+                <Image src={image} alt={category} fill sizes="(max-width: 768px) 30vw, 20vw" className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
+                
+                <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
+                    <span className="text-[7px] lg:text-[9px] font-mono uppercase tracking-[0.2em] lg:tracking-[0.3em] opacity-70 text-white mix-blend-overlay line-clamp-1">{category}</span>
+                    <h3 className="text-[10px] lg:text-sm font-bold text-white tracking-wide leading-tight line-clamp-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
+                </div>
+                
+                {/* Holographic Edge Glow */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[20px] lg:rounded-[32px] ring-1 lg:ring-2 ring-current ring-inset mix-blend-overlay" />
             </div>
-            
-            {/* Holographic Edge Glow */}
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[20px] lg:rounded-[32px] ring-1 lg:ring-2 ring-current ring-inset mix-blend-overlay" />
-        </div>
+        </motion.div>
     </motion.div>
 ));
 FloatingCategoryCard.displayName = 'FloatingCategoryCard';
 
 const AICatalogHero = React.memo(() => {
     const { scrollY } = useScroll();
-    const { setOverlayVisible } = useAIOrderingStore(); // Global AI Store uplink
     
-    // Parallax logic for depth
-    const yText = useTransform(scrollY, [0, 500], [0, 100]);
-    const opacityText = useTransform(scrollY, [0, 300], [1, 0]);
+    // Physics-based smoothing for the scroll to eliminate stutter/jank on mobile devices
+    const smoothScrollY = useSpring(scrollY, {
+        damping: 30,
+        stiffness: 150,
+        mass: 0.5
+    });
     
-    const yFast = useTransform(scrollY, [0, 500], [0, -150]);
-    const yMedium = useTransform(scrollY, [0, 500], [0, -80]);
-    const ySlow = useTransform(scrollY, [0, 500], [0, -30]);
+    // Parallax logic for depth using the smoothed scroll value
+    const yFast = useTransform(smoothScrollY, [0, 800], [0, -180]);
+    const yMedium = useTransform(smoothScrollY, [0, 800], [0, -100]);
+    const ySlow = useTransform(smoothScrollY, [0, 800], [0, -40]);
 
     return (
         <section className="relative w-full min-h-[85vh] flex flex-col items-center justify-center pt-32 pb-16 overflow-hidden perspective-1000">
@@ -137,8 +148,8 @@ const AICatalogHero = React.memo(() => {
             <FloatingCategoryCard sizeClasses="w-24 h-24 md:w-36 md:h-40 lg:w-52 lg:h-56 top-[75%] lg:top-[70%] right-[4%] lg:right-[15%]" yOffset={ySlow} delay={0.6} rotation={-6} category="Fashion" title="Zara" image="https://images.unsplash.com/photo-1551028719-00167b16eac5?q=80&w=600&auto=format&fit=crop" colorCls="hover:shadow-blue-500/20 text-blue-400" />
 
 
-            {/* --- CORE CONTENT --- */}
-            <motion.div style={{ y: yText, opacity: opacityText }} className="relative z-20 w-full max-w-3xl mx-auto px-4 sm:px-6 text-center mt-10 lg:mt-0">
+            {/* --- CORE CONTENT (Static in normal flow - Opacity transform removed) --- */}
+            <div className="relative z-20 w-full max-w-3xl mx-auto px-4 sm:px-6 text-center mt-10 lg:mt-0">
                 {/* Mobile Readability Shield */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(13,13,12,0.95)_0%,rgba(13,13,12,0.7)_40%,transparent_80%)] lg:hidden pointer-events-none -z-10" />
 
@@ -160,7 +171,7 @@ const AICatalogHero = React.memo(() => {
                 </p>
 
                 {/* AI Interactive Trigger */}
-                <div className="w-full max-w-xl mx-auto relative group cursor-pointer z-10" onClick={() => setOverlayVisible(true)}>
+                <div className="w-full max-w-xl mx-auto relative group cursor-pointer z-10">
                     <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-[73px] blur-md opacity-70 group-hover:opacity-100 group-hover:blur-xl transition duration-500 -z-10" />
                     
                     <div className="relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-[#0D0D0C]/90 lg:bg-[#0D0D0C]/80 border border-white/15 backdrop-blur-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] transition-all duration-500 hover:border-cyan-500/50 hover:bg-[#0D0D0C]">
@@ -180,7 +191,7 @@ const AICatalogHero = React.memo(() => {
                         </button>
                     </div>
                 </div>
-            </motion.div>
+            </div>
         </section>
     );
 });

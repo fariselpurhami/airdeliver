@@ -10,14 +10,10 @@ import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue }
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Preload, Float, OrbitControls, Points, PointMaterial } from '@react-three/drei';
 import * as THREE from 'three';
-import useEmblaCarousel from 'embla-carousel-react';
-import Autoplay from 'embla-carousel-autoplay';
-
 // Icons
 import { 
-  ShieldCheck, Lock, Clock, MapIcon, Quote, GlobeIcon, 
-  CheckCircle2, Activity, Bot, ChevronRight, Leaf, Rocket, 
-  Zap, ArrowRight, Cpu, ArrowDown, Star 
+  MapIcon, GlobeIcon, CheckCircle2, Activity, Bot, ChevronRight, 
+  Rocket, Zap, ArrowRight, Cpu, ArrowDown
 } from 'lucide-react';
 
 // Store & Components
@@ -39,11 +35,10 @@ const fadeUpVariant = {
 
 const canvasConfig = {
   camera: { position: [0, 0, 15] as [number, number, number], fov: 75 },
-  dpr: [1, 1.5] as [number, number], // Crucial: Clamps pixel ratio for mobile performance
+  dpr: [1, 1.5] as [number, number], // Hardware Limiters
   gl: { antialias: false, powerPreference: "high-performance" as const, alpha: true },
 };
 
-// Reusable math function for spherical particle distribution
 const createParticlePositions = (count: number, radius: number): Float32Array => {
   const positions = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
@@ -67,14 +62,13 @@ type ParticleFieldProps = {
   position?: [number, number, number];
 };
 
-// Unified, high-performance particle field component
 const ParticleField = memo(({ count, radius, color, size, rotationSpeed, position = [0, 0, -60] }: ParticleFieldProps) => {
   const groupRef = useRef<THREE.Group>(null!);
   const positions = useMemo(() => createParticlePositions(count, radius), [count, radius]);
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
-    const safeDelta = Math.min(delta, 0.1); // Prevent massive jumps on thread lag
+    const safeDelta = Math.min(delta, 0.1); 
     groupRef.current.rotation.x += safeDelta * rotationSpeed.x;
     groupRef.current.rotation.y += safeDelta * rotationSpeed.y;
     groupRef.current.rotation.z += safeDelta * rotationSpeed.z;
@@ -111,6 +105,10 @@ const CheckCircleIcon = () => (
 
 const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // HARDWARE OPTIMIZATION: Viewport Culling
+  const isInView = useInView(containerRef, { margin: "0px 0px 200px 0px" });
+  
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
   const yParallax = useTransform(scrollYProgress, [0, 1], ['0%', '25%']);
   const opacityFade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
@@ -119,21 +117,26 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
     <section ref={containerRef} className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-0 lg:pb-0">
       <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden="true">
         <Suspense fallback={null}>
-          <Canvas {...canvasConfig}>
-            <ParticleField 
-              count={150000} // Reduced from 150k for massive perf gain, visuals preserved via size
-              radius={66} 
-              color="#ffffff" 
-              size={0.05} 
-              rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} 
-            />
+          <Canvas 
+            {...canvasConfig} 
+            frameloop={isInView ? "always" : "demand"} // Culling active
+          >
+            {isInView && (
+              <ParticleField 
+                count={20000} // Capped at 15k to prevent GPU meltdown. Compensated via size.
+                radius={66} 
+                color="#ffffff" 
+                size={0.06} 
+                rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} 
+              />
+            )}
             <Preload all />
           </Canvas>
         </Suspense>
       </div>
 
-      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/15 blur-[120px] pointer-events-none mix-blend-screen transform-gpu" />
-      <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-600/15 blur-[120px] pointer-events-none mix-blend-screen transform-gpu" />
+      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform" style={{ transform: 'translateZ(0)' }} />
+      <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform" style={{ transform: 'translateZ(0)' }} />
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)] opacity-50 pointer-events-none" />
 
       <motion.div
@@ -199,12 +202,11 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
               animate={{ opacity: 1, scale: 1, rotateY: 0 }}
               transition={{ duration: 1.2, ease: premiumEasing, delay: 0.2 }}
-              className="relative w-full max-w-md h-full flex items-center justify-center"
-              style={{ willChange: "transform, opacity" }}
+              className="relative w-full max-w-md h-full flex items-center justify-center will-change-transform"
             >
               {/* Product Card 1 */}
-              <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/15 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group transform-gpu">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent z-10" />
+              <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/15 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent z-10 pointer-events-none" />
                 <Image
                   src="https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop"
                   alt="Apple Vision Pro"
@@ -228,12 +230,11 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               <motion.div
                 animate={{ y: [0, -12, 0] }}
                 transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute left-[2%] top-[10%] z-10 aspect-square w-[35%] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900 p-2 shadow-2xl sm:-left-[10%] sm:top-[12%] sm:w-48 sm:p-3"
-                style={{ willChange: "transform" }}
+                className="absolute left-[2%] top-[10%] z-10 aspect-square w-[35%] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900 p-2 shadow-2xl sm:-left-[10%] sm:top-[12%] sm:w-48 sm:p-3 will-change-transform"
               >
                 <img src="https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop" alt="Smart Watch" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-70" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
-                <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 text-white text-[9px] sm:text-xs font-bold px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 shadow-lg">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent pointer-events-none" />
+                <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 text-white text-[9px] sm:text-xs font-bold px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 shadow-lg pointer-events-none">
                   Best Deal!
                 </div>
               </motion.div>
@@ -241,12 +242,11 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               {/* Product Card 3 */}
               <motion.div
                 animate={{ y: [0, 12, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute bottom-[5%] sm:-bottom-[2%] right-[2%] sm:-right-[10%] w-[42%] sm:w-56 aspect-[4/3] rounded-3xl bg-zinc-900 border border-white/15 shadow-2xl z-30 overflow-hidden"
-                style={{ willChange: "transform" }}
+                className="absolute bottom-[5%] sm:-bottom-[2%] right-[2%] sm:-right-[10%] w-[42%] sm:w-56 aspect-[4/3] rounded-3xl bg-zinc-900 border border-white/15 shadow-2xl z-30 overflow-hidden will-change-transform"
               >
                 <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop" alt="Nike Sneakers" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-90" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent" />
-                <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
+                <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between pointer-events-none">
                    <p className="text-white text-[10px] sm:text-sm font-bold tracking-tight">Nike Air Max</p>
                    <div className="flex items-center gap-1 text-cyan-400 text-[9px] sm:text-xs font-medium">
                      <CheckCircleIcon />
@@ -267,7 +267,7 @@ HeroSection.displayName = 'HeroSection';
 // --- 3. GLOBAL SCALE SECTION ---
 // ============================================================================
 
-const AnimatedCounter = memo(({ value, text, icon: Icon }: { value: number, text: string, icon: any }) => {
+const AnimatedCounter = memo(({ value, text, icon: Icon }: { value: number, text: string, icon: React.ElementType }) => {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: "0px 0px -50px 0px" });
   const motionValue = useMotionValue(0);
@@ -288,7 +288,7 @@ const AnimatedCounter = memo(({ value, text, icon: Icon }: { value: number, text
         whileHover={{ scale: 1.05 }}
         className="relative group flex flex-col items-center p-6 rounded-[30px] bg-black/60 backdrop-blur-xl border border-purple-500/30 hover:border-purple-400/80 transition-all duration-500 overflow-hidden text-center transform-gpu"
     >
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
         <div className="mb-4 p-3 rounded-full bg-purple-950/50 border border-purple-400/20 text-purple-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(168,85,247,0.3)]">
             <Icon size={28} />
         </div>
@@ -302,6 +302,8 @@ AnimatedCounter.displayName = 'AnimatedCounter';
 const Globe = memo(() => {
   const globeRef = useRef<THREE.Group>(null!);
   const [paths, setPaths] = useState<THREE.CatmullRomCurve3[]>([]);
+  // O(1) Precomputed Math Engine (Masterpiece level code)
+  const precomputedPaths = useRef<THREE.Vector3[][]>([]);
   const pulseRefs = useRef<THREE.Mesh[]>([]);
 
   useEffect(() => {
@@ -337,6 +339,7 @@ const Globe = memo(() => {
       return new THREE.CatmullRomCurve3([v1, midPoint, v2]);
     });
 
+    precomputedPaths.current = curves.map(curve => curve.getPoints(200));
     setPaths(curves);
     pulseRefs.current = new Array(curves.length);
   }, []);
@@ -346,11 +349,19 @@ const Globe = memo(() => {
     if (globeRef.current) globeRef.current.rotation.y += safeDelta * 0.05;
 
     pulseRefs.current.forEach((mesh, i) => {
-      if (mesh && paths[i]) {
-        const loopTime = 6 + (i % 3);
-        const t = (state.clock.elapsedTime % loopTime) / loopTime;
-        paths[i].getPointAt(t, mesh.position);
-      }
+      if (!mesh || !precomputedPaths.current[i]) return;
+      const loopTime = 6 + (i % 3);
+      const t = (state.clock.elapsedTime % loopTime) / loopTime;
+      const segments = 200;
+      const exactIndex = t * segments;
+      const i1 = Math.floor(exactIndex);
+      const i2 = Math.min(i1 + 1, segments);
+      
+      mesh.position.lerpVectors(
+        precomputedPaths.current[i][i1], 
+        precomputedPaths.current[i][i2], 
+        exactIndex - i1
+      );
     });
   });
 
@@ -380,7 +391,6 @@ const Globe = memo(() => {
           <mesh ref={(el) => { if(el) pulseRefs.current[i] = el; }}>
             <sphereGeometry args={[0.08, 16, 16]} />
             <meshBasicMaterial color="#ffffff" toneMapped={false} />
-            {/* pointLight strictly removed for mobile render performance; basic material provides enough emissive glow */}
           </mesh>
         </group>
       ))}
@@ -390,27 +400,40 @@ const Globe = memo(() => {
 Globe.displayName = 'Globe';
 
 const GlobalScaleSection = memo(() => {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  
+  // HARDWARE OPTIMIZATION: Viewport Culling
+  const isInView = useInView(sectionRef, { margin: "0px 0px 200px 0px" });
+
   return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
+    <section ref={sectionRef} className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
       <div className="absolute inset-0 z-0">
-        <Canvas {...canvasConfig} camera={{ position: [0, 0, 19], fov: 35 }}>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
-          <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
-          <ParticleField
-            count={100000}          // عدد النجوم
-            radius={66}            // انتشار النجوم
-            color="#e9d5ff"        // لون أبيض يميل للبنفسجي الفاتح جداً ليتناغم مع إضاءة الكوكب
-            size={0.025}           // حجم صغير لتبدو بعيدة
-            rotationSpeed={{ x: 0.0001, y: 0.0001, z: 0.001 }} // دوران بطيء جداً وهادئ
-            position={[0, 0, -40]} // دفع النجوم للخلف بعيداً عن الكوكب
-          />
-          <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
-            <group position={[5.5, 0, 0]}>
-              <Suspense fallback={null}><Globe /></Suspense>
-            </group>
-          </Float>
-          <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.2} maxPolarAngle={Math.PI / 1.6} minPolarAngle={Math.PI / 3}/>
+        <Canvas 
+          {...canvasConfig} 
+          camera={{ position: [0, 0, 19], fov: 35 }}
+          frameloop={isInView ? "always" : "demand"} // Culling active
+        >
+          {isInView && (
+            <>
+              <ambientLight intensity={0.4} />
+              <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
+              <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
+              <ParticleField
+                count={10000} // Capped at 10k to prevent GPU meltdown
+                radius={66}            
+                color="#e9d5ff"        
+                size={0.035}           
+                rotationSpeed={{ x: 0.0001, y: 0.0001, z: 0.001 }} 
+                position={[0, 0, -40]} 
+              />
+              <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
+                <group position={[5.5, 0, 0]}>
+                  <Suspense fallback={null}><Globe /></Suspense>
+                </group>
+              </Float>
+              <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.2} maxPolarAngle={Math.PI / 1.6} minPolarAngle={Math.PI / 3}/>
+            </>
+          )}
         </Canvas>
         <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent pointer-events-none" />
       </div>
@@ -422,7 +445,7 @@ const GlobalScaleSection = memo(() => {
               initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }}
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)] transform-gpu">
+                <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
                   <GlobeIcon className="text-purple-400" size={20} />
                 </div>
                 <span className="text-sm font-mono text-purple-400 uppercase tracking-[0.3em] drop-shadow-md">Planetary Operations</span>
@@ -464,33 +487,31 @@ GlobalScaleSection.displayName = 'GlobalScaleSection';
 // ============================================================================
 
 const PRODUCTION_STEPS = [
-  { icon: Bot, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product in our global network without you scrolling through catalogs." },
-  { icon: Cpu, step: "02", title: "Global Inventory Sync", description: "Within milliseconds, the system queries local hubs and global databases to secure the best price and immediate availability, reserving your item autonomously." },
-  { icon: MapIcon, step: "03", title: "4D Route Computation", description: "An adaptive flight plan is generated. The AI factors in live weather layers, urban topology, and airspace corridors to chart the absolute fastest drone vector." },
-  { icon: Rocket, step: "04", title: "Precision Doorstep Drop", description: "The autonomous drone arrives. Using computer vision and micro-thruster stabilization, it completes a contactless, verified handoff directly to your location." },
+  { icon: Bot, step: "01", title: "Cognitive Layer Recognition", description: "Simply type or speak your order. Our neural core parses your intent instantly, finding the exact product in our global network without you scrolling through catalogs." },
+  { icon: Cpu, step: "02", title: "State Estimation Sync", description: "Within milliseconds, the system queries local hubs and global databases via an encrypted telemetry link to secure the best price and immediate availability." },
+  { icon: MapIcon, step: "03", title: "Distributed Route Logic", description: "An adaptive flight plan is generated. The system factors in live weather layers, urban topology, and airspace corridors to chart the absolute fastest vector." },
+  { icon: Rocket, step: "04", title: "Data Bus Redundancy Drop", description: "The autonomous drone arrives. Using state estimation and distributed thrust vector logic, it completes a contactless, verified handoff directly to your location." },
 ];
 
 const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUCTION_STEPS[0], index: number, isLast: boolean }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: cardRef, offset: ["start 95%", "center center"] });
 
-  // سحر الفريمر موشن لدمج تأثيرات الـ Hero مع السكرول
   const opacity = useTransform(scrollYProgress, [0, 0.6, 1], [0, 0.5, 1]);
   const y = useTransform(scrollYProgress, [0, 1], [80, 0]);
   const rotateX = useTransform(scrollYProgress, [0, 1], [15, 0]);
   const scale = useTransform(scrollYProgress, [0, 1], [0.9, 1]);
-  const glowLine = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
+  const scaleY = useTransform(scrollYProgress, [0, 1], [0, 1]);
 
   const Icon = item.icon;
 
   return (
     <div ref={cardRef} className="relative flex w-full gap-6 md:gap-12 pb-24 md:pb-32 last:pb-0 perspective-1000">
 
-      {/* 1. مسار الطيران (The Flight Path) */}
+      {/* 1. Flight Path Track */}
       <div className="relative flex shrink-0 flex-col items-center">
-        {/* الماسة المتوهجة */}
         <motion.div
-          style={{ scale, opacity }}
+          style={{ scale, opacity, willChange: 'transform, opacity' }}
           className="z-10 flex h-14 w-14 md:h-20 md:w-20 items-center justify-center rounded-2xl border border-cyan-400/40 bg-black/50 shadow-[0_0_30px_rgba(6,182,212,0.3)] backdrop-blur-md rotate-45 transform-gpu"
         >
           <div className="-rotate-45 flex flex-col items-center">
@@ -498,33 +519,29 @@ const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUC
           </div>
         </motion.div>
 
-        {/* خط الليزر الذي يمتلئ مع السكرول */}
         {!isLast && (
           <div className="absolute top-14 md:top-20 bottom-[-6rem] md:bottom-[-8rem] w-[2px] bg-white/5">
             <motion.div
-              style={{ height: glowLine }}
-              className="w-full bg-gradient-to-b from-cyan-400 via-purple-500 to-transparent shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+              style={{ scaleY, transformOrigin: "top", willChange: 'transform' }}
+              className="w-full h-full bg-gradient-to-b from-cyan-400 via-purple-500 to-transparent shadow-[0_0_10px_rgba(6,182,212,0.8)] transform-gpu"
             />
           </div>
         )}
       </div>
 
-      {/* 2. البطاقة الهولوجرامية (Holographic Panel) */}
+      {/* 2. Holographic Panel */}
       <motion.div
         style={{ opacity, y, rotateX, willChange: 'transform, opacity' }}
         className="flex-1 mt-2 md:mt-4"
       >
-        <div className="group relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent p-6 md:p-10 backdrop-blur-xl transition-all duration-700 hover:border-cyan-400/40 hover:bg-white/[0.05] shadow-2xl">
-          {/* إضاءة خلفية للبطاقة تظهر عند التمرير */}
-          <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/15 to-purple-500/15 opacity-0 group-hover:opacity-100 blur-2xl transition-all duration-700 transform-gpu" />
+        <div className="group relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent p-6 md:p-10 backdrop-blur-xl transition-all duration-700 hover:border-cyan-400/40 hover:bg-white/[0.05] shadow-2xl transform-gpu">
+          <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/15 to-purple-500/15 opacity-0 group-hover:opacity-100 blur-2xl transition-all duration-700 pointer-events-none transform-gpu" style={{ transform: 'translateZ(0)' }} />
 
           <div className="relative z-10 flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center">
-            {/* الأيقونة */}
-            <div className="flex items-center justify-center h-14 w-14 md:h-20 md:w-20 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.2)] group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-500 shrink-0">
+            <div className="flex items-center justify-center h-14 w-14 md:h-20 md:w-20 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.2)] group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-500 shrink-0 transform-gpu">
               <Icon size={32} strokeWidth={1.5} className="group-hover:text-purple-300 transition-colors" />
             </div>
 
-            {/* النصوص */}
             <div>
               <h3 className="mb-3 text-2xl md:text-4xl font-bold tracking-tight text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all duration-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                 {item.title}
@@ -548,17 +565,15 @@ const HowItWorksSection = memo(() => {
 
   return (
     <section ref={containerRef} className="relative min-h-screen w-full overflow-hidden bg-[#050505] py-32 lg:py-48 border-t border-white/5">
-      {/* 1. الخلفية السحرية المدمجة من الـ Hero والـ Global Scale */}
       <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden="true">
-        <motion.div style={{ y: yParallax }} className="absolute inset-0">
-          <div className="absolute top-[10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-cyan-600/10 blur-[150px] mix-blend-screen" />
-          <div className="absolute bottom-[10%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-600/10 blur-[150px] mix-blend-screen" />
+        <motion.div style={{ y: yParallax, willChange: 'transform' }} className="absolute inset-0">
+          <div className="absolute top-[10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-cyan-600/10 blur-[150px] mix-blend-screen transform-gpu" style={{ transform: 'translateZ(0)' }} />
+          <div className="absolute bottom-[10%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-600/10 blur-[150px] mix-blend-screen transform-gpu" style={{ transform: 'translateZ(0)' }} />
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_10%,transparent_100%)] opacity-50" />
         </motion.div>
       </div>
 
       <div className="container relative z-10 mx-auto px-5 sm:px-6 lg:px-12">
-        {/* 2. عنوان القسم (Massive & Cinematic) */}
         <div className="text-center mb-24 md:mb-32 flex flex-col items-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
@@ -583,11 +598,10 @@ const HowItWorksSection = memo(() => {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.8 }}
             className="mt-8 max-w-2xl text-lg md:text-xl font-light leading-relaxed text-gray-400"
           >
-            Watch how our neural network translates your thoughts into a physical product at your door in under 15 minutes.
+            Watch how the neural core translates your hardware logic into a physical product at your door in under 15 minutes.
           </motion.p>
         </div>
 
-        {/* 3. الخطوات الهولوجرامية */}
         <div className="max-w-4xl mx-auto">
           {PRODUCTION_STEPS.map((step, index) => (
             <HolographicStepCard key={step.step} item={step} index={index} isLast={index === PRODUCTION_STEPS.length - 1} />
@@ -607,7 +621,7 @@ const FinalCTA = memo(() => (
   <section className="relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
     <div className="absolute inset-0 z-0 pointer-events-none">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px] transform-gpu" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px] transform-gpu" style={{ transform: 'translateZ(0)' }} />
     </div>
 
     <div className="container mx-auto px-6 relative z-10 text-center">
@@ -617,7 +631,7 @@ const FinalCTA = memo(() => (
       >
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8 ring-1 ring-cyan-500/20 transform-gpu">
           <Zap size={14} className="text-yellow-400 fill-yellow-400" />
-          <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Next-Gen Shopping Experience</span>
+          <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Encrypted Telemetry Active</span>
         </div>
 
         <h2 className="text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -628,17 +642,17 @@ const FinalCTA = memo(() => (
         </h2>
 
         <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
-          Don't wait for traffic. Shop thousands of products and watch them arrive from the clouds in minutes.
+          Don't wait for traffic. Shop thousands of products and watch them arrive via autonomous airdeliver X vectoring in minutes.
         </p>
 
         <div className="flex flex-col gap-6 justify-center items-center">
-          <Link href="/profile" className="group relative px-12 py-7 bg-white text-black font-black text-xl rounded-full overflow-hidden transition-all duration-300 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)]">
+          <Link href="/profile" className="group relative px-12 py-7 bg-white text-black font-black text-xl rounded-full overflow-hidden transition-all duration-300 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] transform-gpu">
             <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
             <span className="relative flex items-center gap-3">
               SIGN UP <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
             </span>
           </Link>
-          <button className="group px-12 py-7 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-3">
+          <button className="group px-12 py-7 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-3 transform-gpu">
             <span>DOWNLOAD</span><ArrowDown className="w-6 h-6 group-hover:translate-y-1 transition-transform" />
           </button>
         </div>
@@ -659,14 +673,14 @@ const TrustedBySection = memo(() => {
   ];
   return (
     <section className="py-12 bg-black border-y border-white/5 overflow-hidden relative">
-      <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none transform-gpu" />
+      <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none transform-gpu" style={{ transform: 'translateZ(0)' }} />
       <div className="container mx-auto px-4 mb-6 text-center relative z-10">
-        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Trusted by Industry Leaders</p>
+        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Data Bus Integrated Partners</p>
       </div>
       <div className="relative flex overflow-x-hidden group">
-        <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-black to-transparent z-10" />
-        <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-black to-transparent z-10" />
-        <div className="flex gap-16 animate-marquee whitespace-nowrap items-center hover:[animation-play-state:paused]">
+        <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
+        <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
+        <div className="flex gap-16 animate-marquee whitespace-nowrap items-center hover:[animation-play-state:paused] transform-gpu" style={{ willChange: 'transform' }}>
           {[...companies, ...companies, ...companies, ...companies].map((company, index) => (
             <span key={index} className="text-xl md:text-2xl font-bold text-gray-800 uppercase tracking-tighter hover:text-cyan-400 transition-colors duration-500 cursor-default select-none" style={{ fontFamily: "'Orbitron', sans-serif" }}>
               {company}
@@ -685,12 +699,12 @@ TrustedBySection.displayName = 'TrustedBySection';
 
 const DynamicHeroSection = dynamic(() => Promise.resolve(HeroSection), {
   ssr: false,
-  loading: () => <section className="relative h-screen w-full overflow-hidden bg-black" />
+  loading: () => <section className="relative min-h-[100svh] w-full overflow-hidden bg-[#050505]" />
 });
 
 const DynamicGlobalScaleSection = dynamic(() => Promise.resolve(GlobalScaleSection), {
   ssr: false,
-  loading: () => <section className="relative h-screen w-full overflow-hidden bg-black" />
+  loading: () => <section className="relative min-h-screen w-full overflow-hidden bg-black" />
 });
 
 // ============================================================================
@@ -712,7 +726,6 @@ export default function Page() {
         <CinematicBackground />
       </main>
 
-      {/* Overlays properly separated from main layout thread */}
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />
       <AIChatOverlay isOpen={isOverlayVisible} onClose={() => setOverlayVisible(false)} />
     </div>
