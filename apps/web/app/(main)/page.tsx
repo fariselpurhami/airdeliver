@@ -264,6 +264,202 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
 HeroSection.displayName = 'HeroSection';
 
 // ============================================================================
+// --- 3. GLOBAL SCALE SECTION ---
+// ============================================================================
+
+const AnimatedCounter = memo(({ value, text, icon: Icon }: { value: number, text: string, icon: any }) => {
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "0px 0px -50px 0px" });
+  const motionValue = useMotionValue(0);
+  const springValue = useSpring(motionValue, { damping: 60, stiffness: 80 });
+
+  useEffect(() => {
+    if (isInView) motionValue.set(value);
+  }, [motionValue, isInView, value]);
+
+  useEffect(() => {
+    return springValue.on("change", (latest) => {
+      if (ref.current) ref.current.textContent = Intl.NumberFormat('en-US').format(Math.round(latest));
+    });
+  }, [springValue]);
+
+  return (
+    <motion.div
+        whileHover={{ scale: 1.05 }}
+        className="relative group flex flex-col items-center p-6 rounded-[30px] bg-black/60 backdrop-blur-xl border border-purple-500/30 hover:border-purple-400/80 transition-all duration-500 overflow-hidden text-center transform-gpu"
+    >
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="mb-4 p-3 rounded-full bg-purple-950/50 border border-purple-400/20 text-purple-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+            <Icon size={28} />
+        </div>
+        <span ref={ref} className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-2" style={{fontFamily: "'Orbitron', sans-serif"}}>0</span>
+        <span className="text-sm text-purple-300/80 font-mono uppercase tracking-widest">{text}</span>
+    </motion.div>
+  );
+});
+AnimatedCounter.displayName = 'AnimatedCounter';
+
+const Globe = memo(() => {
+  const globeRef = useRef<THREE.Group>(null!);
+  const [paths, setPaths] = useState<THREE.CatmullRomCurve3[]>([]);
+  const pulseRefs = useRef<THREE.Mesh[]>([]);
+
+  useEffect(() => {
+    const points = [
+      { lat: 40.7128, lon: -74.0060 }, { lat: 51.5074, lon: -0.1278 },
+      { lat: 35.6895, lon: 139.6917 }, { lat: 25.2048, lon: 55.2708 },
+      { lat: 1.3521, lon: 103.8198 }, { lat: 30.0444, lon: 31.2357 },
+    ];
+
+    const radius = 5;
+    const getPos = (lat: number, lon: number) => {
+      const phi = (90 - lat) * (Math.PI / 180);
+      const theta = (lon + 180) * (Math.PI / 180);
+      return new THREE.Vector3(
+        -(radius * Math.sin(phi) * Math.cos(theta)),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta)
+      );
+    };
+
+    const routes = [];
+    for (let i = 0; i < points.length; i++) {
+      for (let j = i + 1; j < points.length; j++) {
+        routes.push([points[i], points[j]]);
+      }
+    }
+
+    const curves = routes.map(([p1, p2]) => {
+      const v1 = getPos(p1.lat, p1.lon);
+      const v2 = getPos(p2.lat, p2.lon);
+      const dist = v1.distanceTo(v2);
+      const midPoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5).normalize().multiplyScalar(radius + (dist * 0.4));
+      return new THREE.CatmullRomCurve3([v1, midPoint, v2]);
+    });
+
+    setPaths(curves);
+    pulseRefs.current = new Array(curves.length);
+  }, []);
+
+  useFrame((state, delta) => {
+    const safeDelta = Math.min(delta, 0.1);
+    if (globeRef.current) globeRef.current.rotation.y += safeDelta * 0.05;
+
+    pulseRefs.current.forEach((mesh, i) => {
+      if (mesh && paths[i]) {
+        const loopTime = 6 + (i % 3);
+        const t = (state.clock.elapsedTime % loopTime) / loopTime;
+        paths[i].getPointAt(t, mesh.position);
+      }
+    });
+  });
+
+  return (
+    <group ref={globeRef}>
+      <mesh>
+        <sphereGeometry args={[5, 48, 48]} />
+        <meshPhysicalMaterial color="#1e3a8a" emissive="#172554" emissiveIntensity={0.5} roughness={0.4} metalness={0.6} clearcoat={1} clearcoatRoughness={0.1} />
+      </mesh>
+
+      <mesh scale={[1.05, 1.05, 1.05]}>
+        <sphereGeometry args={[5, 32, 32]} />
+        <meshBasicMaterial color="#3b82f6" transparent opacity={0.15} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
+      </mesh>
+
+      <mesh scale={[1.2, 1.2, 1.2]}>
+        <sphereGeometry args={[5, 32, 32]} />
+        <meshBasicMaterial color="#a855f7" transparent opacity={0.05} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
+      </mesh>
+
+      {paths.map((curve, i) => (
+        <group key={i}>
+          <mesh>
+            <tubeGeometry args={[curve, 32, 0.02, 4, false]} />
+            <meshBasicMaterial color="#d8b4fe" transparent opacity={0.6} blending={THREE.AdditiveBlending} />
+          </mesh>
+          <mesh ref={(el) => { if(el) pulseRefs.current[i] = el; }}>
+            <sphereGeometry args={[0.08, 16, 16]} />
+            <meshBasicMaterial color="#ffffff" toneMapped={false} />
+            {/* pointLight strictly removed for mobile render performance; basic material provides enough emissive glow */}
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+});
+Globe.displayName = 'Globe';
+
+const GlobalScaleSection = memo(() => {
+  return (
+    <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
+      <div className="absolute inset-0 z-0">
+        <Canvas {...canvasConfig} camera={{ position: [0, 0, 19], fov: 35 }}>
+          <ambientLight intensity={0.4} />
+          <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
+          <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
+          <ParticleField
+            count={100000}          // عدد النجوم
+            radius={66}            // انتشار النجوم
+            color="#e9d5ff"        // لون أبيض يميل للبنفسجي الفاتح جداً ليتناغم مع إضاءة الكوكب
+            size={0.025}           // حجم صغير لتبدو بعيدة
+            rotationSpeed={{ x: 0.0001, y: 0.0001, z: 0.001 }} // دوران بطيء جداً وهادئ
+            position={[0, 0, -40]} // دفع النجوم للخلف بعيداً عن الكوكب
+          />
+          <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
+            <group position={[5.5, 0, 0]}>
+              <Suspense fallback={null}><Globe /></Suspense>
+            </group>
+          </Float>
+          <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.2} maxPolarAngle={Math.PI / 1.6} minPolarAngle={Math.PI / 3}/>
+        </Canvas>
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent pointer-events-none" />
+      </div>
+
+      <div className="relative z-10 container mx-auto px-6 pt-24 lg:pt-32 pointer-events-none grow flex items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 w-full">
+          <div className="pointer-events-auto max-w-xl">
+            <motion.div
+              initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)] transform-gpu">
+                  <GlobeIcon className="text-purple-400" size={20} />
+                </div>
+                <span className="text-sm font-mono text-purple-400 uppercase tracking-[0.3em] drop-shadow-md">Planetary Operations</span>
+              </div>
+
+              <h2 className="text-5xl md:text-7xl font-black text-white mb-6 leading-[0.9] tracking-tighter" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                GLOBAL<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-purple-600">
+                  SCALE
+                </span>
+              </h2>
+
+              <p className="text-lg text-gray-300 font-light leading-relaxed mb-6 border-l-4 border-purple-500/50 pl-6 drop-shadow-lg">
+                A synchronized autonomous network spanning continents. <br />
+                <span className="text-white font-medium">Zero Latency. Infinite Reach.</span>
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative z-10 container mx-auto px-6 mt-12 pointer-events-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3, duration: 0.8 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
+        >
+          <AnimatedCounter value={1843} text="Active Drones" icon={Rocket} />
+          <AnimatedCounter value={212} text="Connected Cities" icon={MapIcon} />
+          <AnimatedCounter value={947204} text="Successful Drops" icon={CheckCircle2} />
+        </motion.div>
+      </div>
+    </section>
+  );
+});
+GlobalScaleSection.displayName = 'GlobalScaleSection';
+
+// ============================================================================
 // --- 2. HOW IT WORKS SECTION (THE MAGICAL REDESIGN) ---
 // ============================================================================
 
@@ -404,202 +600,6 @@ const HowItWorksSection = memo(() => {
 HowItWorksSection.displayName = 'HowItWorksSection';
 
 // ============================================================================
-// --- 3. GLOBAL SCALE SECTION ---
-// ============================================================================
-
-const AnimatedCounter = memo(({ value, text, icon: Icon }: { value: number, text: string, icon: any }) => {
-  const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "0px 0px -50px 0px" });
-  const motionValue = useMotionValue(0);
-  const springValue = useSpring(motionValue, { damping: 60, stiffness: 80 });
-
-  useEffect(() => {
-    if (isInView) motionValue.set(value);
-  }, [motionValue, isInView, value]);
-
-  useEffect(() => {
-    return springValue.on("change", (latest) => {
-      if (ref.current) ref.current.textContent = Intl.NumberFormat('en-US').format(Math.round(latest));
-    });
-  }, [springValue]);
-
-  return (
-    <motion.div
-        whileHover={{ scale: 1.05 }}
-        className="relative group flex flex-col items-center p-6 rounded-[30px] bg-black/60 backdrop-blur-xl border border-purple-500/30 hover:border-purple-400/80 transition-all duration-500 overflow-hidden text-center transform-gpu"
-    >
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className="mb-4 p-3 rounded-full bg-purple-950/50 border border-purple-400/20 text-purple-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(168,85,247,0.3)]">
-            <Icon size={28} />
-        </div>
-        <span ref={ref} className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-2" style={{fontFamily: "'Orbitron', sans-serif"}}>0</span>
-        <span className="text-sm text-purple-300/80 font-mono uppercase tracking-widest">{text}</span>
-    </motion.div>
-  );
-});
-AnimatedCounter.displayName = 'AnimatedCounter';
-
-const Globe = memo(() => {
-  const globeRef = useRef<THREE.Group>(null!);
-  const [paths, setPaths] = useState<THREE.CatmullRomCurve3[]>([]);
-  const pulseRefs = useRef<THREE.Mesh[]>([]);
-
-  useEffect(() => {
-    const points = [
-      { lat: 40.7128, lon: -74.0060 }, { lat: 51.5074, lon: -0.1278 },
-      { lat: 35.6895, lon: 139.6917 }, { lat: 25.2048, lon: 55.2708 },
-      { lat: 1.3521, lon: 103.8198 }, { lat: 30.0444, lon: 31.2357 },
-    ];
-
-    const radius = 5;
-    const getPos = (lat: number, lon: number) => {
-      const phi = (90 - lat) * (Math.PI / 180);
-      const theta = (lon + 180) * (Math.PI / 180);
-      return new THREE.Vector3(
-        -(radius * Math.sin(phi) * Math.cos(theta)),
-        radius * Math.cos(phi),
-        radius * Math.sin(phi) * Math.sin(theta)
-      );
-    };
-
-    const routes = [];
-    for (let i = 0; i < points.length; i++) {
-      for (let j = i + 1; j < points.length; j++) {
-        routes.push([points[i], points[j]]);
-      }
-    }
-
-    const curves = routes.map(([p1, p2]) => {
-      const v1 = getPos(p1.lat, p1.lon);
-      const v2 = getPos(p2.lat, p2.lon);
-      const dist = v1.distanceTo(v2);
-      const midPoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5).normalize().multiplyScalar(radius + (dist * 0.4));
-      return new THREE.CatmullRomCurve3([v1, midPoint, v2]);
-    });
-
-    setPaths(curves);
-    pulseRefs.current = new Array(curves.length);
-  }, []);
-
-  useFrame((state, delta) => {
-    const safeDelta = Math.min(delta, 0.1);
-    if (globeRef.current) globeRef.current.rotation.y += safeDelta * 0.05;
-
-    pulseRefs.current.forEach((mesh, i) => {
-      if (mesh && paths[i]) {
-        const loopTime = 6 + (i % 3);
-        const t = (state.clock.elapsedTime % loopTime) / loopTime;
-        paths[i].getPointAt(t, mesh.position);
-      }
-    });
-  });
-
-  return (
-    <group ref={globeRef}>
-      <mesh>
-        <sphereGeometry args={[5, 48, 48]} />
-        <meshPhysicalMaterial color="#1e3a8a" emissive="#172554" emissiveIntensity={0.5} roughness={0.4} metalness={0.6} clearcoat={1} clearcoatRoughness={0.1} />
-      </mesh>
-
-      <mesh scale={[1.05, 1.05, 1.05]}>
-        <sphereGeometry args={[5, 32, 32]} />
-        <meshBasicMaterial color="#3b82f6" transparent opacity={0.15} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
-      </mesh>
-
-      <mesh scale={[1.2, 1.2, 1.2]}>
-        <sphereGeometry args={[5, 32, 32]} />
-        <meshBasicMaterial color="#a855f7" transparent opacity={0.05} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
-      </mesh>
-
-      {paths.map((curve, i) => (
-        <group key={i}>
-          <mesh>
-            <tubeGeometry args={[curve, 32, 0.02, 4, false]} />
-            <meshBasicMaterial color="#d8b4fe" transparent opacity={0.6} blending={THREE.AdditiveBlending} />
-          </mesh>
-          <mesh ref={(el) => { if(el) pulseRefs.current[i] = el; }}>
-            <sphereGeometry args={[0.08, 16, 16]} />
-            <meshBasicMaterial color="#ffffff" toneMapped={false} />
-            {/* pointLight strictly removed for mobile render performance; basic material provides enough emissive glow */}
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-});
-Globe.displayName = 'Globe';
-
-const GlobalScaleSection = memo(() => {
-  return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
-      <div className="absolute inset-0 z-0">
-        <Canvas {...canvasConfig} camera={{ position: [0, 0, 19], fov: 35 }}>
-          <ambientLight intensity={0.4} />
-          <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
-          <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
-          <ParticleField 
-            count={100000}          // عدد النجوم
-            radius={66}            // انتشار النجوم
-            color="#e9d5ff"        // لون أبيض يميل للبنفسجي الفاتح جداً ليتناغم مع إضاءة الكوكب
-            size={0.025}           // حجم صغير لتبدو بعيدة
-            rotationSpeed={{ x: 0.0001, y: 0.0001, z: 0.001 }} // دوران بطيء جداً وهادئ
-            position={[0, 0, -40]} // دفع النجوم للخلف بعيداً عن الكوكب
-          />
-          <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
-            <group position={[5.5, 0, 0]}>
-              <Suspense fallback={null}><Globe /></Suspense>
-            </group>
-          </Float>
-          <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.2} maxPolarAngle={Math.PI / 1.6} minPolarAngle={Math.PI / 3}/>
-        </Canvas>
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent pointer-events-none" />
-      </div>
-
-      <div className="relative z-10 container mx-auto px-6 pt-24 lg:pt-32 pointer-events-none grow flex items-center">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 w-full">
-          <div className="pointer-events-auto max-w-xl">
-            <motion.div
-              initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }}
-            >
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)] transform-gpu">
-                  <GlobeIcon className="text-purple-400" size={20} />
-                </div>
-                <span className="text-sm font-mono text-purple-400 uppercase tracking-[0.3em] drop-shadow-md">Planetary Operations</span>
-              </div>
-
-              <h2 className="text-5xl md:text-7xl font-black text-white mb-6 leading-[0.9] tracking-tighter" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                GLOBAL<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-purple-600">
-                  SCALE
-                </span>
-              </h2>
-
-              <p className="text-lg text-gray-300 font-light leading-relaxed mb-6 border-l-4 border-purple-500/50 pl-6 drop-shadow-lg">
-                A synchronized autonomous network spanning continents. <br />
-                <span className="text-white font-medium">Zero Latency. Infinite Reach.</span>
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative z-10 container mx-auto px-6 mt-12 pointer-events-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3, duration: 0.8 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
-        >
-          <AnimatedCounter value={1843} text="Active Drones" icon={Rocket} />
-          <AnimatedCounter value={212} text="Connected Cities" icon={MapIcon} />
-          <AnimatedCounter value={947204} text="Successful Drops" icon={CheckCircle2} />
-        </motion.div>
-      </div>
-    </section>
-  );
-});
-GlobalScaleSection.displayName = 'GlobalScaleSection';
-
-// ============================================================================
 // --- 5. FINAL CTA & PARTNERS ---
 // ============================================================================
 
@@ -651,10 +651,10 @@ FinalCTA.displayName = 'FinalCTA';
 
 const TrustedBySection = memo(() => {
   const companies = [
-    "NVIDIA",       
-    "STRIPE",        
-    "AWS",               
-    "CLOUDFLARE",   
+    "NVIDIA",
+    "STRIPE",
+    "AWS",
+    "CLOUDFLARE",
     "MASTERCARD"
   ];
   return (
@@ -705,8 +705,8 @@ export default function Page() {
     <div className="min-h-screen w-full text-gray-100 overflow-x-hidden bg-black" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <main className="relative z-10 w-full">
         <DynamicHeroSection onOrderClick={() => setOverlayVisible(true)} onExploreClick={showProductOverlay} />
-        <HowItWorksSection />
         <DynamicGlobalScaleSection />
+        <HowItWorksSection />
         <FinalCTA />
         <TrustedBySection />
         <CinematicBackground />
