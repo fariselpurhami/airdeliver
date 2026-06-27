@@ -21,6 +21,7 @@ import AIChatOverlay from '@/components/ai/AIChatOverlay';
 // ============================================================================
 // --- INFRASTRUCTURE & UTILS ---
 // ============================================================================
+
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 const formatCurrency = (value: number | string | undefined | null): string => {
@@ -115,7 +116,7 @@ FloatingCategoryCard.displayName = 'FloatingCategoryCard';
 
 const AICatalogHero = React.memo(() => {
     const { scrollY } = useScroll();
-    
+    const { setOverlayVisible } = useAIOrderingStore();
     // Physics-based smoothing for the scroll to eliminate stutter/jank on mobile devices
     const smoothScrollY = useSpring(scrollY, {
         damping: 30,
@@ -171,7 +172,7 @@ const AICatalogHero = React.memo(() => {
                 </p>
 
                 {/* AI Interactive Trigger */}
-                <div className="w-full max-w-xl mx-auto relative group cursor-pointer z-10">
+                <div className="w-full max-w-xl mx-auto relative group cursor-pointer z-10" onClick={() => setOverlayVisible(true)}> 
                     <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-[73px] blur-md opacity-70 group-hover:opacity-100 group-hover:blur-xl transition duration-500 -z-10" />
                     
                     <div className="relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-[#0D0D0C]/90 lg:bg-[#0D0D0C]/80 border border-white/15 backdrop-blur-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] transition-all duration-500 hover:border-cyan-500/50 hover:bg-[#0D0D0C]">
