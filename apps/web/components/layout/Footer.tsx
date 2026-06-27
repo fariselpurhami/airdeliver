@@ -4,6 +4,7 @@
 
 import React, { useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { FaLinkedin, FaYoutube, FaXTwitter, FaFacebook, FaInstagram } from 'react-icons/fa6';
 const Tiktok = (props: React.SVGProps<SVGSVGElement>) => (
@@ -62,13 +63,20 @@ const Footer = () => {
                 
                 <div className="md:col-span-5 lg:col-span-4 flex flex-col gap-6">
                     <div className="relative inline-block">
-                        <h2 className="text-2xl font-bold text-white tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            airdeliver
-                        </h2>
+                        <Link href="/">
+                            <Image 
+                                src="/logo.png" 
+                                alt="airdeliver logo" 
+                                width={160} 
+                                height={45} 
+                                className="object-contain hover:opacity-80 transition-opacity duration-300"
+                                quality={90}
+                            />
+                        </Link>
                     </div>
-                    
-                    <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
-                        COMMERCE. TAKES FLIGHT.
+
+                    <p className="text-gray-400/80 text-[11px] font-extralight uppercase tracking-[0.4em] max-w-sm mt-2">
+                        Commerce. Takes Flight.
                     </p>
                 </div>
 
