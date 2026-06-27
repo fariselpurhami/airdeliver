@@ -8,7 +8,7 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://api:8000';
 
 const nextConfig = {
-  allowedDevOrigins: ["192.168.1.3"],
+  allowedDevOrigins: ["192.168.1.12"],
   turbopack: {
     root: process.cwd(),
   },
@@ -54,6 +54,7 @@ const nextConfig = {
     },
   },
   images: {
+    qualities: [75, 90],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 31536000,
     dangerouslyAllowSVG: true,
