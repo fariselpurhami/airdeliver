@@ -1,4 +1,4 @@
-///** apps/web/app/(main)/page.tsx **//
+//** apps/web/app/(main)/page.tsx **//
 
 'use client';
 
@@ -8,8 +8,9 @@ import React, { Suspense, useRef, useMemo, useEffect, useState, memo } from 'rea
 import dynamic from 'next/dynamic';
 import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Preload, Float, OrbitControls, Points, PointMaterial } from '@react-three/drei';
+import { Preload, Float, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+
 // Icons
 import { 
   MapIcon, GlobeIcon, CheckCircle2, Activity, Bot, ChevronRight, 
@@ -33,19 +34,26 @@ const fadeUpVariant = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: premiumEasing } }
 };
 
-const canvasConfig = {
+// Disabling depth and stencil buffers for particle-only scenes saves massive GPU bandwidth
+const heroCanvasConfig = {
   camera: { position: [0, 0, 15] as [number, number, number], fov: 75 },
-  dpr: [1, 1.5] as [number, number], // Hardware Limiters
+  dpr: [1, 1.5] as [number, number],
+  gl: { antialias: false, powerPreference: "high-performance" as const, alpha: true, depth: false, stencil: false },
+};
+
+const globeCanvasConfig = {
+  camera: { position: [0, 0, 19] as [number, number, number], fov: 35 },
+  dpr: [1, 1.5] as [number, number],
   gl: { antialias: false, powerPreference: "high-performance" as const, alpha: true },
 };
 
+// Pure math function for spherical distribution. 
 const createParticlePositions = (count: number, radius: number): Float32Array => {
   const positions = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
     const r = radius * Math.cbrt(Math.random());
     const theta = Math.random() * 2 * Math.PI;
     const phi = Math.acos(2 * Math.random() - 1);
-    
     positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
     positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
     positions[i * 3 + 2] = r * Math.cos(phi);
@@ -64,11 +72,21 @@ type ParticleFieldProps = {
 
 const ParticleField = memo(({ count, radius, color, size, rotationSpeed, position = [0, 0, -60] }: ParticleFieldProps) => {
   const groupRef = useRef<THREE.Group>(null!);
+  const pointsRef = useRef<THREE.Points>(null!);
+  
+  // Memoize geometry to prevent reallocation
   const positions = useMemo(() => createParticlePositions(count, radius), [count, radius]);
+  const materialColor = useMemo(() => new THREE.Color(color), [color]);
+
+  useEffect(() => {
+    // CRITICAL PERF: The particles do not move relative to their parent group.
+    // Disabling matrixAutoUpdate prevents 150,000 matrix calculations per frame.
+    if (pointsRef.current) pointsRef.current.matrixAutoUpdate = false;
+  }, []);
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
-    const safeDelta = Math.min(delta, 0.1); 
+    const safeDelta = delta > 0.1 ? 0.1 : delta;
     groupRef.current.rotation.x += safeDelta * rotationSpeed.x;
     groupRef.current.rotation.y += safeDelta * rotationSpeed.y;
     groupRef.current.rotation.z += safeDelta * rotationSpeed.z;
@@ -76,28 +94,40 @@ const ParticleField = memo(({ count, radius, color, size, rotationSpeed, positio
 
   return (
     <group ref={groupRef} position={position}>
-      <Points positions={positions} stride={3} frustumCulled={false}>
-        <PointMaterial
-          transparent
-          color={color}
-          size={size}
-          sizeAttenuation
-          depthWrite={false}
-          toneMapped={false}
-          opacity={0.8}
+      <points ref={pointsRef} frustumCulled={false}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+        </bufferGeometry>
+        <pointsMaterial 
+          transparent 
+          color={materialColor} 
+          size={size} 
+          sizeAttenuation 
+          depthWrite={false} 
+          toneMapped={false} 
+          opacity={0.8} 
+          onBeforeCompile={(shader) => {
+            shader.fragmentShader = shader.fragmentShader.replace(
+              'void main() {',
+              `void main() {
+                vec2 pt = gl_PointCoord - vec2(0.5);
+                if (dot(pt, pt) > 0.09) discard;`
+            );
+          }}
         />
-      </Points>
+      </points>
     </group>
   );
 });
 ParticleField.displayName = 'ParticleField';
 
-const CheckCircleIcon = () => (
+const CheckCircleIcon = memo(() => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
     <path d="m9 11 3 3L22 4"/>
   </svg>
-);
+));
+CheckCircleIcon.displayName = 'CheckCircleIcon';
 
 // ============================================================================
 // --- 1. HERO SECTION ---
@@ -105,42 +135,37 @@ const CheckCircleIcon = () => (
 
 const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // HARDWARE OPTIMIZATION: Viewport Culling
-  const isInView = useInView(containerRef, { margin: "0px 0px 200px 0px" });
-  
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
   const yParallax = useTransform(scrollYProgress, [0, 1], ['0%', '25%']);
   const opacityFade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   return (
     <section ref={containerRef} className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-0 lg:pb-0">
-      <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden="true">
+      {/* CRITICAL PERF: contain strict and will-change-transform isolate the canvas 
+        from document reflows. translateZ(0) forces GPU layer creation. 
+      */}
+      <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
         <Suspense fallback={null}>
-          <Canvas 
-            {...canvasConfig} 
-            frameloop={isInView ? "always" : "demand"} // Culling active
-          >
-            {isInView && (
-              <ParticleField 
-                count={20000} // Capped at 15k to prevent GPU meltdown. Compensated via size.
-                radius={66} 
-                color="#ffffff" 
-                size={0.06} 
-                rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} 
-              />
-            )}
+          <Canvas {...heroCanvasConfig}>
+            <ParticleField 
+              count={20000} 
+              radius={66} 
+              color="#ffffff" 
+              size={0.065} 
+              rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} 
+            />
             <Preload all />
           </Canvas>
         </Suspense>
       </div>
 
-      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform" style={{ transform: 'translateZ(0)' }} />
-      <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform" style={{ transform: 'translateZ(0)' }} />
+      {/* GPU Offloaded Blurs */}
+      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform translate-z-0" />
+      <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform translate-z-0" />
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)] opacity-50 pointer-events-none" />
 
       <motion.div
-        style={{ y: yParallax, opacity: opacityFade, willChange: 'transform, opacity' }}
+        style={{ y: yParallax, opacity: opacityFade, willChange: "transform, opacity" }}
         className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10"
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
@@ -171,8 +196,8 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                 onClick={onOrderClick}
                 className="group relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-zinc-900/70 border border-white/10 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)] transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900/90 cursor-text"
               >
-                <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/40 to-purple-500/40 rounded-[73px] opacity-80 blur-md transition-all duration-500 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl -z-10 transform-gpu" />
-                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0">
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/40 to-purple-500/40 rounded-[73px] opacity-80 blur-md transition-all duration-500 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl -z-10" />
+                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 transform-gpu">
                   <Bot size={20} strokeWidth={1.5} className="sm:w-6 sm:h-6" />
                 </div>
 
@@ -182,15 +207,13 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                   </p>
                 </div>
 
-                <button
-                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white text-black font-bold text-[11px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10"
-                >
+                <button className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white text-black font-bold text-[11px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu">
                   order with air
                 </button>
               </div>
 
               <div className="mt-6 flex items-center gap-6 pl-2">
-                <button onClick={onExploreClick} className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-cyan-300 transition-colors flex items-center gap-1 group">
+                <button onClick={onExploreClick} className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-cyan-300 transition-colors flex items-center gap-1 group transform-gpu">
                   Explore trending products <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
@@ -202,10 +225,11 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
               animate={{ opacity: 1, scale: 1, rotateY: 0 }}
               transition={{ duration: 1.2, ease: premiumEasing, delay: 0.2 }}
-              className="relative w-full max-w-md h-full flex items-center justify-center will-change-transform"
+              style={{ willChange: "transform, opacity" }}
+              className="relative w-full max-w-md h-full flex items-center justify-center"
             >
               {/* Product Card 1 */}
-              <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/15 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group">
+              <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/15 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group transform-gpu">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent z-10 pointer-events-none" />
                 <Image
                   src="https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop"
@@ -213,7 +237,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                   fill
                   priority
                   sizes="(max-width: 768px) 60vw, 30vw"
-                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="object-cover transition-transform duration-700 group-hover:scale-105 will-change-transform"
                 />
                 <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-20 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
                   <div>
@@ -230,7 +254,8 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               <motion.div
                 animate={{ y: [0, -12, 0] }}
                 transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute left-[2%] top-[10%] z-10 aspect-square w-[35%] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900 p-2 shadow-2xl sm:-left-[10%] sm:top-[12%] sm:w-48 sm:p-3 will-change-transform"
+                style={{ willChange: "transform" }}
+                className="absolute left-[2%] top-[10%] z-10 aspect-square w-[35%] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900 p-2 shadow-2xl sm:-left-[10%] sm:top-[12%] sm:w-48 sm:p-3"
               >
                 <img src="https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop" alt="Smart Watch" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-70" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent pointer-events-none" />
@@ -242,7 +267,8 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               {/* Product Card 3 */}
               <motion.div
                 animate={{ y: [0, 12, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute bottom-[5%] sm:-bottom-[2%] right-[2%] sm:-right-[10%] w-[42%] sm:w-56 aspect-[4/3] rounded-3xl bg-zinc-900 border border-white/15 shadow-2xl z-30 overflow-hidden will-change-transform"
+                style={{ willChange: "transform" }}
+                className="absolute bottom-[5%] sm:-bottom-[2%] right-[2%] sm:-right-[10%] w-[42%] sm:w-56 aspect-[4/3] rounded-3xl bg-zinc-900 border border-white/15 shadow-2xl z-30 overflow-hidden"
               >
                 <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop" alt="Nike Sneakers" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-90" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
@@ -286,6 +312,7 @@ const AnimatedCounter = memo(({ value, text, icon: Icon }: { value: number, text
   return (
     <motion.div
         whileHover={{ scale: 1.05 }}
+        style={{ willChange: "transform" }}
         className="relative group flex flex-col items-center p-6 rounded-[30px] bg-black/60 backdrop-blur-xl border border-purple-500/30 hover:border-purple-400/80 transition-all duration-500 overflow-hidden text-center transform-gpu"
     >
         <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
@@ -301,12 +328,11 @@ AnimatedCounter.displayName = 'AnimatedCounter';
 
 const Globe = memo(() => {
   const globeRef = useRef<THREE.Group>(null!);
-  const [paths, setPaths] = useState<THREE.CatmullRomCurve3[]>([]);
-  // O(1) Precomputed Math Engine (Masterpiece level code)
-  const precomputedPaths = useRef<THREE.Vector3[][]>([]);
-  const pulseRefs = useRef<THREE.Mesh[]>([]);
+  const pulseRefs = useRef<(THREE.Mesh | null)[]>([]);
 
-  useEffect(() => {
+  // CRITICAL PERF: Compute geometry and flat trajectory arrays precisely ONCE.
+  // We flatten Vector3 paths to direct x,y,z objects to avoid Class instantiation overhead during render loop.
+  const { paths, pulseTrajectories } = useMemo(() => {
     const points = [
       { lat: 40.7128, lon: -74.0060 }, { lat: 51.5074, lon: -0.1278 },
       { lat: 35.6895, lon: 139.6917 }, { lat: 25.2048, lon: 55.2708 },
@@ -324,72 +350,78 @@ const Globe = memo(() => {
       );
     };
 
-    const routes = [];
+    const routes: THREE.Vector3[][] = [];
     for (let i = 0; i < points.length; i++) {
       for (let j = i + 1; j < points.length; j++) {
-        routes.push([points[i], points[j]]);
+        routes.push([getPos(points[i].lat, points[i].lon), getPos(points[j].lat, points[j].lon)]);
       }
     }
 
-    const curves = routes.map(([p1, p2]) => {
-      const v1 = getPos(p1.lat, p1.lon);
-      const v2 = getPos(p2.lat, p2.lon);
+    const curves = routes.map(([v1, v2]) => {
       const dist = v1.distanceTo(v2);
       const midPoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5).normalize().multiplyScalar(radius + (dist * 0.4));
       return new THREE.CatmullRomCurve3([v1, midPoint, v2]);
     });
 
-    precomputedPaths.current = curves.map(curve => curve.getPoints(200));
-    setPaths(curves);
-    pulseRefs.current = new Array(curves.length);
+    const segments = 200;
+    const trajectories = curves.map(curve => {
+      const pts = curve.getPoints(segments);
+      // Flatten into raw objects for zero-allocation reading
+      return pts.map(p => ({ x: p.x, y: p.y, z: p.z }));
+    });
+
+    return { paths: curves, pulseTrajectories: trajectories };
   }, []);
 
+  // Shared geometry definitions prevent WebGL memory bloat
+  const sphereGeo = useMemo(() => new THREE.SphereGeometry(5, 32, 32), []); // Reduced from 48x48
+  const haloGeo = useMemo(() => new THREE.SphereGeometry(5, 24, 24), []);
+  const pulseGeo = useMemo(() => new THREE.SphereGeometry(0.08, 12, 12), []);
+  const tubeGeos = useMemo(() => paths.map(curve => new THREE.TubeGeometry(curve, 24, 0.02, 3, false)), [paths]);
+
   useFrame((state, delta) => {
-    const safeDelta = Math.min(delta, 0.1);
+    const safeDelta = delta > 0.1 ? 0.1 : delta;
     if (globeRef.current) globeRef.current.rotation.y += safeDelta * 0.05;
 
-    pulseRefs.current.forEach((mesh, i) => {
-      if (!mesh || !precomputedPaths.current[i]) return;
-      const loopTime = 6 + (i % 3);
-      const t = (state.clock.elapsedTime % loopTime) / loopTime;
-      const segments = 200;
-      const exactIndex = t * segments;
-      const i1 = Math.floor(exactIndex);
-      const i2 = Math.min(i1 + 1, segments);
+    const time = state.clock.elapsedTime;
+    
+    // CRITICAL PERF: Zero object allocation loop. 
+    // We explicitly avoid .lerp() or Class methods here.
+    for (let i = 0; i < pulseRefs.current.length; i++) {
+      const mesh = pulseRefs.current[i];
+      if (!mesh) continue;
       
-      mesh.position.lerpVectors(
-        precomputedPaths.current[i][i1], 
-        precomputedPaths.current[i][i2], 
-        exactIndex - i1
-      );
-    });
+      const loopTime = 6 + (i % 3);
+      const t = (time % loopTime) / loopTime;
+      const exactIndex = Math.floor(t * 200);
+      
+      const target = pulseTrajectories[i][exactIndex];
+      if(target) {
+        mesh.position.set(target.x, target.y, target.z);
+      }
+    }
   });
 
   return (
     <group ref={globeRef}>
-      <mesh>
-        <sphereGeometry args={[5, 48, 48]} />
+      <mesh geometry={sphereGeo}>
         <meshPhysicalMaterial color="#1e3a8a" emissive="#172554" emissiveIntensity={0.5} roughness={0.4} metalness={0.6} clearcoat={1} clearcoatRoughness={0.1} />
       </mesh>
 
-      <mesh scale={[1.05, 1.05, 1.05]}>
-        <sphereGeometry args={[5, 32, 32]} />
-        <meshBasicMaterial color="#3b82f6" transparent opacity={0.15} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
+      <mesh scale={[1.05, 1.05, 1.05]} geometry={haloGeo}>
+        <meshBasicMaterial color="#3b82f6" transparent opacity={0.15} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
 
-      <mesh scale={[1.2, 1.2, 1.2]}>
-        <sphereGeometry args={[5, 32, 32]} />
-        <meshBasicMaterial color="#a855f7" transparent opacity={0.05} side={THREE.BackSide} blending={THREE.AdditiveBlending} />
+      <mesh scale={[1.2, 1.2, 1.2]} geometry={haloGeo}>
+        <meshBasicMaterial color="#a855f7" transparent opacity={0.05} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
 
-      {paths.map((curve, i) => (
+      {tubeGeos.map((tubeGeo, i) => (
         <group key={i}>
-          <mesh>
-            <tubeGeometry args={[curve, 32, 0.02, 4, false]} />
-            <meshBasicMaterial color="#d8b4fe" transparent opacity={0.6} blending={THREE.AdditiveBlending} />
+          <mesh geometry={tubeGeo}>
+            <meshBasicMaterial color="#d8b4fe" transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
-          <mesh ref={(el) => { if(el) pulseRefs.current[i] = el; }}>
-            <sphereGeometry args={[0.08, 16, 16]} />
+          <mesh ref={(el) => { pulseRefs.current[i] = el; }} geometry={pulseGeo}>
             <meshBasicMaterial color="#ffffff" toneMapped={false} />
           </mesh>
         </group>
@@ -400,40 +432,27 @@ const Globe = memo(() => {
 Globe.displayName = 'Globe';
 
 const GlobalScaleSection = memo(() => {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  
-  // HARDWARE OPTIMIZATION: Viewport Culling
-  const isInView = useInView(sectionRef, { margin: "0px 0px 200px 0px" });
-
   return (
-    <section ref={sectionRef} className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
-      <div className="absolute inset-0 z-0">
-        <Canvas 
-          {...canvasConfig} 
-          camera={{ position: [0, 0, 19], fov: 35 }}
-          frameloop={isInView ? "always" : "demand"} // Culling active
-        >
-          {isInView && (
-            <>
-              <ambientLight intensity={0.4} />
-              <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
-              <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
-              <ParticleField
-                count={10000} // Capped at 10k to prevent GPU meltdown
-                radius={66}            
-                color="#e9d5ff"        
-                size={0.035}           
-                rotationSpeed={{ x: 0.0001, y: 0.0001, z: 0.001 }} 
-                position={[0, 0, -40]} 
-              />
-              <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
-                <group position={[5.5, 0, 0]}>
-                  <Suspense fallback={null}><Globe /></Suspense>
-                </group>
-              </Float>
-              <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.2} maxPolarAngle={Math.PI / 1.6} minPolarAngle={Math.PI / 3}/>
-            </>
-          )}
+    <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
+      <div className="absolute inset-0 z-0 transform-gpu" style={{ contain: 'strict' }}>
+        <Canvas {...globeCanvasConfig}>
+          <ambientLight intensity={0.4} />
+          <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
+          <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
+          <ParticleField
+            count={40000}          
+            radius={66}            
+            color="#e9d5ff"        
+            size={0.055}           
+            rotationSpeed={{ x: 0.0001, y: 0.0001, z: 0.001 }} 
+            position={[0, 0, -40]} 
+          />
+          <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
+            <group position={[5.5, 0, 0]}>
+              <Suspense fallback={null}><Globe /></Suspense>
+            </group>
+          </Float>
+          <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.2} maxPolarAngle={Math.PI / 1.6} minPolarAngle={Math.PI / 3}/>
         </Canvas>
         <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent pointer-events-none" />
       </div>
@@ -443,6 +462,7 @@ const GlobalScaleSection = memo(() => {
           <div className="pointer-events-auto max-w-xl">
             <motion.div
               initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.8 }}
+              style={{ willChange: "transform, opacity" }}
             >
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
@@ -470,6 +490,7 @@ const GlobalScaleSection = memo(() => {
       <div className="relative z-10 container mx-auto px-6 mt-12 pointer-events-auto">
         <motion.div
           initial={{ opacity: 0, y: 50 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3, duration: 0.8 }}
+          style={{ willChange: "transform, opacity" }}
           className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
         >
           <AnimatedCounter value={1843} text="Active Drones" icon={Rocket} />
@@ -483,14 +504,14 @@ const GlobalScaleSection = memo(() => {
 GlobalScaleSection.displayName = 'GlobalScaleSection';
 
 // ============================================================================
-// --- 2. HOW IT WORKS SECTION (THE MAGICAL REDESIGN) ---
+// --- 2. HOW IT WORKS SECTION ---
 // ============================================================================
 
 const PRODUCTION_STEPS = [
-  { icon: Bot, step: "01", title: "Cognitive Layer Recognition", description: "Simply type or speak your order. Our neural core parses your intent instantly, finding the exact product in our global network without you scrolling through catalogs." },
-  { icon: Cpu, step: "02", title: "State Estimation Sync", description: "Within milliseconds, the system queries local hubs and global databases via an encrypted telemetry link to secure the best price and immediate availability." },
-  { icon: MapIcon, step: "03", title: "Distributed Route Logic", description: "An adaptive flight plan is generated. The system factors in live weather layers, urban topology, and airspace corridors to chart the absolute fastest vector." },
-  { icon: Rocket, step: "04", title: "Data Bus Redundancy Drop", description: "The autonomous drone arrives. Using state estimation and distributed thrust vector logic, it completes a contactless, verified handoff directly to your location." },
+  { icon: Bot, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product in our global network without you scrolling through catalogs." },
+  { icon: Cpu, step: "02", title: "Global Inventory Sync", description: "Within milliseconds, the system queries local hubs and global databases to secure the best price and immediate availability, reserving your item autonomously." },
+  { icon: MapIcon, step: "03", title: "4D Route Computation", description: "An adaptive flight plan is generated. The AI factors in live weather layers, urban topology, and airspace corridors to chart the absolute fastest drone vector." },
+  { icon: Rocket, step: "04", title: "Precision Doorstep Drop", description: "The autonomous drone arrives. Using computer vision and micro-thruster stabilization, it completes a contactless, verified handoff directly to your location." },
 ];
 
 const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUCTION_STEPS[0], index: number, isLast: boolean }) => {
@@ -511,7 +532,7 @@ const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUC
       {/* 1. Flight Path Track */}
       <div className="relative flex shrink-0 flex-col items-center">
         <motion.div
-          style={{ scale, opacity, willChange: 'transform, opacity' }}
+          style={{ scale, opacity, willChange: "transform, opacity" }}
           className="z-10 flex h-14 w-14 md:h-20 md:w-20 items-center justify-center rounded-2xl border border-cyan-400/40 bg-black/50 shadow-[0_0_30px_rgba(6,182,212,0.3)] backdrop-blur-md rotate-45 transform-gpu"
         >
           <div className="-rotate-45 flex flex-col items-center">
@@ -522,7 +543,7 @@ const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUC
         {!isLast && (
           <div className="absolute top-14 md:top-20 bottom-[-6rem] md:bottom-[-8rem] w-[2px] bg-white/5">
             <motion.div
-              style={{ scaleY, transformOrigin: "top", willChange: 'transform' }}
+              style={{ scaleY, transformOrigin: "top", willChange: "transform" }}
               className="w-full h-full bg-gradient-to-b from-cyan-400 via-purple-500 to-transparent shadow-[0_0_10px_rgba(6,182,212,0.8)] transform-gpu"
             />
           </div>
@@ -531,11 +552,11 @@ const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUC
 
       {/* 2. Holographic Panel */}
       <motion.div
-        style={{ opacity, y, rotateX, willChange: 'transform, opacity' }}
-        className="flex-1 mt-2 md:mt-4"
+        style={{ opacity, y, rotateX, willChange: "transform, opacity" }}
+        className="flex-1 mt-2 md:mt-4 transform-gpu"
       >
-        <div className="group relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent p-6 md:p-10 backdrop-blur-xl transition-all duration-700 hover:border-cyan-400/40 hover:bg-white/[0.05] shadow-2xl transform-gpu">
-          <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/15 to-purple-500/15 opacity-0 group-hover:opacity-100 blur-2xl transition-all duration-700 pointer-events-none transform-gpu" style={{ transform: 'translateZ(0)' }} />
+        <div className="group relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent p-6 md:p-10 backdrop-blur-xl transition-all duration-700 hover:border-cyan-400/40 hover:bg-white/[0.05] shadow-2xl">
+          <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/15 to-purple-500/15 opacity-0 group-hover:opacity-100 blur-2xl transition-all duration-700 pointer-events-none will-change-opacity translate-z-0" />
 
           <div className="relative z-10 flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center">
             <div className="flex items-center justify-center h-14 w-14 md:h-20 md:w-20 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.2)] group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-500 shrink-0 transform-gpu">
@@ -565,10 +586,10 @@ const HowItWorksSection = memo(() => {
 
   return (
     <section ref={containerRef} className="relative min-h-screen w-full overflow-hidden bg-[#050505] py-32 lg:py-48 border-t border-white/5">
-      <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden="true">
+      <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
         <motion.div style={{ y: yParallax, willChange: 'transform' }} className="absolute inset-0">
-          <div className="absolute top-[10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-cyan-600/10 blur-[150px] mix-blend-screen transform-gpu" style={{ transform: 'translateZ(0)' }} />
-          <div className="absolute bottom-[10%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-600/10 blur-[150px] mix-blend-screen transform-gpu" style={{ transform: 'translateZ(0)' }} />
+          <div className="absolute top-[10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-cyan-600/10 blur-[150px] mix-blend-screen will-change-transform translate-z-0" />
+          <div className="absolute bottom-[10%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-600/10 blur-[150px] mix-blend-screen will-change-transform translate-z-0" />
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_10%,transparent_100%)] opacity-50" />
         </motion.div>
       </div>
@@ -577,7 +598,8 @@ const HowItWorksSection = memo(() => {
         <div className="text-center mb-24 md:mb-32 flex flex-col items-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
-            className="mb-8 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/30 px-5 py-2 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)]"
+            style={{ willChange: "transform, opacity" }}
+            className="mb-8 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/30 px-5 py-2 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)] transform-gpu"
           >
             <Activity size={16} className="animate-pulse text-cyan-400" />
             <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Autonomy Protocol v2.0</span>
@@ -585,20 +607,21 @@ const HowItWorksSection = memo(() => {
 
           <motion.h2
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1, duration: 0.8 }}
+            style={{ willChange: "transform, opacity" }}
             className="text-5xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tighter text-white drop-shadow-2xl"
-            style={{ fontFamily: "'Orbitron', sans-serif" }}
           >
-            HOW IT <br className="md:hidden" />
-            <span className="bg-gradient-to-r from-cyan-400 via-white to-purple-500 bg-clip-text text-transparent px-2">
+            <span style={{ fontFamily: "'Orbitron', sans-serif" }}>HOW IT</span> <br className="md:hidden" />
+            <span className="bg-gradient-to-r from-cyan-400 via-white to-purple-500 bg-clip-text text-transparent px-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
               WORKS
             </span>
           </motion.h2>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.8 }}
+            style={{ willChange: "transform, opacity" }}
             className="mt-8 max-w-2xl text-lg md:text-xl font-light leading-relaxed text-gray-400"
           >
-            Watch how the neural core translates your hardware logic into a physical product at your door in under 15 minutes.
+            Watch how our neural network translates your thoughts into a physical product at your door in under 15 minutes.
           </motion.p>
         </div>
 
@@ -619,19 +642,20 @@ HowItWorksSection.displayName = 'HowItWorksSection';
 
 const FinalCTA = memo(() => (
   <section className="relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
-    <div className="absolute inset-0 z-0 pointer-events-none">
+    <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }}>
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px] transform-gpu" style={{ transform: 'translateZ(0)' }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px] will-change-transform translate-z-0" />
     </div>
 
     <div className="container mx-auto px-6 relative z-10 text-center">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 30 }} whileInView={{ opacity: 1, scale: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.8, ease: "easeOut" }}
-        className="max-w-5xl mx-auto"
+        style={{ willChange: "transform, opacity" }}
+        className="max-w-5xl mx-auto transform-gpu"
       >
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8 ring-1 ring-cyan-500/20 transform-gpu">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8 ring-1 ring-cyan-500/20">
           <Zap size={14} className="text-yellow-400 fill-yellow-400" />
-          <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Encrypted Telemetry Active</span>
+          <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Next-Gen Shopping Experience</span>
         </div>
 
         <h2 className="text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -642,7 +666,7 @@ const FinalCTA = memo(() => (
         </h2>
 
         <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
-          Don't wait for traffic. Shop thousands of products and watch them arrive via autonomous airdeliver X vectoring in minutes.
+          Don't wait for traffic. Shop thousands of products and watch them arrive from the clouds in minutes.
         </p>
 
         <div className="flex flex-col gap-6 justify-center items-center">
@@ -664,23 +688,18 @@ const FinalCTA = memo(() => (
 FinalCTA.displayName = 'FinalCTA';
 
 const TrustedBySection = memo(() => {
-  const companies = [
-    "NVIDIA",
-    "STRIPE",
-    "AWS",
-    "CLOUDFLARE",
-    "MASTERCARD"
-  ];
+  const companies = ["NVIDIA", "STRIPE", "AWS", "CLOUDFLARE", "MASTERCARD"];
   return (
     <section className="py-12 bg-black border-y border-white/5 overflow-hidden relative">
-      <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none transform-gpu" style={{ transform: 'translateZ(0)' }} />
+      <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none will-change-transform translate-z-0" />
       <div className="container mx-auto px-4 mb-6 text-center relative z-10">
-        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Data Bus Integrated Partners</p>
+        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Trusted by Industry Leaders</p>
       </div>
       <div className="relative flex overflow-x-hidden group">
         <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
         <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
-        <div className="flex gap-16 animate-marquee whitespace-nowrap items-center hover:[animation-play-state:paused] transform-gpu" style={{ willChange: 'transform' }}>
+        {/* Render hardware accelerated marquee */}
+        <div className="flex gap-16 animate-marquee whitespace-nowrap items-center hover:[animation-play-state:paused] transform-gpu">
           {[...companies, ...companies, ...companies, ...companies].map((company, index) => (
             <span key={index} className="text-xl md:text-2xl font-bold text-gray-800 uppercase tracking-tighter hover:text-cyan-400 transition-colors duration-500 cursor-default select-none" style={{ fontFamily: "'Orbitron', sans-serif" }}>
               {company}
