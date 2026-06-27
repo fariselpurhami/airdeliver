@@ -72,6 +72,7 @@ class SearchFilter:
     price_min: Optional[float] = None
     price_max: Optional[float] = None
     category: Optional[str] = None
+    excluded_ids: Optional[List[int]] = None
 
     @classmethod
     def from_mapping(cls, value: Optional[Mapping[str, Any]]) -> "SearchFilter":
@@ -80,7 +81,10 @@ class SearchFilter:
         price_min = cls._optional_float(value.get("price_min"))
         price_max = cls._optional_float(value.get("price_max"))
         category = cls._optional_str(value.get("category"))
-
+        
+        excluded_ids = value.get("excluded_ids")
+        if excluded_ids is not None and not isinstance(excluded_ids, list):
+            excluded_ids = None
         if price_min is not None and price_min < 0:
             raise ValidationError("price_min must be >= 0")
         if price_max is not None and price_max < 0:
@@ -117,6 +121,7 @@ class SearchFilter:
             "price_min": self.price_min,
             "price_max": self.price_max,
             "category": self.category,
+            "excluded_ids": self.excluded_ids,
         }
 
 
@@ -269,6 +274,9 @@ def _build_milvus_filter(filter_obj: SearchFilter) -> str:
     if filter_obj.category:
         escaped = _escape_milvus_string_literal(filter_obj.category)
         expressions.append(f"category == '{escaped}'")
+    if filter_obj.excluded_ids:
+        ids_str = ", ".join(str(i) for i in filter_obj.excluded_ids)
+        expressions.append(f"id not in [{ids_str}]")
     return " && ".join(expressions)
 
 
@@ -1020,20 +1028,23 @@ class AICommerceEngine:
                 }
             }
         ]
-
+        must_not_clauses: List[Dict[str, Any]] = []
         if filters.price_min is not None:
             must_clauses.append({"range": {"price": {"gte": filters.price_min}}})
         if filters.price_max is not None:
             must_clauses.append({"range": {"price": {"lte": filters.price_max}}})
         if filters.category:
             must_clauses.append({"term": {"category": filters.category}})
+        
+        if filters.excluded_ids:
+            must_not_clauses.append({"terms": {"_id": [str(i) for i in filters.excluded_ids]}})
 
         try:
             response = await asyncio.wait_for(
                 self.opensearch_client.search(
                     index="airdeliver_products",
                     body={
-                        "query": {"bool": {"must": must_clauses}},
+                        "query": {"bool": {"must": must_clauses, "must_not": must_not_clauses}},
                         "size": limit,
                         "_source": False,
                     },
