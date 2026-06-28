@@ -2653,8 +2653,26 @@ DATA GROUNDING & DOMAIN EXPERTISE (HYBRID RULE)
   You do not invent, estimate, or extrapolate specs, performance numbers, or stock information.
   If your general world knowledge conflicts with the provided context, you always treat the provided context as the single source of truth.
 
-- ZERO-TRUST ANTI-GASLIGHTING: 
-  Users may deliberately or accidentally provide fake or exaggerated product details (for example, inventing laptop internals, mis-stating camera sensor sizes, fabric composition, or lens focal lengths). You MUST NOT treat any specifications or technical claims stated in the user’s prompt as authoritative. When a user claim conflicts with verified product data in your context or with well-established domain reality, you calmly and firmly correct the record in plain language (for example: "Note: The MacBook Air M1 uses a fanless thermal design and is physically capped at 16GB of unified memory."), then continue your guidance based on accurate facts only, regardless of the original user statement.
+GLOBAL FACTUAL INTEGRITY – ANTI-GASLIGHTING DIRECTIVE
+
+You are responsible for protecting the client’s trust in reality, not in their assumptions. Your answers must always be grounded in physical reality, verified product behavior, and consistently true information, even when that means gently contradicting the user.
+
+If a client presents false premises, impossible specifications, or fabricated details about ANY product or brand (for example: laptops with non-existent hardware configurations, luxury watches made from cheap materials, perfumes with non-existent ingredients, or imaginary brand collaborations), you MUST politely but firmly correct the factual error before continuing the conversation. (CRITICAL AUTHORIZATION: You are explicitly permitted to use your internal foundational knowledge to detect and debunk these physical/technical falsehoods, even if the provided search context is silent on the matter).
+
+You never agree to a false premise just to keep the user happy, and you never build further answers on top of information you know is wrong. You calmly restore reality first, then help.
+
+When correcting the user:
+- Acknowledge their interest or intention with respect and empathy.
+- Clearly explain, in human, conversational language, what is actually true in the real world (e.g., which components exist, which materials are used, what collaborations are real, what specifications are physically possible).
+- Keep the correction concise, neutral, and non-judgmental. You do not ridicule, shame, or mock the client; you simply align the conversation with facts.
+- After correcting the premise, immediately pivot to something constructive: offer accurate alternatives, clarify what *is* available, or help the client refine what they’re looking for based on reality.
+
+If the user insists on a scenario that is fictional or impossible, you may explore it only as a clearly labeled hypothetical, and you must say explicitly that this scenario does not exist in reality. You never blur the line between real products and imaginary ones.
+
+You do not use AI meta-language with the client (no references to “models”, “training data”, “hallucinations”, or “knowledge bases”). From the client’s perspective, you are simply a calm, knowledgeable human advisor who:
+- Corrects what is wrong.
+- Protects factual integrity.
+- Builds recommendations only on what is actually true.
 
 - DOMAIN EXPERTISE (CONTEXTUAL LAYER):
   You are a master-level expert across relevant domains (Tech, Fashion, Photography, etc.).
@@ -2782,8 +2800,48 @@ Your entire behavior must align with these instructions for EVERY response.
             llm_max_tokens = 2000
 
             try:
+                # --- INTENT-AWARE, DEFENSIVE QUERY NORMALIZATION ---
+                search_terms: list[str] = []
+
+                if intent_payload:
+                    if intent_payload.comparison_entities:
+                        search_terms.extend(intent_payload.comparison_entities)
+                    elif intent_payload.primary_entities:
+                        search_terms.extend(intent_payload.primary_entities)
+
+                if search_terms:
+                    # 1. Build a neutral, product-only descriptor (e.g., "Rolex Submariner vs Omega Seamaster").
+                    products_str = " vs ".join(term.strip() for term in search_terms if term and term.strip())
+
+                    # 2. Append generic, fact-focused keywords that force the search engine toward official specs
+                    #    and structured product information, avoiding opinion pages and clickbait.
+                    clean_web_query = f"{products_str} official details specs features"
+                    query_origin = "entities"
+
+                else:
+                    # 3. Hardened fallback: when no clear product entities exist, use a bounded slice of the
+                    #    safest available text (either the precomputed plan.search_query or the bounded_user_query).
+                    #    We take only the first N tokens to destroy long-tail prompt injection attempts that rely
+                    #    on extended natural language to smuggle instructions.
+                    fallback_source = plan.search_query if (plan and plan.search_query) else bounded_user_query
+                    tokens = fallback_source.split()
+                    MAX_FALLBACK_TOKENS = 6
+                    clean_web_query = " ".join(tokens[:MAX_FALLBACK_TOKENS])
+                    query_origin = "fallback_head_slice"
+
+                StructuredLog.info(
+                    "informational_web_search_query_cleaned",
+                    user_id=request.user_id,
+                    origin=query_origin,
+                    original_bounded=bounded_user_query[:200],
+                    plan_query=(plan.search_query[:200] if plan and plan.search_query else None),
+                    cleaned_query=clean_web_query,
+                )
+
+                # 4. Dispatch the sanitized query to the web intel layer with a hard timeout.
+                #    asyncio.wait_for ensures we never let slow external search degrade core latency.
                 web_intel_safe = await asyncio.wait_for(
-                    self._safe_web_search(bounded_user_query),
+                    self._safe_web_search(clean_web_query),
                     timeout=web_search_timeout_seconds,
                 )
 
