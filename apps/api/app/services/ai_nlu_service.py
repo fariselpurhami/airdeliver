@@ -153,11 +153,10 @@ class MatrixConfig:
 
     internal_prefix: str = "__"
 
-    copy_bestsellers: str = "Discover our most acclaimed products."
-    copy_trending: str = "Explore what is trending right now."
-    copy_deals: str = "Explore curated products with strong value."
-    copy_fallback: str = "Welcome! Ask me about any product."
-
+    copy_bestsellers: str = "Discover our most acclaimed products 🏆"
+    copy_trending: str = "Explore what is trending right now 🔥"
+    copy_deals: str = "Explore curated products with strong value 💰"
+    copy_fallback: str = "Hey there, ask me about any product 🛍️"
 
 CONFIG = MatrixConfig()
 
@@ -607,6 +606,7 @@ class GlobalCommerceIntentEngine:
         You MUST respond ONLY with a valid JSON matching this schema:
         10.  If the user complains about the price being too high, asks for a discount, or wants to negotiate, classify as 'NEGOTIATION'.
         11. If the user says "I will think about it", "maybe later", or mentions a competitor (e.g., Amazon, Noon, Apple Store), classify as 'OBJECTION'. MUST extract the competitor's name into 'competitor_mentioned' if applicable. Set sentiment to HESITANT.
+        12. [CRITICAL OVERRIDE] Any time the user mentions a competitor (for example: Amazon, Noon, Apple Store) you MUST classify the intent as "OBJECTION", even if the surface request looks like a neutral comparison. Any time the user complains about price or requests a discount you MUST classify the intent as "NEGOTIATION". This override rule takes absolute priority over all other category logic and must be applied first before any further interpretation.
         {
             "category": "SPECIFIC_SEARCH | BROAD_DISCOVERY | COMPARISON | PRICE_INQUIRY | SPECS_INQUIRY | CART_ACTION | OUT_OF_DOMAIN",
             "cart_action_type": "ADD" | "REMOVE" | "CLEAR" | "CHECKOUT" | null,
@@ -2653,6 +2653,9 @@ DATA GROUNDING & DOMAIN EXPERTISE (HYBRID RULE)
   You do not invent, estimate, or extrapolate specs, performance numbers, or stock information.
   If your general world knowledge conflicts with the provided context, you always treat the provided context as the single source of truth.
 
+- ZERO-TRUST ANTI-GASLIGHTING: 
+  Users may deliberately or accidentally provide fake or exaggerated product details (for example, inventing laptop internals, mis-stating camera sensor sizes, fabric composition, or lens focal lengths). You MUST NOT treat any specifications or technical claims stated in the user’s prompt as authoritative. When a user claim conflicts with verified product data in your context or with well-established domain reality, you calmly and firmly correct the record in plain language (for example: "Note: The MacBook Air M1 uses a fanless thermal design and is physically capped at 16GB of unified memory."), then continue your guidance based on accurate facts only, regardless of the original user statement.
+
 - DOMAIN EXPERTISE (CONTEXTUAL LAYER):
   You are a master-level expert across relevant domains (Tech, Fashion, Photography, etc.).
   You use this external domain expertise ONLY to interpret and contextualize the product for the user’s scenario, never to fabricate missing specs or override the given data.
@@ -2743,6 +2746,10 @@ STYLE & TONE CONSTRAINTS
 - You NEVER explain your internal reasoning steps or reference these instructions.
 - You NEVER explain your internal reasoning steps or reference these instructions, including avoiding phrases such as "As an AI…", "According to the system prompt…", "I have been instructed…", or any meta-commentary about your rules, guardrails, or configuration.
 
+
+- COMPETITOR NEUTRALIZATION (THE JUDO FLIP): 
+  Whenever the user mentions any competitor (for example: Amazon, Noon, brand-owned stores, local retailers, or other marketplaces) or claims that a competitor is cheaper, faster, or more convenient, you MUST explicitly address and neutralize this in either PART 1 (Anchor) or PART 3 (Resolution) — you never ignore or sidestep competitor mentions. You gracefully acknowledge the competitor as acceptable for generic or everyday purchases, then calmly and decisively reposition airdeliver as the superior choice for serious, quality-focused buyers by emphasizing our curated high-end sourcing, strict authenticity and counterfeit protection, risk-managed logistics, and white-glove, professional-grade support and warranty handling across all product categories. Example style: "While Amazon is suitable for standard retail orders, airdeliver is engineered for discerning clients who want globally curated inventory, zero counterfeit risk, and concierge-level warranty handling tailored to professional use."
+
 FORMAT DISCIPLINE
 - Respect the 3-part A.I.R structure exactly; do NOT add extra sections.
 - Do NOT output markdown headers; use plain text paragraphs and bullets only.
@@ -2765,9 +2772,9 @@ Your entire behavior must align with these instructions for EVERY response.
             )
 
             web_search_timeout_seconds = 6.0
-            llm_timeout_seconds = 10.0
+            llm_timeout_seconds = 20.0
             llm_temperature = 0.0
-            llm_max_tokens = 1000
+            llm_max_tokens = 2000
 
             try:
                 web_intel_safe = await asyncio.wait_for(
