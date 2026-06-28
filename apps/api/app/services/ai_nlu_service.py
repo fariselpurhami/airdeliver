@@ -36,7 +36,101 @@ logger = logging.getLogger("airdeliver.commerce_os")
 # CONSTANTS / CONFIG / ENUMS
 # =============================================================================
 
+MB_PER_GB: float = 1024.0
+TB_TO_GB: float = 1024.0
 
+RAM_PATTERN = re.compile(
+    r"""
+    (?ix)
+    \b
+    (?P<pre_context>ram|memory)         
+    \b
+    [^\S\r\n]* # مسافات فقط
+    (?P<ram_amount>\d+(?:\.\d+)?)          
+    [^\S\r\n]* # مسافات
+    (?P<ram_unit>gb|gigabyte|gigabytes|mb|megabyte|megabytes)
+    \b
+    """,
+    re.VERBOSE,
+)
+
+RAM_PATTERN_POST = re.compile(
+    r"""
+    (?ix)
+    \b
+    (?P<ram_amount>\d+(?:\.\d+)?)   
+    [^\S\r\n]* # مسافات
+    (?P<ram_unit>gb|gigabyte|gigabytes|mb|megabyte|megabytes)
+    \b
+    (?:[^\S\r\n]+[\w.-]+){0,2}[^\S\r\n]* 
+    (?P<post_context>ram|memory)           
+    \b
+    """,
+    re.VERBOSE,
+)
+
+STORAGE_PATTERN = re.compile(
+    r"""
+    (?ix)
+    \b
+    (?P<pre_context>ssd|hdd|nvme|m\.2|storage|disk|drive)
+    \b
+    [^\S\r\n]* # مسافات
+    (?P<storage_amount>\d+(?:\.\d+)?)      
+    [^\S\r\n]* # مسافات
+    (?P<storage_unit>tb|terabyte|terabytes|gb|gigabyte|gigabytes)
+    \b
+    """,
+    re.VERBOSE,
+)
+
+STORAGE_PATTERN_POST = re.compile(
+    r"""
+    (?ix)
+    \b
+    (?P<storage_amount>\d+(?:\.\d+)?)      
+    [^\S\r\n]* # مسافات
+    (?P<storage_unit>tb|terabyte|terabytes|gb|gigabyte|gigabytes)
+    \b
+    (?:[^\S\r\n]+[\w.-]+){0,3}[^\S\r\n]*
+    (?P<post_context>ssd|hdd|nvme|m\.2|storage|disk|drive)
+    \b
+    """,
+    re.VERBOSE,
+)
+
+def _extract_ram_candidates(text: str) -> List[float]:
+    candidates: List[float] = []
+    for match in RAM_PATTERN.finditer(text):
+        amount = float(match.group("ram_amount"))
+        unit = match.group("ram_unit").lower()
+        candidates.append(amount / MB_PER_GB if unit.startswith("m") else amount)
+    for match in RAM_PATTERN_POST.finditer(text):
+        amount = float(match.group("ram_amount"))
+        unit = match.group("ram_unit").lower()
+        candidates.append(amount / MB_PER_GB if unit.startswith("m") else amount)
+    return candidates
+
+def _extract_storage_candidates(text: str) -> List[float]:
+    candidates: List[float] = []
+    for match in STORAGE_PATTERN.finditer(text):
+        amount = float(match.group("storage_amount"))
+        unit = match.group("storage_unit").lower()
+        candidates.append(amount * TB_TO_GB if unit.startswith("t") else amount)
+    for match in STORAGE_PATTERN_POST.finditer(text):
+        amount = float(match.group("storage_amount"))
+        unit = match.group("storage_unit").lower()
+        candidates.append(amount * TB_TO_GB if unit.startswith("t") else amount)
+    return candidates
+
+def extract_capacity_specs(text: str) -> Dict[str, Optional[float]]:
+    normalized = re.sub(r"\s+", " ", text.lower()).strip()
+    ram_candidates = _extract_ram_candidates(normalized)
+    storage_candidates = _extract_storage_candidates(normalized)
+    return {
+        "ram_gb": max(ram_candidates) if ram_candidates else None,
+        "storage_gb": max(storage_candidates) if storage_candidates else None,
+    }
 
 class IntentCategory(str, Enum):
     SPECIFIC_SEARCH = "SPECIFIC_SEARCH"       # يبحث عن منتج بالاسم (مثال: ايفون 15 برو)
@@ -1182,18 +1276,16 @@ class ConstraintExtractor:
                             flags=re.IGNORECASE,
                         )
 
-        ram_match = re.search(r"(\d+)\s*(?:gb|g)\s*(?:ram|memory)", lower_text)
-        if ram_match:
-            required_specs["ram"] = int(ram_match.group(1))
-
-        storage_match = re.search(r"(\d+)\s*(?:gb|tb|t)\s*(?:ssd|storage|disk)", lower_text)
-        if storage_match:
-            value = int(storage_match.group(1))
-            token = storage_match.group(0).lower()
-            if "tb" in token or re.search(r"\d+\s*t\s", f"{value} t "):
-                value *= 1024
-            required_specs["storage"] = value
-
+        # --- حط الكود الجديد ده ---
+        specs = extract_capacity_specs(lower_text)
+        
+        # لاحظ استخدمنا int() لأن required_specs عندك متبرمجة إنها تستقبل أرقام صحيحة
+        if specs["ram_gb"] is not None:
+            required_specs["ram"] = int(specs["ram_gb"])
+            
+        if specs["storage_gb"] is not None:
+            required_specs["storage"] = int(specs["storage_gb"])
+        # --------------------------
         for junk in list(self.negation_triggers) + [
             "budget", "price", "cost", "max", "under", "limit", "is", "of", "want", "need",
             "looking for", "find"
