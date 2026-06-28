@@ -1,164 +1,440 @@
 # apps/api/app/services/rabbitmq_service.py
+from __future__ import annotations
 
-import aio_pika
+import asyncio
 import json
 import logging
-import asyncio
-from app.core.config import get_core_settings, CoreSettings
-from fastapi import Depends, HTTPException
-from typing import Optional, Any, Dict
-from aiormq.exceptions import AMQPConnectionError, AMQPError
+import time
+import uuid
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Final, Optional
+
+import aio_pika
+import aio_pika.abc
+from aiormq.exceptions import AMQPError
+from fastapi import Depends
+
+from app.core.config import CoreSettings, get_core_settings
 
 logger = logging.getLogger("airdeliver.rabbitmq")
 
+EXCHANGE_NAME: Final[str] = "airdeliver_main_exchange"
+EXCHANGE_TYPE: Final[aio_pika.ExchangeType] = aio_pika.ExchangeType.TOPIC
+DLX_NAME: Final[str] = "airdeliver_dlx"
+DLQ_NAME: Final[str] = "airdeliver_dlq"
+APP_ID: Final[str] = "airdeliver-api"
+
+CHANNEL_PREFETCH: Final[int] = 64
+PUBLISH_TIMEOUT_SEC: Final[float] = 5.0
+CONNECT_HANDSHAKE_TIMEOUT_SEC: Final[float] = 30.0
+HEARTBEAT_SEC: Final[int] = 60
+MAX_CONNECT_RETRIES: Final[int] = 10
+CONNECT_BASE_DELAY_SEC: Final[float] = 1.5
+CONNECT_MAX_DELAY_SEC: Final[float] = 12.0
+PUBLISH_MAX_RETRIES: Final[int] = 3
+PUBLISH_RETRY_BASE_SEC: Final[float] = 0.3
+
+
+class PublishResult(Enum):
+    CONFIRMED = "confirmed"
+    NACKED = "nacked"
+    EXHAUSTED = "exhausted"
+    SERIALIZATION_ERROR = "serialization_error"
+
+
+@dataclass(frozen=True, slots=True)
+class PublishOutcome:
+    result: PublishResult
+    routing_key: str
+    correlation_id: str
+    attempts: int
+    elapsed_ms: float
+    error_detail: Optional[str] = None
+
+    @property
+    def is_success(self) -> bool:
+        return self.result == PublishResult.CONFIRMED
+
+
+@dataclass(slots=True)
+class _BrokerTopology:
+    connection: aio_pika.abc.AbstractRobustConnection
+    channel: aio_pika.abc.AbstractChannel
+    exchange: aio_pika.abc.AbstractExchange
+    dlx: aio_pika.abc.AbstractExchange
+
+
 class RabbitMQService:
     """
-    �� DIAMOND STANDARD RABBITMQ SERVICE (V32.0 - HIGH AVAILABILITY)
-    Features:
-    - Startup Probe: Waits up to 60s for RabbitMQ to become ready (Fixes ConnectionRefused).
-    - Auto-Healing: Uses connect_robust for automatic reconnection.
-    - Thread-Safe Singleton.
-    """
-    def __init__(self, settings: CoreSettings):
-        self.settings = settings
-        self.connection: Optional[aio_pika.abc.AbstractRobustConnection] = None
-        self.channel: Optional[aio_pika.abc.AbstractChannel] = None
-        self.exchange: Optional[aio_pika.abc.AbstractExchange] = None
-        self.exchange_name = "airdeliver_main_exchange"
-        
-        self.connection_uri = self.settings.RABBITMQ_URL
-        self._conn_lock = asyncio.Lock()
+    Production-grade RabbitMQ service for FastAPI + aio_pika.
 
-    async def connect(self):
-        """Establishes connection with aggressive startup retries."""
-        async with self._conn_lock:
-            if self.connection and not self.connection.is_closed:
+    Characteristics:
+    - Async-safe, idempotent connect path.
+    - Robust connection with reconnect-aware topology rehydration.
+    - Publisher confirms enabled.
+    - Dead-letter exchange and queue provisioned automatically.
+    - Structured logging without leaking payloads or credentials.
+    - Typed publish results; no silent message loss contract.
+    """
+
+    def __init__(self, settings: CoreSettings) -> None:
+        self._settings = settings
+        self._topology: Optional[_BrokerTopology] = None
+        self._connect_lock = asyncio.Lock()
+
+    async def connect(self) -> None:
+        """
+        Establish a healthy broker topology if one does not already exist.
+
+        Safe to call concurrently from multiple coroutines.
+        """
+        async with self._connect_lock:
+            if self._topology is not None and not self._topology.connection.is_closed:
                 return
 
-            # 🛡️ STARTUP STRATEGY: Wait longer for RabbitMQ (it can be slow to boot)
-            retries = 10  # Increased attempts
-            base_delay = 2
+            last_exc: Exception = RuntimeError("RabbitMQ connect not attempted")
 
-            for attempt in range(retries):
+            for attempt in range(1, MAX_CONNECT_RETRIES + 1):
                 try:
-                    logger.info(f"🐰 Connecting to RabbitMQ at {self.settings.RABBITMQ_HOST}... (Attempt {attempt + 1}/{retries})")
-                    
-                    # نستخدم connect_robust مباشرة هنا للتحكم في عملية المحاولة
-                    self.connection = await aio_pika.connect_robust(
-                        self.connection_uri,
-                        timeout=60, # Long timeout for handshake
-                        heartbeat=60,
-                        client_properties={"connection_name": "airdeliver-backend-diamond"}
+                    logger.info(
+                        "rabbitmq.connect.attempt",
+                        extra={
+                            "host": self._settings.RABBITMQ_HOST,
+                            "attempt": attempt,
+                            "max_attempts": MAX_CONNECT_RETRIES,
+                        },
                     )
-                    
-                    self.channel = await self.connection.channel(publisher_confirms=True)
-                    
-                    self.exchange = await self.channel.declare_exchange(
-                        self.exchange_name,
-                        type=aio_pika.ExchangeType.TOPIC,
-                        durable=True
+
+                    topology = await self._build_topology()
+                    self._topology = topology
+
+                    logger.info(
+                        "rabbitmq.connect.success",
+                        extra={
+                            "exchange": EXCHANGE_NAME,
+                            "dlx": DLX_NAME,
+                            "dlq": DLQ_NAME,
+                        },
                     )
-                    
-                    logger.info(f"✅ RabbitMQ Connected & Exchange '{self.exchange_name}' Ready.")
                     return
 
-                except (OSError, AMQPError, asyncio.TimeoutError, ConnectionRefusedError) as e:
-                    if attempt == retries - 1:
-                        logger.critical(f"🔥 FATAL: RabbitMQ Unreachable after {retries} attempts. System Exiting. Error: {e}")
-                        raise e
-                    
-                    # Log wait time
-                    wait_time = min(base_delay * (1.5 ** attempt), 10) # Cap at 10s wait
-                    logger.warning(f"⚠️ RabbitMQ not ready yet (Connection Refused). Retrying in {wait_time:.1f}s...")
-                    await asyncio.sleep(wait_time)
+                except (OSError, AMQPError, asyncio.TimeoutError, ConnectionRefusedError) as exc:
+                    last_exc = exc
 
-    async def close(self):
-        try:
-            if self.channel and not self.channel.is_closed:
-                await self.channel.close()
-            if self.connection and not self.connection.is_closed:
-                await self.connection.close()
-            logger.info("🛑 RabbitMQ Connection Closed Gracefully.")
-        except Exception as e:
-            logger.error(f"⚠️ Error closing RabbitMQ: {e}")
+                    if attempt == MAX_CONNECT_RETRIES:
+                        break
 
-    async def publish(self, body: Dict[str, Any], routing_key: str, max_retries: int = 3):
-        attempt = 0
-        while attempt < max_retries:
-            try:
-                # Ensure connection is alive
-                if not self.connection or self.connection.is_closed:
-                    await self.connect()
-
-                if not self.exchange:
-                    # Try to recover topology
-                    self.exchange = await self.channel.declare_exchange(
-                        self.exchange_name, type=aio_pika.ExchangeType.TOPIC, durable=True
+                    delay = min(
+                        CONNECT_BASE_DELAY_SEC * (1.5 ** (attempt - 1)),
+                        CONNECT_MAX_DELAY_SEC,
                     )
+                    logger.warning(
+                        "rabbitmq.connect.retry",
+                        extra={
+                            "attempt": attempt,
+                            "retry_in_sec": round(delay, 2),
+                            "error": str(exc),
+                        },
+                    )
+                    await asyncio.sleep(delay)
 
-                try:
-                    message_body = json.dumps(body, default=str)
-                except (TypeError, ValueError) as e:
-                    logger.error(f"❌ Logic Error: Cannot serialize payload. {e}")
-                    raise e 
-                
+            logger.critical(
+                "rabbitmq.connect.failed",
+                extra={
+                    "attempts": MAX_CONNECT_RETRIES,
+                    "error": str(last_exc),
+                },
+            )
+            raise last_exc
+
+    async def close(self) -> None:
+        """
+        Gracefully release AMQP resources in dependency order.
+        """
+        topology = self._topology
+        self._topology = None
+
+        if topology is None:
+            return
+
+        try:
+            if not topology.channel.is_closed:
+                await topology.channel.close()
+        except Exception as exc:
+            logger.warning(
+                "rabbitmq.close.channel_error",
+                extra={"error": str(exc)},
+            )
+
+        try:
+            if not topology.connection.is_closed:
+                await topology.connection.close()
+            logger.info("rabbitmq.close.success")
+        except Exception as exc:
+            logger.error(
+                "rabbitmq.close.connection_error",
+                extra={"error": str(exc)},
+            )
+
+    async def publish(
+        self,
+        body: dict[str, Any],
+        routing_key: str,
+        correlation_id: Optional[str] = None,
+        max_retries: int = PUBLISH_MAX_RETRIES,
+    ) -> PublishOutcome:
+        """
+        Publish a JSON message with publisher confirms.
+
+        Returns a typed PublishOutcome. Callers can decide whether to raise
+        an HTTP 503, enqueue fallback work, or emit alerts.
+        """
+        cid = correlation_id or str(uuid.uuid4())
+        started_at = time.monotonic()
+
+        try:
+            payload = json.dumps(body, default=str).encode("utf-8")
+        except (TypeError, ValueError) as exc:
+            logger.error(
+                "rabbitmq.publish.serialization_error",
+                extra={
+                    "routing_key": routing_key,
+                    "correlation_id": cid,
+                    "error": str(exc),
+                },
+            )
+            return PublishOutcome(
+                result=PublishResult.SERIALIZATION_ERROR,
+                routing_key=routing_key,
+                correlation_id=cid,
+                attempts=0,
+                elapsed_ms=self._elapsed_ms(started_at),
+                error_detail=str(exc),
+            )
+
+        last_exc: Optional[Exception] = None
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                exchange = await self._ensure_exchange()
+
                 message = aio_pika.Message(
-                    body=message_body.encode(),
+                    body=payload,
                     content_type="application/json",
                     delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
-                    app_id="airdeliver-api"
+                    app_id=APP_ID,
+                    correlation_id=cid,
+                    message_id=str(uuid.uuid4()),
+                    timestamp=int(time.time()),
                 )
-                
-                confirmation = await self.exchange.publish(
-                    message, 
+
+                confirmation = await exchange.publish(
+                    message,
                     routing_key=routing_key,
-                    timeout=5.0
+                    timeout=PUBLISH_TIMEOUT_SEC,
                 )
-                
-                if confirmation: return True
-                logger.warning(f"⚠️ NACK received for {routing_key}")
 
-            except (AMQPError, asyncio.TimeoutError, ConnectionError, OSError) as e:
-                attempt += 1
-                logger.warning(f"⚠️ Publish failed (Attempt {attempt}/{max_retries}). Error: {e}")
+                elapsed_ms = self._elapsed_ms(started_at)
+
+                if confirmation:
+                    logger.debug(
+                        "rabbitmq.publish.confirmed",
+                        extra={
+                            "routing_key": routing_key,
+                            "correlation_id": cid,
+                            "attempt": attempt,
+                            "elapsed_ms": elapsed_ms,
+                        },
+                    )
+                    return PublishOutcome(
+                        result=PublishResult.CONFIRMED,
+                        routing_key=routing_key,
+                        correlation_id=cid,
+                        attempts=attempt,
+                        elapsed_ms=elapsed_ms,
+                    )
+
+                logger.warning(
+                    "rabbitmq.publish.nacked",
+                    extra={
+                        "routing_key": routing_key,
+                        "correlation_id": cid,
+                        "attempt": attempt,
+                    },
+                )
+                return PublishOutcome(
+                    result=PublishResult.NACKED,
+                    routing_key=routing_key,
+                    correlation_id=cid,
+                    attempts=attempt,
+                    elapsed_ms=elapsed_ms,
+                    error_detail="Broker negative acknowledgement received",
+                )
+
+            except (AMQPError, asyncio.TimeoutError, ConnectionError, OSError) as exc:
+                last_exc = exc
+                logger.warning(
+                    "rabbitmq.publish.retry",
+                    extra={
+                        "routing_key": routing_key,
+                        "correlation_id": cid,
+                        "attempt": attempt,
+                        "max_retries": max_retries,
+                        "error": str(exc),
+                    },
+                )
+                self._topology = None
+
                 if attempt < max_retries:
-                    await asyncio.sleep(0.5 * attempt)
-                else:
-                    logger.error(f"🔥 Publish Exhausted to '{routing_key}'.")
+                    await asyncio.sleep(PUBLISH_RETRY_BASE_SEC * attempt)
 
-            except Exception as e:
-                logger.critical(f"🔥 Unexpected Publish Error: {e}", exc_info=True)
-                raise e
-        
-        return False # Fail silently to prevent worker crash loop
+        elapsed_ms = self._elapsed_ms(started_at)
+        logger.error(
+            "rabbitmq.publish.exhausted",
+            extra={
+                "routing_key": routing_key,
+                "correlation_id": cid,
+                "attempts": max_retries,
+                "elapsed_ms": elapsed_ms,
+                "error": str(last_exc) if last_exc else None,
+            },
+        )
+        return PublishOutcome(
+            result=PublishResult.EXHAUSTED,
+            routing_key=routing_key,
+            correlation_id=cid,
+            attempts=max_retries,
+            elapsed_ms=elapsed_ms,
+            error_detail=str(last_exc) if last_exc else None,
+        )
 
-# --- SINGLETON ---
-_rabbitmq_service_instance: Optional[RabbitMQService] = None
-_init_lock = asyncio.Lock()
+    async def is_healthy(self) -> bool:
+        """
+        Lightweight readiness/liveness check.
+        """
+        try:
+            topology = self._topology
+            return (
+                topology is not None
+                and not topology.connection.is_closed
+                and not topology.channel.is_closed
+            )
+        except Exception:
+            return False
+
+    async def __aenter__(self) -> "RabbitMQService":
+        await self.connect()
+        return self
+
+    async def __aexit__(self, *_: Any) -> None:
+        await self.close()
+
+    async def _build_topology(self) -> _BrokerTopology:
+        connection: aio_pika.abc.AbstractRobustConnection = await aio_pika.connect_robust(
+            self._settings.RABBITMQ_URL,
+            timeout=CONNECT_HANDSHAKE_TIMEOUT_SEC,
+            heartbeat=HEARTBEAT_SEC,
+            client_properties={
+                "connection_name": f"{APP_ID}-{uuid.uuid4().hex[:8]}"
+            },
+        )
+
+        channel: aio_pika.abc.AbstractChannel = await connection.channel(
+            publisher_confirms=True,
+        )
+        await channel.set_qos(prefetch_count=CHANNEL_PREFETCH)
+
+        dlx: aio_pika.abc.AbstractExchange = await channel.declare_exchange(
+            DLX_NAME,
+            type=aio_pika.ExchangeType.FANOUT,
+            durable=True,
+        )
+
+        dlq = await channel.declare_queue(
+            DLQ_NAME,
+            durable=True,
+            arguments={"x-queue-type": "quorum"},
+        )
+        await dlq.bind(dlx)
+
+        exchange: aio_pika.abc.AbstractExchange = await channel.declare_exchange(
+            EXCHANGE_NAME,
+            type=EXCHANGE_TYPE,
+            durable=True,
+            arguments={
+                "x-dead-letter-exchange": DLX_NAME,
+            },
+        )
+
+        return _BrokerTopology(
+            connection=connection,
+            channel=channel,
+            exchange=exchange,
+            dlx=dlx,
+        )
+
+    async def _ensure_exchange(self) -> aio_pika.abc.AbstractExchange:
+        topology = self._topology
+
+        if topology is None or topology.connection.is_closed or topology.channel.is_closed:
+            await self.connect()
+            topology = self._topology
+
+        assert topology is not None, "RabbitMQ topology unavailable after connect()"
+        return topology.exchange
+
+    @staticmethod
+    def _elapsed_ms(started_at: float) -> float:
+        return round((time.monotonic() - started_at) * 1000, 2)
+
+
+_instance: Optional[RabbitMQService] = None
+_instance_lock = asyncio.Lock()
+
+
+async def _get_or_create_instance(settings: CoreSettings) -> RabbitMQService:
+    global _instance
+
+    if _instance is not None and await _instance.is_healthy():
+        return _instance
+
+    async with _instance_lock:
+        if _instance is None or not await _instance.is_healthy():
+            service = RabbitMQService(settings)
+            await service.connect()
+            _instance = service
+
+    return _instance
+
 
 async def get_rabbitmq_service(
     settings: CoreSettings = Depends(get_core_settings),
 ) -> RabbitMQService:
-    global _rabbitmq_service_instance
-    if _rabbitmq_service_instance is None:
-        async with _init_lock:
-            if _rabbitmq_service_instance is None:
-                service = RabbitMQService(settings)
-                await service.connect()
-                _rabbitmq_service_instance = service
-    
-    if _rabbitmq_service_instance.connection is None or _rabbitmq_service_instance.connection.is_closed:
-        await _rabbitmq_service_instance.connect()
-        
-    return _rabbitmq_service_instance
+    """
+    FastAPI dependency injection entry point.
+    """
+    return await _get_or_create_instance(settings)
 
-# --- LIFECYCLE ---
-async def init_rabbitmq():
+
+async def init_rabbitmq() -> None:
+    """
+    Eager initialization during application startup.
+    """
     settings = get_core_settings()
-    await get_rabbitmq_service(settings)
+    await _get_or_create_instance(settings)
+    logger.info("rabbitmq.lifecycle.initialized")
 
-async def close_rabbitmq():
-    global _rabbitmq_service_instance
-    if _rabbitmq_service_instance:
-        await _rabbitmq_service_instance.close()
-        _rabbitmq_service_instance = None
+
+async def shutdown_rabbitmq() -> None:
+    """
+    Graceful shutdown hook for application lifespan teardown.
+    """
+    global _instance
+
+    async with _instance_lock:
+        if _instance is not None:
+            await _instance.close()
+            _instance = None
+
+    logger.info("rabbitmq.lifecycle.shutdown")
