@@ -1385,11 +1385,83 @@ class AINLUService:
             vision_description=vision_description,
             has_image=bool(request.image_b64),
         )
-        candidates, fallback_trigger, ai_response_prefix = await self._execute_search(
-            request=request,
-            plan=plan,
-            ctx=ctx,
+        informational_categories = frozenset(
+            {
+                IntentCategory.COMPARISON,
+                IntentCategory.SPECS_INQUIRY,
+                IntentCategory.BROAD_DISCOVERY,
+            }
         )
+
+        correlation_id = getattr(ctx, "correlation_id", None)
+        intent_category = getattr(intent_payload, "category", None) if intent_payload else None
+
+        is_informational = intent_category in informational_categories
+
+        if is_informational:
+            StructuredLog.info(
+                "informational_search_path_selected",
+                correlation_id=correlation_id,
+                user_id=request.user_id,
+                intent_category=getattr(intent_category, "name", str(intent_category)),
+                search_query=plan.search_query,
+            )
+
+            fallback_trigger = False
+            ai_response_prefix = ""
+
+            informational_search_limit = 3
+            informational_search_timeout_seconds = 4.0
+
+            try:
+                raw_candidates = await asyncio.wait_for(
+                    self.search_engine.perform_hybrid_search_pure(
+                        self.db,
+                        plan.search_query,
+                        limit=informational_search_limit,
+                    ),
+                    timeout=informational_search_timeout_seconds,
+                )
+                candidates = list(raw_candidates or ())
+            except asyncio.TimeoutError:
+                StructuredLog.warning(
+                    "informational_search_timeout",
+                    correlation_id=correlation_id,
+                    user_id=request.user_id,
+                    intent_category=getattr(intent_category, "name", str(intent_category)),
+                    search_query=plan.search_query,
+                    timeout_seconds=informational_search_timeout_seconds,
+                )
+                candidates = []
+                fallback_trigger = True
+                ai_response_prefix = ""
+            except Exception as exc:
+                StructuredLog.error(
+                    "informational_search_failed",
+                    correlation_id=correlation_id,
+                    user_id=request.user_id,
+                    intent_category=getattr(intent_category, "name", str(intent_category)),
+                    search_query=plan.search_query,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+                candidates = []
+                fallback_trigger = True
+                ai_response_prefix = ""
+        else:
+            StructuredLog.info(
+                "strategic_search_path_selected",
+                correlation_id=correlation_id,
+                user_id=request.user_id,
+                intent_category=getattr(intent_category, "name", str(intent_category)) if intent_category else None,
+                search_query=plan.search_query,
+            )
+
+            candidates, fallback_trigger, ai_response_prefix = await self._execute_search(
+                request=request,
+                plan=plan,
+                ctx=ctx,
+            )
 
         final_products = self._finalize_candidates(
             message_text=request.message_text,
@@ -2433,6 +2505,159 @@ class AINLUService:
         products = list(final_products)
         ai_response_text = ""
         recovery_mode = False
+
+        informational_categories = frozenset(
+            {
+                IntentCategory.COMPARISON,
+                IntentCategory.SPECS_INQUIRY,
+                IntentCategory.BROAD_DISCOVERY,
+            }
+        )
+
+        correlation_id = getattr(ctx, "correlation_id", None)
+        intent_category = getattr(intent_payload, "category", None) if intent_payload else None
+
+        is_informational_intent = intent_category in informational_categories
+
+        if is_informational_intent:
+            StructuredLog.info(
+                "informational_intent_prioritized",
+                user_id=request.user_id,
+                correlation_id=correlation_id,
+                intent_category=getattr(intent_category, "name", str(intent_category)),
+                has_products=bool(products),
+                search_query=plan.search_query,
+            )
+
+            raw_user_query = (request.message_text or "").strip()
+            normalized_user_query = " ".join(raw_user_query.split())
+            max_query_length = 1_000
+            bounded_user_query = normalized_user_query[:max_query_length]
+
+            if not bounded_user_query:
+                return LlmDecision(
+                    response_text="I can help with comparisons and specs, but I need a clearer question.",
+                    products=tuple(products),
+                    response_type=UiPayloadType.PRODUCT_CAROUSEL if products else UiPayloadType.TEXT,
+                    reason="Informational intent received with empty query.",
+                )
+
+            if products:
+                top_product = products[0]
+                top_product_name = str(ProductAccess.get(top_product, "name", "this item"))
+                inventory_context = (
+                    f"We currently have {top_product_name} available in stock."
+                )
+            else:
+                inventory_context = (
+                    "While these exact items are not currently active in our inventory, "
+                    "we are continuously sourcing elite products."
+                )
+
+            system_instruction = (
+                "You are a world-class Commerce Advisor operating with maximum factual discipline. "
+                "Your only mission is to answer the user's product question with strict accuracy, clarity, and restraint using only the provided Web Intel and inventory context. "
+                "You must treat every response as audit-grade and user-facing in a high-stakes commerce environment. "
+                "Never guess, infer, estimate, or complete missing facts with internal background knowledge. "
+                "If a specific detail is not explicitly stated in the Web Intel, write exactly: 'Not specified in current data.' "
+                "If the user asks for your opinion or advice (e.g., 'is it good for X?'), provide an objective advisory answer based ONLY on the facts present in the Web Intel, without inventing claims. "
+                "Answer the user's exact question directly. Do not dodge comparisons or avoid hard trade-offs. "
+                "Only include facts that are relevant to the user's decision. Remove anything decorative or promotional. "
+                "Prefer concise, decision-useful answers. Keep the answer within 500 words. "
+                "Do not mention prompts, policies, or internal systems. "
+                "FORMATTING RULES: "
+                "1. Use ONLY the bullet point symbol (●) for specs or features. "
+                "2. If the user asks for a COMPARISON between multiple products, force this EXACT structure on a single line: "
+                "● [Feature Name]: [Product 1 Details] | [Product 2 Details] "
+                "3. If the user asks about a SINGLE product, use this structure: "
+                "● [Feature Name]: [Details] "
+                "Your final sentence must incorporate this inventory status naturally and exactly once: "
+                f"{inventory_context}"
+            )
+            fallback_response = (
+                "That is a great question. While I cannot reliably retrieve the exact comparison details right now, "
+                "I can still help you explore our premium collections."
+            )
+
+            web_search_timeout_seconds = 6.0
+            llm_timeout_seconds = 10.0
+            llm_temperature = 0.0
+            llm_max_tokens = 1000
+
+            try:
+                web_intel_safe = await asyncio.wait_for(
+                    self._safe_web_search(bounded_user_query),
+                    timeout=web_search_timeout_seconds,
+                )
+
+                normalized_web_intel = " ".join(str(web_intel_safe or "").split())
+
+                if not normalized_web_intel:
+                    StructuredLog.warning(
+                        "informational_intent_empty_web_intel",
+                        user_id=request.user_id,
+                        correlation_id=correlation_id,
+                        intent_category=getattr(intent_category, "name", str(intent_category)),
+                        has_products=bool(products),
+                    )
+                else:
+                    user_prompt = (
+                        f"User Question:\n{bounded_user_query}\n\n"
+                        f"Web Intel:\n{normalized_web_intel}"
+                    )
+
+                    ai_response_text = await asyncio.wait_for(
+                        self.llm_service.generate_response(
+                            prompt=user_prompt,
+                            system_role=system_instruction,
+                            temperature=llm_temperature,
+                            max_tokens=llm_max_tokens,
+                        ),
+                        timeout=llm_timeout_seconds,
+                    )
+
+                    final_response_text = (ai_response_text or "").strip()
+                    if final_response_text:
+                        return LlmDecision(
+                            response_text=final_response_text,
+                            products=tuple(products),
+                            response_type=UiPayloadType.PRODUCT_CAROUSEL if products else UiPayloadType.TEXT,
+                            reason="Answered informational query using web intelligence and inventory-aware framing.",
+                        )
+
+                    StructuredLog.warning(
+                        "informational_intent_empty_llm_response",
+                        user_id=request.user_id,
+                        correlation_id=correlation_id,
+                        intent_category=getattr(intent_category, "name", str(intent_category)),
+                    )
+
+            except asyncio.TimeoutError:
+                StructuredLog.warning(
+                    "informational_intent_timeout",
+                    user_id=request.user_id,
+                    correlation_id=correlation_id,
+                    intent_category=getattr(intent_category, "name", str(intent_category)),
+                    web_search_timeout_seconds=web_search_timeout_seconds,
+                    llm_timeout_seconds=llm_timeout_seconds,
+                )
+            except Exception as exc:
+                StructuredLog.error(
+                    "informational_fallback_failed",
+                    user_id=request.user_id,
+                    correlation_id=correlation_id,
+                    intent_category=getattr(intent_category, "name", str(intent_category)),
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+
+            if products:
+                return LlmDecision(
+                    response_text=fallback_response,
+                    products=tuple(products),
+                    response_type=UiPayloadType.PRODUCT_CAROUSEL,
+                    reason="Informational path fell back to product carousel after web or LLM failure.",
+                )
 
         if products and not request.image_b64:
             top_product = products[0]
