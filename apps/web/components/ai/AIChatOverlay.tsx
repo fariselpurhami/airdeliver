@@ -710,7 +710,7 @@ const ChatInput = React.memo(
 
     const isInputLocked = isTyping || isProcessing;
     const isSendButtonDisabled = isInputLocked || (!value.trim() && !pendingImage);
-
+    const hasInput = value.length > 0 || pendingImage !== null;
     return (
       <div className="p-6 border-t border-white/5 flex-shrink-0 bg-[#020617]/50 backdrop-blur-md relative z-20">
          <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} />
@@ -740,42 +740,54 @@ const ChatInput = React.memo(
         </AnimatePresence>
 
         <div className="relative group max-w-4xl mx-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="p-3 rounded-full bg-white/5 text-white hover:bg-cyan-500/20 transition-all border border-white/5 hover:border-cyan-500/50"
-            title="Upload Visual Data"
-          >
-            <Camera size={20} />
-          </button>
+          <AnimatePresence>
+              {!hasInput && (
+                  <motion.div
+                      initial={{ width: 0, opacity: 0, scale: 0.8 }}
+                      animate={{ width: 'auto', opacity: 1, scale: 1 }}
+                      exit={{ width: 0, opacity: 0, scale: 0.5 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      className="flex items-center gap-2 overflow-hidden flex-shrink-0 origin-left"
+                      style={{ willChange: 'width, opacity, transform' }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-3 rounded-full bg-white/5 text-white hover:bg-cyan-500/20 transition-all border border-white/5 hover:border-cyan-500/50"
+                      title="Upload Visual Data"
+                    >
+                      <Camera size={20} />
+                    </button>
 
-          <button
-            type="button"
-            onClick={() => useAIOrderingStore.getState().setVoiceMode(true)}
-            className="p-3 rounded-full bg-white/5 text-white hover:bg-cyan-500/20 transition-all border border-white/5 hover:border-cyan-500/50 group"
-            title="Talk to order with air"
-          >
-            <Mic size={20} className="group-hover:scale-110 transition-transform" />
-          </button>
-
-          <div className="relative flex-grow">
-            <textarea
-                ref={textareaRef}
-                value={value}
-                onChange={handleAutoResize}
-                rows={1}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault(); 
-                        if (!isSendButtonDisabled) handleTriggerSend();
-                    }
-                }}
-                placeholder={isListening ? 'Listening...' : isInputLocked ? 'Thinking...' : 'Ask order with air...'}
-                disabled={isInputLocked}
-                className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800 focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
-                style={{ overflowY: textareaRef.current && textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden' }}
-            />
-             <button
+                    <button
+                      type="button"
+                      onClick={() => useAIOrderingStore.getState().setVoiceMode(true)}
+                      className="p-3 rounded-full bg-white/5 text-white hover:bg-cyan-500/20 transition-all border border-white/5 hover:border-cyan-500/50 group"
+                      title="Talk to order with air"
+                    >
+                      <Mic size={20} className="group-hover:scale-110 transition-transform" />
+                    </button>
+                </motion.div>
+             )}
+         </AnimatePresence>
+         <div className="relative flex-grow">
+           <textarea
+               ref={textareaRef}
+               value={value}
+               onChange={handleAutoResize}
+               rows={1}
+               onKeyDown={(e) => {
+                   if (e.key === 'Enter' && !e.shiftKey) {
+                       e.preventDefault(); 
+                       if (!isSendButtonDisabled) handleTriggerSend();
+                   }
+               }}
+               placeholder={isListening ? 'Listening...' : isInputLocked ? 'Thinking...' : 'Ask order with air...'}
+               disabled={isInputLocked}
+               className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800 focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
+               style={{ overflowY: textareaRef.current && textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden' }}
+           />
+            <button
                 disabled={isSendButtonDisabled}
                 onClick={handleTriggerSend}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-transparent disabled:text-gray-500 text-white transition-all"
