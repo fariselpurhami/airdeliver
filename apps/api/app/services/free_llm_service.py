@@ -262,6 +262,35 @@ def _sanitize_product(product: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
+FILLER_PHRASES_PATTERN = re.compile(
+    r"\b(hey ai|hi ai|please|can you|could you|من فضلك|لو سمحت)\b",
+    flags=re.IGNORECASE,
+)
+
+SEARCH_INTENT_TOKENS: tuple[str, ...] = (
+    "price",
+    "buy",
+    "review",
+    "date",
+    "spec",
+    "specs",
+    "availability",
+    "تفاصيل",
+    "سعر",
+    "مواصفات",
+)
+
+def _build_clean_web_query(raw_query: str) -> str:
+    stripped = FILLER_PHRASES_PATTERN.sub("", raw_query)
+    stripped = _normalize_whitespace(stripped)
+
+    lowered = stripped.lower()
+    if not any(token in lowered for token in SEARCH_INTENT_TOKENS):
+        stripped = f"{stripped} official review current price specs availability"
+
+    MAX_QUERY_CHARS = 512
+    return stripped[:MAX_QUERY_CHARS]
+
 class FreeLLMService:
     """
     💎 DIAMOND COGNITIVE CORE (V100.0 - UNIVERSAL MIND).
@@ -833,54 +862,80 @@ Output ONE line of search keywords only.
         return await asyncio.wait_for(asyncio.to_thread(_execute), timeout=self.limits.tavily_timeout_seconds)
 
     async def _perform_web_search(self, query: str) -> str:
-        if not self._tavily_api_key:
+        if not self._tavily_api_key or not str(self._tavily_api_key).strip():
             return "Global search unavailable."
 
-        clean_query = _normalize_whitespace(re.sub(r"\b(hey ai|please|can you)\b", "", query, flags=re.IGNORECASE))
-        if not any(token in clean_query.lower() for token in ["price", "buy", "review", "date", "spec", "availability"]):
-            clean_query += " official review current price specs availability"
+        clean_query = _build_clean_web_query(query)
 
-        def _execute_search() -> Dict[str, Any]:
+        def _execute_search(clean: str) -> Dict[str, Any]:
             client = TavilyClient(api_key=self._tavily_api_key)
             return client.search(
-                query=clean_query,
+                query=clean,
                 search_depth="advanced",
-                max_results=5,
+                max_results=3,
                 include_answer=True,
-                include_raw_content=False,
+                include_raw_content=True,
                 topic="general",
             )
 
         try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(_execute_search),
-                timeout=self.limits.tavily_timeout_seconds,
+            response: Dict[str, Any] = await asyncio.wait_for(
+                asyncio.to_thread(_execute_search, clean_query),
+                timeout=float(self.limits.tavily_timeout_seconds),
             )
-            parts: List[str] = []
-            direct_answer = _normalize_whitespace(str(response.get("answer", "")))
-            if direct_answer:
-                parts.append(f"• INTELLIGENCE SUMMARY: {direct_answer}")
-
-            for item in response.get("results", [])[:5]:
-                title = _normalize_whitespace(str(item.get("title", "Source")))
-                content = _truncate(_normalize_whitespace(str(item.get("content", ""))), 650)
-                url = _normalize_whitespace(str(item.get("url", "")))
-                published_date = _normalize_whitespace(str(item.get("published_date", "Unknown Date")))
-                segment = f"• DATA ({title}): {content}"
-                if published_date:
-                    segment += f" | Date: {published_date}"
-                if url:
-                    segment += f" | URL: {url}"
-                parts.append(segment)
-
-            if not parts:
-                return "Global search yielded no confirmed data."
-            return "\n".join(parts)
-
-        except Exception:
-            logger.error("web search bridge failure", exc_info=True)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "web_search_timeout",
+                extra={
+                    "clean_query": clean_query[:200],
+                    "timeout_seconds": self.limits.tavily_timeout_seconds,
+                },
+            )
+            return "Global search timed out before reliable data could be retrieved."
+        except Exception as exc:
+            logger.error(
+                "web_search_bridge_failure",
+                extra={"clean_query": clean_query[:200], "error": str(exc)},
+                exc_info=True,
+            )
             return "Connection to global knowledge grid failed."
 
+        parts: List[str] = []
+
+        direct_answer = _normalize_whitespace(str(response.get("answer") or ""))
+        if direct_answer:
+            parts.append(f"• INTELLIGENCE SUMMARY: {direct_answer}")
+
+        results = response.get("results") or []
+        for item in results[:3]:
+            title = _normalize_whitespace(str(item.get("title") or "Source"))
+            raw_text = str(item.get("raw_content") or "") or str(item.get("content") or "")
+            if not raw_text.strip():
+                continue
+
+            MAX_CONTENT_CHARS = 2000
+            content = _truncate(_normalize_whitespace(raw_text), MAX_CONTENT_CHARS)
+
+            url = _normalize_whitespace(str(item.get("url") or ""))
+            published_date = _normalize_whitespace(str(item.get("published_date") or ""))
+
+            segment = f"• DATA ({title}): {content}"
+            if published_date:
+                segment += f" | Date: {published_date}"
+            if url:
+                segment += f" | URL: {url}"
+            parts.append(segment)
+
+        if not parts:
+            logger.info(
+                "web_search_empty_results",
+                extra={"clean_query": clean_query[:200]},
+            )
+            return "Global search yielded no confirmed data."
+
+        return "\n".join(parts)
+
+    
     async def consult_on_product(
         self,
         product_data: Dict[str, Any],
