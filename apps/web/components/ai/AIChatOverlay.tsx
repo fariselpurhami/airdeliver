@@ -770,7 +770,7 @@ const ChatInput = React.memo(
                 </motion.div>
              )}
          </AnimatePresence>
-         <div className="relative flex-grow">
+         <div className="relative flex-grow min-w-0">
            <textarea
                ref={textareaRef}
                value={value}
@@ -784,13 +784,13 @@ const ChatInput = React.memo(
                }}
                placeholder={isListening ? 'Listening...' : isInputLocked ? 'Thinking...' : 'Ask order with air...'}
                disabled={isInputLocked}
-               className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800 focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
+               className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800  placeholder:whitespace-nowrap focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
                style={{ overflowY: textareaRef.current && textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden' }}
            />
             <button
                 disabled={isSendButtonDisabled}
                 onClick={handleTriggerSend}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-transparent disabled:text-gray-500 text-white transition-all"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full  bg-cyan-600 hover:bg-cyan-500 disabled:bg-transparent disabled:text-gray-500 text-white transition-all"
             >
                 {isInputLocked ? <Loader2 size={18} className="animate-spin" /> : <CornerDownRight size={18} />}
             </button>
