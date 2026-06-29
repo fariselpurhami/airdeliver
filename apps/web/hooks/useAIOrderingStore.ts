@@ -595,7 +595,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
             state.isProcessing = false;
           }
         }));
-      }, 5000); // 5s timeout on processing flag lock
+      }, 60000); // 60s timeout on processing flag lock
     }
 
     try {
