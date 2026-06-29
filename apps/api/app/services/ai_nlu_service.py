@@ -627,8 +627,8 @@ class TextSanitizer:
         text = str(raw_text or "")
         text = cls._strip_markdown_symbols.sub("", text)
         text = cls._allow_pattern.sub(" ", text)
-
-        # إجبار أي نقطة عريضة تنزل في سطر جديد قبلها
+        text = text.replace("AirDeliver", "airdeliver").replace("Airdeliver", "airdeliver")
+           # إجبار أي نقطة عريضة تنزل في سطر جديد قبلها
         text = cls._bullet_break.sub(r"\n\n\1 ", text)
 
         # إجبار أي نقطة في نهاية الجملة إنها تنزل سطرين 
@@ -1360,6 +1360,28 @@ class AINLUService:
     # -------------------------------------------------------------------------
     # PUBLIC API
     # -------------------------------------------------------------------------
+    def _is_welcome_entrypoint(self, request: IncomingMessage) -> bool:
+        text = (request.message_text or "").strip()
+        return (
+            request.msg_type == MessageType.WELCOME_INTENT
+            or (not text and not request.image_b64)
+        )
+
+    async def _handle_welcome_entrypoint(
+        self,
+        request: IncomingMessage,
+        ctx: RequestContext,
+    ) -> None:
+        StructuredLog.info(
+            "welcome_entrypoint_intercepted",
+            correlation_id=ctx.correlation_id,
+            user_id=request.user_id,
+        )
+
+        if await self._try_route_welcome_matrix(request, ctx):
+            return
+
+        await self._handle_initial_suggestions(request.user_id)
 
     async def process_message(self, message_payload: dict) -> None:
         request = self._parse_incoming_message(message_payload)
@@ -1395,6 +1417,10 @@ class AINLUService:
                 user_id=request.user_id,
             )
             await self._process_internal_command(request.user_id, request.message_text)
+            return
+        
+        if self._is_welcome_entrypoint(request):
+            await self._handle_welcome_entrypoint(request, ctx)
             return
 
         if request.image_b64 is not None:
