@@ -1822,8 +1822,8 @@ class AINLUService:
             # نبحث عن المنتج المقصود بسرعة
             candidates = await self._search_single_product(target_product_name, limit=1)
             if not candidates:
-                await self._send_to_ui(user_id, {"content": f"I couldn't find exactly which item you meant by '{target_product_name}'. Can you specify?", "type": UiPayloadType.TEXT.value}, ctx)
-                return True
+                
+                return False
 
             target = candidates[0]
             target_id = _safe_product_get(target, "id", None)
@@ -2406,16 +2406,65 @@ Your entire behavior must align with this protocol for every response.
                 error=str(exc),
             )
             return "trending high-tech items", ""
+    
+    def _should_optimize_query(self, query: str) -> bool:
+        word_count = len(query.split())
+        return word_count > 4 or "?" in query
+
+    def _truncate_for_search(self, query: str, *, max_words: int = 8) -> str:
+        words = query.split()
+        return " ".join(words[:max_words]) if len(words) > max_words else query
+
+    def _validate_optimized_query(
+        self,
+        *,
+        original_query: str,
+        optimized_query: str | None,
+    ) -> str | None:
+        if not optimized_query:
+            return None
+
+        normalized_optimized = " ".join(optimized_query.split())
+        if not normalized_optimized:
+            return None
+
+        if len(normalized_optimized.split()) > 8:
+            return self._truncate_for_search(normalized_optimized)
+
+        return normalized_optimized
 
     async def _optimize_search_query(self, search_query: str) -> str:
-        if len(search_query.split()) > 4 or "?" in search_query:
-            try:
-                optimized = await self.llm_service.extract_search_terms(search_query)
-                return optimized or search_query
-            except Exception:
-                return search_query
-        return search_query
+        query = " ".join((search_query or "").split())
+        if not query:
+            return ""
 
+        if not self._should_optimize_query(query):
+            return self._truncate_for_search(query)
+
+        try:
+            optimized = await self.llm_service.extract_search_terms(query)
+        except Exception as exc:
+            StructuredLog.warning(
+                "search_query_optimization_failed",
+                original_query=query,
+                error=str(exc),
+            )
+            return self._truncate_for_search(query)
+
+        validated = self._validate_optimized_query(
+            original_query=query,
+            optimized_query=optimized,
+        )
+        if validated:
+            return validated
+
+        StructuredLog.info(
+            "search_query_optimization_fallback_applied",
+            original_query=query,
+            optimized_query=optimized,
+        )
+        return self._truncate_for_search(query)
+    
     def _build_search_plan(
         self,
         *,
