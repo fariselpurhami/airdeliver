@@ -379,21 +379,88 @@ class FreeLLMService:
         top_p: float = 0.9,
         response_format: Optional[Dict[str, str]] = None,
         timeout_seconds: Optional[float] = None,
+        **kwargs: Any,
     ) -> Any:
-        timeout_budget = timeout_seconds or self.limits.llm_timeout_seconds
+        """
+        L8/L9 Pattern: Hardened chat completion wrapper.
+
+        Responsibilities:
+         - Enforce a strict whitelist of extra parameters passed to the client.
+         - Respect a configurable timeout budget for downstream LLM calls.
+         - Validate basic message and model integrity before invoking the client.
+         - Provide structured logging on failure, without leaking sensitive content.
+         - Return raw client response for higher-level handlers to interpret.
+        """
+
+        # 1. Resolve timeout budget
+        timeout_budget = float(timeout_seconds or self.limits.llm_timeout_seconds)
+
+        # 2. Basic validation of inputs (defensive programming)
+        if not model or not isinstance(model, str):
+            logger.error(
+                "llm_chat_completion_invalid_model",
+                extra={"model": model},
+            )
+            raise ValueError("LLM model name is required for chat completion.")
+
+        if not messages or not isinstance(messages, list):
+            logger.error("llm_chat_completion_empty_messages")
+            raise ValueError("At least one message is required for chat completion.")
+
+        # Optional correlation id for traceability across the stack
+        correlation_id: Optional[str] = kwargs.get("correlation_id")
+
         client = await self._get_client()
 
+        # 3. Strict whitelist of allowed extra kwargs
+        allowed_keys = {"seed", "stop", "stream", "user"}
+        safe_kwargs: Dict[str, Any] = {k: v for k, v in kwargs.items() if k in allowed_keys}
+
         async def _invoke() -> Any:
-            kwargs: Dict[str, Any] = {
+            kwargs_to_send: Dict[str, Any] = {
                 "messages": messages,
                 "model": model,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "top_p": top_p,
             }
+
             if response_format is not None:
-                kwargs["response_format"] = response_format
-            return await client.chat.completions.create(**kwargs)
+                kwargs_to_send["response_format"] = response_format
+
+            # دمج الباراميترات الآمنة فقط
+            kwargs_to_send.update(safe_kwargs)
+
+            return await client.chat.completions.create(**kwargs_to_send)
+
+        try:
+            # 4. Enforce timeout at the asyncio layer
+            response = await asyncio.wait_for(_invoke(), timeout=timeout_budget)
+            return response
+
+        except asyncio.TimeoutError:
+            logger.warning(
+                "llm_chat_completion_timeout",
+                extra={
+                    "model": model,
+                    "timeout_seconds": timeout_budget,
+                    "correlation_id": correlation_id,
+                },
+            )
+            raise
+
+        except Exception as exc:
+            logger.error(
+                "llm_chat_completion_failure",
+                extra={
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                    "model": model,
+                    "correlation_id": correlation_id,
+                },
+                exc_info=True,
+            )
+            raise
 
         last_error: Optional[Exception] = None
         async with self._execution_semaphore:
@@ -417,18 +484,81 @@ class FreeLLMService:
         temperature: float = 0.7,
         json_mode: bool = False,
         max_tokens: int = 2048,
+        **kwargs: Any,
     ) -> str:
+        """
+        L8/L9 Pattern: Hardened LLM Wrapper (Deterministic, Observable, Safe).
+
+        Responsibilities:
+          - Sanitize and bound user prompt according to configured limits.
+          - Normalize external parameters (e.g., response_format) into internal flags.
+          - Inject structured context safely (JSON or truncated text) without blowing up the prompt.
+          - Enforce JSON-only output when json_mode is enabled (prompt-time + API-level).
+          - Provide structured, high-signal logging and deterministic fallback on any failure.
+        """
+
+        # 1. Translate external kwargs into internal config (e.g., response_format → json_mode)
+        response_format: Optional[Any] = kwargs.pop("response_format", None)
+        if response_format is not None:
+            if response_format == "json_object":
+                json_mode = True
+            elif isinstance(response_format, dict) and response_format.get("type") == "json_object":
+                json_mode = True
+
+        # Optional correlation id for tracing across services, if provided
+        correlation_id: Optional[str] = kwargs.pop("correlation_id", None)
+
+        # 2. Sanitize user prompt according to input limits
         sanitized_prompt = _sanitize_user_query(prompt, self.limits.max_input_chars)
+
+        # 3. Prepare context string (JSON if structured, truncated otherwise)
         context_str = ""
         if context is not None:
-            if isinstance(context, (dict, list)):
-                context_str = _safe_json_dumps(context, max_chars=self.limits.max_context_json_chars)
-            else:
-                context_str = _truncate(str(context), self.limits.max_context_json_chars)
+            try:
+                if isinstance(context, (dict, list)):
+                    context_str = _safe_json_dumps(
+                        context,
+                        max_chars=self.limits.max_context_json_chars,
+                   )
+                else:
+                    context_str = _truncate(str(context), self.limits.max_context_json_chars)
+            except Exception as ctx_exc:
+                # لا نسمح لسقوط الـ JSON أن يُسقط المكالمة نفسها
+                logger.warning(
+                    "llm_context_serialization_failed",
+                    extra={
+                        "error_type": type(ctx_exc).__name__,
+                        "error_message": str(ctx_exc),
+                        "correlation_id": correlation_id,
+                    },
+                    exc_info=False,
+                )
+                context_str = ""
 
         system_content = system_role.strip()
+
+        # 4. Enforce JSON-only output when json_mode is enabled (prompt-level guardrail)
+        if json_mode and "json" not in system_content.lower():
+            system_content += (
+                "\n\nCRITICAL: You MUST output strictly valid JSON only. "
+                "No commentary, no markdown, no explanation. Return a single JSON object."
+            )
+
+        # 5. Attach referenced context in a clearly delimited block
         if context_str:
-            system_content += f"\n\n🔍 REFERENCED CONTEXT:\n{context_str}"
+            system_content += f"\n\nREFERENCED CONTEXT (READ-ONLY):\n{context_str}"
+
+        # 6. Prepare request payload for the chat completion
+        model_name = getattr(self.models, "brain_model", None)
+        if not model_name:
+            logger.error(
+                "llm_generate_response_missing_model",
+                extra={"correlation_id": correlation_id},
+            )
+            return ""
+
+        safe_temperature = temperature if temperature is not None else 0.5
+        safe_max_tokens = max_tokens if max_tokens is not None else 2048
 
         try:
             completion = await self._chat_completion(
@@ -436,17 +566,42 @@ class FreeLLMService:
                     {"role": "system", "content": system_content},
                     {"role": "user", "content": sanitized_prompt},
                 ],
-                model=self.models.brain_model,
-                temperature=temperature if temperature is not None else 0.5,
-                max_tokens=max_tokens,
+                model=model_name,
+                temperature=safe_temperature,
+                max_tokens=safe_max_tokens,
                 top_p=0.9,
                 response_format={"type": "json_object"} if json_mode else None,
+                **kwargs,  # امتصاص أي باراميترات إضافية إلى طبقة الـ LLM (قابلة للتوسعة)
             )
-            return _normalize_whitespace(completion.choices[0].message.content or "")
-        except Exception as exc:
-            logger.error("🔥 LLM Universal Error in generate_response", exc_info=True)
-            return ""
 
+            # 7. Extract and normalize content deterministically
+            message = completion.choices[0].message if completion and completion.choices else None
+            raw_content = getattr(message, "content", "") if message is not None else ""
+            normalized = _normalize_whitespace(raw_content or "")
+
+            if json_mode:
+               # في وضع الـ JSON، نفضّل إرجاع النص كما هو، مع افتراض أن المستهلك سيقوم بالـ json.loads
+               # يمكن إضافة تحقق صارم هنا (try/except json.loads) لو أردت منع JSON غير صالح في طبقات أعلى.
+               return normalized
+
+            return normalized
+
+        except Exception as exc:
+            # 8. High-signal structured logging + deterministic fallback behavior
+            logger.error(
+                "llm_generate_response_critical_failure",
+                extra={
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                    "correlation_id": correlation_id,
+                    "json_mode": json_mode,
+                    "model": model_name,
+                },
+                exc_info=True,
+            )
+         # في هذا المستوى، نرجع نصاً فارغاً بدلاً من رفع الاستثناء حتى لا نكسر الـ pipeline.
+         # يمكن بناء طبقة أعلى للتعامل مع هذا كسيناريو “LLM unavailable”.
+            return ""
     def _get_spontaneous_vibe(self, session_key: Optional[str] = None) -> str:
         """🎲 Random Vibe Selector. Picks a unique 'Scene' for the AI to act upon."""
         vibes = [
