@@ -35,6 +35,16 @@ from app.services.cache_service import IAsyncCacheClient, get_cache_client
 logger = logging.getLogger("airdeliver.engine")
 
 
+
+@dataclass(frozen=True)
+class MilvusRetryPolicy:
+    max_attempts: int = 5
+    base_delay_seconds: float = 1.0
+    max_delay_seconds: float = 8.0
+    backoff_multiplier: float = 2.0
+    jitter_ratio: float = 0.2
+    connect_timeout_seconds: float = 30.0
+
 class AICommerceError(Exception):
     pass
 
@@ -1389,16 +1399,113 @@ def get_embedding_model() -> SentenceTransformer:
     return model_registry.get_text_model()
 
 
+class MilvusConnectionError(RuntimeError):
+    """Raised when Milvus cannot be reached after exhausting retry policy."""
+
+
+def _compute_backoff_delay(
+    *,
+    attempt: int,
+    policy: MilvusRetryPolicy,
+) -> float:
+    raw_delay = min(
+        policy.base_delay_seconds * (policy.backoff_multiplier ** (attempt - 1)),
+        policy.max_delay_seconds,
+    )
+    jitter_window = raw_delay * policy.jitter_ratio
+    return max(0.0, raw_delay + random.uniform(-jitter_window, jitter_window))
+
+
+def _build_milvus_client(
+    *,
+    uri: str,
+    token: Optional[str],
+    timeout: float,
+) -> MilvusClient:
+    return MilvusClient(
+        uri=uri,
+        token=token,
+        timeout=timeout,
+    )
+
+
+def _is_retryable_milvus_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    retryable_markers = (
+        "timed out",
+        "timeout",
+        "connection refused",
+        "temporarily unavailable",
+        "unavailable",
+        "not ready",
+        "try again",
+        "deadline exceeded",
+    )
+    return any(marker in message for marker in retryable_markers)
+
+
+def connect_milvus_with_retry(
+    settings: CoreSettings,
+    *,
+    policy: MilvusRetryPolicy = MilvusRetryPolicy(),
+) -> MilvusClient:
+    token = settings.MILVUS_TOKEN.get_secret_value() if settings.MILVUS_TOKEN else None
+    last_error: Exception | None = None
+
+    for attempt in range(1, policy.max_attempts + 1):
+        try:
+            client = _build_milvus_client(
+                uri=str(settings.MILVUS_URI),
+                token=token,
+                timeout=policy.connect_timeout_seconds,
+            )
+
+            logger.info(
+                "Milvus client created successfully.",
+                extra={
+                    "component": "milvus",
+                    "attempt": attempt,
+                    "uri": str(settings.MILVUS_URI),
+                },
+            )
+            return client
+
+        except Exception as exc:
+            last_error = exc
+
+            if not _is_retryable_milvus_error(exc) or attempt == policy.max_attempts:
+                logger.exception(
+                    "Milvus connection failed.",
+                    extra={
+                        "component": "milvus",
+                        "attempt": attempt,
+                        "max_attempts": policy.max_attempts,
+                        "retryable": _is_retryable_milvus_error(exc),
+                    },
+                )
+                break
+
+            delay = _compute_backoff_delay(attempt=attempt, policy=policy)
+            logger.warning(
+                "Milvus connection attempt failed; retrying.",
+                extra={
+                    "component": "milvus",
+                    "attempt": attempt,
+                    "max_attempts": policy.max_attempts,
+                    "sleep_seconds": round(delay, 3),
+                },
+            )
+            time.sleep(delay)
+
+    raise MilvusConnectionError(
+        f"Unable to establish Milvus connection after {policy.max_attempts} attempts."
+    ) from last_error
+
+
 def get_milvus_client(
     settings: CoreSettings = Depends(get_core_settings),
 ) -> MilvusClient:
-    token = settings.MILVUS_TOKEN.get_secret_value() if settings.MILVUS_TOKEN else None
-    return MilvusClient(
-        uri=str(settings.MILVUS_URI),
-        token=token,
-        timeout=30.0,
-    )
-
+    return connect_milvus_with_retry(settings)
 
 async def get_opensearch_client(
     settings: CoreSettings = Depends(get_core_settings),

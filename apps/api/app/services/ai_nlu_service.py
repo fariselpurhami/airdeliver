@@ -1719,7 +1719,7 @@ class AINLUService:
             ai_response_prefix = ""
 
             informational_search_limit = 3
-            informational_search_timeout_seconds = 4.0
+            informational_search_timeout_seconds = 16.0
 
             try:
                 raw_candidates = await asyncio.wait_for(
@@ -3150,14 +3150,14 @@ FAILURE MODES TO AVOID (CRITICAL GUARDRAILS)
 Your entire behavior must align with these instructions for EVERY response.
 """
             fallback_response = (
-                "That is a great question. While I cannot reliably retrieve the exact comparison details right now, "
-                "I can still help you explore our premium collections."
+              "That’s a thoughtful question. I’m unable to verify the exact comparison details at the moment, "
+              "so I don’t want to give you an answer that may be incomplete or misleading. "
+              "What I can do right now is help you explore strong premium alternatives that closely match your intent."
             )
-
-            web_search_timeout_seconds = 6.0
-            llm_timeout_seconds = 20.0
+            web_search_timeout_seconds = 18.0
+            llm_timeout_seconds = 28.0
             llm_temperature = 0.0
-            llm_max_tokens = 2000
+            llm_max_tokens = 2500
 
             try:
                 # --- INTENT-AWARE, DEFENSIVE QUERY NORMALIZATION ---
@@ -3264,6 +3264,25 @@ Your entire behavior must align with these instructions for EVERY response.
                     intent_category=getattr(intent_category, "name", str(intent_category)),
                     error=str(exc),
                     error_type=type(exc).__name__,
+                )
+
+                response_type = (
+                  UiPayloadType.PRODUCT_CAROUSEL
+                  if products
+                  else UiPayloadType.TEXT
+                )
+
+                decision_reason = (
+                 "Informational path timed out; downgraded to exploratory product discovery."
+                )
+
+                response_text = fallback_response
+
+                return LlmDecision(
+                  response_text=response_text,
+                  products=tuple(products),
+                  response_type=response_type,
+                  reason=decision_reason,
                 )
 
             if products:
