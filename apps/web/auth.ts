@@ -1,144 +1,234 @@
 // apps/web/auth.ts
-import NextAuth, { type NextAuthConfig, type User } from "next-auth"
-import Credentials from "next-auth/providers/credentials"
-import { jwtDecode } from 'jwt-decode';
+import NextAuth, { type DefaultSession, type NextAuthConfig, type User } from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import { jwtDecode } from "jwt-decode";
+import type { JWT } from "next-auth/jwt";
 
-// --- ⚙️ Type Definitions ---
-interface DecodedToken {
-  sub: string;
-  role: string;
-  exp: number;
+type UserRole = string;
+
+interface BackendTokenResponse {
+  access_token: string;
+  token_type?: string;
 }
 
-interface ExtendedUser extends User {
+interface DecodedAccessToken {
+  sub?: string;
   role?: string;
-  accessToken?: string;
+  exp?: number;
+  email?: string;
+  name?: string;
 }
 
-// الرابط الداخلي للـ Docker (Backend Service)
-const INTERNAL_API_URL = process.env.API_URL || 'http://api:8000/api/v1'; 
+interface AuthenticatedUser extends User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  accessToken: string;
+  accessTokenExpiresAt?: number;
+}
+
+declare module "next-auth" {
+  interface Session {
+    accessToken?: string;
+    error?: "AccessTokenExpired";
+    user: {
+      id: string;
+      role: UserRole;
+    } & DefaultSession["user"];
+  }
+
+  interface User {
+    role?: UserRole;
+    accessToken?: string;
+    accessTokenExpiresAt?: number;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    sub?: string;
+    role?: UserRole;
+    accessToken?: string;
+    accessTokenExpiresAt?: number;
+    error?: "AccessTokenExpired";
+  }
+}
+
+const API_URL = process.env.API_URL?.trim() || "http://api:8000/api/v1";
+const AUTH_SECRET = process.env.AUTH_SECRET?.trim();
+
+if (!AUTH_SECRET) {
+  throw new Error("Missing AUTH_SECRET environment variable.");
+}
+
+function buildTokenEndpoint(baseUrl: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/auth/token`;
+}
+
+function normalizeRole(role?: string): UserRole {
+  return role?.trim().toLowerCase() || "user";
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isTokenExpired(expiresAt?: number): boolean {
+  if (!expiresAt) return false;
+  return Date.now() >= expiresAt;
+}
+
+function parseTokenExpiry(exp?: number): number | undefined {
+  if (!exp || !Number.isFinite(exp)) return undefined;
+  return exp * 1000;
+}
+
+function mapDecodedTokenToUser(accessToken: string, decoded: DecodedAccessToken): AuthenticatedUser | null {
+  if (!isNonEmptyString(decoded.sub)) {
+    return null;
+  }
+
+  const email = isNonEmptyString(decoded.email) ? decoded.email : decoded.sub;
+  const name = isNonEmptyString(decoded.name) ? decoded.name : email;
+
+  return {
+    id: decoded.sub,
+    email,
+    name,
+    role: normalizeRole(decoded.role),
+    accessToken,
+    accessTokenExpiresAt: parseTokenExpiry(decoded.exp),
+  };
+}
+
+async function authenticateWithCredentials(email: string, password: string): Promise<AuthenticatedUser | null> {
+  const response = await fetch(buildTokenEndpoint(API_URL), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: new URLSearchParams({
+      username: email,
+      password,
+    }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = (await response.json()) as BackendTokenResponse;
+
+  if (!isNonEmptyString(data.access_token)) {
+    return null;
+  }
+
+  let decoded: DecodedAccessToken;
+  try {
+    decoded = jwtDecode<DecodedAccessToken>(data.access_token);
+  } catch {
+    return null;
+  }
+
+  return mapDecodedTokenToUser(data.access_token, decoded);
+}
 
 export const authConfig: NextAuthConfig = {
-  // 🛡️ SOTA FIX: ضروري جداً لبيئة Docker
-  trustHost: true, 
-  secret: process.env.AUTH_SECRET,
-  session: { strategy: 'jwt' },
-  pages: {
-    signIn: '/login',
-    error: '/login',
+  trustHost: true,
+  secret: AUTH_SECRET,
+  session: {
+    strategy: "jwt",
   },
-  
+  pages: {
+    signIn: "/login",
+    error: "/login",
+  },
   providers: [
     Credentials({
-      name: 'Credentials',
+      name: "Credentials",
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
+        email: {
+          label: "Email",
+          type: "email",
+          autocomplete: "email",
+        },
+        password: {
+          label: "Password",
+          type: "password",
+          autocomplete: "current-password",
+        },
       },
       async authorize(credentials) {
-        console.log("\n🛑 ---------------- AUTH DEBUG START ----------------");
-        console.log("🔥 1. Authorize Function Triggered");
-        
-        if (!credentials?.email || !credentials?.password) {
-            console.log("❌ 1.1 Missing credentials inputs");
-            return null;
-        }
-        
-        try {
-          const loginUrl = `${INTERNAL_API_URL}/auth/token`;
-          console.log(`🌐 2. Target API URL: ${loginUrl}`);
-          console.log(`📨 2.1 Payload sent: username=${credentials.email}`);
-          
-          const res = await fetch(loginUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ 
-              username: credentials.email as string, 
-              password: credentials.password as string 
-            }),
-          });
+        const email = typeof credentials?.email === "string" ? credentials.email.trim() : "";
+        const password = typeof credentials?.password === "string" ? credentials.password : "";
 
-          console.log(`📡 3. API Response Status: ${res.status} ${res.statusText}`);
-
-          if (!res.ok) {
-            const errorText = await res.text();
-            console.log(`❌ 3.1 API Error Body: ${errorText}`);
-            console.log("🛑 ---------------- AUTH DEBUG END (FAIL) ----------------\n");
-            return null; 
-          }
-
-          const data = await res.json();
-          // طباعة أول 50 حرف من التوكن عشان اللوج ميبقاش ضخم
-          const tokenPreview = data.access_token ? `${data.access_token.substring(0, 50)}...` : 'NONE';
-          console.log(`📦 4. API Data Received. Token Preview: ${tokenPreview}`);
-          
-          if (data && data.access_token) {
-            console.log("🔑 5. Token found, attempting decode...");
-            
-            try {
-                const decoded = jwtDecode<DecodedToken>(data.access_token);
-                console.log("🧩 6. Token Decoded Successfully:", JSON.stringify(decoded, null, 2));
-
-                // التحقق من وجود الـ ID (sub)
-                if (!decoded.sub) {
-                    console.log("❌ 6.1 CRITICAL: 'sub' field missing in token!");
-                    return null;
-                }
-
-                const userObj: ExtendedUser = {
-                  id: decoded.sub,
-                  email: decoded.sub, // يمكن تغييره لو التوكن فيه حقل email منفصل
-                  name: decoded.sub,
-                  role: decoded.role,
-                  accessToken: data.access_token,
-                };
-                
-                console.log("✅ 7. Authorization Successful. Returning User Object.");
-                console.log("🛑 ---------------- AUTH DEBUG END (SUCCESS) ----------------\n");
-                return userObj;
-
-            } catch (decodeError) {
-                console.log("❌ 5.1 JWT Decode Failed:", decodeError);
-                return null;
-            }
-          }
-          
-          console.log("❌ 4.1 No access_token in response data");
+        if (!email || !password) {
           return null;
+        }
 
-        } catch (error) {
-          console.error("☠️ CRITICAL SYSTEM ERROR inside authorize:", error);
+        try {
+          return await authenticateWithCredentials(email, password);
+        } catch {
           return null;
         }
       },
     }),
   ],
-  
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }): Promise<JWT> {
       if (user) {
-        // هذه الخطوة تحدث فقط عند تسجيل الدخول لأول مرة
-        const u = user as ExtendedUser;
-        token.accessToken = u.accessToken;
-        token.role = u.role;
-        token.sub = u.id;
+        const authenticatedUser = user as AuthenticatedUser;
+
+        token.sub = authenticatedUser.id;
+        token.role = normalizeRole(authenticatedUser.role);
+        token.accessToken = authenticatedUser.accessToken;
+        token.accessTokenExpiresAt = authenticatedUser.accessTokenExpiresAt;
+        token.error = undefined;
+
+        return token;
       }
+
+      if (isTokenExpired(token.accessTokenExpiresAt)) {
+        token.error = "AccessTokenExpired";
+        token.accessToken = undefined;
+      }
+
       return token;
     },
 
     async session({ session, token }) {
-      if (token && session.user) {
-        // نقل البيانات من التوكن للسيشن عشان الفرونت يشوفها
-        // @ts-ignore
-        session.accessToken = token.accessToken as string; 
-        // @ts-ignore
-        session.user.id = token.sub as string;
-        // @ts-ignore
-        session.user.role = (token.role as string)?.toLowerCase();
+      if (session.user) {
+        session.user.id = token.sub ?? "";
+        session.user.role = normalizeRole(token.role);
       }
+
+      session.accessToken = token.accessToken;
+      session.error = token.error;
+
       return session;
     },
-  },
-}
 
-export const { handlers, signIn, signOut, auth } = NextAuth(authConfig)
+    authorized({ auth, request }) {
+      const isAuthenticated = Boolean(auth?.user);
+      const pathname = request.nextUrl.pathname;
+
+      const isAuthRoute = pathname === "/login";
+      const isProtectedRoute = !isAuthRoute;
+
+      if (isAuthRoute) {
+        return !isAuthenticated;
+      }
+
+      if (isProtectedRoute) {
+        return isAuthenticated;
+      }
+
+      return true;
+    },
+  },
+};
+
+export const { handlers, signIn, signOut, auth } = NextAuth(authConfig);

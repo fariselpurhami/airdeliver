@@ -16,7 +16,7 @@ from app.services.ai_voice_service import AIVoiceOrchestrator
 from app import models
 from app.api import deps
 from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
-from app.services.cache_service import IAsyncCacheClient
+from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 from app.core.config import settings
 
 logger = logging.getLogger("airdeliver.websocket")
@@ -33,7 +33,7 @@ logger.info("🚀 AI ORDERING GATEWAY LOADED: v5.0 (Titanium Shield Enabled)")
 @router.post("/ticket")
 async def generate_websocket_ticket(
     current_user: models.User = Depends(deps.get_current_active_user),
-    cache: IAsyncCacheClient = Depends(deps.get_cache_client),
+    cache: IAsyncCacheClient = Depends(get_cache_from_request),
 ):
     """
     Generates a secure, short-lived, one-time-use ticket for WebSocket auth.
@@ -72,7 +72,7 @@ async def handle_chat_websocket(
     ticket: str = Query(None),
     session: AsyncSession = Depends(deps.get_async_session),
     rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
-    cache: IAsyncCacheClient = Depends(deps.get_cache_client),
+    cache: IAsyncCacheClient = Depends(get_cache_from_request),
 ):
     """
     💎 THE UNIVERSAL SOCKET HANDLER.
@@ -319,7 +319,7 @@ async def handle_voice_stream(
     session: AsyncSession = Depends(deps.get_async_session),
     commerce_engine = Depends(deps.get_ai_commerce_engine),
     llm_service = Depends(deps.get_llm_service),
-    cache: IAsyncCacheClient = Depends(deps.get_cache_client),
+    cache: IAsyncCacheClient = Depends(get_cache_from_request),
 ):
     """
     🎤 REAL-TIME VOICE CHANNEL (TITANIUM GUARDED).

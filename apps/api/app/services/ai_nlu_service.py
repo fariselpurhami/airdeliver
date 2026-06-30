@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+import uuid
 import asyncio
 import base64
 import hashlib
@@ -875,22 +876,51 @@ class ProductAccess:
 
 class StructuredLog:
     @staticmethod
+    def _emit(
+        level: int,
+        event: str,
+        *,
+        stacklevel: int = 3,
+        exc_info: bool = False,
+        **fields: Any,
+    ) -> None:
+        if not event or not event.strip():
+            raise ValueError("event must be a non-empty string")
+        
+        payload = {
+            key: value
+            for key, value in fields.items()
+            if value is not None
+        }
+        
+        logger.log(
+            level,
+            "%s | %s",
+            event.strip(),
+            SafeJson.dumps(payload),
+            stacklevel=stacklevel,
+            exc_info=exc_info,
+        )
+
+    @staticmethod
+    def debug(event: str, **fields: Any) -> None:
+        StructuredLog._emit(logging.DEBUG, event, **fields)
+
+    @staticmethod
     def info(event: str, **fields: Any) -> None:
-        logger.info("%s | %s", event, SafeJson.dumps(fields))
+        StructuredLog._emit(logging.INFO, event, **fields)
 
     @staticmethod
     def warning(event: str, **fields: Any) -> None:
-        logger.warning("%s | %s", event, SafeJson.dumps(fields))
+        StructuredLog._emit(logging.WARNING, event, **fields)
 
     @staticmethod
     def error(event: str, **fields: Any) -> None:
-        logger.error("%s | %s", event, SafeJson.dumps(fields))
+        StructuredLog._emit(logging.ERROR, event, **fields)
 
     @staticmethod
     def exception(event: str, **fields: Any) -> None:
-        logger.exception("%s | %s", event, SafeJson.dumps(fields))
-
-
+        StructuredLog._emit(logging.ERROR, event, exc_info=True, **fields)
 # =============================================================================
 # INFRA ADAPTERS
 # =============================================================================
@@ -1051,38 +1081,201 @@ class GlobalCommerceIntentEngine:
 
         return IntentCategory.BROAD_DISCOVERY, UserSentiment.NEUTRAL
 
+class LockReleaseError(RuntimeError):
+    pass
+
+class AsyncCacheClientProtocol(Protocol):
+    async def delete(self, key: str) -> Any: ...
+    async def eval(self, script: str, numkeys: int, *args: Any) -> Any: ...
+
+@dataclass(frozen=True, slots=True)
+class LockHandle:
+    key: str
+    token: str
+
+class DistributedLockManager:
+    _RELEASE_SCRIPT = """
+    if redis.call('get', KEYS[1]) == ARGV[1] then
+        return redis.call('del', KEYS[1])
+    end
+    return 0
+    """
+
+    def __init__(self, cache: Any, logger: Any | None = None) -> None:
+        self._cache = cache
+        self._logger = logger
+
+    def _resolve_client(self) -> AsyncCacheClientProtocol:
+        client = getattr(self._cache, "client", self._cache)
+        if not hasattr(client, "eval"):
+            raise LockReleaseError(
+                "Cache backend does not support atomic lock release via eval()."
+            )
+        return client
+
+    async def release(self, handle: LockHandle, *, strict: bool = False) -> bool:
+        client = self._resolve_client()
+        try:
+            result = await client.eval(
+                self._RELEASE_SCRIPT,
+                1,
+                handle.key,
+                handle.token,
+            )
+            released = bool(result)
+
+            if not released and self._logger:
+                self._logger.warning(
+                    "Lock release skipped: ownership mismatch or lock already expired",
+                    extra={"lock_key": handle.key},
+                )
+
+            if strict and not released:
+                raise LockReleaseError(
+                    f"Lock release rejected for key={handle.key!r}: "
+                    "ownership mismatch or lock no longer exists."
+                )
+            return released
+
+        except LockReleaseError:
+            raise
+        except Exception as exc:
+            if self._logger:
+                self._logger.exception(
+                    "Unexpected failure during lock release",
+                    extra={"lock_key": handle.key},
+                )
+            raise LockReleaseError(
+                f"Failed to release lock for key={handle.key!r}"
+            ) from exc
+
+class IdempotencyAcquisitionError(RuntimeError):
+    """Raised when the idempotency lock cannot be acquired safely."""
+
 class IdempotencyGuard:
-    def __init__(self, cache: IAsyncCacheClient, ttl_seconds: int) -> None:
+    def __init__(
+        self,
+        cache: IAsyncCacheClient,
+        ttl_seconds: int,
+        *,
+        fail_open: bool = False,
+    ) -> None:
+        if ttl_seconds <= 0:
+            raise ValueError("ttl_seconds must be greater than zero")
+
         self._cache = cache
         self._ttl_seconds = ttl_seconds
+        self._fail_open = fail_open
+        self._lock_manager = DistributedLockManager(cache, StructuredLog)
 
-    async def acquire(self, key: str) -> bool:
+    async def acquire(self, key: str) -> Optional[LockHandle]:
+        if not key:
+            raise ValueError("key must be non-empty")
+
+        token = uuid.uuid4().hex
+        client = getattr(self._cache, "client", None)
+
         try:
-            if hasattr(self._cache, "client") and self._cache.client is not None:
-                client = self._cache.client
-                if hasattr(client, "set"):
-                    result = await client.set(key, "1", ex=self._ttl_seconds, nx=True)
-                    return bool(result)
+            if client is not None and hasattr(client, "set"):
+                acquired = await client.set(
+                    key,
+                    token,
+                    ex=self._ttl_seconds,
+                    nx=True,
+                )
+
+                if acquired:
+                    StructuredLog.debug(
+                        "idempotency_lock_acquired",
+                        key=key,
+                        ttl_seconds=self._ttl_seconds,
+                    )
+                    return LockHandle(key=key, token=token)
+
+                StructuredLog.info(
+                    "idempotency_lock_not_acquired",
+                    key=key,
+                    ttl_seconds=self._ttl_seconds,
+                    reason="lock_already_exists",
+                )
+                return None
+
         except Exception as exc:
-            StructuredLog.warning("idempotency_atomic_set_unavailable", error=str(exc))
+            StructuredLog.exception(
+                "idempotency_atomic_acquire_failed",
+                key=key,
+                ttl_seconds=self._ttl_seconds,
+                error_type=type(exc).__name__,
+            )
 
         try:
-            existing = await self._cache.get(key)
-            if existing:
-                return False
-            await self._cache.set(key, "1")
-            try:
-                if hasattr(self._cache, "expire"):
-                    await self._cache.expire(key, self._ttl_seconds)
-                elif hasattr(self._cache, "client") and hasattr(self._cache.client, "expire"):
-                    await self._cache.client.expire(key, self._ttl_seconds)
-            except Exception:
-                pass
-            return True
-        except Exception as exc:
-            StructuredLog.warning("idempotency_fail_open", error=str(exc))
-            return True
+            if hasattr(self._cache, "add"):
+                added = await self._cache.add(key, token, ttl=self._ttl_seconds)
+                if added:
+                    StructuredLog.debug(
+                        "idempotency_lock_acquired_via_cache_add",
+                        key=key,
+                        ttl_seconds=self._ttl_seconds,
+                    )
+                    return LockHandle(key=key, token=token)
 
+                StructuredLog.info(
+                    "idempotency_lock_not_acquired_via_cache_add",
+                    key=key,
+                    ttl_seconds=self._ttl_seconds,
+                    reason="lock_already_exists",
+                )
+                return None
+
+        except Exception as exc:
+            StructuredLog.exception(
+                "idempotency_fallback_acquire_failed",
+                key=key,
+                ttl_seconds=self._ttl_seconds,
+                error_type=type(exc).__name__,
+            )
+
+        if self._fail_open:
+            StructuredLog.warning(
+                "idempotency_fail_open_activated",
+                key=key,
+                ttl_seconds=self._ttl_seconds,
+                reason="no_safe_atomic_acquire_path_available",
+            )
+            return LockHandle(key=key, token=token)
+
+        raise IdempotencyAcquisitionError(
+            f"Unable to acquire idempotency lock safely for key={key!r}"
+        )
+
+    async def release(self, handle: Optional[LockHandle]) -> bool:
+        if handle is None:
+            return False
+
+        try:
+            released = await self._lock_manager.release(handle)
+
+            if released:
+                StructuredLog.debug(
+                    "idempotency_lock_released",
+                    key=handle.key,
+                )
+            else:
+                StructuredLog.warning(
+                    "idempotency_lock_release_skipped",
+                    key=handle.key,
+                    reason="lock_missing_or_not_owned",
+                )
+
+            return released
+
+        except Exception as exc:
+            StructuredLog.exception(
+                "idempotency_release_failed",
+                key=handle.key,
+                error_type=type(exc).__name__,
+            )
+            raise
 
 class MemoryStore:
     def __init__(self, cache: IAsyncCacheClient, config: MatrixConfig) -> None:
@@ -1551,6 +1744,9 @@ class AINLUService:
 
         await self._handle_initial_suggestions(request.user_id)
 
+    # =====================================================================
+    # [L9 MUTEX WRAPPER: Safe Lock Acquisition & Release]
+    # =====================================================================
     async def process_message(self, message_payload: dict) -> None:
         request = self._parse_incoming_message(message_payload)
         ctx = RequestContext(
@@ -1569,26 +1765,90 @@ class AINLUService:
         )
 
         raw_text = str(request.message_text or "").strip().lower()
-
         content_fingerprint = hashlib.sha256(
-            "\x00".join([
-                str(request.user_id),
-                request.msg_type.value,
-                raw_text,
-            ]).encode("utf-8")
+            "\x00".join(
+                [
+                    str(request.user_id),
+                    request.msg_type.value,
+                    raw_text,
+                ]
+            ).encode("utf-8")
         ).hexdigest()
 
         lock_key = f"nlu:content_lock:{content_fingerprint}"
 
-        if not await self.idempotency.acquire(lock_key):
+        lock_handle = await self.idempotency.acquire(lock_key)
+        if not lock_handle:
             StructuredLog.info(
                 "duplicate_request_absorbed",
                 correlation_id=ctx.correlation_id,
                 user_id=request.user_id,
                 content_fingerprint=content_fingerprint[:16],
+                lock_key=lock_key,
                 reason="content_identical_to_in_flight_request",
             )
             return
+
+        StructuredLog.debug(
+            "content_lock_acquired",
+            correlation_id=ctx.correlation_id,
+            user_id=request.user_id,
+            content_fingerprint=content_fingerprint[:16],
+            lock_key=lock_key,
+        )
+
+        try:
+            await self._execute_message_pipeline(request, ctx)
+
+        except Exception as exc:
+            StructuredLog.exception(
+                "process_message_pipeline_failed",
+                correlation_id=ctx.correlation_id,
+                user_id=request.user_id,
+                content_fingerprint=content_fingerprint[:16],
+                lock_key=lock_key,
+                error_type=type(exc).__name__,
+            )
+            raise
+
+        finally:
+            try:
+                released = await self.idempotency.release(lock_handle)
+
+                if released:
+                    StructuredLog.debug(
+                        "content_lock_released",
+                        correlation_id=ctx.correlation_id,
+                        user_id=request.user_id,
+                        content_fingerprint=content_fingerprint[:16],
+                        lock_key=lock_key,
+                    )
+                else:
+                    StructuredLog.warning(
+                        "content_lock_release_skipped",
+                        correlation_id=ctx.correlation_id,
+                        user_id=request.user_id,
+                        content_fingerprint=content_fingerprint[:16],
+                        lock_key=lock_key,
+                        reason="lock_missing_or_not_owned_by_current_holder",
+                    )
+
+            except Exception as exc:
+                StructuredLog.exception(
+                    "content_lock_release_failed",
+                    correlation_id=ctx.correlation_id,
+                    user_id=request.user_id,
+                    content_fingerprint=content_fingerprint[:16],
+                    lock_key=lock_key,
+                    error_type=type(exc).__name__,
+                )
+                # 🚨 تم مسح الـ raise من هنا لحماية العميل
+
+    async def _execute_message_pipeline(
+        self,
+        request: IncomingMessage,
+        ctx: RequestContext,
+    ) -> None:
 
         if self._is_internal_command(request.message_text):
             StructuredLog.info(

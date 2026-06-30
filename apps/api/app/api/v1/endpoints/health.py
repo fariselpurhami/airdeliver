@@ -11,8 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import CoreSettings, get_core_settings
 from app.db.session import get_async_session
-from app.services.cache_service import IAsyncCacheClient, get_cache_client
-
+from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["health"])
@@ -27,7 +26,7 @@ async def health_check(
     response: Response,
     settings: CoreSettings = Depends(get_core_settings),
     db: AsyncSession = Depends(get_async_session),
-    cache: IAsyncCacheClient = Depends(get_cache_client),
+    cache: IAsyncCacheClient = Depends(get_cache_from_request),
 ) -> dict[str, str]:
     overall_status: OverallStatus = "ok"
     database_status: ComponentStatus = "unknown"  # type: ignore[assignment]
