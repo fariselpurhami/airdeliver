@@ -581,14 +581,14 @@ _RETENTION_DIRECTIVES: dict[RetentionMode, RetentionDirective] = {
 
 _CLOSER_POLICY = PromptPolicy(
     style_rule=(
-        "Respond in 2-3 tightly controlled, high-impact paragraphs. "
+        "Respond in 4-5 tightly controlled, high-impact paragraphs. "
         "Do not use bullets. "
         "Maintain an authoritative, commercially precise, psychologically composed tone. "
         "Every sentence must contribute directly to clarity, trust, or movement toward the safest verified next step."
     ),
     output_shape=(
         "- Anchor: Open with one precise sentence that corrects reality or identifies the deception signal when the user premise is false, unsafe, or unverifiable.\n"
-        "- Leverage: Follow with 1-2 sentences that reframe the decision around verified inventory, counterfeit protection, and the strongest approved alternative when one exists.\n"
+        "- Leverage: Follow with 3-4 sentences that reframe the decision around verified inventory, counterfeit protection, and the strongest approved alternative when one exists.\n"
         "- Closing: End with exactly one sentence that defines the clearest verified next step with no ambiguity and no action claims."
     ),
 )
