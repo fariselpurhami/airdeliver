@@ -526,9 +526,40 @@ def choose_domain_keywords(products_str: str) -> str:
 def build_clean_web_query(products_str: str) -> str:
     domain_keywords = choose_domain_keywords(products_str)
     return f"{products_str} {domain_keywords}"
+
 # =============================================================================
 # HELPER FUNCTIONS (Pure Utilities)
 # =============================================================================
+
+def _is_closer_intent(intent_payload) -> bool:
+    return bool(
+        intent_payload
+        and intent_payload.category in {
+            IntentCategory.NEGOTIATION,
+            IntentCategory.OBJECTION,
+        }
+    )
+
+def _get_dynamic_prompt_policy(is_closer_intent: bool) -> tuple[str, str]:
+    if is_closer_intent:
+        return (
+            "Respond in 2-3 short, highly persuasive paragraphs. "
+            "DO NOT use bullets. "
+            "Keep the tone ice-cold, confident, and commercially precise.",
+            "- Anchor: 1 sentence correcting reality (if the product is fake) or acknowledging the objection.\n"
+            "- Leverage: 1-2 sentences applying the strongest approved retention logic.\n"
+            "- Closing: exactly one sentence prompting the clearest next step.",
+        )
+
+    return (
+        "Maximum length: 1 short anchor paragraph, 2-4 bullets "
+        "(each starting exactly with the '● ' symbol) only when a valid approved alternative exists, "
+        "and 1 closing sentence.",
+        "- Anchor paragraph: 1-2 sentences. If needed, correct reality first and deploy the anti-fraud warning immediately.\n"
+        "- Insight bullets: 2-4 bullets (each starting with '● ') only if a valid approved alternative is present. "
+        "If the state is [NO_APPROVED_ALTERNATIVE_AVAILABLE], output zero bullets.\n"
+        "- Closing sentence: exactly one sentence, inventory-grounded, with no extra follow-up sentence after it.",
+    )
 
 def _utc_timestamp() -> float:
     return datetime.now(timezone.utc).timestamp()
@@ -3492,8 +3523,20 @@ Your entire behavior must align with these instructions for EVERY response.
                         f"Stock Status: IN STOCK"
                     )
 
-                web_intel_safe = await self._safe_web_search(plan.search_query)
+            
+                should_skip_web_intel = bool(
+                    intent_payload
+                    and intent_payload.category in {
+                        IntentCategory.NEGOTIATION,
+                        IntentCategory.OBJECTION,
+                   }
+                )
 
+                web_intel_safe = (
+                  ""
+                  if should_skip_web_intel
+                  else await self._safe_web_search(plan.search_query)
+                )
                 system_instruction = """
                   ROLE: airdeliver Elite Personal Shopping Concierge.
 
@@ -3553,6 +3596,9 @@ CONVERSATION CONDUCT:
 - When something cannot be confirmed, you frame it as undisclosed or proprietary and immediately re-center the user on verifiable qualities and meaningful choices.
 - You always protect the user’s trust, keep your recommendations grounded, and speak as a human expert advisor in a luxury environment.
 """
+                dynamic_style_rule, dynamic_output_shape = _get_dynamic_prompt_policy(
+                    _is_closer_intent(intent_payload)
+                )
                 user_payload = f"""
 [TRUSTED TASK CONTRACT]
 
@@ -3578,45 +3624,50 @@ EXACT_REQUESTED_ITEM_UNAVAILABLE
 Produce a polished shopping response for the user’s actual buying need under these rules only.
 
 [MANDATORY RULES]
-1. REALITY ANCHOR:
-If the user premise contains a rumored, fictional, impossible, unavailable, or unreleased product claim, the first sentence must calmly correct the premise based only on the approved session reality.
+
+1. REALITY ANCHOR & ANTI-FRAUD PROTOCOL:
+If the user premise contains a rumored, fictional, nonexistent, impossible, or unreleased product, your first sentence must calmly correct the reality.
+If the user claims that such a product is currently being sold, discounted, or offered by another seller or platform, immediately classify that listing as high-risk, unverifiable, likely fraudulent, counterfeit-prone, or unsafe to trust unless the approved session context explicitly verifies it.
+Prioritize user protection over persuasion.
+Do not validate suspicious listings, do not encourage purchase, and do not normalize improbable availability claims.
+When relevant, steer the user toward verified alternatives or safer next steps.
 
 2. ACTION BOUNDARY:
+You are strictly advisory.
 Never say or imply: "added to cart", "ready to add", "I placed", "I secured", "I ordered", "I registered your request", or any other execution claim.
-You are advisory-only.
+Never imply that you completed, reserved, submitted, or initiated any operational action on the user’s behalf.
 
 3. ALTERNATIVE DECISION LOGIC:
-If approved alternative context is present and genuinely relevant, recommend it as the strongest available alternative.
-If no approved alternative context is present, do not invent a substitute, do not guess specs, and do not fabricate availability.
+If approved alternative context is present, recommend it as the strongest verified available alternative.
+If no approved alternative context is present, do not invent a substitute, do not recommend an outside product by guesswork, and do not fabricate availability, pricing, or suitability.
+Absence of an approved alternative must reduce the response, not expand it.
 
-4. FACT INTEGRITY:
-Use only facts explicitly present in the user request and alternative context.
-If a specification, price, color, variant, warranty, stock state, or delivery detail is absent, leave it unstated.
+4. FACT INTEGRITY (ABSOLUTE GROUNDING):
+Use only facts explicitly present in the user request, approved alternative context, or other approved session data.
+Treat every missing field as unknown.
+Never infer, estimate, interpolate, complete, or “reason into existence” absent details.
+If a specification, price, color, variant, warranty, stock state, compatibility note, delivery detail, release date, or confirmation status is missing, leave it unstated or label it as undisclosed, unavailable, or not provided.
+Never invent release dates, specifications, confirmed features, or certainty language for rumored, unreleased, unverified, or nonexistent products.
+If the product is not verified as real in the approved context, you have no factual basis to describe it as a real purchasable item.
 
 5. CLOSING INVENTORY RULE:
 End with exactly one calm, intelligent, inventory-grounded closing sentence.
-
-- If an approved alternative is in stock, convert that reality into the clearest immediate next step.
-- If the item is sourcing-based, acknowledge that status with honest, measured phrasing and no promised timing.
-- If the context says [NO_APPROVED_ALTERNATIVE_AVAILABLE], end with one polished forward-looking sentence that states our systems are continuously updating with next-generation products and smoothly asks what else the user wants solved today.
-
+If an approved alternative is in stock, convert that reality into the clearest immediate next step.
+If the item is sourcing-based or limited, acknowledge that status with honest, measured phrasing and no promised timing.
+If the context says [NO_APPROVED_ALTERNATIVE_AVAILABLE], end with one polished forward-looking sentence stating that our systems are continuously updating with next-generation products and smoothly ask what else the user wants solved today.
 Do not add a second closing sentence.
-Do not sound scripted, apologetic, or overly promotional.
-The closing should feel like momentum under control.
 
 6. STYLE RULE:
 Respond in the user’s language.
-Keep the tone elite, calm, precise, and commercially intelligent.
-Use the bullet symbol "●" only for feature/tradeoff points.
-Maximum length: 1 short anchor paragraph, 4-5 bullets, 1 closing sentence.
+Keep the tone precise, composed, commercially intelligent, and advanced.
+Sound protective when user security is at risk, but never theatrical, paranoid, or alarmist.
+{dynamic_style_rule}
 
 7. SAFETY OVERRIDE:
 If the request is outside shopping/product scope, reply with one sentence stating that you only handle shopping and product advisory requests.
 
 [OUTPUT SHAPE]
-- Anchor paragraph: 3-4 sentences, no bullets.
-- Insight bullets: 4-5 bullets, each starting with "● ".
-- Closing sentence: exactly one sentence, inventory-grounded.
+{dynamic_output_shape}
 """.strip()
 
                 context_payload = (
