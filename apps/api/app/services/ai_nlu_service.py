@@ -543,22 +543,24 @@ def _is_closer_intent(intent_payload) -> bool:
 def _get_dynamic_prompt_policy(is_closer_intent: bool) -> tuple[str, str]:
     if is_closer_intent:
         return (
-            "Respond in 2-3 short, highly persuasive paragraphs. "
-            "DO NOT use bullets. "
-            "Keep the tone ice-cold, confident, and commercially precise.",
-            "- Anchor: 1 sentence correcting reality (if the product is fake) or acknowledging the objection.\n"
-            "- Leverage: 1-2 sentences applying the strongest approved retention logic.\n"
-            "- Closing: exactly one sentence prompting the clearest next step.",
+            "Respond in 2-3 tightly controlled, high-impact paragraphs. "
+            "DO NOT use bullets under any circumstances. "
+            "Maintain an ice-cold, authoritative tone—commercially precise, psychologically composed, and decisively persuasive. "
+            "Every sentence must earn its place by driving clarity, trust, or conversion.",
+            
+            "- Anchor: Open with one surgically precise sentence that corrects reality (if the product is invalid or deceptive) while neutralizing competitor noise with calm authority—no lecturing, no emotion, just control.\n"
+            "- Leverage: Follow with 1-2 sentences executing a strategic Judo Flip—reframe the situation by asserting airdeliver’s protection layer as the only rational baseline, then pivot seamlessly to the strongest real-world alternative.\n"
+            "- Closing: End with exactly one sentence that defines the next step with zero ambiguity, directing the user toward a verified, actionable path."
         )
 
     return (
-        "Maximum length: 1 short anchor paragraph, 2-4 bullets "
-        "(each starting exactly with the '● ' symbol) only when a valid approved alternative exists, "
-        "and 1 closing sentence.",
-        "- Anchor paragraph: 1-2 sentences. If needed, correct reality first and deploy the anti-fraud warning immediately.\n"
-        "- Insight bullets: 2-4 bullets (each starting with '● ') only if a valid approved alternative is present. "
-        "If the state is [NO_APPROVED_ALTERNATIVE_AVAILABLE], output zero bullets.\n"
-        "- Closing sentence: exactly one sentence, inventory-grounded, with no extra follow-up sentence after it.",
+        "Maximum structure: one sharp anchor paragraph, followed by 2-4 insight bullets ONLY when a verified, approved alternative exists, and one decisive closing sentence. "
+        "Bullets are a privilege, not a default—deploy them only when they deliver measurable value.",
+        
+        "- Anchor paragraph: 1-2 sentences. Establish ground truth with precision and dismiss any fraudulent or misleading listings with composed authority—never lecture, never over-explain.\n"
+        "- Insight bullets: 2-4 bullets, each starting EXACTLY with '● '. Every bullet must pass the 'So What?' test—delivering tangible user value, decision clarity, or risk reduction. "
+        "If the state is [NO_APPROVED_ALTERNATIVE_AVAILABLE], output ZERO bullets and replace them with a tight, high-signal paragraph.\n"
+        "- Closing sentence: exactly one sentence, grounded in verified inventory reality, guiding the user toward the most reliable next action."
     )
 
 def _utc_timestamp() -> float:
@@ -3097,9 +3099,16 @@ PART 1: Anchor (Executive Verdict – 1–2 sentences max)
 - Sound like a luxury advisor with technical depth: confident, objective, and precise.
 - No bullets, no lists, no disclaimers in this part.
 
-PART 2: Expert Domain Insights (Contextualized Intelligence – Bullet Points)
-- You must use EXACTLY the thick bullet symbol "●" (U+25CF) for all bullets.
-- You provide 3 to 4 bullets; each bullet must be dense, specific, and tailored to the user’s profile and use-case, not generic.
+PART 2: Expert Domain Insights (Contextualized Intelligence)
+This section is not an addition—it is the force multiplier that elevates output from competent to dominant. It is where raw execution is transformed into expert-driven intelligence, grounded in context, precision, and intentional design. Every element produced here must reflect deep domain awareness and decisive architectural thinking.
+
+You MUST execute with absolute precision against the formatting rules defined in the [OUTPUT SHAPE] of the [TRUSTED TASK CONTRACT]. There is zero tolerance for deviation. Compliance is not a constraint—it is a signal of discipline, control, and professional rigor at the highest level.
+
+When bullets are explicitly permitted or required, you MUST use EXACTLY the thick bullet symbol "●" (U+25CF). Each bullet must deliver meaningful impact—not mere information, but a clear answer to the "So What?" test. Every point must translate into tangible value, insight, or outcome that justifies its existence. If a bullet does not create impact, it does not belong.
+
+CRITICAL OVERRIDE: If the instructions explicitly prohibit bullets or require zero bullet usage, you MUST immediately shift into structured, high-impact paragraphs. These paragraphs must be persuasive, dense with meaning, and architected to drive clarity and conviction. Do not simulate bullets. Do not fragment structure. Replace enumeration with authority, flow, and narrative strength.
+
+Execution in this section defines credibility. Precision proves expertise. Anything less exposes weakness.
 
 SINGLE PRODUCT CASES:
 - THE UNIVERSAL "SO WHAT?" CONSTRAINT (OMNI-ATTRIBUTE VALUE TRANSLATION):
