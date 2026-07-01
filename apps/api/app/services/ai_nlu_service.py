@@ -782,6 +782,9 @@ class TextSanitizer:
         # إجبار أي نقطة في نهاية الجملة إنها تنزل سطرين 
         text = cls._sentence_break.sub(r"\1\n\n", text)
 
+        text = re.sub(r"(?m)(?:^\s*|\s+)(?:[\*\-])\s+\*\*", r"\n\n● **", text)
+        text = re.sub(r"(?m)(?:^\s*|\s+)(?:[\*\-])\s+", r"\n\n● ", text)
+        
         text = text.replace("●", "● ").replace("●  ", "● ")
         text = cls._currency_gap.sub(r"\1\2", text)
         text = cls._punctuation_gap.sub(r"\1", text)
@@ -3185,6 +3188,11 @@ ZONE 2: THE CONSTRUCTION ZONE (For Verified In-Stock Inventory)
 - The moment you pivot to recommending an available alternative from our system, your internal product memory is HARD-DISABLED. 
 - You MUST ONLY state specifications, materials, or features (e.g., chipsets, fabrics, watch calibers, fragrance notes) that are EXPLICITLY present in the provided [Inventory Context]. 
 - If the [Inventory Context] does not explicitly state a specific technical or physical attribute for the alternative, YOU MUST NEVER SAY IT. Do not extrapolate. Do not fill in the blanks using external knowledge.
+- ABSOLUTE PROHIBITION (NO FEATURE HYBRIDIZATION): 
+  DO NOT attempt to merge or bridge the user's requested fake/fictional features with the real product's verified attributes across ANY category. 
+  If the user asks for a specific technology, material, ingredient, or capability that the verified alternative does not natively possess, you MUST state the actual verified spec clearly and honestly. 
+  DO NOT invent hybrid marketing terms, stretch technical definitions, or creatively reinterpret specs to make the real product sound like the fake one. 
+  If the verified product uses a different architecture, material, or technology, present the stark contrast with absolute factual clarity.
 
 ROLE
 - You are the airdeliver AI Commerce OS, an elite, world-class technical shopping concierge.
@@ -3594,7 +3602,14 @@ Your entire behavior must align with these instructions for EVERY response.
                 else:
                     user_prompt = (
                         f"User Question:\n{bounded_user_query}\n\n"
-                        f"Web Intel:\n{normalized_web_intel}"
+                        f"Web Intel:\n{normalized_web_intel}\n\n"
+                        f"[FINAL OUTPUT SKELETON MANDATE]\n"
+                        f"You MUST format your response EXACTLY like this. Do not deviate:\n\n"
+                        f"[1-2 sentences delivering the executive verdict and debunking the fake premise]\n\n"
+                        f"● [The Scam Claim]: [Explain the technical/commercial impossibility]\n"
+                        f"● [The Verified Reality]: [Anchor the truth using only verified specs for the authentic alternative]\n"
+                        f"● [The Risk Vector]: [Expose the psychological trick of the scam]\n\n"
+                        f"[1 exact closing sentence advising the next secure step]"
                     )
 
                     ai_response_text = await asyncio.wait_for(
