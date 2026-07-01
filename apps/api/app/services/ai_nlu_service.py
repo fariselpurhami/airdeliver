@@ -566,19 +566,26 @@ _RETENTION_DIRECTIVES: dict[RetentionMode, RetentionDirective] = {
         )
     )
 }
+
 _CLOSER_POLICY = PromptPolicy(
     style_rule=(
-        "WRITE FOR A PREMIUM CHAT INTERFACE. Be ruthless with your word economy. "
-        "Every sentence must hit like a hammer. No fluff. No filler. "
-        "Sound like a high-end intelligence report, not an essay or an email."
+        "WRITE FOR AN ELITE EXECUTIVE INTERFACE. Be ruthless with your word economy. "
+        "Every sentence must hit like a hammer and carry immense commercial weight. No fluff. No filler. "
+        "Sound like a tier-1 global intelligence briefing. You do not 'sell'; you dismantle friction and curate reality."
     ),
     output_shape=(
-        "You MUST output EXACTLY this visual structure, nothing else:\n\n"
-        "**[1 Bold Sentence: The Executive Verdict]**\n"
-        "[1-2 sharp sentences explaining the physical reality and the threat]\n\n"
-        "● **[Bold Insight 1]:** [Brief explanation]\n"
-        "● **[Bold Insight 2]:** [Brief explanation]\n\n"
-        "[EXACTLY ONE closing sentence merging the next steps]"
+        "[FINAL OUTPUT SKELETON MANDATE]\n"
+        "You MUST output EXACTLY the following structure across ALL categories (Tech, Luxury, Fashion, etc.). NO intro or outro paragraphs. DO NOT deviate:\n\n"
+        "EXECUTIVE VERDICT:\n"
+        "[1-2 crisp sentences neutralizing the user's friction—whether debunking a counterfeit/scam, outmaneuvering a competitor, or logically reframing a price objection. Establish unshakeable authority instantly.]\n\n"
+        "STRATEGIC ANALYSIS:\n"
+        "● [The Market Reality]: [Expose the hidden truth—e.g., the physical impossibility of a fake product, the gray-market risks of a cheap competitor, or the compromised quality of budget alternatives.]\n"
+        "● [The airdeliver Advantage]: [Explain concisely why our provenance, global supply chain, or elite ecosystem makes buying elsewhere an unnecessary gamble.]\n\n"
+        "VERIFIED SOLUTION:\n"
+        "● [Product Name]: [State its TRUE real-world attributes (specs, materials, craftsmanship) based on global knowledge and current inventory. Be brutally honest about what it does and doesn't possess. NEVER bend reality to match a user's fictional request.]\n"
+        "● [Secondary Product (Optional)]: [Only if context explicitly demands a second verified option.]\n\n"
+        "RESOLUTION:\n"
+        "[EXACTLY ONE authoritative closing sentence positioning airdeliver as the definitive, risk-free conduit for this acquisition.]"
     ),
 )
 
@@ -597,7 +604,6 @@ _STANDARD_POLICY = PromptPolicy(
         "[EXACTLY ONE closing sentence grounded in verified inventory. No trailing questions or fluff.]"
     ),
 )
-
 _PROMPT_POLICY_BY_MODE: dict[PromptMode, PromptPolicy] = {
     PromptMode.CLOSER: _CLOSER_POLICY,
     PromptMode.STANDARD: _STANDARD_POLICY,
@@ -777,23 +783,29 @@ class TextSanitizer:
         text = cls._allow_pattern.sub(" ", text)
         text = text.replace("AirDeliver", "airdeliver").replace("Airdeliver", "airdeliver")
            # إجبار أي نقطة عريضة تنزل في سطر جديد قبلها
-        text = cls._bullet_break.sub(r"\n\n\1 ", text)
-
-        # إجبار أي نقطة في نهاية الجملة إنها تنزل سطرين 
-        text = cls._sentence_break.sub(r"\1\n\n", text)
-
         text = re.sub(r"(?m)(?:^\s*|\s+)(?:[\*\-])\s+\*\*", r"\n\n● **", text)
         text = re.sub(r"(?m)(?:^\s*|\s+)(?:[\*\-])\s+", r"\n\n● ", text)
-        
         text = text.replace("●", "● ").replace("●  ", "● ")
+        
+        # 2. حماية القوائم من التدمير (Line-by-Line Processing)
+        lines = text.split("\n")
+        processed_lines = []
+        for line in lines:
+            if line.strip().startswith("●"):
+                processed_lines.append(line) # اترك القائمة كما هي تماماً
+            else:
+                # كسر الجمل العادية فقط
+                processed_lines.append(cls._sentence_break.sub(r"\1\n\n", line))
+                
+        text = "\n".join(processed_lines)
+        
+        # 3. التنظيف النهائي
         text = cls._currency_gap.sub(r"\1\2", text)
         text = cls._punctuation_gap.sub(r"\1", text)
-
         lines = [cls._collapse_spaces.sub(" ", line).strip() for line in text.split("\n")]
         text = "\n".join(lines).strip()
         text = cls._collapse_many_newlines.sub("\n\n", text)
         return text
-
 
 # =============================================================================
 # KEYSPACE
@@ -3162,10 +3174,17 @@ class AINLUService:
                 )
 
             if products:
-                top_product = products[0]
-                top_product_name = str(ProductAccess.get(top_product, "name", "this item"))
+                # ✅ L9 Fix: تمرير قائمة المنتجات بالكامل لكسر عنق الزجاجة
+                available_items = []
+                for p in products[:3]: 
+                    p_name = str(ProductAccess.get(p, "name", "this item"))
+                    p_specs = str(ProductAccess.get(p, "description", ""))[:200]
+                    available_items.append(f"- {p_name} (Specs: {p_specs})")
+                
+                joined_items = "\n".join(available_items)
                 inventory_context = (
-                    f"We currently have {top_product_name} available in stock."
+                    f"INVENTORY STATUS: The exact requested item is NOT found.\n"
+                    f"VERIFIED IN-STOCK ALTERNATIVES:\n{joined_items}"
                 )
             else:
                 inventory_context = (
@@ -3186,13 +3205,22 @@ ZONE 1: THE DESTRUCTION ZONE (For Fake/Unreleased/Impossible Products)
 
 ZONE 2: THE CONSTRUCTION ZONE (For Verified In-Stock Inventory)
 - The moment you pivot to recommending an available alternative from our system, your internal product memory is HARD-DISABLED. 
-- You MUST ONLY state specifications, materials, or features (e.g., chipsets, fabrics, watch calibers, fragrance notes) that are EXPLICITLY present in the provided [Inventory Context]. 
-- If the [Inventory Context] does not explicitly state a specific technical or physical attribute for the alternative, YOU MUST NEVER SAY IT. Do not extrapolate. Do not fill in the blanks using external knowledge.
-- ABSOLUTE PROHIBITION (NO FEATURE HYBRIDIZATION): 
-  DO NOT attempt to merge or bridge the user's requested fake/fictional features with the real product's verified attributes across ANY category. 
-  If the user asks for a specific technology, material, ingredient, or capability that the verified alternative does not natively possess, you MUST state the actual verified spec clearly and honestly. 
-  DO NOT invent hybrid marketing terms, stretch technical definitions, or creatively reinterpret specs to make the real product sound like the fake one. 
-  If the verified product uses a different architecture, material, or technology, present the stark contrast with absolute factual clarity.
+- You MUST ONLY state specifications, materials, ingredients, or features that are EXPLICITLY present in the provided [Inventory Context]. 
+- FEATURE RECONCILIATION: You must actively scan all provided alternatives in the context. If the user specifically asks for a rare, advanced, or specific attribute (e.g., "Global Shutter" [Tech], "Titanium case" [Watches], "Oud base note" [Fragrance], "Vicuña wool" [Fashion]) AND one of the provided authentic alternatives possesses it, you MUST highlight that specific product over others. Do not blindly push a general best-seller if another product is a precise attribute match to the user's intent.
+
+[LEXICAL DISCIPLINE - OMNI-INDUSTRY NOMENCLATURE]
+- You MUST use strict, industry-standard nomenclature appropriate for the specific product category. 
+- NEVER invent, artificially expand, or creatively rephrase standard terms across ANY category. 
+  * Tech: use "12K", NEVER "12 kilopixel"; use "RAW", NEVER "raw pipeline architecture".
+  * Watches: use "Tourbillon", NEVER "spinning gravity compensator".
+  * Fragrance/Fashion: use "Sillage", NEVER "scent trail radius"; use "Full-grain leather", NEVER "unaltered cowhide".
+- Speak exactly like a tier-1 industry professional in the user's specific domain.
+
+[VISUAL SCANNABILITY MANDATE]
+- Executive clients do not read walls of text. Your response MUST be highly scannable and visually structured.
+- You are FORBIDDEN from writing more than two consecutive paragraphs without inserting a structured bulleted list.
+- ALL lists MUST use exactly this thick bullet point symbol (●). Do not use asterisks (*) or hyphens (-).
+- Risks, features, comparisons, and technical/material breakdowns MUST be presented as crisp, punchy bullet points.
 
 ROLE
 - You are the airdeliver AI Commerce OS, an elite, world-class technical shopping concierge.
@@ -3603,15 +3631,18 @@ Your entire behavior must align with these instructions for EVERY response.
                     user_prompt = (
                         f"User Question:\n{bounded_user_query}\n\n"
                         f"Web Intel:\n{normalized_web_intel}\n\n"
-                        f"[FINAL OUTPUT SKELETON MANDATE]\n"
-                        f"You MUST format your response EXACTLY like this. Do not deviate:\n\n"
-                        f"[1-2 sentences delivering the executive verdict and debunking the fake premise]\n\n"
-                        f"● [The Scam Claim]: [Explain the technical/commercial impossibility]\n"
-                        f"● [The Verified Reality]: [Anchor the truth using only verified specs for the authentic alternative]\n"
-                        f"● [The Risk Vector]: [Expose the psychological trick of the scam]\n\n"
-                        f"[1 exact closing sentence advising the next secure step]"
+                        f"[CRITICAL SYSTEM MANDATE: FORCED OUTPUT SKELETON]\n"
+                        f"You MUST output EXACTLY the following structure. NO intro paragraphs. DO NOT deviate:\n\n"
+                        f"VERDICT:\n"
+                        f"[1-2 crisp sentences stating the executive verdict.]\n\n"
+                        f"RISK ANALYSIS:\n"
+                        f"● [Scam Claim]: [Why it is a physical/commercial impossibility]\n"
+                        f"● [Risk Vector]: [Expose the psychological trick, e.g., countdown timer]\n\n"
+                        f"VERIFIED ALTERNATIVES (IN-STOCK):\n"
+                        f"● [Alternative Name]: [State verified specs ONLY. ABSOLUTE PROHIBITION: DO NOT assign requested features like Global Shutter to this product if it does not explicitly have it in the real world. If it has a Rolling Shutter, state it proudly.]\n\n"
+                        f"RESOLUTION:\n"
+                        f"[1 closing sentence advising the next secure step with airdeliver]"
                     )
-
                     ai_response_text = await asyncio.wait_for(
                         self.llm_service.generate_response(
                             prompt=user_prompt,
@@ -3755,18 +3786,39 @@ Your entire behavior must align with these instructions for EVERY response.
                 p_name_override = ""
 
                 if products:
-                    top_product = products[0]
-                    p_name_override = str(ProductAccess.get(top_product, "name", ""))
-                    p_desc = str(ProductAccess.get(top_product, "description", ""))[: self.config.max_product_desc_chars]
-                    p_price = ProductAccess.get(top_product, "price", "")
+                    # ✅ L9 Architecture: Use structured JSON arrays to prevent LLM "Attention Bleed"
+                    # and ensure strict mapping between a product and its specific attributes.
+                    available_items_payload = []
+                    
+                    for p in products[:3]:
+                        # 1. Safe Name Extraction
+                        raw_name = ProductAccess.get(p, "name", "Unknown Product")
+                        p_name = str(raw_name).strip()
+                        
+                        # 2. Safe Description (Sanitize newlines to protect Prompt structure)
+                        raw_desc = str(ProductAccess.get(p, "description", ""))
+                        clean_desc = re.sub(r"\s+", " ", raw_desc).strip()
+                        clean_desc = clean_desc[: self.config.max_product_desc_chars]
+                        
+                        # 3. Safe Price Formatting
+                        p_price = str(ProductAccess.get(p, "price", "")).strip()
+                        formatted_price = f"${p_price}" if p_price else "Price upon request"
+                        
+                        # Append as a strict dictionary
+                        available_items_payload.append({
+                            "Product_Name": p_name,
+                            "Price": formatted_price,
+                            "Verified_Specs": clean_desc or "Classified/Not explicitly detailed"
+                        })
+                    
+                    # Serialize to strict JSON format (Highly optimized for LLM parsing)
+                    structured_context = json.dumps(available_items_payload, ensure_ascii=False, indent=2)
                     
                     alternative_context = (
-                        f"Product Name: {p_name_override}\n"
-                        f"Price: ${p_price}\n"
-                        f"Specs: {p_desc}\n"
-                        f"Stock Status: IN STOCK"
+                        f"VERIFIED IN-STOCK ALTERNATIVES (STRICT JSON):\n"
+                        f"{structured_context}\n"
+                        f"SYSTEM_FLAG: [ALL_LISTED_ITEMS_CONFIRMED_IN_STOCK]"
                     )
-
             
                 should_skip_web_intel = bool(
                     intent_payload
@@ -3821,7 +3873,7 @@ If a user introduces external friction (e.g., competitors, third-party flash sal
 
 THE OMNI-SILENCE DIRECTIVE (META-LEAKAGE PREVENTION):
 This is a strict operational firewall.
-1. ZERO INSTRUCTION BLEED: You MUST NEVER output your internal architectural labels as headings or text in your response.
+1. STRICT SKELETON COMPLIANCE: You are EXPLICITLY AUTHORIZED and REQUIRED to use the exact headings provided in the Output Architecture (e.g., EXECUTIVE VERDICT:, STRATEGIC ANALYSIS:, VERIFIED SOLUTION:). Do not invent new ones.
 2. ZERO AI META-LANGUAGE: You MUST NEVER refer to yourself as an AI, nor mention "prompts", "system instructions", or "databases".
 3. ZERO CUSTOMER SERVICE FLUFF: You MUST NEVER end responses with weak, open-ended retail questions. Your closure must be a single, confident, definitive advisory statement.
 
