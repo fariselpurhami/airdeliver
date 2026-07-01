@@ -802,8 +802,14 @@ class TextSanitizer:
         # Phase 2: Markdown Eradication & List Standardization
         # ---------------------------------------------------------------------
         # Convert any markdown lists or numbered lists (1., 2.) to the universal bullet
-        text = re.sub(r"(?m)(?:^\s*|\s+)(?:[\*\-]|\d+\.)\s+", r"\n\n● ", text)
-        
+        text = re.sub(
+            r"(?i)\s*(EXECUTIVE VERDICT:|STRATEGIC ANALYSIS:|VERIFIED SOLUTION:|RESOLUTION:)\s*", 
+            r"\n\n\1\n\n", 
+            text
+        )
+
+        # Convert any markdown lists or numbered lists (1., 2.) to the universal bullet
+        text = re.sub(r"(?m)(?:^\s*|\s+)(?:[\*\-]|\d+\.)\s+", r"\n\n● ", text)    
         # Absolute prohibition: Nuke remaining asterisks to prevent unintended bolding
         text = text.replace("*", "")
 
