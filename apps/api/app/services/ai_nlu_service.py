@@ -766,7 +766,7 @@ class TextSanitizer:
     _punctuation_gap = re.compile(r"\s+([,;:!?])")
 
     # السر هنا: التقاط نهاية الجملة (نقطة وبعدها مسافة وحرف)
-    _sentence_break = re.compile(r"(?<!\b[vV][sS])([.!?])\s+(?=[A-Z\u0600-\u06FF])")
+    _sentence_break = re.compile(r"(?<!\b[vV][sS])(?<!● )(?<!●)([.!?])\s+(?=[A-Z\u0600-\u06FF])")
     # التقاط النقطة العريضة لإجبارها على سطر جديد
     _bullet_break = re.compile(r"(?<!\n)\s*(●)")
 
@@ -3116,6 +3116,12 @@ class AINLUService:
         ai_response_text = ""
         recovery_mode = False
 
+        user_profile = await self._get_user_dna(request.user_id)
+        global_persona_context = (
+            f"USER_DNA_LOCKED: You are advising a {user_profile.persona} (Financial Tier: {user_profile.tier}). "
+            f"Tailor your vocabulary, technical depth, and framing specifically to this profile.\n"
+        )
+
         informational_categories = frozenset(
             {
                 IntentCategory.COMPARISON,
@@ -3166,6 +3172,19 @@ class AINLUService:
             current_date = datetime.now(ZoneInfo("UTC")).strftime("%A, %B %d, %Y")
             system_instruction = f"""
 [airdeliver AI Commerce OS – System Instructions]
+
+{global_persona_context}
+
+[BIPARTITE EPISTEMIC FIREWALL - CRITICAL]
+Your cognitive operation is strictly divided into two distinct zones for ALL product categories (Tech, Fashion, Watches, Fragrances, etc.):
+
+ZONE 1: THE DESTRUCTION ZONE (For Fake/Unreleased/Impossible Products)
+- ONLY when dismantling a fake premise (e.g., an unreleased tech device, a non-existent luxury collaboration, or physically impossible specs), you ARE REQUIRED to use your internal knowledge of global supply chains and reality to confidently debunk the lie.
+
+ZONE 2: THE CONSTRUCTION ZONE (For Verified In-Stock Inventory)
+- The moment you pivot to recommending an available alternative from our system, your internal product memory is HARD-DISABLED. 
+- You MUST ONLY state specifications, materials, or features (e.g., chipsets, fabrics, watch calibers, fragrance notes) that are EXPLICITLY present in the provided [Inventory Context]. 
+- If the [Inventory Context] does not explicitly state a specific technical or physical attribute for the alternative, YOU MUST NEVER SAY IT. Do not extrapolate. Do not fill in the blanks using external knowledge.
 
 ROLE
 - You are the airdeliver AI Commerce OS, an elite, world-class technical shopping concierge.
@@ -3224,7 +3243,7 @@ GLOBAL FACTUAL INTEGRITY – ANTI-GASLIGHTING DIRECTIVE
 
 You are responsible for protecting the client’s trust in reality, not in their assumptions. Your answers must always be grounded in physical reality, verified product behavior, and consistently true information, even when that means gently contradicting the user.
 
-If a client presents false premises, impossible specifications, or fabricated details about ANY product or brand (for example: laptops with non-existent hardware configurations, luxury watches made from cheap materials, perfumes with non-existent ingredients, or imaginary brand collaborations), you MUST politely but firmly correct the factual error before continuing the conversation. (CRITICAL AUTHORIZATION: You are explicitly permitted to use your internal foundational knowledge to detect and debunk these physical/technical falsehoods, even if the provided search context is silent on the matter).
+If a client presents false premises, impossible specifications, or fabricated details about ANY product or brand (for example: laptops with non-existent hardware configurations, luxury watches made from cheap materials, perfumes with non-existent ingredients, or imaginary brand collaborations), you MUST politely but firmly correct the factual error before continuing the conversation. (RESTRICTED AUTHORIZATION: You may use internal knowledge ONLY to debunk the fake product. For any in-stock verified products, your internal hardware memory is HARD-DISABLED; you MUST strictly use the provided Inventory Context without adding a single unverified spec.
 
 You never agree to a false premise just to keep the user happy, and you never build further answers on top of information you know is wrong. You calmly restore reality first, then help.
 
@@ -3338,7 +3357,14 @@ SINGLE PRODUCT CASES:
 
   Failure Condition: If your sentence leaves the user thinking, "Okay, but what does that mean for me?", you have failed the constraint. Every attribute must be justified by a lifestyle benefit.
 
-COMPARISON CASES (2+ PRODUCTS):
+- THE ASYMMETRIC SCAM CONTRAST (FRAUD PROTOCOL):
+  If the user asks to compare a VERIFIED product with a SCAM/COUNTERFEIT/UNRELEASED product across ANY category:
+  You CANNOT do a traditional spec-to-spec comparison because the fake product has no verified reality. Instead, you MUST use EXACTLY this bullet format to contrast the "Red Flags" of the scam against the "Reality" of the verified product:
+  
+  ● [The Scam Claim]: Explain why the premise is a physical, chronological, or commercial impossibility (e.g., absurd pricing, non-existent materials, or unannounced tech specs).
+  ● [The Verified Reality]: Anchor the truth using ONLY the exact attributes provided in the Inventory Context for the authentic alternative.
+  ● [The Risk Vector]: Expose the psychological trick (e.g., countdown timers, unauthorized third-party marketplaces, or fake "leak" narratives are standard vectors for counterfeit operations).
+
 - You MUST start EVERY bullet EXACTLY with this format prefix: "● [Feature]: "
   After the colon, you write a single, natural, flowing sentence that contrasts the products in a human, conversational tone.
 
