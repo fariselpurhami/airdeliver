@@ -5,8 +5,9 @@ import contextlib
 import json
 import logging
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Awaitable, Callable, Protocol, cast
 
 from aio_pika.abc import AbstractIncomingMessage
 from fastapi import FastAPI, Request
@@ -30,6 +31,24 @@ logger = logging.getLogger(__name__)
 STATIC_DIRECTORY = Path("static")
 RESPONSE_QUEUE_NAME = "q.ai.response.out"
 RESPONSE_ROUTING_KEY = "airdeliver.ai.response.out"
+METRICS_ENDPOINT = "/metrics"
+HEALTH_ENDPOINT = "/"
+
+
+class WebSocketManagerProtocol(Protocol):
+    async def send_to_user(self, user_id: str, message: str) -> None:
+        ...
+
+
+@dataclass(slots=True)
+class ApplicationResources:
+    cache: IAsyncCacheClient
+    rabbitmq: Any
+    response_consumer_task: asyncio.Task[None] | None = None
+
+
+class InvalidMessageError(ValueError):
+    """Raised when an inbound broker payload is invalid for the application contract."""
 
 
 def configure_logging() -> None:
@@ -37,6 +56,53 @@ def configure_logging() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+
+
+def get_app_resources(app: FastAPI) -> ApplicationResources:
+    resources = getattr(app.state, "resources", None)
+    if not isinstance(resources, ApplicationResources):
+        raise RuntimeError("Application resources are not initialized.")
+    return resources
+
+
+def ensure_static_directory(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def decode_message_body(body: bytes) -> dict[str, Any]:
+    try:
+        decoded = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise InvalidMessageError("Broker payload is not valid UTF-8 JSON.") from exc
+
+    if not isinstance(decoded, dict):
+        raise InvalidMessageError("Broker payload must be a JSON object.")
+
+    return decoded
+
+
+def extract_user_id(payload: dict[str, Any]) -> str:
+    raw_user_id = payload.get("user_id")
+    if not isinstance(raw_user_id, str):
+        raise InvalidMessageError("Broker payload is missing a string user_id.")
+
+    user_id = raw_user_id.strip()
+    if not user_id:
+        raise InvalidMessageError("Broker payload contains an empty user_id.")
+
+    return user_id
+
+
+def compact_json(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+
+
+def build_health_payload(settings: CoreSettings) -> dict[str, str]:
+    return {
+        "service": "airdeliver-api",
+        "environment": settings.APP_ENV,
+        "status": "ok",
+    }
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -66,7 +132,10 @@ def register_middleware(app: FastAPI, settings: CoreSettings) -> None:
         )
 
     @app.middleware("http")
-    async def ensure_response_charset(request: Request, call_next) -> Response:
+    async def ensure_response_charset(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         response = await call_next(request)
         content_type = response.headers.get("content-type", "")
 
@@ -76,47 +145,56 @@ def register_middleware(app: FastAPI, settings: CoreSettings) -> None:
         return response
 
 
-def decode_message_body(body: bytes) -> dict[str, Any]:
-    try:
-        decoded = json.loads(body.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        logger.warning("Dropping malformed AI response message.", exc_info=exc)
-        raise
-
-    if not isinstance(decoded, dict):
-        raise ValueError("Expected RabbitMQ payload to be a JSON object.")
-
-    return decoded
-
-
-async def start_response_consumer(app: FastAPI) -> None:
-    rabbitmq = app.state.rabbitmq
-    websocket_manager = get_websocket_manager()
-
-    queue = await rabbitmq.channel.declare_queue(RESPONSE_QUEUE_NAME, durable=True)
-    await queue.bind(rabbitmq.exchange_name, routing_key=RESPONSE_ROUTING_KEY)
-
-    async def on_response_message(message: AbstractIncomingMessage) -> None:
-        async with message.process(requeue=False):
+async def relay_response_message(
+    message: AbstractIncomingMessage,
+    websocket_manager: WebSocketManagerProtocol,
+) -> None:
+    async with message.process(requeue=False):
+        try:
             payload = decode_message_body(message.body)
+            user_id = extract_user_id(payload)
+        except InvalidMessageError as exc:
+            logger.warning(
+                "Dropping invalid AI response message.",
+                extra={"reason": str(exc)},
+            )
+            return
 
-            user_id = payload.get("user_id")
-            if not isinstance(user_id, str) or not user_id.strip():
-                logger.warning("Dropping AI response without a valid user_id.")
-                return
+        message_type = payload.get("type", "unknown")
+        if not isinstance(message_type, str):
+            message_type = "unknown"
 
-            message_type = payload.get("type", "unknown")
-            logger.info(
-                "Relaying AI response.",
+        try:
+            await websocket_manager.send_to_user(
+                user_id,
+                compact_json(payload),
+            )
+        except Exception:
+            logger.exception(
+                "Failed to relay AI response to websocket client.",
                 extra={
                     "user_id": user_id,
                     "message_type": message_type,
                 },
             )
-            await websocket_manager.send_to_user(
-                user_id,
-                json.dumps(payload, separators=(",", ":")),
-            )
+            return
+
+        logger.info(
+            "Relayed AI response.",
+            extra={
+                "user_id": user_id,
+                "message_type": message_type,
+            },
+        )
+
+
+async def start_response_consumer(app: FastAPI) -> None:
+    resources = get_app_resources(app)
+    rabbitmq = resources.rabbitmq
+    websocket_manager = cast(WebSocketManagerProtocol, get_websocket_manager())
+
+    queue = await rabbitmq.channel.declare_queue(RESPONSE_QUEUE_NAME, durable=True)
+    await queue.bind(rabbitmq.exchange_name, routing_key=RESPONSE_ROUTING_KEY)
 
     logger.info(
         "AI response consumer started.",
@@ -125,48 +203,94 @@ async def start_response_consumer(app: FastAPI) -> None:
             "routing_key": RESPONSE_ROUTING_KEY,
         },
     )
-    await queue.consume(on_response_message)
+
+    await queue.consume(
+        lambda message: relay_response_message(
+            message=message,
+            websocket_manager=websocket_manager,
+        )
+    )
+
+
+async def initialize_cache_client(settings: CoreSettings) -> IAsyncCacheClient:
+    if settings.USE_REDIS and settings.REDIS_URL:
+        cache_client: IAsyncCacheClient = RedisCacheClient(url=settings.REDIS_URL)
+        await cache_client.connect()
+        logger.info("Redis cache client connected.")
+        return cache_client
+
+    logger.info("Redis disabled or not configured. Falling back to NoOp cache client.")
+    return NoOpCacheClient()
+
+
+def configure_metrics(app: FastAPI) -> None:
+    Instrumentator().instrument(app).expose(
+        app,
+        endpoint=METRICS_ENDPOINT,
+        include_in_schema=False,
+    )
+
+
+def register_routes(app: FastAPI, settings: CoreSettings) -> None:
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIRECTORY)), name="static")
+
+    app.include_router(api_router, prefix=settings.API_V1_STR)
+    app.include_router(tracking_router, prefix="/ws")
+
+    @app.get(HEALTH_ENDPOINT, tags=["health"])
+    async def read_root() -> dict[str, str]:
+        return build_health_payload(settings)
+
+
+async def startup_resources(app: FastAPI, settings: CoreSettings) -> ApplicationResources:
+    cache_client = await initialize_cache_client(settings)
+    rabbitmq = await get_rabbitmq_service(settings)
+
+    resources = ApplicationResources(
+        cache=cache_client,
+        rabbitmq=rabbitmq,
+    )
+
+    app.state.cache = cache_client
+    app.state.rabbitmq = rabbitmq
+    app.state.resources = resources
+
+    consumer_task = asyncio.create_task(
+        start_response_consumer(app),
+        name="ai-response-consumer",
+    )
+    resources.response_consumer_task = consumer_task
+    app.state.response_consumer_task = consumer_task
+
+    return resources
+
+
+async def shutdown_resources(resources: ApplicationResources) -> None:
+    if resources.response_consumer_task is not None:
+        resources.response_consumer_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await resources.response_consumer_task
+
+    with contextlib.suppress(Exception):
+        await resources.rabbitmq.close()
+
+    with contextlib.suppress(Exception):
+        await resources.cache.disconnect()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_core_settings()
+    ensure_static_directory(STATIC_DIRECTORY)
 
-    cache_client: IAsyncCacheClient = NoOpCacheClient()
-    rabbitmq = None
-    consumer_task: asyncio.Task[None] | None = None
-
+    resources: ApplicationResources | None = None
     try:
-        if settings.USE_REDIS and settings.REDIS_URL:
-            cache_client = RedisCacheClient(url=settings.REDIS_URL)
-            await cache_client.connect()
-
-        app.state.cache = cache_client
-
-        rabbitmq = await get_rabbitmq_service(settings)
-        app.state.rabbitmq = rabbitmq
-
-        STATIC_DIRECTORY.mkdir(parents=True, exist_ok=True)
-
-        consumer_task = asyncio.create_task(
-            start_response_consumer(app),
-            name="ai-response-consumer",
-        )
-        app.state.response_consumer_task = consumer_task
-
+        resources = await startup_resources(app, settings)
         logger.info("Application startup complete.")
         yield
-
     finally:
-        if consumer_task is not None:
-            consumer_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await consumer_task
-
-        if rabbitmq is not None:
-            await rabbitmq.close()
-
-        await cache_client.disconnect()
+        if resources is not None:
+            await shutdown_resources(resources)
         logger.info("Application shutdown complete.")
 
 
@@ -184,21 +308,8 @@ def create_application() -> FastAPI:
 
     register_middleware(app, settings)
     register_exception_handlers(app)
-
-    Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
-
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIRECTORY)), name="static")
-
-    app.include_router(api_router, prefix=settings.API_V1_STR)
-    app.include_router(tracking_router, prefix="/ws")
-
-    @app.get("/", tags=["health"])
-    async def read_root() -> dict[str, str]:
-        return {
-            "service": "airdeliver-api",
-            "environment": settings.APP_ENV,
-            "status": "ok",
-        }
+    configure_metrics(app)
+    register_routes(app, settings)
 
     return app
 
