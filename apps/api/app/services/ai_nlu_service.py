@@ -780,35 +780,71 @@ class TextSanitizer:
 
     @classmethod
     def sanitize_response_text(cls, raw_text: str) -> str:
-        text = str(raw_text or "")
+        """
+        Sanitizes, normalizes, and formats the AI response text for UI presentation.
+        Ensures brand consistency, protects structural lists, enforces typography rules,
+        and provides a clean, premium visual output.
+        """
+        # ---------------------------------------------------------------------
+        # Phase 1: Early Exit & Base Normalization
+        # ---------------------------------------------------------------------
+        if not raw_text or not str(raw_text).strip():
+            return ""
+
+        text = str(raw_text)
         text = cls._strip_markdown_symbols.sub("", text)
         text = cls._allow_pattern.sub(" ", text)
+        
+        # Brand Enforcement
         text = text.replace("AirDeliver", "airdeliver").replace("Airdeliver", "airdeliver")
-           # إجبار أي نقطة عريضة تنزل في سطر جديد قبلها
-        text = re.sub(r"(?m)(?:^\s*|\s+)(?:[\*\-]|\d+\.)\s+\*\*", r"\n\n● **", text)
+
+        # ---------------------------------------------------------------------
+        # Phase 2: Markdown Eradication & List Standardization
+        # ---------------------------------------------------------------------
+        # Convert any markdown lists or numbered lists (1., 2.) to the universal bullet
         text = re.sub(r"(?m)(?:^\s*|\s+)(?:[\*\-]|\d+\.)\s+", r"\n\n● ", text)
-        text = text.replace("●", "● ").replace("●  ", "● ")
         
-        # 2. حماية القوائم من التدمير (Line-by-Line Processing)
-        lines = text.split("\n")
+        # Absolute prohibition: Nuke remaining asterisks to prevent unintended bolding
+        text = text.replace("*", "")
+
+        # ---------------------------------------------------------------------
+        # Phase 3: Structural Protection (Line-by-Line Context)
+        # ---------------------------------------------------------------------
         processed_lines = []
-        for line in lines:
-            if line.strip().startswith("●"):
-                processed_lines.append(line) # اترك القائمة كما هي تماماً
+        for line in text.split("\n"):
+            clean_line = line.strip()
+            if clean_line.startswith("●"):
+                # Preserve bullet point integrity; bypass sentence breaking
+                processed_lines.append(clean_line)
             else:
-                # كسر الجمل العادية فقط
-                processed_lines.append(cls._sentence_break.sub(r"\1\n\n", line))
-                
+                # Apply structural sentence breaks strictly to narrative paragraphs
+                processed_lines.append(cls._sentence_break.sub(r"\1\n\n", clean_line))
+
         text = "\n".join(processed_lines)
-        
-        # 3. التنظيف النهائي
+
+        # ---------------------------------------------------------------------
+        # Phase 4: Typography Polish & Whitespace Compression
+        # ---------------------------------------------------------------------
         text = cls._currency_gap.sub(r"\1\2", text)
         text = cls._punctuation_gap.sub(r"\1", text)
-        lines = [cls._collapse_spaces.sub(" ", line).strip() for line in text.split("\n")]
-        text = "\n".join(lines).strip()
-        text = cls._collapse_many_newlines.sub("\n\n", text)
-        return text
 
+        # Collapse internal spacing and clean trailing spaces per line
+        final_lines = [
+            cls._collapse_spaces.sub(" ", line).strip() 
+            for line in text.split("\n")
+        ]
+        text = "\n".join(final_lines).strip()
+        
+        # Enforce strict paragraph boundaries (Max 2 newlines)
+        text = cls._collapse_many_newlines.sub("\n\n", text)
+
+        # ---------------------------------------------------------------------
+        # Phase 5: Final UI Render
+        # ---------------------------------------------------------------------
+        # Inject EXACTLY 4 spaces after any bullet, overriding any previous spacing
+        text = re.sub(r"●\s*", "●    ", text)
+
+        return text
 # =============================================================================
 # KEYSPACE
 # =============================================================================
