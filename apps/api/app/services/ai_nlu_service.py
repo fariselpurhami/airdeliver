@@ -578,15 +578,15 @@ _CLOSER_POLICY = PromptPolicy(
         "You MUST output EXACTLY the following structure across ALL categories. NO intro or outro paragraphs. DO NOT deviate:\n"
         "ABSOLUTE RULE 1: DO NOT use numbered lists (1., 2., 3.). You MUST use ONLY the thick bullet '●' for any lists.\n"
         "ABSOLUTE RULE 2: STRICTLY NO MARKDOWN BOLDING (**). Replace bracketed placeholders like [Product Name] with the actual text, and use EXACTLY 4 spaces after the bullet point (e.g., '●    Title:').\n\n"
-        "EXECUTIVE VERDICT:\n"
+        "Result:\n"
         "[1-2 crisp sentences neutralizing the user's friction—whether debunking a counterfeit/scam, outmaneuvering a competitor, or logically reframing a price objection. Establish unshakeable authority instantly.]\n\n"
-        "STRATEGIC ANALYSIS:\n"
+        "Analysis:\n"
         "●    The Market Reality: [Expose the hidden truth—e.g., the physical impossibility of a fake product, the gray-market risks of a cheap competitor, or the compromised quality of budget alternatives.]\n"
         "●    The airdeliver Advantage: [Explain concisely why our provenance, global supply chain, or elite ecosystem makes buying elsewhere an unnecessary gamble.]\n\n"
-        "VERIFIED SOLUTION:\n"
+        "Recommendation:\n"
         "●    [Actual Product Name]: [State its TRUE real-world attributes (specs, materials, craftsmanship) based on global knowledge and current inventory. Be brutally honest about what it does and doesn't possess. NEVER bend reality to match a user's fictional request.]\n"
         "●    [Secondary Product Name] (Optional): [Only if context explicitly demands a second verified option.]\n\n"
-        "RESOLUTION:\n"
+        "What To Do:\n"
         "[EXACTLY ONE authoritative closing sentence positioning airdeliver as the definitive, risk-free conduit for this acquisition.]"
     ),
 )
@@ -803,7 +803,7 @@ class TextSanitizer:
         # ---------------------------------------------------------------------
         # Convert any markdown lists or numbered lists (1., 2.) to the universal bullet
         text = re.sub(
-            r"(?i)\s*(EXECUTIVE VERDICT:|STRATEGIC ANALYSIS:|VERIFIED SOLUTION:|RESOLUTION:)\s*", 
+            r"(?i)\s*(Result:|Analysis:|Recommendation:|What To Do:)\s*", 
             r"\n\n\1\n\n", 
             text
         )
