@@ -14,7 +14,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useAISupportStore, type ChatMessage } from '@/hooks/useAISupportStore';
-
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 interface ActionOption {
   title: string;
   payload: string;
@@ -190,7 +190,7 @@ ChatInput.displayName = 'ChatInput';
 export default function Chatbot() {
   const { isOpen, setIsOpen, messages, sendMessage, isLoading } = useAISupportStore();
   const chatEndRef = useRef<HTMLDivElement>(null);
-
+  useBodyScrollLock({ locked: isOpen });
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });

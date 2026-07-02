@@ -21,7 +21,7 @@ import AIPaymentForm  from './AIPaymentForm';
 import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
 import { AIVoiceOverlay } from './AIVoiceOverlay';
-
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 const DEFAULT_PLACEHOLDER = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC";
 
 const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
@@ -930,6 +930,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const [detailProduct, setDetailProduct] = useState<any | null>(null);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     
+    useBodyScrollLock({ locked: isOpen });
     const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
     const stripePromise: Promise<Stripe | null> | null = useMemo(() => {
         return STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;

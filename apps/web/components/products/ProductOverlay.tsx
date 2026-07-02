@@ -10,7 +10,7 @@ import { type Product } from '@/types';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; 
-
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 // --- ARCHITECTURAL UTILS: DATA ADAPTER LAYER ---
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
@@ -121,7 +121,8 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
         // This .map runs the 'normalizeProductData' on every item
         return rawList.map(normalizeProductData);
     }, [productsData]);
-
+    
+    useBodyScrollLock({ locked: isOpen });
     useEffect(() => {
         if (!isOpen) {
             document.body.style.overflow = '';
