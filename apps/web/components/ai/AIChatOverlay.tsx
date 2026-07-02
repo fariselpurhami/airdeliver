@@ -820,6 +820,18 @@ const ChatInput = React.memo(
                value={value}
                onChange={handleAutoResize}
                rows={1}
+               onFocus={() => {
+                   // تأخير 300 ملي ثانية لانتظار أنيميشن الكيبورد حتى يكتمل
+                   setTimeout(() => {
+                       if (textareaRef.current) {
+                           // إجبار المتصفح على رفع الشاشة لتوضيح مربع الكتابة
+                           textareaRef.current.scrollIntoView({
+                               behavior: 'smooth',
+                               block: 'center'
+                           });
+                       }
+                   }, 300);
+               }}
                onKeyDown={(e) => {
                    if (e.key === 'Enter' && !e.shiftKey) {
                        e.preventDefault(); 

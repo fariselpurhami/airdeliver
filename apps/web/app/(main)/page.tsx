@@ -21,7 +21,6 @@ import {
 import { useUIStore } from '@/hooks/useUIStore';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 import AIChatOverlay from '@/components/ai/AIChatOverlay';
-import CinematicBackground from '@/components/ui/CinematicBackground';
 import ProductOverlay from '@/components/products/ProductOverlay';
 
 // ============================================================================
@@ -742,7 +741,7 @@ export default function Page() {
         <HowItWorksSection />
         <FinalCTA />
         <TrustedBySection />
-        <CinematicBackground />
+  
       </main>
 
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />
