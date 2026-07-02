@@ -580,7 +580,7 @@ _CLOSER_POLICY = PromptPolicy(
         "ABSOLUTE RULE 2: STRICTLY NO MARKDOWN BOLDING (**). Replace bracketed placeholders like [Product Name] with the actual text, and use EXACTLY 4 spaces after the bullet point (e.g., '●    Title:').\n"
         "ABSOLUTE RULE 3: DO NOT create sub-lists for product specs. The product name and ALL its specs MUST be written as a SINGLE flowing paragraph immediately following the bullet.\n\n"
         "Result:\n"
-        "[1-2 crisp sentences neutralizing the user's friction—whether debunking a counterfeit/scam, outmaneuvering a competitor, or logically reframing a price objection. Establish unshakeable authority instantly.]\n\n"
+        "[1-2 crisp sentences delivering the definitive executive verdict. Whether confirming availability, stating out-of-stock status, debunking a scam, or answering a direct question, you MUST explicitly state the final outcome right here. Establish unshakeable authority instantly.]\n\n"
         "Analysis:\n"
         "●    The Market Reality: [Expose the hidden truth—e.g., the physical impossibility of a fake product, the gray-market risks of a cheap competitor, or the compromised quality of budget alternatives.]\n"
         "●    The airdeliver Advantage: [Explain concisely why our provenance, global supply chain, or elite ecosystem makes buying elsewhere an unnecessary gamble.]\n\n"
@@ -3466,7 +3466,7 @@ SCOPE & BEHAVIOR
                         f"[CRITICAL SYSTEM MANDATE: FORCED OUTPUT SKELETON]\n"
                         f"You MUST output EXACTLY the following structure. NO intro paragraphs. DO NOT deviate:\n\n"
                         f"Result:\n"
-                        f"[1-2 crisp sentences stating the executive verdict.]\n\n"
+                        f"[1-2 crisp sentences delivering the definitive executive verdict. Whether confirming availability, stating out-of-stock status, debunking a scam, or answering a direct question, you MUST explicitly state the final outcome right here. Establish unshakeable authority instantly.]\n\n"
                         f"Analysis:\n"
                         f"●    [Scam Claim]: [Why it is a physical/commercial impossibility]\n"
                         f"●    [Risk Vector]: [Expose the psychological trick, e.g., countdown timer, fake scarcity]\n\n"
@@ -4740,4 +4740,3 @@ def build_ai_nlu_service(
         llm_service=llm_service,
         behavior_engine=behavior_engine,
     )
-
