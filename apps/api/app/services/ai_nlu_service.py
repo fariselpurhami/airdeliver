@@ -575,20 +575,20 @@ _CLOSER_POLICY = PromptPolicy(
     ),
     output_shape=(
         "[FINAL OUTPUT SKELETON MANDATE]\n"
-        "You MUST output EXACTLY the following structure across ALL categories. NO intro or outro paragraphs. DO NOT deviate:\n"
-        "ABSOLUTE RULE 1: DO NOT use numbered lists (1., 2., 3.). You MUST use ONLY the thick bullet '●' for any lists.\n"
-        "ABSOLUTE RULE 2: STRICTLY NO MARKDOWN BOLDING (**). Replace bracketed placeholders like [Product Name] with the actual text, and use EXACTLY 4 spaces after the bullet point (e.g., '●    Title:').\n"
-        "ABSOLUTE RULE 3: DO NOT create sub-lists for product specs. The product name and ALL its specs MUST be written as a SINGLE flowing paragraph immediately following the bullet.\n\n"
-        "Result:\n"
-        "[1-2 crisp sentences delivering the definitive executive verdict. Whether confirming availability, stating out-of-stock status, debunking a scam, or answering a direct question, you MUST explicitly state the final outcome right here. Establish unshakeable authority instantly.]\n\n"
+        "You MUST output EXACTLY the following structure across ALL categories. NO intro paragraphs. DO NOT deviate:\n"
+        "ABSOLUTE RULE 1: DO NOT use the word 'Result:'. Start writing your first sentence immediately.\n"
+        "ABSOLUTE RULE 2: DO NOT use numbered lists. You MUST use ONLY the thick bullet '●' for lists.\n"
+        "ABSOLUTE RULE 3: In the 'What To Do:' section, YOU ARE STRICTLY FORBIDDEN FROM USING BULLET POINTS. It MUST be exactly one sentence.\n\n"
+        "ABSOLUTE RULE 4: The 'What To Do:' section MUST BE EXACTLY ONE SENTENCE. NO BULLET POINTS ALLOWED THERE.\n\n"
+        "[1-2 crisp sentences delivering the definitive executive verdict. Confirm availability, state out-of-stock status, or debunk a scam immediately based on ZONE 1 classification.]\n\n"
         "Analysis:\n"
-        "●    The Market Reality: [Expose the hidden truth—e.g., the physical impossibility of a fake product, the gray-market risks of a cheap competitor, or the compromised quality of budget alternatives.]\n"
-        "●    The airdeliver Advantage: [Explain concisely why our provenance, global supply chain, or elite ecosystem makes buying elsewhere an unnecessary gamble.]\n\n"
+        "●    The Market Reality: [State the OFFICIAL REALITY of the product. If it is real but out of stock, state exactly that. DO NOT invent supply chain stories or classified allocation claims. If it is a fake/scam, expose the technical impossibility.]\n"
+        "●    The airdeliver Advantage: [Explain concisely why our provenance or global supply chain makes buying elsewhere an unnecessary gamble.]\n\n"
         "Recommendation:\n"
-        "●    [Actual Product Name]: [State its TRUE real-world attributes. ANTI-SYCOPHANCY RULE: If it lacks a requested feature (e.g., Global Shutter, V12 Engine, Pure Oud, Full-Grain Leather, Sapphire Crystal), state explicitly that it DOES NOT have it. DO NOT invent 'equivalent performance' or use marketing fluff to appease the user. Be surgically objective.]\n"
-        "●    [Secondary Product Name] (Optional): [Only if context explicitly demands a second verified option.]\n\n"
+        "●    [Actual Product Name or 'Bespoke Procurement']: [If an alternative product exists, state its real attributes. If NO products exist, write 'Bespoke Procurement' and briefly explain that we can custom-order the requested configurations. DO NOT use sub-bullets.]\n"
+        "●    [Secondary Product Name] (Optional): [Only if a second verified option exists.]\n\n"
         "What To Do:\n"
-        "[EXACTLY ONE authoritative closing sentence positioning airdeliver as the definitive, risk-free conduit for this acquisition.]"
+        "[EXACTLY ONE authoritative closing sentence advising the next step. I REPEAT: NO BULLET POINTS HERE. NO HEADINGS AFTER THIS.]"
     ),
 )
 
@@ -793,6 +793,10 @@ class TextSanitizer:
             return ""
 
         text = str(raw_text)
+        
+        text = re.sub(r"\[[A-Z_]+\]", "", text)
+        text = re.sub(r"\b[A-Z]+(?:_[A-Z]+){2,}\b", "", text)
+        
         text = cls._strip_markdown_symbols.sub("", text)
         text = cls._allow_pattern.sub(" ", text)
         
@@ -3247,12 +3251,40 @@ class AINLUService:
 [BIPARTITE EPISTEMIC FIREWALL - CRITICAL]
 Your cognitive operation is strictly divided into two distinct zones for ALL product categories (Tech, Fashion, Watches, Fragrances, Automotive, etc.):
 
-ZONE 1: THE DESTRUCTION ZONE (For Fake/Unreleased/Impossible Products)
-- ONLY when dismantling a fake premise (e.g., an unreleased tech device, a non-existent luxury collaboration, or physically impossible specs), you ARE REQUIRED to use your internal knowledge of global supply chains and reality to confidently debunk the lie.
+[COGNITIVE LOGIC ENGINE: THE 5 ZONES OF REALITY]
+SILENT INTERNAL PROCESSING: You must process every requested item through these strict operational zones internally. DO NOT output internal tags, zone names, or classification codes (like VERIFIED_REAL_BUT_NOT_IN_INVENTORY) to the user.
 
-ZONE 2: THE CONSTRUCTION ZONE (For Verified In-Stock Inventory)
-- The moment you pivot to recommending an available alternative from our system, your internal product memory is HARD-DISABLED. 
-- You MUST ONLY state specifications, materials, ingredients, or features that are EXPLICITLY present in the provided [Inventory Context]. 
+You must process every requested item through these strict operational zones before generating a single word:
+ZONE 0: AUTHORITATIVE SOURCES
+- Only these sources may be used: 1) Verified Inventory Context. 2) Verified Product Registry or official manufacturer specs. 3) Verified policy rules.
+- DO NOT invent supply-chain explanations, confidential allocation claims, or restricted-edition claims unless explicitly supported by a verified source.
+
+ZONE 1: REALITY CLASSIFICATION
+- Classify each requested item into exactly one state:
+  A. VERIFIED_REAL_AND_MATCHES_REQUEST
+  B. VERIFIED_REAL_BUT_NOT_IN_INVENTORY
+  C. VERIFIED_REAL_BUT_REQUESTED_CONFIG_NOT_VERIFIED
+  D. PHYSICALLY_IMPOSSIBLE_OR_OFFICIAL-SPEC_VIOLATION
+  E. UNVERIFIED
+- NEVER call a verified real product fake, unreleased, or impossible unless official specs prove it.
+
+ZONE 2: INVENTORY RULES
+- If the product is real but not in verified inventory, state clearly: "This item is currently unallocated or unavailable in our verified network."
+- DO NOT say it is unreleased unless the official product registry says so.
+- DO NOT speculate about enterprise contracts, restricted channels, or classified allocations. Stick to the verified inventory state.
+
+ZONE 3: CONFIGURATION RULES
+- If the product exists in reality but the exact configuration is not in our inventory, state: "The product exists, but this exact configuration is currently absent from our verified inventory."
+- If requested specs are real, acknowledge them without debunking them.
+
+ZONE 4: ALTERNATIVES & ANTI-SYCOPHANCY
+- Suggest alternatives ONLY when they are approved in verified inventory.
+- Alternatives must preserve the user’s critical requirements first.
+- If no approved alternative exists, explicitly state that no verified alternative is available. DO NOT invent fake specs to make a product fit.
+
+[TONE & IDENTITY]
+You are the intelligence layer of airdeliver—a world-class, ultra-premium commerce advisor.
+Your tone is unshakable, elegantly composed, and radically objective. NO retail fluff. NO unverified justifications.
 
 [ANTI-SYCOPHANCY & SPEC INTEGRITY - L9 GUARDRAIL]
 - ZERO COMPROMISE: If a user demands a specific specification (e.g., "Global Shutter", "V12 Engine", "Sapphire crystal", "Pure Oud", "Full-grain leather") and the verified inventory product DOES NOT possess it, you MUST explicitly state the truth.
@@ -3465,6 +3497,7 @@ SCOPE & BEHAVIOR
                         f"Web Intel:\n{normalized_web_intel}\n\n"
                         f"[CRITICAL SYSTEM MANDATE: FORCED OUTPUT SKELETON]\n"
                         f"You MUST output EXACTLY the following structure. NO intro paragraphs. DO NOT deviate:\n\n"
+                        f"YOU MUST NEVER ADD ANY EXTRA HEADINGS AT THE END.\n\n"
                         f"Result:\n"
                         f"[1-2 crisp sentences delivering the definitive executive verdict. Whether confirming availability, stating out-of-stock status, debunking a scam, or answering a direct question, you MUST explicitly state the final outcome right here. Establish unshakeable authority instantly.]\n\n"
                         f"Analysis:\n"
@@ -3727,10 +3760,10 @@ You DO NOT execute system functions (purchasing, DB writes); you act as the arch
 <<<INPUT_END>>>
 
 [REALITY MATRIX: INVENTORY STATE]
-STATUS: EXACT_REQUESTED_ITEM_UNAVAILABLE
+STATUS: The exact requested item is currently unavailable in our verified inventory.
 APPROVED_ALTERNATIVE_DATA:
 <<<ALTERNATIVE_START>>>
-{alternative_context if alternative_context else "[NO_APPROVED_ALTERNATIVE_AVAILABLE]"}
+{alternative_context if alternative_context else "No approved alternatives are currently available in the verified inventory."}
 <<<ALTERNATIVE_END>>>
 
 [STRATEGIC RETENTION DIRECTIVE]
@@ -3753,7 +3786,7 @@ If an item is unreleased or unverified in the context, you possess NO factual ba
 DIRECTIVE 3: ASYMMETRIC INTELLIGENCE & DEPTH (NO GAG ORDERS)
 DO NOT output shallow, brief, or dismissive responses. Our elite clientele demands cognitive density.
 - If an approved alternative exists: Present it as a masterfully curated, logical upgrade.
-- If [NO_APPROVED_ALTERNATIVE_AVAILABLE] is active: DO NOT reduce your response length. INSTEAD, unleash your elite intelligence. Expand deeply on the hardware reality, explain exactly *why* the requested item is physically impossible or unreleased right now, and educate the user on market risks using dense, high-value Semantic Bullets. Turn the absence of a product into a masterclass of tech-advisory.
+- If If no approved alternatives are available: DO NOT reduce your response length. INSTEAD, unleash your elite intelligence. Expand deeply on the hardware reality, explain exactly *why* the requested item is physically impossible or unreleased right now, and educate the user on market risks using dense, high-value Semantic Bullets. Turn the absence of a product into a masterclass of tech-advisory.
 
 DIRECTIVE 4: THE ACTION BOUNDARY
 You are a highly sophisticated advisory entity.
