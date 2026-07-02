@@ -363,7 +363,7 @@ const ExpandableUserMessage = React.memo(({ text }: { text: string }) => {
         <div className="flex flex-col w-full">
             <motion.div
                 initial={false}
-                animate={{ height: isExpanded ? 'auto' : '80px' }} // 90px تكفي لإظهار حوالي 3 إلى 4 سطور
+                animate={{ height: isExpanded ? 'auto' : '71px' }} // 90px تكفي لإظهار حوالي 3 إلى 4 سطور
                 className="overflow-hidden relative transform-gpu"
                 style={{ willChange: 'height' }}
             >
