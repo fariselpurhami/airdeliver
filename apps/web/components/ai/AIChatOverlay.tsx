@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Bot, User, CornerDownRight, ShoppingCart, Cpu, X, 
-    ChevronLeft, ChevronRight, Save, Trash2, Undo2, AlertCircle, 
+    ChevronLeft, ChevronRight, Save, ChevronDown, ChevronUp, Trash2, Undo2, AlertCircle, 
     ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap, 
     Activity, Signal, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock, Eye, ShieldCheck
 } from 'lucide-react';
@@ -349,6 +349,46 @@ const AIReasoning = React.memo(({ text }: { text: string }) => (
 ));
 AIReasoning.displayName = 'AIReasoning';
 
+const ExpandableUserMessage = React.memo(({ text }: { text: string }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    // تحديد ما إذا كان النص طويلاً ويحتاج إلى طي
+    const needsExpansion = text.length > 250 || text.split('\n').length > 4;
+
+    if (!needsExpansion) {
+        return <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal">{text}</p>;
+    }
+
+    return (
+        <div className="flex flex-col w-full">
+            <motion.div
+                initial={false}
+                animate={{ height: isExpanded ? 'auto' : '80px' }} // 90px تكفي لإظهار حوالي 3 إلى 4 سطور
+                className="overflow-hidden relative transform-gpu"
+                style={{ willChange: 'height' }}
+            >
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal">
+                    {text}
+                </p>
+               
+            </motion.div>
+
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="mt-0.5 flex items-center justify-center p-1 hover:bg-white/10 rounded-full transition-colors self-end text-cyan-400 group"
+                title={isExpanded ? "إخفاء التفاصيل" : "عرض المزيد"}
+            >
+                {isExpanded ? (
+                    <ChevronUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
+                ) : (
+                    <ChevronDown size={18} className="group-hover:translate-y-0.5 transition-transform animate-bounce" />
+                )}
+            </button>
+        </div>
+    );
+});
+ExpandableUserMessage.displayName = 'ExpandableUserMessage';
+
 const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAuth, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
     const isAI = message.sender === 'ai';
 
@@ -385,6 +425,10 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
             case 'error':
             case 'info':
             case 'success_text':
+                
+                if (!isAI && message.contentType === 'text') {
+                    return <ExpandableUserMessage text={message.content} />;
+                }
                 return <p className={`whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
             case 'FLIGHT_MANIFEST':
                 return (
