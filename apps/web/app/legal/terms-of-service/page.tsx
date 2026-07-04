@@ -2,8 +2,8 @@
 
 'use client';
 
-import React, { useState, Suspense, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
+import React, { useState, Suspense, useRef, useEffect, memo } from 'react';
+import { motion, AnimatePresence, useScroll, useSpring, useReducedMotion } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import { 
@@ -66,11 +66,12 @@ const legalSections = [
 // --- 2. ARCHITECTURAL BACKGROUND (The Grid) ---
 // ============================================================================
 
-const TermsBackground = () => {
+const TermsBackground = memo(() => {
     const groupRef = useRef<THREE.Group>(null!);
+    const prefersReducedMotion = useReducedMotion();
 
     useFrame((state) => {
-        if (groupRef.current) {
+        if (groupRef.current && !prefersReducedMotion) {
             groupRef.current.rotation.y = state.clock.getElapsedTime() * 0.02;
         }
     });
@@ -80,11 +81,13 @@ const TermsBackground = () => {
             <fog attach="fog" args={['#000000', 30, 90]} />
             <ambientLight intensity={0.2} />
             <pointLight position={[10, 10, 10]} intensity={1.5} color="#00C6FF" />
-            <Stars radius={120} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+            <Stars radius={120} depth={50} count={5000} factor={4} saturation={0} fade speed={prefersReducedMotion ? 0 : 1} />
         </group>
     );
-};
+});
+TermsBackground.displayName = 'TermsBackground';
 
+// Dynamically import Three.js content to prevent SSR hydration mismatch & isolate weight
 const DynamicTermsBackground = dynamic(() => Promise.resolve(TermsBackground), { 
     ssr: false,
     loading: () => null
@@ -94,50 +97,75 @@ const DynamicTermsBackground = dynamic(() => Promise.resolve(TermsBackground), {
 // --- 3. UI COMPONENTS (The Interface) ---
 // ============================================================================
 
-const ModeToggle = ({ mode, setMode }: { mode: 'human' | 'legal', setMode: (m: 'human' | 'legal') => void }) => (
-    <div className="flex items-center gap-4 bg-white/5 backdrop-blur-xl border border-white/10 p-2 rounded-full w-fit mx-auto sticky top-24 z-20 shadow-2xl">
+interface ModeToggleProps {
+    mode: 'human' | 'legal';
+    setMode: (m: 'human' | 'legal') => void;
+}
+
+const ModeToggle = memo(({ mode, setMode }: ModeToggleProps) => (
+    <div 
+        role="group"
+        aria-label="Toggle language mode"
+        className="flex items-center gap-4 bg-white/5 backdrop-blur-xl border border-white/10 p-2 rounded-full w-fit mx-auto sticky top-24 z-20 shadow-2xl"
+    >
         <button 
             onClick={() => setMode('human')}
+            aria-pressed={mode === 'human'}
             className={`relative px-6 py-3 rounded-full text-sm font-bold uppercase tracking-wider transition-all duration-300 ${mode === 'human' ? 'text-black' : 'text-gray-400 hover:text-white'}`}
         >
             {mode === 'human' && (
-                <motion.div layoutId="toggle" className="absolute inset-0 bg-cyan-400 rounded-full shadow-[0_0_20px_rgba(34,211,238,0.5)]" />
+                <motion.div layoutId="mode-toggle" className="absolute inset-0 bg-cyan-400 rounded-full shadow-[0_0_20px_rgba(34,211,238,0.5)]" />
             )}
-            <span className="relative z-10 flex items-center gap-2"><CheckCircle2 size={16} /> Human Mode</span>
+            <span className="relative z-10 flex items-center gap-2"><CheckCircle2 size={16} aria-hidden="true" /> Human Mode</span>
         </button>
         <button 
             onClick={() => setMode('legal')}
+            aria-pressed={mode === 'legal'}
             className={`relative px-6 py-3 rounded-full text-sm font-bold uppercase tracking-wider transition-all duration-300 ${mode === 'legal' ? 'text-black' : 'text-gray-400 hover:text-white'}`}
         >
             {mode === 'legal' && (
-                <motion.div layoutId="toggle" className="absolute inset-0 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.5)]" />
+                <motion.div layoutId="mode-toggle" className="absolute inset-0 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.5)]" />
             )}
-            <span className="relative z-10 flex items-center gap-2"><Scale size={16} /> Legal Mode</span>
+            <span className="relative z-10 flex items-center gap-2"><Scale size={16} aria-hidden="true" /> Legal Mode</span>
         </button>
     </div>
-);
+));
+ModeToggle.displayName = 'ModeToggle';
 
-const NavigationLink = ({ id, title, active }: { id: string, title: string, active: boolean }) => (
+interface NavigationLinkProps {
+    id: string;
+    title: string;
+    active: boolean;
+}
+
+const NavigationLink = memo(({ id, title, active }: NavigationLinkProps) => (
     <a 
         href={`#${id}`}
+        aria-current={active ? 'step' : undefined}
         className={`group flex items-center justify-between w-full p-4 rounded-2xl border transition-all duration-300 ${active ? 'bg-cyan-900/20 border-cyan-500/50 text-white' : 'bg-transparent border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
     >
         <span className="text-sm font-medium truncate pr-4">{title}</span>
-        <ChevronRight size={14} className={`transform transition-transform ${active ? 'text-cyan-400 translate-x-0' : 'text-gray-700 -translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0'}`} />
+        <ChevronRight size={14} aria-hidden="true" className={`transform transition-transform ${active ? 'text-cyan-400 translate-x-0' : 'text-gray-700 -translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0'}`} />
     </a>
-);
+));
+NavigationLink.displayName = 'NavigationLink';
 
-const LegalMonolith = ({ section, mode }: { section: typeof legalSections[0], mode: 'human' | 'legal' }) => {
+interface LegalMonolithProps {
+    section: typeof legalSections[0];
+    mode: 'human' | 'legal';
+}
+
+const LegalMonolith = memo(({ section, mode }: LegalMonolithProps) => {
     return (
         <motion.div 
             id={section.id}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
-            className="group relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-[40px] p-8 md:p-12 mb-8 overflow-hidden transition-colors hover:border-cyan-500/30"
+            className="group relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-[40px] p-8 md:p-12 mb-8 overflow-hidden transition-colors hover:border-cyan-500/30 will-change-transform"
         >
-            <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 transition-opacity">
-                <section.icon size={64} className="text-cyan-400" />
+            <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:opacity-40 transition-opacity pointer-events-none">
+                <section.icon size={64} className="text-cyan-400" aria-hidden="true" />
             </div>
 
             <div className="relative z-10">
@@ -153,12 +181,13 @@ const LegalMonolith = ({ section, mode }: { section: typeof legalSections[0], mo
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: mode === 'human' ? 20 : -20 }}
                             transition={{ duration: 0.3 }}
+                            className="will-change-transform"
                         >
                             {mode === 'human' ? (
                                 <div className="flex gap-4 items-start">
                                     <div className="w-1 h-full min-h-[3rem] bg-cyan-500/50 rounded-full" />
                                     <p className="text-lg text-cyan-100/80 font-medium leading-relaxed">
-                                        "{section.humanText}"
+                                        &quot;{section.humanText}&quot;
                                     </p>
                                 </div>
                             ) : (
@@ -172,7 +201,8 @@ const LegalMonolith = ({ section, mode }: { section: typeof legalSections[0], mo
             </div>
         </motion.div>
     );
-};
+});
+LegalMonolith.displayName = 'LegalMonolith';
 
 // ============================================================================
 // --- 4. MAIN PAGE (The Assembly) ---
@@ -185,27 +215,44 @@ export default function TermsPage() {
     const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
     useEffect(() => {
-        const handleScroll = () => {
-            const sections = legalSections.map(s => document.getElementById(s.id));
-            const scrollPosition = window.scrollY + 300; // Offset
-
-            for (const section of sections) {
-                if (section && section.offsetTop <= scrollPosition && (section.offsetTop + section.offsetHeight) > scrollPosition) {
-                    setActiveSection(section.id);
+        // Obviates main thread blocking by migrating layout calculations to an async observer
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const intersectingEntry = entries.find(entry => entry.isIntersecting);
+                if (intersectingEntry) {
+                    setActiveSection(intersectingEntry.target.id);
                 }
+            },
+            {
+                root: null,
+                rootMargin: '-20% 0px -80% 0px', // Triggers accurately when section crests the upper viewport
+                threshold: 0
             }
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
+        );
+
+        legalSections.forEach((section) => {
+            const el = document.getElementById(section.id);
+            if (el) observer.observe(el);
+        });
+
+        return () => observer.disconnect();
     }, []);
 
     return (
         <div className="min-h-screen w-full bg-black text-gray-100 selection:bg-cyan-500/30">
             
-            <motion.div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 to-purple-600 origin-left z-50" style={{ scaleX }} />
+            <motion.div 
+                className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 to-purple-600 origin-left z-50 will-change-transform" 
+                style={{ scaleX }} 
+            />
 
             <div className="fixed inset-0 z-0 opacity-60 pointer-events-none">
-                <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
+                <Canvas 
+                    camera={{ position: [0, 0, 15], fov: 45 }}
+                    dpr={[1, 1.5]} // Restricts DPR scale multiplier to save GPU cycles on mobile/retina displays
+                    gl={{ powerPreference: "high-performance", antialias: false, alpha: false }}
+                    performance={{ min: 0.5 }}
+                >
                     <Suspense fallback={null}>
                         <DynamicTermsBackground />
                     </Suspense>
@@ -218,9 +265,10 @@ export default function TermsPage() {
                     initial={{ opacity: 0, y: 30 }} 
                     animate={{ opacity: 1, y: 0 }} 
                     transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="will-change-transform"
                 >
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-6">
-                        <FileText size={14} className="text-cyan-400" />
+                        <FileText size={14} className="text-cyan-400" aria-hidden="true" />
                         <span className="text-xs font-bold uppercase tracking-widest text-gray-300">System Protocols v2.4</span>
                     </div>
                     <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -240,9 +288,9 @@ export default function TermsPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                     
-                    <div className="hidden lg:block lg:col-span-4 xl:col-span-3">
-                        <div className="sticky top-48 p-6 rounded-[30px] bg-white/5 backdrop-blur-xl border border-white/10">
-                            <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-6 pl-2">Navigation</h4>
+                    <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
+                        <nav className="sticky top-48 p-6 rounded-[30px] bg-white/5 backdrop-blur-xl border border-white/10" aria-label="Legal Sections Navigation">
+                            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-6 pl-2">Navigation</h2>
                             <div className="space-y-2">
                                 {legalSections.map((section) => (
                                     <NavigationLink 
@@ -255,17 +303,17 @@ export default function TermsPage() {
                             </div>
                             <div className="mt-8 pt-6 border-t border-white/5">
                                 <div className="flex items-center gap-3 p-4 rounded-xl bg-cyan-900/20 border border-cyan-500/20">
-                                    <ShieldCheck className="text-cyan-400" size={24} />
+                                    <ShieldCheck className="text-cyan-400" size={24} aria-hidden="true" />
                                     <div>
                                         <p className="text-xs text-cyan-200 font-bold">Encrypted Connection</p>
                                         <p className="text-[10px] text-cyan-400/70">Verified by airdeliver Security</p>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                        </nav>
+                    </aside>
 
-                    <div className="col-span-1 lg:col-span-8 xl:col-span-9">
+                    <main className="col-span-1 lg:col-span-8 xl:col-span-9">
                         <div className="space-y-2">
                             {legalSections.map((section) => (
                                 <LegalMonolith key={section.id} section={section} mode={mode} />
@@ -280,7 +328,7 @@ export default function TermsPage() {
                                 Last Updated: June 01, 2026
                             </p>
                         </div>
-                    </div>
+                    </main>
 
                 </div>
             </section>
