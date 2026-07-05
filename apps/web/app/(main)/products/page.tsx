@@ -485,13 +485,12 @@ export default function ProductsPage() {
             <AnimatePresence>
                 {selectedProduct && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleClose} className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex justify-center items-center p-4 overflow-hidden">
-                        <div onClick={(e) => e.stopPropagation()} className="w-full max-w-5xl shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-white/10 rounded-[32px]">
+                        <div onClick={(e) => e.stopPropagation()} className="w-full flex items-center justify-center">
                             <ProductDetailsCard product={selectedProduct} onClose={handleClose} />
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-
             {/* AIChatOverlay explicitly injected into DOM root to listen to Global State */}
             <AIChatOverlay isOpen={isOverlayVisible} onClose={() => setOverlayVisible(false)} />
         </div>

@@ -44,8 +44,8 @@ class NotificationServiceProtocol(Protocol):
 
 class ConfirmOrderPayload(BaseModel):
     user_id: int
-    email: EmailStr
-    address: str = Field(..., min_length=5, max_length=255)
+    email: Optional[EmailStr] = None
+    address: Optional[str] = Field(default="Address pending via Chat", max_length=255)
     country: str = Field(default="US", min_length=2, max_length=2)
 
 class PaymentSuccessPayload(BaseModel):

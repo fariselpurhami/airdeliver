@@ -1,203 +1,311 @@
-//** apps/web/components/products/ProductDetailsCard.tsx **//
-
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Check, Rocket, TrendingUp, Bot, Star, ShieldCheck, Zap } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Check,
+  Rocket,
+  TrendingUp,
+  Bot,
+  Star,
+  ShieldCheck,
+  Zap,
+} from 'lucide-react';
 import Image from 'next/image';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 import { type Product } from './ProductCard';
 
-// --- ARCHITECTURAL UTILITY: SAFE DATA LAYER ---
-// This ensures the UI never crashes even if the backend sends strings or nulls
+type ProductDetailsCardProps = {
+  product: Product;
+  onClose: () => void;
+};
+
+const RATING_STARS = [0, 1, 2, 3, 4] as const;
+const ADDED_STATE_DURATION_MS = 2000;
+const DEFAULT_DESCRIPTION =
+  'Specifications classified. High-performance unit ready for deployment.';
+const DEFAULT_DELIVERY = '12 Mins';
+const DEFAULT_TRENDING = 'High Velocity';
+
 const formatPrice = (value: number | string | undefined | null): string => {
-    if (value === undefined || value === null) return '0.00';
-    const num = Number(value);
-    return isNaN(num) ? '0.00' : num.toFixed(2);
+  if (value === undefined || value === null) return '0.00';
+  const num = Number(value);
+  return Number.isNaN(num) ? '0.00' : num.toFixed(2);
 };
 
-export const ProductDetailsCard = ({ product, onClose }: { product: Product, onClose: () => void }) => {
-    
-    // ✅ AI LINK: Using the Global AI Store
-    const addProductById = useAIOrderingStore((state) => state.addProductById);
-    
-    const [isAdded, setIsAdded] = useState(false);
-    // Unique ID for the button to serve as the start point for the flight animation
-    const uniqueBtnId = `details-add-btn-${product.id}`; 
+const ProductDetailsCardComponent = ({
+  product,
+  onClose,
+}: ProductDetailsCardProps) => {
+  const addProductById = useAIOrderingStore((state) => state.addProductById);
 
-    // Memoize the price to prevent recalculation on every render
-    const displayPrice = useMemo(() => formatPrice(product.price), [product.price]);
+  const [isAdded, setIsAdded] = useState(false);
+  const addedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const handleAddToCart = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        
-        // 🚀 ACTION: Trigger AI Logic & Flight Animation
-        // This will make the product fly from this button to the Order With Air icon
-        addProductById(product, uniqueBtnId);
-        
-        setIsAdded(true);
-        setTimeout(() => setIsAdded(false), 2000);
+  const uniqueBtnId = useMemo(
+    () => `details-add-btn-${String(product.id)}`,
+    [product.id]
+  );
+
+  const displayPrice = useMemo(() => formatPrice(product.price), [product.price]);
+
+  const sku = useMemo(() => {
+    const raw = typeof product.id === 'number' || typeof product.id === 'string'
+      ? String(product.id)
+      : '0';
+    return raw.padStart(6, '0');
+  }, [product.id]);
+
+  const description = useMemo(
+    () => product.description?.trim() || DEFAULT_DESCRIPTION,
+    [product.description]
+  );
+
+  const predictedDelivery = useMemo(
+    () => product.predicted_delivery?.trim() || DEFAULT_DELIVERY,
+    [product.predicted_delivery]
+  );
+
+  const trendingStatus = useMemo(
+    () => product.trending_status?.trim() || DEFAULT_TRENDING,
+    [product.trending_status]
+  );
+
+  const stockLevel = useMemo(() => {
+    if (product.stock_level === null || product.stock_level === undefined || product.stock_level === '') {
+      return null;
+    }
+    return String(product.stock_level);
+  }, [product.stock_level]);
+
+  const imageAlt = useMemo(
+    () => product.name?.trim() || 'Product image',
+    [product.name]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (addedTimerRef.current) {
+        clearTimeout(addedTimerRef.current);
+      }
     };
+  }, []);
 
-    return (
-        <motion.div
-            layoutId={`product-card-${product.id}`} 
-            className="relative w-full h-full max-h-[93vh] flex flex-col md:flex-row gap-0 overflow-hidden bg-black/80 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_50px_rgba(0,198,255,0.15)]"
-        >
-            {/* Ambient Background Effects */}
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/10 via-transparent to-purple-900/10 pointer-events-none" />
-            <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 blur-[80px] pointer-events-none" />
+  const handleAddToCart = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
 
-            {/* Close Button */}
-            <motion.button
-                initial={{ opacity: 0, rotate: -90 }}
-                animate={{ opacity: 1, rotate: 0 }}
-                transition={{ delay: 0.2 }}
-                onClick={onClose}
-                className="absolute top-6 right-6 z-50 p-2.5 rounded-full bg-black/40 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all duration-300"
-                aria-label="Close"
-            >
-                <X size={20} />
-            </motion.button>
+      addProductById(product, uniqueBtnId);
+      setIsAdded(true);
 
-            {/* LEFT SIDE: Image Showcase */}
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="w-full md:w-1/2 relative bg-gradient-to-b from-white/5 to-transparent flex items-center justify-center p-12 overflow-hidden"
-            >
-                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05]" />
-                <motion.div 
-                    className="relative z-10 w-full h-full max-h-[400px]"
-                    animate={{ y: [0, -15, 0], rotate: [0, 2, 0] }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                >
-                    {product.image_url ? (
-                        <Image
-                            src={product.image_url}
-                            alt={product.name}
-                            fill
-                            className="object-contain drop-shadow-[0_25px_50px_rgba(0,0,0,0.5)]"
-                            sizes="(max-width: 768px) 100vw, 50vw"
-                            priority // Turbo Load for Modal
-                        />
-                    ) : (
-                         <div className="flex items-center justify-center w-full h-full text-white/10">
-                            <Bot size={64} />
-                        </div>
-                    )}
-                </motion.div>
-                
-                <div className="absolute bottom-8 left-8 flex gap-2">
-                    <div className="px-3 py-1 rounded-lg bg-black/40 border border-white/10 backdrop-blur-md text-[10px] text-cyan-400 font-mono">
-                        SKU: {product.id.toString().padStart(6, '0')}
-                    </div>
-                    {product.isAIRec && (
-                        <div className="px-3 py-1 rounded-lg bg-purple-500/20 border border-purple-500/30 backdrop-blur-md text-[10px] text-purple-300 font-bold uppercase tracking-wider flex items-center gap-1">
-                            <Bot size={12} /> AI Verified
-                        </div>
-                    )}
-                </div>
-            </motion.div>
+      if (addedTimerRef.current) {
+        clearTimeout(addedTimerRef.current);
+      }
 
-            {/* RIGHT SIDE: Details & Actions */}
-            <motion.div
-                 initial={{ opacity: 0, x: 20 }}
-                 animate={{ opacity: 1, x: 0 }}
-                 transition={{ duration: 0.5, delay: 0.2 }}
-                 className="w-full md:w-1/2 flex flex-col p-8 md:p-10 relative"
-            >
-                <div className="flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                    
-                    <div className="mb-6">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="flex text-yellow-400">
-                                {[...Array(5)].map((_, i) => <Star key={i} size={14} className={i < 4 ? "fill-current" : "text-gray-700"} />)}
-                            </div>
-                            <span className="text-xs text-gray-500 font-mono">(4.8/5.0 RATING)</span>
-                        </div>
-                        <h2 className="text-4xl font-black text-white mb-2 leading-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            {product.name}
-                        </h2>
-                        <div className="flex items-baseline gap-3">
-                            {/* CRASH FIX APPLIED HERE: Using displayPrice instead of raw toFixed */}
-                            <span className="text-3xl font-mono text-cyan-400 font-bold tracking-tight">
-                                ${displayPrice}
-                            </span>
-                            {product.stock_level && (
-                                <span className="text-xs text-green-400 font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20">
-                                    {product.stock_level}
-                                </span>
-                            )}
-                        </div>
-                    </div>
+      addedTimerRef.current = setTimeout(() => {
+        setIsAdded(false);
+      }, ADDED_STATE_DURATION_MS);
+    },
+    [addProductById, product, uniqueBtnId]
+  );
 
-                    <p className="text-gray-400 leading-relaxed mb-8 border-l-2 border-white/10 pl-4">
-                        {product.description || "Specifications classified. High-performance unit ready for deployment."}
-                    </p>
+  const handleClose = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      onClose();
+    },
+    [onClose]
+  );
 
-                    <div className="grid grid-cols-2 gap-3 mb-8">
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-1">
-                                <Rocket size={14} />
-                                <span className="text-[10px] uppercase tracking-wider">Delivery ETA</span>
-                            </div>
-                            <span className="text-sm font-bold text-white">{product.predicted_delivery || "12 Mins"}</span>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-1">
-                                <TrendingUp size={14} />
-                                <span className="text-[10px] uppercase tracking-wider">Demand</span>
-                            </div>
-                            <span className="text-sm font-bold text-white">{product.trending_status || "High Velocity"}</span>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-1">
-                                <ShieldCheck size={14} />
-                                <span className="text-[10px] uppercase tracking-wider">Warranty</span>
-                            </div>
-                            <span className="text-sm font-bold text-white">Global Coverage</span>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/5">
-                            <div className="flex items-center gap-2 text-gray-500 mb-1">
-                                <Zap size={14} />
-                                <span className="text-[10px] uppercase tracking-wider">Power Cell</span>
-                            </div>
-                            <span className="text-sm font-bold text-white">Included</span>
-                        </div>
-                    </div>
+  return (
+    <motion.div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="product-details-title"
+      initial={{ opacity: 0, scale: 0.985 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.985 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+      className="relative mx-auto w-full max-w-[460px] h-[93vh] max-h-[1050px] overflow-hidden rounded-[73px] border border-white/10 bg-neutral-950 text-white shadow-2xl mt-11"
+    >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-[-10%] top-[-10%] h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="absolute bottom-[-12%] right-[-8%] h-52 w-52 rounded-full bg-fuchsia-500/10 blur-3xl" />
+      </div>
+
+      <button
+        type="button"
+        aria-label="Close product details"
+        onClick={handleClose}
+        className="absolute right-3 top-3 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white backdrop-blur-md transition hover:bg-black/55 active:scale-[0.98] sm:right-4 sm:top-4"
+      >
+        <X className="h-5 w-5" />
+      </button>
+
+      <div className="relative flex flex-col">
+        <section className="min-w-0 border-b border-white/10">
+          <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/[0.03] sm:aspect-[16/11]">
+            {product.image_url ? (
+              <Image
+                src={product.image_url}
+                alt={imageAlt}
+                fill
+                priority={false}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 42vw"
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-white/[0.03]">
+                <Rocket className="h-12 w-12 text-white/25" />
+              </div>
+            )}
+
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-4 sm:p-5">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-white/80 sm:text-sm">
+                <span className="rounded-full border border-white/10 bg-black/35 px-3 py-1 backdrop-blur-md">
+                  SKU: {sku}
+                </span>
+                {product.isAIRec ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-200 backdrop-blur-md">
+                    <Bot className="h-3.5 w-3.5" />
+                    AI Verified
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="min-w-0">
+          <div className="flex max-h-[calc(100dvh-12rem)] flex-col overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[calc(92dvh-2rem)] sm:px-6 sm:py-6">
+            <div className="min-w-0">
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-amber-300">
+                {RATING_STARS.map((star) => (
+                  <Star key={star} className="h-4 w-4 fill-current" />
+                ))}
+                <span className="text-xs font-medium tracking-[0.18em] text-white/60 sm:text-sm">
+                  (4.8/5.0 RATING)
+                </span>
+              </div>
+
+              <h2
+                id="product-details-title"
+                className="min-w-0 break-words text-2xl font-semibold leading-tight tracking-tight sm:text-3xl [overflow-wrap:anywhere]"
+              >
+                {product.name}
+              </h2>
+
+              <div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-2">
+                <div className="text-3xl font-bold leading-none text-white sm:text-4xl">
+                  ${displayPrice}
                 </div>
 
-                {/* Footer Action Area */}
-                <div className="mt-4 pt-6 border-t border-white/10">
-                    <AnimatePresence mode="wait">
-                        {isAdded ? (
-                            <motion.button
-                                key="added"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -10 }}
-                                className="w-full py-4 rounded-2xl bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
-                            >
-                                <Check size={20} /> System Acquired
-                            </motion.button>
-                        ) : (
-                            <motion.button 
-                                id={uniqueBtnId}
-                                key="add" 
-                                onClick={handleAddToCart} 
-                                className="group w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold tracking-widest flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:scale-[1.02]"
-                                whileTap={{ scale: 0.98 }}
-                            >
-                                <Plus size={20} className="group-hover:rotate-90 transition-transform" /> 
-                                order with air
-                            </motion.button>
-                        )}
-                    </AnimatePresence>
+                {stockLevel ? (
+                  <div className="inline-flex items-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200 sm:text-sm">
+                    {stockLevel}
+                  </div>
+                ) : null}
+              </div>
+
+              <p className="mt-5 min-w-0 break-words text-sm leading-7 text-white/70 sm:text-base [overflow-wrap:anywhere]">
+                {description}
+              </p>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+                <div className="mb-2 flex items-center gap-2 text-cyan-300">
+                  <Rocket className="h-4 w-4 shrink-0" />
+                  <span className="text-xs uppercase tracking-[0.16em] text-white/55">
+                    Delivery ETA
+                  </span>
                 </div>
-            </motion.div>
-        </motion.div>
-    );
+                <div className="break-words text-sm font-medium text-white sm:text-base [overflow-wrap:anywhere]">
+                  {predictedDelivery}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+                <div className="mb-2 flex items-center gap-2 text-fuchsia-300">
+                  <TrendingUp className="h-4 w-4 shrink-0" />
+                  <span className="text-xs uppercase tracking-[0.16em] text-white/55">
+                    Demand
+                  </span>
+                </div>
+                <div className="break-words text-sm font-medium text-white sm:text-base [overflow-wrap:anywhere]">
+                  {trendingStatus}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+                <div className="mb-2 flex items-center gap-2 text-emerald-300">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <span className="text-xs uppercase tracking-[0.16em] text-white/55">
+                    Warranty
+                  </span>
+                </div>
+                <div className="text-sm font-medium text-white sm:text-base">
+                  Global Coverage
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+                <div className="mb-2 flex items-center gap-2 text-amber-300">
+                  <Zap className="h-4 w-4 shrink-0" />
+                  <span className="text-xs uppercase tracking-[0.16em] text-white/55">
+                    Power Cell
+                  </span>
+                </div>
+                <div className="text-sm font-medium text-white sm:text-base">
+                  Included
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 sm:mt-8">
+              <AnimatePresence mode="wait" initial={false}>
+                {isAdded ? (
+                  <motion.div
+                    key="added"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 text-sm font-semibold uppercase tracking-[0.16em] text-emerald-200 sm:h-14"
+                  >
+                    <Check className="h-4 w-4" />
+                    System Acquired
+                  </motion.div>
+                ) : (
+                  <motion.button
+                    key="cta"
+                    id={uniqueBtnId}
+                    type="button"
+                    onClick={handleAddToCart}
+                    whileTap={{ scale: 0.99 }}
+                    className="inline-flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 overflow-visible rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold tracking-[0.16em] leading-none text-cyan-100 transition hover:bg-cyan-400/15 active:scale-[0.99] sm:min-h-[56px]"
+                  >
+                    <Bot className="h-4 w-4 shrink-0 flex-none" />
+                    <span className="min-w-0 truncate">order with air</span>
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </section>
+      </div>
+    </motion.div>
+  );
 };
+
+export const ProductDetailsCard = memo(ProductDetailsCardComponent);
+ProductDetailsCard.displayName = 'ProductDetailsCard';
