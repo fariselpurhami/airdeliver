@@ -2,59 +2,56 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, TYPE_CHECKING
-from decimal import Decimal
 from datetime import datetime, timezone
+from decimal import Decimal
+from typing import Any, List, Optional, TYPE_CHECKING
 
-from sqlmodel import SQLModel, Field, Relationship, JSON, Column
-from sqlalchemy import Numeric, CheckConstraint
+from pydantic import field_validator
+from sqlalchemy import CheckConstraint, Column, DateTime, Numeric, JSON
+from sqlmodel import Field, Relationship, SQLModel
+
 from sqlalchemy.orm import Mapped, relationship
 
 if TYPE_CHECKING:
     from .order import OrderItem
 
-
 class Product(SQLModel, table=True):
     __tablename__ = "products"
-    # Hardware/Business Logic Constraint: Price and Inventory cannot be negative
     __table_args__ = (
-        CheckConstraint('price >= 0', name='check_price_positive'),
-        CheckConstraint('inventory >= 0', name='check_inventory_positive'),
+        CheckConstraint("price >= 0", name="check_price_positive"),
+        CheckConstraint("inventory >= 0", name="check_inventory_positive"),
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    
-    # SKU is mandatory for Global Logistics (Stock Keeping Unit)
-    sku: str = Field(unique=True, index=True, nullable=False)
-    
-    name: str = Field(index=True)
+    sku: str = Field(unique=True, index=True, nullable=False, max_length=128)
+    name: str = Field(index=True, max_length=255)
     description: str
-    
-    # FINANCIAL HARDENING: Never use Float for money. Use Decimal(10, 2)
-    price: Decimal = Field(default=0.0, sa_column=Column(Numeric(10, 2), nullable=False))
-    
-    # 🔥 [Architectural Fix 1] Added Currency Field
-    currency: str = Field(default="USD", max_length=10, nullable=False, description="ISO 4217 Currency Code")
+    price: Decimal = Field(
+        default=Decimal("0.00"), 
+        sa_column=Column(Numeric(10, 2), nullable=False)
+    )
+    currency: str = Field(default="USD", max_length=3, nullable=False)
+    inventory: int = Field(default=0, nullable=False, ge=0)
+    image: Optional[str] = Field(default=None, max_length=2048)
+    category: str = Field(default="uncategorized", index=True, max_length=128)
+    tags: List[str] = Field(
+        default_factory=list, 
+        sa_column=Column(JSON, nullable=False, server_default="[]")
+    )
+    rating: Optional[float] = Field(default=None, index=True, ge=0.0, le=5.0)
+    is_active: bool = Field(default=True, index=True)
 
-    inventory: int = Field(default=0, nullable=False)
-    
-    # 🔥 [Architectural Fix 2] Renamed from image_url to image to match Seeder & DB Schema
-    image: Optional[str] = Field(default=None)
-    
-    category: str = Field(default="uncategorized", index=True)
-    
-    # Store tags as JSONB for high-performance querying
-    tags: List[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
-
-    rating: Optional[float] = Field(default=4.5, index=True)
-    
-    is_active: bool = Field(default=True, index=True) # Soft delete capability
-
-    # Audit Timestamps
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            onupdate=lambda: datetime.now(timezone.utc)
+        )
     )
 
     order_items: Mapped[List["OrderItem"]] = Relationship(
@@ -62,3 +59,22 @@ class Product(SQLModel, table=True):
     )
 
     model_config = {"from_attributes": True}
+
+    @field_validator("price", mode="before")
+    @classmethod
+    def parse_price(cls, value: Any) -> Decimal:
+        if isinstance(value, (str, int)):
+            return Decimal(value)
+        if isinstance(value, float):
+            return Decimal(str(value))
+        return value
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def parse_datetime(cls, value: Any) -> datetime:
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        return value

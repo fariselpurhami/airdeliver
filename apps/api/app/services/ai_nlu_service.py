@@ -647,24 +647,6 @@ def _safe_product_get(product: Any, field: str, default: Any = "") -> Any:
         return product.get(field, default) or default
     return getattr(product, field, default) or default
 
-
-def _safe_product_dump(product: Any) -> Dict[str, Any]:
-    if hasattr(product, "model_dump"):
-        return product.model_dump(mode="json")
-    if isinstance(product, Mapping):
-        return dict(product)
-    return {
-        "id": getattr(product, "id", None),
-        "name": getattr(product, "name", None),
-        "brand": getattr(product, "brand", None),
-        "category": getattr(product, "category", None),
-        "description": getattr(product, "description", None),
-        "price": getattr(product, "price", None),
-        "rating": getattr(product, "rating", None),
-        "image_url": getattr(product, "image_url", None),
-    }
-
-
 def _sanitize_free_text(value: str) -> str:
     text = str(value or "").strip().lower()
     text = re.sub(r"\s+", " ", text)
@@ -914,13 +896,16 @@ class ProductAccess:
             return dict(obj)
         return {
             "id": getattr(obj, "id", None),
+            "sku": getattr(obj, "sku", None),
             "name": getattr(obj, "name", None),
-            "brand": getattr(obj, "brand", None),
-            "category": getattr(obj, "category", None),
             "description": getattr(obj, "description", None),
-            "price": str(getattr(obj, "price", None)) if getattr(obj, "price", None) is not None else None,
+            "price": str(price_val) if price_val is not None else "0.00",
+            "currency": getattr(obj, "currency", "USD"),  # Fixed: Added Currency
+            "inventory": getattr(obj, "inventory", 0),
             "rating": getattr(obj, "rating", None),
-            "image_url": getattr(obj, "image_url", None),
+            "image": getattr(obj, "image", None),         # Fixed: Renamed from image_url
+            "category": getattr(obj, "category", "uncategorized"),
+            "tags": getattr(obj, "tags", []),
         }
 
 

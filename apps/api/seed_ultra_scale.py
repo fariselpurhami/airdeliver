@@ -208,63 +208,126 @@ class CategorySeedData:
 
 
 CATALOG_DATA: Final[dict[str, CategorySeedData]] = {
-    "Smartphones": CategorySeedData(
+    # 1. Electronics (10%)
+    "Electronics": CategorySeedData(
         products=(
-            CatalogItemTemplate("Apple iPhone 15 Pro Max", 1199, "https://images.unsplash.com/photo-1696446701796-da61225697cc"),
-            CatalogItemTemplate("Samsung Galaxy S24 Ultra", 1299, "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c"),
-            CatalogItemTemplate("Google Pixel 8 Pro", 999, "https://images.unsplash.com/photo-1698669930852-25916053f317"),
-            CatalogItemTemplate("Sony Xperia 1 V", 1399, "https://images.unsplash.com/photo-1596742517684-29729a656515"),
+            CatalogItemTemplate("Apple iPhone 15 Pro Max", 1199, "https://cdn.airdeliver.com/assets/elec_iphone15_pro.jpg"),
+            CatalogItemTemplate("Samsung Galaxy S24 Ultra", 1299, "https://cdn.airdeliver.com/assets/elec_s24_ultra.jpg"),
+            CatalogItemTemplate("MacBook Pro 16 M3 Max", 2499, "https://cdn.airdeliver.com/assets/elec_macbook_m3.jpg"),
+            CatalogItemTemplate("Sony WH-1000XM5 Headphones", 348, "https://cdn.airdeliver.com/assets/elec_sony_xm5.jpg"),
         ),
-        specs=("256GB", "512GB", "1TB", "Titanium Frame", "AI Camera"),
-        colors=("Natural Titanium", "Blue Titanium", "Black Titanium", "White Titanium", "Phantom Black", "Cream"),
+        specs=("256GB / 16GB RAM", "512GB / 32GB RAM", "1TB / 64GB RAM", "Noise Cancelling"),
+        colors=("Titanium", "Phantom Black", "Space Grey", "Silver"),
     ),
-    "Laptops": CategorySeedData(
+    
+    # 2. Women's Clothing (10%)
+    "Womens_Clothing": CategorySeedData(
         products=(
-            CatalogItemTemplate("MacBook Pro 16 M3 Max", 2499, "https://images.unsplash.com/photo-1517336714731-489689fd1ca4"),
-            CatalogItemTemplate("Dell XPS 15 OLED", 1899, "https://images.unsplash.com/photo-1593642632823-8f78536788c6"),
-            CatalogItemTemplate("Razer Blade 18 Gaming", 3299, "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2"),
-            CatalogItemTemplate("Asus ROG Zephyrus G14", 1599, "https://images.unsplash.com/photo-1628122393356-97987820d880"),
+            CatalogItemTemplate("Zara Silk Midi Dress", 89, "https://cdn.airdeliver.com/assets/w_cloth_silk_dress.jpg"),
+            CatalogItemTemplate("Mango Tailored Wool Coat", 159, "https://cdn.airdeliver.com/assets/w_cloth_wool_coat.jpg"),
+            CatalogItemTemplate("Massimo Dutti Cashmere Sweater", 129, "https://cdn.airdeliver.com/assets/w_cloth_cashmere.jpg"),
+            CatalogItemTemplate("Levi's 501 Original Jeans", 98, "https://cdn.airdeliver.com/assets/w_cloth_levis.jpg"),
         ),
-        specs=("16GB RAM", "32GB RAM", "64GB RAM", "1TB SSD", "2TB SSD", "RTX 4090"),
-        colors=("Space Grey", "Silver", "Midnight", "Mercury White", "Matte Black"),
+        specs=("Size S", "Size M", "Size L", "Premium Fabric"),
+        colors=("Navy Blue", "Beige", "Burgundy", "Classic Denim"),
     ),
-    "Headphones": CategorySeedData(
+
+    # 3. Men's Clothing (10%)
+    "Mens_Clothing": CategorySeedData(
         products=(
-            CatalogItemTemplate("Sony WH-1000XM5", 348, "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb"),
-            CatalogItemTemplate("Apple AirPods Max", 549, "https://images.unsplash.com/photo-1613040809024-b4ef7ba99bc3"),
-            CatalogItemTemplate("Bose QuietComfort Ultra", 429, "https://images.unsplash.com/photo-1546435770-a3e426bf472b"),
+            CatalogItemTemplate("Hugo Boss Tailored Suit", 699, "https://cdn.airdeliver.com/assets/m_cloth_boss_suit.jpg"),
+            CatalogItemTemplate("Ralph Lauren Oxford Shirt", 115, "https://cdn.airdeliver.com/assets/m_cloth_rl_shirt.jpg"),
+            CatalogItemTemplate("Nike Tech Fleece Hoodie", 130, "https://cdn.airdeliver.com/assets/m_cloth_nike_fleece.jpg"),
+            CatalogItemTemplate("Diesel Slim Fit Jeans", 145, "https://cdn.airdeliver.com/assets/m_cloth_diesel.jpg"),
         ),
-        specs=("Noise Cancelling", "Lossless Audio", "Spatial Audio", "30-Hour Battery"),
-        colors=("Silver", "Space Grey", "Sky Blue", "Pink", "Green", "Black"),
+        specs=("Size 38R", "Size M", "Size L", "Slim Fit"),
+        colors=("Charcoal Grey", "White", "Black", "Dark Wash"),
     ),
-    "Cameras": CategorySeedData(
+
+    # 4. Makeup (10%)
+    "Makeup": CategorySeedData(
         products=(
-            CatalogItemTemplate("Sony Alpha a7 IV", 2498, "https://images.unsplash.com/photo-1516035069371-29a1b244cc32"),
-            CatalogItemTemplate("Canon EOS R5", 3899, "https://images.unsplash.com/photo-1519183071298-a2962feb14f4"),
-            CatalogItemTemplate("Fujifilm X-T5", 1699, "https://images.unsplash.com/photo-1502920917128-1aa500764cbd"),
+            CatalogItemTemplate("Dior Backstage Foundation", 40, "https://cdn.airdeliver.com/assets/makeup_dior_found.jpg"),
+            CatalogItemTemplate("Charlotte Tilbury Lipstick", 35, "https://cdn.airdeliver.com/assets/makeup_ct_lips.jpg"),
+            CatalogItemTemplate("Huda Beauty Eyeshadow Palette", 67, "https://cdn.airdeliver.com/assets/makeup_huda_pal.jpg"),
+            CatalogItemTemplate("Fenty Beauty Gloss Bomb", 21, "https://cdn.airdeliver.com/assets/makeup_fenty_gloss.jpg"),
         ),
-        specs=("Body Only", "with 24-70mm Lens", "with 50mm Lens", "8K Video"),
-        colors=("Black", "Silver", "Retro Styling"),
+        specs=("Matte Finish", "Luminous", "High Pigment", "Long-lasting"),
+        colors=("Pillow Talk", "Rosewood", "Nude", "Universal"),
     ),
-    "Drones": CategorySeedData(
+
+    # 5. Accessories (10%)
+    "Accessories": CategorySeedData(
         products=(
-            CatalogItemTemplate("DJI Mavic 3 Pro", 2199, "https://images.unsplash.com/photo-1579829366248-204fe8413f31"),
-            CatalogItemTemplate("DJI Mini 4 Pro", 759, "https://images.unsplash.com/photo-1473968512647-3e447244af8f"),
+            CatalogItemTemplate("Ray-Ban Aviator Classic", 160, "https://cdn.airdeliver.com/assets/acc_rayban.jpg"),
+            CatalogItemTemplate("Gucci GG Marmont Belt", 450, "https://cdn.airdeliver.com/assets/acc_gucci_belt.jpg"),
+            CatalogItemTemplate("Louis Vuitton Neverfull Tote", 1800, "https://cdn.airdeliver.com/assets/acc_lv_tote.jpg"),
+            CatalogItemTemplate("Montblanc Meisterstück Pen", 590, "https://cdn.airdeliver.com/assets/acc_montblanc.jpg"),
         ),
-        specs=("Fly More Combo", "RC Controller", "Cine Premium Combo"),
-        colors=("Classic Grey", "Light Grey"),
+        specs=("Gold-Tone Hardware", "Genuine Leather", "Canvas", "Polarized Lenses"),
+        colors=("Gold/Green", "Black/Gold", "Monogram", "Platinum"),
     ),
+
+    # 6. Men's Shoes (10%)
+    "Mens_Shoes": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Nike Air Jordan 1 Retro", 180, "https://cdn.airdeliver.com/assets/m_shoe_jordan.jpg"),
+            CatalogItemTemplate("Adidas Yeezy Boost 350", 230, "https://cdn.airdeliver.com/assets/m_shoe_yeezy.jpg"),
+            CatalogItemTemplate("Cole Haan Oxford Leather", 150, "https://cdn.airdeliver.com/assets/m_shoe_oxford.jpg"),
+            CatalogItemTemplate("Timberland 6-Inch Boot", 198, "https://cdn.airdeliver.com/assets/m_shoe_timberland.jpg"),
+        ),
+        specs=("Size 10 US", "Size 11 US", "Size 43 EU", "Waterproof"),
+        colors=("Chicago Red", "Bone White", "Cognac", "Wheat"),
+    ),
+
+    # 7. Women's Shoes (10%)
+    "Womens_Shoes": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Christian Louboutin So Kate", 795, "https://cdn.airdeliver.com/assets/w_shoe_louboutin.jpg"),
+            CatalogItemTemplate("Jimmy Choo Romy 85", 695, "https://cdn.airdeliver.com/assets/w_shoe_jimmy.jpg"),
+            CatalogItemTemplate("Nike Air Force 1 Shadow", 120, "https://cdn.airdeliver.com/assets/w_shoe_af1.jpg"),
+            CatalogItemTemplate("Veja Campo Sneakers", 155, "https://cdn.airdeliver.com/assets/w_shoe_veja.jpg"),
+        ),
+        specs=("Size 38 EU", "Size 39 EU", "120mm Heel", "Comfort Fit"),
+        colors=("Nude Patent", "Black Suede", "White/Pastel", "White/Green"),
+    ),
+
+    # 8. Perfumes (10%)
+    "Perfumes": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Tom Ford Oud Wood Eau de Parfum", 295, "https://cdn.airdeliver.com/assets/perf_oud_wood.jpg"),
+            CatalogItemTemplate("Creed Aventus", 365, "https://cdn.airdeliver.com/assets/perf_aventus.jpg"),
+            CatalogItemTemplate("Maison Francis Kurkdjian Baccarat Rouge 540", 325, "https://cdn.airdeliver.com/assets/perf_baccarat.jpg"),
+            CatalogItemTemplate("Chanel Bleu de Chanel", 130, "https://cdn.airdeliver.com/assets/perf_bleu.jpg"),
+        ),
+        specs=("50ml", "100ml", "Eau de Parfum", "Extrait de Parfum"),
+        colors=("Amber", "Clear", "Signature Red", "Deep Blue"),
+    ),
+
+    # 9. Skincare (10%)
+    "Skincare": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Estée Lauder Advanced Night Repair", 115, "https://cdn.airdeliver.com/assets/skin_estee.jpg"),
+            CatalogItemTemplate("La Mer Crème de la Mer", 380, "https://cdn.airdeliver.com/assets/skin_lamer.jpg"),
+            CatalogItemTemplate("Paula's Choice 2% BHA", 34, "https://cdn.airdeliver.com/assets/skin_paula.jpg"),
+            CatalogItemTemplate("Kiehl's Ultra Facial Cream", 38, "https://cdn.airdeliver.com/assets/skin_kiehls.jpg"),
+        ),
+        specs=("30ml", "50ml", "Anti-Aging", "Hydrating"),
+        colors=("Unscented", "Botanical", "Classic", "Clear"),
+    ),
+
+    # 10. Watches (10%)
     "Watches": CategorySeedData(
         products=(
-            CatalogItemTemplate("Apple Watch Ultra 2", 799, "https://images.unsplash.com/photo-1546868871-7041f2a55e12"),
-            CatalogItemTemplate("Garmin Fenix 7X Pro", 899, "https://images.unsplash.com/photo-1523275335684-37898b6baf30"),
-            CatalogItemTemplate("Samsung Galaxy Watch 6", 299, "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1"),
+            CatalogItemTemplate("Rolex Submariner Date", 10250, "https://cdn.airdeliver.com/assets/watch_rolex_sub.jpg"),
+            CatalogItemTemplate("Omega Speedmaster Professional", 7000, "https://cdn.airdeliver.com/assets/watch_omega_speed.jpg"),
+            CatalogItemTemplate("Tissot PRX Powermatic 80", 725, "https://cdn.airdeliver.com/assets/watch_tissot.jpg"),
+            CatalogItemTemplate("Casio G-Shock Mudmaster", 380, "https://cdn.airdeliver.com/assets/watch_gshock.jpg"),
         ),
-        specs=("49mm", "45mm", "GPS + Cellular", "GPS Only", "Sapphire Solar"),
-        colors=("Titanium", "Midnight", "Starlight", "Graphite"),
+        specs=("Automatic", "Chronograph", "40mm Case", "Sapphire Crystal"),
+        colors=("Oystersteel", "Stainless Steel", "Ice Blue", "Tactical Black"),
     ),
 }
-
 
 class RetryPolicy:
     def __init__(self, attempts: int, min_seconds: int, max_seconds: int) -> None:

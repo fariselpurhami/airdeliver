@@ -192,6 +192,7 @@ class BehaviorEngine:
         self.synaptic_buffer: asyncio.Queue = asyncio.Queue(maxsize=50000)
         self._shutdown_event = asyncio.Event()
         self._worker_task: Optional[asyncio.Task] = None
+        self._background_tasks: set = set()
 
     def _resolve_device(self) -> torch.device:
         if torch.cuda.is_available():
@@ -312,15 +313,24 @@ class BehaviorEngine:
             return
 
         # Parallel fire-and-forget state updates
-        update_tasks = []
         if meta.price is not None:
-            update_tasks.append(self._update_price_history(user_id, meta.price))
+            task = asyncio.create_task(
+                self._update_price_history(user_id, meta.price),
+                name=f"update_price_history:{user_id}",
+            )
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+            task.add_done_callback(self._handle_background_task_result)
+
         if meta.id is not None:
-            update_tasks.append(self._update_seen_history(user_id, meta.id))
-
-        if update_tasks:
-            asyncio.create_task(asyncio.gather(*update_tasks, return_exceptions=True))
-
+            task = asyncio.create_task(
+                self._update_seen_history(user_id, meta.id),
+                name=f"update_seen_history:{user_id}",
+            )
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+            task.add_done_callback(self._handle_background_task_result)
+        
         vector = meta.get_active_vector()
         if not vector:
             return
@@ -334,7 +344,9 @@ class BehaviorEngine:
             "a": ACTION_MAP[interaction_type],
             "v": vector,
             "d": dim,
-            "ts": time.time()
+            "ts": time.time(),
+            "price": meta.price,
+            "item_id": meta.id   
         }
 
         try:
@@ -351,7 +363,17 @@ class BehaviorEngine:
         key = self._key_seen_24h(user_id)
         await self.cache.sadd(key, str(item_id))
         await self.cache.expire(key, 86400)
-
+    
+    def _handle_background_task_result(self, task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            pass  # Task was cancelled, perfectly fine
+        except Exception as e:
+            logger.error(
+                "Background task failed",
+                extra={"task_name": task.get_name(), "error": str(e)}
+            )
     # --- 🔄 BACKGROUND CONSOLIDATION ---
 
     async def _synaptic_loop(self) -> None:
@@ -376,28 +398,71 @@ class BehaviorEngine:
     async def _consolidate_memory(self, batch: List[Dict[str, Any]]) -> None:
         try:
             pipe = self.cache.client.pipeline()
-            users_to_update: Set[int] = set()
+            users_to_update = set()
+            stream_ttl_seconds = 86400
+            stream_max_len = 64
+            price_history_max_len = 20
+            header_struct = struct.Struct("di")
 
             for event in batch:
-                uid, dim = event['u'], event['d']
+                uid = event.get("u")
+                dim = event.get("d")
+                ts = event.get("ts")
+                action = event.get("a")
+                vector = event.get("v")
+
+                # حماية خلفية ضد البيانات الناقصة
+                if uid is None or dim is None or ts is None or action is None or vector is None:
+                    logger.warning("Incomplete event packet received in synaptic buffer. Skipping.")
+                    continue
+
+                if not isinstance(uid, (str, int)):
+                    logger.error(f"Invalid user id: {uid}. Skipping event.")
+                    continue
+
+                if not isinstance(dim, int) or dim <= 0:
+                    logger.error(f"Invalid dimension for user {uid}: {dim}. Skipping event.")
+                    continue
+
+                if not isinstance(vector, (list, tuple)) or len(vector) != dim:
+                    logger.error(f"Invalid vector for user {uid}: expected {dim} values. Skipping event.")
+                    continue
+
                 users_to_update.add(uid)
-                key = self._key_stream(uid, dim)
 
-                # Binary packing: double (8) + int (4) + (dim * floats)
-                header = struct.pack("di", event['ts'], event['a'])
-                vec_bytes = struct.pack(f"{dim}f", *event['v'])
-                blob = header + vec_bytes
+                stream_key = self._key_stream(uid, dim)
+                active_dim_key = self._key_active_dim(uid)
 
-                pipe.rpush(key, blob)
-                pipe.ltrim(key, -64, -1)  # Bounded history window
-                pipe.expire(key, 86400)
-                pipe.set(self._key_active_dim(uid), str(dim), ex=86400)
+                try:
+                    payload = header_struct.pack(ts, action) + struct.pack(f"{dim}f", *vector)
+                except struct.error as exc:
+                    logger.error(f"Failed to encode event for user {uid}: {exc}. Skipping event.")
+                    continue
 
+                pipe.rpush(stream_key, payload)
+                pipe.ltrim(stream_key, -stream_max_len, -1)
+                pipe.expire(stream_key, stream_ttl_seconds)
+                pipe.set(active_dim_key, str(dim), ex=stream_ttl_seconds)
+
+                price = event.get("price")
+                if price is not None:
+                    price_history_key = self._key_price_hist(uid)
+                    pipe.lpush(price_history_key, str(price))
+                    pipe.ltrim(price_history_key, 0, price_history_max_len - 1)
+
+                item_id = event.get("item_id")
+                if item_id is not None:
+                    seen_key = self._key_seen_24h(uid)
+                    pipe.sadd(seen_key, str(item_id))
+                    pipe.expire(seen_key, stream_ttl_seconds)
+
+            # تنفيذ كل العمليات المجمعة في دفعة واحدة للشبكة
             await pipe.execute()
 
-            # Trigger asynchronous dream state generation for updated users
+            # تشغيل معالجة أحلام الذكاء الاصطناعي في الخلفية للمستخدمين المحدثين
             for uid in users_to_update:
                 asyncio.create_task(self._dream_future(uid))
+
         except Exception as e:
             logger.error("Memory consolidation pipeline failure", extra={"error": str(e)})
 

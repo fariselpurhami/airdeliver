@@ -156,7 +156,7 @@ const AICatalogHero = React.memo(() => {
 
                 <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#0D0D0C]/80 border border-white/10 backdrop-blur-xl mb-6 sm:mb-8 shadow-2xl relative z-10">
                     <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
-                    <span className="text-[8px] sm:text-[10px] font-mono text-gray-300 uppercase tracking-[0.2em]">Live Inventory Uplink</span>
+                    <span className="text-[8px] sm:text-[10px] font-mono text-gray-300 uppercase tracking-[0.2em]">AI-SECURED ORDERS</span>
                 </div>
                 
                 <h1 className="text-4xl sm:text-6xl md:text-8xl font-black uppercase tracking-tighter mb-4 sm:mb-6 leading-[1.05] sm:leading-[0.95] drop-shadow-2xl relative z-10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
@@ -168,7 +168,7 @@ const AICatalogHero = React.memo(() => {
                 </h1>
                 
                 <p className="max-w-xs sm:max-w-lg mx-auto text-xs sm:text-base md:text-lg text-gray-300 font-light leading-relaxed mb-10 sm:mb-12 drop-shadow-md relative z-10">
-                    Don't search. Just ask. Our neural engine scans millions of products globally and secures them for instant air-drop.
+                    Don't search. Just ask. airdeliverOS scans thousands of products and secures them for instant air-drop.
                 </p>
 
                 {/* AI Interactive Trigger */}
@@ -250,7 +250,7 @@ const AlgorithmicPick = React.memo(({ onOpen }: { onOpen: (product: Product) => 
                             onClick={() => onOpen(recommendationsData)}
                             className="flex-1 py-4 bg-white text-black font-bold uppercase tracking-widest text-xs rounded-xl hover:bg-cyan-400 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.1)]"
                         >
-                            Review & Dispatch
+                            View
                         </button>
                     </div>
                 </div>
@@ -279,12 +279,18 @@ const PageFlyToCartAnimator = React.memo(() => {
               key={item.animationId} 
               className="fixed z-[9999] rounded-xl overflow-hidden border border-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.5)] pointer-events-none bg-[#0D0D0C]"
               initial={{ top: startRect.top, left: startRect.left, width: startRect.width, height: startRect.height, opacity: 1, rotate: 0 }}
-              animate={{ top: "80vh", left: "50vw", width: 10, height: 10, opacity: 0, rotate: 45, scale: 0 }}
+              animate={{ top: "-20vh", left: startRect.left, width: 10, height: 10, opacity: 0, rotate: 0, scale: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} 
               onAnimationComplete={() => removeFlyItem(item.animationId)}
             >
-              <img src={item.image} alt="" className="w-full h-full object-cover opacity-80" />
+              <Image 
+                src={item.image} 
+                alt="" 
+                fill 
+                sizes="100px"
+                className="object-cover opacity-80" 
+              />
             </motion.div>
           );
       })}
@@ -346,8 +352,8 @@ const ProductCard = React.memo(({ product, onOpen }: { product: Product, onOpen:
                                 <Zap size={14} className="fill-cyan-400" />
                             </motion.button>
                         ) : (
-                            <motion.button id={uniqueBtnId} key="add" onClick={handleAddToCart} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="h-10 px-4 rounded-xl bg-white text-black font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-cyan-400 transition-colors shadow-lg">
-                                <Package size={14} /> Dispatch
+                            <motion.button id={uniqueBtnId} key="add" onClick={handleAddToCart} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="h-10 px-4 rounded-xl bg-white text-black font-bold text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-cyan-400 transition-colors shadow-lg">
+                                <Bot size={14} /> order with air
                             </motion.button>
                         )}
                     </AnimatePresence>
