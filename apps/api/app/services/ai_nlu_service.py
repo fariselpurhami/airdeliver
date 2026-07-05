@@ -100,6 +100,33 @@ STORAGE_PATTERN_POST = re.compile(
     re.VERBOSE,
 )
 
+# =============================================================================
+# BROAD SEARCH FALLBACK CONFIGURATION
+# =============================================================================
+_QUERY_NOISE_WORDS = frozenset({
+    "im", "i'm", "i", "looking", "to", "purchase", "want", "need", "get", "buy",
+    "عايز", "اريد", "ابحث", "محتاج", "اشتري", "عاوز"
+})
+# استخدام \w لدعم اللغات المتعددة (عربي/إنجليزي)
+_WORD_PATTERN = re.compile(r"[\w']+")
+_MAX_BROAD_QUERY_TERMS = 3
+
+def _build_broad_query(core_query: str) -> str:
+    """Extracts meaningful terms from a query for broad fallback searches."""
+    if not core_query:
+        return core_query
+
+    tokens = _WORD_PATTERN.findall(core_query)
+    meaningful_words = [
+        token for token in tokens
+        if token.lower() not in _QUERY_NOISE_WORDS
+    ]
+
+    if not meaningful_words:
+        return core_query.strip()
+
+    return " ".join(meaningful_words[:_MAX_BROAD_QUERY_TERMS])
+
 def _extract_ram_candidates(text: str) -> List[float]:
     candidates: List[float] = []
     for match in RAM_PATTERN.finditer(text):
@@ -2962,7 +2989,7 @@ class AINLUService:
             )
             return ranked
 
-        broad_query = " ".join(core_query.split()[:2]).strip() or core_query
+        broad_query = _build_broad_query(original_query)
         broad_results = await self.search_engine.perform_hybrid_search_pure(
             self.db,
             broad_query,
@@ -3053,7 +3080,8 @@ class AINLUService:
 
                 if match_ratio < self.interceptor.matcher_threshold:
                 
-                    pass
+                    StructuredLog.warning("candidates_rejected_by_interceptor", match_ratio=match_ratio)
+                    return []
 
         return final_products
 
