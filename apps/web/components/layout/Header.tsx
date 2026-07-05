@@ -173,19 +173,20 @@ export default function Header() {
                 <Image
                   src="/logo.png"
                   alt="airdeliver homepage"
-                  width={150}
-                  height={28}
+                  width={120}
+                  height={22}
                   priority
-                  className="h-7 w-auto object-contain transition-opacity duration-500 group-hover:opacity-80 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)] transform-gpu"
+                  className="object-contain transition-opacity duration-500 group-hover:opacity-80 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)] transform-gpu"
                 />
                 {/* Decoding async forces the image decode off the main thread */}
                 <Image
                   src="/logo.png"
                   alt=""
-                  width={150}
-                  height={28}
+                  width={120}
+                  height={22}
+                  priority
                   decoding="async"
-                  className="absolute top-0 left-0 h-7 w-auto object-contain opacity-0 group-hover:opacity-40 blur-md transition-opacity duration-300 transform-gpu will-change-opacity"
+                  className="absolute top-0 left-0 object-contain opacity-0 group-hover:opacity-40 blur-md transition-opacity duration-300 transform-gpu will-change-opacity"
                   aria-hidden="true"
                 />
               </div>
@@ -247,7 +248,7 @@ export default function Header() {
                   alt="airdeliver logo"
                   width={120}
                   height={24}
-                  className="h-6 w-auto object-contain"
+                  className="object-contain"
                 />
                 <button
                   onClick={() => setMobileMenuOpen(false)}

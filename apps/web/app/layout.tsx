@@ -92,6 +92,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
       className={`${inter.variable} ${orbitron.variable} ${montserrat.variable} no-scrollbar`}
     >
