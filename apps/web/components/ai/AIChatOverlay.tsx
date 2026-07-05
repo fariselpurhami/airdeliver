@@ -260,33 +260,51 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
                 </div>
 
                 <div className="p-5 flex flex-col flex-grow relative z-10">
-                    <div className="absolute -top-4 right-3 z-20 flex items-center gap-1">
-                       <span className="text-cyan-300 font-bold font-mono text-lg">${(Number(product.price) || 0).toFixed(2)}</span>
-                    </div>
+                  
                     <div className="flex justify-between items-start mb-2">
-                         <h4 className="text-lg font-bold text-white leading-snug tracking-tight line-clamp-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{product.name}</h4>
+                         <h4 className="text-lg font-medium text-white leading-tight tracking-[-0.01em] break-words" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{product.name}</h4>
                     </div>
                    
-                    <div className="flex items-center gap-2 mb-6">
-                         {product.rating && (
-                            <div className="flex items-center gap-1 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-md">
-                                <Star size={12} className="text-yellow-400 fill-yellow-400" />
-                                <span className="text-xs font-bold text-yellow-200">{product.rating}</span>
-                            </div>
-                        )}
-                        <span className="text-[10px] text-gray-500 font-mono">ID: {product.id}</span>
-                    </div>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        {product.rating ? (
+                          <div className="flex items-center gap-1 text-amber-300">
+                            <Star className="h-3.5 w-3.5 shrink-0 fill-current" />
+                            <span className="text-[11px] font-medium tracking-[0.08em] text-white/60 sm:text-xs">
+                              ({product.rating}/5.0)
+                           </span>
+                         </div>
+                       ) : null}
+
+                       <span className="text-[10px] font-mono text-white/45 sm:text-[11px]">
+                         ID: {product.id}
+                       </span>
+                     </div>
+
+                     <div className="shrink-0 text-[13px] font-normal leading-none text-white/95 tabular-nums sm:text-sm">
+                       ${(Number(product.price) || 0).toFixed(2)}
+                     </div>
+                   </div>
+             
+                   {product.stock_level ? (
+
+                    <div className="mt-4">
+                      <div className="inline-flex items-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200 sm:text-sm">
+                    {product.stock_level}
+                 </div>
+               </div>
+             ) : null}
 
                     <div className="mt-auto pt-4 border-t border-white/5">
                         <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.96 }}
                             onClick={handleSelect}
-                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-bold px-4 py-3 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300 transform-gpu"
+                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-medium px-4 py-3 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300 transform-gpu"
                         >
-                            <span className="relative z-10 flex items-center gap-2 tracking-wide text-xs">
-                                <ShoppingBag size={16} strokeWidth={2.5} />
-                                ADD TO CART
+                            <span className="relative z-10 flex items-center gap-2 text-[11px] font-medium tracking-[0.14em] uppercase">
+                                <ShoppingBag size={15} strokeWidth={1.75} absoluteStrokeWidth />
+                                Add To Cart
                             </span>
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 transform-gpu" />
                         </motion.button>
