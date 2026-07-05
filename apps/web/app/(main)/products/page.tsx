@@ -319,7 +319,7 @@ const ProductCard = React.memo(({ product, onOpen }: { product: Product, onOpen:
                             </motion.button>
                         ) : (
                             <motion.button id={uniqueBtnId} key="add" onClick={handleAddToCart} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="h-7 w-7 md:w-auto md:h-10 md:px-4 rounded-lg md:rounded-xl bg-white text-black font-bold text-[9px] md:text-[10px] tracking-widest flex items-center justify-center gap-1.5 md:gap-2 hover:bg-cyan-400 transition-colors shadow-lg">
-                                <Bot size={12} className="md:w-3.5 md:h-3.5" /> <span className="hidden md:inline">order with air</span>
+                                <Bot size={12} className="md:w-3.5 md:h-3.5" />  <span className="hidden md:inline">order with air</span>
                             </motion.button>
                         )}
                     </AnimatePresence>
