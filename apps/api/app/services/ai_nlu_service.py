@@ -193,6 +193,7 @@ class OSPersona:
         "Your sentences are short, dense, and carry immediate value. You respect the user's intelligence and NEVER over-explain.\n\n"
 
         "BEHAVIORAL PRINCIPLES:\n"
+        "— OCCASION AWARENESS: If the user mentions an occasion (e.g., birthday, milestone, anniversary, gift, celebration), you MUST acknowledge it warmly and elegantly in your opening sentence. Add a refined, human touch of congratulation or empathy before proceeding to the technical/advisory logic.\n"
         "— NEVER apologize for what is unavailable. Pivot instantly to what is best and verified.\n"
         "— NEVER fabricate. If a granular fact or spec is absent, frame it as classified or proprietary.\n"
         "— NEVER validate fictional, rumored, or physically impossible product premises. Correct them cleanly based on supply chain logic.\n"
@@ -578,16 +579,13 @@ _CLOSER_POLICY = PromptPolicy(
         "You MUST output EXACTLY the following structure across ALL categories. NO intro paragraphs. DO NOT deviate:\n"
         "ABSOLUTE RULE 1: DO NOT use the word 'Result:'. Start writing your first sentence immediately.\n"
         "ABSOLUTE RULE 2: DO NOT use numbered lists. You MUST use ONLY the thick bullet '●' for lists.\n"
-        "ABSOLUTE RULE 3: In the 'What To Do:' section, YOU ARE STRICTLY FORBIDDEN FROM USING BULLET POINTS. It MUST be exactly one sentence.\n\n"
-        "ABSOLUTE RULE 4: The 'What To Do:' section MUST BE EXACTLY ONE SENTENCE. NO BULLET POINTS ALLOWED THERE.\n\n"
+        "ABSOLUTE RULE 1: DO NOT use the words 'Result:', 'Analysis:',  or 'What To Do:'. Start writing your first sentence immediately.\n"
         "[1-2 crisp sentences delivering the definitive executive verdict. Confirm availability, state out-of-stock status, or debunk a scam immediately based on ZONE 1 classification.]\n\n"
-        "Analysis:\n"
         "●    The Market Reality: [State the OFFICIAL REALITY of the product. If it is real but out of stock, state exactly that. DO NOT invent supply chain stories or classified allocation claims. If it is a fake/scam, expose the technical impossibility.]\n"
         "●    The airdeliver Advantage: [Explain concisely why our provenance or global supply chain makes buying elsewhere an unnecessary gamble.]\n\n"
         "Recommendation:\n"
         "●    [Actual Product Name or 'Bespoke Procurement']: [If an alternative product exists, state its real attributes. If NO products exist, write 'Bespoke Procurement' and briefly explain that we can custom-order the requested configurations. DO NOT use sub-bullets.]\n"
         "●    [Secondary Product Name] (Optional): [Only if a second verified option exists.]\n\n"
-        "What To Do:\n"
         "[EXACTLY ONE authoritative closing sentence advising the next step. I REPEAT: NO BULLET POINTS HERE. NO HEADINGS AFTER THIS.]"
     ),
 )
@@ -807,10 +805,15 @@ class TextSanitizer:
         # Phase 2: Markdown Eradication & List Standardization
         # ---------------------------------------------------------------------
         # Convert any markdown lists or numbered lists (1., 2.) to the universal bullet
-        text = re.sub(r"(?i)(STRATEGIC|EXECUTIVE|RISK|VERIFIED|CLOSING)\s*\n\s*(ANALYSIS:|VERDICT:|SOLUTION:|ALTERNATIVES:|ADVISORY:)", r"\1 \2", text)
-        
         text = re.sub(
-            r"(?i)\s*(EXECUTIVE VERDICT:|STRATEGIC ANALYSIS:|VERIFIED SOLUTION:|RESOLUTION:|Result:|Analysis:|Recommendation:|What To Do:|ADVISORY:|VERDICT:|RISK ANALYSIS:|VERIFIED ALTERNATIVES[\w\s\(\)\-]*:)\s*",
+            r"(?i)\s*(EXECUTIVE VERDICT:|STRATEGIC ANALYSIS:|VERIFIED SOLUTION:|RESOLUTION:|Result:|Analysis:|What To Do:|ADVISORY:|VERDICT:|RISK ANALYSIS:|VERIFIED ALTERNATIVES[\w\s\(\)\-]*:)\s*",
+            r"\n\n",
+            text
+        )
+
+        # الحفاظ على Recommendation وتنسيقها بإضافة مسافات قبلها وبعدها كما كانت
+        text = re.sub(
+            r"(?i)\s*(Recommendation:)\s*",
             r"\n\n\1\n\n",
             text
         )
@@ -3498,14 +3501,11 @@ SCOPE & BEHAVIOR
                         f"[CRITICAL SYSTEM MANDATE: FORCED OUTPUT SKELETON]\n"
                         f"You MUST output EXACTLY the following structure. NO intro paragraphs. DO NOT deviate:\n\n"
                         f"YOU MUST NEVER ADD ANY EXTRA HEADINGS AT THE END.\n\n"
-                        f"Result:\n"
                         f"[1-2 crisp sentences delivering the definitive executive verdict. Whether confirming availability, stating out-of-stock status, debunking a scam, or answering a direct question, you MUST explicitly state the final outcome right here. Establish unshakeable authority instantly.]\n\n"
-                        f"Analysis:\n"
                         f"●    [Scam Claim]: [Why it is a physical/commercial impossibility]\n"
                         f"●    [Risk Vector]: [Expose the psychological trick, e.g., countdown timer, fake scarcity]\n\n"
                         f"Recommendation:\n"
                         f"●    [Alternative Name]: [State verified specs ONLY. ANTI-SYCOPHANCY RULE: DO NOT assign requested features (e.g., Global Shutter, V12 Engine, Pure Oud, Full-Grain Leather, Sapphire Crystal) to this product if it does not explicitly have them. DO NOT invent 'software equivalents' or marketing fluff. State the actual verified attributes proudly and objectively.]\n\n"
-                        f"What To Do:\n"
                         f"[1 closing sentence advising the next secure step with airdeliver]"
                     )
                     ai_response_text = await asyncio.wait_for(
@@ -4597,7 +4597,7 @@ Forbidden:
 """
         else:
             response_structure = """
-Start with one direct opening sentence.
+Start with one direct opening sentence. (CRITICAL: If the user mentioned a celebration, milestone, or gift, this opening sentence MUST contain a warm, elegant, and human acknowledgment of the occasion before jumping into business).
 
 If you mention features, benefits, or important product points, you MUST use the thick bullet point symbol "●" for each item.
 Do not use dashes (-) or numbers.
