@@ -39,6 +39,12 @@ def with_resilience(default_factory: Callable[[], Any] = lambda: None) -> Callab
         @functools.wraps(func)
         async def wrapper(self: Any, *args: Any, **kwargs: Any) -> R:
             try:
+                if hasattr(self, '_redis') and getattr(self, '_redis', None) is None:
+                    logger.warning(
+                        "JIT Auto-connect triggered. Explicit lifecycle management missed.",
+                        extra={"operation": func.__name__}
+                    )
+                    await self.connect()
                 return await func(self, *args, **kwargs)
             except (ConnectionError, TimeoutError) as e:
                 logger.error(
@@ -50,7 +56,7 @@ def with_resilience(default_factory: Callable[[], Any] = lambda: None) -> Callab
                     }
                 )
                 return default_factory()
-            except RedisError as e:
+            except (RedisError, RuntimeError) as e:
                 logger.error(
                     "Cache operation failed",
                     extra={

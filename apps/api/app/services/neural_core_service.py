@@ -26,8 +26,8 @@ from app.schemas.ai_actions import (
     TrackOrderAction,
 )
 from app.services.ai_commerce_engine import AICommerceEngine, get_ai_commerce_engine
-from app.services.cache_service import IAsyncCacheClient, get_cache_client
 
+from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 logger = logging.getLogger("airdeliver.neural_core")
 
 # =============================================================================
@@ -328,7 +328,7 @@ class NeuralCoreService:
 
 def get_neural_core_service(
     ai_engine: AICommerceEngine = Depends(get_ai_commerce_engine),
-    cache: IAsyncCacheClient = Depends(get_cache_client)
+    cache: IAsyncCacheClient = Depends(get_cache_from_request)
 ) -> NeuralCoreService:
     """FastAPI Dependency Provider."""
     return NeuralCoreService(ai_engine, cache)
