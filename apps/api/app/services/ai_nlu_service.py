@@ -3483,6 +3483,7 @@ SCOPE & BEHAVIOR
                     user_prompt = (
                         f"User Question:\n{bounded_user_query}\n\n"
                         f"Web Intel:\n{normalized_web_intel}\n\n"
+                        f"Inventory Context:\n{inventory_context}\n\n"
                         f"[CRITICAL SYSTEM MANDATE: FORCED OUTPUT SKELETON]\n"
                         f"You MUST output EXACTLY the following structure. NO intro paragraphs. DO NOT deviate:\n\n"
                         f"YOU MUST NEVER ADD ANY EXTRA HEADINGS AT THE END.\n\n"
