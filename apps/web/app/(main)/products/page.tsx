@@ -401,11 +401,12 @@ export default function ProductsPage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-24 md:pb-32">
                     <AlgorithmicPick onOpen={handleOpen} />
 
-                    <div className="flex flex-row items-center justify-between mb-6 md:mb-8 pb-3 md:pb-4 gap-4 sticky top-16 md:top-20 z-30 bg-[#0D0D0C]/90 backdrop-blur-xl rounded-b-2xl border-b border-white/5">
+                    <div className="flex flex-row items-center justify-between mb-6 md:mb-8 px-4 md:px-5 py-3 md:py-4 gap-4 sticky top-16 md:top-20 z-30 bg-[#0D0D0C]/90 backdrop-blur-xl rounded-[73px] border border-white/8">
                         <div className="flex items-center gap-2 md:gap-3 shrink-0">
                             <Layers className="text-cyan-500 w-4 h-4 md:w-5 md:h-5" />
-                            <h2 className="text-xs md:text-lg font-bold text-white uppercase tracking-widest" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                                Warehouse Manifest
+                            <h2 className="text-xs md:text-lg font-extralight text-white uppercase tracking-widest" style={{ fontFamily: "'Exo 2', sans-serif" }}
+                            >
+                                 Categories
                             </h2>
                         </div>
 
