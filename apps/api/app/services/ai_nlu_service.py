@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, StringConstraints, field_validator, model_validator
+
+import math
 import uuid
 import asyncio
 import base64
@@ -16,8 +18,7 @@ from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 _PRICE_CLEAN_RE = re.compile(r"[^\d.]+")
 from enum import Enum
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Sequence, Set, Tuple, Union
-
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Sequence, Set, Tuple, Union, Annotated
 from sentence_transformers import util
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -185,18 +186,145 @@ class UserSentiment(str, Enum): # [NEW] الذكاء العاطفي
     EXCITED = "EXCITED"           # متحمس وجاهز للشراء
     NEUTRAL = "NEUTRAL"
 
+NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=256)]
+OptionalCleanStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=256)]
+DomainHintStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+
+
+class UniversalProductTarget(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        validate_assignment=True,
+        frozen=True,
+    )
+
+    product_name: NonEmptyStr = Field(
+        description="Clean explicit product name, model, or requested item description."
+    )
+    domain_hint: Optional[DomainHintStr] = Field(
+        default=None,
+        description="Optional category or domain hint for index filtering (e.g., electronics, watch, fashion)."
+    )
+    raw_spec_context: Optional[OptionalCleanStr] = Field(
+        default=None,
+        description="Optional specification context attached to the requested item (e.g., 16GB RAM, Blue Dial)."
+    )
+
+    @field_validator("domain_hint", "raw_spec_context", mode="before")
+    @classmethod
+    def _blank_to_none(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+
 class CommerceIntentPayload(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        validate_assignment=True,
+    )
+
     category: IntentCategory = Field(description="The primary intent of the user")
+    
+    # 🌟 المصفوفة الديناميكية العالمية لاستيعاب أي عدد من المنتجات أياً كان نوعها
+    target_products: List[UniversalProductTarget] = Field(
+        default_factory=list,
+        description="All distinct requested products extracted from the prompt (supports 1 to N items)."
+    )
+    
+    # 🌟 حقل المناسبة المستقل لضمان التقاط الاحتفالات أو أحداث حياة العميل
+    detected_occasion: Optional[OptionalCleanStr] = Field(
+        default=None,
+        description="Optional occasion, milestone, or life event mentioned in the prompt (e.g., wedding, milestone)."
+    )
+    
+    # 🛡️ الحفاظ على حقول النظام الأساسية لمنع الـ AttributeError والانهيار
     cart_action_type: Optional[CartActionType] = Field(default=None, description="If CART_ACTION, specify the exact operation")
     sentiment: UserSentiment = Field(default=UserSentiment.NEUTRAL, description="The emotional state of the user based on their text")
-    primary_entities: List[str] = Field(default_factory=list, description="Extracted product names or brands")
-    comparison_entities: List[str] = Field(default_factory=list, description="Products being compared, if any")
-    budget_max: Optional[float] = Field(default=None, description="Maximum budget mentioned")
+    budget_max: Optional[float] = Field(default=None, description="Maximum budget mentioned by the user")
     required_features: List[str] = Field(default_factory=list, description="Specific features requested (e.g., 16GB RAM, OLED)")
     is_chitchat: bool = Field(description="True if the user is trying to make general non-commerce conversation")
-    is_jailbreak_attempt: bool = Field(default=False, description="True if prompt injection, override attempt, or system hacking") 
-    suggested_pivot: Optional[str] = Field(default=None, description="If OUT_OF_DOMAIN, how the AI should pivot back to products")
-    competitor_mentioned: Optional[str] = Field(default=None, description="Name of competitor if user mentions one (e.g., Amazon, Noon)") # [FINAL]
+    is_jailbreak_attempt: bool = Field(default=False, description="True if prompt injection or system hacking override attempt")
+    suggested_pivot: Optional[str] = Field(default=None, description="If OUT_OF_DOMAIN or ChitChat, how the AI should pivot back to products")
+    competitor_mentioned: Optional[str] = Field(default=None, description="Name of competitor if user mentions one (e.g., Amazon, Noon)")
+
+    @field_validator("detected_occasion", "suggested_pivot", "competitor_mentioned", mode="before")
+    @classmethod
+    def _blank_fields_to_none(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    # 🔄 الـ Deduplication الاحترافي اللي صممته لمنع تكرار المنتجات في نفس الطلب
+    @model_validator(mode="before")
+    @classmethod
+    def _deduplicate_target_products(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        raw_products = data.get("target_products")
+        if not isinstance(raw_products, list) or not raw_products:
+            return data
+
+        def normalize_product(
+            product: Any,
+        ) -> tuple[Optional[tuple[str, Optional[str], Optional[str]]], Any]:
+            if isinstance(product, dict):
+                product_name = str(product.get("product_name") or "").strip()
+                domain_hint = str(product.get("domain_hint") or "").strip() or None
+                raw_spec_context = (
+                    str(product.get("raw_spec_context") or "").strip() or None
+                )
+                normalized_product = {
+                    **product,
+                    "product_name": product_name,
+                    "domain_hint": domain_hint,
+                    "raw_spec_context": raw_spec_context,
+                }
+            else:
+                product_name = (
+                    str(getattr(product, "product_name", "") or "").strip()
+                )
+                domain_hint = (
+                    str(getattr(product, "domain_hint", "") or "").strip() or None
+                )
+                raw_spec_context = (
+                    str(getattr(product, "raw_spec_context", "") or "").strip() or None
+                )
+                normalized_product = product
+
+            if not product_name:
+                return None, normalized_product
+
+            key = (
+                product_name.casefold(),
+                domain_hint.casefold() if domain_hint else None,
+                raw_spec_context.casefold() if raw_spec_context else None,
+            )
+            return key, normalized_product
+
+        seen: set[tuple[str, Optional[str], Optional[str]]] = set()
+        unique_products: list[Any] = []
+
+        for product in raw_products:
+            key, normalized_product = normalize_product(product)
+ 
+            if key is None:
+                unique_products.append(normalized_product)
+                continue
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            unique_products.append(normalized_product)
+
+        return {
+            **data,
+            "target_products": unique_products,
+        }
 
 class OSPersona:
     ELITE_BASE = (
@@ -282,8 +410,8 @@ class MatrixConfig:
     request_lock_ttl_sec: int = 220
     user_dna_ttl_sec: int = 300
 
-    min_intent_confidence: float = 200
-    interceptor_threshold: float = 200
+    min_intent_confidence: float = 0.5
+    interceptor_threshold: float = 0.3
     max_results_search: int = 200
     max_final_products: int = 180
     max_recovery_products: int = 200
@@ -433,6 +561,10 @@ class SearchPlan:
     is_specs_query: bool
     is_broad_query: bool
 
+@dataclass(frozen=True)
+class DynamicStrategy:
+    search_queries: List[str]
+    category_filter: Optional[str]
 
 @dataclass(frozen=True)
 class LlmDecision:
@@ -1046,7 +1178,7 @@ class GlobalCommerceIntentEngine:
           * ECOSYSTEM_BUILDER (full setups, bundles, e.g., "gaming room", "home office")
 
         [3. EXTRACTION PROTOCOLS]
-        - COMPARISON ENTITIES: Exhaustively extract all distinct product names/models into 'comparison_entities' as a JSON array of clean strings. Never omit a mentioned product. Do not include conversational text.
+    
         - SENTIMENT: Analyze tone (URGENT, FRUSTRATED, HESITANT, EXCITED, NEUTRAL). If the user is facing a high-pressure scam or flash sale, sentiment is URGENT.
 
         OUTPUT FORMAT:
@@ -1055,8 +1187,14 @@ class GlobalCommerceIntentEngine:
             "category": "SPECIFIC_SEARCH | BROAD_DISCOVERY | COMPARISON | PRICE_INQUIRY | SPECS_INQUIRY | CART_ACTION | OUT_OF_DOMAIN | ECOSYSTEM_BUILDER | NEGOTIATION | OBJECTION",
             "cart_action_type": "ADD" | "REMOVE" | "CLEAR" | "CHECKOUT" | null,
             "sentiment": "URGENT" | "FRUSTRATED" | "HESITANT" | "EXCITED" | "NEUTRAL",
-            "primary_entities": ["str"],
-            "comparison_entities": ["str"],
+            "target_products": [
+                {
+                    "product_name": "str (clean product name or model)",
+                    "domain_hint": "str or null",
+                    "raw_spec_context": "str or null"
+                }
+            ],
+            "detected_occasion": "str or null (e.g., birthday, milestone)",
             "competitor_mentioned": "str or null",
             "budget_max": float or null,
             "required_features": ["str"],
@@ -1108,18 +1246,19 @@ class GlobalCommerceIntentEngine:
             # إذا مات الـ LLM، نستعين بقواعد برمجية فائقة السرعة لتخمين النية
             fallback_category, fallback_sentiment = self._derive_heuristic_intent(safe_text)
 
-            # 3. Strict Payload Contract (حماية الأنظمة اللاحقة)
+            # 3. Strict Payload Contract (حماية الأنظمة 
             return CommerceIntentPayload(
                 category=fallback_category,
                 sentiment=fallback_sentiment,
-                primary_entities=[],  # فارغة لإجبار نظام الطوارئ اللاحق على الاعتماد على النص الكامل
-                comparison_entities=[],
+                target_products=[],
                 required_features=[],
                 is_chitchat=False,
-                is_jailbreak_attempt=False, # نفترض حسن النية في حالة الطوارئ
+                is_jailbreak_attempt=False,
                 budget_max=None,
                 cart_action_type=None,
-                competitor_mentioned=None
+                competitor_mentioned=None,
+                suggested_pivot=None,
+                detected_occasion=None,
             )
     def _derive_heuristic_intent(self, text: str) -> Tuple[IntentCategory, UserSentiment]:
         """
@@ -1461,8 +1600,31 @@ class DiamondInterceptor:
     }
 
     def __init__(self, matcher_threshold: float) -> None:
-        self.matcher_threshold = matcher_threshold
+        
+        safe_default = 0.30
 
+        try:
+            value = float(matcher_threshold)
+        except (TypeError, ValueError):
+            self.matcher_threshold = safe_default
+            return
+
+        if not math.isfinite(value):
+            self.matcher_threshold = safe_default
+            return
+
+        if value < 0.0:
+            self.matcher_threshold = safe_default
+            return
+
+        if value > 1.0:
+            if value <= 100.0:
+                value *= 0.01
+            else:
+                self.matcher_threshold = safe_default
+                return
+
+        self.matcher_threshold = value
     def _distill_signal(self, text: str) -> Set[str]:
         clean_text = re.sub(r"[^\w\s]", "", text.lower())
         return {
@@ -1946,7 +2108,7 @@ class AINLUService:
         # ---------------------------------------------------------------------
         chat_context = await self._get_conversation_context(request.user_id, limit=4)
         intent_payload = await self.intent_engine.analyze_intent(request.message_text, chat_context)
-
+        self._current_intent_payload = intent_payload
         StructuredLog.info("commerce_intent_extracted", user_id=request.user_id, category=intent_payload.category.value)
 
         # =====================================================================
@@ -1999,8 +2161,9 @@ class AINLUService:
                 return
 
         optimized_query = await self._optimize_search_query(search_query)
-        if intent_payload.primary_entities and len(intent_payload.primary_entities) > 0:
-            optimized_query = f"{optimized_query} {' '.join(intent_payload.primary_entities)}"
+        if intent_payload.target_products:
+            names = [p.product_name for p in intent_payload.target_products]
+            optimized_query = f"{optimized_query} {' '.join(names)}"
 
         plan = self._build_search_plan(
             optimized_query=optimized_query,
@@ -2080,9 +2243,9 @@ class AINLUService:
                 search_query=plan.search_query,
             )
 
-            candidates, fallback_trigger, ai_response_prefix = await self._execute_search(
+            candidates, fallback_trigger, ai_response_prefix = await self._execute_universal_search(
                 request=request,
-                plan=plan,
+                intent_payload=intent_payload,
                 ctx=ctx,
             )
 
@@ -2314,13 +2477,11 @@ class AINLUService:
             return True
 
         # For ADD and REMOVE, we need the product entity
-        entities = intent_payload.primary_entities
-        if not entities:
+        if not intent_payload.target_products:
             # If AI couldn't find the entity name, fallback to standard flow
             return False
 
-        target_product_name = entities[0]
-
+        target_product_name = intent_payload.target_products[0].product_name
         try:
             # نبحث عن المنتج المقصود بسرعة
             candidates = await self._search_single_product(target_product_name, limit=1)
@@ -2806,6 +2967,89 @@ class AINLUService:
     # SEARCH / RANK / FILTER (Including v3 Strategic Options)
     # -------------------------------------------------------------------------
 
+    async def _execute_universal_search(
+        self,
+        *,
+        request: IncomingMessage,
+        intent_payload: CommerceIntentPayload,
+        ctx: RequestContext,
+    ) -> Tuple[List[ProductLike], bool, str]:
+        target_products = intent_payload.target_products
+        if not target_products:
+            return [], False, ""
+
+        user_id = request.user_id
+        timeout_sec = self.config.search_timeout_sec
+
+        all_candidates: List[ProductLike] = []
+        fallback_triggered = False
+        ai_response_prefix = ""
+
+        for item in target_products:
+            product_name = item.product_name
+            if not product_name:
+                logger.warning(
+                      "Skipping target product with empty product_name",
+                      extra={"user_id": user_id},
+                )
+                fallback_triggered = True
+                continue
+
+            strategy = DynamicStrategy(
+                search_queries=[product_name],
+                category_filter=item.domain_hint,
+            )
+
+            try:
+                result = await asyncio.wait_for(
+                    self._execute_strategic_search(
+                        strategy=strategy,
+                        user_id=user_id,
+                        original_query=product_name,
+                    ),
+                    timeout=timeout_sec,
+                )
+            except asyncio.TimeoutError:
+                fallback_triggered = True
+                logger.warning(
+                    "Strategic search timed out",
+                    extra={
+                        "user_id": user_id,
+                        "product_name": product_name,
+                        "timeout_sec": timeout_sec,
+                        "domain_hint": item.domain_hint,
+                    },
+                )
+                continue
+            except Exception:
+                fallback_triggered = True
+                logger.exception(
+                    "Strategic search failed",
+                    extra={
+                        "user_id": user_id,
+                        "product_name": product_name,
+                        "domain_hint": item.domain_hint,
+                    },
+                )
+                continue
+
+            if not result:
+                fallback_triggered = True
+                logger.info(
+                    "Product not found in local inventory",
+                    extra={
+                        "user_id": user_id,
+                        "product_name": product_name,
+                        "domain_hint": item.domain_hint,
+                    },
+                )
+                continue
+
+            all_candidates.extend(result)
+
+        deduped_candidates = _deduplicate_products(all_candidates)
+        return deduped_candidates, fallback_triggered, ai_response_prefix
+    
     async def _execute_search(
         self,
         *,
@@ -2825,11 +3069,6 @@ class AINLUService:
             return list(candidates), fallback_trigger, ai_response_prefix
 
         filters = plan.constraints.to_filters()
-
-        @dataclass
-        class DynamicStrategy:
-            search_queries: List[str]
-            category_filter: Optional[str]
 
         strategy = DynamicStrategy(
             search_queries=[plan.search_query],
@@ -3066,24 +3305,83 @@ class AINLUService:
         has_image: bool,
         candidates: Sequence[ProductLike],
     ) -> List[ProductLike]:
-        final_products = list(candidates[: self.config.max_final_products])
+        max_final_products = self.config.max_final_products
+        final_products = list(candidates[:max_final_products])
 
-        if final_products and not has_image:
-            is_broad_query = any(
-                token in lower_text
-                for token in ["best", "recommend", "suggestion", "what is", "top", "trending", "collection", "show me", "افضل", "اقتراح", "ترشيح", "وريني"]
-            ) and len(lower_text.split()) < 4
+        if not final_products or has_image:
+            return final_products
 
-            if not is_broad_query:
-                top_candidate = final_products[0]
-                match_ratio = self.interceptor.validate_alignment(user_query=message_text, top_candidate=top_candidate)
+        broad_query_tokens = (
+            "best",
+            "recommend",
+            "suggestion",
+            "what is",
+            "top",
+            "trending",
+            "collection",
+            "show me",
+            "افضل",
+            "اقتراح",
+            "ترشيح",
+            "وريني",
+        )
+        if len(lower_text.split()) < 4 and any(token in lower_text for token in broad_query_tokens):
+            return final_products
 
-                if match_ratio < self.interceptor.matcher_threshold:
-                
-                    StructuredLog.warning("candidates_rejected_by_interceptor", match_ratio=match_ratio)
-                    return []
+        intent_payload = getattr(self, "_current_intent_payload", None)
+        target_products = getattr(intent_payload, "target_products", ()) or ()
+        nlu_intent = getattr(getattr(intent_payload, "category", None), "value", "UNKNOWN")
 
-        return final_products
+        # Local variable aliasing for micro-optimization inside the loop
+        validate_alignment = self.interceptor.validate_alignment
+        matcher_threshold = self.interceptor.matcher_threshold
+        get_product_name = ProductAccess.get
+        structured_warning = StructuredLog.warning
+
+        validation_queries: tuple[str, ...] = tuple(
+            name
+            for name in (
+                str(getattr(tp, "product_name", "") or "").strip()
+                for tp in target_products
+            )
+            if name
+        ) or (message_text,)
+
+        validated_products: List[ProductLike] = []
+
+        for candidate in final_products:
+            best_match_score = -1.0
+            best_validation_query = message_text
+
+            for query in validation_queries:
+                score = validate_alignment(
+                    user_query=query,
+                    top_candidate=candidate,
+                    nlu_intent=nlu_intent,
+                )
+                if score > best_match_score:
+                    best_match_score = score
+                    best_validation_query = query
+                    # Early exit optimization: perfect match found
+                    if best_match_score >= 1.0:
+                        break
+
+            if best_match_score >= matcher_threshold:
+                validated_products.append(candidate)
+                continue
+
+            candidate_name = get_product_name(candidate, "name", "")
+            structured_warning(
+                "candidate_rejected_by_interceptor",
+                match_ratio=round(best_match_score, 4),
+                matcher_threshold=matcher_threshold,
+                candidate_name=candidate_name,
+                validation_query=best_validation_query,
+                original_query=message_text,
+                nlu_intent=nlu_intent,
+            )
+
+        return validated_products
 
     # -------------------------------------------------------------------------
     # RESPONSE SYNTHESIS
@@ -3455,11 +3753,8 @@ SCOPE & BEHAVIOR
                 # --- INTENT-AWARE, DEFENSIVE QUERY NORMALIZATION ---
                 search_terms: list[str] = []
 
-                if intent_payload:
-                    if intent_payload.comparison_entities:
-                        search_terms.extend(intent_payload.comparison_entities)
-                    elif intent_payload.primary_entities:
-                        search_terms.extend(intent_payload.primary_entities)
+                if intent_payload and intent_payload.target_products:
+                    search_terms.extend([p.product_name for p in intent_payload.target_products])
 
                 if search_terms:
                     # 1. Build a neutral, product-only descriptor (e.g., "Rolex Submariner vs Omega Seamaster").
