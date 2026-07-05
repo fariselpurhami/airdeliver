@@ -615,7 +615,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, is
                                     }}
                                     exit={{ opacity: 0, x: 20 }}
                                     style={{ willChange: 'transform, opacity, background-color, border-color' }}
-                                    className="flex justify-between items-center p-3 rounded-2xl border transition-colors group relative overflow-hidden transform-gpu"
+                                    className="flex justify-between items-start p-3 rounded-2xl border transition-colors group relative overflow-hidden transform-gpu"
                                 >
                                     {item.product_id === glowingProductId && (
                                         <motion.div layoutId="glow" className="absolute inset-0 bg-cyan-500/5 pointer-events-none" transition={{ duration: 0.3 }} />
@@ -625,7 +625,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, is
                                             <ShoppingBag size={16} className="text-gray-500" />
                                         </div>
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-gray-100 text-sm font-bold truncate tracking-tight" title={item.name}>
+                                            <span className="text-gray-100 text-sm font-bold leading-snug tracking-tight break-words" title={item.name}>
                                                 {item.name}
                                             </span>
                                             <span className="text-[10px] text-gray-400 font-mono mt-0.5">QTY: {item.quantity}</span>
@@ -637,7 +637,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, is
                                         </span>
                                         <button
                                             onClick={() => onRemoveItem(item.product_id)}
-                                            className="text-white hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                                            className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-200"
                                             title="Jettison Item"
                                         >
                                             <X size={14} />

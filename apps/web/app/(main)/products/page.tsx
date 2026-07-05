@@ -301,12 +301,14 @@ PageFlyToCartAnimator.displayName = 'PageFlyToCartAnimator';
 
 const ProductCard = React.memo(({ product, onOpen }: { product: Product, onOpen: (product: Product) => void }) => {
     const addProductById = useAIOrderingStore((state) => state.addProductById);
+    const setOverlayVisible = useAIOrderingStore((state) => state.setOverlayVisible);
     const [isAdded, setIsAdded] = useState(false);
     const uniqueBtnId = `add-to-manifest-${product.id}`; 
 
     const handleAddToCart = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         addProductById(product, uniqueBtnId); 
+        setOverlayVisible(true);
         setIsAdded(true);
         const timer = setTimeout(() => setIsAdded(false), 2000);
         return () => clearTimeout(timer);
