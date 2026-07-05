@@ -257,11 +257,9 @@ services:
     env_file: .env
     environment:
       - DATABASE_URI=${DATABASE_URL_SYNC}    
-    volumes:
-      - /opt/venv
     command: >
-      sh -c "/opt/venv/bin/alembic upgrade head &&
-             /opt/venv/bin/python -m app.db.initial_data"
+      sh -c "alembic upgrade head &&
+             python -m app.db.initial_data"
     depends_on:
       postgres:
         condition: service_healthy
@@ -313,7 +311,6 @@ services:
       - ./apps/api:/app:delegated
       - api-static-data:/app/static
       - ${PWD}/data/storage:/data/storage
-      - /opt/venv
     depends_on:
       postgres:
         condition: service_healthy
@@ -393,7 +390,6 @@ services:
     volumes:
       - ./apps/api:/app:delegated
       - ${PWD}/data/storage:/data/storage
-      - /opt/venv
     depends_on:
       api:
         condition: service_healthy

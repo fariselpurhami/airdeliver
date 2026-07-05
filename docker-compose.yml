@@ -347,7 +347,7 @@ services:
       - rabbitmq_user
       - rabbitmq_pass
     command: >
-      sh -c "python -m alembic upgrade head &&
+      sh -c "alembic upgrade head &&
              python -m app.db.initial_data"
     depends_on:
       postgres:
