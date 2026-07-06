@@ -1165,10 +1165,10 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                 exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
                                 transition={{ duration: 0.3, ease: "easeOut" }}
                                 style={{ willChange: 'opacity, backdrop-filter' }}
-                                className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 transform-gpu"
+                                className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 sm:p-4 transform-gpu"
                                 onClick={() => setDetailProduct(null)}
                             >
-                                <div onClick={(e) => e.stopPropagation()} className="w-full max-w-7xl h-[93vh]">
+                                <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[460px] h-[93vh] max-h-[1050px]">
                                     <ProductDetailsCard product={detailProduct} onClose={() => setDetailProduct(null)} />
                                 </div>
                             </motion.div>

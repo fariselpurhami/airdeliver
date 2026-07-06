@@ -12,7 +12,7 @@ import { redirect } from 'next/navigation';
 import { toast } from 'sonner'; 
 import {
     User, Mail, MapPin, Phone, Clock, Loader2, LogOut, AlertCircle,
-    CreditCard, Package, ShieldCheck, Edit3, KeyRound, Settings, Camera, ChevronRight, Sparkles, Box, Lock, Activity
+    CreditCard, Package, ShieldCheck, Edit3, KeyRound, Settings, Camera, ChevronRight, Box, Lock, Activity
 } from 'lucide-react';
 import ChangePasswordModal from '@/components/profile/ChangePasswordModal';
 import ViewOrdersModal from '@/components/profile/ViewOrdersModal';
@@ -246,9 +246,9 @@ export default function ProfilePage() {
                                     
                                     {/* Identity Data */}
                                     <div className="flex-1 text-center md:text-left space-y-3 pt-4">
-                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                                            <Sparkles size={14} />
-                                            <span className="text-xs font-medium tracking-wide">airdeliver presonal profile</span>
+                                        <div className="inline-flex items-center gap-1.5 text-emerald-400/90">
+                                            <ShieldCheck size={14} />
+                                            <span className="text-white text-[11px] font-extralight tracking-[0.4em] max-w-sm">VERIFIED</span>
                                         </div>
                                         
                                         <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight">
