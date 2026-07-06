@@ -22,7 +22,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Seque
 from sentence_transformers import util
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
-
+from collections.abc import Mapping
 from app.db.session import AsyncSessionFactory
 from app.models.product import Product
 from app.services.ai_behavior_engine import BehaviorEngine
@@ -1041,33 +1041,128 @@ class RedisKeys:
 # =============================================================================
 
 class ProductAccess:
-    @staticmethod
-    def get(obj: ProductLike, attr: str, default: Any = "") -> Any:
-        if isinstance(obj, Mapping):
-            return obj.get(attr, default) or default
-        return getattr(obj, attr, default) or default
+    _MISSING = object()
 
     @staticmethod
-    def dump(obj: ProductLike) -> Dict[str, Any]:
+    def get(obj: Any, attr: str, default: Any = "") -> Any:
+        """
+        Read a product attribute from mapping-like or object-like inputs
+        without collapsing valid falsy values such as 0, False, or empty list.
+        """
+        if obj is None or not attr:
+            return default
+
+        if isinstance(obj, Mapping):
+            value = obj.get(attr, ProductAccess._MISSING)
+        else:
+            value = getattr(obj, attr, ProductAccess._MISSING)
+
+        return default if value is ProductAccess._MISSING or value is None else value
+
+    @staticmethod
+    def dump(obj: Any) -> Dict[str, Any]:
+        """
+        Convert product-like input into a normalized JSON-safe dictionary.
+
+        Guarantees:
+        - Never mutates input.
+        - Preserves valid falsy values.
+        - Returns stable keys for downstream callers.
+        - Produces JSON-safe primitives for common scalar types.
+        """
+        if obj is None:
+            return {
+                "id": None,
+                "sku": None,
+                "name": None,
+                "description": None,
+                "price": "0.00",
+                "currency": "USD",
+                "inventory": 0,
+                "rating": None,
+                "image": None,
+                "category": "uncategorized",
+                "tags": [],
+            }
+
         if hasattr(obj, "model_dump"):
-            return obj.model_dump(mode="json")
+            try:
+                return obj.model_dump(mode="json", warnings=False)
+            except TypeError:
+                return obj.model_dump(mode="json")
+            except Exception:
+                pass
+
         if isinstance(obj, Mapping):
-            return dict(obj)
+            source = dict(obj)
+        else:
+            source = {
+                "id": getattr(obj, "id", None),
+                "sku": getattr(obj, "sku", None),
+                "name": getattr(obj, "name", None),
+                "description": getattr(obj, "description", None),
+                "price": getattr(obj, "price", None),
+                "currency": getattr(obj, "currency", None),
+                "inventory": getattr(obj, "inventory", None),
+                "rating": getattr(obj, "rating", None),
+                "image": getattr(obj, "image", None),
+                "category": getattr(obj, "category", None),
+                "tags": getattr(obj, "tags", None),
+            }
+
+        price_val = source.get("price")
+        if isinstance(price_val, Decimal):
+            price_out = format(price_val, "f")
+        elif price_val is None or price_val == "":
+            price_out = "0.00"
+        else:
+            price_out = str(price_val)
+
+        rating_val = source.get("rating")
+        if isinstance(rating_val, Decimal):
+            rating_out = float(rating_val)
+        else:
+            rating_out = rating_val
+
+        inventory_val = source.get("inventory")
+        if inventory_val is None or inventory_val == "":
+            inventory_out = 0
+        else:
+            try:
+                inventory_out = int(inventory_val)
+            except (TypeError, ValueError):
+                inventory_out = 0
+
+        tags_val = source.get("tags")
+        if tags_val is None:
+            tags_out = []
+        elif isinstance(tags_val, list):
+            tags_out = tags_val
+        elif isinstance(tags_val, (tuple, set)):
+            tags_out = list(tags_val)
+        else:
+            tags_out = [str(tags_val)]
+
+        def json_safe(value: Any) -> Any:
+            if isinstance(value, Decimal):
+                return format(value, "f")
+            if isinstance(value, (datetime, date)):
+                return value.isoformat()
+            return value
+
         return {
-            "id": getattr(obj, "id", None),
-            "sku": getattr(obj, "sku", None),
-            "name": getattr(obj, "name", None),
-            "description": getattr(obj, "description", None),
-            "price": str(price_val) if price_val is not None else "0.00",
-            "currency": getattr(obj, "currency", "USD"),  # Fixed: Added Currency
-            "inventory": getattr(obj, "inventory", 0),
-            "rating": getattr(obj, "rating", None),
-            "image": getattr(obj, "image", None),         # Fixed: Renamed from image_url
-            "category": getattr(obj, "category", "uncategorized"),
-            "tags": getattr(obj, "tags", []),
+            "id": json_safe(source.get("id")),
+            "sku": json_safe(source.get("sku")),
+            "name": json_safe(source.get("name")),
+            "description": json_safe(source.get("description")),
+            "price": price_out,
+            "currency": source.get("currency") if source.get("currency") is not None else "USD",
+            "inventory": inventory_out,
+            "rating": json_safe(rating_out),
+            "image": json_safe(source.get("image")),
+            "category": source.get("category") if source.get("category") not in (None, "") else "uncategorized",
+            "tags": tags_out,
         }
-
-
 # =============================================================================
 # OBSERVABILITY
 # =============================================================================
@@ -2837,20 +2932,59 @@ class AINLUService:
         for p in products:
             memory_set.add(p.id)
 
-    async def _stream_row(self, user_id: int, content: str, ui_type: str, products: Sequence[Product], reason: str, apply_delay: bool = True) -> None:
-        """تغليف عملية الإرسال للواجهة مع إضافة Delay لتأثير الـ Streaming"""
+    async def _stream_row(
+        self,
+        user_id: int,
+        content: str,
+        ui_type: str,
+        products: Sequence[Product],
+        reason: str,
+        apply_delay: bool = True,
+    ) -> None:
+        """Send one streamed UI row with deterministic serialization and optional pacing delay."""
+        safe_products = products or ()
+        product_count = len(safe_products)
+
         try:
             payload = {
                 "content": content,
                 "type": ui_type,
-                "products": [p.model_dump(mode='json') for p in products],
-                "reason": reason
+                "products": [ProductAccess.dump(p) for p in safe_products],
+                "reason": reason,
             }
+
             await self._send_to_ui(user_id, payload)
+
             if apply_delay:
-                await asyncio.sleep(self.config.stream_delay_sec)
-        except Exception as e:
-            logger.error("stream_row_transport_failure", extra={"error": str(e)})
+                delay = max(0.0, float(self.config.stream_delay_sec))
+                if delay:
+                    await asyncio.sleep(delay)
+
+        except asyncio.CancelledError:
+            logger.info(
+                "stream_row_cancelled",
+                extra={
+                    "user_id": user_id,
+                    "ui_type": ui_type,
+                    "product_count": product_count,
+                    "apply_delay": apply_delay,
+                },
+            )
+            raise
+
+        except Exception:
+            logger.error(
+                "stream_row_transport_failure",
+                exc_info=True,
+                extra={
+                    "user_id": user_id,
+                    "ui_type": ui_type,
+                    "product_count": product_count,
+                    "reason": reason,
+                    "content_preview": content[:160] if content else "",
+                    "apply_delay": apply_delay,
+                },
+            )
 
     async def _fetch_personal(self, user_id: int, seen_ids: Set[int], tier: str) -> Sequence[Product]:
         try:

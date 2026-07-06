@@ -435,6 +435,7 @@ services:
     user: airdeliver
     restart: always
     stop_grace_period: 125s
+    env_file: .env
     environment:
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
@@ -453,7 +454,6 @@ services:
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
       - RABBITMQ_USER_FILE=/run/secrets/rabbitmq_user
       - RABBITMQ_PASS_FILE=/run/secrets/rabbitmq_pass
-      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?STRIPE_PUBLISHABLE_KEY is required}
     secrets:
       - postgres_user
       - postgres_password

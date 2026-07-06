@@ -369,6 +369,7 @@ services:
       - HF_HOME=/data/storage/models_cache/huggingface
       - EMBEDDING_MODEL_PATH=Alibaba-NLP/gte-Qwen2-1.5B-instruct
       - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - OMP_NUM_THREADS=4
       - MKL_NUM_THREADS=4
       - PYTORCH_ENABLE_MPS_FALLBACK=0
@@ -379,8 +380,7 @@ services:
       - HF_DATASETS_CACHE=/data/storage/models_cache/huggingface/datasets
       - HF_HUB_CACHE=/data/storage/models_cache/huggingface/hub
       - HF_DATASETS_CACHE=/data/storage/models_cache/huggingface/datasets
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+
     shm_size: '2gb'
     ulimits:
       memlock: -1

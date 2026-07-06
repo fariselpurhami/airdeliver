@@ -1,10 +1,14 @@
 # apps/api/app/services/ai_checkout_service.py
 
+from __future__ import annotations
+
 import json
 import logging
 import random
 import uuid
 import asyncio
+import time
+
 from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Protocol
@@ -12,7 +16,7 @@ from typing import Optional, Dict, Any, List, Protocol
 from pydantic import BaseModel, EmailStr, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
-
+from app.services.payment_orchestrator import PaymentRequest, PaymentStatus
 from app.services.cache_service import IAsyncCacheClient
 from app.services.rabbitmq_service import RabbitMQService
 from app.models.order import Order, OrderItem
@@ -20,20 +24,33 @@ from app.models.enums import OrderStatus, CancellationReason
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from typing import Optional, Dict, Any, List, Protocol, runtime_checkable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.services.payment_orchestrator import OrchestrationResponse
+
 logger = logging.getLogger("airdeliver.checkout")
 
 
 # --- INTERFACES & PROTOCOLS ---
 # Enforcing strict dependency injection contracts
 
+@runtime_checkable
 class PaymentOrchestratorProtocol(Protocol):
     async def process_payment(
-        self, 
-        amount: Decimal, 
-        currency: str, 
-        region: str, 
-        metadata: Dict[str, str]
-    ) -> Dict[str, Any]:
+        self,
+        request: PaymentRequest,
+        corr_id: str,
+    ) -> OrchestrationResponse:
+        """
+        Execute payment orchestration for a validated payment request.
+
+        Contract requirements:
+        - Must be idempotent with respect to request.idempotency_key.
+        - Must return a fully-formed OrchestrationResponse on all expected business outcomes.
+        - Must raise only domain/infrastructure exceptions documented by the implementation.
+        - corr_id must be propagated to downstream logs/traces for observability.
+        """
         ...
 
 class NotificationServiceProtocol(Protocol):
@@ -267,43 +284,93 @@ class AICheckoutService:
             await self._send_error(payload.user_id, "A critical system error occurred. Our team has been notified.")
             return
 
-        payment_metadata = {
-            "order_id": str(new_order.id),
-            "user_id": str(payload.user_id),
-            "idempotency_key": str(uuid.uuid4())
-        }
+        timestamp_sec = int(time.time())
+        idempotency_key = f"idem_pay_{payload.user_id}_{new_order.id}_{timestamp_sec}"
+        correlation_id = f"chk_trace_{new_order.id}_{idempotency_key[-8:]}"
 
         try:
-            await self._send_to_ui(payload.user_id, {"content": "Securing payment channels...", "type": "typing"})
-
-            payment_options = await self.orchestrator.process_payment(
+            # 2. بناء الطلب باستخدام العقد الصارم (Strict DTO)
+            # الـ PaymentRequest سيرمي ValueError إذا كانت البيانات غير صالحة
+            payment_request = PaymentRequest(
+                order_id=str(new_order.id),
                 amount=total_amount,
                 currency=self.DEFAULT_CURRENCY,
                 region=payload.country,
-                metadata=payment_metadata
+                idempotency_key=idempotency_key,
+                metadata={
+                    "user_id": str(payload.user_id),
+                    "correlation_id": correlation_id,
+                    "source": "ai_chat_checkout"
+                }
             )
-        except Exception as e:
-            logger.error("Payment orchestrator initialization failed", extra={"order_id": new_order.id, "error": str(e)})
-            await self._handle_failed_payment(new_order, "Payment Gateway Unreachable")
+        except ValueError as ve:
+            # خطأ في البيانات المرسلة من طرفنا (Developer/Data Error)
+            logger.error(f"Payment payload validation failed: {str(ve)}", extra={"order_id": new_order.id, "corr_id": correlation_id})
+            await self._handle_failed_payment(new_order, "Invalid payment configuration.")
             return
 
-        if payment_options.get("status") == "failure":
-            await self._handle_failed_payment(new_order, payment_options.get("error", "Initialization failed"))
-        else:
-            await self._send_to_ui(payload.user_id, {
-                "type": "payment_intent",
-                "content": {
-                    "orderId": new_order.id,
-                    "total": str(new_order.total_price),
-                    "gateways": payment_options.get("available_gateways", []),
-                    "client_secret": payment_options.get("client_secret", "")
-                }
-            })
+        try:
+            # تغذية بصرية للمستخدم (UX Optimization) لإخفاء بطء الـ Network I/O
+            await self._send_to_ui(payload.user_id, {"content": "Securing encrypted payment channels...", "type": "typing"})
 
-            self._emit_analytics_event(
-                "airdeliver.ai.checkout.initiated",
-                {"user_id": payload.user_id, "order_id": new_order.id, "amount": str(total_amount)}
+            # 3. Defensive External I/O (Circuit Breaker & SLA Bounds)
+            # L9 Rule: لا تقم أبدًا بإجراء اتصال خارجي دون Hard Timeout Constraint.
+            orchestration_response = await asyncio.wait_for(
+                self.orchestrator.process_payment(
+                    request=payment_request,
+                    corr_id=correlation_id
+                ),
+                timeout=8.0  # Hard Timeout Constraint
             )
+            
+        except asyncio.TimeoutError:
+            # فصل الـ Timeout لتنبيه الـ On-Call بوجود بطء في مزود الدفع (SLA Breach)
+            logger.error("Payment orchestrator timed out (Gateway SLA Breach)", extra={"order_id": new_order.id, "corr_id": correlation_id})
+            await self._handle_failed_payment(new_order, "Payment provider is currently experiencing high latency. Please try again.")
+            return
+            
+        except Exception as e:
+            # 🔴 L9 Rule: الأخطاء الكارثية غير المتوقعة فقط هي التي يتم تسجيلها بـ exc_info=True
+            logger.critical(
+                "Unexpected catastrophic failure in payment orchestration boundary", 
+                exc_info=True, 
+                extra={"order_id": new_order.id, "corr_id": correlation_id, "idempotency_key": idempotency_key}
+            )
+            await self._handle_failed_payment(new_order, "Payment Gateway Unreachable. Our engineering team has been notified.")
+            return
+
+        # 4. Strict Contract Validation (التعامل الصارم مع حالة الرد)
+        if orchestration_response.status != PaymentStatus.SUCCESS:
+            error_msg = getattr(orchestration_response, "error_message", None) or "Gateway declined initialization"
+            logger.warning("Payment initialization declined by gateway", extra={"order_id": new_order.id, "reason": error_msg})
+            await self._handle_failed_payment(new_order, error_msg)
+            return
+
+        # 5. Null-Safety & Anti-Silent-Breach Checks
+        # لا نثق أبدًا أن SUCCESS تعني وجود البيانات المطلوبة
+        primary_gw = getattr(orchestration_response, "primary_gateway", None)
+        client_secret = getattr(primary_gw, "client_secret", None) if primary_gw else None
+
+        if not client_secret:
+            # L9 Rule: عودة حالة SUCCESS بدون token هو "خرق صامت للعقد" (Silent Contract Breach)
+            logger.critical(
+                "Payment status was SUCCESS but client_secret is missing from response", 
+                extra={"order_id": new_order.id, "corr_id": correlation_id}
+            )
+            await self._handle_failed_payment(new_order, "Incomplete secure token received from gateway.")
+            return
+
+        # 6. Secure Handoff to Client
+        logger.info("Payment intent successfully secured", extra={"order_id": new_order.id, "corr_id": correlation_id})
+        
+        await self._send_to_ui(payload.user_id, {
+            "type": "payment_intent",
+            "content": {
+                "orderId": new_order.id,
+                "total": str(new_order.total_price),
+                "client_secret": client_secret
+            }
+        })
 
     async def handle_payment_success(self, raw_payload: Dict[str, Any]) -> None:
         """
@@ -391,7 +458,7 @@ class AICheckoutService:
             await self.db.commit()
             
             await self._send_to_ui(order.user_id, {
-                "content": f"Payment Interruption: {reason}. Don't worry, your manifest is preserved.",
+                "content": f"Payment Interruption: {reason}. Don't worry, your cart is preserved.",
                 "type": "confirmation_prompt",
                 "options": ["Retry Payment", "Change Method"],
                 "reason": "Transaction Recovery"

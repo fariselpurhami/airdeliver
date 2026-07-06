@@ -166,50 +166,146 @@ class StripeGateway(IPaymentGateway):
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((stripe.error.RateLimitError, stripe.error.APIConnectionError)),
+        retry=retry_if_exception_type(
+            (
+                stripe.error.RateLimitError,
+                stripe.error.APIConnectionError,
+            )
+        ),
         before_sleep=before_sleep_log(logger, logging.WARNING),
-        reraise=True
+        reraise=True,
     )
-    def _execute_stripe_call(self, amount_cents: int, request: PaymentRequest) -> stripe.PaymentIntent:
-        """
-        Synchronous Stripe SDK wrapper isolated for ThreadPool execution and Retries.
-        Passes authentication explicitly per-request to avoid thread-safety issues with global api_key.
-        """
-        return stripe.PaymentIntent.create(
-            api_key=self._settings.secret_key,
-            api_version=self._settings.api_version,
-            amount=amount_cents,
-            currency=request.currency.lower(),
-            automatic_payment_methods={"enabled": True},
-            metadata={
-                **request.metadata,
-                "order_id": request.order_id,
-                "region": request.region,
-                "correlation_id": correlation_id_var.get()
-            },
-            description=f"Order {request.order_id}",
-            idempotency_key=request.idempotency_key
+    def _execute_stripe_call(
+        self,
+        amount_cents: int,
+        request: PaymentRequest,
+    ) -> stripe.PaymentIntent:
+        secret_key = (
+            getattr(self._settings, "STRIPE_SECRET_KEY", None)
+            or getattr(self._settings, "stripe_secret_key", None)
+            or getattr(self._settings, "secret_key", None)
         )
+        api_version = (
+            getattr(self._settings, "STRIPE_API_VERSION", None)
+            or getattr(self._settings, "api_version", None)
+            or "2023-10-16"
+        )
+
+        if not secret_key:
+            raise RuntimeError("Stripe secret key is not configured.")
+
+        if amount_cents <= 0:
+            raise ValueError(f"Stripe amount must be positive, got {amount_cents}")
+
+        currency = (request.currency or "").strip().lower()
+        if not currency or len(currency) != 3:
+            raise ValueError(f"Invalid Stripe currency: {request.currency!r}")
+
+        correlation_id = correlation_id_var.get() or f"stripe_{request.order_id}"
+
+        metadata = {
+            **(request.metadata or {}),
+            "order_id": str(request.order_id),
+            "region": str(request.region or ""),
+            "correlation_id": correlation_id,
+        }
+
+        logger.info(
+            "stripe_payment_intent_create_started",
+            extra={
+                "provider": self.provider,
+                "order_id": str(request.order_id),
+                "amount_cents": amount_cents,
+                "currency": currency,
+                "correlation_id": correlation_id,
+                "idempotency_key": request.idempotency_key,
+            },
+        )
+
+        return stripe.PaymentIntent.create(
+            api_key=secret_key,
+            api_version=api_version,
+            amount=amount_cents,
+            currency=currency,
+            automatic_payment_methods={"enabled": True},
+            metadata=metadata,
+            description=f"Order {request.order_id}",
+            idempotency_key=request.idempotency_key,
+        )
+
 
     async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
         try:
-            # 1. Atomic Currency Conversion (Zero-decimal currencies require different logic in a full system)
             safe_amount = request.amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             amount_in_cents = int(safe_amount * 100)
 
-            logger.info("Initiating Stripe intent", extra={
-                "amount": str(safe_amount),
-                "currency": request.currency,
-                "idempotency_key": request.idempotency_key
-            })
+            if amount_in_cents <= 0:
+                logger.warning(
+                    "stripe_payment_intent_rejected_invalid_amount",
+                    extra={
+                        "provider": self.provider,
+                        "order_id": str(request.order_id),
+                        "amount": str(request.amount),
+                        "currency": request.currency,
+                    },
+                )
+                return GatewayResult(
+                    provider=self.provider,
+                    status=PaymentStatus.FAILURE,
+                    error_message="Invalid payment amount.",
+                )
 
-            # 2. Async Execution off the main Event Loop
+            logger.info(
+                "stripe_payment_intent_initiated",
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "amount": str(safe_amount),
+                    "currency": request.currency,
+                    "idempotency_key": request.idempotency_key,
+                    "correlation_id": correlation_id_var.get(),
+                },
+            )
+
             loop = asyncio.get_running_loop()
             intent = await loop.run_in_executor(
                 None,
                 self._execute_stripe_call,
                 amount_in_cents,
-                request
+                request,
+            )
+
+            pub_key = (
+                getattr(self._settings, "STRIPE_PUBLISHABLE_KEY", None)
+                or getattr(self._settings, "stripe_publishable_key", None)
+                or getattr(self._settings, "publishable_key", None)
+            )
+
+            if not getattr(intent, "id", None) or not getattr(intent, "client_secret", None):
+                logger.error(
+                    "stripe_payment_intent_invalid_response",
+                    extra={
+                        "provider": self.provider,
+                        "order_id": str(request.order_id),
+                        "has_intent_id": bool(getattr(intent, "id", None)),
+                        "has_client_secret": bool(getattr(intent, "client_secret", None)),
+                        "correlation_id": correlation_id_var.get(),
+                    },
+                )
+                return GatewayResult(
+                    provider=self.provider,
+                    status=PaymentStatus.FAILURE,
+                    error_message="Payment processor returned an incomplete response.",
+                )
+
+            logger.info(
+                "stripe_payment_intent_created",
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "transaction_id": intent.id,
+                    "correlation_id": correlation_id_var.get(),
+                },
             )
 
             return GatewayResult(
@@ -217,32 +313,73 @@ class StripeGateway(IPaymentGateway):
                 status=PaymentStatus.REQUIRES_PAYMENT_METHOD,
                 transaction_id=intent.id,
                 client_secret=intent.client_secret,
-                raw_response={"publishable_key": self._settings.publishable_key}
+                raw_response={"publishable_key": pub_key or ""},
             )
 
         except stripe.error.CardError as e:
-            logger.warning(f"Stripe Card Error: {e.user_message}", extra={"stripe_code": e.code})
-            return GatewayResult(
-                provider=self.provider,
-                status=PaymentStatus.FAILURE,
-                error_message=e.user_message or "Card declined."
+            logger.warning(
+                "stripe_card_error",
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "stripe_code": getattr(e, "code", None),
+                    "decline_code": getattr(e, "decline_code", None),
+                    "correlation_id": correlation_id_var.get(),
+                },
             )
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe API Error: {e}", exc_info=True)
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.FAILURE,
-                error_message="Payment processing unavailable via Stripe."
-            )
-        except Exception as e:
-            logger.critical(f"Stripe Critical Failure: {e}", exc_info=True)
-            return GatewayResult(
-                provider=self.provider,
-                status=PaymentStatus.FAILURE,
-                error_message="Internal system error."
+                error_message=e.user_message or "Card declined.",
             )
 
+        except stripe.error.StripeError:
+            logger.error(
+                "stripe_api_error",
+                exc_info=True,
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "correlation_id": correlation_id_var.get(),
+                },
+            )
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="Payment processing is temporarily unavailable via Stripe.",
+            )
 
+        except ValueError as e:
+            logger.warning(
+                "stripe_request_validation_error",
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "reason": str(e),
+                    "correlation_id": correlation_id_var.get(),
+                },
+            )
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="Invalid payment request configuration.",
+            )
+
+        except Exception:
+            logger.critical(
+                "stripe_critical_failure",
+                exc_info=True,
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "correlation_id": correlation_id_var.get(),
+                },
+            )
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="Internal system error.",
+            )
 class PayPalGateway(IPaymentGateway):
     """
     Robust PayPal Integration Scaffold.
@@ -257,31 +394,125 @@ class PayPalGateway(IPaymentGateway):
         return GatewayProvider.PAYPAL
 
     async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
+        correlation_id = correlation_id_var.get() or f"paypal_{request.order_id}"
+
         try:
-            amount_str = str(request.amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
-            logger.info("Initiating PayPal order", extra={"amount": amount_str, "currency": request.currency})
-            
-            # In production:
-            # 1. Fetch/Cache OAuth token using self._cache
-            # 2. Use `httpx.AsyncClient` with strict timeouts to hit PayPal /v2/checkout/orders
-            
-            await asyncio.sleep(0.05) # Simulated network I/O
-            
+            if request.amount is None:
+                raise ValueError("Missing payment amount.")
+
+            safe_amount = request.amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            if safe_amount <= Decimal("0.00"):
+                raise ValueError(f"Invalid payment amount: {safe_amount}")
+
+            currency = (request.currency or "").strip().upper()
+            if not currency or len(currency) != 3:
+                raise ValueError(f"Invalid currency: {request.currency!r}")
+
+            client_id = (
+                getattr(self._settings, "PAYPAL_CLIENT_ID", None)
+                or getattr(self._settings, "paypal_client_id", None)
+                or getattr(self._settings, "client_id", None)
+            )
+            if not client_id:
+                raise RuntimeError("PayPal client_id is not configured.")
+
+            amount_str = format(safe_amount, ".2f")
+            transaction_id = f"PAY-{request.order_id}-{request.idempotency_key[:8]}"
+
+            logger.info(
+                "paypal_order_initialization_started",
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "amount": amount_str,
+                    "currency": currency,
+                    "idempotency_key": request.idempotency_key,
+                    "correlation_id": correlation_id,
+                },
+            )
+
+            await asyncio.sleep(0.05)
+
+            action_url = "https://www.sandbox.paypal.com/checkoutnow?token=dummy_token"
+            if not action_url:
+                logger.error(
+                    "paypal_order_initialization_incomplete_response",
+                    extra={
+                        "provider": self.provider,
+                        "order_id": str(request.order_id),
+                        "transaction_id": transaction_id,
+                        "correlation_id": correlation_id,
+                    },
+                )
+                return GatewayResult(
+                    provider=self.provider,
+                    status=PaymentStatus.FAILURE,
+                    error_message="PayPal returned an incomplete checkout response.",
+                )
+
+            logger.info(
+                "paypal_order_initialization_succeeded",
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "transaction_id": transaction_id,
+                    "correlation_id": correlation_id,
+                },
+            )
+
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.REQUIRES_ACTION,
-                transaction_id=f"PAY-{request.order_id}-{request.idempotency_key[:8]}",
-                action_url="https://www.sandbox.paypal.com/checkoutnow?token=dummy_token",
-                raw_response={"client_id": self._settings.client_id}
+                transaction_id=transaction_id,
+                action_url=action_url,
+                raw_response={
+                    "client_id": client_id,
+                    "paypal_request_id": request.idempotency_key,
+                },
             )
-        except Exception as e:
-            logger.error(f"PayPal Init Failed: {e}", exc_info=True)
+
+        except asyncio.CancelledError:
+            logger.info(
+                "paypal_order_initialization_cancelled",
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "correlation_id": correlation_id,
+                },
+            )
+            raise
+
+        except ValueError as e:
+            logger.warning(
+                "paypal_request_validation_error",
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "reason": str(e),
+                    "correlation_id": correlation_id,
+                },
+            )
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.FAILURE,
-                error_message="PayPal services unreachable."
+                error_message="Invalid PayPal payment request.",
             )
 
+        except Exception:
+            logger.error(
+                "paypal_order_initialization_failed",
+                exc_info=True,
+                extra={
+                    "provider": self.provider,
+                    "order_id": str(request.order_id),
+                    "correlation_id": correlation_id,
+                },
+            )
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="PayPal services are currently unreachable.",
+            )
 
 class MpesaGateway(IPaymentGateway):
     """

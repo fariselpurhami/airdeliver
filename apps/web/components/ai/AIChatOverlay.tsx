@@ -654,8 +654,13 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, is
                                             ${(item.price * item.quantity).toFixed(2)}
                                         </span>
                                         <button
-                                            onClick={() => onRemoveItem(item.product_id)}
-                                            className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all duration-200"
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // 🛡️ بيمنع تداخل اللمس مع العناصر اللي خلف الزرار على الموبايل
+                                                onRemoveItem(item.product_id || item.id); // 🛡️ حماية مزدوجة لو الـ ID جاي بأي صيغة
+                                            }}
+    // 🛡️ نقلنا الـ hover للديسكتوب فقط باستخدام md: وأضفنا active: للموبايل علشان يستجيب بلمسة واحدة
+                                            className="p-1.5 rounded-lg bg-red-500/10 text-red-400 active:bg-red-500 active:text-white md:hover:bg-red-500 md:hover:text-white transition-all duration-200"
                                             title="Jettison Item"
                                         >
                                             <X size={14} />
