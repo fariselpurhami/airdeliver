@@ -5,7 +5,7 @@ import logging
 import random
 import uuid
 import asyncio
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Protocol
 
@@ -17,6 +17,8 @@ from app.services.cache_service import IAsyncCacheClient
 from app.services.rabbitmq_service import RabbitMQService
 from app.models.order import Order, OrderItem
 from app.models.enums import OrderStatus, CancellationReason
+
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger("airdeliver.checkout")
 
@@ -155,36 +157,114 @@ class AICheckoutService:
 
         new_order = None
         try:
+            # 1. Fail-Fast Validation: التحقق من كل البيانات وتجهيزها في الذاكرة 
+            # قبل فتح أي Transaction مع قاعدة البيانات لتقليل مدة الـ Lock (DB Lock Contention).
+            items_payload = cart.get("items", [])
+            if not items_payload:
+                raise ValueError("Cart is empty; cannot initiate order.")
+            
+            safe_address = payload.address.strip() if payload.address and payload.address.strip() else "Address pending via Chat"
+            
+            order_items_to_create = []
+            for item in items_payload:
+                # الاستخراج الآمن مع التأكد من النوع
+                raw_pid = item.get("product_id") or item.get("id")
+                if not raw_pid:
+                    raise ValueError(f"Corrupted cart item: missing identification. Payload: {item}")
+                
+                try:
+                    product_id = int(raw_pid)
+                    quantity = int(item.get("quantity", 1))
+                    
+                    if quantity <= 0:
+                        raise ValueError(f"Invalid quantity {quantity} for product {product_id}")
+                    
+                    # الدقة المالية (Financial Precision): 
+                    # فرض رقمين عشريين لمنع كسور النقود الوهمية (Floating Point Anomalies).
+                    # ⚠️ ARCHITECTURAL WARNING: الاعتماد على السعر القادم من العميل هو ثغرة أمنية حرجة.
+                    # في نظام L9 الحقيقي، يجب سحب السعر من قاعدة البيانات هنا وليس من الـ Payload.
+                    raw_price = str(item.get("price", "0.00"))
+                    price_per_unit = Decimal(raw_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
+                
+                except (ValueError, TypeError, InvalidOperation) as e:
+                    raise ValueError(f"Malformed data in cart item {raw_pid}: {str(e)}") from e
+                
+                order_items_to_create.append(
+                    OrderItem(
+                        product_id=product_id,
+                        quantity=quantity,
+                        price_per_unit=price_per_unit
+                    )
+                )
+
+            # 2. Database Transaction Phase: الآن فقط نتحدث مع قاعدة البيانات
             new_order = Order(
                 user_id=payload.user_id,
                 status=OrderStatus.PENDING,
                 total_price=total_amount,
-                delivery_address=payload.address,
-                created_at=datetime.now(timezone.utc)
+                delivery_address=safe_address,
+                created_at=datetime.now(timezone.utc).replace(tzinfo=None)
             )
+            
             self.db.add(new_order)
-            await self.db.flush() 
-
-            order_items_to_create = [
-                OrderItem(
-                    order_id=new_order.id,
-                    product_id=item["product_id"],
-                    quantity=int(item["quantity"]),
-                    price_per_unit=Decimal(str(item["price"]))
-                )
-                for item in cart["items"]
-            ]
-
+            await self.db.flush() # الحصول على new_order.id دون عمل Commit
+            
+            # ربط العناصر بالطلب بعد الحصول على الـ ID
+            for order_item in order_items_to_create:
+                order_item.order_id = new_order.id
+            
             self.db.add_all(order_items_to_create)
             await self.db.commit()
             await self.db.refresh(new_order)
+            
+            # 3. High-Signal Logging: طباعة بيانات مفيدة للـ Analytics بدون تسريب بيانات حساسة
+            logger.info(
+                "Pending order successfully committed", 
+                extra={
+                    "order_id": new_order.id, 
+                    "user_id": payload.user_id,
+                    "item_count": len(order_items_to_create),
+                    "total_amount": str(total_amount)
+                }
+            )
 
-            logger.info("Pending order committed", extra={"order_id": new_order.id, "total": str(total_amount)})
+        except ValueError as ve:
+            # Client-Side Errors (HTTP 400 equivalent) - لا تستدعي PagerDuty
+            await self.db.rollback()
+            logger.warning(
+                "Order creation rejected due to validation failure",
+                extra={"user_id": payload.user_id, "reason": str(ve)}
+            )
+            await self._send_error(payload.user_id, "Invalid order details provided. Please verify your cart.")
+            return
+
+        except SQLAlchemyError as sqle:
+            # Infrastructure Errors (Database Constraints, Connectivity)
+            await self.db.rollback()
+            logger.error(
+                "Database transaction aborted during order creation",
+                exc_info=True, # 🔴 L9 Rule: دائمًا مرر الـ Stack Trace في الـ APM
+                extra={"user_id": payload.user_id}
+            )
+            await self._send_error(payload.user_id, "System error processing your order. Please try again.")
+            return
 
         except Exception as e:
+            # Unhandled Edge Cases - هذه فقط ما يجب أن يوقظ المهندس (Critical)
             await self.db.rollback()
-            logger.critical("Database transaction aborted during order creation", extra={"user_id": payload.user_id, "error": str(e)})
-            await self._send_error(payload.user_id, "System error. Could not create order. Please try again.")
+            
+            # بدلاً من str(cart)[:200] العشوائية، نقوم ببناء ملخص آمن ونظيف
+            safe_cart_summary = [{"id": i.get("id"), "qty": i.get("quantity")} for i in cart.get("items", [])][:5]
+            
+            logger.critical(
+                "Unexpected critical failure during order creation", 
+                exc_info=True,
+                extra={
+                    "user_id": payload.user_id, 
+                    "cart_preview": safe_cart_summary
+                }
+            )
+            await self._send_error(payload.user_id, "A critical system error occurred. Our team has been notified.")
             return
 
         payment_metadata = {
