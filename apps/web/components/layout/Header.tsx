@@ -7,16 +7,13 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useTheme } from "next-themes";
 import {
   Home,
   Package,
   User,
-  Sun,
-  Moon,
   Menu,
   X as CloseIcon,
-  Bell,
+  BellRing,
 } from "lucide-react";
 
 interface NavItem {
@@ -33,46 +30,6 @@ const navItems: NavItem[] = [
 ];
 
 // Memoized to prevent re-renders on route changes or mobile menu toggles
-const ThemeToggle = memo(() => {
-  const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
-
-  useEffect(() => setMounted(true), []);
-
-  if (!mounted) {
-    return <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse transform-gpu" />;
-  }
-
-  const isDark = theme === "dark";
-
-  return (
-    <button
-      onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="relative w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-      aria-label="Toggle theme"
-      type="button"
-    >
-      <div className="absolute inset-0 bg-white/5 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity transform-gpu will-change-opacity" />
-      <AnimatePresence initial={false} mode="wait">
-        <motion.div
-          key={isDark ? "moon" : "sun"}
-          initial={{ y: -20, opacity: 0, rotate: -90 }}
-          animate={{ y: 0, opacity: 1, rotate: 0 }}
-          exit={{ y: 20, opacity: 0, rotate: 90 }}
-          transition={{ duration: 0.2 }}
-          className="will-change-transform"
-        >
-          {isDark ? (
-            <Moon size={18} className="text-gray-200 drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]" />
-          ) : (
-            <Sun size={18} className="text-gray-200 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
-          )}
-        </motion.div>
-      </AnimatePresence>
-    </button>
-  );
-});
-ThemeToggle.displayName = "ThemeToggle";
 
 export default function Header() {
   const pathname = usePathname();
@@ -200,15 +157,13 @@ export default function Header() {
             <div className="flex items-center gap-1 rounded-full p-1.5">
               <Link
                 href="/notifications"
-                className="relative p-3 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                className="relative group p-3 rounded-full text-white transition-all duration-300 hover:text-cyan-400 hover:bg-cyan-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
                 aria-label="Notifications"
                 onClick={(e) => handleProtectedRouting(e, { href: '/notifications', label: 'Notifications', isProtected: true })}
               >
-                <Bell size={18} aria-hidden="true" />
+                <BellRing size={20} className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" aria-hidden="true" />
+                
               </Link>
-            </div>
-            <div className="rounded-full p-1">
-              <ThemeToggle />
             </div>
           </div>
 
@@ -281,12 +236,6 @@ export default function Header() {
                   );
                 })}
               </nav>
-
-              <div className="mt-auto space-y-4 border-t border-white/5 pt-8">
-                <div className="flex justify-center p-2">
-                  <ThemeToggle />
-                </div>
-              </div>
             </motion.div>
           </motion.div>
         )}
