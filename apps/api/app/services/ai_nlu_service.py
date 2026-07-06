@@ -5161,11 +5161,11 @@ Structure:
                 price_diff = new_item_price - base_price
 
                 if price_diff > (base_price * 0.5):
-                    headline = f"I noticed you removed {target.name}. Here are stronger premium alternatives."
+                    headline = f"I noticed you removed {target.name}. Here're elevated alternatives in the same range, Chosen specifically for you."
                 elif price_diff > 0:
-                    headline = f"I noticed you removed {target.name}. Here are upgraded alternatives close to your range."
+                    headline = f"I noticed you removed {target.name}. I've selected refined alternatives within your range that may better fit your preferences."
                 else:
-                    headline = f"I noticed you removed {target.name}. Here are top-rated alternatives."
+                    headline = f"I noticed you removed {target.name}. Here're top-rated options, Selected for you."
 
                 await self._send_to_ui(
                     user_id,

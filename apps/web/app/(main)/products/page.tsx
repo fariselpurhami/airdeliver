@@ -306,8 +306,8 @@ const ProductCard = React.memo(({ product, onOpen }: { product: Product, onOpen:
             </div>
             
             <div className="relative p-3 md:p-5 flex flex-col flex-grow border-t border-white/5 bg-[#0D0D0C]">
-                <h3 className="text-[11px] md:text-sm font-bold text-gray-100 mb-0.5 md:mb-1 group-hover:text-cyan-400 transition-colors line-clamp-1">{product.name}</h3>
-                <p className="text-[9px] md:text-xs text-gray-500 line-clamp-1 mb-2 md:mb-4">{product.description}</p>
+                <h3 className="text-[11px] md:text-sm font-bold text-gray-100 mb-0.5 md:mb-1 group-hover:text-cyan-400 transition-colors line-clamp-2">{product.name}</h3>
+                <p className="text-[9px] md:text-xs text-gray-500 line-clamp-3 mb-2 md:mb-4">{product.description}</p>
                 
                 <div className="flex items-center justify-between mt-auto pt-1.5 md:pt-2">
                     <span className="text-sm md:text-lg font-bold text-white font-mono">${formatCurrency(product.price)}</span>
