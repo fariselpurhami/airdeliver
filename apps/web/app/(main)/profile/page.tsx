@@ -14,9 +14,11 @@ import {
     User, Mail, MapPin, Phone, Clock, Loader2, LogOut, AlertCircle,
     CreditCard, Package, ShieldCheck, Edit3, KeyRound, Settings, Camera, ChevronRight, Box, Lock, Activity
 } from 'lucide-react';
-import ChangePasswordModal from '@/components/profile/ChangePasswordModal';
-import ViewOrdersModal from '@/components/profile/ViewOrdersModal';
-import EditProfileDetailsModal from '@/components/profile/EditProfileDetailsModal';
+import {  
+  ViewOrdersModal, 
+  EditProfileDetailsModal, 
+  ChangePasswordModal 
+} from '@/components/profile/ProfileModals';
 import dynamic from 'next/dynamic';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Points, PointMaterial } from '@react-three/drei';
@@ -451,7 +453,7 @@ const OrderCard = memo(({ order }: { order: OrderRead }) => {
                     <Package className={`w-5 h-5 ${isCancelled ? 'text-gray-600' : 'text-gray-300'}`} />
                 </div>
                 <div className="min-w-0">
-                    <h4 className={`font-medium truncate text-sm md:text-base ${isCancelled ? 'text-gray-500' : 'text-gray-200'}`}>
+                    <h4 className={`font-medium break-words text-sm md:text-base ${isCancelled ? 'text-gray-500' : 'text-gray-200'}`}>
                         {productName}
                     </h4>
                     <p className="text-xs text-gray-500 mt-0.5">
