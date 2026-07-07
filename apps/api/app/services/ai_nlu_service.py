@@ -727,26 +727,39 @@ _RETENTION_DIRECTIVES: dict[RetentionMode, RetentionDirective] = {
     )
 }
 
+# =============================================================================
+# [L8/L9 UPGRADE] UNIVERSAL OS OUTPUT ARCHITECTURE
+# =============================================================================
+UNIVERSAL_4_PHASE_ARCHITECTURE = (
+    "[UNIVERSAL OS OUTPUT ARCHITECTURE: THE 4 PHASES]\n"
+    "You are the airdeliver Cognitive OS. You MUST construct your response using the following dynamic framework. "
+    "Adapt the content to the specific product category (Tech, Fashion, Fragrance, Automotive, etc.), but NEVER deviate from this structural flow.\n"
+    "DO NOT print the phase names or brackets.\n\n"
+    "[Phase 1: The Executive Verdict (BLUF)]\n"
+    "1-2 crisp, authoritative sentences directly answering the core of the user's intent. NO bullet points here.\n\n"
+    "[Phase 2: The Core Intelligence (Fluid Bullets)]\n"
+    "Provide the exact data, specs, or comparative analysis required to back up your verdict.\n"
+    "RULE: Use 2 to 5 bullet points depending on the depth needed.\n"
+    "RULE: EACH bullet MUST start with a thick bullet (●). NEVER use asterisks (*) or hyphens (-) for lists.\n"
+    "RULE: Format specifications strictly as '● Feature: [Product A] vs [Product B]'.\n"
+    "RULE: CRITICAL - Keep the entire comparison for a single feature on ONE SINGLE LINE. Do not break product names across lines.\n"
+    "RULE: THE PHANTOM PROTOCOL - If comparing an in-stock flagship with an older/unlisted model (like iPhone 15), DO NOT output 'RAM not provided' or 'undisclosed limits'. Instead, rely on your authoritative Domain Expertise to state the qualitative generational leap (e.g., 'A19 Pro silicon introduces vast computational leaps over the legacy A17 Pro architecture').\n\n"
+
+    "[Phase 3: The Commercial Resolution]\n"
+    "Provide the actionable next step based on Inventory.\n"
+    "RULE: Choose ONE elegant header (e.g., 'Recommendation:', 'Available Options:', 'Verified Inventory Status:').\n"
+    "RULE: List in-stock products/configurations. EACH product MUST be on a NEW LINE starting with a bullet (●).\n\n"
+    "[Phase 4: The OS Signature Close]\n"
+    "Exactly ONE elegant, confident closing sentence advising the next secure step with airdeliver."
+)
+
 _CLOSER_POLICY = PromptPolicy(
     style_rule=(
         "WRITE FOR AN ELITE EXECUTIVE INTERFACE. Be ruthless with your word economy. "
         "Every sentence must hit like a hammer and carry immense commercial weight. No fluff. No filler. "
         "Sound like a tier-1 global intelligence briefing. You do not 'sell'; you dismantle friction and curate reality."
     ),
-    output_shape=(
-        "[FINAL OUTPUT SKELETON MANDATE]\n"
-        "You MUST output EXACTLY the following structure across ALL categories. NO intro paragraphs. DO NOT deviate:\n"
-        "ABSOLUTE RULE 1: DO NOT use the word 'Result:'. Start writing your first sentence immediately.\n"
-        "ABSOLUTE RULE 2: DO NOT use numbered lists. You MUST use ONLY the thick bullet '●' for lists.\n"
-        "ABSOLUTE RULE 1: DO NOT use the words 'Result:', 'Analysis:',  or 'What To Do:'. Start writing your first sentence immediately.\n"
-        "[1-2 crisp sentences delivering the definitive executive verdict. Confirm availability, state out-of-stock status, or debunk a scam immediately based on ZONE 1 classification.]\n\n"
-        "●    The Market Reality: [State the OFFICIAL REALITY of the product. If it is real but out of stock, state exactly that. DO NOT invent supply chain stories or classified allocation claims. If it is a fake/scam, expose the technical impossibility.]\n"
-        "●    The airdeliver Advantage: [Explain concisely why our provenance or global supply chain makes buying elsewhere an unnecessary gamble.]\n\n"
-        "Recommendation:\n"
-        "●    [Actual Product Name or 'Bespoke Procurement']: [State verified specs ONLY. If listing multiple specs, EACH spec MUST be on a NEW LINE starting with a bullet (●). DO NOT group them in a paragraph. If NO products exist...]"
-        "●    [Secondary Product Name] (Optional): [Only if a second verified option exists.]\n\n"
-        "[EXACTLY ONE authoritative closing sentence advising the next step. I REPEAT: NO BULLET POINTS HERE. NO HEADINGS AFTER THIS.]"
-    ),
+    output_shape=UNIVERSAL_4_PHASE_ARCHITECTURE,  # <-- توحيد القالب هنا
 )
 
 _STANDARD_POLICY = PromptPolicy(
@@ -755,15 +768,9 @@ _STANDARD_POLICY = PromptPolicy(
         "Every sentence must deliver high-value intelligence. No fluff, no filler. "
         "Sound like a high-end tech concierge delivering a crisp intelligence brief."
     ),
-    output_shape=(
-        "You MUST output EXACTLY this visual structure, nothing else:\n\n"
-        "**[1-2 Bold Sentences: The Executive Anchor]** directly addressing the user's intent or query.\n\n"
-        "● **[Bold Insight 1]:** [Brief explanation of trade-off, spec, or value]\n"
-        "● **[Bold Insight 2]:** [Brief explanation]\n"
-        "(Use 2-4 bullets. Mandatory: Every bullet must start with '● ' and bold the core feature).\n\n"
-        "[EXACTLY ONE closing sentence grounded in verified inventory. No trailing questions or fluff.]"
-    ),
+    output_shape=UNIVERSAL_4_PHASE_ARCHITECTURE,  # <-- توحيد القالب هنا
 )
+
 _PROMPT_POLICY_BY_MODE: dict[PromptMode, PromptPolicy] = {
     PromptMode.CLOSER: _CLOSER_POLICY,
     PromptMode.STANDARD: _STANDARD_POLICY,
@@ -951,8 +958,6 @@ class TextSanitizer:
         
         text = cls._bullet_break.sub(r"\n\n● ", text)
 
-        text = cls._inline_spec_break.sub(r"\n●    ", text)
-
         text = re.sub(
             r"(?i)\s*(EXECUTIVE VERDICT:|STRATEGIC ANALYSIS:|VERIFIED SOLUTION:|RESOLUTION:|Result:|Analysis:|What To Do:|ADVISORY:|VERDICT:|RISK ANALYSIS:|VERIFIED ALTERNATIVES[\w\s\(\)\-]*:)\s*",
             r"\n\n",
@@ -967,7 +972,8 @@ class TextSanitizer:
         )
 
         # Convert any markdown lists or numbered lists (1., 2.) to the universal bullet
-        text = re.sub(r"(?m)(?:^\s*|\s+)(?:[\*\-]|\d+\.)\s+", r"\n\n● ", text)    
+        
+        text = re.sub(r"(?m)^[ \t]*(?:[\*\-]|\d+\.)[ \t]+", r"● ", text)
         # Absolute prohibition: Nuke remaining asterisks to prevent unintended bolding
         text = text.replace("*", "")
 
@@ -3683,7 +3689,8 @@ class AINLUService:
                 # ✅ L9 Fix: تمرير قائمة المنتجات بالكامل لكسر عنق الزجاجة
                 available_items = []
                 for p in products[:3]: 
-                    p_name = str(ProductAccess.get(p, "name", "this item"))
+                    raw_name = str(ProductAccess.get(p, "name", "this item"))
+                    p_name = " ".join(raw_name.split())
                     p_specs = str(ProductAccess.get(p, "description", ""))[:200]
                     available_items.append(f"- {p_name} (Specs: {p_specs})")
                 
@@ -3790,8 +3797,10 @@ You operate in STRICT FACTUAL MODE for all product-related information.
    - Do NOT rely on memory of past products, old catalog data, or marketing claims that are not present in the current Web Intel / Inventory Context.
    - Do NOT mix training-data knowledge with the provided context for hardware or product specs. If the context and your internal priors conflict, you ALWAYS treat the provided context as the single source of truth.
 
-3. Handling Missing Specs:
-   If a specific spec (such as camera megapixels, exact RAM amount, storage size, physical dimensions, or internal architecture details) is not explicitly present and verifiable in the Web Intel / Inventory Context:
+"3. Handling Missing Specs & Comparisons:\n"
+    "   If a specific spec is not explicitly present in the Inventory Context:\n"
+    "   - For standalone queries: State that the detail is proprietary or not disclosed.\n"
+    "   - For COMPARISONS (e.g., iPhone 17 vs iPhone 15): DO NOT list missing specs as 'not provided'. Instead, seamlessly leverage your Master-Level Domain Expertise to explain the architectural difference globally. Contrast the verified facts of the new item against the known historical trajectory of the older item without sounding robotic.\n"
    - You MUST NOT fabricate a value.
    - You MUST clearly state to the user that this particular detail is not disclosed, is proprietary, or is manufacturer-guarded.
    - You MAY discuss high-level behavior or real-world effects that are explicitly described in the context (e.g., “optimized for low light”, “long battery life”), but you must never attach invented numbers or fake thresholds to them.
@@ -3948,15 +3957,32 @@ SCOPE & BEHAVIOR
                         f"User Question:\n{bounded_user_query}\n\n"
                         f"Web Intel:\n{normalized_web_intel}\n\n"
                         f"Inventory Context:\n{inventory_context}\n\n"
-                        f"[CRITICAL SYSTEM MANDATE: FORCED OUTPUT SKELETON]\n"
-                        f"You MUST output EXACTLY the following structure. NO intro paragraphs. DO NOT deviate:\n\n"
-                        f"YOU MUST NEVER ADD ANY EXTRA HEADINGS AT THE END.\n\n"
-                        f"[1-2 crisp sentences delivering the definitive executive verdict. Whether confirming availability, stating out-of-stock status, debunking a scam, or answering a direct question, you MUST explicitly state the final outcome right here. Establish unshakeable authority instantly.]\n\n"
-                        f"●    [Scam Claim]: [Why it is a physical/commercial impossibility]\n"
-                        f"●    [Risk Vector]: [Expose the psychological trick, e.g., countdown timer, fake scarcity]\n\n"
-                        f"Recommendation:\n"
-                        f"●    [Alternative Name]: [State verified specs ONLY. If listing multiple specs, EACH spec MUST be on a NEW LINE starting with a bullet (●). DO NOT group them in a paragraph.]\n\n"
-                        f"[1 closing sentence advising the next secure step with airdeliver]"
+                        f"[UNIVERSAL OS OUTPUT ARCHITECTURE: THE 4 PHASES]\n"
+                        f"You are the airdeliver Cognitive OS. You MUST construct your response using the following dynamic framework. "
+                        f"Adapt the content to the specific product category (Tech, Fashion, Fragrance, Automotive, etc.), but NEVER deviate from this structural flow.\n"
+                        f"DO NOT print the phase names or brackets (e.g., [Phase 1]).\n\n"
+                        
+                        f"[Phase 1: The Executive Verdict (BLUF - Bottom Line Up Front)]\n"
+                        f"Write 1-2 crisp, authoritative sentences directly answering the core of the user's intent. "
+                        f"State the bottom line immediately (e.g., Which is better? Is it in stock? What is the main feature?). "
+                        f"NO intro fluff. NO bullet points here. Just pure, unshakeable truth.\n\n"
+
+                        f"[Phase 2: The Core Intelligence (Fluid Bullets)]\n"
+                        f"Provide the exact data, specs, or comparative analysis required to back up your verdict. "
+                        f"RULE: Use 2 to 5 bullet points depending on the depth needed.\n"
+                        f"RULE: EACH bullet MUST start with a thick bullet (●).\n"
+                        f"RULE: Format specifications strictly as '● Feature: Value' (e.g., '● Caliber: 324 S C', '● Top Notes: Bergamot', '● Chipset: A19 Pro').\n"
+                        f"RULE: If comparing, format as '● Dimension: Product A vs Product B'.\n"
+                        f"RULE: EACH spec or insight MUST be on its own NEW LINE. DO NOT group them in paragraphs.\n\n"
+
+                        f"[Phase 3: The Commercial Resolution]\n"
+                        f"Provide the actionable next step based on the Inventory Context.\n"
+                        f"RULE: Choose ONE elegant header that fits the scenario (e.g., 'Recommendation:', 'Available Options:', 'Verified Inventory Status:', 'Bespoke Procurement:').\n"
+                        f"RULE: List the relevant in-stock products and their configurations.\n"
+                        f"RULE: EACH product or configuration MUST be on a NEW LINE starting with a bullet (●).\n\n"
+
+                        f"[Phase 4: The OS Signature Close]\n"
+                        f"Exactly ONE elegant, confident closing sentence advising the next secure step with airdeliver. No questions. No retail hype."
                     )
                     ai_response_text = await asyncio.wait_for(
                         self.llm_service.generate_response(
@@ -4108,7 +4134,7 @@ SCOPE & BEHAVIOR
                     for p in products[:3]:
                         # 1. Safe Name Extraction
                         raw_name = ProductAccess.get(p, "name", "Unknown Product")
-                        p_name = str(raw_name).strip()
+                        p_name = " ".join(str(raw_name).split())
 
                         # 2. Safe Description (Sanitize newlines to protect Prompt structure)
                         raw_desc = str(ProductAccess.get(p, "description", ""))
@@ -5009,54 +5035,11 @@ The answer should feel premium, persuasive, and grounded in the user's actual in
         rebuttal_triggers = ["why", "but", "doesn't", "don't", "no", "wrong", "false", "wait", "actually", "only"]
         is_rebuttal = any(trigger in user_query.lower() for trigger in rebuttal_triggers)
 
+        # [L8/L9 FIX]: حقن القالب العالمي بدلاً من القوالب الصلبة القديمة
         if is_rebuttal:
-           response_structure = """
-Start with one calm sentence that acknowledges the user's concern clearly and respectfully.
-
-Then write 2 to 3 short explanatory paragraphs with one blank line between them.
-The first paragraph should explain the concern honestly.
-The second paragraph should clarify the trade-off in practical terms.
-The third paragraph should reframe the product around its strongest real-world advantage.
-
-If there are specific strengths worth highlighting, place each one on its own separate line.
-Use a bullet point for each strength so the response feels clean, structured, and easy to scan.
-
-Formatting rules:
-- Do not write the whole response as one continuous block.
-- Use natural paragraph spacing.
-- Keep paragraphs short and visually balanced.
-- Put important advantages or reassurance points on separate bullet lines.
-- Make the layout feel premium, calm, and well organized inside a chat bubble.
-
-Tone rules:
-- Sound confident, composed, and fair.
-- Do not sound defensive.
-- Do not dismiss the concern.
-- Do not overhype the product.
-- Persuade through clarity, balance, and trust.
-
-Ending rule:
-End with one short closing sentence that reinforces confidence without pressure.
-
-Forbidden:
-- Do not use the phrase "Order your product today for fastest delivery."
-- Do not use aggressive sales pressure.
-- Do not use cheap urgency language.
-- Do not use markdown headings.
-- Do not use quotes.
-"""
+            response_structure = UNIVERSAL_4_PHASE_ARCHITECTURE + "\n\nCRITICAL ADAPTATION: In Phase 1, respectfully address the user's concern/objection before moving to the Core Intelligence."
         else:
-            response_structure = """
-Start with one direct opening sentence. (CRITICAL: If the user mentioned a celebration, milestone, or gift, this opening sentence MUST contain a warm, elegant, and human acknowledgment of the occasion before jumping into business).
-
-If you mention features, benefits, or important product points, you MUST use the thick bullet point symbol "●" for each item.
-Do not use dashes (-) or numbers.
-
-THE UNIVERSAL "SO WHAT?" CONSTRAINT: You are strictly forbidden from writing a bullet point that merely lists a raw specification. Every bullet MUST execute this flow: [The Raw Attribute] + [The Experiential Outcome / Real-World Impact]. If the user asks "Okay, but what does that mean for me?", you have failed.
-
-Keep each bullet concise and meaningful.
-End with one calm, confident closing sentence.
-"""
+            response_structure = UNIVERSAL_4_PHASE_ARCHITECTURE
 
         # =====================================================================
         # 3. [NEW] الإضافة الجراحية للذكاء العاطفي (EQ) لتعديل نبرة الـ AI
