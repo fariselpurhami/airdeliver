@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, List, Optional, TYPE_CHECKING
+from typing import Any, List, Dict, Optional, TYPE_CHECKING
 
 from pydantic import field_validator
-from sqlalchemy import CheckConstraint, Column, DateTime, Numeric, JSON
+from sqlalchemy import CheckConstraint, Column, DateTime, Numeric
+from sqlalchemy.dialects.postgresql import JSONB  # <-- L8 Upgrade: استخدام JSONB بدلاً من JSON
 from sqlmodel import Field, Relationship, SQLModel
 
 from sqlalchemy.orm import Mapped, relationship
@@ -34,10 +35,20 @@ class Product(SQLModel, table=True):
     inventory: int = Field(default=0, nullable=False, ge=0)
     image: Optional[str] = Field(default=None, max_length=2048)
     category: str = Field(default="uncategorized", index=True, max_length=128)
+    
+    # ---------------------------------------------------------
+    # L8 Architecture: JSONB with strict typing and defaults
+    # ---------------------------------------------------------
+    attributes: Dict[str, str] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default='{}')
+    )
     tags: List[str] = Field(
         default_factory=list, 
-        sa_column=Column(JSON, nullable=False, server_default="[]")
+        sa_column=Column(JSONB, nullable=False, server_default='[]')
     )
+    # ---------------------------------------------------------
+
     rating: Optional[float] = Field(default=None, index=True, ge=0.0, le=5.0)
     is_active: bool = Field(default=True, index=True)
 

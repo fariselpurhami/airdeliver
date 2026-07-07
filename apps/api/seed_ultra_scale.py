@@ -2,15 +2,19 @@ import asyncio
 import json
 import logging
 import random
+import signal
 import ssl
+import sys
+from collections.abc import AsyncGenerator, Iterable, Sequence
+from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Any, Final, Iterable, Sequence
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any, Final, Protocol, runtime_checkable
 
 from opensearchpy import AsyncOpenSearch, helpers
 from opensearchpy.exceptions import RequestError
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pymilvus import DataType, MilvusClient
 from sentence_transformers import SentenceTransformer
@@ -18,9 +22,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-
 LOGGER_NAME: Final[str] = "ultra_scale_seeder"
-UTC = timezone.utc
+UTC: Final[timezone] = timezone.utc
 DEFAULT_CURRENCY: Final[str] = "USD"
 JSON_LOG_FORMAT: Final[str] = "%(message)s"
 
@@ -47,20 +50,12 @@ def quantize_price(value: Decimal) -> Decimal:
 
 def chunked(items: Sequence[Any], size: int) -> Iterable[Sequence[Any]]:
     for index in range(0, len(items), size):
-        yield items[index:index + size]
+        yield items[index : index + size]
 
 
 def json_log(logger: logging.Logger, level: int, event: str, **fields: Any) -> None:
     payload = {"ts": datetime.now(UTC).isoformat(), "event": event, **fields}
     logger.log(level, json.dumps(payload, default=str, ensure_ascii=False))
-
-
-def request_error_text(error: RequestError) -> str:
-    parts = [str(error)]
-    info = getattr(error, "info", None)
-    if info is not None:
-        parts.append(str(info))
-    return " | ".join(parts).lower()
 
 
 class Settings(BaseSettings):
@@ -95,28 +90,24 @@ class Settings(BaseSettings):
     fail_on_milvus_error: bool = Field(False, alias="FAIL_ON_MILVUS_ERROR")
     fail_on_opensearch_error: bool = Field(True, alias="FAIL_ON_OPENSEARCH_ERROR")
 
-    @field_validator("opensearch_user")
-    @classmethod
-    def validate_opensearch_auth_pair_user(cls, value: str | None, info: Any) -> str | None:
-        password = info.data.get("opensearch_pass")
-        if (value is None) ^ (password is None):
+    @model_validator(mode="after")
+    def validate_opensearch_auth(self) -> "Settings":
+        if (self.opensearch_user is None) ^ (self.opensearch_pass is None):
             raise ValueError("OPENSEARCH_USER and OPENSEARCH_PASS must be provided together")
-        return value
+        return self
 
     @field_validator("opensearch_index", "milvus_collection")
     @classmethod
     def validate_resource_name(cls, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("resource name must not be empty")
+        if not (normalized := value.strip()):
+            raise ValueError("Resource name must not be empty")
         return normalized
 
     @field_validator("postgres_dsn", "milvus_uri", "embedding_model", "opensearch_host")
     @classmethod
     def validate_non_empty(cls, value: str) -> str:
-        normalized = value.strip()
-        if not normalized:
-            raise ValueError("value must not be empty")
+        if not (normalized := value.strip()):
+            raise ValueError("Value must not be empty")
         return normalized
 
 
@@ -132,6 +123,7 @@ class Product(BaseModel):
     inventory: int
     image: str
     rating: float
+    attributes: dict[str, str]
     tags: list[str]
     created_at: datetime
     updated_at: datetime
@@ -143,36 +135,35 @@ class Product(BaseModel):
     def validate_currency(cls, value: str) -> str:
         normalized = value.strip().upper()
         if len(normalized) != 3:
-            raise ValueError("currency must be a 3-letter ISO code")
+            raise ValueError("Currency must be a 3-letter ISO code")
         return normalized
 
     @field_validator("tags")
     @classmethod
     def validate_tags(cls, value: list[str]) -> list[str]:
-        normalized = [tag.strip() for tag in value if tag.strip()]
-        if not normalized:
-            raise ValueError("tags must not be empty")
+        if not (normalized := [tag.strip() for tag in value if tag.strip()]):
+            raise ValueError("Tags must not be empty")
         return normalized
 
     @field_validator("price")
     @classmethod
     def validate_price(cls, value: Decimal) -> Decimal:
         if value <= 0:
-            raise ValueError("price must be positive")
+            raise ValueError("Price must be positive")
         return quantize_price(value)
 
     @field_validator("inventory")
     @classmethod
     def validate_inventory(cls, value: int) -> int:
         if value < 0:
-            raise ValueError("inventory must be non-negative")
+            raise ValueError("Inventory must be non-negative")
         return value
 
     @field_validator("rating")
     @classmethod
     def validate_rating(cls, value: float) -> float:
-        if value < 0 or value > 5:
-            raise ValueError("rating must be between 0 and 5")
+        if not (0.0 <= value <= 5.0):
+            raise ValueError("Rating must be between 0 and 5")
         return round(value, 1)
 
 
@@ -184,12 +175,13 @@ class ProductVector(BaseModel):
     price: float
     rating: float
     category: str
+    attributes: dict[str, str]
 
     @field_validator("vector")
     @classmethod
     def validate_vector(cls, value: list[float]) -> list[float]:
         if not value:
-            raise ValueError("vector must not be empty")
+            raise ValueError("Vector must not be empty")
         return value
 
 
@@ -198,144 +190,127 @@ class CatalogItemTemplate:
     name: str
     base_price: int
     image: str
+    specs: tuple[str, ...]
+    colors: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class CategorySeedData:
     products: tuple[CatalogItemTemplate, ...]
-    specs: tuple[str, ...]
-    colors: tuple[str, ...]
 
 
 CATALOG_DATA: Final[dict[str, CategorySeedData]] = {
-    # 1. Electronics (10%)
     "Electronics": CategorySeedData(
         products=(
-            CatalogItemTemplate("Apple iPhone 15 Pro Max", 1199, "https://cdn.airdeliver.com/assets/elec_iphone15_pro.jpg"),
-            CatalogItemTemplate("Samsung Galaxy S24 Ultra", 1299, "https://cdn.airdeliver.com/assets/elec_s24_ultra.jpg"),
-            CatalogItemTemplate("MacBook Pro 16 M3 Max", 2499, "https://cdn.airdeliver.com/assets/elec_macbook_m3.jpg"),
-            CatalogItemTemplate("Sony WH-1000XM5 Headphones", 348, "https://cdn.airdeliver.com/assets/elec_sony_xm5.jpg"),
-        ),
-        specs=("256GB / 16GB RAM", "512GB / 32GB RAM", "1TB / 64GB RAM", "Noise Cancelling"),
-        colors=("Titanium", "Phantom Black", "Space Grey", "Silver"),
+            CatalogItemTemplate("Apple iPhone 17 Pro Max", 1299, "https://images.unsplash.com/photo-1605236453806-6ff36852167e?auto=format&fit=crop&w=800&q=80", ("256GB / 12GB RAM", "512GB / 12GB RAM", "1TB / 12GB RAM", "2TB / 16GB RAM"), ("Desert Titanium", "Natural Titanium", "Black Titanium", "White Titanium")),
+            CatalogItemTemplate("Apple iPhone 16 Pro", 999, "https://images.unsplash.com/photo-1616348436168-de43ad0db179?auto=format&fit=crop&w=800&q=80", ("128GB / 8GB RAM", "256GB / 8GB RAM", "512GB / 8GB RAM", "1TB / 8GB RAM"), ("Natural Titanium", "Blue Titanium", "White Titanium", "Black Titanium")),
+            CatalogItemTemplate("Samsung Galaxy S26 Ultra", 1399, "https://images.unsplash.com/photo-1610945265064-3234eb351684?auto=format&fit=crop&w=800&q=80", ("256GB / 12GB RAM", "512GB / 16GB RAM", "1TB / 16GB RAM"), ("Titanium Gray", "Titanium Black", "Titanium Violet", "Titanium Yellow")),
+            CatalogItemTemplate("Samsung Galaxy S25", 799, "https://images.unsplash.com/photo-1585060544812-6b45742d762f?auto=format&fit=crop&w=800&q=80", ("128GB / 8GB RAM", "256GB / 8GB RAM"), ("Onyx Black", "Marble Gray", "Cobalt Violet", "Amber Yellow")),
+            CatalogItemTemplate("Apple MacBook Pro 16 M4 Max", 3499, "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80", ("1TB SSD / 36GB RAM", "2TB SSD / 48GB RAM", "4TB SSD / 128GB RAM"), ("Space Black", "Silver")),
+            CatalogItemTemplate("Sony WH-1000XM6 Headphones", 399, "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?auto=format&fit=crop&w=800&q=80", ("Active Noise Cancelling / 40h Battery", "Spatial Audio / Multi-point"), ("Black", "Platinum Silver", "Midnight Blue")),
+        )
     ),
-    
-    # 2. Women's Clothing (10%)
-    "Womens_Clothing": CategorySeedData(
-        products=(
-            CatalogItemTemplate("Zara Silk Midi Dress", 89, "https://cdn.airdeliver.com/assets/w_cloth_silk_dress.jpg"),
-            CatalogItemTemplate("Mango Tailored Wool Coat", 159, "https://cdn.airdeliver.com/assets/w_cloth_wool_coat.jpg"),
-            CatalogItemTemplate("Massimo Dutti Cashmere Sweater", 129, "https://cdn.airdeliver.com/assets/w_cloth_cashmere.jpg"),
-            CatalogItemTemplate("Levi's 501 Original Jeans", 98, "https://cdn.airdeliver.com/assets/w_cloth_levis.jpg"),
-        ),
-        specs=("Size S", "Size M", "Size L", "Premium Fabric"),
-        colors=("Navy Blue", "Beige", "Burgundy", "Classic Denim"),
-    ),
-
-    # 3. Men's Clothing (10%)
     "Mens_Clothing": CategorySeedData(
         products=(
-            CatalogItemTemplate("Hugo Boss Tailored Suit", 699, "https://cdn.airdeliver.com/assets/m_cloth_boss_suit.jpg"),
-            CatalogItemTemplate("Ralph Lauren Oxford Shirt", 115, "https://cdn.airdeliver.com/assets/m_cloth_rl_shirt.jpg"),
-            CatalogItemTemplate("Nike Tech Fleece Hoodie", 130, "https://cdn.airdeliver.com/assets/m_cloth_nike_fleece.jpg"),
-            CatalogItemTemplate("Diesel Slim Fit Jeans", 145, "https://cdn.airdeliver.com/assets/m_cloth_diesel.jpg"),
-        ),
-        specs=("Size 38R", "Size M", "Size L", "Slim Fit"),
-        colors=("Charcoal Grey", "White", "Black", "Dark Wash"),
+            CatalogItemTemplate("Hugo Boss Tailored Wool Suit", 895, "https://images.unsplash.com/photo-1593032465175-481ac7f401a0?auto=format&fit=crop&w=800&q=80", ("Size 38R", "Size 40R", "Size 42L", "Size 44L"), ("Charcoal Grey", "Navy Blue", "Black")),
+            CatalogItemTemplate("Ralph Lauren Oxford Cloth Shirt", 125, "https://images.unsplash.com/photo-1596755095609-ed3736d8d32a?auto=format&fit=crop&w=800&q=80", ("Size S", "Size M", "Size L", "Size XL", "Size XXL"), ("Optic White", "Light Blue", "Pink", "Navy")),
+            CatalogItemTemplate("Nike Tech Fleece Full-Zip", 145, "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=800&q=80", ("Size S", "Size M", "Size L", "Size XL"), ("Dark Heather Grey", "Black", "Midnight Navy", "Olive")),
+            CatalogItemTemplate("Diesel D-Strukt Slim Jeans", 195, "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=800&q=80", ("Size 30x30", "Size 32x32", "Size 34x32", "Size 36x34"), ("Vintage Wash", "Dark Indigo", "Pitch Black")),
+            CatalogItemTemplate("Tom Ford Tuxedo Jacket", 3490, "https://images.unsplash.com/photo-1507679622115-37cb455f3299?auto=format&fit=crop&w=800&q=80", ("Size 38R", "Size 40R", "Size 42R", "Size 44R"), ("Jet Black", "Midnight Blue")),
+            CatalogItemTemplate("Patagonia Better Sweater", 149, "https://images.unsplash.com/photo-1611312449408-fcece27cdbb1?auto=format&fit=crop&w=800&q=80", ("Size S", "Size M", "Size L", "Size XL"), ("Stonewash", "Nickel", "Black")),
+        )
     ),
-
-    # 4. Makeup (10%)
-    "Makeup": CategorySeedData(
+    "Womens_Clothing": CategorySeedData(
         products=(
-            CatalogItemTemplate("Dior Backstage Foundation", 40, "https://cdn.airdeliver.com/assets/makeup_dior_found.jpg"),
-            CatalogItemTemplate("Charlotte Tilbury Lipstick", 35, "https://cdn.airdeliver.com/assets/makeup_ct_lips.jpg"),
-            CatalogItemTemplate("Huda Beauty Eyeshadow Palette", 67, "https://cdn.airdeliver.com/assets/makeup_huda_pal.jpg"),
-            CatalogItemTemplate("Fenty Beauty Gloss Bomb", 21, "https://cdn.airdeliver.com/assets/makeup_fenty_gloss.jpg"),
-        ),
-        specs=("Matte Finish", "Luminous", "High Pigment", "Long-lasting"),
-        colors=("Pillow Talk", "Rosewood", "Nude", "Universal"),
+            CatalogItemTemplate("Zara Pure Silk Midi Dress", 119, "https://images.unsplash.com/photo-1566206091558-7f218b69d731?auto=format&fit=crop&w=800&q=80", ("Size XS", "Size S", "Size M", "Size L"), ("Emerald Green", "Champagne", "Black", "Burgundy")),
+            CatalogItemTemplate("Mango Tailored Wool-Blend Coat", 229, "https://images.unsplash.com/photo-1539533285-d6d0db907fa0?auto=format&fit=crop&w=800&q=80", ("Size XS", "Size S", "Size M", "Size L", "Size XL"), ("Camel", "Navy", "Charcoal", "Cream")),
+            CatalogItemTemplate("Massimo Dutti Cashmere Knit", 169, "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=800&q=80", ("Size XS", "Size S", "Size M", "Size L"), ("Oatmeal", "Soft Grey", "Navy", "Dusty Pink")),
+            CatalogItemTemplate("Levi's 501 Original Fit Jeans", 108, "https://images.unsplash.com/photo-1542272201-b1b795ea0fa6?auto=format&fit=crop&w=800&q=80", ("Size 24", "Size 26", "Size 28", "Size 30", "Size 32"), ("Classic Indigo", "Light Wash", "Black", "Bleached")),
+            CatalogItemTemplate("Lululemon Align High-Rise Pant", 98, "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=800&q=80", ("Size 0", "Size 2", "Size 4", "Size 6", "Size 8", "Size 10"), ("Black", "True Navy", "Dark Olive", "Espresso")),
+            CatalogItemTemplate("Burberry Kensington Trench Coat", 2490, "https://images.unsplash.com/photo-1559582798-678dfc71ce5e?auto=format&fit=crop&w=800&q=80", ("Size UK 4", "Size UK 6", "Size UK 8", "Size UK 10", "Size UK 12"), ("Honey", "Midnight", "Coal Blue")),
+        )
     ),
-
-    # 5. Accessories (10%)
-    "Accessories": CategorySeedData(
-        products=(
-            CatalogItemTemplate("Ray-Ban Aviator Classic", 160, "https://cdn.airdeliver.com/assets/acc_rayban.jpg"),
-            CatalogItemTemplate("Gucci GG Marmont Belt", 450, "https://cdn.airdeliver.com/assets/acc_gucci_belt.jpg"),
-            CatalogItemTemplate("Louis Vuitton Neverfull Tote", 1800, "https://cdn.airdeliver.com/assets/acc_lv_tote.jpg"),
-            CatalogItemTemplate("Montblanc Meisterstück Pen", 590, "https://cdn.airdeliver.com/assets/acc_montblanc.jpg"),
-        ),
-        specs=("Gold-Tone Hardware", "Genuine Leather", "Canvas", "Polarized Lenses"),
-        colors=("Gold/Green", "Black/Gold", "Monogram", "Platinum"),
-    ),
-
-    # 6. Men's Shoes (10%)
-    "Mens_Shoes": CategorySeedData(
-        products=(
-            CatalogItemTemplate("Nike Air Jordan 1 Retro", 180, "https://cdn.airdeliver.com/assets/m_shoe_jordan.jpg"),
-            CatalogItemTemplate("Adidas Yeezy Boost 350", 230, "https://cdn.airdeliver.com/assets/m_shoe_yeezy.jpg"),
-            CatalogItemTemplate("Cole Haan Oxford Leather", 150, "https://cdn.airdeliver.com/assets/m_shoe_oxford.jpg"),
-            CatalogItemTemplate("Timberland 6-Inch Boot", 198, "https://cdn.airdeliver.com/assets/m_shoe_timberland.jpg"),
-        ),
-        specs=("Size 10 US", "Size 11 US", "Size 43 EU", "Waterproof"),
-        colors=("Chicago Red", "Bone White", "Cognac", "Wheat"),
-    ),
-
-    # 7. Women's Shoes (10%)
-    "Womens_Shoes": CategorySeedData(
-        products=(
-            CatalogItemTemplate("Christian Louboutin So Kate", 795, "https://cdn.airdeliver.com/assets/w_shoe_louboutin.jpg"),
-            CatalogItemTemplate("Jimmy Choo Romy 85", 695, "https://cdn.airdeliver.com/assets/w_shoe_jimmy.jpg"),
-            CatalogItemTemplate("Nike Air Force 1 Shadow", 120, "https://cdn.airdeliver.com/assets/w_shoe_af1.jpg"),
-            CatalogItemTemplate("Veja Campo Sneakers", 155, "https://cdn.airdeliver.com/assets/w_shoe_veja.jpg"),
-        ),
-        specs=("Size 38 EU", "Size 39 EU", "120mm Heel", "Comfort Fit"),
-        colors=("Nude Patent", "Black Suede", "White/Pastel", "White/Green"),
-    ),
-
-    # 8. Perfumes (10%)
-    "Perfumes": CategorySeedData(
-        products=(
-            CatalogItemTemplate("Tom Ford Oud Wood Eau de Parfum", 295, "https://cdn.airdeliver.com/assets/perf_oud_wood.jpg"),
-            CatalogItemTemplate("Creed Aventus", 365, "https://cdn.airdeliver.com/assets/perf_aventus.jpg"),
-            CatalogItemTemplate("Maison Francis Kurkdjian Baccarat Rouge 540", 325, "https://cdn.airdeliver.com/assets/perf_baccarat.jpg"),
-            CatalogItemTemplate("Chanel Bleu de Chanel", 130, "https://cdn.airdeliver.com/assets/perf_bleu.jpg"),
-        ),
-        specs=("50ml", "100ml", "Eau de Parfum", "Extrait de Parfum"),
-        colors=("Amber", "Clear", "Signature Red", "Deep Blue"),
-    ),
-
-    # 9. Skincare (10%)
-    "Skincare": CategorySeedData(
-        products=(
-            CatalogItemTemplate("Estée Lauder Advanced Night Repair", 115, "https://cdn.airdeliver.com/assets/skin_estee.jpg"),
-            CatalogItemTemplate("La Mer Crème de la Mer", 380, "https://cdn.airdeliver.com/assets/skin_lamer.jpg"),
-            CatalogItemTemplate("Paula's Choice 2% BHA", 34, "https://cdn.airdeliver.com/assets/skin_paula.jpg"),
-            CatalogItemTemplate("Kiehl's Ultra Facial Cream", 38, "https://cdn.airdeliver.com/assets/skin_kiehls.jpg"),
-        ),
-        specs=("30ml", "50ml", "Anti-Aging", "Hydrating"),
-        colors=("Unscented", "Botanical", "Classic", "Clear"),
-    ),
-
-    # 10. Watches (10%)
     "Watches": CategorySeedData(
         products=(
-            CatalogItemTemplate("Rolex Submariner Date", 10250, "https://cdn.airdeliver.com/assets/watch_rolex_sub.jpg"),
-            CatalogItemTemplate("Omega Speedmaster Professional", 7000, "https://cdn.airdeliver.com/assets/watch_omega_speed.jpg"),
-            CatalogItemTemplate("Tissot PRX Powermatic 80", 725, "https://cdn.airdeliver.com/assets/watch_tissot.jpg"),
-            CatalogItemTemplate("Casio G-Shock Mudmaster", 380, "https://cdn.airdeliver.com/assets/watch_gshock.jpg"),
-        ),
-        specs=("Automatic", "Chronograph", "40mm Case", "Sapphire Crystal"),
-        colors=("Oystersteel", "Stainless Steel", "Ice Blue", "Tactical Black"),
+            CatalogItemTemplate("Rolex Submariner Date 126610LN", 10250, "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=800&q=80", ("Automatic / 41mm Case / 300m Water Res.", "Automatic / 41mm Case / Date"), ("Oystersteel / Black Dial", "Oystersteel / Green Bezel (Kermit)")),
+            CatalogItemTemplate("Omega Speedmaster Moonwatch", 7000, "https://images.unsplash.com/photo-1622434641406-a15661bbd85e?auto=format&fit=crop&w=800&q=80", ("Manual-winding / 42mm Case / Chronograph", "Co-Axial Master Chronometer"), ("Stainless Steel / Black Dial", "Hesalite Crystal / Steel")),
+            CatalogItemTemplate("Patek Philippe Nautilus 5811", 69700, "https://images.unsplash.com/photo-1548171915-e7afaca07970?auto=format&fit=crop&w=800&q=80", ("Automatic / 41mm Case / Caliber 26-330", "White Gold / Open Caseback"), ("Sunburst Blue Dial",)),
+            CatalogItemTemplate("Audemars Piguet Royal Oak", 27000, "https://images.unsplash.com/photo-1587836374828-cb4387df3c7c?auto=format&fit=crop&w=800&q=80", ("Automatic / 41mm Case / 50m Water Res.", "Self-winding / Calibre 4302"), ("Stainless Steel / Blue Dial", "Stainless Steel / Silver Dial", "Stainless Steel / Black Dial")),
+            CatalogItemTemplate("Tissot PRX Powermatic 80", 725, "https://images.unsplash.com/photo-1509048191080-d2984bad6ae5?auto=format&fit=crop&w=800&q=80", ("Automatic / 40mm Case / 80h Power Reserve", "Automatic / 35mm Case"), ("Ice Blue", "Deep Blue", "Emerald Green", "Black")),
+            CatalogItemTemplate("Casio G-Shock Mudmaster GWG-2000", 800, "https://images.unsplash.com/photo-1508685002936-397c76899478?auto=format&fit=crop&w=800&q=80", ("Solar Quartz / 54mm Case / Carbon Core", "Multi-Band 6 / Altimeter"), ("Tactical Black", "Military Green", "Sand")),
+        )
+    ),
+    "Makeup": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Dior Backstage Face & Body Foundation", 43, "https://images.unsplash.com/photo-1599305090598-fe179d501227?auto=format&fit=crop&w=800&q=80", ("Matte Finish / 50ml", "Luminous Matte / Waterproof"), ("0N Neutral", "1W Warm", "2N Neutral", "3W Warm", "4C Cool")),
+            CatalogItemTemplate("Charlotte Tilbury Matte Revolution", 35, "https://images.unsplash.com/photo-1586495777357-1909a34bc6af?auto=format&fit=crop&w=800&q=80", ("Matte Finish / Hydrating Formula", "Long-lasting / Orchid Extract"), ("Pillow Talk Original", "Pillow Talk Medium", "Walk of No Shame", "Red Carpet Red")),
+            CatalogItemTemplate("Huda Beauty Empowered Eyeshadow Palette", 67, "https://images.unsplash.com/photo-1596462502278-27bf8403348d?auto=format&fit=crop&w=800&q=80", ("High Pigment / 18 Shades", "Matte, Metallic, Gel-Liner Hybrids"), ("Empowered (Gold/Copper/Neutrals)",)),
+            CatalogItemTemplate("Fenty Beauty Gloss Bomb", 21, "https://images.unsplash.com/photo-1625014618427-fbc980b974f5?auto=format&fit=crop&w=800&q=80", ("High-Shine Finish / Non-sticky", "Shea Butter Enriched"), ("Fenty Glow", "Diamond Milk", "Fu$$y", "Hot Chocolit")),
+            CatalogItemTemplate("Rare Beauty Soft Pinch Liquid Blush", 23, "https://images.unsplash.com/photo-1629198688000-71f23e745b6e?auto=format&fit=crop&w=800&q=80", ("Radiant Finish / Highly Pigmented", "Matte Finish / Blendable"), ("Joy (Peach)", "Happy (Pink)", "Hope (Nude Mauve)", "Grace (Matte Rose)")),
+            CatalogItemTemplate("MAC Pro Longwear Concealer", 30, "https://images.unsplash.com/photo-1580870059296-1c322b22ce87?auto=format&fit=crop&w=800&q=80", ("Full Coverage / 15-Hour Wear", "Matte Finish / Non-creasing"), ("NC15", "NC20", "NW20", "NC30", "NW35")),
+        )
+    ),
+    "Accessories": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Ray-Ban Aviator Classic", 163, "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=800&q=80", ("Polarized Lenses / 58mm", "Non-Polarized / 55mm", "G-15 Lenses / 62mm"), ("Gold/Green", "Black/Black", "Silver/Blue", "Gunmetal/Brown")),
+            CatalogItemTemplate("Gucci GG Marmont Leather Belt", 480, "https://images.unsplash.com/photo-1624222230623-690226af7298?auto=format&fit=crop&w=800&q=80", ("Genuine Leather / 4cm Width", "Genuine Leather / 3cm Width"), ("Black Leather / Antiqued Gold", "Dusty Pink / Gold", "White / Silver")),
+            CatalogItemTemplate("Louis Vuitton Neverfull MM", 2030, "https://images.unsplash.com/photo-1584916201218-f4242ceb4809?auto=format&fit=crop&w=800&q=80", ("Coated Canvas / Leather Trim", "Removable Zippered Pouch"), ("Monogram Canvas", "Damier Ebene", "Damier Azur")),
+            CatalogItemTemplate("Montblanc Meisterstück Classique Pen", 640, "https://images.unsplash.com/photo-1583485088034-607b3dd33ce0?auto=format&fit=crop&w=800&q=80", ("Rollerball / Precious Resin", "Ballpoint / Gold-coated Clip", "Fountain Pen / 14K Nib"), ("Deep Black / Gold", "Deep Black / Platinum")),
+            CatalogItemTemplate("Hermès Silk Tie", 260, "https://images.unsplash.com/photo-1574634534894-89d7576c8259?auto=format&fit=crop&w=800&q=80", ("100% Silk / 8cm Width", "Hand-stitched / 7cm Width"), ("Navy/Red Pattern", "Burgundy/Grey", "Light Blue/Gold")),
+            CatalogItemTemplate("Cartier LOVE Bracelet", 7350, "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?auto=format&fit=crop&w=800&q=80", ("18K Solid Gold / 6.1mm Width", "Includes Screwdriver / Size 16-21"), ("Yellow Gold", "Rose Gold", "White Gold")),
+        )
+    ),
+    "Mens_Shoes": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Nike Air Jordan 1 Retro High OG", 180, "https://images.unsplash.com/photo-1595950653106-6eb8aca16900?auto=format&fit=crop&w=800&q=80", ("Size 8 US", "Size 9 US", "Size 10 US", "Size 11 US", "Size 12 US", "Size 13 US"), ("Chicago (Red/White/Black)", "Bred (Black/Red)", "Royal Blue", "Shadow")),
+            CatalogItemTemplate("Adidas Yeezy Boost 350 V2", 230, "https://images.unsplash.com/photo-1617606002806-381cff4c28f6?auto=format&fit=crop&w=800&q=80", ("Size 8 US", "Size 9 US", "Size 10 US", "Size 11 US", "Size 12 US"), ("Zebra", "Bone", "Onyx", "Beluga Reflective")),
+            CatalogItemTemplate("Cole Haan ZeroGrand Oxford", 200, "https://images.unsplash.com/photo-1614252369475-531eba835eb1?auto=format&fit=crop&w=800&q=80", ("Size 8 US", "Size 9 US", "Size 10 US", "Size 11 US", "Size 12 US", "Medium Width", "Wide Width"), ("British Tan", "Black Leather", "Ironstone Suede")),
+            CatalogItemTemplate("Timberland 6-Inch Premium Boot", 198, "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?auto=format&fit=crop&w=800&q=80", ("Size 8 US", "Size 9 US", "Size 10 US", "Size 11 US", "Size 12 US", "Waterproof Leather"), ("Wheat Nubuck", "Black Nubuck", "Rust")),
+            CatalogItemTemplate("Nike Dunk Low Retro", 115, "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=800&q=80", ("Size 8 US", "Size 9 US", "Size 10 US", "Size 11 US", "Size 12 US"), ("Panda (Black/White)", "University Red", "Coast Blue")),
+            CatalogItemTemplate("Adidas Samba OG", 100, "https://images.unsplash.com/photo-1514989940723-e8e51635b782?auto=format&fit=crop&w=800&q=80", ("Size 8 US", "Size 9 US", "Size 10 US", "Size 11 US", "Size 12 US", "Gum Sole"), ("White/Black", "Black/White", "Cloud White/Green")),
+        )
+    ),
+    "Womens_Shoes": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Christian Louboutin So Kate Pumps", 795, "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=800&q=80", ("Size 36 EU", "Size 37 EU", "Size 38 EU", "Size 39 EU", "Size 40 EU", "120mm Stiletto Heel"), ("Nude Patent Leather", "Black Patent Leather", "Red Suede")),
+            CatalogItemTemplate("Jimmy Choo Romy 85", 750, "https://images.unsplash.com/photo-1562183241-b937e95585b6?auto=format&fit=crop&w=800&q=80", ("Size 36 EU", "Size 37 EU", "Size 38 EU", "Size 39 EU", "Size 40 EU", "85mm Heel"), ("Platinum Glitter", "Black Suede", "Navy Leather")),
+            CatalogItemTemplate("Nike Air Force 1 Shadow", 130, "https://images.unsplash.com/photo-1515347619152-44a30dbf229c?auto=format&fit=crop&w=800&q=80", ("Size 5 US", "Size 6 US", "Size 7 US", "Size 8 US", "Size 9 US", "Double Swoosh Design"), ("Triple White", "Pastel Multi", "Sail/Pink")),
+            CatalogItemTemplate("Veja Campo Sneakers", 175, "https://images.unsplash.com/photo-1595341888016-a392ef81b7de?auto=format&fit=crop&w=800&q=80", ("Size 36 EU", "Size 37 EU", "Size 38 EU", "Size 39 EU", "Size 40 EU", "Chrome-free Leather"), ("White/Matcha", "White/Black", "White/Natural")),
+            CatalogItemTemplate("Manolo Blahnik Hangisi 105", 1225, "https://images.unsplash.com/photo-1551489186-ccb95a1ea6a3?auto=format&fit=crop&w=800&q=80", ("Size 36 EU", "Size 37 EU", "Size 38 EU", "Size 39 EU", "Size 40 EU", "105mm Heel / Crystal Buckle"), ("Royal Blue Satin", "Emerald Green Satin", "Black Satin")),
+            CatalogItemTemplate("UGG Classic Ultra Mini", 150, "https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&w=800&q=80", ("Size 5 US", "Size 6 US", "Size 7 US", "Size 8 US", "Size 9 US", "Sheepskin Lining"), ("Chestnut", "Antelope", "Black", "Burnt Cedar")),
+        )
+    ),
+    "Perfumes": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Tom Ford Oud Wood Eau de Parfum", 295, "https://images.unsplash.com/photo-1592945403429-234e4a7a8f33?auto=format&fit=crop&w=800&q=80", ("50ml / Eau de Parfum", "100ml / Eau de Parfum", "250ml / Decanter"), ("Smoky Amber Base",)),
+            CatalogItemTemplate("Creed Aventus", 495, "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=800&q=80", ("50ml / Eau de Parfum", "100ml / Eau de Parfum"), ("Pineapple / Birch Notes",)),
+            CatalogItemTemplate("Maison Francis Kurkdjian Baccarat Rouge 540", 325, "https://images.unsplash.com/photo-1616949755610-8c9bac08f9f8?auto=format&fit=crop&w=800&q=80", ("70ml / Eau de Parfum", "200ml / Eau de Parfum", "70ml / Extrait de Parfum"), ("Saffron / Cedarwood", "Signature Red (Extrait)")),
+            CatalogItemTemplate("Chanel Bleu de Chanel", 155, "https://images.unsplash.com/photo-1595425970377-c9703c48ea2d?auto=format&fit=crop&w=800&q=80", ("50ml / Eau de Parfum", "100ml / Eau de Parfum", "150ml / Parfum"), ("Woody Aromatic",)),
+            CatalogItemTemplate("Yves Saint Laurent Libre", 165, "https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?auto=format&fit=crop&w=800&q=80", ("50ml / Eau de Parfum", "90ml / Eau de Parfum", "90ml / Intense"), ("Lavender / Orange Blossom",)),
+            CatalogItemTemplate("Le Labo Santal 33", 320, "https://images.unsplash.com/photo-1615525997678-ce8a7c29bc15?auto=format&fit=crop&w=800&q=80", ("50ml / Eau de Parfum", "100ml / Eau de Parfum"), ("Sandalwood / Cardamom",)),
+        )
+    ),
+    "Skincare": CategorySeedData(
+        products=(
+            CatalogItemTemplate("Estée Lauder Advanced Night Repair", 125, "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=800&q=80", ("30ml / Anti-Aging Serum", "50ml / Anti-Aging Serum", "115ml / Anti-Aging Serum"), ("Oil-Free Formula",)),
+            CatalogItemTemplate("La Mer Crème de la Mer", 380, "https://images.unsplash.com/photo-1611077544346-630b77c5fb04?auto=format&fit=crop&w=800&q=80", ("30ml / Moisturizing Cream", "60ml / Moisturizing Cream", "100ml / Moisturizing Cream"), ("Miracle Broth Infused",)),
+            CatalogItemTemplate("Paula's Choice 2% BHA Liquid Exfoliant", 35, "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=800&q=80", ("30ml / Travel Size", "118ml / Standard Size"), ("Salicylic Acid / Unscented",)),
+            CatalogItemTemplate("Kiehl's Ultra Facial Cream", 39, "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?auto=format&fit=crop&w=800&q=80", ("50ml / 24-Hour Hydration", "125ml / 24-Hour Hydration"), ("Squalane Enriched / Fragrance-Free",)),
+            CatalogItemTemplate("CeraVe Hydrating Facial Cleanser", 17, "https://images.unsplash.com/photo-1556228720-192a6af6e8ce?auto=format&fit=crop&w=800&q=80", ("236ml / Pump Bottle", "473ml / Pump Bottle"), ("Hyaluronic Acid / Ceramides",)),
+            CatalogItemTemplate("The Ordinary Niacinamide 10% + Zinc 1%", 11, "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&w=800&q=80", ("30ml / Dropper Bottle", "60ml / Dropper Bottle"), ("Water-Based Serum",)),
+        )
     ),
 }
 
-class RetryPolicy:
-    def __init__(self, attempts: int, min_seconds: int, max_seconds: int) -> None:
-        self._attempts = attempts
-        self._min_seconds = min_seconds
-        self._max_seconds = max_seconds
 
-    async def run(self, operation: Any) -> Any:
+class RetryPolicy:
+    def __init__(self, settings: Settings, logger: logging.Logger) -> None:
+        self._attempts = settings.retry_attempts
+        self._min_seconds = settings.retry_min_seconds
+        self._max_seconds = settings.retry_max_seconds
+        self._logger = logger
+
+    async def run(self, operation: Any, operation_name: str) -> Any:
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(self._attempts),
             wait=wait_exponential(multiplier=1, min=self._min_seconds, max=self._max_seconds),
@@ -343,22 +318,38 @@ class RetryPolicy:
             reraise=True,
         ):
             with attempt:
+                if attempt.retry_state.attempt_number > 1:
+                    json_log(
+                        self._logger,
+                        logging.WARNING,
+                        "retrying_operation",
+                        operation=operation_name,
+                        attempt=attempt.retry_state.attempt_number,
+                    )
                 return await operation()
-        raise RuntimeError("retry policy exhausted unexpectedly")
+        raise RuntimeError(f"Retry policy exhausted for {operation_name}")
 
 
 class ProductGenerator:
     def __init__(self, random_seed: int) -> None:
         self._rng = random.Random(random_seed)
         self._categories = tuple(CATALOG_DATA.keys())
+        self._attr_mapping = {
+            "Electronics": "Configuration",
+            "Womens_Clothing": "Size",
+            "Mens_Clothing": "Size",
+            "Makeup": "Finish/Shade",
+            "Accessories": "Material/Size",
+            "Mens_Shoes": "Size",
+            "Womens_Shoes": "Size",
+            "Perfumes": "Volume",
+            "Skincare": "Size/Type",
+            "Watches": "Movement/Case"
+        }
 
     def generate_batch(self, start_id: int, batch_size: int, limit: int) -> list[Product]:
-        if start_id <= 0:
-            raise ValueError("start_id must be positive")
-        if batch_size <= 0:
-            raise ValueError("batch_size must be positive")
-        if limit <= 0:
-            raise ValueError("limit must be positive")
+        if start_id <= 0 or batch_size <= 0 or limit <= 0:
+            raise ValueError("start_id, batch_size, and limit must be strictly positive")
         if start_id > limit:
             return []
 
@@ -369,39 +360,42 @@ class ProductGenerator:
         for product_id in range(start_id, end_id + 1):
             category = self._rng.choice(self._categories)
             category_data = CATALOG_DATA[category]
+            
+            # Entity-level attribute resolution to prevent hallucinations
             template = self._rng.choice(category_data.products)
-            spec = self._rng.choice(category_data.specs)
-            color = self._rng.choice(category_data.colors)
+            spec = self._rng.choice(template.specs)
+            color = self._rng.choice(template.colors)
 
-            full_name = f"{template.name} - {spec} ({color})"
-            premium_multiplier = Decimal("1.20") if any(token in spec for token in ("1TB", "Pro", "Max", "RTX 4090", "2TB SSD", "Sapphire Solar", "8K")) else Decimal("1.00")
-            noise = Decimal(str(round(self._rng.uniform(0.95, 1.05), 4)))
+            attr_key = self._attr_mapping.get(category, "Specification")
+            attributes = {"Color/Variant": color, attr_key: spec}
+
+            premium_tokens = {"1TB", "2TB", "4TB", "Max", "Pro", "18K", "Diamond", "Extrait"}
+            premium_multiplier = Decimal("1.25") if any(token in spec or token in template.name for token in premium_tokens) else Decimal("1.00")
+            noise = Decimal(str(round(self._rng.uniform(0.98, 1.02), 4)))
             final_price = quantize_price(Decimal(template.base_price) * premium_multiplier * noise)
 
-            description = " ".join(
-                (
-                    f"Experience the pinnacle of {category} technology with the {full_name}.",
-                    f"Designed in a {color} finish and equipped with {spec}.",
-                    "Built for demanding customers who care about performance, quality, and reliability.",
-                    "Official airdeliver global stock.",
-                )
+            description = (
+                f"Experience the pinnacle of {category.replace('_', ' ').title()} craftsmanship with the {template.name}. "
+                f"Featuring a stunning {color} finish and configured with {spec}. "
+                "Engineered for uncompromising performance and timeless aesthetic appeal. "
+                "100% authentic global stock."
             )
-            inventory = self._rng.randint(5, 500)
-            rating = round(self._rng.uniform(3.5, 5.0), 1)
+            
             sku = f"GLB-{category[:3].upper()}-{product_id:08d}"
-            tags = [category, "Premium", color, template.name.split()[0], "Official", spec]
+            tags = [category.replace("_", " "), "Premium", template.name.split()[0], "Official"]
 
             products.append(
                 Product(
                     id=product_id,
                     sku=sku,
-                    name=full_name,
+                    name=template.name,
                     description=description,
                     price=final_price,
                     category=category,
-                    inventory=inventory,
+                    inventory=self._rng.randint(5, 500),
                     image=template.image,
-                    rating=rating,
+                    rating=round(self._rng.uniform(4.0, 5.0), 1),
+                    attributes=attributes,
                     tags=tags,
                     created_at=created_at,
                     updated_at=created_at,
@@ -411,6 +405,12 @@ class ProductGenerator:
             )
 
         return products
+
+
+@runtime_checkable
+class VectorSink(Protocol):
+    async def initialize_schema(self, dimension: int, drop_existing: bool) -> None: ...
+    async def insert_batch(self, products: Sequence[Product], vectors: Sequence[ProductVector]) -> int: ...
 
 
 class PostgresRepository:
@@ -442,6 +442,7 @@ class PostgresRepository:
                             inventory INTEGER NOT NULL,
                             image VARCHAR(2048) NOT NULL,
                             rating NUMERIC(3, 1) NOT NULL,
+                            attributes JSONB NOT NULL,
                             tags JSONB NOT NULL,
                             created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
                             updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
@@ -453,15 +454,19 @@ class PostgresRepository:
                 )
                 await connection.execute(text("CREATE INDEX IF NOT EXISTS idx_products_category ON products (category);"))
                 await connection.execute(text("CREATE INDEX IF NOT EXISTS idx_products_sku ON products (sku);"))
+                await connection.execute(text("CREATE INDEX IF NOT EXISTS idx_products_attributes ON products USING GIN (attributes);"))
 
-        await self._retry.run(operation)
+        await self._retry.run(operation, "postgres_initialize_schema")
         json_log(self._logger, logging.INFO, "postgres_schema_initialized")
 
     async def get_max_id(self) -> int | None:
-        async with self._session_factory() as session:
-            result = await session.execute(text("SELECT MAX(id) FROM products"))
-            value = result.scalar_one_or_none()
-            return int(value) if value is not None else None
+        async def operation() -> int | None:
+            async with self._session_factory() as session:
+                result = await session.execute(text("SELECT MAX(id) FROM products"))
+                value = result.scalar_one_or_none()
+                return int(value) if value is not None else None
+        
+        return await self._retry.run(operation, "postgres_get_max_id")
 
     async def insert_batch(self, products: Sequence[Product]) -> int:
         if not products:
@@ -472,16 +477,17 @@ class PostgresRepository:
             for product in products:
                 item = product.model_dump()
                 item["tags"] = json.dumps(item["tags"], ensure_ascii=False)
+                item["attributes"] = json.dumps(item["attributes"], ensure_ascii=False)
                 payload.append(item)
 
             statement = text(
                 """
                 INSERT INTO products (
                     id, sku, name, description, price, category, inventory,
-                    image, rating, tags, created_at, updated_at, currency, is_active
+                    image, rating, attributes, tags, created_at, updated_at, currency, is_active
                 ) VALUES (
                     :id, :sku, :name, :description, :price, :category, :inventory,
-                    :image, :rating, CAST(:tags AS JSONB), :created_at, :updated_at, :currency, :is_active
+                    :image, :rating, CAST(:attributes AS JSONB), CAST(:tags AS JSONB), :created_at, :updated_at, :currency, :is_active
                 )
                 ON CONFLICT (id) DO NOTHING
                 """
@@ -492,7 +498,7 @@ class PostgresRepository:
                 await session.commit()
                 return result.rowcount or 0
 
-        inserted = await self._retry.run(operation)
+        inserted = await self._retry.run(operation, "postgres_insert_batch")
         json_log(self._logger, logging.INFO, "postgres_batch_inserted", requested=len(products), inserted=inserted)
         return inserted
 
@@ -514,18 +520,16 @@ class MilvusRepository:
 
     async def _ensure_client(self) -> MilvusClient:
         if not self._enabled:
-            raise RuntimeError("milvus is disabled")
+            raise RuntimeError("Milvus is disabled")
         if self._client is not None:
             return self._client
 
         async def operation() -> MilvusClient:
             def connect() -> MilvusClient:
                 return MilvusClient(uri=self._uri, token=self._token)
+            return await asyncio.to_thread(connect)
 
-            client = await asyncio.to_thread(connect)
-            return client
-
-        self._client = await self._retry.run(operation)
+        self._client = await self._retry.run(operation, "milvus_connect")
         json_log(self._logger, logging.INFO, "milvus_connected", collection=self._collection_name)
         return self._client
 
@@ -534,7 +538,7 @@ class MilvusRepository:
             json_log(self._logger, logging.INFO, "milvus_disabled")
             return
         if dimension <= 0:
-            raise ValueError("dimension must be positive")
+            raise ValueError("Dimension must be strictly positive")
         self._dimension = dimension
 
         async def operation() -> None:
@@ -552,20 +556,21 @@ class MilvusRepository:
                     schema.add_field("price", DataType.DOUBLE)
                     schema.add_field("rating", DataType.DOUBLE)
                     schema.add_field("category", DataType.VARCHAR, max_length=255)
+                    schema.add_field("attributes", DataType.JSON)
                     index_params = client.prepare_index_params()
                     index_params.add_index(field_name="vector", metric_type="COSINE", index_type="AUTOINDEX")
                     client.create_collection(collection_name=self._collection_name, schema=schema, index_params=index_params)
 
             await asyncio.to_thread(sync_init)
 
-        await self._retry.run(operation)
+        await self._retry.run(operation, "milvus_initialize_schema")
         json_log(self._logger, logging.INFO, "milvus_schema_initialized", dimension=dimension, collection=self._collection_name)
 
-    async def insert_batch(self, vectors: Sequence[ProductVector]) -> None:
+    async def insert_batch(self, products: Sequence[Product], vectors: Sequence[ProductVector]) -> int:
         if not self._enabled or not vectors:
-            return
+            return 0
 
-        async def operation() -> None:
+        async def operation() -> int:
             client = await self._ensure_client()
             data = [
                 {
@@ -574,13 +579,16 @@ class MilvusRepository:
                     "price": vector.price,
                     "rating": vector.rating,
                     "category": vector.category,
+                    "attributes": vector.attributes,
                 }
                 for vector in vectors
             ]
             await asyncio.to_thread(client.insert, collection_name=self._collection_name, data=data)
+            return len(vectors)
 
-        await self._retry.run(operation)
-        json_log(self._logger, logging.INFO, "milvus_batch_inserted", inserted=len(vectors))
+        inserted = await self._retry.run(operation, "milvus_insert_batch")
+        json_log(self._logger, logging.INFO, "milvus_batch_inserted", inserted=inserted)
+        return inserted
 
     async def close(self) -> None:
         self._client = None
@@ -633,6 +641,7 @@ class OpenSearchRepository:
                 "inventory": {"type": "integer"},
                 "image": {"type": "keyword"},
                 "rating": {"type": "double"},
+                "attributes": {"type": "object"},
                 "tags": {"type": "keyword"},
                 "currency": {"type": "keyword"},
                 "is_active": {"type": "boolean"},
@@ -650,43 +659,24 @@ class OpenSearchRepository:
         return settings
 
     async def _create_index_knn_vector(self, dimension: int) -> str:
-        body = {
-            "settings": self._index_settings(True),
-            "mappings": self._base_mappings(),
-        }
+        body = {"settings": self._index_settings(True), "mappings": self._base_mappings()}
         body["mappings"]["properties"]["vector"] = {
             "type": "knn_vector",
             "dimension": dimension,
-            "method": {
-                "name": "hnsw",
-                "engine": "lucene",
-                "space_type": "cosinesimil",
-            },
+            "method": {"name": "hnsw", "engine": "lucene", "space_type": "cosinesimil"},
         }
         await self._client.indices.create(index=self._index_name, body=body)
         return "knn_vector"
 
     async def _create_index_dense_vector(self, dimension: int) -> str:
-        body = {
-            "settings": self._index_settings(False),
-            "mappings": self._base_mappings(),
-        }
-        body["mappings"]["properties"]["vector"] = {
-            "type": "dense_vector",
-            "dims": dimension,
-        }
+        body = {"settings": self._index_settings(False), "mappings": self._base_mappings()}
+        body["mappings"]["properties"]["vector"] = {"type": "dense_vector", "dims": dimension}
         await self._client.indices.create(index=self._index_name, body=body)
         return "dense_vector"
 
     async def _create_index_source_only(self) -> str:
-        body = {
-            "settings": self._index_settings(False),
-            "mappings": self._base_mappings(),
-        }
-        body["mappings"]["properties"]["vector_payload"] = {
-            "type": "object",
-            "enabled": False,
-        }
+        body = {"settings": self._index_settings(False), "mappings": self._base_mappings()}
+        body["mappings"]["properties"]["vector_payload"] = {"type": "object", "enabled": False}
         await self._client.indices.create(index=self._index_name, body=body)
         return "source_only"
 
@@ -695,7 +685,7 @@ class OpenSearchRepository:
             json_log(self._logger, logging.INFO, "opensearch_disabled")
             return
         if dimension <= 0:
-            raise ValueError("dimension must be positive")
+            raise ValueError("Dimension must be positive")
 
         async def operation() -> None:
             if drop_existing:
@@ -706,48 +696,43 @@ class OpenSearchRepository:
                 mapping = await self._client.indices.get_mapping(index=self._index_name)
                 properties = mapping.get(self._index_name, {}).get("mappings", {}).get("properties", {})
                 vector_field = properties.get("vector")
-                payload_field = properties.get("vector_payload")
+                
                 if isinstance(vector_field, dict) and vector_field.get("type") == "knn_vector":
                     self._vector_mode = "knn_vector"
                 elif isinstance(vector_field, dict) and vector_field.get("type") == "dense_vector":
                     self._vector_mode = "dense_vector"
-                elif isinstance(payload_field, dict):
-                    self._vector_mode = "source_only"
                 else:
                     self._vector_mode = "source_only"
-                json_log(self._logger, logging.INFO, "opensearch_schema_initialized", dimension=dimension, index=self._index_name, vector_mode=self._vector_mode)
                 return
 
             try:
                 self._vector_mode = await self._create_index_knn_vector(dimension)
-                json_log(self._logger, logging.INFO, "opensearch_schema_initialized", dimension=dimension, index=self._index_name, vector_mode=self._vector_mode)
                 return
             except RequestError as error:
-                if "no handler for type [knn_vector]" not in request_error_text(error):
+                if "no handler for type [knn_vector]" not in str(error).lower():
                     raise
                 json_log(self._logger, logging.WARNING, "opensearch_knn_fallback", message="knn_vector not supported, trying dense_vector")
 
             try:
                 self._vector_mode = await self._create_index_dense_vector(dimension)
-                json_log(self._logger, logging.INFO, "opensearch_schema_initialized", dimension=dimension, index=self._index_name, vector_mode=self._vector_mode)
                 return
             except RequestError as error:
-                if "no handler for type [dense_vector]" not in request_error_text(error):
+                if "no handler for type [dense_vector]" not in str(error).lower():
                     raise
-                json_log(self._logger, logging.WARNING, "opensearch_dense_fallback", message="dense_vector not supported, falling back to source-only vector storage")
+                json_log(self._logger, logging.WARNING, "opensearch_dense_fallback", message="dense_vector not supported, fallback to source-only")
 
             self._vector_mode = await self._create_index_source_only()
-            json_log(self._logger, logging.INFO, "opensearch_schema_initialized", dimension=dimension, index=self._index_name, vector_mode=self._vector_mode)
 
-        await self._retry.run(operation)
+        await self._retry.run(operation, "opensearch_initialize_schema")
+        json_log(self._logger, logging.INFO, "opensearch_schema_initialized", dimension=dimension, index=self._index_name, vector_mode=self._vector_mode)
 
     async def insert_batch(self, products: Sequence[Product], vectors: Sequence[ProductVector]) -> int:
         if not self._enabled or not products:
             return 0
         if len(products) != len(vectors):
-            raise ValueError("products and vectors length mismatch")
+            raise ValueError("Products and vectors length mismatch")
         if self._vector_mode == "unknown":
-            raise RuntimeError("opensearch schema must be initialized before insert")
+            raise RuntimeError("OpenSearch schema must be initialized before insert")
 
         actions = []
         for product, vector in zip(products, vectors):
@@ -761,6 +746,7 @@ class OpenSearchRepository:
                 "inventory": product.inventory,
                 "image": product.image,
                 "rating": product.rating,
+                "attributes": product.attributes,
                 "tags": product.tags,
                 "currency": product.currency,
                 "is_active": product.is_active,
@@ -768,19 +754,9 @@ class OpenSearchRepository:
             if self._vector_mode in {"knn_vector", "dense_vector"}:
                 source["vector"] = vector.vector
             else:
-                source["vector_payload"] = {
-                    "dimension": len(vector.vector),
-                    "values": vector.vector,
-                }
+                source["vector_payload"] = {"dimension": len(vector.vector), "values": vector.vector}
 
-            actions.append(
-                {
-                    "_op_type": "index",
-                    "_index": self._index_name,
-                    "_id": str(product.id),
-                    "_source": source,
-                }
-            )
+            actions.append({"_op_type": "index", "_index": self._index_name, "_id": str(product.id), "_source": source})
 
         async def operation() -> int:
             success_count, _ = await helpers.async_bulk(
@@ -793,7 +769,7 @@ class OpenSearchRepository:
             )
             return int(success_count)
 
-        inserted = await self._retry.run(operation)
+        inserted = await self._retry.run(operation, "opensearch_insert_batch")
         json_log(self._logger, logging.INFO, "opensearch_batch_inserted", inserted=inserted, vector_mode=self._vector_mode)
         return inserted
 
@@ -809,7 +785,7 @@ class EmbeddingService:
         self._model = SentenceTransformer(settings.embedding_model, device="cpu", trust_remote_code=False)
         self._dimension = int(self._model.get_embedding_dimension())
         if self._dimension <= 0:
-            raise ValueError("embedding dimension must be positive")
+            raise ValueError("Embedding dimension must be positive")
         json_log(self._logger, logging.INFO, "embedding_model_loaded", model=settings.embedding_model, dimension=self._dimension)
 
     @property
@@ -828,26 +804,19 @@ class EmbeddingService:
                 normalize_embeddings=True,
                 batch_size=self._encode_batch_size,
                 convert_to_numpy=True,
-                show_progress_bar=True,
+                show_progress_bar=False,
             )
             return [row.astype(float).tolist() for row in embeddings]
 
         vectors = await asyncio.to_thread(encode)
         if len(vectors) != len(products):
-            raise RuntimeError("embedding service returned invalid vector count")
+            raise RuntimeError("Embedding service returned invalid vector count")
         return vectors
 
     @staticmethod
     def _compose_text(product: Product) -> str:
-        return " ".join(
-            (
-                product.name,
-                product.description,
-                product.category,
-                product.currency,
-                " ".join(product.tags),
-            )
-        )
+        attr_text = " ".join(f"{k}: {v}" for k, v in product.attributes.items())
+        return f"{product.name} {attr_text} {product.description} {product.category} {product.currency} {' '.join(product.tags)}"
 
 
 class SeederService:
@@ -868,6 +837,10 @@ class SeederService:
         self._opensearch = opensearch
         self._embedding = embedding
         self._generator = generator
+        self._is_running = True
+
+    def stop(self) -> None:
+        self._is_running = False
 
     async def run(self) -> None:
         await self._postgres.initialize_schema()
@@ -879,20 +852,13 @@ class SeederService:
         await self._initialize_indexes(fresh_start)
 
         if start_id > self._settings.target_count:
-            json_log(
-                self._logger,
-                logging.INFO,
-                "seeding_skipped",
-                start_id=start_id,
-                target_count=self._settings.target_count,
-                reason="target_already_reached",
-            )
+            json_log(self._logger, logging.INFO, "seeding_skipped", start_id=start_id, target_count=self._settings.target_count, reason="target_already_reached")
             return
 
         current_id = start_id
         total_generated = 0
 
-        while current_id <= self._settings.target_count:
+        while current_id <= self._settings.target_count and self._is_running:
             products = self._generator.generate_batch(current_id, self._settings.batch_size, self._settings.target_count)
             if not products:
                 break
@@ -900,12 +866,16 @@ class SeederService:
             embeddings = await self._embedding.embed_products(products)
             vectors = self._build_product_vectors(products, embeddings)
 
-            postgres_result, milvus_result, opensearch_result = await asyncio.gather(
-                self._postgres.insert_batch(products),
-                self._run_optional_sink(self._milvus.insert_batch(vectors), "milvus", self._settings.fail_on_milvus_error),
-                self._run_optional_sink(self._opensearch.insert_batch(products, vectors), "opensearch", self._settings.fail_on_opensearch_error),
-                return_exceptions=False,
-            )
+            try:
+                postgres_result, milvus_result, opensearch_result = await asyncio.gather(
+                    self._postgres.insert_batch(products),
+                    self._run_optional_sink(self._milvus.insert_batch(products, vectors), "milvus", self._settings.fail_on_milvus_error),
+                    self._run_optional_sink(self._opensearch.insert_batch(products, vectors), "opensearch", self._settings.fail_on_opensearch_error),
+                    return_exceptions=False,
+                )
+            except asyncio.CancelledError:
+                json_log(self._logger, logging.WARNING, "seeding_cancelled")
+                raise
 
             current_id += len(products)
             total_generated += len(products)
@@ -923,13 +893,7 @@ class SeederService:
                 target_count=self._settings.target_count,
             )
 
-        json_log(
-            self._logger,
-            logging.INFO,
-            "seeding_completed",
-            total_generated=total_generated,
-            final_target=self._settings.target_count,
-        )
+        json_log(self._logger, logging.INFO, "seeding_completed", total_generated=total_generated, final_target=self._settings.target_count)
 
     async def _initialize_indexes(self, fresh_start: bool) -> None:
         await self._run_optional_sink(
@@ -943,91 +907,80 @@ class SeederService:
             self._settings.fail_on_opensearch_error,
         )
 
-    async def _run_optional_sink(self, operation: Any, sink_name: str, fail_hard: bool) -> str:
+    async def _run_optional_sink(self, operation: Any, sink_name: str, fail_hard: bool) -> str | int:
         try:
-            await operation
-            return "ok"
+            return await operation
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
-            json_log(
-                self._logger,
-                logging.ERROR,
-                "sink_operation_failed",
-                sink=sink_name,
-                error=type(exc).__name__,
-                message=str(exc),
-            )
+            json_log(self._logger, logging.ERROR, "sink_operation_failed", sink=sink_name, error=type(exc).__name__, message=str(exc))
             if fail_hard:
                 raise
             return "degraded"
 
     @staticmethod
     def _build_product_vectors(products: Sequence[Product], embeddings: Sequence[list[float]]) -> list[ProductVector]:
-        if len(products) != len(embeddings):
-            raise ValueError("products and embeddings length mismatch")
-        vectors: list[ProductVector] = []
-        for product, embedding in zip(products, embeddings):
-            vectors.append(
-                ProductVector(
-                    product_id=product.id,
-                    vector=embedding,
-                    price=float(product.price),
-                    rating=product.rating,
-                    category=product.category,
-                )
+        return [
+            ProductVector(
+                product_id=product.id,
+                vector=embedding,
+                price=float(product.price),
+                rating=product.rating,
+                category=product.category,
+                attributes=product.attributes,
             )
-        return vectors
+            for product, embedding in zip(products, embeddings)
+        ]
 
 
-class Application:
-    def __init__(self, settings: Settings) -> None:
-        self._logger = configure_logging(settings.log_level)
-        self._retry_policy = RetryPolicy(
-            attempts=settings.retry_attempts,
-            min_seconds=settings.retry_min_seconds,
-            max_seconds=settings.retry_max_seconds,
-        )
-        self._settings = settings
-        self._postgres = PostgresRepository(settings, self._logger, self._retry_policy)
-        self._milvus = MilvusRepository(settings, self._logger, self._retry_policy)
-        self._opensearch = OpenSearchRepository(settings, self._logger, self._retry_policy)
-        self._embedding = EmbeddingService(settings, self._logger)
-        self._generator = ProductGenerator(settings.random_seed)
-        self._service = SeederService(
+@asynccontextmanager
+async def application_context(settings: Settings) -> AsyncGenerator[SeederService, None]:
+    logger = configure_logging(settings.log_level)
+    retry_policy = RetryPolicy(settings, logger)
+    
+    postgres = PostgresRepository(settings, logger, retry_policy)
+    milvus = MilvusRepository(settings, logger, retry_policy)
+    opensearch = OpenSearchRepository(settings, logger, retry_policy)
+    
+    async with AsyncExitStack() as stack:
+        stack.push_async_callback(postgres.close)
+        stack.push_async_callback(milvus.close)
+        stack.push_async_callback(opensearch.close)
+
+        embedding = EmbeddingService(settings, logger)
+        generator = ProductGenerator(settings.random_seed)
+        
+        service = SeederService(
             settings=settings,
-            logger=self._logger,
-            postgres=self._postgres,
-            milvus=self._milvus,
-            opensearch=self._opensearch,
-            embedding=self._embedding,
-            generator=self._generator,
+            logger=logger,
+            postgres=postgres,
+            milvus=milvus,
+            opensearch=opensearch,
+            embedding=embedding,
+            generator=generator,
         )
-
-    async def run(self) -> None:
-        json_log(self._logger, logging.INFO, "application_started", target_count=self._settings.target_count, batch_size=self._settings.batch_size)
-        try:
-            await self._service.run()
-        finally:
-            await self._shutdown()
-
-    async def _shutdown(self) -> None:
-        close_errors: list[Exception] = []
-
-        for closer in (self._opensearch.close, self._milvus.close, self._postgres.close):
-            try:
-                await closer()
-            except Exception as exc:
-                close_errors.append(exc)
-                json_log(self._logger, logging.ERROR, "resource_close_failed", error=type(exc).__name__, message=str(exc))
-
-        if close_errors:
-            raise RuntimeError("one or more resources failed to close cleanly") from close_errors[0]
+        
+        yield service
 
 
 async def main() -> None:
     settings = Settings()
-    app = Application(settings)
-    await app.run()
+    loop = asyncio.get_running_loop()
+    
+    async with application_context(settings) as service:
+        def shutdown_handler(sig: signal.Signals) -> None:
+            logging.getLogger(LOGGER_NAME).info(f"Received exit signal {sig.name}...")
+            service.stop()
+
+        for sig_name in {"SIGINT", "SIGTERM"}:
+            if hasattr(signal, sig_name):
+                loop.add_signal_handler(getattr(signal, sig_name), shutdown_handler, getattr(signal, sig_name))
+
+        await service.run()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        sys.exit(130)

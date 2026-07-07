@@ -743,7 +743,7 @@ _CLOSER_POLICY = PromptPolicy(
         "●    The Market Reality: [State the OFFICIAL REALITY of the product. If it is real but out of stock, state exactly that. DO NOT invent supply chain stories or classified allocation claims. If it is a fake/scam, expose the technical impossibility.]\n"
         "●    The airdeliver Advantage: [Explain concisely why our provenance or global supply chain makes buying elsewhere an unnecessary gamble.]\n\n"
         "Recommendation:\n"
-        "●    [Actual Product Name or 'Bespoke Procurement']: [If an alternative product exists, state its real attributes. If NO products exist, write 'Bespoke Procurement' and briefly explain that we can custom-order the requested configurations. DO NOT use sub-bullets.]\n"
+        "●    [Actual Product Name or 'Bespoke Procurement']: [State verified specs ONLY. If listing multiple specs, EACH spec MUST be on a NEW LINE starting with a bullet (●). DO NOT group them in a paragraph. If NO products exist...]"
         "●    [Secondary Product Name] (Optional): [Only if a second verified option exists.]\n\n"
         "[EXACTLY ONE authoritative closing sentence advising the next step. I REPEAT: NO BULLET POINTS HERE. NO HEADINGS AFTER THIS.]"
     ),
@@ -916,7 +916,9 @@ class TextSanitizer:
     # السر هنا: التقاط نهاية الجملة (نقطة وبعدها مسافة وحرف)
     _sentence_break = re.compile(r"(?<!\b[vV][sS])(?<!● )(?<!●)([.!?])\s+(?=[A-Z\u0600-\u06FF])")
     # التقاط النقطة العريضة لإجبارها على سطر جديد
-    _bullet_break = re.compile(r"(?<!\n)\s*(●)")
+    _bullet_break = re.compile(r"(?<!^)(?<!\n)\s*(●)")
+    
+    _inline_spec_break = re.compile(r"(?<!\n)\s+(?=[A-Z][a-zA-Z0-9\s]+:\s)")
 
     @classmethod
     def sanitize_response_text(cls, raw_text: str) -> str:
@@ -946,6 +948,11 @@ class TextSanitizer:
         # Phase 2: Markdown Eradication & List Standardization
         # ---------------------------------------------------------------------
         # Convert any markdown lists or numbered lists (1., 2.) to the universal bullet
+        
+        text = cls._bullet_break.sub(r"\n\n● ", text)
+
+        text = cls._inline_spec_break.sub(r"\n●    ", text)
+
         text = re.sub(
             r"(?i)\s*(EXECUTIVE VERDICT:|STRATEGIC ANALYSIS:|VERIFIED SOLUTION:|RESOLUTION:|Result:|Analysis:|What To Do:|ADVISORY:|VERDICT:|RISK ANALYSIS:|VERIFIED ALTERNATIVES[\w\s\(\)\-]*:)\s*",
             r"\n\n",
@@ -3948,7 +3955,7 @@ SCOPE & BEHAVIOR
                         f"●    [Scam Claim]: [Why it is a physical/commercial impossibility]\n"
                         f"●    [Risk Vector]: [Expose the psychological trick, e.g., countdown timer, fake scarcity]\n\n"
                         f"Recommendation:\n"
-                        f"●    [Alternative Name]: [State verified specs ONLY. ANTI-SYCOPHANCY RULE: DO NOT assign requested features (e.g., Global Shutter, V12 Engine, Pure Oud, Full-Grain Leather, Sapphire Crystal) to this product if it does not explicitly have them. DO NOT invent 'software equivalents' or marketing fluff. State the actual verified attributes proudly and objectively.]\n\n"
+                        f"●    [Alternative Name]: [State verified specs ONLY. If listing multiple specs, EACH spec MUST be on a NEW LINE starting with a bullet (●). DO NOT group them in a paragraph.]\n\n"
                         f"[1 closing sentence advising the next secure step with airdeliver]"
                     )
                     ai_response_text = await asyncio.wait_for(
