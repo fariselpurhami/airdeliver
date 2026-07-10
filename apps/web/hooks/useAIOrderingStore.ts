@@ -138,7 +138,7 @@ const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
-  content: `Order with Air: Your intent, seamlessly executed. Speak, type, or show what you need, and I’ll handle everything from building your cart to instant checkout.`,
+  content: `Don't search. Just ask. airdeliverOS scans thousands of products and secures them for instant air-drop.`,
   timestamp: Date.now(),
 };
 
