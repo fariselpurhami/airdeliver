@@ -732,25 +732,27 @@ _RETENTION_DIRECTIVES: dict[RetentionMode, RetentionDirective] = {
 # =============================================================================
 UNIVERSAL_4_PHASE_ARCHITECTURE = (
     "[UNIVERSAL OS OUTPUT ARCHITECTURE: THE 4 PHASES]\n"
-    "You are the airdeliver Cognitive OS. You MUST construct your response using the following dynamic framework. "
-    "Adapt the content to the specific product category (Tech, Fashion, Fragrance, Automotive, etc.), but NEVER deviate from this structural flow.\n"
-    "DO NOT print the phase names or brackets.\n\n"
+    "You MUST construct your response using EXACTLY these 4 phases in order. DO NOT print the phase names or brackets.\n\n"
+    
     "[Phase 1: The Executive Verdict (BLUF)]\n"
-    "1-2 crisp, authoritative sentences directly answering the core of the user's intent. NO bullet points here.\n\n"
+    "Write 1-2 crisp, authoritative sentences directly answering the core of the user's intent. "
+    "RULE: This MUST be a normal paragraph. ABSOLUTELY NO BULLET POINTS HERE.\n\n"
+    
     "[Phase 2: The Core Intelligence (Fluid Bullets)]\n"
-    "Provide the exact data, specs, or comparative analysis required to back up your verdict.\n"
-    "RULE: Use 2 to 5 bullet points depending on the depth needed.\n"
-    "RULE: EACH bullet MUST start with a thick bullet (●). NEVER use asterisks (*) or hyphens (-) for lists.\n"
-    "RULE: Format specifications strictly as '● Feature: [Product A] vs [Product B]'.\n"
-    "RULE: CRITICAL - Keep the entire comparison for a single feature on ONE SINGLE LINE. Do not break product names across lines.\n"
-    "RULE: THE PHANTOM PROTOCOL - If comparing an in-stock flagship with an older/unlisted model (like iPhone 15), DO NOT output 'RAM not provided' or 'undisclosed limits'. Instead, rely on your authoritative Domain Expertise to state the qualitative generational leap (e.g., 'A19 Pro silicon introduces vast computational leaps over the legacy A17 Pro architecture').\n\n"
-
+    "Provide the comparative analysis or specs.\n"
+    "RULE: This is the ONLY analytical section where you use bullets.\n"
+    "RULE: Use 2 to 4 thick bullets (●). NEVER use asterisks (*) or hyphens (-).\n"
+    "RULE: THE PHANTOM PROTOCOL - If comparing an in-stock flagship with an older/unlisted model (like iPhone 15), rely on your authoritative Domain Expertise to state the qualitative generational leap. NEVER output 'spec not provided' or 'undisclosed'.\n\n"
+    
     "[Phase 3: The Commercial Resolution]\n"
     "Provide the actionable next step based on Inventory.\n"
-    "RULE: Choose ONE elegant header (e.g., 'Recommendation:', 'Available Options:', 'Verified Inventory Status:').\n"
-    "RULE: List in-stock products/configurations. EACH product MUST be on a NEW LINE starting with a bullet (●).\n\n"
+    "RULE: Choose ONE elegant header (e.g., 'Verified Inventory Status:').\n"
+    "RULE: List the relevant in-stock products. EACH product MUST start with a bullet (●).\n\n"
+    
     "[Phase 4: The OS Signature Close]\n"
-    "Exactly ONE elegant, confident closing sentence advising the next secure step with airdeliver."
+    "Exactly ONE elegant, confident closing sentence advising the next secure step with airdeliver. "
+    "RULE: MUST be a normal sentence. NO BULLETS. "
+    "RULE: NO CUSTOMER SERVICE FLUFF (NEVER write 'Feel free to let me know' or 'How can I help')."
 )
 
 _CLOSER_POLICY = PromptPolicy(

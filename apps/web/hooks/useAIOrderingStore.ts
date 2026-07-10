@@ -138,7 +138,7 @@ const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
-  content: `Welcome to order with air. Tell us what you need, and we’ll turn intent into action. Fast, clear, and effortless.`,
+  content: `Welcome to order with air. Your intelligent shopping engine. Speak, type, or share an image, and I’ll seamlessly transform your intent into a curated cart and instant checkout. The entire store, tailored to you, executed all right here. What can we build for you today?`,
   timestamp: Date.now(),
 };
 
