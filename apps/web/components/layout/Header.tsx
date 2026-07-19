@@ -10,7 +10,7 @@ import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home,
-  Package,
+  ShoppingBag,
   User,
   Menu,
   X as CloseIcon,
@@ -26,7 +26,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/", label: "Home", icon: Home, isProtected: false },
-  { href: "/products", label: "Products", icon: Package, isProtected: false },
+  { href: "/products", label: "Products", icon: ShoppingBag, isProtected: false },
   { href: "/profile", label: "Profile", icon: User, isProtected: true },
 ];
 

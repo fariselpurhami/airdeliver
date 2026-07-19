@@ -5,14 +5,8 @@
 import React, { useRef, useEffect, memo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaLinkedin, FaYoutube, FaXTwitter, FaFacebook, FaInstagram } from 'react-icons/fa6';
+import { FaLinkedin, FaYoutube, FaXTwitter, FaFacebook, FaInstagram, FaSnapchat, FaTiktok } from 'react-icons/fa6';
 
-const Tiktok = memo((props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
-    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-2.43.03-4.83-.95-6.43-2.88-1.59-1.92-2.3-4.45-2.2-6.87.02-1.11.23-2.21.62-3.25.39-1.04.9-2 1.52-2.81 1.1-1.45 2.7-2.45 4.5-2.87.03-.01.06-.02.09-.03z" />
-  </svg>
-));
-Tiktok.displayName = 'Tiktok';
 
 const SOCIAL_LINKS = [
   { name: 'LinkedIn', href: '#', icon: FaLinkedin, hoverColor: '#0077b5' },
@@ -20,7 +14,8 @@ const SOCIAL_LINKS = [
   { name: 'YouTube', href: '#', icon: FaYoutube, hoverColor: '#ff0000' },
   { name: 'Facebook', href: '#', icon: FaFacebook, hoverColor: '#1877F2' },
   { name: 'Instagram', href: '#', icon: FaInstagram, hoverColor: '#E4405F' },
-  { name: 'TikTok', href: '#', icon: Tiktok, hoverColor: '#00f2ea' },
+  { name: 'Snapchat', href: '#', icon: FaSnapchat, hoverColor: '#FFFC00' },
+  { name: 'TikTok', href: '#', icon: FaTiktok, hoverColor: '#00f2ea' },
 ] as const;
 
 // Memoize stable sub-components to prevent unnecessary React diffing overhead
@@ -68,7 +63,7 @@ const Footer = () => {
         ref={footerRef} 
         // CRITICAL PERF: 'contain-content' strictly isolates layout/paint of this node.
         // It prevents the high-frequency hover repaints from propagating up the DOM tree.
-        className="relative bg-black pt-24 pb-10 overflow-hidden group contain-content"
+        className="relative bg-black pt-24 pb-29 md:pb-10 overflow-hidden group contain-content"
     >
         {/* Decorative Grid Background */}
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none transform-gpu translate-z-0" aria-hidden="true" />
@@ -151,7 +146,7 @@ const Footer = () => {
                     © {new Date().getFullYear()} airdeliver inc. all rights reserved.
                 </p>
 
-                <div className="flex gap-6">
+                <div className="flex gap-4">
                     {SOCIAL_LINKS.map((social) => {
                         const Icon = social.icon;
                         return (
