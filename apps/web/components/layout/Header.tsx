@@ -1,4 +1,5 @@
-// apps/web/components/layout/Header.tsx
+/* apps/web/components/layout/Header.tsx */
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
@@ -29,36 +30,35 @@ const navItems: NavItem[] = [
   { href: "/profile", label: "Profile", icon: User, isProtected: true },
 ];
 
-// Memoized to prevent re-renders on route changes or mobile menu toggles
-
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { status } = useSession();
-  
+
   const headerRef = useRef<HTMLElement>(null);
+  const floatingBarRef = useRef<HTMLDivElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // CRITICAL PERF: Zero-React-State Scroll Listener.
-  // Direct DOM manipulation guarantees O(1) performance and stops Layout Thrashing.
   useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-
     let rafId: number;
     const handleScroll = () => {
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
-        // Toggle standard HTML dataset. CSS handles the GPU-accelerated animation.
         const isScrolled = window.scrollY > 1;
-        if (el.dataset.scrolled !== String(isScrolled)) {
-          el.dataset.scrolled = String(isScrolled);
+        const stringScrolled = String(isScrolled);
+
+        if (headerRef.current && headerRef.current.dataset.scrolled !== stringScrolled) {
+          headerRef.current.dataset.scrolled = stringScrolled;
+        }
+
+        if (floatingBarRef.current && floatingBarRef.current.dataset.scrolled !== stringScrolled) {
+          floatingBarRef.current.dataset.scrolled = stringScrolled;
         }
       });
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // Init state
+    handleScroll();
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
@@ -78,7 +78,6 @@ export default function Header() {
     [status, router]
   );
 
-  // Memoize Desktop Navigation mapping to avoid React diffing on scroll/state changes
   const DesktopNav = useMemo(() => (
     <nav className="hidden md:flex items-center rounded-full p-1.5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
       {navItems.map((item) => {
@@ -113,13 +112,9 @@ export default function Header() {
       <header
         ref={headerRef}
         data-scrolled="false"
-        // CRITICAL PERF: Utilizing tailwind variants combined with data-attributes. 
-        // Offloads the -100px translate and opacity to the browser's compositor thread.
-        className="fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-[50ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-[scrolled=true]:-translate-y-[100px] data-[scrolled=true]:opacity-0 data-[scrolled=true]:opacity-0 data-[scrolled=true]:pointer-events-none transform-gpu will-change-transform"
+        className="fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-[50ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-[scrolled=true]:-translate-y-[100px] data-[scrolled=true]:opacity-0 data-[scrolled=true]:pointer-events-none transform-gpu will-change-transform"
       >
         <div className="container mx-auto px-6 h-full flex justify-between items-center relative">
-          
-          {/* Logo Section */}
           <div className="pointer-events-auto px-3 py-1">
             <Link
               href="/"
@@ -135,7 +130,6 @@ export default function Header() {
                   priority
                   className="object-contain transition-opacity duration-500 group-hover:opacity-80 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)] transform-gpu"
                 />
-                {/* Decoding async forces the image decode off the main thread */}
                 <Image
                   src="/logo.png"
                   alt=""
@@ -152,7 +146,6 @@ export default function Header() {
 
           {DesktopNav}
 
-          {/* Actions & Theme */}
           <div className="hidden md:flex items-center gap-1 relative z-10 pointer-events-auto">
             <div className="flex items-center gap-1 rounded-full p-1.5">
               <Link
@@ -162,12 +155,10 @@ export default function Header() {
                 onClick={(e) => handleProtectedRouting(e, { href: '/notifications', label: 'Notifications', isProtected: true })}
               >
                 <BellRing size={20} className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" aria-hidden="true" />
-                
               </Link>
             </div>
           </div>
 
-          {/* Mobile Menu Button */}
           <div className="md:hidden relative z-10 pointer-events-auto rounded-full">
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -181,7 +172,31 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Mobile Navigation Drawer */}
+      <div
+        ref={floatingBarRef}
+        data-scrolled="false"
+        className="fixed bottom-8 left-1/2 z-50 flex -translate-x-1/2 items-center gap-6 rounded-full border border-white/40 bg-white/30 px-6 py-3 backdrop-blur-xl shadow-[0_8px_32px_rgba(255,255,255,0.25)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] translate-y-[100px] opacity-0 scale-90 pointer-events-none data-[scrolled=true]:translate-y-0 data-[scrolled=true]:opacity-100 data-[scrolled=true]:scale-100 data-[scrolled=true]:pointer-events-auto transform-gpu will-change-transform"
+      >
+        {navItems.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={`float-${item.href}`}
+              href={item.href}
+              prefetch={true}
+              onClick={(e) => handleProtectedRouting(e, item)}
+              className={`relative flex items-center justify-center p-3.5 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+                isActive
+                  ? "bg-white/90 shadow-lg text-black scale-110"
+                  : "text-black/70 hover:text-black hover:bg-white/50 hover:scale-105"
+              }`}
+            >
+              <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+            </Link>
+          );
+        })}
+      </div>
+
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
