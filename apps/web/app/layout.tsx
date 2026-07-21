@@ -9,7 +9,7 @@ import { Toaster } from 'sonner';
 import { Providers } from '@/lib/providers';
 import AppShell from '@/components/layout/AppShell';
 import '@/app/globals.css';
-
+import { ViewportEnforcer } from '@/components/layout/ViewportEnforcer';
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
@@ -97,6 +97,7 @@ export default function RootLayout({
       className={`${inter.variable} ${orbitron.variable} ${montserrat.variable} no-scrollbar`}
     >
       <body className="min-h-screen bg-background font-sans antialiased no-scrollbar selection:bg-primary/20 selection:text-primary">
+        <ViewportEnforcer />
         <Providers>
           <AppShell>{children}</AppShell>
           <Toaster position="bottom-right" richColors closeButton expand={false} />
