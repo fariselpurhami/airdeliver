@@ -1,5 +1,8 @@
 'use client';
 
+import { useAIOrderingStore } from '@/hooks/useAIOrderingStore'; // تأكد من مسار الملف عندك
+import { useUIStore } from '@/hooks/useUIStore'; // تأكد من مسار الملف عندك
+
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -189,6 +192,12 @@ ChatInput.displayName = 'ChatInput';
 
 export default function Chatbot() {
   const { isOpen, setIsOpen, messages, sendMessage, isLoading } = useAISupportStore();
+  const isOrderingOverlayOpen = useAIOrderingStore((state) => state.isOverlayVisible);
+  const isProductOverlayOpen = useUIStore((state) => state.isProductOverlayVisible);
+
+  // الشرط: لو أي واحد فيهم مفتوح، هنفعل الإخفاء
+  const shouldHideOnMobile = isOrderingOverlayOpen || isProductOverlayOpen;
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   useBodyScrollLock({ locked: isOpen });
   useEffect(() => {
@@ -208,7 +217,9 @@ export default function Chatbot() {
     <>
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-3 right-6 z-[60] p-0 rounded-full shadow-[0_0_72px_rgba(6,182,212,0.7)] focus:outline-none group"
+        className={`fixed bottom-3 right-6 z-[60] p-0 rounded-full shadow-[0_0_72px_rgba(6,182,212,0.7)] focus:outline-none group transition-all duration-300 ${
+          shouldHideOnMobile ? 'hidden md:block' : 'block'
+        }`}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
