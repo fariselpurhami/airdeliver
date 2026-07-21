@@ -1181,7 +1181,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }}
                         onClick={(e) => e.stopPropagation()}
                         style={{ willChange: 'transform, opacity' }}
-                        className="w-full max-w-[460px] h-[93vh] max-h-[1050px] flex flex-col bg-[#020617]/55 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative transform-gpu"
+                        className="w-full h-full max-w-[460px] max-h-[1050px] md:max-w-7xl md:h-[93vh] md:max-h-none flex flex-col bg-[#020617]/55 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative transform-gpu"
                     >
                         <div className="absolute inset-[-1px] z-[120] rounded-[73px] overflow-hidden pointer-events-none [&>*]:pointer-events-auto">
                             <AIVoiceOverlay />

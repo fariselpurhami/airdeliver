@@ -270,36 +270,6 @@ const ProductDetailsCardComponent = ({
                 </div>
               </div>
             </div>
-
-            <div className="mt-6 sm:mt-8">
-              <AnimatePresence mode="wait" initial={false}>
-                {isAdded ? (
-                  <motion.div
-                    key="added"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 text-sm font-semibold uppercase tracking-[0.16em] text-emerald-200 sm:h-14"
-                  >
-                    <Check className="h-4 w-4" />
-                    System Acquired
-                  </motion.div>
-                ) : (
-                  <motion.button
-                    key="cta"
-                    id={uniqueBtnId}
-                    type="button"
-                    onClick={handleAddToCart}
-                    whileTap={{ scale: 0.99 }}
-                    className="inline-flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 overflow-visible rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 text-sm font-semibold tracking-[0.16em] leading-none text-cyan-100 transition hover:bg-cyan-400/15 active:scale-[0.99] sm:min-h-[56px]"
-                  >
-                    <Bot className="h-4 w-4 shrink-0 flex-none" />
-                    <span className="min-w-0 truncate">order with air</span>
-                  </motion.button>
-                )}
-              </AnimatePresence>
-            </div>
           </div>
         </section>
       </div>
