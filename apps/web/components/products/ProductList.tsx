@@ -65,7 +65,7 @@ export default function ProductList({ products }: { products: Product[] }) {
             onClick={handleClose}
             className="fixed inset-0 z-[100] bg-black/90 md:backdrop-blur-xl flex justify-center items-center p-4 md:p-8 overflow-hidden transform-gpu" 
           >
-            <div onClick={(e) => e.stopPropagation()} className="w-full h-full max-w-[460px] max-h-[1050px] md:max-w-7xl md:h-[93vh] md:max-h-none">
+            <div onClick={(e) => e.stopPropagation()} className="w-full h-full max-w-[460px] max-h-[1050px] md:max-h-[90vh]">
               <ProductDetailsCard
                 product={selectedProduct}
                 onClose={handleClose}

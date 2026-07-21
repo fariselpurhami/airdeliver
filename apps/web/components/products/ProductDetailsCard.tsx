@@ -135,7 +135,7 @@ const ProductDetailsCardComponent = ({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.985 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
-      className="relative mx-auto w-full h-full max-w-[460px] max-h-[1050px] overflow-hidden rounded-[73px] border border-white/10 bg-neutral-950 text-white shadow-2xl flex flex-col"
+      className="w-full h-full max-w-[460px] max-h-[1050px] md:max-h-[90vh] overflow-hidden rounded-[73px] border border-white/10 bg-neutral-950 text-white shadow-2xl flex flex-col"
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-[-10%] top-[-10%] h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
@@ -150,9 +150,8 @@ const ProductDetailsCardComponent = ({
       >
         <X className="h-5 w-5" />
       </button>
-
-      <div className="relative flex flex-col">
-        <section className="min-w-0 border-b border-white/10">
+      <div className="relative flex flex-col flex-1 overflow-hidden">
+        <section className="min-w-0 border-b border-white/10 shrink-0">
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/[0.03] sm:aspect-[16/11]">
             {product.image_url ? (
               <Image
