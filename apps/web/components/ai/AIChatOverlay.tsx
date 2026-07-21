@@ -1168,7 +1168,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                 className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 sm:p-4 transform-gpu"
                                 onClick={() => setDetailProduct(null)}
                             >
-                                <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[460px] h-[93vh] max-h-[1050px]">
+                                <div onClick={(e) => e.stopPropagation()} className="w-full h-full max-w-[460px] max-h-[1050px] md:max-w-7xl md:h-[93vh] md:max-h-none">
                                     <ProductDetailsCard product={detailProduct} onClose={() => setDetailProduct(null)} />
                                 </div>
                             </motion.div>
