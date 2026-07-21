@@ -25,21 +25,10 @@ const normalizeProductData = (rawProduct: any): Product => ({
 });
 
 const LoadingSpinner = () => (
-    <div className="flex flex-col justify-center items-center h-full gap-6">
-        <div className="relative">
-            <div className="w-20 h-20 rounded-full border-2 border-purple-500/10 border-t-purple-400 animate-spin" />
-            <div className="absolute inset-2 rounded-full border-2 border-cyan-500/10 border-b-cyan-400 animate-spin [animation-duration:1.5s]" />
-            <div className="absolute inset-0 flex items-center justify-center">
-                <Database className="w-6 h-6 text-white/50 animate-pulse" />
-            </div>
-        </div>
-        <div className="flex flex-col items-center gap-1">
-            <p className="text-cyan-400 font-mono text-xs tracking-[0.3em] animate-pulse">ESTABLISHING UPLINK</p>
-            <p className="text-purple-400/50 font-mono text-[10px] tracking-widest">RETRIEVING ASSETS...</p>
-        </div>
+    <div className="flex justify-center items-center h-full">
+        <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-cyan-500 animate-spin" />
     </div>
 );
-
 const AddToManifestButton = ({ products }: { products: Product[] }) => {
     const { addProductById } = useAIOrderingStore();
     const [isFlying, setIsFlying] = useState(false);

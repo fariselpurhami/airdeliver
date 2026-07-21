@@ -4,17 +4,17 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
-import { Bot, Rocket, Zap, ScanLine, ShoppingBag, Eye, Check } from 'lucide-react';
+import { Bot, ScanLine, ShoppingBag, Check } from 'lucide-react';
 import Image from 'next/image';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; 
 
-// --- ARCHITECTURAL UTILITY: SAFE DATA LAYER ---
 const formatPrice = (value: number | string | undefined | null): string => {
     if (value === undefined || value === null) return '0.00';
     const num = Number(value);
     return isNaN(num) ? '0.00' : num.toFixed(2);
 };
 
+// 🛡️ L8 FIX: إيقاف الـ Parallax تماماً على شاشات اللمس (الموبايل) لمنع تسريب الذاكرة
 const useParallax = (ref: React.RefObject<HTMLDivElement>) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -22,6 +22,9 @@ const useParallax = (ref: React.RefObject<HTMLDivElement>) => {
   const rotateY = useTransform(x, [-100, 100], [-5, 5]);
 
   useEffect(() => {
+    const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+    if (isTouchDevice) return; 
+
     const element = ref.current;
     if (!element) return;
     const handleMouseMove = (e: MouseEvent) => {
@@ -32,8 +35,9 @@ const useParallax = (ref: React.RefObject<HTMLDivElement>) => {
       y.set(((e.clientY - rect.top) - centerY) / centerY * 100);
     };
     const handleMouseLeave = () => { x.set(0); y.set(0); };
-    element.addEventListener('mousemove', handleMouseMove);
-    element.addEventListener('mouseleave', handleMouseLeave);
+    
+    element.addEventListener('mousemove', handleMouseMove, { passive: true });
+    element.addEventListener('mouseleave', handleMouseLeave, { passive: true });
     return () => {
       element.removeEventListener('mousemove', handleMouseMove);
       element.removeEventListener('mouseleave', handleMouseLeave);
@@ -65,7 +69,7 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
   
   const [isAdded, setIsAdded] = useState(false);
   const uniqueBtnId = `card-add-btn-${product.id}`; 
-  const safePrice = formatPrice(product.price); // تأمين السعر لمنع الكراش
+  const safePrice = formatPrice(product.price); 
 
   const handleAddToCart = (e: React.MouseEvent) => {
       e.stopPropagation(); 
@@ -79,121 +83,90 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
       layoutId={`product-card-${product.id}`}
       ref={cardRef}
       onClick={() => onOpen(product as any)}
-      variants={{ hidden: { opacity: 0, scale: 0.9 }, visible: { opacity: 1, scale: 1 } }}
+      variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
       style={{ perspective: 1200 }}
-      className="group relative h-[450px] w-full cursor-pointer z-0 hover:z-20"
+      // 📱 UX FIX: w-full عشان يملى العمود بتاعه في الـ Grid، وطول 320px للموبايل عشان يكون متناسق
+      className="group relative min-h-[320px] md:min-h-[450px] h-full w-full flex-shrink-0 cursor-pointer z-0 hover:z-20 transform-gpu flex flex-col"
     >
       <motion.div
-        style={{ rotateX, rotateY }} // شيلنا الـ preserve-3d من هنا
-        className="relative w-full h-full rounded-[36px] bg-[#050505] border border-white/10 overflow-hidden transition-all duration-500 group-hover:border-cyan-500/50 group-hover:shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col md:[transform-style:preserve-3d]" // ضفناه للشاشات الكبيرة بس
+        style={{ rotateX, rotateY }} 
+        // تصغير الحواف المدوّرة في الموبايل لتناسب الحجم الجديد rounded-[24px]
+        className="relative w-full h-full rounded-[24px] md:rounded-[36px] bg-[#050505] border border-white/10 overflow-hidden transition-all duration-500 md:group-hover:border-cyan-500/50 md:group-hover:shadow-[0_0_50px_rgba(6,182,212,0.15)] flex flex-col md:[transform-style:preserve-3d]"
       >
-        <div className="relative w-full flex-grow bg-gradient-to-b from-white/5 to-transparent p-6 flex items-center justify-center overflow-hidden">
-            
+        {/* تقليل الـ Padding الداخلي في الموبايل لـ p-3 عشان ندي مساحة أكبر للمحتوى */}
+        <div className="relative w-full flex-grow bg-gradient-to-b from-white/5 to-transparent p-3 md:p-6 flex items-center justify-center overflow-hidden">
             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] bg-center" />
             
             {isRecommendedByAI && (
-                <div 
-                    className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.2)] md:[transform:translateZ(40px)]"
-                >
-                    <Bot size={12} className="text-cyan-400 animate-pulse" />
-                    <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">AI Pick</span>
+                <div className="absolute top-2 right-2 md:top-4 md:right-4 z-20 flex items-center gap-1 px-1.5 py-1 md:px-3 md:py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.2)] md:[transform:translateZ(40px)]">
+                    <Bot size={10} className="text-cyan-400 animate-pulse md:w-[12px] md:h-[12px]" />
+                    <span className="text-[8px] md:text-[10px] font-bold text-cyan-300 uppercase tracking-wider">AI Pick</span>
                 </div>
             )}
 
-            <div className="relative w-full h-full max-h-[220px] md:[transform:translateZ(60px)]">
+            {/* تصغير أقصى ارتفاع للصورة في الموبايل لـ 140px عشان متتفعصش على النصوص */}
+            <div className="relative w-full h-full max-h-[140px] md:max-h-[220px] md:[transform:translateZ(60px)]">
                 {product.image_url ? (
                     <Image
                         src={product.image_url}
                         alt={product.name}
                         fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                         priority={priority}
-                        className="object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.6)] transition-transform duration-700 ease-out group-hover:scale-110 group-hover:-translate-y-4"
+                        className="object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.6)] transition-transform duration-700 ease-out md:group-hover:scale-110 md:group-hover:-translate-y-4"
                     />
                 ) : (
                     <div className="flex items-center justify-center w-full h-full text-white/10">
-                        <ScanLine size={48} />
+                        <ScanLine size={36} className="md:w-[48px] md:h-[48px]" />
                     </div>
                 )}
             </div>
         </div>
 
-        <div 
-            className="relative w-full bg-[#080808]/95 backdrop-blur-xl border-t border-white/5 p-5 flex flex-col justify-between transition-colors duration-500 group-hover:bg-[#0a0a0a] md:[transform:translateZ(20px)]"
-        >
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            <div className="mb-3">
-                <div className="flex justify-between items-start gap-2 mb-1">
-                    <h3 className="text-base font-bold text-white leading-tight line-clamp-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+        {/* تعديل مقاسات النصوص والمسافات السفلية لضمان عدم خروجها عن الكارت */}
+        <div className="relative w-full bg-[#080808]/95 backdrop-blur-md md:backdrop-blur-xl border-t border-white/5 p-3 md:p-5 flex flex-col justify-between transition-colors duration-500 md:group-hover:bg-[#0a0a0a] md:[transform:translateZ(20px)]">
+            <div className="mb-2 md:mb-3">
+                <div className="w-full mb-1">
+                    <h3 className="w-full text-[10px] md:text-sm font-medium text-white/90 leading-snug break-words font-sans">
                         {product.name}
                     </h3>
-                    <div className="p-1.5 rounded-lg bg-white/5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <Zap size={12} className="fill-current" />
-                    </div>
                 </div>
-                
-                <p className="text-[10px] text-gray-500 font-mono tracking-wider uppercase">
-                    {product.stock_level || "Ready for Dispatch"}
+                <p className="text-[7px] md:text-[9px] text-gray-400 font-sans leading-relaxed line-clamp-3 mt-1">
+                    {product.description || "Specifications classified. High-performance unit ready for deployment."}
                 </p>
             </div>
 
             <div className="mt-auto">
-                <div className="flex items-end justify-between mb-3">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-600 uppercase font-bold">Unit Price</span>
-                        <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            ${safePrice}
-                        </span>
-                    </div>
-                    {product.predicted_delivery && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 max-w-[50%] -mr-1.5 rounded bg-white/5 border border-white/5 text-[10px] text-gray-400 group-hover:text-cyan-400 group-hover:border-cyan-500/20 transition-colors">
-                            <Rocket size={8} />
-                            <span>{product.predicted_delivery}</span>
-                        </div>
-                    )}
-                </div>
+                <div className="flex items-center justify-between w-full mb-2 md:mb-3">
+                   <span className="text-[10px] md:text-[10px] text-gray-600 uppercase font-bold">Price</span>
+                   <span className="text-base md:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                       ${safePrice}
+                   </span>
+               </div>
 
-                <AnimatePresence mode="wait">
+               <AnimatePresence mode="wait">
                     {isAdded ? (
                         <motion.button
                             key="added"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="w-full py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"
+                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                            className="w-full py-1.5 md:py-2.5 rounded-lg md:rounded-xl bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 font-bold text-[9px] md:text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"
                         >
                             <Check size={14} className="text-cyan-300" /> Uplinked
                         </motion.button>
                     ) : (
-                        <div className="flex gap-2 h-10">
+                        <div className="flex gap-2 h-8 md:h-10">
                             <motion.button 
-                                id={uniqueBtnId}
-                                key="add"
-                                onClick={handleAddToCart}
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="flex-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500 hover:text-black font-bold text-[10px] tracking-widest flex items-center justify-center gap-2 transition-all duration-300 group/btn"
+                                id={uniqueBtnId} key="add" onClick={handleAddToCart} whileTap={{ scale: 0.95 }}
+                                className="flex-1 rounded-lg md:rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 md:hover:bg-cyan-500 md:hover:text-black font-bold text-[8px] md:text-[10px] tracking-widest flex items-center justify-center gap-1.5 md:gap-2 transition-all duration-300"
                             >
-                                <ShoppingBag size={14} className="group-hover/btn:text-black transition-colors" /> 
-                                <span className="group-hover/btn:text-black">order with air</span>
-                            </motion.button>
-                            <motion.button
-                                key="view"
-                                onClick={(e) => { e.stopPropagation(); onOpen(product as any); }}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="px-3 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/20 hover:border-white/30 transition-all flex items-center justify-center"
-                            >
-                                <Eye size={16} />
+                                <ShoppingBag size={12} className="md:w-[14px] md:h-[14px]" /> 
+                                <span>order with air</span>
                             </motion.button>
                         </div>
                     )}
                 </AnimatePresence>
             </div>
         </div>
-
-        <div className="absolute inset-0 rounded-[36px] ring-1 ring-white/0 group-hover:ring-white/10 transition-all duration-500 pointer-events-none" />
       </motion.div>
     </motion.div>
   );
