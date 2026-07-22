@@ -10,6 +10,8 @@ import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue }
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Preload, Float, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { useDeviceDetection } from '@/hooks/usePWAInstall';
+import { MobileLandingView } from '@/components/home/MobileLandingView';
 
 // Icons
 import { 
@@ -732,6 +734,18 @@ const DynamicGlobalScaleSection = dynamic(() => Promise.resolve(GlobalScaleSecti
 export default function Page() {
   const { isOverlayVisible, setOverlayVisible } = useAIOrderingStore();
   const { isProductOverlayVisible, showProductOverlay, hideProductOverlay } = useUIStore();
+  
+  const { isMobile, isStandalone, mounted } = useDeviceDetection();
+
+  if (!mounted) {
+    return <div className="min-h-screen w-full bg-black" />;
+  }
+
+  // --- التعديل السحري هنا ---
+  // لو موبايل + مش تطبيق = اعرض شاشة التحميل
+  if (isMobile && !isStandalone) {
+    return <MobileLandingView />;
+  }
 
   return (
     <div className="min-h-screen w-full text-gray-100 overflow-x-hidden bg-black" style={{ fontFamily: "'Montserrat', sans-serif" }}>
