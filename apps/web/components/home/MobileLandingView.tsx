@@ -3,7 +3,7 @@ import React, { memo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Zap, ArrowRight, ArrowDown } from 'lucide-react';
+import { Zap, ArrowDown } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { IOSInstallPrompt } from '@/components/pwa/IOSInstallPrompt';
 
@@ -138,13 +138,6 @@ export const MobileLandingView = memo(() => {
               </p>
 
               <div className="flex flex-col gap-6 justify-center items-center">
-                <Link href="/profile" className="group relative px-12 py-7 bg-white text-black font-black text-xl rounded-full overflow-hidden transition-all duration-300 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] transform-gpu">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
-                  <span className="relative flex items-center gap-3">
-                    SIGN UP <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                </Link>
-                
                 <button 
                   onClick={triggerInstall}
                   className="group px-12 py-7 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-3 transform-gpu"
