@@ -175,7 +175,7 @@ export default function Header() {
       <div
         ref={floatingBarRef}
         data-scrolled="false"
-        className="fixed bottom-8 left-1/2 z-50 flex -translate-x-1/2 items-center gap-6 rounded-full border border-white/40 bg-white/30 px-6 py-3 backdrop-blur-xl shadow-[0_8px_32px_rgba(255,255,255,0.25)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] translate-y-[100px] opacity-0 scale-90 pointer-events-none data-[scrolled=true]:translate-y-0 data-[scrolled=true]:opacity-100 data-[scrolled=true]:scale-100 data-[scrolled=true]:pointer-events-auto transform-gpu will-change-transform"
+        className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-6 rounded-full border border-white/40 bg-white/30 px-6 py-3 backdrop-blur-xl shadow-[0_8px_32px_rgba(255,255,255,0.25)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] translate-y-[100px] opacity-0 scale-90 pointer-events-none data-[scrolled=true]:translate-y-0 data-[scrolled=true]:opacity-100 data-[scrolled=true]:scale-100 data-[scrolled=true]:pointer-events-auto transform-gpu will-change-transform"
       >
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -191,7 +191,7 @@ export default function Header() {
                   : "text-black/70 hover:text-black hover:bg-white/50 hover:scale-105"
               }`}
             >
-              <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+              <item.icon size={26} strokeWidth={isActive ? 2.5 : 2} />
             </Link>
           );
         })}
