@@ -108,7 +108,7 @@ class StripeSettings(BaseAppConfig):
     STRIPE_SECRET_KEY: SecretStr = Field(..., alias="STRIPE_SECRET_KEY")
     STRIPE_WEBHOOK_SECRET: SecretStr = Field(..., alias="STRIPE_WEBHOOK_SECRET")
     STRIPE_PUBLISHABLE_KEY: str = Field(..., alias="STRIPE_PUBLISHABLE_KEY")
-
+    api_version: str = Field(default="2026-06-24.dahlia")    
 
 class PayPalSettings(BaseAppConfig):
     PAYPAL_CLIENT_ID: str = Field(..., alias="PAYPAL_CLIENT_ID")

@@ -27,7 +27,7 @@ class StripeSettings(BaseModel):
     secret_key: SecretStr = Field(..., description="Stripe API Secret Key")
     publishable_key: SecretStr = Field(..., description="Stripe API Publishable Key")
     webhook_secret: SecretStr = Field(..., description="Stripe Webhook Signing Secret")
-    api_version: str = Field(default="2023-10-16")
+    api_version: str = Field(default="2026-06-24.dahlia")
 
 
 class PayPalSettings(BaseModel):
@@ -162,7 +162,7 @@ class StripeGateway(IPaymentGateway):
         self.stripe_client = stripe.StripeClient(
             
             api_key=self._settings.STRIPE_SECRET_KEY.get_secret_value(),
-            stripe_version="2023-10-16"
+            stripe_version=self._settings.api_version
         )
 
     @property
