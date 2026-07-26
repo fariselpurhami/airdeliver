@@ -1126,9 +1126,12 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     }), []);
 
     const stripeOptions = useMemo<StripeElementsOptions | undefined>(() => {
-        const stripeGateway = paymentDetails?.gateways.find(g => g.provider === 'stripe');
-        if (!stripeGateway?.clientSecret) return undefined;
-        return { clientSecret: stripeGateway.clientSecret, appearance: stripeAppearance };
+        // بنقرأ الـ client_secret مباشرة زي ما الباك إند بيبعته بالظبط
+        const clientSecret = paymentDetails?.client_secret;
+        
+        if (!clientSecret) return undefined;
+        
+        return { clientSecret: clientSecret, appearance: stripeAppearance };
     }, [paymentDetails, stripeAppearance]);
 
     const isPaymentMode = !!paymentDetails; 
@@ -1255,6 +1258,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                     total={paymentDetails!.total}
                                                     items={cartItems}
                                                     onPaymentSuccess={handlePaymentSuccess}
+                                                    clientSecret={stripeOptions.clientSecret}
                                                 />
                                             </Elements>
                                         ) : (
