@@ -185,10 +185,15 @@ class StripeGateway(IPaymentGateway):
             or getattr(self._settings, "stripe_secret_key", None)
             or getattr(self._settings, "secret_key", None)
         )
+
+    
+        if hasattr(secret_key, "get_secret_value"):
+            secret_key = secret_key.get_secret_value()
+        
         api_version = (
             getattr(self._settings, "STRIPE_API_VERSION", None)
             or getattr(self._settings, "api_version", None)
-            or "2023-10-16"
+            or "2026-06-24"
         )
 
         if not secret_key:

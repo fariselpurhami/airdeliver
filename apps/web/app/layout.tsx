@@ -5,6 +5,7 @@ import { Inter, Orbitron, Montserrat } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Toaster } from 'sonner';
+import PWAGuard from '@/components/layout/PWAGuard';
 
 import { Providers } from '@/lib/providers';
 import AppShell from '@/components/layout/AppShell';
@@ -99,7 +100,9 @@ export default function RootLayout({
       <body className="min-h-screen bg-background font-sans antialiased no-scrollbar selection:bg-primary/20 selection:text-primary">
         <ViewportEnforcer />
         <Providers>
-          <AppShell>{children}</AppShell>
+          <PWAGuard>
+            <AppShell>{children}</AppShell>
+          </PWAGuard>
           <Toaster position="bottom-right" richColors closeButton expand={false} />
         </Providers>
         <Analytics />
