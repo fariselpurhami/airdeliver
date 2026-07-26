@@ -1,3 +1,6 @@
+# apps/api/worker_entrypoint.py
+
+import httpx 
 import asyncio
 import json
 import logging
@@ -136,6 +139,7 @@ class VoiceBrainState:
 
 @dataclass
 class ServiceRegistry:
+    http_client: Optional["httpx.AsyncClient"] = None
     rabbitmq: Optional[RabbitMQService] = None
     db_engine: Optional[AsyncEngine] = None
     cache: Optional[RedisCacheClient] = None
@@ -253,6 +257,10 @@ class WorkerRuntime:
         if self.services.opensearch_gen is not None:
             with suppress(Exception):
                 await self.services.opensearch_gen.aclose()
+ 
+        if self.services.http_client is not None:
+            with suppress(Exception):
+                await self.services.http_client.aclose()
 
     def ensure_core_services(self) -> None:
         if self.services.session_maker is None or self.services.cache is None or self.services.rabbitmq is None:
@@ -558,7 +566,13 @@ class WorkerRuntime:
             result = connect_method()
             if asyncio.iscoroutine(result):
                 await result
-
+        
+        http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(30.0, connect=10.0),
+            limits=httpx.Limits(max_keepalive_connections=50, max_connections=100)
+        )
+        self.services.http_client = http_client
+        
         self.services.db_engine = db_engine
         self.services.session_maker = session_maker_factory
         self.services.cache = cache_client
@@ -597,15 +611,20 @@ class WorkerRuntime:
         self.services.ai_degraded = False
 
     def initialize_payment(self, cache_client: RedisCacheClient) -> None:
-
-        self.services.payment = PaymentOrchestrator([
-            StripeGateway(get_stripe_settings()),
-            PayPalGateway(get_paypal_settings(), cache_client),
-            MpesaGateway(get_mpesa_settings(), cache_client),
-        ])
+        if self.services.http_client is None:
+            raise StartupDependencyError("HTTP Client not initialized prior to payments")
+            
+        self.services.payment = PaymentOrchestrator(
+            gateways=[
+                StripeGateway(get_stripe_settings()),
+                PayPalGateway(get_paypal_settings(), cache_client, self.services.http_client),
+                MpesaGateway(get_mpesa_settings(), cache_client, self.services.http_client),
+        
+            ]
+        )
         self.services.payment_ready = True
         self.services.refresh_readiness()
-
+    
     async def initialize_rabbitmq_consumers(self) -> None:
         settings = get_core_settings()
         rabbitmq_service = RabbitMQService(settings)

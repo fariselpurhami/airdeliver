@@ -350,26 +350,45 @@ class AICheckoutService:
         # لا نثق أبدًا أن SUCCESS تعني وجود البيانات المطلوبة
         primary_gw = getattr(orchestration_response, "primary_gateway", None)
         client_secret = getattr(primary_gw, "client_secret", None) if primary_gw else None
+        action_url = getattr(primary_gw, "action_url", None) if primary_gw else None
+        provider = getattr(primary_gw, "provider", "unknown") if primary_gw else "unknown"
 
-        if not client_secret:
-            # L9 Rule: عودة حالة SUCCESS بدون token هو "خرق صامت للعقد" (Silent Contract Breach)
+        if not client_secret and not action_url:
             logger.critical(
-                "Payment status was SUCCESS but client_secret is missing from response", 
-                extra={"order_id": new_order.id, "corr_id": correlation_id}
+                "Payment orchestration reported SUCCESS, but required actionable tokens are missing.", 
+                extra={
+                    "order_id": getattr(new_order, "id", None), 
+                    "corr_id": correlation_id, 
+                    "provider": provider
+                }
             )
-            await self._handle_failed_payment(new_order, "Incomplete secure token received from gateway.")
+            await self._handle_failed_payment(new_order, "Gateway token generation failed.")
             return
 
         # 6. Secure Handoff to Client
-        logger.info("Payment intent successfully secured", extra={"order_id": new_order.id, "corr_id": correlation_id})
+        logger.info(
+            "Payment intent successfully secured", 
+            extra={"order_id": getattr(new_order, "id", None), "corr_id": correlation_id, "provider": provider}
+        )
         
+        # Security Enforcement: Construct a strict Data Transfer Object (DTO) for the frontend.
+        # We aggressively strip 'raw_response' from the UI payload to prevent accidental data exposure 
+        # (OWASP API3: Broken Object Property Level Authorization) of internal API keys or PII.
+        ui_content = {
+            "orderId": new_order.id,
+            "total": str(new_order.total_price),
+            "gateway_provider": provider
+        }
+        
+        # Only inject the tokens that were actually provided to avoid frontend null/undefined errors
+        if client_secret:
+            ui_content["client_secret"] = client_secret
+        if action_url:
+            ui_content["action_url"] = action_url
+
         await self._send_to_ui(payload.user_id, {
             "type": "payment_intent",
-            "content": {
-                "orderId": new_order.id,
-                "total": str(new_order.total_price),
-                "client_secret": client_secret
-            }
+            "content": ui_content
         })
 
     async def handle_payment_success(self, raw_payload: Dict[str, Any]) -> None:
