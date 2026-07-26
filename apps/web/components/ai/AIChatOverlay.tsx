@@ -1313,14 +1313,8 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                 {isStripeError || isKeyMissing ? (
                                                      <PaymentFatalError keyMissing={isKeyMissing} />
                                                 ) : (
-                                                    <div className="flex flex-col items-center gap-4">
-                                                        <div className="relative">
-                                                            <div className="w-20 h-20 rounded-full border-2 border-cyan-900 border-t-cyan-400 animate-spin" />
-                                                            <div className="absolute inset-0 flex items-center justify-center">
-                                                                <Lock size={24} className="text-cyan-400" />
-                                                            </div>
-                                                        </div>
-                                                        <p className="text-cyan-200 font-mono text-sm tracking-[0.2em] animate-pulse">ENCRYPTING UPLINK...</p>
+                                                    <div className="flex flex-col items-center justify-center h-full">
+                                                        <Loader2 size={36} className="text-cyan-500 animate-spin" />
                                                     </div>
                                                 )}
                                             </div>
