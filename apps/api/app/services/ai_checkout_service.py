@@ -370,19 +370,29 @@ class AICheckoutService:
             "Payment intent successfully secured", 
             extra={"order_id": getattr(new_order, "id", None), "corr_id": correlation_id, "provider": provider}
         )
+
+        safe_ui_items = []
+        for item in cart.get("items", []):
+            safe_ui_items.append({
+                "id": item.get("id") or item.get("product_id"),
+                "name": item.get("name", "Encrypted Item"),
+                "quantity": int(item.get("quantity", 1)),
+                "price": float(item.get("price", 0.0))  # تحويل لـ float ليتوافق مع TypeScript
+            })
         
         # Security Enforcement: Construct a strict Data Transfer Object (DTO) for the frontend.
         # We aggressively strip 'raw_response' from the UI payload to prevent accidental data exposure 
         # (OWASP API3: Broken Object Property Level Authorization) of internal API keys or PII.
         ui_content = {
-            "orderId": new_order.id,
-            "total": str(new_order.total_price),
+            "client_secret": client_secret,
+            "order_data": {
+                "order_id": new_order.id,
+                "total": float(new_order.total_price), # تحويل لـ float ليتوافق مع UI
+                "items": safe_ui_items
+            },
             "gateway_provider": provider
         }
         
-        # Only inject the tokens that were actually provided to avoid frontend null/undefined errors
-        if client_secret:
-            ui_content["client_secret"] = client_secret
         if action_url:
             ui_content["action_url"] = action_url
 
@@ -390,6 +400,7 @@ class AICheckoutService:
             "type": "payment_intent",
             "content": ui_content
         })
+    
 
     async def handle_payment_success(self, raw_payload: Dict[str, Any]) -> None:
         """

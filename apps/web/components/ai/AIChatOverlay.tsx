@@ -1245,22 +1245,49 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                         exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
                                         onAnimationComplete={() => setIsAnimationComplete(true)}
                                         style={{ isolation: 'isolate', willChange: 'transform, opacity' }}
-                                        className="w-full h-full flex items-center justify-center overflow-y-auto relative z-20 transform-gpu"
+                                        className="w-full h-full flex flex-col relative z-20 transform-gpu"
                                     >
                                         {isReadyToRender && isAnimationComplete ? (
-                                            <Elements 
-                                                key={`${stripeOptions?.clientSecret}-loaded`} 
-                                                stripe={stripeObj} 
-                                                options={stripeOptions}
-                                            >
-                                                <AIPaymentForm
-                                                    orderId={paymentDetails!.orderId}
-                                                    total={paymentDetails!.total}
-                                                    items={cartItems}
-                                                    onPaymentSuccess={handlePaymentSuccess}
-                                                    clientSecret={stripeOptions.clientSecret}
-                                                />
-                                            </Elements>
+                                            (() => {
+                                        // 1. الفحص المعماري الصارم: التأكد من وجود البيانات في الهيكلة الجديدة
+                                                const hasValidData = Boolean(
+                                                    stripeOptions?.clientSecret &&
+                                                    paymentDetails?.order_data &&
+                                                    typeof paymentDetails.order_data.total === 'number'
+                                                );
+
+                                        // 2. Fallback: عرض رسالة خطأ آمنة لو البيانات ناقصة
+                                                if (!hasValidData) {
+                                                    return (
+                                                        <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                                                           <div className="p-4 bg-red-500/10 rounded-full mb-4">
+                                                               <AlertCircle size={48} className="text-red-400" />
+                                                           </div>
+                                                           <h3 className="text-xl font-bold text-white mb-2 tracking-wide font-mono">DATA CONTRACT BREACH</h3>
+                                                           <p className="text-gray-400 max-w-md text-sm leading-relaxed">
+                                                               Incomplete payment payload received from server. Missing order total or items.
+                                                           </p>
+                                                       </div>
+                                                    );
+                                                }
+
+                                          // 3. Success: تمرير الداتا الموثوقة للفورم عبر الـ DTO الجديد
+                                                return (
+                                                    <Elements 
+                                                        key={`${stripeOptions?.clientSecret}-loaded`} 
+                                                        stripe={stripeObj} 
+                                                        options={stripeOptions}
+                                                    >
+                                                        <AIPaymentForm
+                                                            orderId={paymentDetails.order_data.order_id}
+                                                            total={paymentDetails.order_data.total}
+                                                            items={paymentDetails.order_data.items}
+                                                            onPaymentSuccess={handlePaymentSuccess}
+                                                            clientSecret={stripeOptions.clientSecret}
+                                                        />
+                                                    </Elements>
+                                                );
+                                            })()
                                         ) : (
                                             <div className="flex flex-col items-center gap-6">
                                                 {isStripeError || isKeyMissing ? (

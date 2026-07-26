@@ -1,5 +1,3 @@
-// apps/web/components/ai/AIPaymentForm.tsx
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -10,33 +8,19 @@ import {
     ShieldCheck,
     CreditCard,
     ScanLine,
-    CheckCircle2,
     ArrowRight,
-    Activity
+    Activity,
+    CheckCircle2
 } from 'lucide-react';
 
-// استيراد أدوات Stripe الحقيقية
-import { useStripe, useElements, PaymentElement, Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-
-// ============================================================================
-// STRIPE CONFIGURATION
-// ============================================================================
-
-// فحص أمني للتأكد إن المفتاح موجود في الـ .env
-if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-    throw new Error("Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in .env file");
-}
-
-// تحميل المفتاح مباشرة من بيئة التشغيل
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
 
 // ============================================================================
 // LOADING & SUCCESS COMPONENTS
 // ============================================================================
 
 const PaymentLoadingState = React.memo(() => (
-    <div className="w-full h-full flex flex-col items-center justify-center p-12 gap-6 text-center">
+    <div className="w-full h-full flex flex-col items-center justify-center p-12 gap-6 text-center bg-transparent">
          <div className="relative">
             <div className="w-16 h-16 border-2 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -54,7 +38,7 @@ PaymentLoadingState.displayName = 'PaymentLoadingState';
 const PaymentSuccessState = React.memo(() => (
     <motion.div
         initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-        className="w-full h-full flex flex-col items-center justify-center p-12 gap-6 text-center"
+        className="w-full h-full flex flex-col items-center justify-center p-12 gap-6 text-center bg-transparent"
      >
         <div className="w-24 h-24 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center text-green-400 mb-4 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
             <CheckCircle2 size={40} />
@@ -83,10 +67,10 @@ interface AIPaymentFormProps {
     total: number;
     items: Item[];
     onPaymentSuccess: () => void;
+    clientSecret?: string; // أضفنا ده عشان يمنع إيرور الفرونت
 }
 
-const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: AIPaymentFormProps) => {
-    // استخدام أدوات Stripe الحقيقية
+const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, clientSecret }: AIPaymentFormProps) => {
     const stripe = useStripe();
     const elements = useElements();
 
@@ -95,11 +79,10 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: A
     const [isReady, setIsReady] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
-    // تأخير بسيط لمحاكاة تجهيز الواجهة وإعطاء Stripe وقت للتحميل
     useEffect(() => {
         const timer = setTimeout(() => {
             requestAnimationFrame(() => setIsReady(true));
-        }, 10000);
+        }, 1500); // قللنا الوقت لثانية ونص عشان مياخدش وقت طويل في التحميل الحقيقي
         return () => clearTimeout(timer);
     }, []);
 
@@ -114,10 +97,9 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: A
         setErrorMessage(null);
 
         try {
-            // تنفيذ الدفع الحقيقي عبر Stripe
             const { error, paymentIntent } = await stripe.confirmPayment({
                 elements,
-                redirect: 'if_required', // لمنع إعادة التوجيه التلقائية إلا لو البنك طلب 3D Secure
+                redirect: 'if_required',
             });
 
             if (error) {
@@ -133,18 +115,28 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: A
         }
     }, [stripe, elements, isLoading, onPaymentSuccess]);
 
+    // حماية إضافية لو الكلاينت سيكريت مش موجود
+    if (!clientSecret) {
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center text-white p-4 text-center bg-transparent">
+                <AlertTriangle size={48} className="text-yellow-500 mb-4" />
+                <h2 className="text-xl font-bold font-mono">Missing Client Secret</h2>
+            </div>
+        );
+    }
+
     if (!isReady) return <PaymentLoadingState />;
     if (isSuccess) return <PaymentSuccessState />;
 
     return (
         <motion.div
-            className="w-full h-full flex flex-col relative transform-gpu"
+            className="w-full h-full flex flex-col relative transform-gpu bg-transparent"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
             {/* --- Header --- */}
-            <div className="bg-gradient-to-b from-white/5 to-transparent p-8 pb-6 border-b border-white/5 flex-shrink-0">
+            <div className="bg-gradient-to-b from-white/5 to-transparent p-6 border-b border-white/5 flex-shrink-0">
                 <div className="flex justify-between items-start mb-4">
                     <div className="p-3 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
                         <CreditCard size={18} />
@@ -160,10 +152,10 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: A
             </div>
 
             {/* --- Body --- */}
-            <div className="p-8 pt-6 flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 flex flex-col">
+            <div className="p-6 flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 flex flex-col">
 
                 {/* Manifest Block */}
-                <div className="mb-8 rounded-2xl bg-white/[0.03] border border-white/5 p-4 relative overflow-hidden flex-shrink-0">
+                <div className="mb-6 rounded-2xl bg-white/[0.03] border border-white/5 p-4 relative overflow-hidden flex-shrink-0">
                     <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/50" />
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
                         <ScanLine size={12} /> Manifest
@@ -196,7 +188,6 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: A
                 <form onSubmit={handleSubmit} className="flex flex-col flex-grow">
                     <div className="space-y-4">
                         <div className="p-4 rounded-xl bg-black/40 border border-white/10 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/30 transition-all duration-300">
-                            {/* عنصر Stripe الحقيقي */}
                             <PaymentElement options={{ layout: 'tabs', readOnly: isLoading }} />
                         </div>
                     </div>
@@ -215,8 +206,8 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: A
                         )}
                     </AnimatePresence>
 
-                    {/* Airpay Button */}
-                    <div className="mt-auto pt-8">
+                    {/* Airpay Button - Pushed to bottom */}
+                    <div className="mt-auto pt-6">
                         <motion.button
                             disabled={isLoading || !isReady || !stripe || !elements}
                             type="submit"
@@ -236,7 +227,7 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: A
                                     ) : (
                                         <>
                                             <span className="font-black text-white tracking-widest text-sm group-hover:text-cyan-200 transition-colors">
-                                                airpay
+                                                PAY ${(total).toFixed(2)}
                                             </span>
                                             <div className="p-1 rounded-full bg-cyan-500/20 text-cyan-400 group-hover:translate-x-1 transition-transform">
                                                 <ArrowRight size={16} />
@@ -247,7 +238,7 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: A
                             </div>
                         </motion.button>
 
-                        <div className="flex justify-center items-center gap-2 mt-4 text-[10px] text-gray-600 font-mono uppercase tracking-widest">
+                        <div className="flex justify-center items-center gap-2 mt-4 text-[10px] text-gray-600 font-mono uppercase tracking-widest pb-2">
                             <ShieldCheck size={12} className="text-gray-500" />
                             <span>Powered by Stripe • End-to-End Encryption</span>
                         </div>
@@ -257,72 +248,6 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess }: A
         </motion.div>
     );
 });
+
 AIPaymentForm.displayName = 'AIPaymentForm';
-
-// ============================================================================
-// APP WRAPPER (تغليف الكومبوننت بالـ Elements Provider الخاص بـ Stripe)
-// ============================================================================
-
-export default function App({ clientSecret }: { clientSecret?: string }) {
-    // Dummy Data
-    const dummyItems = [
-        { id: 1, name: "DJI Mavic 3 Pro Drone", quantity: 1, price: 2199.00 },
-        { id: 2, name: "Extra Intelligent Flight Battery", quantity: 2, price: 159.00 }
-    ];
-
-    const orderTotal = dummyItems.reduce((acc, item) => acc + (item.price * item.quantity), 0) + 12.50;
-
-    // حالة مؤقتة لو مفيش Client Secret جاي من الباك إند
-    if (!clientSecret) {
-        return (
-            <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-white p-4 text-center">
-                <AlertTriangle size={48} className="text-yellow-500 mb-4" />
-                <h2 className="text-xl font-bold font-mono">Missing Client Secret</h2>
-                <p className="text-gray-400 max-w-md mt-2">
-                    Please ensure you are passing the <code>clientSecret</code> obtained from your backend to this component to render the Stripe Elements properly.
-                </p>
-            </div>
-        );
-    }
-
-    // خيارات التهيئة الحقيقية الخاصة بـ Stripe
-    const options = {
-        clientSecret,
-        appearance: {
-            theme: 'night' as const,
-            variables: {
-                colorPrimary: '#06b6d4',
-                colorBackground: '#1E293B',
-                colorText: '#e2e8f0',
-            }
-        },
-    };
-
-    return (
-        <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 relative overflow-hidden font-sans">
-            {/* Background Effects */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/10 via-black to-black" />
-            <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDIiLz4KPC9zdmc+')] opacity-50" />
-
-            <motion.div
-                initial={{ scale: 0.95, opacity: 0, y: 30 }}
-                animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
-                className="w-full max-w-[460px] h-[93vh] max-h-[900px] flex flex-col bg-[#050505] backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative transform-gpu"
-            >
-                {/* Glow Effects */}
-                <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
-                <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full" />
-
-                {/* تغليف الـ Form بـ Stripe Elements */}
-                <Elements stripe={stripePromise} options={options}>
-                    <AIPaymentForm
-                        orderId={847291}
-                        total={orderTotal}
-                        items={dummyItems}
-                        onPaymentSuccess={() => console.log('Payment processed successfully!')}
-                    />
-                </Elements>
-            </motion.div>
-        </div>
-    );
-}
+export default AIPaymentForm;
