@@ -463,9 +463,22 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
                         <p className="whitespace-pre-wrap mb-4 text-sm leading-relaxed text-white/90 font-normal">{message.content}</p>
                         <div className="flex flex-wrap gap-3">
                             {(message.options as string[])?.map((option: string) => {
+                                // تحديد إذا كان هذا هو زر التأكيد لتمييزه
+                                const isConfirm = option === 'Confirm Order';
+                                
+                                // التصميم الافتراضي لباقي الأزرار
                                 let buttonStyle = "bg-white/5 text-cyan-200 border-white/10 hover:bg-cyan-500 hover:text-black";
-                                if (option === 'Switch to PayPal') buttonStyle = "bg-[#003087] text-white border-transparent hover:bg-[#003087]/80"; 
-                                if (option === 'Retry Payment') buttonStyle = "bg-green-600 text-white hover:bg-green-500";
+                                
+                                // التصميم الفخم المخصص لزر Confirm Order
+                                if (isConfirm) {
+                                    buttonStyle = "bg-gradient-to-r from-cyan-400 to-cyan-500 text-[#020617] border-transparent shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_35px_rgba(6,182,212,0.6)]";
+                                } 
+                                else if (option === 'Switch to PayPal') {
+                                    buttonStyle = "bg-[#003087] text-white border-transparent hover:bg-[#003087]/80"; 
+                                }
+                                else if (option === 'Retry Payment') {
+                                    buttonStyle = "bg-green-600 text-white hover:bg-green-500 border-transparent shadow-[0_0_15px_rgba(22,163,74,0.3)]";
+                                }
 
                                 return (
                                     <motion.button
@@ -482,9 +495,16 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
                                             else if (option === 'Save for Later') onSave();
                                             else onSend(option);
                                         }}
-                                        className={`text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-xl border transition-all duration-300 transform-gpu ${buttonStyle}`}
+                                        // جعلنا الزر rounded-full وضفنا flex لترتيب الأيقونة مع النص
+                                        className={`flex items-center justify-center gap-2 px-6 py-3 rounded-full border transition-all duration-300 transform-gpu ${buttonStyle}`}
                                     >
-                                        {option}
+                                        {/* إضافة أيقونة جمالية لزر التأكيد فقط */}
+                                        {isConfirm && <Zap size={16} strokeWidth={2.5} />}
+                                        
+                                        {/* تنسيق الخط ليصبح أكثر أناقة */}
+                                        <span className={`text-xs uppercase tracking-[0.15em] ${isConfirm ? 'font-black' : 'font-bold'}`}>
+                                            {option}
+                                        </span>
                                     </motion.button>
                                 );
                             })}
@@ -506,12 +526,12 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
                 );
             case 'recovery_prompt':
                return (
-                  <div className="flex items-center justify-center w-full py-6">
+                  <div className="flex items-center justify-center w-full py-4">
                      <motion.div 
                          initial={{ scale: 0.9, opacity: 0, y: 10 }}
                          animate={{ scale: 1, opacity: 1, y: 0 }}
                          style={{ willChange: 'transform, opacity' }}
-                         className="flex items-center gap-4 p-3 bg-white/[0.04] backdrop-blur-3xl border border-white/10 rounded-[55px] shadow-2xl transform-gpu"
+                         className="flex items-center gap-2 p-2 bg-white/[0.04] backdrop-blur-3xl border border-white/10 rounded-[55px] shadow-2xl transform-gpu"
                      >
                          {[
                              { icon: Undo2, label: "UNDO", action: onRestore, textColor: "text-white", hoverBg: "hover:bg-cyan-500/10" },
@@ -523,10 +543,10 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
                                  whileHover={{ scale: 1.05 }}
                                  whileTap={{ scale: 0.95 }}
                                  onClick={btn.action} 
-                                 className={`flex flex-col items-center justify-center min-w-[80px] h-[80px] gap-2 rounded-[55px] transition-all duration-300 transform-gpu ${btn.hoverBg} group`}
+                                 className={`flex flex-col items-center justify-center min-w-[60px] h-[60px] gap-2 rounded-full transition-all duration-300 transform-gpu ${btn.hoverBg} group`}
                              >
-                                 <btn.icon size={22} strokeWidth={2.5} className="text-white opacity-80 group-hover:opacity-100" />
-                                 <span className={`text-[9px] font-black uppercase tracking-widest ${btn.textColor}`}>
+                                 <btn.icon size={17} strokeWidth={2.5} className="text-white opacity-80 group-hover:opacity-100" />
+                                 <span className={`text-[8px] font-black uppercase tracking-widest ${btn.textColor}`}>
                                      {btn.label}
                                  </span>
                              </motion.button>

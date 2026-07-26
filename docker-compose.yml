@@ -490,6 +490,7 @@ services:
     environment:
       - NEXTAUTH_URL=https://airdeliver.com
       - NODE_ENV=production
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     depends_on:
       api:
         condition: service_healthy

@@ -467,6 +467,7 @@ services:
      - CI=true
      - PNPM_CONFIG_CONFIRM_MODULES_PURGE=false
      - PNPM_CONFIG_ALLOW_BUILD=esbuild,sharp,unrs-resolver
+     - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     volumes:
       - ./apps/web:/app:delegated
       - pnpm-store:/pnpm

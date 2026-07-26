@@ -441,7 +441,7 @@ const GlobalScaleSection = memo(() => {
           <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
           <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
           <ParticleField
-            count={12000}          
+            count={5000}          
             radius={56}            
             color="#e9d5ff"        
             size={0.05}           
