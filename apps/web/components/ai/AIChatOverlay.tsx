@@ -407,7 +407,7 @@ const ExpandableUserMessage = React.memo(({ text }: { text: string }) => {
 });
 ExpandableUserMessage.displayName = 'ExpandableUserMessage';
 
-const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAuth, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
+const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction, onNavigateToAuth, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: any) => {
     const isAI = message.sender === 'ai';
 
     const renderContent = () => {
@@ -458,57 +458,60 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
                     </div>
                 );
             case 'confirmation_prompt':
+                if (!isActiveAction) return null;
                 return (
                     <div>
                         <p className="whitespace-pre-wrap mb-4 text-sm leading-relaxed text-white/90 font-normal">{message.content}</p>
-                        <div className="flex flex-wrap gap-3">
-                            {(message.options as string[])?.map((option: string) => {
+                        {isActiveAction && (
+                            <div className="flex flex-wrap gap-3">
+                                {(message.options as string[])?.map((option: string) => {
                                 // تحديد إذا كان هذا هو زر التأكيد لتمييزه
-                                const isConfirm = option === 'Confirm Order';
+                                    const isConfirm = option === 'Confirm Order';
                                 
                                 // التصميم الافتراضي لباقي الأزرار
-                                let buttonStyle = "bg-white/5 text-cyan-200 border-white/10 hover:bg-cyan-500 hover:text-black";
+                                    let buttonStyle = "bg-white/5 text-cyan-200 border-white/10 hover:bg-cyan-500 hover:text-black";
                                 
                                 // التصميم الفخم المخصص لزر Confirm Order
-                                if (isConfirm) {
-                                    buttonStyle = "bg-gradient-to-r from-cyan-400 to-cyan-500 text-[#020617] border-transparent shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_35px_rgba(6,182,212,0.6)]";
-                                } 
-                                else if (option === 'Switch to PayPal') {
-                                    buttonStyle = "bg-[#003087] text-white border-transparent hover:bg-[#003087]/80"; 
-                                }
-                                else if (option === 'Retry Payment') {
-                                    buttonStyle = "bg-green-600 text-white hover:bg-green-500 border-transparent shadow-[0_0_15px_rgba(22,163,74,0.3)]";
-                                }
+                                    if (isConfirm) {
+                                        buttonStyle = "bg-gradient-to-r from-cyan-400 to-cyan-500 text-[#020617] border-transparent shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_35px_rgba(6,182,212,0.6)]";
+                                    } 
+                                    else if (option === 'Switch to PayPal') {
+                                        buttonStyle = "bg-[#003087] text-white border-transparent hover:bg-[#003087]/80"; 
+                                    }
+                                    else if (option === 'Retry Payment') {
+                                        buttonStyle = "bg-green-600 text-white hover:bg-green-500 border-transparent shadow-[0_0_15px_rgba(22,163,74,0.3)]";
+                                    }
 
-                                return (
-                                    <motion.button
-                                        key={option}
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() => {
-                                            if (option === 'Confirm Order') onConfirmOrder(); 
-                                            else if (option === 'Clear Cart') onClearCart();
-                                            else if (option === 'Sign In') onNavigateToAuth('SIGNIN');
-                                            else if (option === 'Sign Up') onNavigateToAuth('SIGNUP');
-                                            else if (option === 'Switch to PayPal') onSend("I want to use PayPal");
-                                            else if (option === 'Retry Payment') onConfirmOrder(); 
-                                            else if (option === 'Save for Later') onSave();
-                                            else onSend(option);
-                                        }}
+                                    return (
+                                        <motion.button
+                                            key={option}
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => {
+                                                if (option === 'Confirm Order') onConfirmOrder(); 
+                                                else if (option === 'Clear Cart') onClearCart();
+                                                else if (option === 'Sign In') onNavigateToAuth('SIGNIN');
+                                                else if (option === 'Sign Up') onNavigateToAuth('SIGNUP');
+                                                else if (option === 'Switch to PayPal') onSend("I want to use PayPal");
+                                                else if (option === 'Retry Payment') onConfirmOrder(); 
+                                                else if (option === 'Save for Later') onSave();
+                                                else onSend(option);
+                                            }}
                                         // جعلنا الزر rounded-full وضفنا flex لترتيب الأيقونة مع النص
-                                        className={`flex items-center justify-center gap-2 px-6 py-3 rounded-full border transition-all duration-300 transform-gpu ${buttonStyle}`}
-                                    >
+                                            className={`flex items-center justify-center gap-2 px-6 py-3 rounded-full border transition-all duration-300 transform-gpu ${buttonStyle}`}
+                                        >
                                         {/* إضافة أيقونة جمالية لزر التأكيد فقط */}
-                                        {isConfirm && <Zap size={16} strokeWidth={2.5} />}
+                                            {isConfirm && <Zap size={16} strokeWidth={2.5} />}
                                         
                                         {/* تنسيق الخط ليصبح أكثر أناقة */}
-                                        <span className={`text-xs uppercase tracking-[0.15em] ${isConfirm ? 'font-black' : 'font-bold'}`}>
-                                            {option}
-                                        </span>
-                                    </motion.button>
-                                );
-                            })}
-                        </div>
+                                            <span className={`text-xs uppercase tracking-[0.15em] ${isConfirm ? 'font-black' : 'font-bold'}`}>
+                                                {option}
+                                            </span>
+                                        </motion.button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 );
             case 'product_carousel':
@@ -525,6 +528,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
                     </div>
                 );
             case 'recovery_prompt':
+               if (!isActiveAction) return null;
                return (
                   <div className="flex items-center justify-center w-full py-4">
                      <motion.div 
@@ -584,6 +588,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, onNavigateToAu
     // Explicit prop comparison for maximum list rendering performance
     return prevProps.message.id === nextProps.message.id && 
            prevProps.message.content === nextProps.message.content;
+           prevProps.isActiveAction === nextProps.isActiveAction;
 });
 ChatMessage.displayName = 'ChatMessage';
 
@@ -1044,6 +1049,13 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         return lastCartMessage?.content?.items || [];
     }, [messages]);
 
+    const activeActionId = useMemo(() => {
+        const lastActionable = [...messages].reverse().find(m =>
+            ['confirmation_prompt', 'recovery_prompt'].includes(m.contentType)
+        );
+        return lastActionable?.id;
+    }, [messages]);
+
     useEffect(() => {
         if (status === 'authenticated' && currentAccessToken && !isConnectedRef.current) {
             isConnectedRef.current = true; 
@@ -1071,7 +1083,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     const hasTriggeredRecoveryRef = useRef(false);
     useEffect(() => {
         hasTriggeredRecoveryRef.current = false;
-    }, [cartItems.length, paymentDetails?.orderId]);
+    }, [cartItems.length, paymentDetails]);
 
     const handleClose = useCallback(() => {
         if (paymentDetails && !isProcessing) {
@@ -1335,6 +1347,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                     <ChatMessage
                                                         key={msg.id}
                                                         message={msg}
+                                                        isActiveAction={msg.id === activeActionId}
                                                         onSend={handleSendMessage}
                                                         onNavigateToAuth={handleNavigateToAuth}
                                                         onProductSelect={handleProductSelect}
