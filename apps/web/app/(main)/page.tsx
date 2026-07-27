@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from 'next/link';
 import React, { Suspense, useRef, useMemo, useEffect, useState, memo } from 'react';
 import dynamic from 'next/dynamic';
-import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue } from 'framer-motion';
+import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue, useAnimation } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Preload, Float, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -139,6 +139,31 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
   const yParallax = useTransform(scrollYProgress, [0, 1], ['0%', '25%']);
   const opacityFade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  const messages = useAIOrderingStore((state) => state.messages);
+  const cartItemsCount = useMemo(() => {
+    const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+    return lastCartMessage?.content?.items?.length || 0;
+  }, [messages]);
+
+  const prevCountRef = useRef(cartItemsCount);
+  const capsuleControls = useAnimation();
+
+  useEffect(() => {
+    // تشغيل الأنيميشن فقط لما عدد المنتجات يزيد (إضافة منتج جديد)
+    if (cartItemsCount > prevCountRef.current) {
+      capsuleControls.start({
+        scale: [1, 1.04, 0.97, 1.02, 1],
+        x: [0, -4, 4, -2, 2, 0], // هزة سريعة وأنيقة
+        filter: [
+          "drop-shadow(0 0 0px rgba(6,182,212,0))", 
+          "drop-shadow(0 0 25px rgba(6,182,212,0.8))", // توهج سيان لحظي
+          "drop-shadow(0 0 0px rgba(6,182,212,0))"
+        ],
+        transition: { duration: 0.5, ease: "easeInOut" }
+      });
+    }
+    prevCountRef.current = cartItemsCount;
+  }, [cartItemsCount, capsuleControls]);
 
   return (
     <section ref={containerRef} className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-0 lg:pb-0">
@@ -193,25 +218,56 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.2 }}
               className="w-full max-w-xl"
             >
-              <div
+              {/* الكبسولة أصبحت motion.div بحركة طفو وتوهج مستمرة لو السلة فيها منتجات */}
+              <motion.div
                 onClick={onOrderClick}
-                className="group relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-zinc-900/70 border border-white/10 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)] transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900/90 cursor-text"
+                animate={
+                  cartItemsCount > 0 
+                    ? { 
+                        y: [0, -6, 0], // حركة طفو ناعمة لأعلى ولأسفل
+                        boxShadow: [
+                          "0px 0px 40px rgba(0,0,0,0.8)", 
+                          "0px 10px 40px rgba(6,182,212,0.3)", // توهج سيان
+                          "0px 0px 40px rgba(0,0,0,0.8)"
+                        ] 
+                      } 
+                    : { y: 0, boxShadow: "0px 0px 40px rgba(0,0,0,0.8)" }
+                }
+                transition={
+                  cartItemsCount > 0 
+                    ? { duration: 3, repeat: Infinity, ease: "easeInOut" } // تكرار لا نهائي
+                    : {}
+                }
+                className="group relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-zinc-900/70 border border-white/10 backdrop-blur-2xl transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900/90 cursor-pointer"
               >
-                <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500/40 to-purple-500/40 rounded-[73px] opacity-80 blur-md transition-all duration-500 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl -z-10" />
-                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 transform-gpu">
+                {/* تأثير الخلفية الملونة */}
+                <div className={`absolute -inset-[1px] rounded-[73px] blur-md transition-all duration-1000 -z-10 ${cartItemsCount > 0 ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-100' : 'bg-gradient-to-r from-cyan-500/40 to-purple-500/40 opacity-80 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl'}`} />
+                
+                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 transform-gpu relative">
                   <Bot size={20} strokeWidth={1.5} className="sm:w-6 sm:h-6" />
+                  
+                  {/* نقطة الإشعار برقم المنتجات (Badge) بتظهر بشكل مبهر */}
+                  {cartItemsCount > 0 && (
+                    <motion.span 
+                      initial={{ scale: 0 }} 
+                      animate={{ scale: 1 }}
+                      className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-black text-[#050505] shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+                    >
+                      {cartItemsCount}
+                    </motion.span>
+                  )}
                 </div>
 
                 <div className="flex-1 px-3 sm:px-4 min-w-0">
-                  <p className="text-zinc-300 text-[11px] sm:text-sm md:text-base font-light truncate">
-                    I need noise-canceling headphones...
+                  <p className={`text-[11px] sm:text-sm md:text-base font-light truncate transition-colors ${cartItemsCount > 0 ? 'text-cyan-200 font-medium' : 'text-zinc-300'}`}>
+                    {cartItemsCount > 0 ? "Your order is ready. Tap to review..." : "I need noise-canceling headphones..."}
                   </p>
                 </div>
 
                 <button className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white text-black font-bold text-[11px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu">
-                  order with air
+                  {cartItemsCount > 0 ? "Confirm Order!" : "order with air"}
                 </button>
-              </div>
+              </motion.div>
 
               <div className="mt-6 flex items-center gap-6 pl-2">
                 <button onClick={onExploreClick} className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-cyan-300 transition-colors flex items-center gap-1 group transform-gpu">
@@ -258,9 +314,16 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                 style={{ willChange: "transform" }}
                 className="absolute left-[2%] top-[10%] z-10 aspect-square w-[35%] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900 p-2 shadow-2xl sm:-left-[10%] sm:top-[12%] sm:w-48 sm:p-3"
               >
-                <img src="https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop" alt="Smart Watch" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-70" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent pointer-events-none" />
-                <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 text-white text-[9px] sm:text-xs font-bold px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 shadow-lg pointer-events-none">
+                <Image
+                  src="https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop"
+                  alt="Smart Watch"
+                  fill
+                  sizes="(max-width: 768px) 35vw, 20vw"
+                  className="object-cover opacity-75"
+                />
+
+                <div className="absolute inset-0 bg-gradient-to-t from-purple-950/90 via-purple-900/30 to-transparent pointer-events-none" />
+                <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 text-white text-[9px] sm:text-xs font-bold tracking-wide px-2.5 py-1 bg-purple-600/40 backdrop-blur-md rounded-lg border border-purple-400/40 shadow-[0_0_15px_rgba(168,85,247,0.6)] pointer-events-none">
                   Best Deal!
                 </div>
               </motion.div>
@@ -271,7 +334,14 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                 style={{ willChange: "transform" }}
                 className="absolute bottom-[5%] sm:-bottom-[2%] right-[2%] sm:-right-[10%] w-[42%] sm:w-56 aspect-[4/3] rounded-3xl bg-zinc-900 border border-white/15 shadow-2xl z-30 overflow-hidden"
               >
-                <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop" alt="Nike Sneakers" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover opacity-90" />
+                <Image
+                  src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop"
+                  alt="Nike Sneakers"
+                  fill
+                  sizes="(max-width: 768px) 42vw, 25vw"
+                  className="object-cover opacity-90"
+                />
+
                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
                 <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between pointer-events-none">
                    <p className="text-white text-[10px] sm:text-sm font-bold tracking-tight">Nike Air Max</p>

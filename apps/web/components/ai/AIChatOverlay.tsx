@@ -5,7 +5,7 @@
 import { useRouter } from 'next/navigation';
 import { ProductDetailsCard } from '../products/ProductDetailsCard';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { 
     Bot, User, CornerDownRight, ShoppingCart, Cpu, X, 
     ChevronLeft, ChevronRight, Save, ChevronDown, ChevronUp, Trash2, Undo2, AlertCircle, 
@@ -1048,6 +1048,20 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
         return lastCartMessage?.content?.items || [];
     }, [messages]);
+    
+    const cartControls = useAnimation();
+    const prevCartCountRef = useRef(cartItems.length);
+
+    useEffect(() => {
+        if (cartItems.length > prevCartCountRef.current) {
+            cartControls.start({
+                scale: [1, 1.25, 0.9, 1.1, 1],
+                rotate: [0, -12, 12, -6, 6, 0],
+                transition: { duration: 0.5, ease: "easeInOut" }
+            });
+        }
+        prevCartCountRef.current = cartItems.length;
+    }, [cartItems.length, cartControls]);
 
     const activeActionId = useMemo(() => {
         const lastActionable = [...messages].reverse().find(m =>
@@ -1244,7 +1258,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                             <div className="flex items-center gap-3 ml-auto">
                                 {!isPaymentMode && (
                                     <div className="flex-shrink-0">
-                                        <button
+                                        <motion.button
+                                            id="order-summary-cart-icon" 
+                                            animate={cartControls}
                                             onClick={() => setIsMobileSidebarOpen(true)}
                                             className="p-3 rounded-full bg-cyan-600/20 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-600/40 transition-all flex items-center justify-center relative"
                                         >
@@ -1254,7 +1270,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                     {cartItems.length}
                                                 </span>
                                             )}
-                                            </button>
+                                            </motion.button>
                                     </div>
                                 )}
 

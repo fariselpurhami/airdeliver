@@ -101,6 +101,12 @@ const AICatalogHero = React.memo(() => {
     const { scrollY } = useScroll();
     const { setOverlayVisible } = useAIOrderingStore();
     
+    const messages = useAIOrderingStore((state) => state.messages);
+    const cartItemsCount = useMemo(() => {
+        const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+        return lastCartMessage?.content?.items?.length || 0;
+    }, [messages]);
+
     const smoothScrollY = useSpring(scrollY, {
         damping: 30,
         stiffness: 150,
@@ -147,24 +153,57 @@ const AICatalogHero = React.memo(() => {
                 </p>
 
                 <div className="w-full max-w-xl mx-auto relative group cursor-pointer z-10" onClick={() => setOverlayVisible(true)}> 
-                    <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/30 to-purple-500/30 rounded-[73px] blur-md opacity-70 group-hover:opacity-100 group-hover:blur-xl transition duration-500 -z-10" />
+                    {/* تأثير الخلفية الملونة */}
+                    <div className={`absolute -inset-[1px] rounded-[73px] blur-md transition-all duration-1000 -z-10 ${cartItemsCount > 0 ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-100' : 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-70 group-hover:opacity-100 group-hover:blur-xl'}`} />
                     
-                    <div className="relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-[#0D0D0C]/90 lg:bg-[#0D0D0C]/80 border border-white/15 backdrop-blur-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] transition-all duration-500 hover:border-cyan-500/50 hover:bg-[#0D0D0C]">
-                        <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white/5 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 border border-white/5">
+                    <motion.div
+                        animate={
+                            cartItemsCount > 0 
+                                ? { 
+                                    y: [0, -6, 0], 
+                                    boxShadow: [
+                                        "0px 0px 40px rgba(0,0,0,0.8)", 
+                                        "0px 10px 40px rgba(6,182,212,0.3)", 
+                                        "0px 0px 40px rgba(0,0,0,0.8)"
+                                    ] 
+                                } 
+                                : { y: 0, boxShadow: "0px 0px 40px rgba(0,0,0,0.8)" }
+                        }
+                        transition={
+                            cartItemsCount > 0 
+                                ? { duration: 3, repeat: Infinity, ease: "easeInOut" } 
+                                : {}
+                        }
+                        className="relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-[#0D0D0C]/90 lg:bg-[#0D0D0C]/80 border border-white/15 backdrop-blur-3xl transition-all duration-500 hover:border-cyan-500/50 hover:bg-[#0D0D0C]"
+                    >
+                        <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white/5 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 border border-white/5 relative">
                             <Bot size={18} className="sm:w-[22px] sm:h-[22px]" strokeWidth={1.5} />
+                            
+                            {/* نقطة الإشعار برقم المنتجات (Badge) */}
+                            {cartItemsCount > 0 && (
+                                <motion.span 
+                                    initial={{ scale: 0 }} 
+                                    animate={{ scale: 1 }}
+                                    className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-black text-[#050505] shadow-[0_0_10px_rgba(6,182,212,0.8)]"
+                                >
+                                    {cartItemsCount}
+                                </motion.span>
+                            )}
                         </div>
 
                         <div className="flex-1 px-3 sm:px-4 min-w-0 text-left">
-                            <p className="text-gray-300 text-xs sm:text-sm md:text-base font-light truncate group-hover:text-white transition-colors">
-                                I need a black leather jacket...
+                            <p className={`text-[11px] sm:text-sm md:text-base transition-colors ${cartItemsCount > 0 ? 'text-cyan-200 font-medium' : 'text-gray-300 font-light truncate group-hover:text-white'}`}>
+                                {cartItemsCount > 0 
+                                    ? "Your order is ready. Tap to review..." 
+                                    : "I need a black leather jacket..."}
                             </p>
                         </div>
 
-                        <button className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 rounded-full bg-white text-black font-bold text-[10px] sm:text-xs hover:bg-cyan-50 transition-colors shrink-0 shadow-lg shadow-white/10 tracking-widest">
-                            <span className="hidden sm:inline">order with air</span>
-                            <span className="sm:hidden">order with air</span>
+                        <button className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 rounded-full bg-white text-black font-bold text-[10px] sm:text-xs hover:bg-cyan-50 transition-colors shrink-0 shadow-lg shadow-white/10 tracking-widest whitespace-nowrap">
+                            <span className="hidden sm:inline">{cartItemsCount > 0 ? "Confirm Order!" : "order with air"}</span>
+                            <span className="sm:hidden">{cartItemsCount > 0 ? "Confirm Order!" : "order with air"}</span>
                         </button>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </section>
