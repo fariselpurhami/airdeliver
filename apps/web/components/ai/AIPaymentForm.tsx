@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Lock,
@@ -19,8 +19,9 @@ import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js'
 // LOADING & SUCCESS COMPONENTS
 // ============================================================================
 
+// تعديل 3: تثبيت علامة التحميل في المنتصف فوراً باستخدام absolute inset-0
 const PaymentLoadingState = React.memo(() => (
-    <div className="w-full h-full flex items-center justify-center bg-transparent">
+    <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-transparent min-h-[400px]">
          <div className="w-8 h-8 border-2 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
     </div>
 ));
@@ -30,7 +31,7 @@ PaymentLoadingState.displayName = 'PaymentLoadingState';
 const PaymentSuccessState = React.memo(() => (
     <motion.div
         initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-        className="w-full h-full flex flex-col items-center justify-center p-12 gap-6 text-center bg-transparent"
+        className="absolute inset-0 w-full h-full flex flex-col items-center justify-center p-12 gap-6 text-center bg-transparent min-h-[400px]"
      >
         <div className="w-24 h-24 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center text-green-400 mb-4 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
             <CheckCircle2 size={40} />
@@ -59,7 +60,7 @@ interface AIPaymentFormProps {
     total: number;
     items: Item[];
     onPaymentSuccess: () => void;
-    clientSecret?: string; // أضفنا ده عشان يمنع إيرور الفرونت
+    clientSecret?: string; 
 }
 
 const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, clientSecret }: AIPaymentFormProps) => {
@@ -68,15 +69,9 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, cli
 
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [isReady, setIsReady] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            requestAnimationFrame(() => setIsReady(true));
-        }, 1500); // قللنا الوقت لثانية ونص عشان مياخدش وقت طويل في التحميل الحقيقي
-        return () => clearTimeout(timer);
-    }, []);
+    // تعديل 4: تم حذف الـ useEffect والـ isReady بالكامل عشان الفورم يظهر فوراً بدون وقت ضايع
 
     const handleSubmit = useCallback(async (event: React.FormEvent) => {
         event.preventDefault();
@@ -107,17 +102,15 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, cli
         }
     }, [stripe, elements, isLoading, onPaymentSuccess]);
 
-    // حماية إضافية لو الكلاينت سيكريت مش موجود
     if (!clientSecret) {
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center text-white p-4 text-center bg-transparent">
+            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-white p-4 text-center bg-transparent min-h-[400px]">
                 <AlertTriangle size={48} className="text-yellow-500 mb-4" />
                 <h2 className="text-xl font-bold font-mono">Missing Client Secret</h2>
             </div>
         );
     }
 
-    if (!isReady) return <PaymentLoadingState />;
     if (isSuccess) return <PaymentSuccessState />;
 
     return (
@@ -135,10 +128,11 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, cli
                     </div>
                 </div>
 
-                <h2 className="text-2xl font-medium uppercase text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                {/* تعديل 1: تحسين شكل الفونت ليصبح فخم، متدرج الألوان، وبدون مسافات واسعة */}
+                <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-cyan-500 mb-1 drop-shadow-sm">
                     Secured Checkout
                 </h2>
-                <div className="flex items-center gap-2 text-xs text-gray-500 font-mono">
+                <div className="flex items-center gap-2 text-xs text-gray-400 font-mono">
                     <span>REF: {`ORD-${orderId.toString().padStart(6, '0')}`}</span>
                 </div>
             </div>
@@ -150,16 +144,17 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, cli
                 <div className="mb-6 rounded-2xl bg-white/[0.03] border border-white/5 p-4 relative overflow-hidden flex-shrink-0">
                     <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/50" />
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                        <ScanLine size={12} /> Manifest
+                        <ScanLine size={14} /> ORDER SUMMARY
                     </div>
 
-                    <div className="space-y-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 pr-2">
+                    <div className="space-y-3 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 pr-2">
                         {items.length > 0 ? items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-sm group/item">
-                                <span className="text-gray-300 truncate pr-4 group-hover/item:text-white transition-colors">
-                                    {item.name} <span className="text-cyan-500/70 text-[10px]">x{item.quantity}</span>
+                            <div key={idx} className="flex justify-between items-start text-sm group/item gap-4">
+                                {/* تعديل 2: إزالة truncate ووضع break-words عشان اسم المنتج ينزل سطر جديد براحته */}
+                                <span className="text-gray-300 break-words leading-relaxed group-hover/item:text-white transition-colors flex-1">
+                                    {item.name} <span className="text-cyan-500/70 text-[10px] ml-1 font-bold whitespace-nowrap">x{item.quantity}</span>
                                 </span>
-                                <span className="text-white font-mono opacity-80">${(item.price * item.quantity).toFixed(2)}</span>
+                                <span className="text-white font-mono opacity-80 mt-1 shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
                             </div>
                         )) : (
                             <p className="text-gray-600 text-xs italic">Encrypted details hidden.</p>
@@ -201,7 +196,8 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, cli
                     {/* Airpay Button - Pushed to bottom */}
                     <div className="mt-auto pt-6">
                         <motion.button
-                            disabled={isLoading || !isReady || !stripe || !elements}
+                            // تعديل 4 (مكمل): شيلنا الـ !isReady من شروط التعطيل
+                            disabled={isLoading || !stripe || !elements}
                             type="submit"
                             className="group w-full relative overflow-hidden rounded-xl bg-cyan-500 p-[1px] disabled:opacity-50 disabled:cursor-not-allowed"
                             whileHover={{ scale: 1.02 }}
