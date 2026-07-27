@@ -9,7 +9,7 @@ import { type Product } from '@/types';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
-import { AlertTriangle, Bot, ShoppingBag, Zap, Layers, ChevronLeft, ChevronRight, Activity, Crosshair } from 'lucide-react';
+import { AlertTriangle, Bot, ShoppingBag, Zap, Layers, ChevronLeft, ChevronRight, Activity, BadgeCheck } from 'lucide-react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { ProductDetailsCard } from '@/components/products/ProductDetailsCard';
@@ -200,8 +200,8 @@ const AlgorithmicPick = React.memo(({ onOpen }: { onOpen: (product: Product) => 
                 <div className="w-[55%] md:w-1/2 p-4 md:p-12 flex flex-col justify-center relative z-10 border-l border-white/5">
                     <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-2 md:mb-6">
                         <div className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-0.5 md:py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
-                            <Crosshair className="w-2.5 h-2.5 md:w-4 md:h-4 text-purple-400" />
-                            <span className="text-[7px] md:text-[10px] font-mono text-purple-300 uppercase tracking-widest whitespace-nowrap">99.8% Neural</span>
+                            <BadgeCheck className="w-2.5 h-2.5 md:w-4 md:h-4 text-purple-400" />
+                            <span className="text-[7px] md:text-[10px] font-mono text-purple-300 uppercase tracking-widest whitespace-nowrap">SELECTED FOR YOU</span>
                         </div>
                     </div>
                     
@@ -342,7 +342,7 @@ const Pagination = React.memo(({ page, setPage, hasMore }: { page: number, setPa
         <button disabled={page === 1} onClick={() => { setPage(page - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2.5 md:p-3 rounded-full bg-white/5 border border-white/10 text-white disabled:opacity-30 hover:bg-white/10 transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
             <ChevronLeft size={16} className="md:w-5 md:h-5" />
         </button>
-        <span className="font-mono text-gray-400 text-[10px] md:text-xs tracking-[0.2em] uppercase">Inventory Sector <span className="text-white font-bold">{page.toString().padStart(2, '0')}</span></span>
+        <span className="font-mono text-gray-400 text-[10px] md:text-xs tracking-[0.2em] uppercase">Page <span className="text-white font-bold">{page.toString().padStart(2, '0')}</span></span>
         <button disabled={!hasMore} onClick={() => { setPage(page + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="p-2.5 md:p-3 rounded-full bg-white/5 border border-white/10 text-white disabled:opacity-30 hover:bg-white/10 transition-colors shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
             <ChevronRight size={16} className="md:w-5 md:h-5" />
         </button>

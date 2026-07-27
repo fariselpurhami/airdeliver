@@ -454,6 +454,7 @@ const GlobalScaleSection = memo(() => {
             </group>
           </Float>
           <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.2} maxPolarAngle={Math.PI / 1.6} minPolarAngle={Math.PI / 3}/>
+          <Preload all />
         </Canvas>
         <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent pointer-events-none" />
       </div>
@@ -469,19 +470,19 @@ const GlobalScaleSection = memo(() => {
                 <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
                   <GlobeIcon className="text-purple-400" size={20} />
                 </div>
-                <span className="text-sm font-mono text-purple-400 uppercase tracking-[0.3em] drop-shadow-md">Planetary Operations</span>
+                <span className="text-sm font-mono text-purple-400 uppercase tracking-[0.3em] drop-shadow-md">Next-Gen Logistics</span>
               </div>
 
               <h2 className="text-5xl md:text-7xl font-black text-white mb-6 leading-[0.9] tracking-tighter" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                GLOBAL<br />
+                URBAN<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-purple-600">
                   SCALE
                 </span>
               </h2>
 
               <p className="text-lg text-gray-300 font-light leading-relaxed mb-6 border-l-4 border-purple-500/50 pl-6 drop-shadow-lg">
-                A synchronized autonomous network spanning continents. <br />
-                <span className="text-white font-medium">Zero Latency. Infinite Reach.</span>
+                Our decentralized network of strategic hubs brings inventory closer to you. Bypassing traditional bottlenecks to deliver directly to your exact location with pinpoint accuracy. <br />
+                <span className="text-white font-bold">Zero Latency. Seamless Coverage.</span>
               </p>
             </motion.div>
           </div>
@@ -510,7 +511,7 @@ GlobalScaleSection.displayName = 'GlobalScaleSection';
 
 const PRODUCTION_STEPS = [
   { icon: Bot, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product in our global network without you scrolling through catalogs." },
-  { icon: Cpu, step: "02", title: "Global Inventory Sync", description: "Within milliseconds, the system queries local hubs and global databases to secure the best price and immediate availability, reserving your item autonomously." },
+  { icon: Cpu, step: "02", title: "Inventory Sync", description: "Within milliseconds, the system queries local hubs and databases to secure the best price and immediate availability, reserving your item autonomously." },
   { icon: MapIcon, step: "03", title: "4D Route Computation", description: "An adaptive flight plan is generated. The AI factors in live weather layers, urban topology, and airspace corridors to chart the absolute fastest drone vector." },
   { icon: Rocket, step: "04", title: "Precision Doorstep Drop", description: "The autonomous drone arrives. Using computer vision and micro-thruster stabilization, it completes a contactless, verified handoff directly to your location." },
 ];
@@ -603,7 +604,7 @@ const HowItWorksSection = memo(() => {
             className="mb-8 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/30 px-5 py-2 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)] transform-gpu"
           >
             <Activity size={16} className="animate-pulse text-cyan-400" />
-            <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Autonomy Protocol v2.0</span>
+            <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">END-TO-END SYSTEM</span>
           </motion.div>
 
           <motion.h2
