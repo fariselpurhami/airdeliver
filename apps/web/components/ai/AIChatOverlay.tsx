@@ -618,8 +618,8 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, is
             </AnimatePresence>
 
             <div className={`
-                absolute top-0 right-0 bottom-0 z-[110] w-full md:w-[460px] transform transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)
-                backdrop-blur-3xl bg-[#050B14]/95 border-l border-white/10 flex-col overflow-hidden will-change-transform
+                absolute top-0 right-0 bottom-0 z-[110] w-[calc(100%+1px)] md:w-[460px] transform transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)
+                backdrop-blur-3xl bg-[#050B14]/95 border-l-0 md:border-l border-white/10 flex-col overflow-hidden will-change-transform
                 ${isMobileOpen ? 'translate-x-0' : 'translate-x-full'}
                 ${!isMobileOpen ? 'hidden' : 'flex'}
             `}>
