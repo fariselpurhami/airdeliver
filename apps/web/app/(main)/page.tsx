@@ -131,7 +131,7 @@ const CheckCircleIcon = memo(() => (
 CheckCircleIcon.displayName = 'CheckCircleIcon';
 
 // ============================================================================
-// --- 1. HERO SECTION (8 FLOATING CARDS LAYOUT) ---
+// --- 1. HERO SECTION (8 FLOATING CARDS LAYOUT - UNIFIED MOBILE & DESKTOP) ---
 // ============================================================================
 
 // 1. مكون الكارت الجديد المطابق لصفحة المنتجات
@@ -171,54 +171,54 @@ const HeroFloatingCard = memo(({
 ));
 HeroFloatingCard.displayName = 'HeroFloatingCard';
 
-// 2. داتا الـ 8 كروت بتوزيعاتهم للموبايل والديسكتوب
+// 2. داتا الـ 8 كروت بتوزيعاتهم للموبايل والديسكتوب (تم تعديل قيم lg: لتناسب الشاشة الكاملة)
 const HERO_CARDS = [
   {
     title: "Apple Vision Pro", category: "Neural Tech", delay: 0.1, rotation: -8,
     image: "https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop",
-    positionClasses: "top-[1%] left-[6%] lg:top-[1%] lg:-left-[6%]",
+    positionClasses: "top-[1%] left-[6%] lg:top-[10%] lg:left-[5%]",
     sizeClasses: "w-20 h-28 lg:w-48 lg:h-64", colorCls: "hover:shadow-cyan-500/20 text-cyan-400"
   },
   {
     title: "PS5", category: "Wearables", delay: 0.2, rotation: 6,
     image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[1%] right-[6%] lg:top-[1%] lg:right-[6%]",
+    positionClasses: "top-[1%] right-[6%] lg:top-[10%] lg:right-[5%]",
     sizeClasses: "w-20 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-purple-500/20 text-purple-400"
   },
   {
     title: "Dyson", category: "Aesthetic", delay: 0.3, rotation: -4,
     image: "https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[50%] -left-[4%] lg:top-[50%] lg:-left-[4%]",
+    positionClasses: "top-[50%] -left-[4%] lg:top-[45%] lg:left-[2%]",
     sizeClasses: "w-20 h-28 lg:w-40 lg:h-52", colorCls: "hover:shadow-pink-500/20 text-pink-400"
   },
   {
     title: "Headphones", category: "Audio", delay: 0.4, rotation: 8,
     image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[50%] -right-[3%] lg:top-[50%] lg:right-[3%]",
+    positionClasses: "top-[50%] -right-[3%] lg:top-[45%] lg:right-[2%]",
     sizeClasses: "w-20 h-28 lg:w-44 lg:h-48", colorCls: "hover:shadow-amber-500/20 text-amber-400"
   },
   {
     title: "Leather Handbag", category: "Bags", delay: 0.5, rotation: -6,
     image: "https://images.unsplash.com/photo-1691480150204-66dd1eb77391?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[70%] left-[2%] lg:bottom-[70%] lg:left-[2%]",
+    positionClasses: "top-[70%] left-[2%] lg:bottom-[25%] lg:left-[8%]",
     sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-emerald-500/20 text-emerald-400"
   },
   {
     title: "Iphone 17 pro max", category: "Electronics", delay: 0.6, rotation: 5,
     image: "https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[70%] right-[1%] lg:bottom-[70%] lg:right-[1%]",
+    positionClasses: "top-[70%] right-[1%] lg:bottom-[25%] lg:right-[8%]",
     sizeClasses: "w-20 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-blue-500/20 text-blue-400"
   },
   {
     title: "Nike Air Max", category: "Fashion", delay: 0.7, rotation: -5,
     image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "bottom-[0%] left-[20%] lg:-bottom-[0%] lg:left-[20%]",
+    positionClasses: "bottom-[0%] left-[20%] lg:bottom-[5%] lg:left-[25%]",
     sizeClasses: "w-20 h-28 lg:w-48 lg:h-48", colorCls: "hover:shadow-red-500/20 text-red-400"
   },
   {
     title: "Galaxy Buds", category: "Neural Tech", delay: 0.8, rotation: 7,
     image: "https://images.unsplash.com/photo-1600374917838-1df876d745c7?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "bottom-[0%] right-[20%] lg:bottom-[0%] lg:right-[20%]",
+    positionClasses: "bottom-[0%] right-[20%] lg:bottom-[5%] lg:right-[25%]",
     sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-cyan-500/20 text-cyan-400"
   }
 ];
@@ -276,10 +276,11 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
         style={{ y: yParallax, opacity: opacityFade, willChange: "transform, opacity" }}
         className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10 h-full"
       >
-        <div className="w-full flex flex-col lg:grid lg:grid-cols-2 gap-12 lg:gap-8 items-center justify-center lg:justify-between min-h-[75vh] lg:min-h-0 relative">
+        {/* تم مسح الـ lg:grid والـ lg:grid-cols-2 وتوحيد التوسيط */}
+        <div className="w-full flex flex-col items-center justify-center min-h-[75vh] lg:min-h-[100svh] relative">
 
-          {/* Text & Capsule Container */}
-          <div className="flex flex-col items-center text-center lg:items-start lg:text-left max-w-2xl w-full relative z-30 pointer-events-auto">
+          {/* Text & Capsule Container - (دائماً متسنتر في كل الشاشات) */}
+          <div className="flex flex-col items-center text-center max-w-3xl w-full relative z-30 pointer-events-auto">
             <motion.h1
               initial="hidden" animate="visible" variants={fadeUpVariant}
               className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter text-white leading-[1.05] mb-6 font-sans drop-shadow-2xl"
@@ -292,14 +293,14 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
 
             <motion.p
               initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.1 }}
-              className="text-sm sm:text-lg md:text-xl text-zinc-300 mb-10 leading-relaxed font-light max-w-lg shadow-black mx-auto lg:mx-0"
+              className="text-sm sm:text-lg md:text-xl text-zinc-300 mb-10 leading-relaxed font-light max-w-lg shadow-black mx-auto"
             >
               Tell our AI exactly what you need. We secure the best deal across our global inventory and drop it at your door in minutes.
             </motion.p>
 
             <motion.div
               initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.2 }}
-              className="w-full max-w-xl mx-auto lg:mx-0"
+              className="w-full max-w-xl mx-auto"
             >
               {/* Order Capsule */}
               <motion.div
@@ -323,7 +324,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
 
                 <div className="flex-1 px-3 sm:px-4 min-w-0 text-left">
                   <p className={`text-[11px] sm:text-sm md:text-base font-light truncate transition-colors ${cartItemsCount > 0 ? 'text-cyan-200 font-medium' : 'text-zinc-300'}`}>
-                    {cartItemsCount > 0 ? "Your order is ready. Tap to review..." : "I need noise-canceling headphones..."}
+                    {cartItemsCount > 0 ? "Your order is ready. Tap to review." : "I need noise-canceling headphones..."}
                   </p>
                 </div>
 
@@ -332,7 +333,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                 </button>
               </motion.div>
 
-              <div className="mt-6 flex items-center justify-center lg:justify-start gap-6">
+              <div className="mt-6 flex items-center justify-center gap-6">
                 <button onClick={onExploreClick} className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-cyan-300 transition-colors flex items-center gap-1 group transform-gpu">
                   Explore trending products <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </button>
@@ -340,8 +341,8 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
             </motion.div>
           </div>
 
-          {/* Floating Cards Container - Absolute in Mobile, Relative right-column in Desktop */}
-          <div className="absolute inset-0 pointer-events-none z-20 lg:relative lg:inset-auto lg:h-[700px] lg:w-full flex items-center justify-center perspective-1000">
+          {/* Floating Cards Container - أصبحت Absolute في كل الشاشات لتطويق النص */}
+          <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center perspective-1000">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, rotateY: 10 }} animate={{ opacity: 1, scale: 1, rotateY: 0 }} transition={{ duration: 1.2, ease: premiumEasing, delay: 0.2 }}
               style={{ willChange: "transform, opacity" }}

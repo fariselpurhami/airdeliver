@@ -325,15 +325,10 @@ const ProductCard = React.memo(({ product, onOpen }: { product: Product, onOpen:
             onClick={() => onOpen(product)}
         >
             <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20">
-                {product.stock_status ? (
+                {product.stock_status && (
                     <div className="px-1.5 md:px-2 py-0.5 md:py-1 bg-green-500/10 border border-green-500/20 rounded text-[7px] md:text-[9px] text-green-400 font-mono tracking-widest uppercase flex items-center gap-1 backdrop-blur-md">
                         <span className="w-1 md:w-1.5 h-1 md:h-1.5 bg-green-500 rounded-full" />
                         In Hub
-                    </div>
-                ) : (
-                    <div className="px-1.5 md:px-2 py-0.5 md:py-1 bg-gray-500/10 border border-gray-500/20 rounded text-[7px] md:text-[9px] text-gray-400 font-mono tracking-widest uppercase flex items-center gap-1 backdrop-blur-md">
-                        <span className="w-1 md:w-1.5 h-1 md:h-1.5 bg-gray-500 rounded-full" />
-                        Sourcing
                     </div>
                 )}
             </div>

@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -14,7 +14,6 @@ import {
   User,
   Menu,
   X as CloseIcon,
-  BellRing,
 } from "lucide-react";
 
 interface NavItem {
@@ -78,35 +77,6 @@ export default function Header() {
     [status, router]
   );
 
-  const DesktopNav = useMemo(() => (
-    <nav className="hidden md:flex items-center rounded-full p-1.5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
-      {navItems.map((item) => {
-        const isActive = pathname === item.href;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            prefetch={true}
-            onClick={(e) => handleProtectedRouting(e, item)}
-            className={`relative px-8 py-3.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
-              isActive ? "text-black" : "text-gray-400 hover:text-white"
-            }`}
-          >
-            <span className="relative z-10">{item.label}</span>
-            {isActive && (
-              <motion.div
-                layoutId="active-pill"
-                className="absolute inset-0 bg-white shadow-[0_0_25px_rgba(255,255,255,0.5)] transform-gpu will-change-transform"
-                style={{ borderRadius: 9999 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              />
-            )}
-          </Link>
-        );
-      })}
-    </nav>
-  ), [pathname, handleProtectedRouting]);
-
   return (
     <>
       <header
@@ -115,6 +85,8 @@ export default function Header() {
         className="fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-[50ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-[scrolled=true]:-translate-y-[100px] data-[scrolled=true]:opacity-0 data-[scrolled=true]:pointer-events-none transform-gpu will-change-transform"
       >
         <div className="container mx-auto px-6 h-full flex justify-between items-center relative">
+          
+          {/* Logo Section */}
           <div className="pointer-events-auto px-3 py-1">
             <Link
               href="/"
@@ -144,22 +116,8 @@ export default function Header() {
             </Link>
           </div>
 
-          {DesktopNav}
-
-          <div className="hidden md:flex items-center gap-1 relative z-10 pointer-events-auto">
-            <div className="flex items-center gap-1 rounded-full p-1.5">
-              <Link
-                href="/notifications"
-                className="relative group p-3 rounded-full text-white transition-all duration-300 hover:text-cyan-400 hover:bg-cyan-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-                aria-label="Notifications"
-                onClick={(e) => handleProtectedRouting(e, { href: '/notifications', label: 'Notifications', isProtected: true })}
-              >
-                <BellRing size={20} className="transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" aria-hidden="true" />
-              </Link>
-            </div>
-          </div>
-
-          <div className="md:hidden relative z-10 pointer-events-auto rounded-full">
+          {/* Menu Button - (تم إزالة كلاس md:hidden ليظهر على كل الشاشات) */}
+          <div className="relative z-10 pointer-events-auto rounded-full">
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="p-3 text-white hover:bg-white/10 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
@@ -169,9 +127,11 @@ export default function Header() {
               <Menu size={24} aria-hidden="true" />
             </button>
           </div>
+
         </div>
       </header>
 
+      {/* Floating Action Bar */}
       <div
         ref={floatingBarRef}
         data-scrolled="false"
@@ -197,13 +157,14 @@ export default function Header() {
         })}
       </div>
 
+      {/* Sidebar Menu - (تم إزالة كلاس md:hidden ليعمل على الديسكتوب أيضاً) */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-2xl md:hidden transform-gpu will-change-opacity"
+            className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-2xl transform-gpu will-change-opacity"
           >
             <motion.div
               initial={{ x: 100 }}
