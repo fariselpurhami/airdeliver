@@ -131,9 +131,99 @@ const CheckCircleIcon = memo(() => (
 CheckCircleIcon.displayName = 'CheckCircleIcon';
 
 // ============================================================================
-// --- 1. HERO SECTION ---
+// --- 1. HERO SECTION (8 FLOATING CARDS LAYOUT) ---
 // ============================================================================
 
+// 1. مكون الكارت الجديد المطابق لصفحة المنتجات
+const HeroFloatingCard = memo(({
+    title, image, category, delay, positionClasses, sizeClasses, colorCls, rotation
+}: {
+    title: string, image: string, category: string, delay: number, positionClasses: string, sizeClasses: string, colorCls: string, rotation: number
+}) => (
+    <motion.div
+        className={`absolute z-0 ${positionClasses} ${sizeClasses} will-change-transform`}
+        initial={{ opacity: 0, scale: 0.8, rotate: rotation + 10 }}
+        animate={{ opacity: 1, scale: 1, rotate: rotation }}
+        transition={{
+            opacity: { duration: 1, delay },
+            scale: { duration: 1, delay, type: "spring", stiffness: 100, damping: 20 }
+        }}
+    >
+        <motion.div
+            animate={{ y: [0, -15, 0] }}
+            transition={{ duration: 6 + delay, repeat: Infinity, ease: "easeInOut" }}
+            className="w-full h-full will-change-transform"
+            style={{ transform: "translateZ(0)" }}
+        >
+            <div className={`relative w-full h-full rounded-[20px] lg:rounded-[32px] bg-[#0D0D0C]/80 backdrop-blur-2xl border border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] lg:shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group hover:scale-105 transition-transform duration-500 hover:z-50 pointer-events-auto ${colorCls}`}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 lg:via-black/20 to-transparent z-10" />
+                <Image src={image} alt={category} fill sizes="(max-width: 768px) 30vw, 20vw" className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
+
+                <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
+                    <span className="text-[7px] lg:text-[9px] font-mono uppercase tracking-[0.2em] lg:tracking-[0.3em] opacity-70 text-white mix-blend-overlay line-clamp-1">{category}</span>
+                    <h3 className="text-[10px] lg:text-sm font-bold text-white tracking-wide leading-tight line-clamp-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
+                </div>
+
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[20px] lg:rounded-[32px] ring-1 lg:ring-2 ring-current ring-inset mix-blend-overlay" />
+            </div>
+        </motion.div>
+    </motion.div>
+));
+HeroFloatingCard.displayName = 'HeroFloatingCard';
+
+// 2. داتا الـ 8 كروت بتوزيعاتهم للموبايل والديسكتوب
+const HERO_CARDS = [
+  {
+    title: "Apple Vision Pro", category: "Neural Tech", delay: 0.1, rotation: -8,
+    image: "https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop",
+    positionClasses: "top-[1%] left-[6%] lg:top-[1%] lg:-left-[6%]",
+    sizeClasses: "w-20 h-28 lg:w-48 lg:h-64", colorCls: "hover:shadow-cyan-500/20 text-cyan-400"
+  },
+  {
+    title: "PS5", category: "Wearables", delay: 0.2, rotation: 6,
+    image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop",
+    positionClasses: "top-[1%] right-[6%] lg:top-[1%] lg:right-[6%]",
+    sizeClasses: "w-20 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-purple-500/20 text-purple-400"
+  },
+  {
+    title: "Dyson", category: "Aesthetic", delay: 0.3, rotation: -4,
+    image: "https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop",
+    positionClasses: "top-[50%] -left-[4%] lg:top-[50%] lg:-left-[4%]",
+    sizeClasses: "w-20 h-28 lg:w-40 lg:h-52", colorCls: "hover:shadow-pink-500/20 text-pink-400"
+  },
+  {
+    title: "Headphones", category: "Audio", delay: 0.4, rotation: 8,
+    image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop",
+    positionClasses: "top-[50%] -right-[3%] lg:top-[50%] lg:right-[3%]",
+    sizeClasses: "w-20 h-28 lg:w-44 lg:h-48", colorCls: "hover:shadow-amber-500/20 text-amber-400"
+  },
+  {
+    title: "Leather Handbag", category: "Bags", delay: 0.5, rotation: -6,
+    image: "https://images.unsplash.com/photo-1691480150204-66dd1eb77391?q=80&w=600&auto=format&fit=crop",
+    positionClasses: "top-[70%] left-[2%] lg:bottom-[70%] lg:left-[2%]",
+    sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-emerald-500/20 text-emerald-400"
+  },
+  {
+    title: "Iphone 17 pro max", category: "Electronics", delay: 0.6, rotation: 5,
+    image: "https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop",
+    positionClasses: "top-[70%] right-[1%] lg:bottom-[70%] lg:right-[1%]",
+    sizeClasses: "w-20 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-blue-500/20 text-blue-400"
+  },
+  {
+    title: "Nike Air Max", category: "Fashion", delay: 0.7, rotation: -5,
+    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop",
+    positionClasses: "bottom-[0%] left-[20%] lg:-bottom-[0%] lg:left-[20%]",
+    sizeClasses: "w-20 h-28 lg:w-48 lg:h-48", colorCls: "hover:shadow-red-500/20 text-red-400"
+  },
+  {
+    title: "Galaxy Buds", category: "Neural Tech", delay: 0.8, rotation: 7,
+    image: "https://images.unsplash.com/photo-1600374917838-1df876d745c7?q=80&w=600&auto=format&fit=crop",
+    positionClasses: "bottom-[0%] right-[20%] lg:bottom-[0%] lg:right-[20%]",
+    sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-cyan-500/20 text-cyan-400"
+  }
+];
+
+// 3. الهيرو سكشن الأساسي
 const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
@@ -149,14 +239,13 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
   const capsuleControls = useAnimation();
 
   useEffect(() => {
-    // تشغيل الأنيميشن فقط لما عدد المنتجات يزيد (إضافة منتج جديد)
     if (cartItemsCount > prevCountRef.current) {
       capsuleControls.start({
         scale: [1, 1.04, 0.97, 1.02, 1],
-        x: [0, -4, 4, -2, 2, 0], // هزة سريعة وأنيقة
+        x: [0, -4, 4, -2, 2, 0],
         filter: [
-          "drop-shadow(0 0 0px rgba(6,182,212,0))", 
-          "drop-shadow(0 0 25px rgba(6,182,212,0.8))", // توهج سيان لحظي
+          "drop-shadow(0 0 0px rgba(6,182,212,0))",
+          "drop-shadow(0 0 25px rgba(6,182,212,0.8))",
           "drop-shadow(0 0 0px rgba(6,182,212,0))"
         ],
         transition: { duration: 0.5, ease: "easeInOut" }
@@ -167,19 +256,12 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
 
   return (
     <section ref={containerRef} className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-0 lg:pb-0">
-      {/* CRITICAL PERF: contain strict and will-change-transform isolate the canvas 
-        from document reflows. translateZ(0) forces GPU layer creation. 
-      */}
+
+      {/* 3D Background Canvas */}
       <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
         <Suspense fallback={null}>
           <Canvas {...heroCanvasConfig}>
-            <ParticleField 
-              count={20000} 
-              radius={66} 
-              color="#ffffff" 
-              size={0.065} 
-              rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} 
-            />
+            <ParticleField count={20000} radius={66} color="#ffffff" size={0.065} rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} />
             <Preload all />
           </Canvas>
         </Suspense>
@@ -192,14 +274,15 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
 
       <motion.div
         style={{ y: yParallax, opacity: opacityFade, willChange: "transform, opacity" }}
-        className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10"
+        className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10 h-full"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-          
-          <div className="flex flex-col items-start max-w-2xl mt-8 lg:mt-0">
+        <div className="w-full flex flex-col lg:grid lg:grid-cols-2 gap-12 lg:gap-8 items-center justify-center lg:justify-between min-h-[75vh] lg:min-h-0 relative">
+
+          {/* Text & Capsule Container */}
+          <div className="flex flex-col items-center text-center lg:items-start lg:text-left max-w-2xl w-full relative z-30 pointer-events-auto">
             <motion.h1
               initial="hidden" animate="visible" variants={fadeUpVariant}
-              className="text-[11vw] sm:text-6xl lg:text-7xl font-black tracking-tighter text-white leading-[1.05] mb-6 font-sans drop-shadow-2xl"
+              className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter text-white leading-[1.05] mb-6 font-sans drop-shadow-2xl"
             >
               Shopping at the <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-zinc-400 drop-shadow-[0_0_15px_rgba(255,255,255,0.15)]">
@@ -209,67 +292,47 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
 
             <motion.p
               initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.1 }}
-              className="text-base sm:text-lg md:text-xl text-zinc-300 mb-10 leading-relaxed font-light max-w-lg shadow-black"
+              className="text-sm sm:text-lg md:text-xl text-zinc-300 mb-10 leading-relaxed font-light max-w-lg shadow-black mx-auto lg:mx-0"
             >
               Tell our AI exactly what you need. We secure the best deal across our global inventory and drop it at your door in minutes.
             </motion.p>
 
             <motion.div
               initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.2 }}
-              className="w-full max-w-xl"
+              className="w-full max-w-xl mx-auto lg:mx-0"
             >
-              {/* الكبسولة أصبحت motion.div بحركة طفو وتوهج مستمرة لو السلة فيها منتجات */}
+              {/* Order Capsule */}
               <motion.div
                 onClick={onOrderClick}
                 animate={
-                  cartItemsCount > 0 
-                    ? { 
-                        y: [0, -6, 0], // حركة طفو ناعمة لأعلى ولأسفل
-                        boxShadow: [
-                          "0px 0px 40px rgba(0,0,0,0.8)", 
-                          "0px 10px 40px rgba(6,182,212,0.3)", // توهج سيان
-                          "0px 0px 40px rgba(0,0,0,0.8)"
-                        ] 
-                      } 
+                  cartItemsCount > 0
+                    ? { y: [0, -6, 0], boxShadow: ["0px 0px 40px rgba(0,0,0,0.8)", "0px 10px 40px rgba(6,182,212,0.3)", "0px 0px 40px rgba(0,0,0,0.8)"] }
                     : { y: 0, boxShadow: "0px 0px 40px rgba(0,0,0,0.8)" }
                 }
-                transition={
-                  cartItemsCount > 0 
-                    ? { duration: 3, repeat: Infinity, ease: "easeInOut" } // تكرار لا نهائي
-                    : {}
-                }
-                className="group relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-zinc-900/70 border border-white/10 backdrop-blur-2xl transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900/90 cursor-pointer"
+                transition={cartItemsCount > 0 ? { duration: 3, repeat: Infinity, ease: "easeInOut" } : {}}
+                className="group relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-zinc-900/90 border border-white/10 backdrop-blur-2xl transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900 cursor-pointer"
               >
-                {/* تأثير الخلفية الملونة */}
                 <div className={`absolute -inset-[1px] rounded-[73px] blur-md transition-all duration-1000 -z-10 ${cartItemsCount > 0 ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-100' : 'bg-gradient-to-r from-cyan-500/40 to-purple-500/40 opacity-80 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl'}`} />
-                
+
                 <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 transform-gpu relative">
-                  <Bot size={20} strokeWidth={1.5} className="sm:w-6 sm:h-6" />
-                  
-                  {/* نقطة الإشعار برقم المنتجات (Badge) بتظهر بشكل مبهر */}
+                  <Bot size={18} strokeWidth={1.5} className="sm:w-6 sm:h-6" />
                   {cartItemsCount > 0 && (
-                    <motion.span 
-                      initial={{ scale: 0 }} 
-                      animate={{ scale: 1 }}
-                      className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-black text-[#050505] shadow-[0_0_10px_rgba(6,182,212,0.8)]"
-                    >
-                      {cartItemsCount}
-                    </motion.span>
+                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-black text-[#050505] shadow-[0_0_10px_rgba(6,182,212,0.8)]">{cartItemsCount}</motion.span>
                   )}
                 </div>
 
-                <div className="flex-1 px-3 sm:px-4 min-w-0">
+                <div className="flex-1 px-3 sm:px-4 min-w-0 text-left">
                   <p className={`text-[11px] sm:text-sm md:text-base font-light truncate transition-colors ${cartItemsCount > 0 ? 'text-cyan-200 font-medium' : 'text-zinc-300'}`}>
                     {cartItemsCount > 0 ? "Your order is ready. Tap to review..." : "I need noise-canceling headphones..."}
                   </p>
                 </div>
 
-                <button className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white text-black font-bold text-[11px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu">
+                <button className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3 rounded-full bg-white text-black font-bold text-[10px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu">
                   {cartItemsCount > 0 ? "Confirm Order!" : "order with air"}
                 </button>
               </motion.div>
 
-              <div className="mt-6 flex items-center gap-6 pl-2">
+              <div className="mt-6 flex items-center justify-center lg:justify-start gap-6">
                 <button onClick={onExploreClick} className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-cyan-300 transition-colors flex items-center gap-1 group transform-gpu">
                   Explore trending products <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </button>
@@ -277,82 +340,19 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
             </motion.div>
           </div>
 
-          <div className="relative h-[400px] sm:h-[500px] lg:h-[700px] w-full flex items-center justify-center perspective-1000 mt-8 lg:mt-0">
+          {/* Floating Cards Container - Absolute in Mobile, Relative right-column in Desktop */}
+          <div className="absolute inset-0 pointer-events-none z-20 lg:relative lg:inset-auto lg:h-[700px] lg:w-full flex items-center justify-center perspective-1000">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
-              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-              transition={{ duration: 1.2, ease: premiumEasing, delay: 0.2 }}
+              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }} animate={{ opacity: 1, scale: 1, rotateY: 0 }} transition={{ duration: 1.2, ease: premiumEasing, delay: 0.2 }}
               style={{ willChange: "transform, opacity" }}
-              className="relative w-full max-w-md h-full flex items-center justify-center"
+              className="relative w-full h-full flex items-center justify-center"
             >
-              {/* Product Card 1 */}
-              <div className="absolute z-20 w-[60%] sm:w-72 md:w-80 aspect-[4/5] rounded-[32px] bg-zinc-900 border border-white/15 p-3 sm:p-4 shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group transform-gpu">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent z-10 pointer-events-none" />
-                <Image
-                  src="https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop"
-                  alt="Apple Vision Pro"
-                  fill
-                  priority
-                  sizes="(max-width: 768px) 60vw, 30vw"
-                  className="object-cover transition-transform duration-700 group-hover:scale-105 will-change-transform"
-                />
-                <div className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 right-4 sm:right-6 z-20 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0">
-                  <div>
-                    <h3 className="text-white font-bold text-sm sm:text-lg tracking-tight">Apple Vision Pro</h3>
-                    <p className="text-zinc-300 text-[10px] sm:text-sm font-medium">Arriving in 12 min</p>
-                  </div>
-                  <div className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/30 text-white font-bold text-xs sm:text-sm shadow-lg">
-                    $348
-                  </div>
-                </div>
-              </div>
-
-              {/* Product Card 2 */}
-              <motion.div
-                animate={{ y: [0, -12, 0] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-                style={{ willChange: "transform" }}
-                className="absolute left-[2%] top-[10%] z-10 aspect-square w-[35%] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900 p-2 shadow-2xl sm:-left-[10%] sm:top-[12%] sm:w-48 sm:p-3"
-              >
-                <Image
-                  src="https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop"
-                  alt="Smart Watch"
-                  fill
-                  sizes="(max-width: 768px) 35vw, 20vw"
-                  className="object-cover opacity-75"
-                />
-
-                <div className="absolute inset-0 bg-gradient-to-t from-purple-950/90 via-purple-900/30 to-transparent pointer-events-none" />
-                <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-3 text-white text-[9px] sm:text-xs font-bold tracking-wide px-2.5 py-1 bg-purple-600/40 backdrop-blur-md rounded-lg border border-purple-400/40 shadow-[0_0_15px_rgba(168,85,247,0.6)] pointer-events-none">
-                  Best Deal!
-                </div>
-              </motion.div>
-
-              {/* Product Card 3 */}
-              <motion.div
-                animate={{ y: [0, 12, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                style={{ willChange: "transform" }}
-                className="absolute bottom-[5%] sm:-bottom-[2%] right-[2%] sm:-right-[10%] w-[42%] sm:w-56 aspect-[4/3] rounded-3xl bg-zinc-900 border border-white/15 shadow-2xl z-30 overflow-hidden"
-              >
-                <Image
-                  src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop"
-                  alt="Nike Sneakers"
-                  fill
-                  sizes="(max-width: 768px) 42vw, 25vw"
-                  className="object-cover opacity-90"
-                />
-
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
-                <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-4 flex items-center justify-between pointer-events-none">
-                   <p className="text-white text-[10px] sm:text-sm font-bold tracking-tight">Nike Air Max</p>
-                   <div className="flex items-center gap-1 text-cyan-400 text-[9px] sm:text-xs font-medium">
-                     <CheckCircleIcon />
-                     <span className="hidden sm:inline">In Stock</span>
-                   </div>
-                </div>
-              </motion.div>
+              {HERO_CARDS.map((card, idx) => (
+                <HeroFloatingCard key={idx} {...card} />
+              ))}
             </motion.div>
           </div>
+
         </div>
       </motion.div>
     </section>
@@ -455,17 +455,17 @@ const Globe = memo(() => {
     if (globeRef.current) globeRef.current.rotation.y += safeDelta * 0.05;
 
     const time = state.clock.elapsedTime;
-    
-    // CRITICAL PERF: Zero object allocation loop. 
+
+    // CRITICAL PERF: Zero object allocation loop.
     // We explicitly avoid .lerp() or Class methods here.
     for (let i = 0; i < pulseRefs.current.length; i++) {
       const mesh = pulseRefs.current[i];
       if (!mesh) continue;
-      
+
       const loopTime = 6 + (i % 3);
       const t = (time % loopTime) / loopTime;
       const exactIndex = Math.floor(t * 200);
-      
+
       const target = pulseTrajectories[i][exactIndex];
       if(target) {
         mesh.position.set(target.x, target.y, target.z);
@@ -511,12 +511,12 @@ const GlobalScaleSection = memo(() => {
           <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
           <directionalLight position={[-10, -10, -5]} intensity={2} color="#3b82f6" />
           <ParticleField
-            count={5000}          
-            radius={56}            
-            color="#e9d5ff"        
-            size={0.05}           
-            rotationSpeed={{ x: 0.0001, y: 0.0001, z: 0.001 }} 
-            position={[0, 0, -40]} 
+            count={5000}
+            radius={56}
+            color="#e9d5ff"
+            size={0.05}
+            rotationSpeed={{ x: 0.0001, y: 0.0001, z: 0.001 }}
+            position={[0, 0, -40]}
           />
           <Float speed={1} rotationIntensity={0.1} floatIntensity={0.2}>
             <group position={[5.5, 0, 0]}>
@@ -805,7 +805,7 @@ const DynamicGlobalScaleSection = dynamic(() => Promise.resolve(GlobalScaleSecti
 export default function Page() {
   const { isOverlayVisible, setOverlayVisible } = useAIOrderingStore();
   const { isProductOverlayVisible, showProductOverlay, hideProductOverlay } = useUIStore();
-  
+
   const { isMobile, isStandalone, mounted } = useDeviceDetection();
 
   if (!mounted) {
@@ -826,7 +826,7 @@ export default function Page() {
         <HowItWorksSection />
         <FinalCTA />
         <TrustedBySection />
-  
+
       </main>
 
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />
