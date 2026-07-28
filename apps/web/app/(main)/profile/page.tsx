@@ -27,6 +27,14 @@ import * as THREE from 'three';
 // ============================================================================
 // --- TYPE DEFINITIONS ---
 // ============================================================================
+
+interface ApiError {
+    message?: string;
+    response?: {
+        status?: number;
+    };
+}
+
 interface UserProfileData {
     id: number; email: string; full_name?: string | null; role?: string | null;
     phone_number?: string | null; address?: string | null; avatar_url?: string | null;
@@ -138,7 +146,10 @@ export default function ProfilePage() {
     );
 
     useEffect(() => {
-        if (userError) signOut({ callbackUrl: '/login' });
+        const isAuthError = userError && ((userError as any)?.response?.status === 401 || String((userError as any)?.message).includes('401'));
+        if (isAuthError) {
+            signOut({ callbackUrl: '/login' });
+        }
     }, [userError]);
 
     const [isClient, setIsClient] = useState(false);
@@ -193,8 +204,26 @@ export default function ProfilePage() {
 
     const isSystemLoading = !isClient || sessionStatus === 'loading' || (sessionStatus === 'authenticated' && isLoadingUser);
 
-    if (sessionStatus === 'unauthenticated') redirect('/login');
-    if (isClient && userError) return <ErrorDisplay message={(userError as any)?.message} />;
+    const isUnauthorizedError = (error: unknown): error is ApiError => {
+        if (typeof error !== 'object' || error === null) return false;
+        const err = error as ApiError;
+        return err.response?.status === 401 || String(err.message).includes('401');
+    };
+    if (sessionStatus === 'unauthenticated') {
+        redirect('/login');
+    }
+
+    if (isClient && userError) {
+        if (isUnauthorizedError(userError)) {
+            return <LoadingScreen key="loading" />;
+        }
+
+        const errorMessage = userError instanceof Error
+            ? userError.message
+            : 'An unexpected error occurred';
+
+        return <ErrorDisplay message={errorMessage} />;
+    }
 
     const profileData = userData || {} as UserProfileData;
     const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'A')}&background=E5E7EB&color=000000&bold=true&size=128`;
