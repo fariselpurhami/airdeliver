@@ -35,6 +35,8 @@ declare module "next-auth" {
     user: {
       id: string;
       role: UserRole;
+      accessToken?: string;
+      error?: string;
     } & DefaultSession["user"];
   }
 
@@ -203,6 +205,10 @@ export const authConfig: NextAuthConfig = {
       if (session.user) {
         session.user.id = token.sub ?? "";
         session.user.role = normalizeRole(token.role);
+        // @ts-ignore
+        session.user.accessToken = token.accessToken;
+        // @ts-ignore
+        session.user.error = token.error;
       }
 
       session.accessToken = token.accessToken;

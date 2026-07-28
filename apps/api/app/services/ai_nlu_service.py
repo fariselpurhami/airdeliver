@@ -731,28 +731,26 @@ _RETENTION_DIRECTIVES: dict[RetentionMode, RetentionDirective] = {
 # [L8/L9 UPGRADE] UNIVERSAL OS OUTPUT ARCHITECTURE
 # =============================================================================
 UNIVERSAL_4_PHASE_ARCHITECTURE = (
-    "[UNIVERSAL OS OUTPUT ARCHITECTURE: THE 4 PHASES]\n"
-    "You MUST construct your response using EXACTLY these 4 phases in order. DO NOT print the phase names or brackets.\n\n"
+    "CRITICAL OUTPUT TEMPLATE:\n"
+    "IGNORE all other formatting rules. You MUST construct your exact response matching this visual template:\n"
+    "ABSOLUTE RULE: ZERO EMOJIS. Use pristine, raw text and Markdown bolding (**text**) only.\n\n"
     
-    "[Phase 1: The Executive Verdict (BLUF)]\n"
-    "Write 1-2 crisp, authoritative sentences directly answering the core of the user's intent. "
-    "RULE: This MUST be a normal paragraph. ABSOLUTELY NO BULLET POINTS HERE.\n\n"
+    "[Write a sophisticated, flowing paragraph (2-3 sentences) detailing the product's ultimate flagship standing, target audience, and core engineering/design philosophy. NO bullet points here.]\n\n"
     
-    "[Phase 2: The Core Intelligence (Fluid Bullets)]\n"
-    "Provide the comparative analysis or specs.\n"
-    "RULE: This is the ONLY analytical section where you use bullets.\n"
-    "RULE: Use 2 to 4 thick bullets (●). NEVER use asterisks (*) or hyphens (-).\n"
-    "RULE: THE PHANTOM PROTOCOL - If comparing an in-stock flagship with an older/unlisted model (like iPhone 15), rely on your authoritative Domain Expertise to state the qualitative generational leap. NEVER output 'spec not provided' or 'undisclosed'.\n\n"
+    "**Core Specifications**\n"
+    "● **[Attribute Name]:** [Detailed Value]\n"
+    "● **[Attribute Name]:** [Detailed Value]\n\n"
     
-    "[Phase 3: The Commercial Resolution]\n"
-    "Provide the actionable next step based on Inventory.\n"
-    "RULE: Choose ONE elegant header (e.g., 'Verified Inventory Status:').\n"
-    "RULE: List the relevant in-stock products. EACH product MUST start with a bullet (●).\n\n"
+    "**Why It Stands Out**\n"
+    "[Write a single, highly persuasive and objective paragraph (2-3 sentences) explaining why this product stands out in its market tier. NO bullet points here.]\n\n"
     
-    "[Phase 4: The OS Signature Close]\n"
-    "Exactly ONE elegant, confident closing sentence advising the next secure step with airdeliver. "
-    "RULE: MUST be a normal sentence. NO BULLETS. "
-    "RULE: NO CUSTOMER SERVICE FLUFF (NEVER write 'Feel free to let me know' or 'How can I help')."
+    "**Verified Inventory Status**\n"
+    "[State availability clearly in one sentence. List exact in-stock configurations below:]\n"
+    "● [Configuration 1]\n"
+    "● [Configuration 2]\n\n"
+    
+    "**Executive Summary**\n"
+    "[Write exactly ONE powerful sentence summarizing the item's identity and confirming readiness for secure checkout.]"
 )
 
 _CLOSER_POLICY = PromptPolicy(
@@ -912,111 +910,39 @@ class SafeJson:
 
 
 class TextSanitizer:
-    _strip_markdown_symbols = re.compile(r"[`#]")
-    _allow_pattern = re.compile(
-        r"[^\w\s\u0600-\u06FF\.,!?:;\(\)\[\]%\$\£\€\'’\/\+\n\u25CF\*\-]",
-        re.UNICODE,
-    )
-    _collapse_many_newlines = re.compile(r"\n{3,}")
-    _collapse_spaces = re.compile(r"[ \t]{2,}")
-    _currency_gap = re.compile(r"([\$£€])[\s\n]+(\d)")
-    _punctuation_gap = re.compile(r"\s+([,;:!?])")
-
-    # السر هنا: التقاط نهاية الجملة (نقطة وبعدها مسافة وحرف)
-    _sentence_break = re.compile(r"(?<!\b[vV][sS])(?<!● )(?<!●)([.!?])\s+(?=[A-Z\u0600-\u06FF])")
-    # التقاط النقطة العريضة لإجبارها على سطر جديد
-    _bullet_break = re.compile(r"(?<!^)(?<!\n)\s*(●)")
-    
-    _inline_spec_break = re.compile(r"(?<!\n)\s+(?=[A-Z][a-zA-Z0-9\s]+:\s)")
-
     @classmethod
     def sanitize_response_text(cls, raw_text: str) -> str:
         """
-        Sanitizes, normalizes, and formats the AI response text for UI presentation.
-        Ensures brand consistency, protects structural lists, enforces typography rules,
-        and provides a clean, premium visual output.
+        L8/L9 Elite Sanitizer: Respects Markdown, protects formatting, guarantees visual hierarchy.
         """
-        # ---------------------------------------------------------------------
-        # Phase 1: Early Exit & Base Normalization
-        # ---------------------------------------------------------------------
         if not raw_text or not str(raw_text).strip():
             return ""
 
         text = str(raw_text)
-        
+
+        # 1. تنظيف أي أوامر أو أقواس خفية قد يسربها الـ AI
+        text = re.sub(r"\[(?:Phase|Stage|Step).*?\]", "", text, flags=re.IGNORECASE)
         text = re.sub(r"\[[A-Z_]+\]", "", text)
-        text = re.sub(r"\b[A-Z]+(?:_[A-Z]+){2,}\b", "", text)
         
-        text = cls._strip_markdown_symbols.sub("", text)
-        text = cls._allow_pattern.sub(" ", text)
-        
-        # Brand Enforcement
+        # 2. توحيد اسم البراند
         text = text.replace("AirDeliver", "airdeliver").replace("Airdeliver", "airdeliver")
 
-        # ---------------------------------------------------------------------
-        # Phase 2: Markdown Eradication & List Standardization
-        # ---------------------------------------------------------------------
-        # Convert any markdown lists or numbered lists (1., 2.) to the universal bullet
+        # 3. توحيد النقاط: تحويل أي شرطة أو نجمة في بداية السطر إلى ●
+        text = re.sub(r"(?m)^[ \t]*[\*\-][ \t]+", r"● ", text)
+
+        # 4. هندسة المسافات (Vertical Rhythm)
+        # إجبار وجود سطر جديد قبل العناوين العريضة (**) لو كانت ملتصقة بالكلام
+        text = re.sub(r"(?<!\n)\s*(\*\*[A-Za-z\u0600-\u06FF])", r"\n\n\1", text)
+        # إجبار وجود سطر جديد قبل النقاط (●) لو كانت ملتصقة بفقرة
+        text = re.sub(r"(?<!\n)\s*(●\s)", r"\n\1", text)
+
+        # 5. التنظيف النهائي واللمسة الجمالية
+        text = re.sub(r"[ \t]{2,}", " ", text) # دمج المسافات الزائدة
+        text = re.sub(r"●\s*", "● ", text) # مسافة واحدة فقط وثابتة بعد النقطة
+        text = re.sub(r"\n{3,}", "\n\n", text) # أقصى حد هو سطرين فارغين
         
-        text = cls._bullet_break.sub(r"\n\n● ", text)
+        return text.strip()
 
-        text = re.sub(
-            r"(?i)\s*(EXECUTIVE VERDICT:|STRATEGIC ANALYSIS:|VERIFIED SOLUTION:|RESOLUTION:|Result:|Analysis:|What To Do:|ADVISORY:|VERDICT:|RISK ANALYSIS:|VERIFIED ALTERNATIVES[\w\s\(\)\-]*:)\s*",
-            r"\n\n",
-            text
-        )
-
-        # الحفاظ على Recommendation وتنسيقها بإضافة مسافات قبلها وبعدها كما كانت
-        text = re.sub(
-            r"(?i)\s*(Recommendation:)\s*",
-            r"\n\n\1\n\n",
-            text
-        )
-
-        # Convert any markdown lists or numbered lists (1., 2.) to the universal bullet
-        
-        text = re.sub(r"(?m)^[ \t]*(?:[\*\-]|\d+\.)[ \t]+", r"● ", text)
-        # Absolute prohibition: Nuke remaining asterisks to prevent unintended bolding
-        text = text.replace("*", "")
-
-        # ---------------------------------------------------------------------
-        # Phase 3: Structural Protection (Line-by-Line Context)
-        # ---------------------------------------------------------------------
-        processed_lines = []
-        for line in text.split("\n"):
-            clean_line = line.strip()
-            if clean_line.startswith("●"):
-                # Preserve bullet point integrity; bypass sentence breaking
-                processed_lines.append(clean_line)
-            else:
-                # Apply structural sentence breaks strictly to narrative paragraphs
-                processed_lines.append(cls._sentence_break.sub(r"\1\n\n", clean_line))
-
-        text = "\n".join(processed_lines)
-
-        # ---------------------------------------------------------------------
-        # Phase 4: Typography Polish & Whitespace Compression
-        # ---------------------------------------------------------------------
-        text = cls._currency_gap.sub(r"\1\2", text)
-        text = cls._punctuation_gap.sub(r"\1", text)
-
-        # Collapse internal spacing and clean trailing spaces per line
-        final_lines = [
-            cls._collapse_spaces.sub(" ", line).strip() 
-            for line in text.split("\n")
-        ]
-        text = "\n".join(final_lines).strip()
-        
-        # Enforce strict paragraph boundaries (Max 2 newlines)
-        text = cls._collapse_many_newlines.sub("\n\n", text)
-
-        # ---------------------------------------------------------------------
-        # Phase 5: Final UI Render
-        # ---------------------------------------------------------------------
-        # Inject EXACTLY 4 spaces after any bullet, overriding any previous spacing
-        text = re.sub(r"●\s*", "●    ", text)
-
-        return text
 # =============================================================================
 # KEYSPACE
 # =============================================================================
@@ -1805,7 +1731,8 @@ class ConstraintExtractor:
 
     intent_patterns: Tuple[str, ...] = (
         r"(?:want|need|buy|get|looking for|search for|find|recommend)\s+(?:a|an|the|some|new|best|top|cheap)?\s*([a-zA-Z0-9\s\-]+?)(?:\s+(?:for|with|under|below|that|which|in|at|from|priced)|$|[.,])",
-        r"^([a-zA-Z0-9\s\-]+?)\s+(?:with|under|below|max|for|containing)",
+        # 🚀 [L8/L9 FIX]: تم حذف 'max|' من هنا لمنع فصل أسماء المنتجات (مثل Pro Max)
+        r"^([a-zA-Z0-9\s\-]+?)\s+(?:with|under|below|for|containing)", 
     )
 
     def extract(self, text: str) -> SearchConstraints:
@@ -1832,7 +1759,6 @@ class ConstraintExtractor:
             singular = candidate[:-1] if candidate.endswith("s") and len(candidate) > 3 else candidate
             if singular not in self.ignored_anchors and len(singular) > 2:
                 category_filter = singular
-                clean_query = f"{clean_query} {singular}".strip()
                 break
 
         if any(trigger in lower_text for trigger in self.open_budget_triggers):
@@ -1910,7 +1836,7 @@ class ConstraintExtractor:
             required_specs["storage"] = int(specs["storage_gb"])
         # --------------------------
         for junk in list(self.negation_triggers) + [
-            "budget", "price", "cost", "max", "under", "limit", "is", "of", "want", "need",
+            "budget", "price", "cost", "under", "limit", "is", "of", "want", "need",
             "looking for", "find"
         ]:
             clean_query = re.sub(rf"\b{re.escape(junk)}\b", "", clean_query, flags=re.IGNORECASE)
@@ -2271,9 +2197,10 @@ class AINLUService:
                 return
 
         optimized_query = await self._optimize_search_query(search_query)
-        if intent_payload.target_products:
+        
+        if intent_payload.target_products and not optimized_query:
             names = [p.product_name for p in intent_payload.target_products]
-            optimized_query = f"{optimized_query} {' '.join(names)}"
+            optimized_query = " ".join(names)
 
         plan = self._build_search_plan(
             optimized_query=optimized_query,
@@ -2306,19 +2233,26 @@ class AINLUService:
             fallback_trigger = False
             ai_response_prefix = ""
 
-            informational_search_limit = 3
-            informational_search_timeout_seconds = 16.0
+            informational_search_limit = 5
+            informational_search_timeout_seconds = 50.0
 
             try:
+                # 🚀 [L8/L9 FIX] توحيد الاستراتيجية لتشمل الـ Exact Match والـ Fallbacks بدلاً من البحث الأعمى
+                strategy = DynamicStrategy(
+                    search_queries=[plan.search_query],
+                    category_filter=plan.constraints.category_filter
+                )
+                
                 raw_candidates = await asyncio.wait_for(
-                    self.search_engine.perform_hybrid_search_pure(
-                        self.db,
-                        plan.search_query,
-                        limit=informational_search_limit,
+                    self._execute_strategic_search(
+                        strategy=strategy,
+                        user_id=request.user_id,
+                        original_query=plan.search_query,
                     ),
                     timeout=informational_search_timeout_seconds,
                 )
                 candidates = list(raw_candidates or ())
+
             except asyncio.TimeoutError:
                 StructuredLog.warning(
                     "informational_search_timeout",
@@ -3074,14 +3008,45 @@ class AINLUService:
             return "trending high-tech items", ""
 
     async def _optimize_search_query(self, search_query: str) -> str:
-        if len(search_query.split()) > 4 or "?" in search_query:
+        # 🚀 [L8/L9 FIX] بناء جدار حماية لمنع إرسال أي تشويش لغوي (Noise) لمحرك البحث
+        if len(search_query.split()) > 3 or "?" in search_query:
             try:
-                optimized = await self.llm_service.extract_search_terms(search_query)
-                return optimized or search_query
-            except Exception:
+                system_prompt = (
+                    "You are an Elite Search Query Optimizer for a highly technical database. "
+                    "Your ONLY job is to extract the exact product name, brand, model, or core entity from the user's text. "
+                    "STRIP OUT all conversational words, questions, symbols, and noise (e.g., 'what is the specs of', 'show me', 'compare'). "
+                    "DO NOT return complete sentences. DO NOT use question marks. "
+                    "Return ONLY the pristine product identifier. "
+                    "Example 1: 'What is the specs of apple iphone 17 pro max ?' -> 'apple iphone 17 pro max'\n"
+                    "Example 2: 'compare samsung s24 ultra and iphone 15' -> 'samsung s24 ultra iphone 15'\n"
+                    "Example 3: 'I need a good gaming laptop' -> 'gaming laptop'"
+                )
+                
+                # استخدام generate_response بحرارة 0.0 لضمان الدقة المطلقة بدون أي هلوسة
+                optimized_raw = await self.llm_service.generate_response(
+                    prompt=f"Input: {search_query}",
+                    system_role=system_prompt,
+                    temperature=0.0, 
+                    max_tokens=2500
+                )
+                
+                # التنظيف النهائي للنتيجة من أي بقايا قد يضيفها النموذج
+                clean_result = str(optimized_raw).replace("Output:", "").replace('"', "").replace("'", "").strip()
+                
+                # التأكد من أن النتيجة منطقية وليست فارغة قبل اعتمادها
+                if clean_result and len(clean_result) > 2:
+                    StructuredLog.info(
+                        "query_optimized_successfully", 
+                        original_query=search_query, 
+                        optimized_query=clean_result
+                    )
+                    return clean_result
+                    
+            except Exception as exc:
+                StructuredLog.warning("query_optimizer_failed", error=str(exc))
                 return search_query
+                
         return search_query
-
     def _build_search_plan(
         self,
         *,
@@ -3698,14 +3663,18 @@ class AINLUService:
                 
                 joined_items = "\n".join(available_items)
                 inventory_context = (
-                    f"INVENTORY STATUS: The exact requested item is NOT found.\n"
-                    f"VERIFIED IN-STOCK ALTERNATIVES:\n{joined_items}"
+                    f"INVENTORY STATUS: The following relevant items are CONFIRMED IN-STOCK in our global network:\n"
+                    f"{joined_items}\n\n"
+                    f"SYSTEM_INSTRUCTION: Compare the user's requested item with the IN-STOCK list above. "
+                    f"If the requested item explicitly matches an item in the list, you MUST state that it IS available and verified in our inventory. "
+                    f"Only if it does not match, treat the listed items as elite alternatives."
                 )
             else:
                 inventory_context = (
                     "While these exact items are not currently active in our inventory, "
                     "we are continuously sourcing elite products."
                 )
+
             current_date = datetime.now(ZoneInfo("UTC")).strftime("%A, %B %d, %Y")
             system_instruction = f"""
 [airdeliver AI Commerce OS – System Instructions]
@@ -3955,36 +3924,22 @@ SCOPE & BEHAVIOR
                         has_products=bool(products),
                     )
                 else:
+                    # [L9 OVERRIDE]: تدمير أي تعليمات متضاربة وإجبار النظام على القالب الخماسي
+                    override_directive = (
+                        "CRITICAL OVERRIDE: IGNORE ANY PREVIOUS INSTRUCTIONS ABOUT 'VISUAL SCANNABILITY MANDATE'. "
+                        "You MUST strictly output your response using ONLY the provided ELITE 5-STAGE FRAMEWORK. "
+                        "DO NOT invent your own headers. DO NOT merge sections."
+                    )
+                    
                     user_prompt = (
-                        f"User Question:\n{bounded_user_query}\n\n"
+                        f"{override_directive}\n\n"
+                        f"{UNIVERSAL_4_PHASE_ARCHITECTURE}\n\n"
+                        f"=== DATA FOR THIS INQUIRY ===\n"
+                        f"User Question: {bounded_user_query}\n\n"
                         f"Web Intel:\n{normalized_web_intel}\n\n"
-                        f"Inventory Context:\n{inventory_context}\n\n"
-                        f"[UNIVERSAL OS OUTPUT ARCHITECTURE: THE 4 PHASES]\n"
-                        f"You are the airdeliver Cognitive OS. You MUST construct your response using the following dynamic framework. "
-                        f"Adapt the content to the specific product category (Tech, Fashion, Fragrance, Automotive, etc.), but NEVER deviate from this structural flow.\n"
-                        f"DO NOT print the phase names or brackets (e.g., [Phase 1]).\n\n"
-                        
-                        f"[Phase 1: The Executive Verdict (BLUF - Bottom Line Up Front)]\n"
-                        f"Write 1-2 crisp, authoritative sentences directly answering the core of the user's intent. "
-                        f"State the bottom line immediately (e.g., Which is better? Is it in stock? What is the main feature?). "
-                        f"NO intro fluff. NO bullet points here. Just pure, unshakeable truth.\n\n"
-
-                        f"[Phase 2: The Core Intelligence (Fluid Bullets)]\n"
-                        f"Provide the exact data, specs, or comparative analysis required to back up your verdict. "
-                        f"RULE: Use 2 to 5 bullet points depending on the depth needed.\n"
-                        f"RULE: EACH bullet MUST start with a thick bullet (●).\n"
-                        f"RULE: Format specifications strictly as '● Feature: Value' (e.g., '● Caliber: 324 S C', '● Top Notes: Bergamot', '● Chipset: A19 Pro').\n"
-                        f"RULE: If comparing, format as '● Dimension: Product A vs Product B'.\n"
-                        f"RULE: EACH spec or insight MUST be on its own NEW LINE. DO NOT group them in paragraphs.\n\n"
-
-                        f"[Phase 3: The Commercial Resolution]\n"
-                        f"Provide the actionable next step based on the Inventory Context.\n"
-                        f"RULE: Choose ONE elegant header that fits the scenario (e.g., 'Recommendation:', 'Available Options:', 'Verified Inventory Status:', 'Bespoke Procurement:').\n"
-                        f"RULE: List the relevant in-stock products and their configurations.\n"
-                        f"RULE: EACH product or configuration MUST be on a NEW LINE starting with a bullet (●).\n\n"
-
-                        f"[Phase 4: The OS Signature Close]\n"
-                        f"Exactly ONE elegant, confident closing sentence advising the next secure step with airdeliver. No questions. No retail hype."
+                        f"Inventory Context:\n{inventory_context}\n"
+                        f"=============================\n\n"
+                        f"EXECUTE THE 5-STAGE FRAMEWORK NOW. NO EXCEPTIONS."
                     )
                     ai_response_text = await asyncio.wait_for(
                         self.llm_service.generate_response(
@@ -5087,7 +5042,6 @@ Rules:
 - Max word count: {word_limit}
 - If product and intent do not match, answer honestly and avoid pretending they match.
 - No robotic apologies.
-- No markdown.
 - No quoted labels.
 - Keep the response sharp, specific, and category-aware.
 

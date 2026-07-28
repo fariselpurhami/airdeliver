@@ -1,41 +1,48 @@
-// apps/web/lib/api.ts
+/* apps/web/lib/api.ts */
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import type { Session } from 'next-auth';
 
-// 💎 SOTA ARCHITECTURE: Define Environment and Base URL
+interface ExtendedSession extends Session {
+  accessToken?: string;
+}
+
 const isServer = typeof window === 'undefined';
 
-const baseURL = isServer 
-  ? (process.env.API_URL || 'http://api:8000/api/v1') // Server: Use Docker Service Name
-  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'); // Client: Use Hostname
+const baseURL = isServer
+  ? process.env.API_URL || 'http://api:8000/api/v1'
+  : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+
+let serverAuthModule: typeof import('@/auth') | null = null;
+let clientAuthModule: typeof import('next-auth/react') | null = null;
 
 const api = axios.create({
   baseURL,
-  timeout: 40000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
   withCredentials: true,
 });
 
-// 💎 SOTA INTERCEPTOR: Context-Aware Authentication Injection
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
-      let token = null;
+      let token: string | undefined;
 
       if (isServer) {
-        // 🖥️ SERVER-SIDE: Use the Auth.js auth() helper (No HTTP roundtrip)
-        const { auth } = await import("@/auth");
-        const session = await auth();
-        // @ts-ignore
-        token = session?.accessToken; 
+        if (!serverAuthModule) {
+          serverAuthModule = await import('@/auth');
+        }
+        const session = (await serverAuthModule.auth()) as ExtendedSession | null;
+        token = session?.accessToken;
       } else {
-        // 🌐 CLIENT-SIDE: Use standard next-auth/react getSession
-        const { getSession } = await import("next-auth/react");
-        const session = await getSession();
-        // @ts-ignore
+        if (!clientAuthModule) {
+          clientAuthModule = await import('next-auth/react');
+        }
+        const session = (await clientAuthModule.getSession()) as ExtendedSession | null;
         token = session?.accessToken;
       }
 
@@ -43,20 +50,33 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-       // Log warning but allow request to continue for public endpoints
-       if (isServer) console.warn('[API] Auth injection skipped on server');
+      if (isServer) {
+        console.warn('[API] Auth injection skipped on server context');
+      }
     }
+
     return config;
   },
-  (error) => Promise.reject(error)
+  (error: Error) => Promise.reject(error)
 );
 
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    if (error.code === 'ECONNREFUSED') {
-        console.error(`🔥 [API FATAL] Connection Refused to ${baseURL}. Service might be down.`);
+    if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
+      console.error(`🔥 [API FATAL] Network failure connecting to ${baseURL}. Service down.`);
     }
+
+    if (error.response?.status === 401) {
+      if (!isServer) {
+        console.warn('🔒 [API] 401 Unauthorized. Session expired or invalid.');
+      }
+    }
+
+    if (error.response?.status === 429) {
+      console.warn('⏳ [API] 429 Too Many Requests. Throttling applied.');
+    }
+
     return Promise.reject(error);
   }
 );
