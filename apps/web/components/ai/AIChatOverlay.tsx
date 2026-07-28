@@ -1083,13 +1083,34 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
 
     // Defer scrolling layout thrash to next animation frame
     useEffect(() => {
-        if (chatEndRef.current) {
-            requestAnimationFrame(() => {
-                chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            });
-        }
-    }, [messages.length, isLoading]);
+        const scrollContainer = chatEndRef.current?.parentElement;
+        if (!scrollContainer) return;
 
+        let rafId: number;
+        let timeoutId: NodeJS.Timeout;
+
+        const performScroll = () => {
+            rafId = requestAnimationFrame(() => {
+                const targetTop = scrollContainer.scrollHeight + 150;
+            
+                if (scrollContainer.scrollTop !== targetTop) {
+                    scrollContainer.scrollTo({
+                        top: targetTop,
+                        behavior: 'smooth'
+                   });
+                }
+            });
+        };
+
+        performScroll();
+        timeoutId = setTimeout(performScroll, 400);
+
+        return () => {
+            cancelAnimationFrame(rafId);
+            clearTimeout(timeoutId);
+        };
+    }, [messages, isLoading, activeActionId]);
+    
     useEffect(() => {
         if (!paymentDetails) setIsAnimationComplete(false);
     }, [paymentDetails]);
