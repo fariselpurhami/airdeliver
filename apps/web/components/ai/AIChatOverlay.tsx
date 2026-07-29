@@ -451,22 +451,22 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                 }
                 return (
                  // 👇 نقلنا مسافات الأسطر (space-y-3) للـ div الأب هنا
-                    <div className={`text-sm leading-relaxed text-white/90 font-normal break-words w-full space-y-3 ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>
+                    <div className={`text-[13px] leading-normal text-white/90 font-normal break-words w-full space-y-2 ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>
                         <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
                 // تم إزالة className من هنا نهائياً بناءً على تحديث المكتبة الجديد
                             components={{
                                 p: ({ node, ...props }) => (
-                                    <p className="mb-4 last:mb-0 text-left whitespace-pre-wrap leading-relaxed" {...props} />
+                                    <p className="mb-3 last:mb-0 text-left whitespace-pre-wrap leading-normal" {...props} />
                                 ),
                                 strong: ({ node, ...props }) => (
                                     <strong className="font-bold text-white" {...props} />
                                 ),
                                 ul: ({ node, ...props }) => (
-                                    <ul className="list-disc list-inside space-y-2 mb-4 mt-2" {...props} />
+                                    <ul className="list-disc list-inside space-y-1.5 mb-3 mt-1.5 last:mb-0" {...props} />
                                 ),
                                 li: ({ node, ...props }) => (
-                                    <li className="pl-1" {...props} />
+                                    <li className="pl-0 leading-normal" {...props} />
                                 ),
                             }}
                         >
