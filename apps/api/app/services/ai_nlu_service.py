@@ -940,7 +940,8 @@ class TextSanitizer:
         # 4. هندسة المسافات: إجبار سطرين قبل أي داش عشان القائمة تنفصل عن الفقرة اللي قبلها
         text = re.sub(r"(?<!\n)\n?(-\s)", r"\n\n\1", text)
         text = re.sub(r"(?<!\n)\s*(\*\*[A-Za-z\u0600-\u06FF])", r"\n\n\1", text)
-
+        
+        text = re.sub(r"(?m)^(-\s.*?[.!?])\s+(?=[A-Z])", r"\1\n\n", text)
         # 5. تنظيف نهائي للمسافات الزائدة
         text = re.sub(r"[ \t]{2,}", " ", text) 
         text = re.sub(r"\n{3,}", "\n\n", text) 
