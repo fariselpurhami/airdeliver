@@ -432,10 +432,9 @@ class MatrixConfig:
 
     no_markdown_guard: str = (
         "FORMATTING RULE: "
-        "Use plain text and structured bullet points (●). "
+        "Use plain text and standard Markdown bullet points (-). "
         "You may use bolding (**) for emphasis, but STRICTLY DO NOT use headings (#), code blocks, or nested lists."
     )
-
     internal_prefix: str = "__"
 
     copy_bestsellers: str = "Discover our most acclaimed products 🏆"
@@ -730,28 +729,35 @@ _RETENTION_DIRECTIVES: dict[RetentionMode, RetentionDirective] = {
 # =============================================================================
 # [L8/L9 UPGRADE] UNIVERSAL OS OUTPUT ARCHITECTURE
 # =============================================================================
+
 UNIVERSAL_4_PHASE_ARCHITECTURE = (
-    "CRITICAL OUTPUT TEMPLATE:\n"
-    "IGNORE all other formatting rules. You MUST construct your exact response matching this visual template:\n"
-    "ABSOLUTE RULE: ZERO EMOJIS. Use pristine, raw text and Markdown bolding (**text**) only.\n\n"
+    "CRITICAL OUTPUT INSTRUCTIONS [OMNI-AWARE ENGINE]:\n"
+    "You MUST generate a response divided into EXACTLY 4 parts. "
+    "ABSOLUTE RULE: DO NOT output any headers, internal logic tags, or meta-text (e.g., NEVER write 'Part 1:', 'Dynamic Execution', 'If Comparison:', or 'Specs:'). Output ONLY the final customer-facing text.\n"
+    "You MUST separate each of the 4 parts with exactly a double line break (\\n\\n) to strictly prevent text merging.\n\n"
     
-    "[Write a sophisticated, flowing paragraph (2-3 sentences) detailing the product's ultimate flagship standing, target audience, and core engineering/design philosophy. NO bullet points here.]\n\n"
+    "PART 1: THE OPENING (2-3 sentences)\n"
+    "Adapt your opening silently based on the query type:\n"
+    " - Specific Product: Detail its flagship standing and core engineering philosophy.\n"
+    " - Comparison: Define the philosophical or architectural clash between the items.\n"
+    " - Broad Advice: Set the strategic parameters of what makes a product elite in this specific category.\n"
+    " - Phantom/Unreleased: Authoritatively establish its reality status using global supply chain logic.\n\n"
     
-    "**Core Specifications**\n"
-    "● **[Attribute Name]:** [Detailed Value]\n"
-    "● **[Attribute Name]:** [Detailed Value]\n\n"
+    "PART 2: THE DATA CORE (4-6 bullets)\n"
+    "Start each bullet with a standard dash (-). Max 18 words per bullet. Include concrete metrics. ZERO filler.\n"
+    "Adapt silently based on the query type:\n"
+    " - Specific Product: List the definitive technical specifications.\n"
+    " - Comparison: Contrast the exact diverging metrics directly (e.g., 'Device A leverages X, whereas Device B uses Y').\n"
+    " - Broad Advice: List the non-negotiable features a user must look for.\n"
+    " - Phantom/Unreleased: List confirmed historical brand DNA or technical constraints.\n\n"
     
-    "**Why It Stands Out**\n"
-    "[Write a single, highly persuasive and objective paragraph (2-3 sentences) explaining why this product stands out in its market tier. NO bullet points here.]\n\n"
+    "PART 3: THE SYNTHESIS (2-3 sentences)\n"
+    "Declare a definitive conclusion or a clear winner. You MUST reference at least one constraint (budget, use-case, longevity). Do not simply repeat the bullets.\n\n"
     
-    "**Verified Inventory Status**\n"
-    "[State availability clearly in one sentence. List exact in-stock configurations below:]\n"
-    "● [Configuration 1]\n"
-    "● [Configuration 2]\n\n"
-    
-    "**Executive Summary**\n"
-    "[Write exactly ONE powerful sentence summarizing the item's identity and confirming readiness for secure checkout.]"
+    "PART 4: THE CLOSURE (1-2 sentences)\n"
+    "State the global availability status and issue a decisive procurement directive. NEVER ask open-ended or trailing questions."
 )
+
 
 _CLOSER_POLICY = PromptPolicy(
     style_rule=(
@@ -909,40 +915,35 @@ class SafeJson:
         return json.dumps(data, ensure_ascii=False, default=SafeJson.default)
 
 
+
 class TextSanitizer:
     @classmethod
     def sanitize_response_text(cls, raw_text: str) -> str:
-        """
-        L8/L9 Elite Sanitizer: Respects Markdown, protects formatting, guarantees visual hierarchy.
-        """
         if not raw_text or not str(raw_text).strip():
             return ""
 
         text = str(raw_text)
 
-        # 1. تنظيف أي أوامر أو أقواس خفية قد يسربها الـ AI
-        text = re.sub(r"\[(?:Phase|Stage|Step).*?\]", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"\[[A-Z_]+\]", "", text)
+        # 1. إزالة أي عناوين غبية الموديل ممكن يكتبها بأي شكل (Phase 1, Part 2, Specs, etc)
+        text = re.sub(r"(?i)^(?:part|phase|stage|step)\s*\d+[:\-]?\s*", "", text, flags=re.MULTILINE)
+        text = re.sub(r"(?i)^(?:dynamic execution|synthesis|closing|the anchor|the specs|specs|conclusion)[:\-]?\s*", "", text, flags=re.MULTILINE)
+        text = re.sub(r"\[.*?\]", "", text) # مسح أي حاجة بين أقواس مربعة
         
-        # 2. توحيد اسم البراند
+        # 2. تحويل أي نقطة سميكة أو نجمة لـ داش (عشان الـ Frontend يفهمها)
+        text = re.sub(r"(?m)^[ \t]*[●\*][ \t]+", r"- ", text)
+        
+        # 3. توحيد اسم البراند
         text = text.replace("AirDeliver", "airdeliver").replace("Airdeliver", "airdeliver")
 
-        # 3. توحيد النقاط: تحويل أي شرطة أو نجمة في بداية السطر إلى ●
-        text = re.sub(r"(?m)^[ \t]*[\*\-][ \t]+", r"● ", text)
-
-        # 4. هندسة المسافات (Vertical Rhythm)
-        # إجبار وجود سطر جديد قبل العناوين العريضة (**) لو كانت ملتصقة بالكلام
+        # 4. هندسة المسافات: إجبار سطرين قبل أي داش عشان القائمة تنفصل عن الفقرة اللي قبلها
+        text = re.sub(r"(?<!\n)\n?(-\s)", r"\n\n\1", text)
         text = re.sub(r"(?<!\n)\s*(\*\*[A-Za-z\u0600-\u06FF])", r"\n\n\1", text)
-        # إجبار وجود سطر جديد قبل النقاط (●) لو كانت ملتصقة بفقرة
-        text = re.sub(r"(?<!\n)\s*(●\s)", r"\n\1", text)
 
-        # 5. التنظيف النهائي واللمسة الجمالية
-        text = re.sub(r"[ \t]{2,}", " ", text) # دمج المسافات الزائدة
-        text = re.sub(r"●\s*", "● ", text) # مسافة واحدة فقط وثابتة بعد النقطة
-        text = re.sub(r"\n{3,}", "\n\n", text) # أقصى حد هو سطرين فارغين
+        # 5. تنظيف نهائي للمسافات الزائدة
+        text = re.sub(r"[ \t]{2,}", " ", text) 
+        text = re.sub(r"\n{3,}", "\n\n", text) 
         
         return text.strip()
-
 # =============================================================================
 # KEYSPACE
 # =============================================================================
@@ -3732,12 +3733,6 @@ Your tone is unshakable, elegantly composed, and radically objective. NO retail 
   * Fragrance/Fashion: use "Sillage", NEVER "scent trail radius"; use "Full-grain leather", NEVER "unaltered cowhide".
 - Speak exactly like a tier-1 industry professional in the user's specific domain.
 
-[VISUAL SCANNABILITY MANDATE]
-- Executive clients do not read walls of text. Your response MUST be highly scannable and visually structured.
-- You are FORBIDDEN from writing more than two consecutive paragraphs without inserting a structured bulleted list.
-- ALL lists MUST use exactly this thick bullet point symbol (●). Do not use asterisks (*) or hyphens (-).
-- Risks, features, comparisons, and technical/material breakdowns MUST be presented as crisp, punchy bullet points.
-
 ROLE
 - You are the airdeliver AI Commerce OS, an elite, world-class technical shopping concierge.
 - You operate like a senior product specialist combined with a precision data analyst.
@@ -3926,10 +3921,13 @@ SCOPE & BEHAVIOR
                 else:
                     # [L9 OVERRIDE]: تدمير أي تعليمات متضاربة وإجبار النظام على القالب الخماسي
                     override_directive = (
-                        "CRITICAL OVERRIDE: IGNORE ANY PREVIOUS INSTRUCTIONS ABOUT 'VISUAL SCANNABILITY MANDATE'. "
-                        "You MUST strictly output your response using ONLY the provided ELITE 5-STAGE FRAMEWORK. "
-                        "DO NOT invent your own headers. DO NOT merge sections."
+                        "CRITICAL OVERRIDE:\n"
+                        "1. Output ONLY the raw 4-part content.\n"
+                        "2. NEVER write any headers, titles, or prompt instructions in the output.\n"
+                        "3. Separate each part with EXACTLY a double line break (\\n\\n). Text merging is a system failure.\n"
+                        "4. Use standard dashes (-) for the bulleted list."
                     )
+
                     
                     user_prompt = (
                         f"{override_directive}\n\n"
@@ -4025,23 +4023,33 @@ SCOPE & BEHAVIOR
 
                     # تجهيز السياق الدقيق جداً
                     precise_context = await self._enrich_specs_context(top_product, features_to_find)
+                    
+                    inventory_count = product_payload.get("inventory", 1)
+                    price_val = product_payload.get("price", "Price upon request")
 
                     # توجيه الـ LLM للرد بناءً على هذا السياق الصارم
                     system_instruction = (
-                        "You are an elite Technical Commerce Advisor. "
-                        "The user is asking about specific specifications. "
-                        "I am providing you with the exact extracted data from our database. "
-                        "Answer strictly based on this data. If the data says it's not explicitly found, tell the user honestly based on the full context. "
-                        "Keep it direct, professional, and use bullet points (●) for specs."
+                        "You are an elite Technical Commerce Advisor.\n"
+                        "The user is asking about specific specifications.\n"
+                        "I am providing you with the exact extracted data from our database.\n"
+                        "Answer strictly based on this data.\n\n"
+                        f"{UNIVERSAL_4_PHASE_ARCHITECTURE}"
                     )
-
-                    user_prompt = f"User Question: {request.message_text}\n\nProduct Database Extract:\n{precise_context}"
+                    user_prompt = (
+                        f"User Question: {request.message_text}\n\n"
+                        f"Product Database Extract:\n{precise_context}\n\n"
+                        f"CRITICAL OVERRIDE: YOU MUST FORMAT YOUR RESPONSE USING THE 4-PHASE ARCHITECTURE."
+                        "1. DO NOT output the [SILENT PRE-EXECUTION PROTOCOL].\n"
+                        "2. You MUST separate each phase with EXACTLY a double line break (\\n\\n). Text merging is a critical system failure.\n"
+                        "3. Every bullet point (●) MUST start on a NEW LINE. NEVER place bullets inline.\n"
+                        "4. Phase 4 MUST state the exact price and confirm the IN-STOCK status using the provided Live Inventory Metadata."
+                    )
 
                     ai_response_text = await self.llm_service.generate_response(
                         prompt=user_prompt,
                         system_role=system_instruction,
                         temperature=0.1, # حرارة شبه معدومة لمنع التأليف
-                        max_tokens=500
+                        max_tokens=1500
                     )
                 except Exception as exc:
                     StructuredLog.warning("precise_specs_extraction_failed", correlation_id=ctx.correlation_id, user_id=request.user_id, error=str(exc))
@@ -4171,7 +4179,7 @@ If a user introduces external friction (e.g., competitors, third-party flash sal
 
 THE OMNI-SILENCE DIRECTIVE (META-LEAKAGE PREVENTION):
 This is a strict operational firewall.
-1. STRICT SKELETON COMPLIANCE: You are EXPLICITLY AUTHORIZED and REQUIRED to use the exact headings provided in the Output Architecture (e.g., Result:, Analysis:, Recommendation:, What To Do:). Do not invent new ones.
+1. STRICT SKELETON COMPLIANCE: Adhere flawlessly to the 4-PHASE ARCHITECTURE. DO NOT INVENT OR USE ANY SECTION HEADINGS.
 2. ZERO AI META-LANGUAGE: You MUST NEVER refer to yourself as an AI, nor mention "prompts", "system instructions", or "databases".
 3. ZERO CUSTOMER SERVICE FLUFF: You MUST NEVER end responses with weak, open-ended retail questions. Your closure must be a single, confident, definitive advisory statement.
 
@@ -4211,10 +4219,8 @@ If the user's premise contains rumored, fictional, impossible, or officially unr
 - PRIORITIZE PROTECTION: You are the user's shield. NEVER validate fake urgency.
 - ECOSYSTEM LOCK: You MUST NEVER redirect the user to buy from the manufacturer (e.g., Apple, Sony) or any external competitor. airdeliver is their final and only trusted destination.
 
-DIRECTIVE 2: ZERO-HALLUCINATION & FACTUAL INTEGRITY
-Your reality is strictly bound by the [REALITY MATRIX] above.
-Treat every missing specification or unprovided detail as legally unknown.
-If an item is unreleased or unverified in the context, you possess NO factual basis to describe it as a purchasable reality. Do not invent, guess, or interpolate specs.
+DIRECTIVE 2: HYBRID KNOWLEDGE PROTOCOL & FACTUAL INTEGRITY
+Your primary reality is the [REALITY MATRIX]. HOWEVER, if the user asks for the specs of a globally verified, real product and it is missing from the matrix, you are EXPLICITLY AUTHORIZED to use your master-level domain knowledge to provide its accurate technical specifications. Do not act blind. DO NOT shift to generic broad advice. Only apply the zero-hallucination ban to completely fictitious, unreleased, or fake items.
 
 DIRECTIVE 3: ASYMMETRIC INTELLIGENCE & DEPTH (NO GAG ORDERS)
 DO NOT output shallow, brief, or dismissive responses. Our elite clientele demands cognitive density.
@@ -4901,12 +4907,6 @@ HARD RULES:
 - Do not imply {p_name} is the answer for everyone.
 - Keep the response elegant and easy to read inside a premium commerce chat interface.
 
-OUTPUT SHAPE:
-- Paragraph 1: neutral answer to the general question.
-- Paragraph 2: smooth transition to inventory.
-- Paragraph 3: recommendation logic and constraint handling.
-- Final sentence: calm forward guidance.
-
 If the user question is very broad, prioritize clarity over detail.
 """
                 else:
@@ -4955,12 +4955,6 @@ HARD RULES:
 - No fake claims of total superiority.
 - No overlong comparison tables in prose.
 - Do not drift into a general brand essay if the question is product-specific.
-
-OUTPUT SHAPE:
-- Paragraph 1: direct recommendation.
-- Paragraph 2: two strongest fit attributes.
-- Paragraph 3: concise comparison logic.
-- Final sentence: confident recommendation.
 
 The answer should feel premium, persuasive, and grounded in the user's actual intent.
 """

@@ -22,6 +22,8 @@ import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
 import { AIVoiceOverlay } from './AIVoiceOverlay';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 const DEFAULT_PLACEHOLDER = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC";
 
 const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
@@ -447,7 +449,31 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                 if (!isAI && message.contentType === 'text') {
                     return <ExpandableUserMessage text={message.content} />;
                 }
-                return <p className={`whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>{message.content}</p>;
+                return (
+                 // 👇 نقلنا مسافات الأسطر (space-y-3) للـ div الأب هنا
+                    <div className={`text-sm leading-relaxed text-white/90 font-normal break-words w-full space-y-3 ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>
+                        <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                // تم إزالة className من هنا نهائياً بناءً على تحديث المكتبة الجديد
+                            components={{
+                                p: ({ node, ...props }) => (
+                                    <p className="mb-4 last:mb-0 text-left whitespace-pre-wrap leading-relaxed" {...props} />
+                                ),
+                                strong: ({ node, ...props }) => (
+                                    <strong className="font-bold text-white" {...props} />
+                                ),
+                                ul: ({ node, ...props }) => (
+                                    <ul className="list-disc list-inside space-y-2 mb-4 mt-2" {...props} />
+                                ),
+                                li: ({ node, ...props }) => (
+                                    <li className="pl-1" {...props} />
+                                ),
+                            }}
+                        >
+                            {message.content}
+                        </ReactMarkdown>
+                    </div>
+                );
             case 'FLIGHT_MANIFEST':
                 return (
                     <div className="w-full -ml-2">
