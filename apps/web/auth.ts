@@ -1,4 +1,5 @@
 // apps/web/auth.ts
+
 import NextAuth, { type DefaultSession, type NextAuthConfig, type User } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { jwtDecode } from "jwt-decode";
