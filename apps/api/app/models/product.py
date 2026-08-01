@@ -13,6 +13,8 @@ from sqlmodel import Field, Relationship, SQLModel
 
 from sqlalchemy.orm import Mapped, relationship
 
+from pydantic import field_validator, field_serializer
+
 if TYPE_CHECKING:
     from .order import OrderItem
 
@@ -89,3 +91,13 @@ class Product(SQLModel, table=True):
             except ValueError:
                 pass
         return value
+
+    @field_serializer("price")
+    def serialize_price(self, price: Any, _info: Any) -> str:
+        return str(price)
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_datetime(self, dt: Any, _info: Any) -> str:
+        if isinstance(dt, datetime):
+            return dt.isoformat()
+        return str(dt)

@@ -3859,9 +3859,7 @@ SCOPE & BEHAVIOR
 
 """
             fallback_response = (
-              "That’s a thoughtful question. I’m unable to verify the exact comparison details at the moment, "
-              "so I don’t want to give you an answer that may be incomplete or misleading. "
-              "What I can do right now is help you explore strong premium alternatives that closely match your intent."
+              "airdeliver core systems are currently synchronizing. Please attempt your request again momentarily."
             )
             web_search_timeout_seconds = 18.0
             llm_timeout_seconds = 28.0
