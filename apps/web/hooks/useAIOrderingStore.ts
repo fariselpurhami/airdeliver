@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { produce } from 'immer';
+import { useCartStore } from './useCartStore';
 
 // --- Domain Types ---
 
@@ -285,7 +286,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
           get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
           get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__', {}, true);
         }
-        get().processOfflineQueue();
+        setTimeout(() => {
+            get().processOfflineQueue();
+        }, 500);
       };
 
       nextSocket.onmessage = (event: MessageEvent<string>) => {
@@ -488,6 +491,20 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         if (isDuplicate) return;
 
         const contentAsRecord = response.content as Record<string, unknown>;
+        
+        if (Array.isArray(contentAsRecord?.items)) {
+          // تحويل البيانات لتطابق هيكل useCartStore
+          const syncedItems = contentAsRecord.items.map((item: any) => ({
+              ...item,
+              id: item.product_id || item.id,
+              // Backend يرسل السعر كنص String لضمان الدقة المالية، لذا نحوله هنا إلى رقم[cite: 7]
+              price: Number(item.price) 
+          }));
+          
+          // حقن المنتجات في سلة الموقع الرئيسية المخزنة في localStorage
+          useCartStore.setState({ items: syncedItems });
+        }
+
         if (Array.isArray(contentAsRecord?.items) && contentAsRecord.items.length === 0) {
           state.messages = state.messages.filter(m => m.contentType !== 'confirmation_prompt');
         }

@@ -1015,6 +1015,9 @@ const PaymentFatalError = React.memo(({ keyMissing }: { keyMissing: boolean }) =
 ));
 PaymentFatalError.displayName = 'PaymentFatalError';
 
+const ZOMBIE_CONNECTION_THRESHOLD_MS = 60_000;
+const SIMULATED_AUTH_DELAY_MS = 500;
+
 // ============================================================================
 // --- MAIN COMPONENT ---
 // ============================================================================
@@ -1195,30 +1198,45 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         actions.sendMessage(text, false);
     }, [status, actions]);
 
-    const handleProductSelect = useCallback((product: any, elementId: string) => {
-    if (status === 'authenticated') {
-        // 1. لو الاتصال مقطوع، إديله التوكن عشان يعمل ريستارت للسيرفر بسرعة
-        if (socketStatus !== 'connected' && currentAccessToken) {
-            actions.connectSocket(currentAccessToken);
-        }
-        
-        // 2. إرمي أمر الإضافة للـ Store.. 
-        // الـ Store هيشغل الـ Thinking، هيحفظ الأمر في الـ Queue، ولما السيرفر يصحى هيبعته لوحده![cite: 5]
-        actions.addProductById(product, elementId);
-        
-    } else {
-        useAIOrderingStore.setState({ isLoading: true }); // تشغيل الـ Thinking لحظياً
-        
-        setTimeout(() => {
+    const handleProductSelect = useCallback((product: any, elementId: string): void => {
+    if (status !== 'authenticated') {
+        useAIOrderingStore.setState({ isLoading: true });
+      
+        window.setTimeout(() => {
             actions.addSocketAIMessage({
                 type: 'confirmation_prompt',
-                content: "Let's get you set up in seconds.",
-                options: ["Sign In", "Sign Up"],
+                content: 'Sign in to secure your selection.',
+                options: ['Sign In', 'Sign Up'],
             });
-            useAIOrderingStore.setState({ isLoading: false }); // قفل الـ Thinking وإظهار الأزرار
-        }, 500);
+            useAIOrderingStore.setState({ isLoading: false });
+        }, SIMULATED_AUTH_DELAY_MS);
+      
+        return;
     }
-}, [status, socketStatus, actions, currentAccessToken]);
+
+    const { messages } = useAIOrderingStore.getState();
+    const lastMessage = messages[messages.length - 1];
+    const lastActiveTime = lastMessage?.timestamp ?? 0;
+
+    const isZombieConnection = (Date.now() - lastActiveTime) > ZOMBIE_CONNECTION_THRESHOLD_MS;
+
+    if (socketStatus !== 'connected' || isZombieConnection) {
+        if (!currentAccessToken) {
+            actions.addSocketAIMessage({
+                type: 'error',
+                content: 'Session token missing. Cannot reconnect.',
+            });
+            return; 
+        }
+
+        useAIOrderingStore.setState({ isLoading: true });
+        actions.disconnectSocket();
+        actions.connectSocket(currentAccessToken);
+    }
+    
+    actions.addProductById(product, elementId);
+    
+}, [status, socketStatus, currentAccessToken, actions]);
 
     const stripeAppearance = useMemo(() => ({
         theme: 'night' as const,
