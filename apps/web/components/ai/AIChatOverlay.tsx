@@ -319,7 +319,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
 CarouselProductCard.displayName = 'CarouselProductCard';
 
 const ProductCarousel = React.memo(({ products, onViewDetails, onSelect }: { products: any[], onSelect: (product: any, elementId: string) => void, onViewDetails: (product: any) => void }) => {
-    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start', containScroll: 'trimSnaps', dragFree: true });
+    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start', containScroll: 'trimSnaps', dragFree: false });
     
     const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
     const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
@@ -932,65 +932,73 @@ const ChatInput = React.memo(
 ChatInput.displayName = 'ChatInput';
 
 const FlyToCartAnimator = React.memo(() => {
-  const flyQueue = useAIOrderingStore(useShallow(state => state.flyQueue));
-  const removeFlyItem = useAIOrderingStore(state => state.removeFlyItem);
+  const flyQueue = useAIOrderingStore(useShallow(state => state.flyQueue)); //
+  const removeFlyItem = useAIOrderingStore(state => state.removeFlyItem); //[cite: 1]
 
   return (
     <AnimatePresence>
-      {flyQueue.map((item) => {
-          const startEl = document.getElementById(item.startElementId);
-          const endEl = document.getElementById('order-summary-cart-icon');
+      {flyQueue.map((item) => { //[cite: 1]
+          const startEl = document.getElementById(item.startElementId); //[cite: 1]
+          const endEl = document.getElementById('order-summary-cart-icon'); //[cite: 1]
           
-          if (!startEl) return null;
-          const startRect = startEl.getBoundingClientRect();
-          const endPos = endEl ? endEl.getBoundingClientRect() : { top: 50, left: window.innerWidth - 50 };
+          if (!startEl) return null; //[cite: 1]
+          const startRect = startEl.getBoundingClientRect(); //[cite: 1]
+          const endPos = endEl ? endEl.getBoundingClientRect() : { top: 50, left: window.innerWidth - 50 }; //[cite: 1]
 
-          const imageSource = getAbsoluteImageUrl(item.image);
+          const imageSource = getAbsoluteImageUrl(item.image); //[cite: 1]
           
+          // 🚀 تحسين الأداء: حساب نسبة التصغير بدلاً من تحريك الأبعاد الثابتة
+          const TARGET_SIZE = 10;
+          const targetScale = TARGET_SIZE / Math.max(startRect.width, 1);
+          
+          // 🎢 إضافة الإثارة: حساب نقطة المنتصف لعمل حركة على شكل قوس (Arc)
+          const midY = Math.min(startRect.top, endPos.top) - 80; // يقفز لأعلى بمقدار 80 بكسل قبل النزول للسلة
+
           return (
             <motion.div
-              key={item.animationId} 
-              className="fixed z-[9999] rounded-full overflow-hidden border-2 border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.8)] transform-gpu"
+              key={item.animationId} //[cite: 1]
+              className="fixed z-[9999] rounded-full overflow-hidden border-2 border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.8)] transform-gpu" //[cite: 1]
               style={{ 
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
-                  pointerEvents: 'none',
-                  willChange: 'transform, opacity, width, height'
-              }}
-              initial={{ 
-                  x: startRect.left, 
-                  y: startRect.top, 
+                  position: 'fixed', //[cite: 1]
+                  top: 0, //[cite: 1]
+                  left: 0, //[cite: 1]
+                  pointerEvents: 'none', //[cite: 1]
+                  // 🚀 تثبيت العرض والطول لمنع إعادة حساب التخطيط (Layout Thrashing)
                   width: startRect.width, 
                   height: startRect.height, 
-                  opacity: 1,
-                  scale: 1 
+                  // 🚀 إزالة width و height من willChange ليكون الأداء خفيفاً جداً
+                  willChange: 'transform, opacity' 
+              }}
+              initial={{ 
+                  x: startRect.left, //[cite: 1]
+                  y: startRect.top, //[cite: 1]
+                  opacity: 1, //[cite: 1]
+                  scale: 0.6, //[cite: 1]
+                  rotate: 0
               }}
               animate={{ 
-                  x: endPos.left - 10, 
-                  y: endPos.top - 10, 
-                  width: 30, 
-                  height: 30, 
-                  opacity: 0,
-                  scale: 0.5,
-                  rotate: 360
+                  // 🎢 استخدام Keyframes لصناعة القوس والتأثير البصري
+                  x: [startRect.left, endPos.left - 10], 
+                  y: [startRect.top, midY, endPos.top - 10], 
+                  opacity: [1, 1, 0], // يظل ظاهراً حتى يصل للسلة ثم يختفي
+                  scale: [0.6, 0.75, targetScale], // تأثير "Pop": يكبر قليلاً عند الضغط ثم يصغر وهو في طريقه للسلة
+                  rotate: [0, -20, 360] // يميل قليلاً للخلف ثم يدور بسرعة
               }}
               transition={{ 
-                  type: "spring", 
-                  stiffness: 55, 
-                  damping: 15,
-                  mass: 0.8
+                  duration: 0.7, // توقيت مثالي لا هو بطيء ولا سريع مزعج
+                  ease: "easeInOut",
+                  times: [0, 0.3, 1] // توقيت التحكم في مسار الحركة (Keyframes)
               }}
-              onAnimationComplete={() => removeFlyItem(item.animationId)}
+              onAnimationComplete={() => removeFlyItem(item.animationId)} //[cite: 1]
             >
-              <Image src={imageSource} alt="product" width={100} height={100} priority className="w-full h-full object-cover" />
+              <Image src={imageSource} alt="product" width={100} height={100} priority className="w-full h-full object-cover" /> {/*[cite: 1] */}
             </motion.div>
           );
       })}
     </AnimatePresence>
   );
 });
-FlyToCartAnimator.displayName = 'FlyToCartAnimator';
+FlyToCartAnimator.displayName = 'FlyToCartAnimator'; //[cite: 1]
 
 const PaymentFatalError = React.memo(({ keyMissing }: { keyMissing: boolean }) => (
     <div className="w-full h-full flex flex-col items-center justify-center p-10 text-center bg-black/40 backdrop-blur-xl rounded-[30px] border border-red-500/20">
@@ -1188,15 +1196,30 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
     }, [status, actions]);
 
     const handleProductSelect = useCallback((product: any, elementId: string) => {
-        if (status === 'authenticated' && socketStatus === 'connected') {
-            actions.addProductById(product, elementId);
-        } else if (status === 'authenticated') {
-             actions.addSocketAIMessage({ type: 'error', content: "Engine warming up..." });
-        } else {
-             actions.addSocketAIMessage({ type: 'error', content: "Authentication required for cart operations." });
+    if (status === 'authenticated') {
+        // 1. لو الاتصال مقطوع، إديله التوكن عشان يعمل ريستارت للسيرفر بسرعة
+        if (socketStatus !== 'connected' && currentAccessToken) {
+            actions.connectSocket(currentAccessToken);
         }
-    }, [status, socketStatus, actions]);
         
+        // 2. إرمي أمر الإضافة للـ Store.. 
+        // الـ Store هيشغل الـ Thinking، هيحفظ الأمر في الـ Queue، ولما السيرفر يصحى هيبعته لوحده![cite: 5]
+        actions.addProductById(product, elementId);
+        
+    } else {
+        useAIOrderingStore.setState({ isLoading: true }); // تشغيل الـ Thinking لحظياً
+        
+        setTimeout(() => {
+            actions.addSocketAIMessage({
+                type: 'confirmation_prompt',
+                content: "Let's get you set up in seconds.",
+                options: ["Sign In", "Sign Up"],
+            });
+            useAIOrderingStore.setState({ isLoading: false }); // قفل الـ Thinking وإظهار الأزرار
+        }, 500);
+    }
+}, [status, socketStatus, actions, currentAccessToken]);
+
     const stripeAppearance = useMemo(() => ({
         theme: 'night' as const,
         labels: 'floating' as const,
@@ -1384,13 +1407,11 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                                                 );
                                             })()
                                         ) : (
-                                            <div className="flex flex-col items-center gap-6">
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full z-50">
                                                 {isStripeError || isKeyMissing ? (
                                                      <PaymentFatalError keyMissing={isKeyMissing} />
                                                 ) : (
-                                                    <div className="flex flex-col items-center justify-center h-full">
-                                                        <Loader2 size={36} className="text-cyan-500 animate-spin" />
-                                                    </div>
+                                                    <Loader2 size={26} className="text-cyan-500 animate-spin" />
                                                 )}
                                             </div>
                                         )}

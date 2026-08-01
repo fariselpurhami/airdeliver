@@ -146,7 +146,7 @@ const ProductDetailsCardComponent = ({
         type="button"
         aria-label="Close product details"
         onClick={handleClose}
-        className="absolute right-3 top-3 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white backdrop-blur-md transition hover:bg-black/55 active:scale-[0.98] sm:right-4 sm:top-4"
+        className="absolute right-8 top-6 z-20 p-3 rounded-full border border-white/5 bg-black/40 text-gray-400 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:text-white hover:border-white/20 active:scale-[0.98]"
       >
         <X className="h-5 w-5" />
       </button>
