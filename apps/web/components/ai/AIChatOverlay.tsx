@@ -606,13 +606,14 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                 message.contentType === 'image_user_upload' 
                     ? '' // بدون أي خلفية لأننا عملناها جوه الـ case
                     : `px-4 py-3 ${isAI 
-                        ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20' 
-                        : 'px-4 py-4 rounded-[32px] rounded-br-none bg-zinc-900 text-gray-100 text-[14px] leading-relaxed break-words max-w-[90%] shadow-md'}`
+                        ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20'  // وسعنا الكبسولة بـ w-full وزودنا الهوامش الداخلية
+                        : 'w-fit max-w-[90%] px-4 py-4 rounded-[32px] rounded-br-none bg-zinc-900 text-gray-100 text-[14px] leading-relaxed break-words shadow-md'}`
             } transform-gpu`}>
                 {contentNode}
             </div>
         </motion.div>
     );
+
 }, (prevProps, nextProps) => {
     // Explicit prop comparison for maximum list rendering performance
     return prevProps.message.id === nextProps.message.id && 
