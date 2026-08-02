@@ -8,7 +8,6 @@ import { X } from 'lucide-react';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 
 // --- 🌊 MATH ENGINE: Generative Organic Waves ---
-// محرك رياضي لرسم خطوط منحنية طبيعية تتفاعل مع مستوى الصوت
 const generateOrganicPath = (points: number, radius: number, audioLevel: number, offset: number) => {
     let d = "";
     const angleStep = (Math.PI * 2) / points;
@@ -16,13 +15,11 @@ const generateOrganicPath = (points: number, radius: number, audioLevel: number,
     for (let i = 0; i <= points; i++) {
         const angle = i * angleStep;
         
-        // دمج موجتين بترددات مختلفة لخلق العشوائية المنظمة
         const wave1 = Math.sin(angle * 6 + offset) * (20 * audioLevel); 
         const wave2 = Math.cos(angle * 3 - offset) * (15 * audioLevel); 
         
         const r = radius + wave1 + wave2;
         
-        // مركز الـ SVG هو 300,300
         const x = 300 + Math.cos(angle) * r; 
         const y = 300 + Math.sin(angle) * r;
 
@@ -33,11 +30,10 @@ const generateOrganicPath = (points: number, radius: number, audioLevel: number,
     return d;
 };
 
-// --- 🧬 COMPONENT: The Living Hologram (No Icons, Just Energy) ---
+// --- 🧬 COMPONENT: The Living Hologram ---
 const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
     const [time, setTime] = useState(0);
 
-    // حلقة تحريك الزمن للموجات
     useEffect(() => {
         let frameId: number;
         const animate = () => {
@@ -48,14 +44,13 @@ const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
         return () => cancelAnimationFrame(frameId);
     }, []);
 
-    // توليد 3 طبقات من الموجات بألوان وتوقيتات مختلفة
     const path1 = useMemo(() => generateOrganicPath(100, 90, audioLevel, time), [audioLevel, time]);
     const path2 = useMemo(() => generateOrganicPath(100, 95, audioLevel * 0.8, time + 2), [audioLevel, time]);
     const path3 = useMemo(() => generateOrganicPath(100, 85, audioLevel * 1.2, time - 1), [audioLevel, time]);
 
     return (
-        <div className="relative w-full h-full flex items-center justify-center">
-             <svg width="600" height="600" viewBox="0 0 600 600" className="absolute w-[160%] h-[160%] opacity-90 pointer-events-none">
+        <div className="relative w-full h-full flex items-center justify-center pointer-events-none scale-75 origin-bottom">
+             <svg width="600" height="600" viewBox="0 0 600 600" className="absolute w-[160%] h-[160%] opacity-90">
                 <defs>
                     <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.8" />
@@ -78,7 +73,6 @@ const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
                     </filter>
                 </defs>
 
-                {/* الطبقة الأساسية (بنفسجي/أزرق) */}
                 <motion.path 
                     d={path1} 
                     fill="none" 
@@ -87,7 +81,6 @@ const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
                     filter="url(#glow)"
                 />
 
-                {/* الطبقة الثانوية (سماوي) - وضع الشاشة Screen Mode */}
                 <motion.path 
                     d={path2} 
                     fill="none" 
@@ -96,7 +89,6 @@ const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
                     className="mix-blend-screen"
                 />
 
-                {/* الطبقة الثالثة (وردي) - نبض الطاقة */}
                 <motion.path 
                     d={path3} 
                     fill="none" 
@@ -106,7 +98,6 @@ const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
                 />
             </svg>
             
-            {/* النواة المركزية (طاقة خالصة بدون أيقونة) */}
             <motion.div 
                 className="absolute w-24 h-24 rounded-full blur-2xl bg-cyan-500/20"
                 animate={{ 
@@ -168,34 +159,31 @@ export const AIVoiceOverlay = () => {
         
         const initVoiceSession = async () => {
             try {
-		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     alert("المايكروفون غير مدعوم في هذا المتصفح. تأكد من تشغيل الموقع عبر HTTPS أو Localhost، ومنح الصلاحية للموقع.");
                     setVoiceMode(false);
                     return;
                 }
-                // 1. طلب المايكروفون أولاً
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
-                // 2. إعداد الـ AudioContext
-                const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+                // دعم متصفحات مختلفة
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
                 const ctx = new AudioContextClass();
                 audioContextRef.current = ctx;
                 
                 const analyser = ctx.createAnalyser();
                 analyser.fftSize = 256;
-                analyser.smoothingTimeConstant = 0.8; // نعومة الحركة
+                analyser.smoothingTimeConstant = 0.8; 
                 analyserRef.current = analyser;
                 
                 const source = ctx.createMediaStreamSource(localStream);
                 source.connect(analyser);
 
-                // 3. الاتصال بالسيرفر
                 const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/api/v1/ordering/voice-stream?ticket=DEMO`; 
                 const ws = new WebSocket(wsUrl);
                 ws.binaryType = 'arraybuffer';
                 wsRef.current = ws;
 
-                // 4. تسجيل وإرسال الصوت
                 const mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
                 mediaRecorderRef.current = mediaRecorder;
                 mediaRecorder.ondataavailable = (e) => {
@@ -203,7 +191,6 @@ export const AIVoiceOverlay = () => {
                 };
                 mediaRecorder.start(250); 
 
-                // 5. استقبال الرسائل
                 ws.onmessage = async (event) => {
                     if (event.data instanceof ArrayBuffer) {
                         audioQueueRef.current.push(event.data);
@@ -212,7 +199,6 @@ export const AIVoiceOverlay = () => {
                         const data = JSON.parse(event.data);
                         if (data.type === 'text_stream') setAiResponse(data.text);
                         
-                        // توجيه الأوامر والمنتجات للـ Store (عشان تظهر في الشات العادي)
                         if (data.type === 'control') {
                             addSocketAIMessage({ id: Date.now(), sender: 'user', contentType: 'text', content: data.payload.query, status: 'sent' });
                         }
@@ -222,17 +208,14 @@ export const AIVoiceOverlay = () => {
                     }
                 };
 
-                // 6. حلقة التحديث البصري (Visualization Loop)
                 const updateVisuals = () => {
                     if (analyser) {
                         const dataArray = new Uint8Array(analyser.frequencyBinCount);
                         analyser.getByteFrequencyData(dataArray);
                         
-                        // التركيز على ترددات الصوت البشري
                         const relevantFreqs = dataArray.slice(10, 80);
                         const average = relevantFreqs.reduce((a, b) => a + b) / relevantFreqs.length;
                         
-                        // معادلة لوغاريتمية لحساسية طبيعية
                         const scale = 1 + Math.log(1 + average / 40); 
                         setAudioLevel(Math.max(1, scale));
                     }
@@ -246,7 +229,6 @@ export const AIVoiceOverlay = () => {
         };
         initVoiceSession();
 
-        // تنظيف الموارد عند الإغلاق
         return () => {
             if (localStream) localStream.getTracks().forEach(track => track.stop());
             if (wsRef.current) wsRef.current.close();
@@ -259,74 +241,68 @@ export const AIVoiceOverlay = () => {
 
     return (
         <AnimatePresence>
-            {/* 1. Backdrop (خلفية ضبابية لكامل الشاشة الداخلية) */}
+            {/* Light Backdrop */}
             <motion.div
                 key="voice-backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-md"
+                className="absolute inset-0 z-[100] bg-slate-950/20 backdrop-blur-[3px]"
                 onClick={() => setVoiceMode(false)}
             />
 
-            {/* 2. THE FLOATING CARD (متطابق بالمللي مع حاوية الموبايل) */}
+            {/* THE BOTTOM FLOATING DOCK */}
             <motion.div
                 key="voice-card"
-                initial={{ opacity: 0, scale: 0.95 }} 
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, y: 100 }} 
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                
-                // التموضع والتصميم الجديد (absolute لتعبئة الشاشة الأب):
-                className="absolute inset-0 z-[101] w-full h-full bg-[#020617]/95 backdrop-blur-3xl flex flex-col"
-                
-                // منع إغلاق الكارت عند الضغط بداخله
-                onClick={(e) => e.stopPropagation()}
+                className="absolute bottom-0 left-0 w-full z-[101] flex flex-col pointer-events-none"
             >
-                {/* A. Header (Status & Close) متطابق مع الـ AIChatOverlay */}
-                <div className="absolute top-0 left-0 w-full px-8 py-6 flex justify-between items-start z-50">
-                    <div className="flex items-center gap-2 mt-2">
+                <div className="absolute bottom-0 w-full h-[280px] bg-gradient-to-t from-slate-950/95 via-slate-950/60 to-transparent pointer-events-none" />
+
+                {/* Header (Status & Close) */}
+                <div className="relative w-full px-6 flex justify-between items-center mb-2 z-50 pointer-events-auto">
+                    <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
                         <div className={`w-1.5 h-1.5 rounded-full ${status === 'speaking' ? 'bg-green-500' : 'bg-cyan-500'} animate-pulse`} />
-                        <span className="text-[10px] font-mono text-cyan-500/80 tracking-widest uppercase">
+                        <span className="text-[10px] font-mono text-cyan-400/90 tracking-widest uppercase">
                             {status === 'listening' ? 'Listening' : status === 'processing' ? 'Thinking' : 'Speaking'}
                         </span>
                     </div>
+                    
                     <button 
                         onClick={() => setVoiceMode(false)}
-                        className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
+                        className="p-2 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-gray-400 hover:bg-white/15 hover:text-white hover:border-white/20 hover:scale-105 transition-all duration-300 shadow-lg"
                     >
-                        <X size={20} />
+                        <X size={18} />
                     </button>
                 </div>
 
-                {/* B. The Hologram Container (Energy Core) */}
-                <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-                    {/* إضاءة خلفية خفيفة */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-900/5 to-transparent opacity-40 pointer-events-none" />
+                {/* Hologram Container */}
+                <div className="relative w-full h-[180px] flex items-center justify-center overflow-visible pointer-events-auto">
                     
-                    {/* 🔥 THE ORGANIC HOLOGRAM (NO ICONS) */}
                     <HolographicBlob audioLevel={audioLevel} />
-                </div>
 
-                {/* C. Live Transcription Text */}
-                <div className="p-8 pb-12 min-h-[140px] flex items-end justify-center text-center z-50">
-                    <AnimatePresence mode="wait">
-                        <motion.p 
-                            key={aiResponse || "default-text"}
-                            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-                            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                            exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
-                            className={`text-2xl font-medium leading-relaxed max-w-[280px] ${
-                                status === 'listening' 
-                                ? 'text-white/30 italic font-light' 
-                                : 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-100 via-white to-purple-200 shadow-lg'
-                            }`}
-                        >
-                            {status === 'listening' ? "I'm listening..." : aiResponse}
-                        </motion.p>
-                    </AnimatePresence>
+                    {/* Live Transcription Text */}
+                    <div className="absolute inset-0 flex items-center justify-center text-center z-50 px-8 pb-4">
+                        <AnimatePresence mode="wait">
+                            <motion.p 
+                                key={aiResponse || "default-text"}
+                                initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+                                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                                exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+                                className={`text-xl font-medium leading-relaxed max-w-[300px] drop-shadow-2xl ${
+                                    status === 'listening' 
+                                    ? 'text-white/40 italic font-light' 
+                                    : 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-50 via-white to-purple-100'
+                                }`}
+                            >
+                                {status === 'listening' ? "I'm listening..." : aiResponse}
+                            </motion.p>
+                        </AnimatePresence>
+                    </div>
                 </div>
-
             </motion.div>
         </AnimatePresence>
     );

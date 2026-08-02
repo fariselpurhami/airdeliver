@@ -137,7 +137,7 @@ class CommerceInteractionResponse(BaseModel):
 class ServiceModels:
     brain_model: str = "openai/gpt-oss-120b"
     reflex_model: str = "openai/gpt-oss-20b"
-    vision_model: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    vision_model: str = "qwen/qwen3.6-27b"
 
 
 @dataclass(frozen=True)

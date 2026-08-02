@@ -421,21 +421,22 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                 const hasImg = !!message.imageUrl;
 
                 return (
-                    <div className="flex flex-col w-full min-w-[300px] max-w-[350px]">
+                    <div className="flex flex-col gap-2 items-end w-full">
                         {hasImg && (
-                            <div className={`relative w-full aspect-[4/3] flex-none overflow-hidden shadow-2xl ${hasCaption ? 'rounded-t-[32px] border-b-0' : 'rounded-[32px]'}`}>
+                            <div className="relative w-[100px] sm:w-[140px] aspect-[4/3] flex-none overflow-hidden shadow-sm rounded-xl border border-white/10 bg-black/20">
+                               
                                 <Image
                                     src={message.imageUrl}
                                     alt="Uploaded"
                                     fill
                                     loading="lazy"
                                     decoding="async"
-                                    className="object-cover" 
+                                    className="object-cover"
                                 />
                             </div>
                         )}
                         {hasCaption && (
-                             <div className="bg-zinc-900/95 backdrop-blur-xl px-5 py-4 rounded-b-[32px] border border-white/10 text-gray-100 text-[15px] leading-relaxed shadow-lg relative -mt-[1px]">
+                             <div className="px-4 py-3 rounded-[32px] rounded-br-none bg-zinc-900 text-gray-100 text-[14px] leading-relaxed break-words max-w-[90%] shadow-md">
                                 {message.content}
                              </div>
                         )}
@@ -601,11 +602,13 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
             style={{ willChange: 'transform, opacity' }}
             className={`flex items-end gap-2 w-full mb-4 transform-gpu ${isAI ? 'justify-start' : 'justify-end'}`}
         >
-            <div className={`w-fit max-w-[98%] px-4 py-3 ${
-                isAI 
-                    ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20 transform-gpu' 
-                    : 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm transform-gpu'
-            }`}>
+            <div className={`w-fit max-w-[98%] ${
+                message.contentType === 'image_user_upload' 
+                    ? '' // بدون أي خلفية لأننا عملناها جوه الـ case
+                    : `px-4 py-3 ${isAI 
+                        ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20' 
+                        : 'rounded-[32px] rounded-br-none bg-zinc-900 text-gray-100 transform-gpu shadow-md'}`
+            } transform-gpu`}>
                 {contentNode}
             </div>
         </motion.div>
