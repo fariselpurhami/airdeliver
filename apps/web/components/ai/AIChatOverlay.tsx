@@ -452,7 +452,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                 }
                 return (
                  // 👇 نقلنا مسافات الأسطر (space-y-3) للـ div الأب هنا
-                    <div className={`text-[13px] leading-normal text-white/90 font-normal break-words w-full space-y-2 ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>
+                    <div className={`text-[12px] leading-relaxed text-white/90 font-normal break-words w-full space-y-2 ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}>
                         <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
                 // تم إزالة className من هنا نهائياً بناءً على تحديث المكتبة الجديد
@@ -488,7 +488,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                 if (!isActiveAction) return null;
                 return (
                     <div>
-                        <p className="whitespace-pre-wrap mb-4 text-sm leading-relaxed text-white/90 font-normal">{message.content}</p>
+                        <p className="whitespace-pre-wrap mb-4 text-[12px] leading-relaxed text-white/90 font-normal">{message.content}</p>
                         {isActiveAction && (
                             <div className="flex flex-wrap gap-3">
                                 {(message.options as string[])?.map((option: string) => {
@@ -545,7 +545,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
             case 'proactive_suggestion':
                 return (
                     <div className="w-full -ml-2">
-                        <p className="whitespace-pre-wrap mb-2 text-sm px-2 leading-relaxed text-white/90 font-normal">{message.content}</p>
+                        <p className="whitespace-pre-wrap mb-2 text-[12px] px-2 leading-relaxed text-white/90 font-normal">{message.content}</p>
                         <ProductCarousel products={message.products || []} onSelect={onProductSelect} onViewDetails={onViewDetails} />
                         {(message.reason || message.ai_notes) && (
                             <div className="px-2">
