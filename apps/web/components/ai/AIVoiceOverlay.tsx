@@ -65,7 +65,7 @@ const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
                         <stop offset="100%" stopColor="#d946ef" stopOpacity="0" />
                     </linearGradient>
                     <filter id="glow">
-                        <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+                        <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
                         <feMerge>
                             <feMergeNode in="coloredBlur"/>
                             <feMergeNode in="SourceGraphic"/>
@@ -99,7 +99,7 @@ const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
             </svg>
             
             <motion.div 
-                className="absolute w-24 h-24 rounded-full blur-2xl bg-cyan-500/20"
+                className="absolute w-24 h-24 rounded-full blur-lg bg-cyan-500/20"
                 animate={{ 
                     scale: [1, 1.3, 1], 
                     opacity: [0.4, 0.7, 0.4] 
@@ -247,7 +247,7 @@ export const AIVoiceOverlay = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-[100] bg-slate-950/20 backdrop-blur-[3px]"
+                className="absolute inset-0 z-[100] bg-slate-950/10"
                 onClick={() => setVoiceMode(false)}
             />
 
@@ -258,16 +258,16 @@ export const AIVoiceOverlay = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 100 }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="absolute bottom-0 left-0 w-full z-[101] flex flex-col pointer-events-none"
+                className="absolute bottom-0 left-0 w-full z-[101] flex flex-col pointer-events-none pt-8"
             >
-                <div className="absolute bottom-0 w-full h-[280px] bg-gradient-to-t from-slate-950/95 via-slate-950/60 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-t from-slate-950/95 via-slate-950/70 to-slate-950/20 backdrop-blur-md rounded-t-3xl border-t border-white/5 pointer-events-none" />
 
                 {/* Header (Status & Close) */}
                 <div className="relative w-full px-6 flex justify-between items-center mb-2 z-50 pointer-events-auto">
                     <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
                         <div className={`w-1.5 h-1.5 rounded-full ${status === 'speaking' ? 'bg-green-500' : 'bg-cyan-500'} animate-pulse`} />
                         <span className="text-[10px] font-mono text-cyan-400/90 tracking-widest uppercase">
-                            {status === 'listening' ? 'Listening' : status === 'processing' ? 'Thinking' : 'Speaking'}
+                            {status === 'listening' ? "I'm listening..." : status === 'processing' ? 'Thinking' : 'Speaking'}
                         </span>
                     </div>
                     
@@ -298,7 +298,7 @@ export const AIVoiceOverlay = () => {
                                     : 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-50 via-white to-purple-100'
                                 }`}
                             >
-                                {status === 'listening' ? "I'm listening..." : aiResponse}
+                                {status === 'Listening' ? "" : aiResponse}
                             </motion.p>
                         </AnimatePresence>
                     </div>
