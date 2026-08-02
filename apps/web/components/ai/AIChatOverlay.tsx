@@ -844,7 +844,7 @@ const ChatInput = React.memo(
                     animate={{ opacity: 1, y: 0, height: 'auto' }}
                     exit={{ opacity: 0, y: 10, height: 0 }}
                     style={{ willChange: 'transform, opacity, height' }}
-                    className="absolute -top-24 left-6 z-30 transform-gpu"
+                    className="absolute -top-18 left-6 z-30 transform-gpu"
                 >
                     <div className="relative group">
                         <div className="w-20 h-20 rounded-xl overflow-hidden border border-cyan-500/50 shadow-lg bg-black/50 backdrop-blur-md">
@@ -1324,7 +1324,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
                         style={{ willChange: 'transform, opacity' }}
                         className="w-full h-full max-w-[460px] max-h-[1050px] md:max-h-[90vh] flex flex-col bg-[#020617]/55 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative transform-gpu"
                     >
-                        <div className="absolute inset-[-1px] z-[120] rounded-[73px] overflow-hidden pointer-events-none [&>*]:pointer-events-auto">
+                        <div className="absolute inset-[-1px] z-[120] rounded-[73px] overflow-hidden pointer-events-none">
                             <AIVoiceOverlay />
                         </div>
                        

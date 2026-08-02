@@ -247,8 +247,8 @@ export const AIVoiceOverlay = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-[100] bg-slate-950/10"
-                onClick={() => setVoiceMode(false)}
+                className="absolute inset-0 z-[100] bg-slate-950/10 pointer-events-none"
+                
             />
 
             {/* THE BOTTOM FLOATING DOCK */}
