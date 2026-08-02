@@ -431,7 +431,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                                     fill
                                     loading="lazy"
                                     decoding="async"
-                                    className="object-cover"
+                                    className="object-contain"
                                 />
                             </div>
                         )}
@@ -607,7 +607,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                     ? '' // بدون أي خلفية لأننا عملناها جوه الـ case
                     : `px-4 py-3 ${isAI 
                         ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20' 
-                        : 'rounded-[32px] rounded-br-none bg-zinc-900 text-gray-100 transform-gpu shadow-md'}`
+                        : 'px-4 py-4 rounded-[32px] rounded-br-none bg-zinc-900 text-gray-100 text-[14px] leading-relaxed break-words max-w-[90%] shadow-md'}`
             } transform-gpu`}>
                 {contentNode}
             </div>
