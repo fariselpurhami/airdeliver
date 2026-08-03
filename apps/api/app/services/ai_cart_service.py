@@ -5,7 +5,7 @@ import logging
 import asyncio
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Final, Sequence
 
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -18,7 +18,7 @@ from app.services.ai_commerce_engine import AICommerceEngine
 from app.models.product import Product
 from app.models.order import Order, OrderItem
 from app.models.enums import OrderStatus, CancellationReason
-
+from app.services.free_llm_service import FreeLLMService
 logger = logging.getLogger("airdeliver.cart")
 
 
@@ -65,12 +65,14 @@ class AICartService:
         db: AsyncSession,
         cache: IAsyncCacheClient,
         rabbitmq: RabbitMQService,
-        commerce_engine: Optional[AICommerceEngine] = None
+        commerce_engine: Optional[AICommerceEngine] = None,
+        llm_service: Optional[FreeLLMService] = None
     ):
         self.db = db
         self.cache = cache
         self.rabbitmq = rabbitmq
         self.commerce_engine = commerce_engine
+        self.llm_service = llm_service
 
     # --- 🔌 UI RESPONSE ROUTER ---
     async def _send_to_ui(self, user_id: int, payload: Dict[str, Any]) -> None:
@@ -191,21 +193,172 @@ class AICartService:
             })
 
     async def _trigger_intelligent_bundling(self, user_id: int, product: Product) -> None:
+        BUNDLE_FETCH_TIMEOUT_SECONDS: Final[float] = 120.0
+        COPY_GENERATION_TIMEOUT_SECONDS: Final[float] = 2.0
+        MAX_BUNDLE_NAME_CONTEXT_ITEMS: Final[int] = 4
+        MAX_DYNAMIC_COPY_LENGTH: Final[int] = 160
+        FALLBACK_REASON: Final[str] = "Synergy Analysis"
+
         if not self.commerce_engine:
+            logger.debug(
+                "intelligent_bundling_skipped",
+                extra={
+                    "user_id": user_id,
+                    "reason": "commerce_engine_unavailable",
+                },
+            )
             return
 
+        def _normalize_text(value: Any) -> str:
+            if value is None:
+                return ""
+            return " ".join(str(value).strip().split())
+
+        def _truncate(value: str, max_length: int) -> str:
+            if len(value) <= max_length:
+                return value
+            return value[: max_length - 1].rstrip() + "…"
+
+        def _safe_product_name(item: Any) -> str:
+            name = _normalize_text(getattr(item, "name", ""))
+            return name or "complementary item"
+
+        def _fallback_copy() -> str:
+            product_name = _safe_product_name(product)
+            return f"A technically precise extension of your {product_name} selection."
+
+        async def _generate_bundle_copy(bundle_items: Sequence[Product]) -> str:
+           bundle_names = ", ".join(
+               _safe_product_name(item)
+               for item in bundle_items[:MAX_BUNDLE_NAME_CONTEXT_ITEMS]
+           )
+
+           primary_product_name = _safe_product_name(product)
+           
+           system_role = "You are an elite AI shopping concierge."
+           
+           prompt = (
+                "You are an elite AI shopping concierge.\n"
+                f"The user just added '{primary_product_name}' to their cart.\n"
+                f"I am instantly recommending these complementary items: {bundle_names}.\n\n"
+                "Write a single sophisticated sentence explaining why this exact combination is technically, "
+                "aesthetically, or functionally strong.\n"
+                "Rules:\n"
+                "- Maximum 20 words.\n"
+                "- No generic phrases such as 'perfect match', 'pairs well with', or 'enhance your experience'.\n"
+                "- Be precise, confident, and natural.\n"
+                "- Do not sound promotional.\n"
+                "- Output only the sentence."
+           )
+
+           raw_response = await self.llm_service.generate_response(
+               prompt=prompt,
+               system_role=system_role,
+               temperature=0.4
+           )
+           candidate = _normalize_text(raw_response).strip(' "\'')
+
+           if not candidate:
+               return _fallback_copy()
+
+           return _truncate(candidate, MAX_DYNAMIC_COPY_LENGTH)
+
         try:
-            bundle_items = await self.commerce_engine.generate_perfect_bundle(self.db, product)
-            if bundle_items:
-                await self._send_to_ui(user_id, {
-                    "content": f"Enhance your {product.name} experience with these:",
-                    "type": "product_carousel",
-                    "products": [p.model_dump(mode='json') for p in bundle_items],
-                    "secondary_suggestions": True,
-                    "reason": "Rigorously curated complementary selection."
-                })
-        except Exception as e:
-            logger.error("Vector bundling engine failure", extra={"error": str(e)})
+            logger.info(
+                "intelligent_bundling_started",
+                extra={
+                    "user_id": user_id,
+                    "product_name": _safe_product_name(product),
+                },
+            )
+
+            try:
+                async with asyncio.timeout(BUNDLE_FETCH_TIMEOUT_SECONDS):
+                    bundle_items = await self.commerce_engine.generate_perfect_bundle(self.db, product)
+            except TimeoutError:
+                logger.warning(
+                    "intelligent_bundling_bundle_fetch_timed_out",
+                    extra={
+                        "user_id": user_id,
+                        "product_name": _safe_product_name(product),
+                        "timeout_seconds": BUNDLE_FETCH_TIMEOUT_SECONDS,
+                    },
+                )
+                return
+
+            if not bundle_items:
+                logger.info(
+                    "intelligent_bundling_no_candidates",
+                    extra={
+                        "user_id": user_id,
+                        "product_name": _safe_product_name(product),
+                    },
+                )
+                return
+
+            try:
+                async with asyncio.timeout(COPY_GENERATION_TIMEOUT_SECONDS):
+                    dynamic_ai_copy = await _generate_bundle_copy(bundle_items)
+            except TimeoutError:
+                logger.warning(
+                    "intelligent_bundling_copy_generation_timed_out",
+                    extra={
+                        "user_id": user_id,
+                        "product_name": _safe_product_name(product),
+                        "timeout_seconds": COPY_GENERATION_TIMEOUT_SECONDS,
+                    },
+                )
+                dynamic_ai_copy = _fallback_copy()
+            except Exception as exc:
+                logger.warning(
+                    "intelligent_bundling_copy_generation_failed",
+                    extra={
+                        "user_id": user_id,
+                        "product_name": _safe_product_name(product),
+                        "error": str(exc),
+                    },
+                    exc_info=True,
+                )
+                dynamic_ai_copy = _fallback_copy()
+
+            payload = {
+                "content": dynamic_ai_copy,
+                "type": "product_carousel",
+                 "products": [item.model_dump(mode="json") for item in bundle_items],
+                 "secondary_suggestions": True,
+                 "reason": FALLBACK_REASON,
+            }
+
+            await self._send_to_ui(user_id, payload)
+
+            logger.info(
+                "intelligent_bundling_completed",
+                extra={
+                    "user_id": user_id,
+                    "product_name": _safe_product_name(product),
+                    "bundle_size": len(bundle_items),
+                },
+            )
+
+        except asyncio.CancelledError:
+            logger.info(
+                "intelligent_bundling_cancelled",
+                extra={
+                    "user_id": user_id,
+                    "product_name": _safe_product_name(product),
+                },
+            )
+            raise
+
+        except Exception as exc:
+            logger.exception(
+                "intelligent_bundling_failed",
+                extra={
+                    "user_id": user_id,
+                    "product_name": _safe_product_name(product),
+                    "error": str(exc),
+                },
+            )
 
     # --- 💾 COMMAND: SAVE CART ---
     async def handle_save_cart(self, raw_payload: dict) -> None:

@@ -2127,7 +2127,18 @@ class AINLUService:
                 lock_key=lock_key,
                 error_type=type(exc).__name__,
             )
-            raise
+            try:
+                await self._send_to_ui(
+                    request.user_id, 
+                    {
+                        "content": "Pardon the brief pause, I just refreshed our connection. How can I assist you now?",
+                        "type": UiPayloadType.TEXT.value,
+                        "reason": "System Auto-Recovery"
+                    }, 
+                    ctx
+                )
+            except Exception:
+                pass 
 
         finally:
             try:
@@ -2611,7 +2622,7 @@ class AINLUService:
                 if bundle:
                     ui_message += "\n\n*Smart OS Suggestion: Consider completing your setup with these perfectly matched items.*"
                     reason = "Cart + Smart Bundle"
-                    products_payload = [_safe_product_dump(item) for item in bundle]
+                    products_payload = [ProductAccess.dump(item) for item in bundle]
 
                 await self._send_to_ui(user_id, {
                     "content": ui_message,
@@ -2766,6 +2777,8 @@ class AINLUService:
                     {"user_id": user_id, "product_id": product_id, "quantity": 1, "source": "internal_command"},
                     "airdeliver.ai.cart.add",
                 )
+
+            
             except Exception as exc:
                 logger.error(
                     "internal_add_by_id_failed",
@@ -2789,6 +2802,7 @@ class AINLUService:
                     },
                     "airdeliver.ai.cart.remove",
                 )
+
                 await self._perform_devilish_recovery(user_id, product_id)
             except Exception as exc:
                 logger.error(

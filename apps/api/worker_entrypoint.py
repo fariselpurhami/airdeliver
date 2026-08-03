@@ -488,6 +488,7 @@ class WorkerRuntime:
                 self.services.cache,
                 self.services.rabbitmq,
                 commerce_engine=self.services.commerce,
+                llm_service=self.services.llm,
             )
             await cart_service.handle_add_to_cart(payload)
 
@@ -509,6 +510,7 @@ class WorkerRuntime:
                 self.services.cache,
                 self.services.rabbitmq,
                 commerce_engine=self.services.commerce,
+                llm_service=self.services.llm,
             )
             await cart_service.handle_remove_from_cart(payload)
 
