@@ -1,10 +1,11 @@
 # apps/api/app/services/ai_cart_service.py
 
+import os
 import json
 import logging
 import asyncio
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Optional, List, Dict, Any, Final, Sequence
 
 from pydantic import BaseModel, Field, ValidationError
@@ -412,79 +413,305 @@ class AICartService:
             await self._send_to_ui(payload.user_id, {"content": "Failed to save cart.", "type": "error"})
 
     # --- ➖ COMMAND: REMOVE FROM CART ---
+    # --- ➖ COMMAND: REMOVE FROM CART ---
     async def handle_remove_from_cart(self, raw_payload: dict) -> None:
+    
+        ALT_SEARCH_TIMEOUT_SECONDS: Final[float] = float(os.getenv("ALT_SEARCH_TIMEOUT", "15.0"))
+        COPY_GEN_TIMEOUT_SECONDS: Final[float] = float(os.getenv("COPY_GEN_TIMEOUT", "25.0"))
+        UI_CONFIRMATION_DELAY_SECONDS: Final[float] = 0.1
+        MAX_RECOVERY_COPY_LENGTH: Final[int] = 160
+        ALTERNATIVES_LIMIT: Final[int] = 3
+        DEFAULT_ALTERNATIVE_REASON: Final[str] = "Smart Alternative"
+
+        def _normalize_text(value: Any) -> str:
+            if value is None:
+                return ""
+            return " ".join(str(value).strip().split())
+
+        def _truncate(value: str, max_length: int) -> str:
+            if len(value) <= max_length:
+                return value
+            return value[: max_length - 1].rstrip() + "…"
+
+        def _safe_decimal(value: Any, default: str = "0") -> Decimal:
+            try:
+                return Decimal(str(value))
+            except (InvalidOperation, ValueError, TypeError):
+                return Decimal(default)
+
+        def _safe_float(value: Any, default: float = 0.0) -> float:
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+
+        def _safe_product_name(item: Any, fallback: str = "item") -> str:
+            name = _normalize_text(getattr(item, "name", ""))
+            return name or fallback
+
+        def _build_removal_message(item_name: str) -> str:
+            return f"Removed {item_name}. Cart updated."
+
+        def _build_recovery_fallback(item_name: str) -> str:
+            return f"I noticed you removed {item_name}. Here is a sharper alternative."
+
+        def _derive_alternative_reason(removed_item: Any, alternative: Any) -> str:
+            alternative_price = _safe_decimal(getattr(alternative, "price", 0))
+            alternative_rating = _safe_float(getattr(alternative, "rating", 0.0))
+            removed_price = _safe_decimal(getattr(removed_item, "price", 0))
+
+            if alternative_rating > 4.5:
+                return f"Users rated this {alternative_rating:.1f}/5 ⭐"
+            if alternative_price < removed_price:
+                diff = removed_price - alternative_price
+                return f"Save ${diff:.2f} with this choice 💰"
+            if alternative_price > removed_price:
+                return "Treat yourself to a premium alternative ✨"
+            return "A trending alternative in this category 🔥"
+
+        async def _find_alternatives(payload: CartOperationPayload) -> Sequence[Product]:
+            if not self.commerce_engine or payload.action == "clear_all":
+                return []
+
+            try:
+                async with asyncio.timeout(ALT_SEARCH_TIMEOUT_SECONDS):
+                    alternatives = await self.commerce_engine.find_genius_alternatives(
+                        self.db,
+                        payload.product_id,
+                        limit=ALTERNATIVES_LIMIT,
+                    )
+                    return alternatives or []
+            except TimeoutError:
+                logger.warning(
+                    "genius_alternatives_search_timeout",
+                    extra={
+                        "user_id": payload.user_id,
+                        "product_id": payload.product_id,
+                        "timeout_seconds": ALT_SEARCH_TIMEOUT_SECONDS,
+                    },
+                )
+                return []
+            except Exception as exc:
+                logger.warning(
+                    "genius_alternatives_search_failed",
+                    extra={
+                        "user_id": payload.user_id,
+                        "product_id": payload.product_id,
+                        "error": str(exc),
+                    },
+                    exc_info=True,
+                )
+                return []
+
+        async def _generate_recovery_copy(
+            payload: CartOperationPayload,
+            removed_item: Any,
+            alternative: Any,
+        ) -> str:
+            removed_name = _safe_product_name(removed_item)
+            alternative_name = _safe_product_name(alternative)
+            removed_price = _safe_decimal(getattr(removed_item, "price", 0))
+            alternative_price = _safe_decimal(getattr(alternative, "price", 0))
+            fallback_message = _build_recovery_fallback(removed_name)
+
+            if not self.llm_service:
+                return fallback_message
+            
+            system_role = "You are an elite AI shopping concierge."
+            
+            prompt = (
+                "You are an elite AI shopping concierge.\n"
+                f"The user removed '{removed_name}' (Price: ${removed_price}) from their cart.\n"
+                f"I am instantly recommending '{alternative_name}' (Price: ${alternative_price}) as a replacement.\n\n"
+                "Write a single empathetic and smooth sentence that acknowledges the removal and naturally pivots "
+                "to the replacement.\n"
+                "Rules:\n"
+                "- Maximum 15 words.\n"
+                "- Be conversational and confident.\n"
+                "- Do not use generic phrases like 'Check this out instead'.\n"
+                "- Output only the sentence."
+            )
+
+            try:
+                async with asyncio.timeout(COPY_GEN_TIMEOUT_SECONDS):
+                    raw_response = await self.llm_service.generate_response(
+                        prompt=prompt,
+                        system_role="You are an elite AI shopping concierge.",
+                        temperature=0.4,
+                    )
+            except TimeoutError:
+                logger.warning(
+                    "recovery_copy_generation_timeout",
+                    extra={
+                        "user_id": payload.user_id,
+                        "product_id": payload.product_id,
+                        "timeout_seconds": COPY_GEN_TIMEOUT_SECONDS,
+                    },
+                )
+                return fallback_message
+            except Exception as exc:
+                logger.warning(
+                    "recovery_copy_generation_failed",
+                    extra={
+                        "user_id": payload.user_id,
+                        "product_id": payload.product_id,
+                        "error": str(exc),
+                    },
+                    exc_info=True,
+                )
+                return fallback_message
+
+            candidate = _normalize_text(raw_response).strip(' "\'')
+
+            if not candidate:
+                return fallback_message
+
+            return _truncate(candidate, MAX_RECOVERY_COPY_LENGTH)
+
+        async def _dispatch_recovery_ui(
+            payload: CartOperationPayload,
+            response_message: str,
+            alternatives: Sequence[Product],
+            reason: Optional[str],
+        ) -> None:
+            await self._send_to_ui(
+                payload.user_id,
+                {
+                    "content": response_message,
+                    "type": "product_carousel" if alternatives else "success_text",
+                    "products": [item.model_dump(mode="json") for item in alternatives] if alternatives else [],
+                    "reason": reason if alternatives else None,
+                },
+            )
+
         try:
-            payload = CartOperationPayload(**raw_payload)
-        except ValidationError:
-            return
+            try:
+                payload = CartOperationPayload(**raw_payload)
+            except ValidationError as exc:
+                logger.warning(
+                    "remove_from_cart_payload_invalid",
+                    extra={
+                        "error_count": exc.error_count(),
+                    },
+                )
+                return
 
-        if not payload.product_id:
-            return
+            if not payload.product_id:
+                logger.debug(
+                    "remove_from_cart_skipped",
+                    extra={
+                        "user_id": payload.user_id,
+                        "reason": "missing_product_id",
+                    },
+                )
+                return
 
-        cart = await self._get_cart_from_redis(payload.user_id)
+            logger.info(
+                "remove_from_cart_started",
+                extra={
+                    "user_id": payload.user_id,
+                    "product_id": payload.product_id,
+                    "notify_user": payload.notify_user,
+                    "action": _normalize_text(payload.action),
+                },
+            )
 
-        item_to_remove = next((item for item in cart.items if item.product_id == payload.product_id), None)
+            cart = await self._get_cart_from_redis(payload.user_id)
 
-        if item_to_remove:
-            cart.items = [item for item in cart.items if item.product_id != item_to_remove.product_id]
+            item_to_remove = next(
+                (item for item in cart.items if item.product_id == payload.product_id),
+                None,
+            )
+
+            if not item_to_remove:
+                await self._update_cart_in_redis(payload.user_id, cart)
+                logger.info(
+                    "remove_from_cart_item_missing",
+                    extra={
+                        "user_id": payload.user_id,
+                        "product_id": payload.product_id,
+                    },
+                )
+                return
+
+            cart.items = [
+                item for item in cart.items
+                if item.product_id != item_to_remove.product_id
+            ]
             await self._update_cart_in_redis(payload.user_id, cart)
 
             if not payload.notify_user:
+                logger.info(
+                    "remove_from_cart_completed_without_notification",
+                    extra={
+                        "user_id": payload.user_id,
+                        "product_id": payload.product_id,
+                        "remaining_items": len(cart.items),
+                    },
+                )
                 return
 
-            alternatives = []
-            ai_reason = "Smart Alternative"
-
-            if self.commerce_engine and payload.action != "clear_all":
-                try:
-                    alternatives = await self.commerce_engine.find_genius_alternatives(
-                        self.db, payload.product_id, limit=3
-                    )
-                except Exception as e:
-                    logger.error("Genius recovery analysis failure", extra={"error": str(e)})
+            alternatives = await _find_alternatives(payload)
 
             if alternatives:
-                best_alt = alternatives[0]
-                best_alt_price = Decimal(str(getattr(best_alt, 'price', 0)))
-                best_alt_rating = float(getattr(best_alt, 'rating', 0.0))
-
-                if best_alt_rating > 4.5:
-                    ai_reason = f"Users rated this {best_alt_rating}/5 ⭐"
-                elif best_alt_price < item_to_remove.price:
-                    diff = item_to_remove.price - best_alt_price
-                    ai_reason = f"Save ${diff:.2f} with this choice 💰"
-                elif best_alt_price > item_to_remove.price:
-                    ai_reason = "Upgrade to the Pro version 🚀"
-                else:
-                    ai_reason = "A trending alternative in this category 🔥"
-
-                response_msg = f"I noticed you dropped {item_to_remove.name}. Check this out instead:"
+                best_alternative = alternatives[0]
+                ai_reason = _derive_alternative_reason(item_to_remove, best_alternative)
+                response_message = await _generate_recovery_copy(
+                    payload,
+                    item_to_remove,
+                    best_alternative,
+                )
             else:
-                response_msg = f"🗑️ Removed {item_to_remove.name}. Manifest updated."
+                ai_reason = None
+                response_message = _build_removal_message(_safe_product_name(item_to_remove))
 
-            await self._send_to_ui(payload.user_id, {
-                "content": response_msg,
-                "type": "product_carousel" if alternatives else "success_text",
-                "products": [p.model_dump(mode='json') for p in alternatives] if alternatives else [],
-                "reason": ai_reason if alternatives else None
-            })
+            await _dispatch_recovery_ui(
+                payload,
+                response_message,
+                alternatives,
+                ai_reason or DEFAULT_ALTERNATIVE_REASON if alternatives else None,
+            )
 
             if cart.items:
-                await asyncio.sleep(0.1)  # Minimal non-blocking jitter to ensure sequential UI rendering
-                await self._send_to_ui(payload.user_id, {
-                    "content": None,
-                    "type": "confirmation_prompt",
-                    "options": ["Confirm Order", "Keep Shopping"]
-                })
+                await asyncio.sleep(UI_CONFIRMATION_DELAY_SECONDS)
+                await self._send_to_ui(
+                    payload.user_id,
+                    {
+                        "content": None,
+                        "type": "confirmation_prompt",
+                        "options": ["Confirm Order", "Keep Shopping"],
+                    },
+                )
 
             self._emit_analytics_event(
                 payload.user_id,
                 item_to_remove.product_id,
-                "smart_recovery_triggered" if alternatives else "removal"
+                "smart_recovery_triggered" if alternatives else "removal",
             )
-        else:
-            await self._update_cart_in_redis(payload.user_id, cart)
 
+            logger.info(
+                "remove_from_cart_completed",
+                extra={
+                    "user_id": payload.user_id,
+                    "product_id": item_to_remove.product_id,
+                    "alternatives_found": len(alternatives),
+                    "remaining_items": len(cart.items),
+                },
+            )
+
+        except asyncio.CancelledError:
+            logger.info(
+                "remove_from_cart_cancelled",
+                extra={},
+            )
+            raise
+        except Exception as exc:
+            logger.exception(
+                "remove_from_cart_failed",
+                extra={
+                    "error": str(exc),
+                },
+            )
     def _emit_analytics_event(self, user_id: int, product_id: int, action: str) -> None:
         """Fire-and-forget background analytics emission."""
         async def _publish() -> None:
