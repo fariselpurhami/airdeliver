@@ -135,7 +135,7 @@ const ProductDetailsCardComponent = ({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.985 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
-      className="w-full h-full max-w-[460px] max-h-[1050px] md:max-h-[90vh] overflow-hidden rounded-[73px] border border-white/10 bg-neutral-950 text-white shadow-2xl flex flex-col"
+      className="w-full h-full max-w-[460px] max-h-[1050px] md:max-w-7xl md:h-[93vh] md:max-h-none overflow-hidden rounded-[73px] border border-white/10 bg-neutral-950 text-white shadow-2xl flex flex-col"
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-[-10%] top-[-10%] h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />

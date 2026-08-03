@@ -1333,6 +1333,14 @@ class AsyncCacheClientProtocol(Protocol):
     async def delete(self, key: str) -> Any: ...
     async def eval(self, script: str, numkeys: int, *args: Any) -> Any: ...
 
+class IProductFreshnessRepository(Protocol):
+    async def get_seen_product_ids(self, user_id: int) -> Set[int]:
+        """Fetch previously seen product IDs for the user across sessions."""
+        ...
+
+    async def mark_products_as_seen(self, user_id: int, product_ids: Set[int], ttl_seconds: int = 43200) -> None:
+        """Persist product IDs as seen with a strict TTL."""
+        ...
 @dataclass(frozen=True, slots=True)
 class LockHandle:
     key: str
@@ -1619,6 +1627,45 @@ class UserDnaStore:
 
         return default
 
+
+# --- أضف الكود التالي تحت كلاس UserDnaStore ---
+class RedisProductFreshnessRepository(IProductFreshnessRepository):
+    """
+    L8/L9 Pattern: Dedicated state repository for cross-session product discovery.
+    Guarantees isolation of freshness logic from the core NLU service.
+    """
+    def __init__(self, cache: IAsyncCacheClient, key_prefix: str = "airdeliver:freshness:") -> None:
+        self._cache = cache
+        self._prefix = key_prefix
+
+    def _build_key(self, user_id: int) -> str:
+        return f"{self._prefix}{user_id}"
+
+    async def get_seen_product_ids(self, user_id: int) -> Set[int]:
+        try:
+            client = getattr(self._cache, "client", self._cache)
+            raw_members = await client.smembers(self._build_key(user_id))
+            return {int(m.decode('utf-8') if isinstance(m, bytes) else m) for m in raw_members if m}
+        except Exception as exc:
+            StructuredLog.warning("freshness_cache_read_failed", user_id=user_id, error=type(exc).__name__)
+            return set() # Graceful degradation to empty set
+
+    async def mark_products_as_seen(self, user_id: int, product_ids: Set[int], ttl_seconds: int = 43200) -> None:
+        if not product_ids:
+            return
+        key = self._build_key(user_id)
+        try:
+            client = getattr(self._cache, "client", self._cache)
+            if hasattr(client, "pipeline"):
+                pipeline = client.pipeline()
+                pipeline.sadd(key, *product_ids)
+                pipeline.expire(key, ttl_seconds)
+                await pipeline.execute()
+            else:
+                await self._cache.sadd(key, *[str(pid) for pid in product_ids])
+                await self._cache.expire(key, ttl_seconds)
+        except Exception as exc:
+            StructuredLog.warning("freshness_cache_write_failed", user_id=user_id, error=type(exc).__name__)
 
 # =============================================================================
 # DOMAIN COMPONENTS
@@ -1985,7 +2032,10 @@ class AINLUService:
         self.ui = UiGateway(cache)
         self.user_dna_store = UserDnaStore(cache, behavior_engine, self.config)
         self.tasks = BoundedTaskSupervisor()
+        
+        self.freshness_repo = RedisProductFreshnessRepository(cache)
 
+        self.tasks = BoundedTaskSupervisor()
     # -------------------------------------------------------------------------
     # PUBLIC API
     # -------------------------------------------------------------------------
@@ -2814,69 +2864,183 @@ class AINLUService:
             return
 
     async def _handle_initial_suggestions(self, user_id: int) -> None:
-        logger.info("matrix_generation_started", extra={"user_id": user_id})
+        StructuredLog.info("matrix_generation_started", user_id=user_id)
 
-        # 1. Telemetry & DNA Acquisition
         spending_tier = self.config.default_spending_tier
+        
+        # 1. استرجاع الذاكرة الممتدة
         global_seen_ids: Set[int] = set()
+        historical_seen = await self.freshness_repo.get_seen_product_ids(user_id)
+        global_seen_ids.update(historical_seen)
 
-        if self.behavior_engine:
+        session_newly_seen_ids: Set[int] = set()
+
+        def _extract_and_register(products) -> None:
+            if not products:
+                return
+            extracted_ids = {int(ProductAccess.get(p, "id")) for p in products if ProductAccess.get(p, "id")}
+            global_seen_ids.update(extracted_ids)
+            session_newly_seen_ids.update(extracted_ids)
+
+        async def _safe_behavior_telemetry() -> None:
+            nonlocal spending_tier
+            if not self.behavior_engine:
+                return
             try:
-                if hasattr(self.behavior_engine, 'analyze_financial_dna'):
-                    spending_tier = await self.behavior_engine.analyze_financial_dna(user_id)
-                if hasattr(self.behavior_engine, 'get_recently_seen_ids'):
-                    recent_ids = await self.behavior_engine.get_recently_seen_ids(user_id)
-                    if recent_ids:
-                        global_seen_ids.update(recent_ids)
-            except Exception as e:
-                logger.warning("behavior_engine_telemetry_degraded", extra={"user_id": user_id, "error": str(e)})
+                if hasattr(self.behavior_engine, "analyze_financial_dna"):
+                    analyzed_tier = await self.behavior_engine.analyze_financial_dna(user_id)
+                    if analyzed_tier is not None:
+                        spending_tier = analyzed_tier
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                StructuredLog.warning("behavior_engine_telemetry_degraded", user_id=user_id, error=str(exc))
 
-        # 2. Data Acquisition Pipeline (Sequential Execution for DB Safety)
-        personal_products = await self._fetch_personal(user_id, global_seen_ids, spending_tier)
-        self._register_seen(global_seen_ids, personal_products)
+        async def _safe_fetch(fetcher, label: str):
+            try:
+                items = await fetcher
+                return items or []
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                StructuredLog.warning("suggestion_fetch_failed", user_id=user_id, stage=label, error=str(exc))
+                return []
 
-        bestsellers = await self._fetch_bestsellers(global_seen_ids)
-        self._register_seen(global_seen_ids, bestsellers)
+        async def _safe_generate_copy(
+            row_type: str,
+            products,
+            fallback_content: str,
+            fallback_reason: str,
+        ) -> Tuple[str, str]:
+            if not products:
+                return fallback_content, fallback_reason
+            try:
+                return await self._generate_dynamic_row_copy(row_type, products, fallback_content, fallback_reason)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                StructuredLog.warning("dynamic_copy_generation_failed", user_id=user_id, row_type=row_type, error=str(exc))
+                return fallback_content, fallback_reason
 
-        trending = await self._fetch_trending(global_seen_ids)
-        self._register_seen(global_seen_ids, trending)
+        async def _stream_if_present(
+            products,
+            copy_task: asyncio.Task,
+            row_type: str,
+            *,
+            apply_delay: bool = True,
+        ) -> bool:
+            if not products:
+                return False
+            content, reason = await copy_task
+            await self._stream_row(user_id, content, row_type, products, reason, apply_delay=apply_delay)
+            return True
 
-        deals = await self._fetch_deals(global_seen_ids)
-        self._register_seen(global_seen_ids, deals)
+        try:
+            await _safe_behavior_telemetry()
 
-        # 3. Progressive Delivery Pipeline
-        streamed_any = False
-
-        if personal_products:
-            await self._stream_row(
-                user_id, self._get_time_aware_greeting(spending_tier), "proactive_suggestion",
-                personal_products, "Exclusively curated to align with your distinct taste."
+            personal_products = await _safe_fetch(
+                self._fetch_personal(user_id, global_seen_ids, spending_tier),
+                "personal",
             )
-            streamed_any = True
+            _extract_and_register(personal_products)
 
-        if bestsellers:
-            await self._stream_row(
-                user_id, self.config.copy_bestsellers, "product_carousel",
-                bestsellers, "Global Market Leaders"
+            bestsellers = await _safe_fetch(
+                self._fetch_bestsellers(global_seen_ids),
+                "bestsellers",
             )
-            streamed_any = True
+            _extract_and_register(bestsellers)
 
-        if trending:
-            await self._stream_row(
-                user_id, self.config.copy_trending, "product_carousel",
-                trending, "High-Velocity Trending"
+            trending = await _safe_fetch(
+                self._fetch_trending(global_seen_ids),
+                "trending",
             )
-            streamed_any = True
+            _extract_and_register(trending)
 
-        if deals:
-            await self._stream_row(
-                user_id, self.config.copy_deals, "product_carousel",
-                deals, "Optimal Price Point", apply_delay=False 
+            deals = await _safe_fetch(
+                self._fetch_deals(global_seen_ids),
+                "deals",
             )
-            streamed_any = True
+            _extract_and_register(deals)
 
-        if not streamed_any:
-            await self._send_to_ui(user_id, {"content": self.config.copy_fallback, "type": "text"})
+            copy_tasks = {
+                "personal": asyncio.create_task(
+                    _safe_generate_copy(
+                        "Personalized specific recommendations",
+                        personal_products,
+                        self._get_time_aware_greeting(spending_tier),
+                        "Exclusively Curated",
+                    )
+                ),
+                "bestsellers": asyncio.create_task(
+                    _safe_generate_copy(
+                        "Global Market Bestsellers",
+                        bestsellers,
+                        self.config.copy_bestsellers,
+                        "Global Market Leaders",
+                    )
+                ),
+                "trending": asyncio.create_task(
+                    _safe_generate_copy(
+                        "High-Velocity Trending items",
+                        trending,
+                        self.config.copy_trending,
+                        "High-Velocity Trending",
+                    )
+                ),
+                "deals": asyncio.create_task(
+                    _safe_generate_copy(
+                        "Optimal Price Point & Value",
+                        deals,
+                        self.config.copy_deals,
+                        "Optimal Price Point",
+                    )
+                ),
+            }
+
+            streamed_any = False
+            stream_plan = [
+                ("personal", personal_products, "proactive_suggestion", True),
+                ("bestsellers", bestsellers, "product_carousel", True),
+                ("trending", trending, "product_carousel", True),
+                ("deals", deals, "product_carousel", False),
+            ]
+
+            for key, products, row_type, apply_delay in stream_plan:
+                if not products:
+                    continue
+
+                streamed_any = await _stream_if_present(
+                    products,
+                    copy_tasks[key],
+                    row_type,
+                    apply_delay=apply_delay,
+                ) or streamed_any
+
+            if not streamed_any:
+                await self._send_to_ui(
+                    user_id,
+                    {"content": self.config.copy_fallback, "type": "text"},
+                )
+
+            # 2. حفظ حالة المنتجات المعروضة الآن (Fire and Forget)
+            if session_newly_seen_ids:
+                self.tasks.create_task(
+                    self.freshness_repo.mark_products_as_seen(
+                        user_id=user_id, 
+                        product_ids=session_newly_seen_ids, 
+                        ttl_seconds=43200
+                    )
+                )
+
+        except asyncio.CancelledError:
+            StructuredLog.info("matrix_generation_cancelled", user_id=user_id)
+            raise
+        except Exception as exc:
+            StructuredLog.exception("matrix_generation_failed", user_id=user_id, error=str(exc))
+            await self._send_to_ui(
+                user_id,
+                {"content": self.config.copy_fallback, "type": "text"},
+            )
 
     # --- 🛠️ Matrix Helper Methods ---
 
@@ -2938,6 +3102,142 @@ class AINLUService:
                     "apply_delay": apply_delay,
                 },
             )
+
+    async def _generate_dynamic_row_copy(
+        self,
+        row_type: str,
+        products: Sequence[Product],
+        fallback_content: str,
+        fallback_reason: str,
+    ) -> Tuple[str, str]:
+        MAX_CONTEXT_PRODUCTS: Final[int] = 3
+        
+        # 1. زيادة سعة النصوص لتستوعب جملتين كاملتين بمعاني قوية
+        MAX_CONTENT_LENGTH: Final[int] = 250 
+        MAX_REASON_LENGTH: Final[int] = 80
+
+        if not products:
+            return fallback_content, fallback_reason
+
+        def _normalize_text(value: Any) -> str:
+            if value is None:
+                return ""
+            return " ".join(str(value).strip().split())
+
+        def _truncate(value: str, max_length: int) -> str:
+            if len(value) <= max_length:
+                return value
+            return value[: max_length - 1].rstrip() + "…"
+
+        def _build_product_summary(product: Product) -> str:
+            name = _normalize_text(ProductAccess.get(product, "name", ""))
+            brand = _normalize_text(ProductAccess.get(product, "brand", ""))
+
+            if not name and not brand:
+                return ""
+
+            if brand and name and brand.lower() not in name.lower():
+                return f"{brand} {name}"
+
+            return name or brand
+
+        def _extract_json_object(raw_response: Any) -> Dict[str, Any]:
+            if isinstance(raw_response, dict):
+                return raw_response
+
+            raw_text = _normalize_text(raw_response)
+            if not raw_text:
+                raise ValueError("Empty LLM response")
+
+            if raw_text.startswith("```json") and raw_text.endswith("```"):
+                raw_text = raw_text[7:-3].strip()
+            elif raw_text.startswith("```") and raw_text.endswith("```"):
+                raw_text = raw_text[3:-3].strip()
+
+            try:
+                parsed = json.loads(raw_text)
+            except json.JSONDecodeError:
+                start = raw_text.find("{")
+                end = raw_text.rfind("}")
+                if start == -1 or end == -1 or end <= start:
+                    raise
+                parsed = json.loads(raw_text[start : end + 1])
+
+            if not isinstance(parsed, dict):
+                raise ValueError("LLM response is not a JSON object")
+
+            return parsed
+
+        def _sanitize_content(value: Any) -> str:
+            text = _normalize_text(value)
+            if not text:
+                return fallback_content
+            return _truncate(text, MAX_CONTENT_LENGTH)
+
+        def _sanitize_reason(value: Any) -> str:
+            text = _normalize_text(value)
+            if not text:
+                return fallback_reason
+            return _truncate(text, MAX_REASON_LENGTH)
+
+        product_summaries = [
+            summary
+            for summary in (
+                _build_product_summary(product)
+                for product in products[:MAX_CONTEXT_PRODUCTS]
+            )
+            if summary
+        ]
+
+        if not product_summaries:
+            return fallback_content, fallback_reason
+
+        prompt = (
+            f"Context: {_normalize_text(row_type)}\n"
+            f"Top Items: {', '.join(product_summaries)}"
+        )
+
+        # 2. هندسة الأوامر (Prompt Engineering) لضمان العمق وعدم التكرار
+        system_role = (
+            "You are the airdeliver AI Commerce OS presentation layer.\n"
+            "Your task is to generate high-value, non-repetitive copy for a product matrix.\n"
+            "Return exactly one JSON object with these strict rules:\n"
+            "{\n"
+            '  "content": "Deliver 1 to 2 powerful, insightful sentences explaining the strategic value or lifestyle impact of these exact items. Do not use cheap marketing words. Act as an elite advisor. (Approx 15-30 words).",\n'
+            '  "reason": "A strict 2-5 word technical or conceptual label summarizing the underlying theme."\n'
+            "}\n"
+            "CRITICAL ANTI-REPETITION RULE:\n"
+            "- The 'reason' MUST NOT repeat any key phrases, words, or structures used in the 'content'. They must be semantically distinct.\n"
+            "- 'content' is the strategic macro-view (chat bubble).\n"
+            "- 'reason' is the precise micro-view (UI tag).\n"
+            "Rules:\n"
+            "- Output valid JSON only. No markdown fences. No explanations."
+        )
+
+        try:
+            raw_response = await self.llm_service.generate_response(
+                prompt=prompt,
+                system_role=system_role,
+                temperature=0.4, # حرارة منخفضة لضمان الالتزام الصارم بالقواعد المعمارية
+                response_format="json_object",
+            )
+
+            parsed = _extract_json_object(raw_response)
+
+            content = _sanitize_content(parsed.get("content"))
+            reason = _sanitize_reason(parsed.get("reason"))
+
+            return content, reason
+
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            StructuredLog.warning(
+                "dynamic_row_copy_failed",
+                row_type=_normalize_text(row_type),
+                error=str(exc),
+            )
+            return fallback_content, fallback_reason
 
     async def _fetch_personal(self, user_id: int, seen_ids: Set[int], tier: str) -> Sequence[Product]:
         try:
