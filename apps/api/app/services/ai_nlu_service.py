@@ -398,7 +398,7 @@ class InternalCommand(str, Enum):
 @dataclass(frozen=True)
 class MatrixConfig:
     max_items_per_row: int = 10
-    trending_pool_limit: int = 50
+    trending_pool_limit: int = 100
     deals_min_rating: float = 40.0
     stream_delay_sec: float = 0.8
     default_spending_tier: str = "MEDIUM"
@@ -2859,8 +2859,7 @@ class AINLUService:
                 cache_keys.append(seen_key_getter(user_id))
 
             cache_keys.append(f"u:{user_id}:home_matrix_cache")
-            cache_keys.append(f"airdeliver:freshness:{user_id}")
-            cache_keys.append(f"airdeliver:matrix_delivered:{user_id}")
+
             for key in cache_keys:
                 await self._safe_delete_cache_key(key)
 
@@ -2879,18 +2878,6 @@ class AINLUService:
             return
 
     async def _handle_initial_suggestions(self, user_id: int) -> None:
-
-        debounce_key = f"airdeliver:debounce:matrix:{user_id}"
-        try:
-            client = getattr(self.cache, "client", self.cache)
-            # بنعمل قفل في الريديس مدته 5 ثواني
-            acquired = await client.set(debounce_key, "1", ex=5, nx=True)
-            if not acquired:
-                StructuredLog.warning("matrix_generation_skipped", user_id=user_id, reason="frontend_event_storm_blocked")
-                return # تجاهل الطلب المتكرر فوراً
-        except Exception:
-            pass # لو الريديس فيه مشكلة كمل عادي
-
         StructuredLog.info("matrix_generation_started", user_id=user_id)
 
         spending_tier = self.config.default_spending_tier
@@ -3044,7 +3031,6 @@ class AINLUService:
                 ) or streamed_any
 
             if not streamed_any:
-                StructuredLog.warning("matrix_generation_empty", user_id=user_id, reason="all_product_lists_were_empty_likely_due_to_seen_ids")
                 await self._send_to_ui(
                     user_id,
                     {"content": self.config.copy_fallback, "type": "text"},
@@ -3269,7 +3255,14 @@ class AINLUService:
 
     async def _fetch_personal(self, user_id: int, seen_ids: Set[int], tier: str) -> Sequence[Product]:
         try:
-            return await self.search_engine.get_fresh_homepage_matrix(self.db, user_id, list(seen_ids), tier)
+            # Fetch the personalized matrix, then shuffle at the application layer 
+            # to guarantee continuous UI freshness upon every refresh.
+            products = await self.search_engine.get_fresh_homepage_matrix(self.db, user_id, list(seen_ids), tier)
+            if not products:
+                return []
+            pool = list(products)
+            random.shuffle(pool)
+            return pool[:self.config.max_items_per_row]
         except Exception as e:
             logger.warning("fetch_personal_failed", extra={"error": str(e)})
             return []
@@ -3277,16 +3270,18 @@ class AINLUService:
     async def _fetch_bestsellers(self, seen_ids: Set[int]) -> Sequence[Product]:
         try:
             stmt = select(Product)
+            if seen_ids: 
+                stmt = stmt.where(Product.id.notin_(seen_ids))
+                
+            # Bounded fetch: Retrieve top 50 (pool limit) fastest moving / highest rated items
+            stmt = stmt.order_by(col(Product.rating).desc()).limit(self.config.trending_pool_limit)
+            pool = list((await self.db.execute(stmt)).scalars().all())
             
-            if seen_ids: stmt = stmt.where(Product.id.notin_(seen_ids))
-            # ✅ استخدام المتغير الصحيح من self.config
-            stmt = stmt.order_by(col(Product.rating).desc()).limit(self.config.max_items_per_row)
-            results = (await self.db.execute(stmt)).scalars().all()
-            
-            if not results and seen_ids:
-                fallback_stmt = select(Product).order_by(col(Product.rating).desc()).limit(self.config.max_items_per_row)
-                return (await self.db.execute(stmt)).scalars().all()
-            return results
+            if not pool: 
+                return []
+                
+            # Stochastic sample to enforce dynamic UI rendering 
+            return random.sample(pool, min(len(pool), self.config.max_items_per_row))
         except Exception as e:
             logger.warning("fetch_bestsellers_failed", extra={"error": str(e)})
             return []
@@ -3294,11 +3289,16 @@ class AINLUService:
     async def _fetch_trending(self, seen_ids: Set[int]) -> Sequence[Product]:
         try:
             stmt = select(Product)
-            if seen_ids: stmt = stmt.where(Product.id.notin_(seen_ids))
-            # ✅ استخدام المتغير الصحيح من self.config
-            stmt = stmt.limit(self.config.trending_pool_limit)
+            if seen_ids: 
+                stmt = stmt.where(Product.id.notin_(seen_ids))
+                
+            # Order by latest (ID desc) to anchor 'trending' logically, avoiding unpredictable DB sorting
+            stmt = stmt.order_by(col(Product.id).desc()).limit(self.config.trending_pool_limit)
             pool = list((await self.db.execute(stmt)).scalars().all())
-            if not pool: return []
+            
+            if not pool: 
+                return []
+                
             return random.sample(pool, min(len(pool), self.config.max_items_per_row))
         except Exception as e:
             logger.warning("fetch_trending_failed", extra={"error": str(e)})
@@ -3307,12 +3307,22 @@ class AINLUService:
     async def _fetch_deals(self, seen_ids: Set[int]) -> Sequence[Product]:
         try:
             stmt = select(Product).where(Product.rating >= self.config.deals_min_rating)
-            if seen_ids: stmt = stmt.where(Product.id.notin_(seen_ids))
-            stmt = stmt.order_by(col(Product.price).asc()).limit(self.config.max_items_per_row)
-            return (await self.db.execute(stmt)).scalars().all()
+            if seen_ids: 
+                stmt = stmt.where(Product.id.notin_(seen_ids))
+                
+            # Expand scope to capture a wide pool of discounted/affordable items, not strictly the top 10
+            stmt = stmt.order_by(col(Product.price).asc()).limit(self.config.trending_pool_limit)
+            pool = list((await self.db.execute(stmt)).scalars().all())
+            
+            if not pool: 
+                return []
+                
+            # Randomize the deals shown to create a 'treasure hunt' continuous discovery experience
+            return random.sample(pool, min(len(pool), self.config.max_items_per_row))
         except Exception as e:
             logger.warning("fetch_deals_failed", extra={"error": str(e)})
             return []
+
     # -------------------------------------------------------------------------
     # VISION / QUERY PLANNING
     # -------------------------------------------------------------------------
