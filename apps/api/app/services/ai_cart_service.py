@@ -76,6 +76,45 @@ class AICartService:
         self.llm_service = llm_service
 
     # --- 🔌 UI RESPONSE ROUTER ---
+
+    # --- 🔄 COMMAND: STATE RECONCILIATION ---
+    async def handle_sync_cart(self, raw_payload: dict) -> None:
+        """
+        Deterministically synchronizes the authoritative Redis cart state with the ephemeral UI state.
+        Executed strictly upon WebSocket connection establishment to prevent split-brain UI state.
+        """
+        try:
+            payload = CartOperationPayload(**raw_payload)
+        except ValidationError as exc:
+            logger.warning(
+                "cart_sync_payload_invalid",
+                extra={"error": exc.errors(), "user_id": raw_payload.get("user_id")}
+            )
+            return
+
+        try:
+            # 1. Retrieve authoritative state
+            cart = await self._get_cart_from_redis(payload.user_id)
+
+            # 2. Push state to edge regardless of item count to guarantee deterministic UI hydration
+            # (If the cart is empty, the UI must know it is empty, overriding any ghost state).
+            await self._send_to_ui(payload.user_id, {
+                "content": cart.model_dump(mode='json'),
+                "type": "cart_preview",
+                "reason": "CONNECTION_STATE_RECONCILIATION"
+            })
+
+            logger.info(
+                "cart_state_synchronized",
+                extra={"user_id": payload.user_id, "item_count": len(cart.items)}
+            )
+        except Exception as exc:
+            logger.error(
+                "cart_sync_critical_failure",
+                extra={"user_id": payload.user_id, "error": str(exc)},
+                exc_info=True
+            )
+
     async def _send_to_ui(self, user_id: int, payload: Dict[str, Any]) -> None:
         """
         Pushes deterministic, strictly serialized payloads to the WebSocket edge.

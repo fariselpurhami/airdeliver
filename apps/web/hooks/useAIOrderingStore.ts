@@ -281,6 +281,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
           abortController: null,
         });
 
+        get()._sendInternalCommand('__INTERNAL_SYNC_CART__', {}, true);
+
         if (get().messages.length <= 1) {
           get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__', {}, true);
         }
