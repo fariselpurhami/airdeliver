@@ -3155,8 +3155,8 @@ class AINLUService:
         MAX_CONTEXT_PRODUCTS: Final[int] = 3
         
         # 1. زيادة سعة النصوص لتستوعب جملتين كاملتين بمعاني قوية
-        MAX_CONTENT_LENGTH: Final[int] = 250 
-        MAX_REASON_LENGTH: Final[int] = 200
+        MAX_CONTENT_LENGTH: Final[int] = 350
+        MAX_REASON_LENGTH: Final[int] = 300
 
         if not products:
             return fallback_content, fallback_reason
@@ -3169,7 +3169,8 @@ class AINLUService:
         def _truncate(value: str, max_length: int) -> str:
             if len(value) <= max_length:
                 return value
-            return value[: max_length - 1].rstrip() + "…"
+            truncated = value[:max_length].rsplit(' ', 1)[0]
+            return truncated + "…"
 
         def _build_product_summary(product: Product) -> str:
             name = _normalize_text(ProductAccess.get(product, "name", ""))
@@ -3255,6 +3256,7 @@ class AINLUService:
                 system_role=system_role,
                 temperature=0.4, # حرارة منخفضة لضمان الالتزام الصارم بالقواعد المعمارية
                 response_format="json_object",
+                max_tokens=1500,
             )
 
             parsed = _extract_json_object(raw_response)
