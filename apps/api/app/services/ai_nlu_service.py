@@ -2859,7 +2859,8 @@ class AINLUService:
                 cache_keys.append(seen_key_getter(user_id))
 
             cache_keys.append(f"u:{user_id}:home_matrix_cache")
-
+            cache_keys.append(f"airdeliver:freshness:{user_id}")
+            cache_keys.append(f"airdeliver:matrix_delivered:{user_id}")
             for key in cache_keys:
                 await self._safe_delete_cache_key(key)
 
@@ -2878,6 +2879,18 @@ class AINLUService:
             return
 
     async def _handle_initial_suggestions(self, user_id: int) -> None:
+
+        debounce_key = f"airdeliver:debounce:matrix:{user_id}"
+        try:
+            client = getattr(self.cache, "client", self.cache)
+            # بنعمل قفل في الريديس مدته 5 ثواني
+            acquired = await client.set(debounce_key, "1", ex=5, nx=True)
+            if not acquired:
+                StructuredLog.warning("matrix_generation_skipped", user_id=user_id, reason="frontend_event_storm_blocked")
+                return # تجاهل الطلب المتكرر فوراً
+        except Exception:
+            pass # لو الريديس فيه مشكلة كمل عادي
+
         StructuredLog.info("matrix_generation_started", user_id=user_id)
 
         spending_tier = self.config.default_spending_tier
@@ -3031,6 +3044,7 @@ class AINLUService:
                 ) or streamed_any
 
             if not streamed_any:
+                StructuredLog.warning("matrix_generation_empty", user_id=user_id, reason="all_product_lists_were_empty_likely_due_to_seen_ids")
                 await self._send_to_ui(
                     user_id,
                     {"content": self.config.copy_fallback, "type": "text"},
@@ -3267,7 +3281,12 @@ class AINLUService:
             if seen_ids: stmt = stmt.where(Product.id.notin_(seen_ids))
             # ✅ استخدام المتغير الصحيح من self.config
             stmt = stmt.order_by(col(Product.rating).desc()).limit(self.config.max_items_per_row)
-            return (await self.db.execute(stmt)).scalars().all()
+            results = (await self.db.execute(stmt)).scalars().all()
+            
+            if not results and seen_ids:
+                fallback_stmt = select(Product).order_by(col(Product.rating).desc()).limit(self.config.max_items_per_row)
+                return (await self.db.execute(stmt)).scalars().all()
+            return results
         except Exception as e:
             logger.warning("fetch_bestsellers_failed", extra={"error": str(e)})
             return []

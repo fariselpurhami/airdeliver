@@ -330,7 +330,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=(Host(`localhost`) || Host(`${HOST_IP}`)) && PathPrefix(`/api`)"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
-    command: /opt/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: /opt/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ws-ping-interval 20 --ws-ping-timeout 20
     logging:
       driver: "json-file"
       options:

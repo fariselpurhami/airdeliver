@@ -281,11 +281,10 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
           abortController: null,
         });
 
-        // Initialize session if needed
         if (get().messages.length <= 1) {
-          get()._sendInternalCommand('__INTERNAL_RESET_SESSION__', {}, true);
           get()._sendInternalCommand('__INTERNAL_GET_INITIAL_SUGGESTIONS__', {}, true);
         }
+
         setTimeout(() => {
             get().processOfflineQueue();
         }, 500);

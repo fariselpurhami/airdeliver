@@ -1119,7 +1119,11 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
             isConnectedRef.current = false;
             actions.disconnectSocket();
         }
-        return () => { isConnectedRef.current = false; };
+        return () => { 
+            isConnectedRef.current = false; 
+            // 🚀 التعديل هنا: يجب إغلاق السوكت فعلياً عند عمل Unmount لمنع التكرار
+            actions.disconnectSocket(); 
+        };
     }, [status, currentAccessToken, actions]);
 
     // Defer scrolling layout thrash to next animation frame
