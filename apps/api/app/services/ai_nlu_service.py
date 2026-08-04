@@ -3018,11 +3018,40 @@ class AINLUService:
             except Exception:
                 return fallback, reason
 
+        # 🛡️ [L9 DEFENSE]: Smart Contextual Fallback Generator
+        # يستخرج البيانات من الكروت الحية ويبني تعليل تقني مقنع في حال فشل الـ LLM
+        def _build_contextual_fallback_reason(row_intent: str, products: List[ProductLike]) -> str:
+            if not products:
+                return f"Curated {row_intent} selection tailored to your profile."
+            
+            categories = [str(ProductAccess.get(p, "category", "")).title().strip() for p in products if ProductAccess.get(p, "category")]
+            brands = [str(ProductAccess.get(p, "brand", "")).title().strip() for p in products if ProductAccess.get(p, "brand")]
+            
+            dom_cat = max(set(categories), key=categories.count) if categories else "Premium Ecosystem"
+            dom_brand = max(set(brands), key=brands.count) if brands else "Flagship"
+            
+            if row_intent == "Personalized":
+                return f"An elite curation of {dom_brand} {dom_cat}, precision-calibrated to your exact standards."
+            elif row_intent == "Bestsellers":
+                return f"The benchmark {dom_brand} {dom_cat} configurations, consistently defining peak market performance."
+            elif row_intent == "Trending":
+                return f"High-velocity {dom_brand} {dom_cat} selections, capturing peak real-time demand."
+            elif row_intent == "Deals":
+                return f"Uncompromised {dom_brand} {dom_cat} performance, currently secured at a remarkably optimized price point."
+            return f"A masterfully curated selection of {dom_brand} {dom_cat}."
+
+        # Generate intelligent contextual fallbacks for each row
+        reason_personal = _build_contextual_fallback_reason("Personalized", personal_products)
+        reason_bestsellers = _build_contextual_fallback_reason("Bestsellers", bestsellers_products)
+        reason_trending = _build_contextual_fallback_reason("Trending", trending_products)
+        reason_deals = _build_contextual_fallback_reason("Deals", deals_products)
+
+        # 🚀 [EXECUTION]: Concurrent UI Copy Generation with Fallbacks mapped directly to Live Inventory
         copy_tasks = await asyncio.gather(
-            _safe_generate_copy("Personalized", personal_products, self._get_time_aware_greeting(spending_tier), "Exclusively Curated"),
-            _safe_generate_copy("Bestsellers", bestsellers_products, self.config.copy_bestsellers, "Global Market Leaders"),
-            _safe_generate_copy("Trending", trending_products, self.config.copy_trending, "High-Velocity Trending"),
-            _safe_generate_copy("Deals", deals_products, self.config.copy_deals, "Optimal Price Point"),
+            _safe_generate_copy("Personalized", personal_products, self._get_time_aware_greeting(spending_tier), reason_personal),
+            _safe_generate_copy("Bestsellers", bestsellers_products, self.config.copy_bestsellers, reason_bestsellers),
+            _safe_generate_copy("Trending", trending_products, self.config.copy_trending, reason_trending),
+            _safe_generate_copy("Deals", deals_products, self.config.copy_deals, reason_deals),
             return_exceptions=True
         )
 
@@ -3127,7 +3156,7 @@ class AINLUService:
         
         # 1. زيادة سعة النصوص لتستوعب جملتين كاملتين بمعاني قوية
         MAX_CONTENT_LENGTH: Final[int] = 250 
-        MAX_REASON_LENGTH: Final[int] = 80
+        MAX_REASON_LENGTH: Final[int] = 200
 
         if not products:
             return fallback_content, fallback_reason
@@ -3145,15 +3174,12 @@ class AINLUService:
         def _build_product_summary(product: Product) -> str:
             name = _normalize_text(ProductAccess.get(product, "name", ""))
             brand = _normalize_text(ProductAccess.get(product, "brand", ""))
+            category = _normalize_text(ProductAccess.get(product, "category", ""))
 
-            if not name and not brand:
-                return ""
+            parts = [p for p in [brand, name, f"[{category}]"] if p]
+            return " ".join(parts) if parts else ""
 
-            if brand and name and brand.lower() not in name.lower():
-                return f"{brand} {name}"
-
-            return name or brand
-
+            
         def _extract_json_object(raw_response: Any) -> Dict[str, Any]:
             if isinstance(raw_response, dict):
                 return raw_response
@@ -3183,15 +3209,11 @@ class AINLUService:
 
         def _sanitize_content(value: Any) -> str:
             text = _normalize_text(value)
-            if not text:
-                return fallback_content
-            return _truncate(text, MAX_CONTENT_LENGTH)
+            return _truncate(text, MAX_CONTENT_LENGTH) if text else fallback_content
 
         def _sanitize_reason(value: Any) -> str:
             text = _normalize_text(value)
-            if not text:
-                return fallback_reason
-            return _truncate(text, MAX_REASON_LENGTH)
+            return _truncate(text, MAX_REASON_LENGTH) if text else fallback_reason
 
         product_summaries = [
             summary
@@ -3217,7 +3239,7 @@ class AINLUService:
             "Return exactly one JSON object with these strict rules:\n"
             "{\n"
             '  "content": "Deliver 1 to 2 powerful, insightful sentences explaining the strategic value or lifestyle impact of these exact items. Do not use cheap marketing words. Act as an elite advisor. (Approx 15-30 words).",\n'
-            '  "reason": "A strict 2-5 word technical or conceptual label summarizing the underlying theme."\n'
+            '  "reason":  "Provide a sophisticated 1-2 sentence architectural insight explaining EXACTLY why this specific combination of items represents the pinnacle of its category. Do not just list them; explain the synergy or overarching technological/lifestyle theme. (Approx 15-30 words)."\n'
             "}\n"
             "CRITICAL ANTI-REPETITION RULE:\n"
             "- The 'reason' MUST NOT repeat any key phrases, words, or structures used in the 'content'. They must be semantically distinct.\n"
