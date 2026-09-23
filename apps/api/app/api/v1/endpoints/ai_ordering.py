@@ -5,6 +5,7 @@ import json
 import time
 import logging
 import asyncio
+import random
 from typing import Optional
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, status
@@ -43,6 +44,7 @@ async def generate_websocket_ticket(
     # Ticket valid for only 30 seconds (Strict Window)
     await cache.set(f"ws_ticket:{ticket}", str(current_user.id), ttl=30)
     return {"ticket": ticket}
+
 
 async def check_rate_limit(user_id: int, cache: IAsyncCacheClient) -> bool:
     """
@@ -107,8 +109,6 @@ async def handle_chat_websocket(
     logger.info(f"✅ User {current_user.id} connected via Socket {connection_id[:8]}...")
 
 
-    import random
-
     lifestyle_matrix = [
         {
             "id": str(uuid.uuid4()),
@@ -146,15 +146,14 @@ async def handle_chat_websocket(
 
     try:
         # 2. بناء الـ Payload بهيكلية بيانات موحدة (Strict Schema)
-        # لاحظ: قمنا بإزالة حقل "message" النصي واستبدالنا بـ "data" كائن كامل
         welcome_payload = {
             "user_id": current_user.id,
             "connection_id": connection_id,
             "email": current_user.email,
-            "type": "WELCOME_INTENT",  # المفتاح الذي سيحرك الـ AI Worker
+            "type": "WELCOME_INTENT",
             "data": {
-                "mode": "selection_required",  # إجبار الفرونت إند على عرض الكروت
-                "header_text": "Select your lifestyle archetype:",  # نص توجيهي
+                "mode": "selection_required",
+                "header_text": "Select your lifestyle archetype:",
                 "matrix_cards": lifestyle_matrix
             },
             "message": "User Initiated Matrix Selection",
@@ -172,6 +171,7 @@ async def handle_chat_websocket(
 
     except Exception as e:
         logger.warning(f"⚠️ Failed to Inject Matrix: {e}")
+
     # Redis Channel for AI Responses
     redis_channel_name = f"airdeliver:response:{current_user.id}"
     pubsub = None
@@ -229,7 +229,6 @@ async def handle_chat_websocket(
             # C. Construct Robust Payload (The Universal Packet)
             client_msg_id = message_data.get("id") or str(uuid.uuid4())
 
-            # Sanitizing Phone/Address to avoid NoneType errors downstream
             user_phone = current_user.phone_number or ""
             user_address = current_user.address or ""
             user_city = current_user.city or ""
@@ -244,8 +243,8 @@ async def handle_chat_websocket(
                 "city": user_city,
                 "message": message_data.get("message"),
                 "type": message_data.get("type", "CHAT_MESSAGE"),
-                "image": message_data.get("image"), # Base64
-                "product_id": message_data.get("product_id"), # For Cart Actions
+                "image": message_data.get("image"),
+                "product_id": message_data.get("product_id"),
                 "quantity": message_data.get("quantity", 1),
                 "client_msg_id": client_msg_id,
                 "timestamp": message_data.get("timestamp") or time.time(),
@@ -305,12 +304,12 @@ async def handle_chat_websocket(
         if listener_task: listener_task.cancel()
         if pubsub: await pubsub.close()
 
-        # Attempt graceful close
         try:
             await connection_manager.disconnect(current_user.id, websocket)
             if websocket.client_state != WebSocketState.DISCONNECTED:
                 await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
         except: pass
+
 
 @router.websocket("/voice-stream")
 async def handle_voice_stream(
@@ -319,14 +318,15 @@ async def handle_voice_stream(
     session: AsyncSession = Depends(deps.get_async_session),
     commerce_engine = Depends(deps.get_ai_commerce_engine),
     llm_service = Depends(deps.get_llm_service),
+    rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
     cache: IAsyncCacheClient = Depends(get_cache_from_request),
 ):
     """
     🎤 REAL-TIME VOICE CHANNEL (TITANIUM GUARDED).
     Dedicated WebSocket for Audio/Video streaming with Concurrency Locking.
+    Dependency Injection upgraded to support the Active Middleware Voice Orchestrator.
     """
     # 1. 🎫 FAST AUTH & TICKET VALIDATION
-    # التحقق من التذكرة لضمان أن الاتصال آمن ومصرح به
     user_id_str = await cache.get(f"ws_ticket:{ticket}")
     if not user_id_str:
         logger.warning(f"⛔ Voice Access Denied: Invalid Ticket {ticket}")
@@ -336,8 +336,6 @@ async def handle_voice_stream(
     user_id = int(user_id_str)
 
     # 2. 🔒 CONCURRENCY GUARD (The Titanium Shield)
-    # منع المستخدم من فتح أكثر من جلسة صوتية في نفس الوقت
-    # لو حاول يفتح تابة تانية، بنقفل في وشه فوراً عشان نحمي موارد السيرفر
     lock_key = f"voice_session_lock:{user_id}"
     is_locked = await cache.get(lock_key)
 
@@ -349,16 +347,22 @@ async def handle_voice_stream(
         return
 
     # 3. 🏁 INITIALIZE ORCHESTRATOR
-    orchestrator = AIVoiceOrchestrator(llm_service, commerce_engine)
+    # DI updated: orchestrator is now context-aware and event-driven.
+    orchestrator = AIVoiceOrchestrator(
+        commerce_engine=commerce_engine,
+        llm_service=llm_service,
+        rabbitmq=rabbitmq,
+        cache=cache,
+        db_session=session
+    )
 
     # 4. 🛡️ SAFE EXECUTION BLOCK (Try/Finally)
-    # نضع علامة "مشغول" في الـ Redis، ولازم نمسحها لما يخلص
     try:
         # Set Lock (Expire in 5 mins to prevent deadlocks if server crashes)
         await cache.set(lock_key, "active", ttl=300)
 
         # Handover control to the Brain
-        await orchestrator.process_voice_session(websocket, user_id)
+        await orchestrator.process_voice_session(websocket, str(user_id))
 
     except Exception as e:
         logger.error(f"🔥 Critical Voice Crash User {user_id}: {e}", exc_info=True)
@@ -368,8 +372,6 @@ async def handle_voice_stream(
 
     finally:
         # 5. 🧹 CLEANUP PROTOCOL
-        # أهم خطوة: تحرير القفل فوراً عند قطع الاتصال
         await cache.delete(lock_key)
-        # مسح التذكرة لضمان عدم استخدامها مرة أخرى (Replay Attack Protection)
         await cache.delete(f"ws_ticket:{ticket}")
         logger.info(f"🔌 Voice Session Cleaned User {user_id}")

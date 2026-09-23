@@ -2,13 +2,27 @@
 
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 
-// --- 🌊 MATH ENGINE: Generative Organic Waves ---
-const generateOrganicPath = (points: number, radius: number, audioLevel: number, offset: number) => {
+// --- CONFIGURATION CONSTANTS ---
+const AUDIO_SAMPLE_RATE = 16000;
+const BARGE_IN_THRESHOLD = 0.05;
+const FFT_SIZE = 256;
+
+// --- STRICT DOMAIN TYPES ---
+type VoiceControlPayload = { action: 'VOICE_SEARCH'; query: string };
+
+type VoiceStreamMessage = 
+    | { type: 'text_stream'; text: string }
+    | { type: 'control'; payload: VoiceControlPayload }
+    | { type: 'product_carousel'; products: Record<string, unknown>[] }
+    | { type: 'error'; message: string };
+
+// --- MATH ENGINE: Generative Organic Waves ---
+const generateOrganicPath = (points: number, radius: number, audioLevel: number, offset: number): string => {
     let d = "";
     const angleStep = (Math.PI * 2) / points;
 
@@ -30,9 +44,9 @@ const generateOrganicPath = (points: number, radius: number, audioLevel: number,
     return d;
 };
 
-// --- 🧬 COMPONENT: The Living Hologram ---
-const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
-    const [time, setTime] = useState(0);
+// --- COMPONENT: The Living Hologram ---
+const HolographicBlob = React.memo(({ audioLevel }: { audioLevel: number }) => {
+    const [time, setTime] = useState<number>(0);
 
     useEffect(() => {
         let frameId: number;
@@ -108,150 +122,244 @@ const HolographicBlob = ({ audioLevel }: { audioLevel: number }) => {
             />
         </div>
     );
-};
+});
+HolographicBlob.displayName = 'HolographicBlob';
 
-export const AIVoiceOverlay = () => {
-    // --- STATE & HOOKS ---
-    const { isVoiceMode, setVoiceMode, addSocketAIMessage } = useAIOrderingStore();
+// --- MAIN ORCHESTRATION COMPONENT ---
+export const AIVoiceOverlay = React.memo(() => {
+    // 1. Atomic State Subscriptions (Zero Render Thrashing)
+    const isVoiceMode = useAIOrderingStore(state => state.isVoiceMode);
+    const setVoiceMode = useAIOrderingStore(state => state.setVoiceMode);
+    const addSocketAIMessage = useAIOrderingStore(state => state.addSocketAIMessage);
+    const sendMessage = useAIOrderingStore(state => state.sendMessage);
+
+    // 2. Local View State
     const [status, setStatus] = useState<'listening' | 'processing' | 'speaking'>('listening');
-    const [aiResponse, setAiResponse] = useState('');
-    const [audioLevel, setAudioLevel] = useState(1); 
+    const [aiResponse, setAiResponse] = useState<string>('');
+    const [audioLevel, setAudioLevel] = useState<number>(1); 
 
-    // --- REFS ---
+    // 3. Mutable References (Lifecycles & Queues)
     const wsRef = useRef<WebSocket | null>(null);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const audioQueueRef = useRef<ArrayBuffer[]>([]);
-    const isPlayingRef = useRef(false);
+    const isPlayingRef = useRef<boolean>(false);
     const animationFrameRef = useRef<number>();
 
-    // --- AUDIO QUEUE PROCESSOR ---
-    const processAudioQueue = async () => {
+    // 4. Sequential Audio Decoder & Player
+    const processAudioQueue = useCallback(async () => {
         if (isPlayingRef.current || audioQueueRef.current.length === 0) return;
         isPlayingRef.current = true;
+        
         const chunk = audioQueueRef.current.shift();
         if (chunk && audioContextRef.current) {
             try {
                 const audioBuffer = await audioContextRef.current.decodeAudioData(chunk);
                 const source = audioContextRef.current.createBufferSource();
                 source.buffer = audioBuffer;
+                
                 source.connect(audioContextRef.current.destination);
                 if (analyserRef.current) source.connect(analyserRef.current);
+                
                 source.start(0);
                 setStatus('speaking');
+                
                 source.onended = () => {
                     isPlayingRef.current = false;
                     if (audioQueueRef.current.length === 0) setStatus('listening');
-                    else processAudioQueue(); 
+                    else void processAudioQueue(); 
                 };
-            } catch (e) {
+            } catch (error) {
+                console.error("[VoiceOrchestrator] Audio Decode Error:", error);
                 isPlayingRef.current = false;
-                processAudioQueue();
+                void processAudioQueue();
             }
         }
-    };
+    }, []);
 
-    // --- INITIALIZATION (Mic + WebSocket) ---
+    // 5. Hardware & Transport Initialization
     useEffect(() => {
         if (!isVoiceMode) return;
         let localStream: MediaStream | null = null;
+        let processor: ScriptProcessorNode | null = null;
         
         const initVoiceSession = async () => {
             try {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    alert("المايكروفون غير مدعوم في هذا المتصفح. تأكد من تشغيل الموقع عبر HTTPS أو Localhost، ومنح الصلاحية للموقع.");
+                if (!navigator.mediaDevices?.getUserMedia) {
+                    console.error("[VoiceOrchestrator] Hardware Access Denied or Unsupported.");
                     setVoiceMode(false);
                     return;
                 }
+
+                // Request Microphone
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
-                // دعم متصفحات مختلفة
+                // Initialize Cross-Browser Audio Context
                 const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-                const ctx = new AudioContextClass();
+                const ctx = new AudioContextClass({ sampleRate: AUDIO_SAMPLE_RATE });
                 audioContextRef.current = ctx;
                 
+                // Holographic Audio Analyzer Setup
                 const analyser = ctx.createAnalyser();
-                analyser.fftSize = 256;
+                analyser.fftSize = FFT_SIZE;
                 analyser.smoothingTimeConstant = 0.8; 
                 analyserRef.current = analyser;
                 
                 const source = ctx.createMediaStreamSource(localStream);
                 source.connect(analyser);
 
-                const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/api/v1/ordering/voice-stream?ticket=DEMO`; 
+                // Transport Layer Establishment
+                const wsBase = process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.host}`;
+                const httpBase = wsBase.replace('ws', 'http').replace('wss', 'https');
+
+                // طلب التذكرة من الباك إند
+                const ticketResponse = await fetch(`${httpBase}/api/v1/ordering/ticket`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // لو بتبعت Token حطه هنا
+                        // 'Authorization': `Bearer ${session?.accessToken}` 
+                    }
+                });
+
+                if (!ticketResponse.ok) {
+                    console.error("[VoiceOrchestrator] Failed to acquire auth ticket.");
+                    setVoiceMode(false);
+                    return;
+                }
+
+                const { ticket } = await ticketResponse.json();
+                const wsUrl = `${wsBase}/api/v1/ordering/voice-stream?ticket=${ticket}`;
+
                 const ws = new WebSocket(wsUrl);
                 ws.binaryType = 'arraybuffer';
                 wsRef.current = ws;
 
-                const mediaRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm' });
-                mediaRecorderRef.current = mediaRecorder;
-                mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(e.data);
-                };
-                mediaRecorder.start(250); 
+                // Raw PCM Extraction (Fallback for typical Next.js lack of AudioWorklet serving)
+                processor = ctx.createScriptProcessor(4096, 1, 1);
+                source.connect(processor);
+                processor.connect(ctx.destination);
 
-                ws.onmessage = async (event) => {
-                    if (event.data instanceof ArrayBuffer) {
-                        audioQueueRef.current.push(event.data);
-                        processAudioQueue();
-                    } else if (typeof event.data === 'string') {
-                        const data = JSON.parse(event.data);
-                        if (data.type === 'text_stream') setAiResponse(data.text);
-                        
-                        if (data.type === 'control') {
-                            addSocketAIMessage({ id: Date.now(), sender: 'user', contentType: 'text', content: data.payload.query, status: 'sent' });
-                        }
-                        if (data.type === 'product_carousel' || (data.products && data.products.length > 0)) {
-                            addSocketAIMessage(data); 
+                processor.onaudioprocess = (e: AudioProcessingEvent) => {
+                    if (ws.readyState !== WebSocket.OPEN) return;
+                    
+                    const inputData = e.inputBuffer.getChannelData(0);
+                    const pcmData = new Int16Array(inputData.length);
+                    let volumeSum = 0;
+                    
+                    for (let i = 0; i < inputData.length; i++) {
+                        const s = Math.max(-1, Math.min(1, inputData[i]));
+                        pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                        volumeSum += Math.abs(inputData[i]);
+                    }
+                    
+                    ws.send(pcmData.buffer);
+
+                    // Voice Activity Detection (VAD) / Barge-in
+                    if (isPlayingRef.current) {
+                        const averageVolume = volumeSum / inputData.length;
+                        if (averageVolume > BARGE_IN_THRESHOLD) { 
+                            ws.send(JSON.stringify({ type: "INTERRUPT" }));
+                            isPlayingRef.current = false;
+                            audioQueueRef.current = [];
+                            setStatus('listening');
                         }
                     }
                 };
 
+                // Network Ingress Parsing
+                ws.onmessage = (event: MessageEvent) => {
+                    // Binary Payload = Audio Chunk
+                    if (event.data instanceof ArrayBuffer) {
+                        audioQueueRef.current.push(event.data);
+                        void processAudioQueue();
+                        return;
+                    } 
+                    
+                    // String Payload = Control or Text Stream
+                    if (typeof event.data === 'string') {
+                        try {
+                            const data = JSON.parse(event.data) as VoiceStreamMessage;
+                            
+                            switch (data.type) {
+                                case 'text_stream':
+                                    setAiResponse(data.text);
+                                    break;
+                                    
+                                case 'control':
+                                    // THE BRIDGE: Dispatch to NLU Engine
+                                    sendMessage(data.payload.query, true);
+                                    break;
+                                    
+                                case 'product_carousel':
+                                    if (data.products && data.products.length > 0) {
+                                        addSocketAIMessage(data); 
+                                    }
+                                    break;
+                                    
+                                case 'error':
+                                    console.warn("[VoiceOrchestrator] Upstream Engine Error:", data.message);
+                                    break;
+                            }
+                        } catch (err) {
+                            console.error("[VoiceOrchestrator] Unparsable JSON payload received:", err);
+                        }
+                    }
+                };
+
+                // Visual Render Loop
                 const updateVisuals = () => {
                     if (analyser) {
                         const dataArray = new Uint8Array(analyser.frequencyBinCount);
                         analyser.getByteFrequencyData(dataArray);
-                        
                         const relevantFreqs = dataArray.slice(10, 80);
-                        const average = relevantFreqs.reduce((a, b) => a + b) / relevantFreqs.length;
-                        
+                        const average = relevantFreqs.reduce((a, b) => a + b, 0) / relevantFreqs.length;
                         const scale = 1 + Math.log(1 + average / 40); 
                         setAudioLevel(Math.max(1, scale));
                     }
                     animationFrameRef.current = requestAnimationFrame(updateVisuals);
                 };
                 updateVisuals();
+
             } catch (err) {
-                console.error("Voice Error:", err);
+                console.error("[VoiceOrchestrator] Critical Initialization Failure:", err);
                 setVoiceMode(false);
             }
         };
-        initVoiceSession();
 
+        void initVoiceSession();
+
+        // 6. Deterministic Resource Teardown
         return () => {
+            if (processor) processor.disconnect();
             if (localStream) localStream.getTracks().forEach(track => track.stop());
-            if (wsRef.current) wsRef.current.close();
-            if (audioContextRef.current) audioContextRef.current.close();
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.close(1000, "Component Unmounted");
+            }
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                void audioContextRef.current.close();
+            }
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            
+            audioQueueRef.current = [];
+            isPlayingRef.current = false;
         };
-    }, [isVoiceMode]);
+    }, [isVoiceMode, setVoiceMode, sendMessage, addSocketAIMessage, processAudioQueue]);
 
     if (!isVoiceMode) return null;
 
     return (
         <AnimatePresence>
-            {/* Light Backdrop */}
+            {/* Backdrop */}
             <motion.div
                 key="voice-backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 z-[100] bg-slate-950/10 pointer-events-none"
-                
             />
 
-            {/* THE BOTTOM FLOATING DOCK */}
+            {/* Floating Dock */}
             <motion.div
                 key="voice-card"
                 initial={{ opacity: 0, y: 100 }} 
@@ -262,7 +370,7 @@ export const AIVoiceOverlay = () => {
             >
                 <div className="absolute inset-0 w-full h-full bg-gradient-to-t from-slate-950/95 via-slate-950/70 to-slate-950/20 backdrop-blur-md rounded-t-3xl border-t border-white/5 pointer-events-none" />
 
-                {/* Header (Status & Close) */}
+                {/* Header (Status & Controls) */}
                 <div className="relative w-full px-6 flex justify-between items-center mb-2 z-50 pointer-events-auto">
                     <div className="flex items-center gap-2 bg-white/5 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
                         <div className={`w-1.5 h-1.5 rounded-full ${status === 'speaking' ? 'bg-green-500' : 'bg-cyan-500'} animate-pulse`} />
@@ -274,18 +382,18 @@ export const AIVoiceOverlay = () => {
                     <button 
                         onClick={() => setVoiceMode(false)}
                         className="p-2 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-gray-400 hover:bg-white/15 hover:text-white hover:border-white/20 hover:scale-105 transition-all duration-300 shadow-lg"
+                        aria-label="Close Voice Interface"
                     >
                         <X size={18} />
                     </button>
                 </div>
 
-                {/* Hologram Container */}
+                {/* Core Visualizer */}
                 <div className="relative w-full h-[180px] flex items-center justify-center overflow-visible pointer-events-auto">
-                    
                     <HolographicBlob audioLevel={audioLevel} />
 
-                    {/* Live Transcription Text */}
-                    <div className="absolute inset-0 flex items-center justify-center text-center z-50 px-8 pb-4">
+                    {/* Subtitle / Telemetry Layer */}
+                    <div className="absolute inset-0 flex items-center justify-center text-center z-50 px-8 pb-4 pointer-events-none">
                         <AnimatePresence mode="wait">
                             <motion.p 
                                 key={aiResponse || "default-text"}
@@ -298,7 +406,7 @@ export const AIVoiceOverlay = () => {
                                     : 'text-transparent bg-clip-text bg-gradient-to-r from-cyan-50 via-white to-purple-100'
                                 }`}
                             >
-                                {status === 'Listening' ? "" : aiResponse}
+                                {status === 'listening' ? "" : aiResponse}
                             </motion.p>
                         </AnimatePresence>
                     </div>
@@ -306,4 +414,5 @@ export const AIVoiceOverlay = () => {
             </motion.div>
         </AnimatePresence>
     );
-};
+});
+AIVoiceOverlay.displayName = 'AIVoiceOverlay';

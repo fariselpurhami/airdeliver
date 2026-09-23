@@ -1,232 +1,422 @@
 # apps/api/app/services/ai_voice_service.py
 
+from __future__ import annotations
+
 import asyncio
+import base64
 import json
 import logging
-import re
-import struct
-import math
+import os
 import time
-from typing import AsyncGenerator, Dict, Any, List, Optional
+import uuid
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, Final, List, Optional, Set
+
+import websockets
 from fastapi import WebSocket, WebSocketDisconnect
+from pydantic import BaseModel, ValidationError
+from sqlmodel.ext.asyncio.session import AsyncSession
+from websockets.exceptions import ConnectionClosed
 
-# Internal Services
-from app.services.ai_commerce_engine import AICommerceEngine, get_ai_commerce_engine
-# 💎 SOTA LOGGING WITH TELEMETRY (Hybrid Mode)
+from app.services.ai_commerce_engine import AICommerceEngine
+from app.services.free_llm_service import FreeLLMService
+from app.services.rabbitmq_service import RabbitMQService
+from app.services.cache_service import IAsyncCacheClient
+from app.services.ai_nlu_service import ProductAccess, RedisKeys, UserDnaStore, MatrixConfig
+
+# ---------------------------------------------------------------------------
+# CORE CONFIGURATION & SCHEMAS
+# ---------------------------------------------------------------------------
+
+class VoiceConfig:
+    ELEVENLABS_API_KEY: Final[str | None] = os.getenv("ELEVENLABS_API_KEY")
+    ELEVENLABS_AGENT_ID: Final[str | None] = os.getenv("ELEVENLABS_AGENT_ID")
+    ELEVENLABS_WS_URL_TEMPLATE: Final[str] = "wss://api.elevenlabs.io/v1/convai/conversation?agent_id={agent_id}"
+    
+    MAX_AUDIO_QUEUE_SIZE: Final[int] = 60 
+    MAX_TEXT_BUFFER_SIZE: Final[int] = 512
+    TOOL_EXECUTION_TIMEOUT_SEC: Final[float] = 12.0
+    WS_PING_INTERVAL: Final[int] = 20
+    WS_PING_TIMEOUT: Final[int] = 20
+
+    @classmethod
+    def get_ws_url(cls) -> str:
+        if not cls.ELEVENLABS_AGENT_ID:
+            raise ValueError("CRITICAL_CONFIGURATION_ERROR: ELEVENLABS_AGENT_ID is not set.")
+        return cls.ELEVENLABS_WS_URL_TEMPLATE.format(agent_id=cls.ELEVENLABS_AGENT_ID)
+
+    @classmethod
+    def get_auth_headers(cls) -> dict[str, str]:
+        if not cls.ELEVENLABS_API_KEY:
+            raise ValueError("CRITICAL_CONFIGURATION_ERROR: ELEVENLABS_API_KEY is not set.")
+        return {"xi-api-key": cls.ELEVENLABS_API_KEY}
+
+
+class ClientMessageType(str, Enum):
+    INTERRUPT = "INTERRUPT"
+    ERROR = "error"
+    TEXT_STREAM = "text_stream"
+    CONTROL = "control"
+    PRODUCT_CAROUSEL = "product_carousel"
+    SYSTEM_ACK = "system_ack"
+
+
+class CartAction(str, Enum):
+    ADD = "ADD"
+    REMOVE = "REMOVE"
+    CLEAR = "CLEAR"
+    CHECKOUT = "CHECKOUT"
+
+
+# ---------------------------------------------------------------------------
+# OBSERVABILITY
+# ---------------------------------------------------------------------------
+
 logger = logging.getLogger("airdeliver.voice_core")
+logger.setLevel(logging.INFO)
 
-def force_log(message: str, level: str = "INFO"):
+def _structured_log(event: str, level: int = logging.INFO, **context: Any) -> None:
+    log_record = {
+        "event": event,
+        "timestamp": time.time(),
+        "component": "AIVoiceOrchestrator",
+        **{k: v for k, v in context.items() if v is not None}
+    }
+    logger.log(level, json.dumps(log_record, default=str))
+
+# ---------------------------------------------------------------------------
+# DOMAIN LOGIC: TOOL EXECUTION ENGINE
+# ---------------------------------------------------------------------------
+
+class VoiceToolExecutor:
     """
-    🚀 NUCLEAR LOGGING: Bypasses standard logger buffering.
-    Ensures logs appear in Docker instantly.
+    Isolates external tool execution from the WebSocket transport layer.
+    Executes operations against the core OS and formats results for the Voice AI.
     """
-    if level == "ERROR":
-        logger.error(message)
-    else:
-        logger.info(message)
+    def __init__(
+        self,
+        commerce_engine: AICommerceEngine,
+        llm_service: FreeLLMService,
+        rabbitmq: RabbitMQService,
+        cache: IAsyncCacheClient,
+        db_session: AsyncSession
+    ) -> None:
+        self.commerce = commerce_engine
+        self.llm = llm_service
+        self.rabbitmq = rabbitmq
+        self.cache = cache
+        self.db = db_session
+
+    async def search_global_inventory(self, params: Dict[str, Any], user_id: str, client_ws: WebSocket) -> str:
+        """Executes hybrid search, pushes UI update to client, returns context to Voice AI."""
+        query = params.get("query", "")
+        category = params.get("category")
+        price_max = params.get("price_max")
+        
+        filters = {}
+        if category: filters["category"] = category
+        if price_max: filters["price_max"] = float(price_max)
+
+        products = await self.commerce.perform_hybrid_search_pure(
+            self.db, 
+            query=query, 
+            limit=5, 
+            filters=filters
+        )
+
+        if not products:
+            return json.dumps({"status": "NO_MATCHES", "message": "No verified products found matching criteria."})
+
+        # 1. Broadcast Visual State to UI synchronously
+        safe_products = [ProductAccess.dump(p) for p in products]
+        ui_payload = {
+            "type": ClientMessageType.PRODUCT_CAROUSEL.value,
+            "products": safe_products,
+            "reason": f"Visual retrieval for: {query}"
+        }
+        try:
+            await client_ws.send_text(json.dumps(ui_payload))
+        except Exception as e:
+            _structured_log("ui_sync_failed", logging.WARNING, error=str(e), user_id=user_id)
+
+        # 2. Return compact intelligence to the Voice Agent
+        ai_context = [
+            {
+                "id": p["id"],
+                "name": p["name"],
+                "price": p["price"],
+                "key_specs": str(p["description"])[:100]
+            }
+            for p in safe_products[:3]
+        ]
+        return json.dumps({"status": "SUCCESS", "inventory": ai_context})
+
+    async def execute_cart_action(self, params: Dict[str, Any], user_id: str, client_ws: WebSocket) -> str:
+        """Dispatches event-driven cart actions via RabbitMQ."""
+        try:
+            action = CartAction(params.get("action", "").upper())
+        except ValueError:
+            return json.dumps({"status": "FAILED", "error": "Invalid action. Allowed: ADD, REMOVE, CLEAR, CHECKOUT"})
+
+        product_id = params.get("product_id")
+        
+        routing_key = ""
+        payload = {"user_id": int(user_id), "source": "voice_ai_os"}
+
+        if action == CartAction.ADD:
+            if not product_id: return json.dumps({"error": "product_id required for ADD"})
+            routing_key = "airdeliver.ai.cart.add"
+            payload.update({"product_id": int(product_id), "quantity": 1, "notify_user": False})
+        elif action == CartAction.REMOVE:
+            if not product_id: return json.dumps({"error": "product_id required for REMOVE"})
+            routing_key = "airdeliver.ai.cart.remove"
+            payload.update({"product_id": int(product_id), "action": "remove_by_id", "notify_user": False})
+        elif action == CartAction.CLEAR:
+            routing_key = "airdeliver.ai.cart.clear"
+            payload.update({"notify_user": True})
+        elif action == CartAction.CHECKOUT:
+            routing_key = "airdeliver.ai.order.confirm"
+            payload.update({"type": "payment_intent", "timestamp": time.time()})
+
+        try:
+            await self.rabbitmq.publish(payload, routing_key)
+            return json.dumps({"status": "SUCCESS", "action_executed": action.value})
+        except Exception as e:
+            _structured_log("cart_action_dispatch_failed", logging.ERROR, error=str(e), user_id=user_id)
+            return json.dumps({"status": "FAILED", "error": "Internal broker failure."})
+
+    async def verify_phantom_product(self, params: Dict[str, Any], user_id: str) -> str:
+        """The Phantom Protocol: Triggers deep web search for unreleased/rumored items."""
+        query = params.get("query", "")
+        if not query:
+            return json.dumps({"error": "Empty query"})
+            
+        intel = await self.llm._perform_web_search(query)
+        return json.dumps({
+            "status": "WEB_INTEL_RETRIEVED", 
+            "advisory": "Use this strictly to debunk or confirm unreleased items. NEVER invent specs.",
+            "data": intel[:1000] 
+        })
+
+# ---------------------------------------------------------------------------
+# CORE SYSTEM: THE VOICE ORCHESTRATOR
+# ---------------------------------------------------------------------------
+
 class AIVoiceOrchestrator:
     """
-    🎤 TITANIUM VOICE ORCHESTRATOR (V5.1 - DEBUG & WARFARE EDITION).
+    Enterprise-Grade Conversational Voice Bridge (ElevenLabs v3).
     
-    Architectural Pattern: Full-Duplex Async Pipeline with Backpressure Management.
-    Model: nvidia/personaplex-7b-v1 (Native Audio-to-Audio).
+    Architecture:
+      - Full-Duplex asynchronous streams bridging Client WS and ElevenLabs WS.
+      - Intercepts Server-Sent Client Tool Calls, executes them via internal OS, 
+        and synchronizes Frontend State natively.
+      - Backpressure dropping mechanisms to prevent memory leaks on high latency.
     """
 
-    # --- ⚙️ PHYSICS CONSTANTS ---
-    # 🛑 FORCE OPEN GATE: 0 means "Process Everything" (Even Silence)
-    SILENCE_THRESHOLD = 500 
-    
-    # Max buffer size (approx 1-2 seconds of audio)
-    MAX_QUEUE_SIZE = 50 
+    def __init__(
+        self, 
+        commerce_engine: AICommerceEngine,
+        llm_service: FreeLLMService,
+        rabbitmq: RabbitMQService,
+        cache: IAsyncCacheClient,
+        db_session: AsyncSession
+    ) -> None:
+        self.cache = cache
+        self.db = db_session
+        self.tool_executor = VoiceToolExecutor(commerce_engine, llm_service, rabbitmq, cache, db_session)
 
-    def __init__(self, llm_service=None, commerce_engine: AICommerceEngine = None):
-        self.commerce = commerce_engine
-        
-        # 🎭 SYSTEM CONDITIONING
-        self.system_condition = """
-        You are AirDeliver.
-        ROLE: High-end Shopping Assistant.
-        TONE: Warm, Professional, Concise.
-        INSTRUCTION: When mentioning a product, output the token [SHOW: query].
-        """
-
-    async def process_voice_session(self, websocket: WebSocket, user_id: int):
-        """
-        🚀 The Main Loop: Orchestrates the secure bi-directional tunnel.
-        """
-        # 1. Handshake & Lock
-        await websocket.accept()
+    async def process_voice_session(self, client_ws: WebSocket, user_id: str) -> None:
+        """Bootstraps the secure bi-directional tunnel and injects user DNA."""
+        await client_ws.accept()
+        session_id = f"v_sess_{user_id}_{uuid.uuid4().hex[:6]}"
         start_time = time.perf_counter()
-        force_log(f"🎙️ Voice Tunnel Opened: User {user_id}")
         
-        model_session = None
+        _structured_log("voice_session_initiated", user_id=user_id, session_id=session_id)
+        
+        eleven_ws: Optional[websockets.WebSocketClientProtocol] = None
+        tasks: Set[asyncio.Task] = set()
 
         try:
-            # 2. Initialize Model Session
-            force_log("⏳ [1/4] Requesting Session from AI Manager...")
-            
-            # 🛡️ PROTECTED CALL: Wraps external dependency
+            # 1. Establish Upstream Connection
             try:
-                model_session = await ai_manager.create_voice_session(
-                    user_id=user_id,
-                    system_prompt=self.system_condition
+                eleven_ws = await websockets.connect(
+                    VoiceConfig.get_ws_url(),
+                    extra_headers=VoiceConfig.get_auth_headers(),
+                    ping_interval=VoiceConfig.WS_PING_INTERVAL,
+                    ping_timeout=VoiceConfig.WS_PING_TIMEOUT
                 )
-                force_log(f"✅ [2/4] Session Created ID: {id(model_session)}")
-            except Exception as session_err:
-                force_log(f"🔥 FATAL: AI Manager failed to create session: {session_err}", "ERROR")
-                raise session_err
+            except Exception as e:
+                _structured_log("upstream_connection_failed", logging.ERROR, error=str(e), session_id=session_id)
+                await self._send_client_error(client_ws, "Voice Neural Net temporarily offline.")
+                return
 
-            # 3. Task Management (The Engine Room)
-            input_queue = asyncio.Queue(maxsize=self.MAX_QUEUE_SIZE)
+            # 2. Inject Dynamic Context (User DNA & Memory)
+            await self._inject_session_context(eleven_ws, user_id)
+
+            # 3. Concurrency Primitives
+            audio_queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=VoiceConfig.MAX_AUDIO_QUEUE_SIZE)
             
-            # 4. Launch Micro-Services (Concurrent Coroutines)
-            force_log("🚀 [3/4] Launching Async Micro-Kernels...")
+            # 4. Spawn Duplex Micro-Tasks
+            reader_task = asyncio.create_task(self._ingress_reader(client_ws, audio_queue, session_id))
+            feeder_task = asyncio.create_task(self._upstream_feeder(eleven_ws, audio_queue, session_id))
+            speaker_task = asyncio.create_task(self._egress_speaker(client_ws, eleven_ws, session_id, user_id))
             
-            reader_task = asyncio.create_task(self._network_reader(websocket, input_queue))
-            feeder_task = asyncio.create_task(self._model_feeder(model_session, input_queue)) # Fixed Args
-            speaker_task = asyncio.create_task(self._output_loop(websocket, model_session))
-            
-            force_log("💎 [4/4] ALL SYSTEMS GO. Waiting for Audio Packets...")
+            tasks.update({reader_task, feeder_task, speaker_task})
 
-            # 5. Watchdog (Wait for any failure or closure)
-            done, pending = await asyncio.wait(
-                [reader_task, feeder_task, speaker_task], 
-                return_when=asyncio.FIRST_COMPLETED
-            )
-            
-            # 6. Cleanup Protocol
-            force_log(f"🛑 Voice Session Closing... (Duration: {time.perf_counter() - start_time:.2f}s)")
-            for task in pending: 
-                task.cancel()
-                try: 
-                    await task 
-                except: 
-                    pass
+            # 5. Circuit Breaker Wait Loop
+            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
-        except WebSocketDisconnect:
-            force_log(f"👋 User Disconnected: {user_id}")
-        except Exception as e:
-            force_log(f"🔥 Critical Voice Failure: {e}", "ERROR")
-            try:
-                await websocket.send_text(json.dumps({"type": "error", "message": "Voice Core Restarting..."}))
-            except: pass
-        finally:
-            if model_session:
-                force_log("🧹 Cleaning up Model Session...")
-                await model_session.close()
-
-    async def _network_reader(self, websocket: WebSocket, queue: asyncio.Queue):
-        """
-        📡 NETWORK INGRESS (Layer 1).
-        Reads bytes from socket fast. Pushes to buffer.
-        """
-        force_log("📡 Network Reader: ACTIVE")
-        try:
-            while True:
-                message = await websocket.receive()
-                
-                if "bytes" in message:
-                    # 🌊 Backpressure Handling: Drop-Tail Strategy
-                    if queue.full():
-                        try: queue.get_nowait()
-                        except: pass
-                    
-                    await queue.put(message["bytes"])
-
-                elif "text" in message:
-                    # Handle Control Signals
-                    data = json.loads(message["text"])
-                    if data.get("type") == "INTERRUPT":
-                        force_log("⚡ INTERRUPT RECEIVED")
-                        pass 
-
-        except Exception as e:
-            force_log(f"❌ Network Reader Stopped: {e}")
-
-    async def _model_feeder(self, session, queue: asyncio.Queue):
-        """
-        🧠 INTELLIGENT ROUTER (Layer 2 - DEBUG MODE).
-        Feeds Model directly without VAD filtering.
-        """
-        force_log("🟢 Model Feeder: ACTIVE")
-        chunk_count = 0
-
-        try:
-            while True:
-                # 1. Pull Audio
-                audio_chunk = await queue.get()
-                chunk_count += 1
-                
-                # 2. Debug Logging (Every 20 chunks ~ 1 sec)
-                if chunk_count % 20 == 0:
-                     force_log(f"🎤 [Feeding GPU] Chunk #{chunk_count} | Size: {len(audio_chunk)} bytes")
-
-                # 3. Direct Push (No Logic, No Delay)
+            for task in done:
                 try:
-                    await session.push_audio(audio_chunk)
+                    task.result()
+                except (WebSocketDisconnect, ConnectionClosed):
+                    pass 
                 except Exception as e:
-                    force_log(f"🔥 Model Push Error: {e}", "ERROR")
-                
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            force_log(f"❌ Model Feeder Died: {e}", "ERROR")
+                    _structured_log("task_abnormal_termination", logging.ERROR, error=str(e), session_id=session_id)
 
-    async def _output_loop(self, websocket: WebSocket, session):
-        """
-        🗣️ EGRESS & UI CONTROLLER (Layer 3).
-        Streams audio back. Detects UI commands.
-        """
-        force_log("🔊 Speaker Loop: ACTIVE (Listening to Brain...)")
-        text_buffer = "" 
+        finally:
+            # 6. Deterministic Resource Teardown
+            _structured_log("session_teardown", duration_sec=round(time.perf_counter() - start_time, 2), session_id=session_id)
+            
+            for task in tasks:
+                if not task.done(): task.cancel()
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
 
+            if eleven_ws and not eleven_ws.closed:
+                with contextlib.suppress(Exception):
+                    await eleven_ws.close()
+
+    async def _inject_session_context(self, eleven_ws: websockets.WebSocketClientProtocol, user_id: str) -> None:
+        """Injects User DNA to align the ElevenLabs Agent persona natively."""
         try:
-            async for output in session.stream_output():
-                
-                # A. Debug Trace
-                if output.text_token:
-                    force_log(f"🗣️ [AI SAID]: {output.text_token}")
-
-                # B. Fast Audio Path
-                if output.audio_bytes:
-                    await websocket.send_bytes(output.audio_bytes)
-                
-                # C. Logic Path (UI Triggers)
-                if output.text_token:
-                    text_buffer += output.text_token
-                    
-                    # Optimization: Keep buffer small
-                    if len(text_buffer) > 100: 
-                        text_buffer = text_buffer[-50:] 
-
-                    # Check Trigger
-                    await self._check_ui_triggers(text_buffer, websocket)
-                    
-                    # Stream Subtitles
-                    await websocket.send_text(json.dumps({
-                        "type": "text_stream",
-                        "text": output.text_token
-                    }))
-                    
+            # Extract user DNA from central cache store (fallback safely)
+            dna_store = UserDnaStore(self.cache, None, MatrixConfig())
+            user_dna = await dna_store.get(int(user_id))
+            
+            init_payload = {
+                "type": "conversation_initiation_client_data",
+                "dynamic_variables": {
+                    "user_tier": user_dna.tier,
+                    "user_persona": user_dna.persona
+                }
+            }
+            await eleven_ws.send(json.dumps(init_payload))
         except Exception as e:
-            force_log(f"❌ Output Loop Stopped: {e}")
+            _structured_log("context_injection_skipped", logging.WARNING, error=str(e), user_id=user_id)
 
-    async def _check_ui_triggers(self, text_buffer: str, websocket: WebSocket):
-        """
-        🕵️ Pattern Matching Engine.
-        """
+    async def _ingress_reader(self, client_ws: WebSocket, queue: asyncio.Queue[bytes], session_id: str) -> None:
+        """Reads raw PCM from client, implements Drop-Oldest backpressure."""
+        while True:
+            message = await client_ws.receive()
+            
+            if "bytes" in message:
+                if queue.full():
+                    try:
+                        queue.get_nowait()
+                        _structured_log("audio_queue_overflow", logging.WARNING, session_id=session_id)
+                    except asyncio.QueueEmpty: pass
+                await queue.put(message["bytes"])
+
+            elif "text" in message:
+                try:
+                    data = json.loads(message["text"])
+                    if data.get("type") == ClientMessageType.INTERRUPT.value:
+                        # Clear buffer on interruption to immediately halt processing
+                        while not queue.empty(): queue.get_nowait()
+                except json.JSONDecodeError: pass
+
+    async def _upstream_feeder(self, eleven_ws: websockets.WebSocketClientProtocol, queue: asyncio.Queue[bytes], session_id: str) -> None:
+        """Pushes Base64 encoded audio to ElevenLabs."""
+        while True:
+            audio_chunk = await queue.get()
+            payload = {"user_audio_chunk": base64.b64encode(audio_chunk).decode("utf-8")}
+            await eleven_ws.send(json.dumps(payload))
+
+    async def _egress_speaker(self, client_ws: WebSocket, eleven_ws: websockets.WebSocketClientProtocol, session_id: str, user_id: str) -> None:
+        """Parses upstream events: Routes Audio, Subtitles, and Client Tool Calls."""
+        async for message in eleven_ws:
+            try:
+                data = json.loads(message)
+            except json.JSONDecodeError: continue
+
+            msg_type = data.get("type")
+
+            # 1. Ultra-Low Latency Audio Path
+            if msg_type == "audio":
+                b64_audio = data.get("audio_base64")
+                if b64_audio:
+                    with contextlib.suppress(Exception):
+                        await client_ws.send_bytes(base64.b64decode(b64_audio))
+
+            # 2. Text/Subtitle Path
+            elif msg_type == "agent_response":
+                text_token = data.get("agent_response_event", {}).get("agent_response")
+                if text_token:
+                    with contextlib.suppress(Exception):
+                        await client_ws.send_text(json.dumps({"type": ClientMessageType.TEXT_STREAM.value, "text": text_token}))
+
+            # 3. INTERCEPTOR: Client Tool Calls (The Bridge to Commerce OS)
+            elif msg_type == "client_tool_call":
+                tool_call_id = data.get("tool_call_id")
+                tool_name = data.get("tool_name")
+                params = data.get("parameters", {})
+                
+                _structured_log("tool_call_intercepted", tool=tool_name, session_id=session_id)
+                
+                # Spawn non-blocking task so audio ingestion continues
+                asyncio.create_task(
+                    self._handle_client_tool_call(eleven_ws, client_ws, tool_call_id, tool_name, params, user_id, session_id)
+                )
+
+    async def _handle_client_tool_call(
+        self, 
+        eleven_ws: websockets.WebSocketClientProtocol, 
+        client_ws: WebSocket, 
+        tool_call_id: str, 
+        tool_name: str, 
+        params: Dict[str, Any], 
+        user_id: str,
+        session_id: str
+    ) -> None:
+        """Routes the tool call to the Domain Executor and returns the payload to ElevenLabs."""
         try:
-            match = re.search(r'\[SHOW:\s*(.*?)\]', text_buffer)
-            if match:
-                query = match.group(1).strip()
-                force_log(f"⚡ UI TRIGGER DETECTED: {query}")
+            # Enforce strict execution timeout
+            async with asyncio.timeout(VoiceConfig.TOOL_EXECUTION_TIMEOUT_SEC):
                 
-                await websocket.send_text(json.dumps({
-                    "type": "control",
-                    "payload": {
-                        "action": "VOICE_SEARCH",
-                        "query": query
-                    }
-                }))
+                if tool_name == "search_global_inventory":
+                    result = await self.tool_executor.search_global_inventory(params, user_id, client_ws)
+                
+                elif tool_name == "execute_cart_action":
+                    result = await self.tool_executor.execute_cart_action(params, user_id, client_ws)
+                
+                elif tool_name == "verify_phantom_product":
+                    result = await self.tool_executor.verify_phantom_product(params, user_id)
+                
+                else:
+                    result = json.dumps({"error": f"Unknown tool: {tool_name}"})
+
+        except asyncio.TimeoutError:
+            _structured_log("tool_execution_timeout", logging.ERROR, tool=tool_name, session_id=session_id)
+            result = json.dumps({"error": "Internal database timeout. Inform user gracefully."})
         except Exception as e:
-            force_log(f"⚠️ Trigger Error: {e}")
+            _structured_log("tool_execution_crash", logging.ERROR, error=str(e), tool=tool_name, session_id=session_id)
+            result = json.dumps({"error": "System failure during execution."})
+
+        # Return execution result back to ElevenLabs
+        try:
+            response_payload = {
+                "type": "client_tool_result",
+                "tool_call_id": tool_call_id,
+                "result": result,
+                "is_error": "error" in result.lower()
+            }
+            await eleven_ws.send(json.dumps(response_payload))
+        except Exception as e:
+            _structured_log("tool_result_dispatch_failed", logging.ERROR, error=str(e), session_id=session_id)
+
+    async def _send_client_error(self, client_ws: WebSocket, message: str) -> None:
+        """Graceful degradation signaling."""
+        with contextlib.suppress(Exception):
+            await client_ws.send_text(json.dumps({"type": ClientMessageType.ERROR.value, "message": message}))

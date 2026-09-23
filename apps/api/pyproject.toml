@@ -15,58 +15,58 @@ priority = "explicit"
 
 [tool.poetry.dependencies]
 python = "^3.13.14"
-
+websockets = "17.1"
 # --- CORE FRAMEWORK ---
 
 fastapi = "^0.141.1"
-uvicorn = {version = "^0.52.0", extras = ["standard"]}
-pydantic = {version = "^2.13.4", extras = ["email"]}
-pydantic-settings = "2.14.2"
+uvicorn = {version = "^0.53.0", extras = ["standard"]}
+pydantic = {version = "^2.13.5", extras = ["email"]}
+pydantic-settings = "2.15.0"
 starlette-prometheus = "0.10.0"
 prometheus-fastapi-instrumentator = "8.1.0"
 slowapi = "^0.1.10"
 
 # --- DATABASE & ORM ---
-sqlmodel = "^0.0.39"
-sqlalchemy = "^2.0.51"
-alembic = "^1.18.5"
+sqlmodel = "^0.0.46"
+sqlalchemy = "^2.0.54"
+alembic = "^1.20.0"
 asyncpg = "^0.31.0"
-psycopg = "^3.3.4"
+psycopg = "^3.3.6"
 psycopg2-binary = "^2.9.12"
 pgvector = "^0.5.0"
 redis = "8.1.0" # FROZEN: v8.0.0 introduces breaking changes
-pymilvus = "^3.0.1" # FROZEN: v3.0.0 introduces breaking changes
+pymilvus = "^3.0.2" # FROZEN: v3.0.0 introduces breaking changes
 opensearch-py = "^3.2.0"
 
 # --- INFRASTRUCTURE & UTILS ---
 aio-pika = "^10.0.1"
 aiohttp = "^3.14.3"
-anyio = "^4.14.2"
+anyio = "^4.15.1"
 urllib3 = "^2.7.0"
 requests = "^2.34.2"
 httpx = "^0.28.1"
 python-multipart = "0.0.32"
 tenacity = "^9.1.4"
 structlog = "^26.1.0"
-ujson = "^5.13.0"
-orjson = "^3.11.9"
-python-dotenv = "^1.2.2"
-packaging = "26.2"
+ujson = "^6.0.0"
+orjson = "^3.12.0"
+python-dotenv = "^1.2.3"
+packaging = "26.3"
 certifi = "^2026.7.22"
-watchfiles = "^1.2.0"
+watchfiles = "^1.3.0"
 psutil = "7.2.2"
 
 # --- SECURITY & AUTH ---
 bcrypt = "^5.0.0"
-pwdlib = {extras = ["argon2"], version = "^0.3.0"}
+pwdlib = {extras = ["argon2"], version = "^0.3.1"}
 python-jose = {version = "3.5.0", extras = ["cryptography"]}
 
 # --- 3RD PARTY INTEGRATIONS ---
-stripe = "^15.4.0" # FROZEN: v15.2.0 contains Stripe API breaking changes
-pywebpush = "^2.3.0"
-groq = "^1.6.0"
-ddgs = "^9.14.4"
-tavily-python = "^0.7.27"
+stripe = "^15.6.1" # FROZEN: v15.2.0 contains Stripe API breaking changes
+pywebpush = "^2.5.0"
+groq = "^1.7.0"
+ddgs = "^9.16.0"
+tavily-python = "^0.8.4"
 
 # --- MACHINE LEARNING & AI ---
 # 🛑 PINNED TO EXPLICIT CPU SOURCE TO PREVENT RESOLVER CRASH & BLOAT
@@ -79,12 +79,12 @@ torchaudio = [
     {version = "2.6.0", markers = "sys_platform == 'darwin'"},
     {version = "2.6.0+cpu", source = "pytorch-cpu", markers = "sys_platform == 'linux'"}
 ]
-numpy = "2.5.1"
-transformers = "5.14.1"
-sentence-transformers = "5.6.1"
+numpy = "2.5.3"
+transformers = "5.17.0"
+sentence-transformers = "6.1.0"
 sentencepiece = "^0.2.2"
-accelerate = "^1.14.0"
-huggingface-hub = "1.26.0"
+accelerate = "^1.15.0"
+huggingface-hub = "1.32.0"
 pillow = "^12.3.0"
 
 # --- DEV TOOLS ---
@@ -93,7 +93,7 @@ faker-commerce = "1.0.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.1.1"
-trio = "^0.33.0"
+trio = "^0.34.0"
 
 [build-system]
 requires = ["poetry-core"]

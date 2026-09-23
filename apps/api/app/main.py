@@ -26,6 +26,8 @@ from app.services.cache_service import IAsyncCacheClient, NoOpCacheClient, Redis
 from app.services.rabbitmq_service import get_rabbitmq_service
 from app.websockets.tracking_ws import router as tracking_router
 
+from app.websockets.voice_ws import router as voice_router
+
 logger = logging.getLogger(__name__)
 
 STATIC_DIRECTORY = Path("static")
@@ -34,6 +36,22 @@ RESPONSE_ROUTING_KEY = "airdeliver.ai.response.out"
 METRICS_ENDPOINT = "/metrics"
 HEALTH_ENDPOINT = "/"
 
+def register_routes(app: FastAPI, settings: CoreSettings) -> None:
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIRECTORY)), name="static")
+
+    # Register REST API
+    app.include_router(api_router, prefix=settings.API_V1_STR)
+
+    # Register Tracking WebSockets
+    app.include_router(tracking_router, prefix="/ws")
+
+    # --- NEW ROUTER REGISTRATION ---
+    # Mounts at: /api/v1/ordering/voice-stream
+    app.include_router(voice_router, prefix=f"{settings.API_V1_STR}/ordering")
+
+    @app.get(HEALTH_ENDPOINT, tags=["health"])
+    async def read_root() -> dict[str, str]:
+        return build_health_payload(settings)
 
 class WebSocketManagerProtocol(Protocol):
     async def send_to_user(self, user_id: str, message: str) -> None:

@@ -734,7 +734,7 @@ class FreeLLMService:
                 ],
                 model=self.models.reflex_model,
                 temperature=0.7,
-                max_tokens=180,
+                max_tokens=1800,
                 response_format={"type": "json_object"},
             )
             raw = completion.choices[0].message.content or ""
@@ -1437,7 +1437,7 @@ Output ONE line of search keywords only.
                 ],
                 model=self.models.brain_model,
                 temperature=0.1,
-                max_tokens=400,
+                max_tokens=1000,
                 response_format={"type": "json_object"},
             )
             strategy = _parse_json_model(SearchStrategy, completion.choices[0].message.content or "")
@@ -1815,7 +1815,7 @@ Output ONE line of search keywords only.
                 ],
                 model=self.models.brain_model,
                 temperature=0.2,
-                max_tokens=400,
+                max_tokens=1000,
                 response_format={"type": "json_object"},
             )
             parsed = _parse_json_model(CognitiveResponse, completion.choices[0].message.content or "")
