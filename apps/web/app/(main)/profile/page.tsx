@@ -10,147 +10,170 @@ import useSWR from 'swr';
 import { api } from '@/lib/api'; 
 import { redirect } from 'next/navigation';
 import { toast } from 'sonner'; 
-import {
-    User, Mail, MapPin, Phone, Clock, Loader2, LogOut, AlertCircle,
-    CreditCard, Package, ShieldCheck, Edit3, KeyRound, Settings, Camera, ChevronRight, Box, Lock, Activity
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Preload } from '@react-three/drei';
+import * as THREE from 'three';
+
+// Icons
+import { 
+  Camera, ShieldCheck, LogOut, Settings, Package, Key, User
 } from 'lucide-react';
+
+// Modals
 import {  
   ViewOrdersModal, 
   EditProfileDetailsModal, 
   ChangePasswordModal 
 } from '@/components/profile/ProfileModals';
-import dynamic from 'next/dynamic';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Points, PointMaterial } from '@react-three/drei';
-import * as THREE from 'three';
 
 // ============================================================================
 // --- TYPE DEFINITIONS ---
 // ============================================================================
-
-interface ApiError {
-    message?: string;
-    response?: {
-        status?: number;
-    };
-}
-
 interface UserProfileData {
     id: number; email: string; full_name?: string | null; role?: string | null;
     phone_number?: string | null; address?: string | null; avatar_url?: string | null;
     country?: string | null; city?: string | null; created_at?: string | null;
     orders_completed?: number; items_favorited?: number;
-    stripe_customer_id?: string | null; 
 }
-
-interface OrderRead {
-    id: number; user_id: number; status: string; total_price: number;
-    created_at: string; items: OrderItemRead[];
-}
-
-interface OrderItemRead {
-    id: number; product_id: number; quantity: number;
-    price_per_unit: number; product?: ProductRead | null;
-}
-
-interface ProductRead {
-    id: number; name: string; description?: string | null;
-    price: number; inventory: number; image_url?: string | null;
-}
-
-interface PaginatedOrdersResponse {
-    total: number; page: number; limit: number; orders: OrderRead[];
-}
-
-interface DefaultPaymentData {
-    brand: string | null;
-    last4: string | null;
-}
+interface DefaultPaymentData { brand: string | null; last4: string | null; }
 
 // ============================================================================
-// --- 1. ARCHITECTURAL BACKGROUND (Premium Network Globe) ---
+// --- 1. OPTIMIZED 3D BACKGROUND (WHITE STARS) ---
 // ============================================================================
-const NetworkGlobe = () => {
-  const ref = useRef<THREE.Group>(null!);
-  
-  // Create a sophisticated Fibonacci sphere (Apple/Stripe style globe)
-  const points = useMemo(() => {
-    const pts = [];
-    const numPoints = 2500;
-    const radius = 12;
-    for (let i = 0; i < numPoints; i++) {
-        const phi = Math.acos(-1 + (2 * i) / numPoints);
-        const theta = Math.sqrt(numPoints * Math.PI) * phi;
-        pts.push(
-            radius * Math.cos(theta) * Math.sin(phi),
-            radius * Math.sin(theta) * Math.sin(phi),
-            radius * Math.cos(phi)
-        );
-    }
-    return new Float32Array(pts);
+const premiumEasing = [0.16, 1, 0.3, 1];
+
+const heroCanvasConfig = {
+  camera: { position: [0, 0, 15] as [number, number, number], fov: 75 },
+  dpr: [1, 1.2] as [number, number],
+  gl: { antialias: false, powerPreference: "high-performance" as const, alpha: true, depth: false, stencil: false },
+};
+
+const createParticlePositions = (count: number, radius: number): Float32Array => {
+  const positions = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const r = radius * Math.cbrt(Math.random());
+    const theta = Math.random() * 2 * Math.PI;
+    const phi = Math.acos(2 * Math.random() - 1);
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    positions[i * 3 + 2] = r * Math.cos(phi);
+  }
+  return positions;
+};
+
+const ParticleField = memo(({ count, radius, color, size, rotationSpeed }: any) => {
+  const groupRef = useRef<THREE.Group>(null!);
+  const pointsRef = useRef<THREE.Points>(null!);
+  const positions = useMemo(() => createParticlePositions(count, radius), [count, radius]);
+  const materialColor = useMemo(() => new THREE.Color(color), [color]);
+
+  useEffect(() => {
+    if (pointsRef.current) pointsRef.current.matrixAutoUpdate = false;
   }, []);
 
-  useFrame((state, delta) => {
-    if (ref.current) {
-      ref.current.rotation.y += delta * 0.05; // Slow, elegant rotation
-      ref.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.1) * 0.1; // Gentle floating
-    }
+  useFrame((_, delta) => {
+    if (!groupRef.current) return;
+    const safeDelta = delta > 0.1 ? 0.1 : delta;
+    groupRef.current.rotation.x += safeDelta * rotationSpeed.x;
+    groupRef.current.rotation.y += safeDelta * rotationSpeed.y;
+    groupRef.current.rotation.z += safeDelta * rotationSpeed.z;
   });
 
   return (
-    <group ref={ref} position={[0, -5, -15]} rotation={[0.2, 0, 0]}>
-      <Points positions={points}>
-        <PointMaterial transparent color="#ffffff" size={0.06} opacity={0.25} depthWrite={false} />
-      </Points>
+    <group ref={groupRef} position={[0, 0, -60]}>
+      <points ref={pointsRef} frustumCulled={false}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+        </bufferGeometry>
+        <pointsMaterial 
+          transparent color={materialColor} size={size} sizeAttenuation depthWrite={false} 
+          toneMapped={false} opacity={0.8} 
+          onBeforeCompile={(shader) => {
+            shader.fragmentShader = shader.fragmentShader.replace(
+              'void main() {',
+              `void main() {
+                vec2 pt = gl_PointCoord - vec2(0.5);
+                if (dot(pt, pt) > 0.20) discard;`
+            );
+          }}
+        />
+      </points>
     </group>
   );
-};
-
-const ProfileBackground = memo(() => {
-    return (
-        <>
-            <fog attach="fog" args={['#050505', 10, 40]} />
-            <ambientLight intensity={0.4} />
-            <directionalLight position={[10, 10, 5]} intensity={1} color="#ffffff" />
-            <directionalLight position={[-10, -10, -5]} intensity={1} color="#3b82f6" />
-            <NetworkGlobe />
-        </>
-    );
 });
-ProfileBackground.displayName = "ProfileBackground";
-
-const DynamicProfileBackground = dynamic(() => Promise.resolve(ProfileBackground), { 
-    ssr: false,
-    loading: () => null
-});
+ParticleField.displayName = 'ParticleField';
 
 // ============================================================================
-// --- 2. MAIN PROFILE COMPONENT (Corporate Premium UI) ---
+// --- 2. FLOATING PRODUCT CARDS ---
+// ============================================================================
+const ProfileFloatingProduct = memo(({
+    title, image, category, delay, positionClasses, sizeClasses, colorCls, rotation
+}: any) => (
+    <motion.div
+        className={`absolute z-0 ${positionClasses} ${sizeClasses} will-change-transform`}
+        initial={{ opacity: 0, scale: 0.8, rotate: rotation + 10 }}
+        animate={{ opacity: 1, scale: 1, rotate: rotation }}
+        transition={{
+            opacity: { duration: 1, delay },
+            scale: { duration: 1, delay, type: "spring", stiffness: 100, damping: 20 }
+        }}
+    >
+        <motion.div
+            animate={{ y: [0, -15, 0] }}
+            transition={{ duration: 6 + delay, repeat: Infinity, ease: "easeInOut" }}
+            className="w-full h-full will-change-transform"
+        >
+            <div className={`relative w-full h-full rounded-[20px] lg:rounded-[32px] bg-[#0D0D0C]/80 backdrop-blur-2xl border border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5)] overflow-hidden group hover:scale-105 transition-transform duration-500 hover:z-50 pointer-events-none ${colorCls}`}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 lg:via-black/20 to-transparent z-10" />
+                <Image src={image} alt={category} fill sizes="(max-width: 768px) 30vw, 20vw" className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
+
+                <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
+                    <span className="text-[7px] lg:text-[9px] font-mono uppercase tracking-[0.2em] opacity-70 text-white mix-blend-overlay line-clamp-1">{category}</span>
+                    <h3 className="text-[10px] lg:text-sm font-bold text-white tracking-wide leading-tight line-clamp-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
+                </div>
+
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[20px] lg:rounded-[32px] ring-1 lg:ring-2 ring-current ring-inset mix-blend-overlay" />
+            </div>
+        </motion.div>
+    </motion.div>
+));
+ProfileFloatingProduct.displayName = 'ProfileFloatingProduct';
+
+// ============================================================================
+// --- 3. ICON BUTTON COMPONENT ---
+// ============================================================================
+const IconButton = memo(({ icon: Icon, label, onClick, colorClass, delay }: any) => (
+    <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: delay, ease: premiumEasing }}
+        onClick={onClick}
+        whileHover={{ scale: 1.15, y: -2 }}
+        whileTap={{ scale: 0.95 }}
+        className="group relative flex items-center justify-center w-12 h-12 rounded-full bg-white/5 border border-white/10 backdrop-blur-md transition-all duration-300 hover:bg-white/10 hover:border-white/20 shadow-lg cursor-pointer transform-gpu"
+    >
+        <div className={`absolute -inset-[2px] rounded-full blur-md transition-all duration-500 -z-10 opacity-0 group-hover:opacity-60 ${colorClass}`} />
+        <Icon size={18} className="text-gray-300 group-hover:text-white transition-colors duration-300" />
+        
+        {/* Tooltip */}
+        <span className="absolute -bottom-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-[10px] font-mono tracking-wider text-gray-300 whitespace-nowrap bg-black/80 px-2 py-1 rounded-md border border-white/10">
+            {label}
+        </span>
+    </motion.button>
+));
+IconButton.displayName = 'IconButton';
+
+
+// ============================================================================
+// --- 4. MAIN PAGE COMPONENT ---
 // ============================================================================
 export default function ProfilePage() {
     const { data: session, status: sessionStatus, update: updateSession } = useSession();
-    
-    const profileApiUrl = '/users/me';
-    const ordersApiUrl = '/orders/me?page=1&limit=3';
-    const paymentApiUrl = '/users/me/default-payment-method'; 
     const swrFetcher = (url: string) => api.get(url).then(res => res.data);
 
-    const { data: userData, error: userError, isLoading: isLoadingUser, mutate: mutateProfile } = useSWR<UserProfileData>(
-        sessionStatus === 'authenticated' ? profileApiUrl : null, swrFetcher, { revalidateOnFocus: false }
+    const { data: userData, mutate: mutateProfile } = useSWR<UserProfileData>(
+        sessionStatus === 'authenticated' ? '/users/me' : null, swrFetcher, { revalidateOnFocus: false }
     );
-    const { data: ordersData, isLoading: isLoadingOrders } = useSWR<PaginatedOrdersResponse>(
-        sessionStatus === 'authenticated' ? ordersApiUrl : null, swrFetcher, { revalidateOnFocus: false }
-    );
-    const { data: paymentData } = useSWR<DefaultPaymentData>(
-        sessionStatus === 'authenticated' ? paymentApiUrl : null, swrFetcher, { revalidateOnFocus: false }
-    );
-
-    useEffect(() => {
-        const isAuthError = userError && ((userError as any)?.response?.status === 401 || String((userError as any)?.message).includes('401'));
-        if (isAuthError) {
-            signOut({ callbackUrl: '/login' });
-        }
-    }, [userError]);
 
     const [isClient, setIsClient] = useState(false);
     const [isEditDetailsModalOpen, setIsEditDetailsModalOpen] = useState(false);
@@ -160,34 +183,7 @@ export default function ProfilePage() {
 
     useEffect(() => { setIsClient(true); }, []);
 
-    const joinedDate = useMemo(() => (
-        userData?.created_at ? new Date(userData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : null
-    ), [userData?.created_at]);
-
-    const realShippingInfo = useMemo(() => (
-        [userData?.address, userData?.city, userData?.country].filter(Boolean).join(', ') || null
-    ), [userData?.address, userData?.city, userData?.country]);
-
-    const handleProfileDetailsSave = async (updatedData: Partial<UserProfileData>) => {
-        if (!session?.accessToken) { toast.error("Authentication error."); return; }
-        toast.promise((async () => {
-                const response = await api.put<UserProfileData>(profileApiUrl, updatedData);
-                mutateProfile(response.data, false);
-                if (updatedData.full_name && session?.user) await updateSession({ user: { ...session.user, name: updatedData.full_name } });
-                setIsEditDetailsModalOpen(false);
-                return response.data;
-            })(), { loading: 'Updating profile...', success: 'Profile updated successfully.', error: 'Failed to update profile.' }
-        );
-    };
-
-    const handlePasswordSave = async (currentPassword: string, newPassword: string) => {
-        if (!session?.accessToken) return;
-        toast.promise((async () => {
-                await api.post('/users/me/change-password', { current_password: currentPassword, new_password: newPassword });
-                setIsPasswordModalOpen(false);
-             })(), { loading: 'Updating security settings...', success: 'Password changed successfully.', error: 'Failed to change password.' }
-        );
-    };
+    if (sessionStatus === 'unauthenticated') redirect('/login');
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -202,314 +198,170 @@ export default function ProfilePage() {
         );
     };
 
-    const isSystemLoading = !isClient || sessionStatus === 'loading' || (sessionStatus === 'authenticated' && isLoadingUser);
-
-    const isUnauthorizedError = (error: unknown): error is ApiError => {
-        if (typeof error !== 'object' || error === null) return false;
-        const err = error as ApiError;
-        return err.response?.status === 401 || String(err.message).includes('401');
-    };
-    if (sessionStatus === 'unauthenticated') {
-        redirect('/login');
-    }
-
-    if (isClient && userError) {
-        if (isUnauthorizedError(userError)) {
-            return <LoadingScreen key="loading" />;
-        }
-
-        const errorMessage = userError instanceof Error
-            ? userError.message
-            : 'An unexpected error occurred';
-
-        return <ErrorDisplay message={errorMessage} />;
-    }
-
     const profileData = userData || {} as UserProfileData;
-    const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || session?.user?.email || 'A')}&background=E5E7EB&color=000000&bold=true&size=128`;
+    const userImage = profileData?.avatar_url || session?.user?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.full_name || 'User')}&background=000000&color=ffffff&size=128`;
+    
+    // 8 Floating Product Cards (Identical to Hero Section Concept)
+    const HERO_CARDS = [
+      {
+        title: "Apple Vision Pro", category: "Neural Tech", delay: 0.1, rotation: -8,
+        image: "https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop",
+        positionClasses: "top-[1%] left-[6%] lg:top-[10%] lg:left-[5%]",
+        sizeClasses: "w-20 h-28 lg:w-48 lg:h-64", colorCls: "hover:shadow-cyan-500/20 text-cyan-400"
+      },
+      {
+        title: "PS5", category: "Wearables", delay: 0.2, rotation: 6,
+        image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop",
+        positionClasses: "top-[1%] right-[6%] lg:top-[10%] lg:right-[5%]",
+        sizeClasses: "w-20 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-purple-500/20 text-purple-400"
+      },
+      {
+        title: "Dyson", category: "Aesthetic", delay: 0.3, rotation: -4,
+        image: "https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop",
+        positionClasses: "top-[50%] -left-[4%] lg:top-[45%] lg:left-[2%]",
+        sizeClasses: "w-20 h-28 lg:w-40 lg:h-52", colorCls: "hover:shadow-pink-500/20 text-pink-400"
+      },
+      {
+        title: "Headphones", category: "Audio", delay: 0.4, rotation: 8,
+        image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop",
+        positionClasses: "top-[50%] -right-[3%] lg:top-[45%] lg:right-[2%]",
+        sizeClasses: "w-20 h-28 lg:w-44 lg:h-48", colorCls: "hover:shadow-amber-500/20 text-amber-400"
+      },
+      {
+        title: "Leather Handbag", category: "Bags", delay: 0.5, rotation: -6,
+        image: "https://images.unsplash.com/photo-1691480150204-66dd1eb77391?q=80&w=600&auto=format&fit=crop",
+        positionClasses: "top-[70%] left-[2%] lg:bottom-[25%] lg:left-[8%]",
+        sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-emerald-500/20 text-emerald-400"
+      },
+      {
+        title: "Iphone 17 pro max", category: "Electronics", delay: 0.6, rotation: 5,
+        image: "https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop",
+        positionClasses: "top-[70%] right-[1%] lg:bottom-[25%] lg:right-[8%]",
+        sizeClasses: "w-20 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-blue-500/20 text-blue-400"
+      },
+      {
+        title: "Nike Air Max", category: "Fashion", delay: 0.7, rotation: -5,
+        image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop",
+        positionClasses: "bottom-[0%] left-[20%] lg:bottom-[5%] lg:left-[25%]",
+        sizeClasses: "w-20 h-28 lg:w-48 lg:h-48", colorCls: "hover:shadow-red-500/20 text-red-400"
+      },
+      {
+        title: "Galaxy Buds", category: "Neural Tech", delay: 0.8, rotation: 7,
+        image: "https://images.unsplash.com/photo-1600374917838-1df876d745c7?q=80&w=600&auto=format&fit=crop",
+        positionClasses: "bottom-[0%] right-[20%] lg:bottom-[5%] lg:right-[25%]",
+        sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-cyan-500/20 text-cyan-400"
+      }
+    ];
+
+    if (!isClient) return <div className="min-h-screen bg-black" />;
 
     return (
-        <>
+        <section className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-0 lg:pb-0 font-sans">
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
 
-            <main className="relative min-h-screen w-full bg-[#050505] text-gray-200 pt-28 pb-16 px-4 md:px-8 overflow-x-hidden">
-                {/* 3D Background */}
-                <div className="fixed inset-0 z-0 opacity-80 pointer-events-none transform-gpu">
-                    <Canvas camera={{ position: [0, 2, 15], fov: 50 }} dpr={[1, 2]} performance={{ min: 0.5 }}>
-                        <Suspense fallback={null}><DynamicProfileBackground /></Suspense>
+            {/* 3D Background Canvas with White Stars */}
+            <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }}>
+                <Suspense fallback={null}>
+                    <Canvas {...heroCanvasConfig}>
+                        <ParticleField count={5000} radius={66} color="#ffffff" size={0.065} rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} />
+                        <Preload all />
                     </Canvas>
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,#050505_100%)]" />
-                </div>
+                </Suspense>
+            </div>
 
-                <AnimatePresence mode="wait">
-                    {isSystemLoading ? (
-                        <LoadingScreen key="loading" />
-                    ) : (
+            {/* Very Subtle Background Lighting */}
+            <div className="absolute top-[10%] left-[10%] w-[50%] h-[50%] rounded-full bg-cyan-600/5 blur-[120px] pointer-events-none mix-blend-screen" />
+            <div className="absolute bottom-[10%] right-[10%] w-[50%] h-[50%] rounded-full bg-blue-600/5 blur-[120px] pointer-events-none mix-blend-screen" />
+            
+            <div className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10 h-full">
+                <div className="w-full flex flex-col items-center justify-center min-h-[75vh] lg:min-h-[100svh] relative">
+                    
+                    {/* --- COMPACT FLOATING CENTRAL CONTENT --- */}
+                    <div className="flex flex-col items-center text-center w-full max-w-xs relative z-30 pointer-events-auto">
+                        
                         <motion.div 
-                            key="content"
-                            initial={{ opacity: 0, y: 20, filter: "blur(8px)" }}
-                            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="relative z-10 w-full max-w-6xl mx-auto space-y-8"
+                            initial={{ opacity: 0, y: 30, filter: "blur(10px)" }} 
+                            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} 
+                            transition={{ duration: 0.8, ease: premiumEasing }}
+                            className="flex flex-col items-center w-full"
                         >
-                            {/* --- HEADER: USER IDENTITY --- */}
-                            <header className="relative w-full rounded-3xl border border-white/[0.08] bg-white/[0.02] p-8 md:p-12 backdrop-blur-2xl shadow-2xl">
-                                <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                                
-                                <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
-                                    {/* Avatar */}
-                                    <div className="relative group shrink-0">
-                                        <div className="relative h-32 w-32 md:h-40 md:w-40 rounded-full p-1 bg-gradient-to-b from-white/20 to-transparent shadow-2xl">
-                                            <div className="absolute inset-0 bg-black rounded-full" />
-                                            <Image
-                                                src={userImage} alt="Profile" fill 
-                                                className="rounded-full object-cover relative z-10" unoptimized
-                                            />
-                                            <div 
-                                                className="absolute inset-0 z-20 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center cursor-pointer rounded-full backdrop-blur-sm" 
-                                                onClick={() => fileInputRef.current?.click()}
-                                            >
-                                                <Camera className="text-white h-6 w-6 mb-2" />
-                                                <span className="text-xs font-medium text-white">Edit</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Identity Data */}
-                                    <div className="flex-1 text-center md:text-left space-y-3 pt-4">
-                                        <div className="inline-flex items-center gap-1.5 text-emerald-400/90">
-                                            <ShieldCheck size={14} />
-                                            <span className="text-white text-[11px] font-extralight tracking-[0.4em] max-w-sm">VERIFIED</span>
-                                        </div>
-                                        
-                                        <h1 className="text-4xl md:text-5xl font-semibold text-white tracking-tight">
-                                            {profileData?.full_name || 'Account Setup'}
-                                        </h1>
-                                        
-                                        <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-400">
-                                            <span className="flex items-center gap-1.5"><Mail size={16} /> {profileData.email}</span>
-                                            {joinedDate && <span className="flex items-center gap-1.5"><Clock size={16} /> Member since {joinedDate}</span>}
-                                        </div>
-
-                                        <div className="flex flex-wrap items-center justify-center md:justify-start gap-8 pt-4">
-                                            <StatItem label="Total Orders" value={profileData?.orders_completed || 0} />
-                                            <div className="w-px h-8 bg-white/10" />
-                                            <StatItem label="Saved Items" value={profileData?.items_favorited || 0} />
-                                        </div>
-                                    </div>
+                            {/* Compact Floating Avatar */}
+                            <div 
+                                className="relative w-20 h-20 lg:w-24 lg:h-24 mx-auto mb-5 rounded-full border border-white/20 bg-black overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.1)] cursor-pointer group hover:scale-105 transition-transform duration-500"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-white/10 z-10 mix-blend-overlay" />
+                                <Image src={userImage} alt="Profile" fill className="object-cover opacity-90 group-hover:opacity-40 transition-opacity duration-300" unoptimized />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                    <Camera className="text-white w-5 h-5 drop-shadow-md" />
                                 </div>
-                            </header>
-
-                            {/* --- GRID: INFORMATION & SETTINGS --- */}
-                            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                                
-                                {/* Left Column: Personal Data & Orders */}
-                                <div className="xl:col-span-2 space-y-8">
-                                    {/* Personal Info */}
-                                    <GlassPanel title="Personal Information" icon={<User className="text-gray-400" />}>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                                            <DataField label="Full Name" value={profileData?.full_name} />
-                                            <DataField label="Email Address" value={profileData?.email} />
-                                            <DataField label="Phone Number" value={profileData?.phone_number} />
-                                            <DataField label="Shipping Address" value={realShippingInfo} />
-                                        </div>
-                                    </GlassPanel>
-
-                                    {/* Connectivity / Integrations */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <IntegrationCard 
-                                            icon={<CreditCard className="text-gray-300" />} title="Payment Method"
-                                            status={paymentData?.brand ? 'Connected' : 'Not Configured'}
-                                            value={paymentData?.brand ? `${paymentData.brand.toUpperCase()} •••• ${paymentData.last4}` : 'Add a payment method'}
-                                            isActive={!!paymentData?.brand}
-                                        />
-                                        <IntegrationCard 
-                                            icon={<MapPin className="text-gray-300" />} title="Delivery Location"
-                                            status={realShippingInfo ? 'Verified' : 'Pending'}
-                                            value={realShippingInfo ? `${userData?.city}, ${userData?.country}` : 'Add delivery location'}
-                                            isActive={!!realShippingInfo}
-                                        />
-                                    </div>
-
-                                    {/* Recent Orders */}
-                                    <GlassPanel title="Order History" icon={<Box className="text-gray-400" />} action={{ label: "View All", onClick: () => setIsOrdersModalOpen(true) }}>
-                                        {isLoadingOrders ? (
-                                            <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
-                                        ) : ordersData?.orders && ordersData.orders.length > 0 ? (
-                                            <div className="space-y-3">
-                                                {ordersData.orders.map(order => <OrderCard key={order.id} order={order} />)}
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center py-10 text-gray-500 bg-white/[0.02] rounded-2xl border border-dashed border-white/10">
-                                                <Package className="w-10 h-10 mb-3 text-gray-600" />
-                                                <p className="text-sm">No orders placed yet.</p>
-                                            </div>
-                                        )}
-                                    </GlassPanel>
-                                </div>
-
-                                {/* Right Column: Account Settings */}
-                                <div className="xl:col-span-1">
-                                    <div className="sticky top-32 space-y-6">
-                                        <div className="rounded-3xl border border-white/[0.08] bg-white/[0.02] backdrop-blur-3xl p-6 shadow-2xl">
-                                            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-                                                <Settings className="w-5 h-5 text-gray-400" /> 
-                                                Account Settings
-                                            </h3>
-                                            
-                                            <div className="space-y-2">
-                                                <SettingMenuButton icon={<Edit3 size={18}/>} title="Edit Profile" onClick={() => setIsEditDetailsModalOpen(true)} />
-                                                <SettingMenuButton icon={<Lock size={18}/>} title="Security" onClick={() => setIsPasswordModalOpen(true)} />
-                                            </div>
-                                            
-                                            <div className="h-px bg-white/[0.08] my-6" />
-                                            
-                                            <button 
-                                                onClick={() => signOut({ callbackUrl: '/login' })}
-                                                className="w-full flex items-center justify-between p-4 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-transparent hover:border-white/10 transition-all text-red-400 group"
-                                            >
-                                                <span className="text-sm font-medium">Sign Out</span>
-                                                <LogOut size={16} className="group-hover:translate-x-1 transition-transform" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
                             </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </main>
 
-            {/* Modals */}
-            <EditProfileDetailsModal isOpen={isEditDetailsModalOpen} onClose={() => setIsEditDetailsModalOpen(false)} userData={profileData!} onSave={handleProfileDetailsSave} />
-            <ChangePasswordModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} onSave={handlePasswordSave} />
+                            {/* Compact Floating Text Info */}
+                            <div className="mb-6 w-full space-y-1.5">
+                                
+                                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tighter drop-shadow-2xl px-2 leading-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                                    {profileData?.full_name || 'Agent Identity'}
+                                </h1>
+                                <p className="text-[11px] sm:text-xs text-gray-400 font-light drop-shadow-md">
+                                    {profileData?.email || 'Verifying credentials...'}
+                                </p>
+                            </div>
+
+                            {/* --- ICON BAR: INLINE ACTIONS --- */}
+                            <div className="flex items-center justify-center gap-4 mt-2">
+                                <IconButton 
+                                    icon={Package} 
+                                    label="View Orders" 
+                                    delay={0.1}
+                                    onClick={() => setIsOrdersModalOpen(true)}
+                                    colorClass="bg-cyan-500/40"
+                                />
+                                <IconButton 
+                                    icon={User} 
+                                    label="Account Settings" 
+                                    delay={0.2}
+                                    onClick={() => setIsEditDetailsModalOpen(true)}
+                                    colorClass="bg-purple-500/40"
+                                />
+                                <IconButton 
+                                    icon={Key} 
+                                    label="Security" 
+                                    delay={0.3}
+                                    onClick={() => setIsPasswordModalOpen(true)}
+                                    colorClass="bg-emerald-500/40"
+                                />
+                                <IconButton 
+                                    icon={LogOut} 
+                                    label="Sign Out" 
+                                    delay={0.4}
+                                    onClick={() => signOut({ callbackUrl: '/login' })}
+                                    colorClass="bg-red-500/40"
+                                />
+                            </div>
+
+                        </motion.div>
+                    </div>
+
+                    {/* Floating Product Cards (Absolute) */}
+                    <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center perspective-1000">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, rotateY: 10 }} animate={{ opacity: 1, scale: 1, rotateY: 0 }} transition={{ duration: 1.2, ease: premiumEasing, delay: 0.2 }}
+                            className="relative w-full h-full flex items-center justify-center"
+                        >
+                            {HERO_CARDS.map((card, idx) => (
+                                <ProfileFloatingProduct key={idx} {...card} />
+                            ))}
+                        </motion.div>
+                    </div>
+
+                </div>
+            </div>
+
+            {/* Existing Modals */}
+            <EditProfileDetailsModal isOpen={isEditDetailsModalOpen} onClose={() => setIsEditDetailsModalOpen(false)} userData={profileData} onSave={async (d) => { await api.put('/users/me', d); mutateProfile(); setIsEditDetailsModalOpen(false); }} />
+            <ChangePasswordModal isOpen={isPasswordModalOpen} onClose={() => setIsPasswordModalOpen(false)} onSave={async (c, n) => { await api.post('/users/me/change-password', { current_password: c, new_password: n }); setIsPasswordModalOpen(false); }} />
             <ViewOrdersModal isOpen={isOrdersModalOpen} onClose={() => setIsOrdersModalOpen(false)} />
-        </>
+        </section>
     );
 }
-
-// ============================================================================
-// --- 3. SUB-COMPONENTS (Premium Design System) ---
-// ============================================================================
-
-const LoadingScreen = memo(() => (
-    <motion.div 
-        exit={{ opacity: 0, filter: "blur(5px)" }}
-        className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#050505]"
-    >
-        <div className="w-12 h-12 rounded-full border-2 border-white/10 border-t-white/80 animate-spin mb-4" />
-        <h2 className="text-sm font-medium text-gray-400 tracking-wide">Loading Profile...</h2>
-    </motion.div>
-));
-LoadingScreen.displayName = "LoadingScreen";
-
-const ErrorDisplay = ({ message }: { message: string }) => (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-4">
-        <AlertCircle className="h-12 w-12 text-red-400 mb-4" />
-        <h2 className="text-2xl font-semibold text-white mb-2">Something went wrong</h2>
-        <p className='text-gray-400 text-sm'>{message || 'Please try refreshing the page.'}</p>
-    </div>
-);
-
-const StatItem = ({ label, value }: { label: string, value: number }) => (
-    <div className="flex flex-col">
-        <span className="text-2xl font-bold text-white tabular-nums">{value}</span>
-        <span className="text-xs text-gray-500 uppercase tracking-wider mt-1">{label}</span>
-    </div>
-);
-
-const GlassPanel = ({ title, icon, children, action }: { title: string, icon: React.ReactNode, children: React.ReactNode, action?: { label: string, onClick: () => void } }) => (
-    <div className="bg-white/[0.02] backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-6 md:p-8">
-        <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-white/[0.05] border border-white/5">{icon}</div>
-                <h2 className="text-xl font-semibold text-white tracking-tight">{title}</h2>
-            </div>
-            {action && (
-                <button onClick={action.onClick} className="text-sm font-medium text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
-                    {action.label} <ChevronRight size={16} />
-                </button>
-            )}
-        </div>
-        <div>{children}</div>
-    </div>
-);
-
-const DataField = ({ label, value }: { label: string, value?: string | null }) => (
-    <div className="flex flex-col space-y-1">
-        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</span>
-        <span className="text-gray-200 font-medium text-sm md:text-base truncate">
-            {value || <span className="text-gray-600 italic">Not provided</span>}
-        </span>
-    </div>
-);
-
-const IntegrationCard = ({ icon, title, status, value, isActive }: { icon: React.ReactNode, title: string, status: string, value: string, isActive: boolean }) => (
-    <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.08] flex items-center gap-4 hover:bg-white/[0.04] transition-colors">
-        <div className="p-3 rounded-xl bg-white/[0.05] shrink-0">
-            {icon}
-        </div>
-        <div className="overflow-hidden">
-            <h4 className="text-sm font-medium text-gray-200 mb-1">{title}</h4>
-            <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-500'}`} />
-                <span className="text-xs text-gray-400 truncate">{value}</span>
-            </div>
-        </div>
-    </div>
-);
-
-const OrderCard = memo(({ order }: { order: OrderRead }) => {
-    const firstItem = order.items?.[0];
-    const productName = firstItem?.product?.name || `Order #${order.id}`;
-    
-    const getStatusStyle = (status: string) => {
-        const s = status.toLowerCase();
-        if (['processing', 'paid', 'ordered', 'confirmed'].includes(s)) return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
-        if (s === 'delivered') return 'text-green-400 bg-green-400/10 border-green-400/20';
-        if (s === 'cancelled') return 'text-red-400 bg-red-400/10 border-red-400/20';
-        return 'text-gray-400 bg-gray-400/10 border-gray-400/20';
-    };
-
-    const statusStyle = getStatusStyle(order.status);
-    const isCancelled = order.status.toLowerCase() === 'cancelled';
-
-    return (
-        <div className="group flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:border-white/10 transition-all">
-            <div className="flex items-center gap-4">
-                <div className="shrink-0 w-12 h-12 rounded-xl bg-white/[0.05] border border-white/[0.05] flex items-center justify-center">
-                    <Package className={`w-5 h-5 ${isCancelled ? 'text-gray-600' : 'text-gray-300'}`} />
-                </div>
-                <div className="min-w-0">
-                    <h4 className={`font-medium break-words text-sm md:text-base ${isCancelled ? 'text-gray-500' : 'text-gray-200'}`}>
-                        {productName}
-                    </h4>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                        {new Date(order.created_at).toLocaleDateString()} • {order.items.length} {order.items.length === 1 ? 'Item' : 'Items'}
-                    </p>
-                </div>
-            </div>
-
-            <div className="text-right flex flex-col items-end gap-1.5 shrink-0 ml-4">
-                <span className={`text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md border ${statusStyle}`}>
-                    {order.status}
-                </span>
-                <p className={`text-sm font-semibold ${isCancelled ? 'text-gray-600' : 'text-gray-300'}`}>
-                    ${order.total_price.toFixed(2)}
-                </p>
-            </div>
-        </div>
-    );
-});
-OrderCard.displayName = "OrderCard";
-
-const SettingMenuButton = ({ icon, title, onClick }: { icon: React.ReactNode, title: string, onClick: () => void }) => (
-    <button onClick={onClick} className="w-full flex items-center justify-between p-3.5 rounded-xl hover:bg-white/[0.05] transition-colors text-left group">
-        <div className="flex items-center gap-3">
-            <div className="text-gray-400 group-hover:text-white transition-colors">{icon}</div>
-            <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">{title}</span>
-        </div>
-        <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors" />
-    </button>
-);
