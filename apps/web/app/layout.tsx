@@ -2,15 +2,26 @@
 
 import type { Metadata, Viewport } from 'next';
 import { Inter, Orbitron, Montserrat } from 'next/font/google';
+import { headers } from 'next/headers';
+import { Suspense } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Toaster } from 'sonner';
-import PWAGuard from '@/components/layout/PWAGuard';
 
+import PWAGuard from '@/components/layout/PWAGuard';
 import { Providers } from '@/lib/providers';
 import AppShell from '@/components/layout/AppShell';
-import '@/app/globals.css';
 import { ViewportEnforcer } from '@/components/layout/ViewportEnforcer';
+import '@/app/globals.css';
+
+/**
+ * STRICT CONTRACT DEFINITION
+ * Defines the precise shape of the RootLayout properties.
+ */
+interface RootLayoutProps {
+  children: React.ReactNode;
+}
+
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
@@ -85,11 +96,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  // Await headers to support Next.js 15+ strict async server APIs
+  const headersList = await headers();
+  
+  // Extract edge-injected security and telemetry identifiers
+  const nonce = headersList.get('x-nonce') ?? undefined;
+  const traceId = headersList.get('x-trace-id') ?? crypto.randomUUID();
+
   return (
     <html
       lang="en"
@@ -97,15 +111,30 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} ${orbitron.variable} ${montserrat.variable} no-scrollbar`}
     >
+      <head>
+        {/* Propagate Edge Trace ID for Real User Monitoring (RUM) linkage */}
+        <meta name="x-trace-id" content={traceId} />
+      </head>
       <body className="min-h-screen bg-background font-sans antialiased no-scrollbar selection:bg-primary/20 selection:text-primary">
         <ViewportEnforcer />
-        <Providers>
-          <PWAGuard>
-            <AppShell>{children}</AppShell>
-          </PWAGuard>
+        
+        {/* Pass nonce and traceId into providers to enforce CSP across dynamic Client Components */}
+        <Providers nonce={nonce} traceId={traceId}>
+          {/* 
+            Strict PPR Boundary: Wrap dynamic guards and stateful shells in Suspense.
+            This guarantees the static HTML above can be edge-cached and streamed instantly.
+          */}
+          <Suspense fallback={<div id="app-shell-skeleton" aria-hidden="true" />}>
+            <PWAGuard>
+              <AppShell>{children}</AppShell>
+            </PWAGuard>
+          </Suspense>
+          
           <Toaster position="bottom-right" richColors closeButton expand={false} />
         </Providers>
-        <Analytics />
+
+        {/* Bind analytics securely using the strictly extracted Edge nonce */}
+        <Analytics nonce={nonce} />
         <SpeedInsights />
       </body>
     </html>

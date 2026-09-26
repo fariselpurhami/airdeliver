@@ -6,7 +6,10 @@ import Image from "next/image";
 import Link from 'next/link';
 import React, { Suspense, useRef, useMemo, useEffect, useState, memo } from 'react';
 import dynamic from 'next/dynamic';
-import { motion, useScroll, useSpring, useInView, useTransform, useMotionValue, useAnimation } from 'framer-motion';
+import { 
+  motion, useScroll, useSpring, useInView, useTransform, 
+  useMotionValue, useAnimation, useReducedMotion 
+} from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Preload, Float, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -26,29 +29,51 @@ import AIChatOverlay from '@/components/ai/AIChatOverlay';
 import ProductOverlay from '@/components/products/ProductOverlay';
 
 // ============================================================================
-// --- GLOBAL CONFIG & PRIMITIVES ---
+// --- GLOBAL CONFIG & TYPES ---
 // ============================================================================
 
-const premiumEasing = [0.16, 1, 0.3, 1];
+const TRANSITION_PREMIUM = [0.16, 1, 0.3, 1];
 const fadeUpVariant = {
   hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: premiumEasing } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: TRANSITION_PREMIUM } }
 };
 
-// Disabling depth and stencil buffers for particle-only scenes saves massive GPU bandwidth
 const heroCanvasConfig = {
   camera: { position: [0, 0, 15] as [number, number, number], fov: 75 },
-  dpr: [1, 1.5] as [number, number],
+  dpr: typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1,
   gl: { antialias: false, powerPreference: "high-performance" as const, alpha: true, depth: false, stencil: false },
 };
 
 const globeCanvasConfig = {
   camera: { position: [0, 0, 19] as [number, number, number], fov: 35 },
-  dpr: [1, 1.5] as [number, number],
+  dpr: typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, 2) : 1,
   gl: { antialias: false, powerPreference: "high-performance" as const, alpha: true },
 };
 
-// Pure math function for spherical distribution. 
+interface ParticleFieldProps {
+  count: number;
+  radius: number;
+  color: string;
+  size: number;
+  rotationSpeed: { x: number; y: number; z: number };
+  position?: [number, number, number];
+}
+
+interface HeroFloatingCardProps {
+  title: string;
+  image: string;
+  category: string;
+  delay: number;
+  positionClasses: string;
+  sizeClasses: string;
+  colorCls: string;
+  rotation: number;
+}
+
+// ============================================================================
+// --- WEBGL PRIMITIVES ---
+// ============================================================================
+
 const createParticlePositions = (count: number, radius: number): Float32Array => {
   const positions = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
@@ -62,32 +87,21 @@ const createParticlePositions = (count: number, radius: number): Float32Array =>
   return positions;
 };
 
-type ParticleFieldProps = {
-  count: number;
-  radius: number;
-  color: string;
-  size: number;
-  rotationSpeed: { x: number; y: number; z: number };
-  position?: [number, number, number];
-};
-
 const ParticleField = memo(({ count, radius, color, size, rotationSpeed, position = [0, 0, -60] }: ParticleFieldProps) => {
-  const groupRef = useRef<THREE.Group>(null!);
-  const pointsRef = useRef<THREE.Points>(null!);
+  const groupRef = useRef<THREE.Group>(null);
+  const pointsRef = useRef<THREE.Points>(null);
+  const prefersReducedMotion = useReducedMotion();
   
-  // Memoize geometry to prevent reallocation
   const positions = useMemo(() => createParticlePositions(count, radius), [count, radius]);
   const materialColor = useMemo(() => new THREE.Color(color), [color]);
 
   useEffect(() => {
-    // CRITICAL PERF: The particles do not move relative to their parent group.
-    // Disabling matrixAutoUpdate prevents 150,000 matrix calculations per frame.
     if (pointsRef.current) pointsRef.current.matrixAutoUpdate = false;
   }, []);
 
   useFrame((_, delta) => {
-    if (!groupRef.current) return;
-    const safeDelta = delta > 0.1 ? 0.1 : delta;
+    if (!groupRef.current || prefersReducedMotion) return;
+    const safeDelta = Math.min(delta, 0.1);
     groupRef.current.rotation.x += safeDelta * rotationSpeed.x;
     groupRef.current.rotation.y += safeDelta * rotationSpeed.y;
     groupRef.current.rotation.z += safeDelta * rotationSpeed.z;
@@ -95,7 +109,7 @@ const ParticleField = memo(({ count, radius, color, size, rotationSpeed, positio
 
   return (
     <group ref={groupRef} position={position}>
-      <points ref={pointsRef} frustumCulled={false}>
+      <points ref={pointsRef} frustumCulled={true}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
         </bufferGeometry>
@@ -122,114 +136,66 @@ const ParticleField = memo(({ count, radius, color, size, rotationSpeed, positio
 });
 ParticleField.displayName = 'ParticleField';
 
-const CheckCircleIcon = memo(() => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-    <path d="m9 11 3 3L22 4"/>
-  </svg>
-));
-CheckCircleIcon.displayName = 'CheckCircleIcon';
-
 // ============================================================================
-// --- 1. HERO SECTION (8 FLOATING CARDS LAYOUT - UNIFIED MOBILE & DESKTOP) ---
+// --- 1. HERO SECTION ---
 // ============================================================================
 
-// 1. مكون الكارت الجديد المطابق لصفحة المنتجات
 const HeroFloatingCard = memo(({
     title, image, category, delay, positionClasses, sizeClasses, colorCls, rotation
-}: {
-    title: string, image: string, category: string, delay: number, positionClasses: string, sizeClasses: string, colorCls: string, rotation: number
-}) => (
-    <motion.div
-        className={`absolute z-0 ${positionClasses} ${sizeClasses} will-change-transform`}
-        initial={{ opacity: 0, scale: 0.8, rotate: rotation + 10 }}
-        animate={{ opacity: 1, scale: 1, rotate: rotation }}
-        transition={{
-            opacity: { duration: 1, delay },
-            scale: { duration: 1, delay, type: "spring", stiffness: 100, damping: 20 }
-        }}
-    >
+}: HeroFloatingCardProps) => {
+    const prefersReducedMotion = useReducedMotion();
+    
+    return (
         <motion.div
-            animate={{ y: [0, -15, 0] }}
-            transition={{ duration: 6 + delay, repeat: Infinity, ease: "easeInOut" }}
-            className="w-full h-full will-change-transform"
-            style={{ transform: "translateZ(0)" }}
+            className={`absolute z-0 ${positionClasses} ${sizeClasses} will-change-transform`}
+            initial={{ opacity: 0, scale: prefersReducedMotion ? 1 : 0.8, rotate: prefersReducedMotion ? rotation : rotation + 10 }}
+            animate={{ opacity: 1, scale: 1, rotate: rotation }}
+            transition={{
+                opacity: { duration: 1, delay },
+                scale: { duration: 1, delay, type: "spring", stiffness: 100, damping: 20 }
+            }}
+            aria-hidden="true"
         >
-            <div className={`relative w-full h-full rounded-[20px] lg:rounded-[32px] bg-[#0D0D0C]/80 backdrop-blur-2xl border border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] lg:shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group hover:scale-105 transition-transform duration-500 hover:z-50 pointer-events-auto ${colorCls}`}>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 lg:via-black/20 to-transparent z-10" />
-                <Image src={image} alt={category} fill sizes="(max-width: 768px) 30vw, 20vw" className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
-
-                <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
-                    <span className="text-[7px] lg:text-[9px] font-mono uppercase tracking-[0.2em] lg:tracking-[0.3em] opacity-70 text-white mix-blend-overlay line-clamp-1">{category}</span>
-                    <h3 className="text-[10px] lg:text-sm font-bold text-white tracking-wide leading-tight line-clamp-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
+            <motion.div
+                animate={prefersReducedMotion ? {} : { y: [0, -15, 0] }}
+                transition={{ duration: 6 + delay, repeat: Infinity, ease: "easeInOut" }}
+                className="w-full h-full will-change-transform"
+                style={{ transform: "translateZ(0)" }}
+            >
+                <div className={`relative w-full h-full rounded-[20px] lg:rounded-[32px] bg-[#0D0D0C]/80 backdrop-blur-2xl border border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] lg:shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group hover:scale-105 transition-transform duration-500 hover:z-50 pointer-events-auto ${colorCls}`}>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 lg:via-black/20 to-transparent z-10" />
+                    <Image src={image} alt="" fill sizes="(max-width: 768px) 30vw, 20vw" className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
+                    <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
+                        <span className="text-[7px] lg:text-[9px] font-mono uppercase tracking-[0.2em] lg:tracking-[0.3em] opacity-70 text-white mix-blend-overlay truncate">{category}</span>
+                        <h3 className="text-[10px] lg:text-sm font-bold text-white tracking-wide leading-tight truncate" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
+                    </div>
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[20px] lg:rounded-[32px] ring-1 lg:ring-2 ring-current ring-inset mix-blend-overlay" />
                 </div>
-
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[20px] lg:rounded-[32px] ring-1 lg:ring-2 ring-current ring-inset mix-blend-overlay" />
-            </div>
+            </motion.div>
         </motion.div>
-    </motion.div>
-));
+    );
+});
 HeroFloatingCard.displayName = 'HeroFloatingCard';
 
-// 2. داتا الـ 8 كروت بتوزيعاتهم للموبايل والديسكتوب (تم تعديل قيم lg: لتناسب الشاشة الكاملة)
-const HERO_CARDS = [
-  {
-    title: "Apple Vision Pro", category: "Neural Tech", delay: 0.1, rotation: -8,
-    image: "https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop",
-    positionClasses: "top-[1%] left-[6%] lg:top-[10%] lg:left-[5%]",
-    sizeClasses: "w-20 h-28 lg:w-48 lg:h-64", colorCls: "hover:shadow-cyan-500/20 text-cyan-400"
-  },
-  {
-    title: "PS5", category: "Wearables", delay: 0.2, rotation: 6,
-    image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[1%] right-[6%] lg:top-[10%] lg:right-[5%]",
-    sizeClasses: "w-20 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-purple-500/20 text-purple-400"
-  },
-  {
-    title: "Dyson", category: "Aesthetic", delay: 0.3, rotation: -4,
-    image: "https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[50%] -left-[4%] lg:top-[45%] lg:left-[2%]",
-    sizeClasses: "w-20 h-28 lg:w-40 lg:h-52", colorCls: "hover:shadow-pink-500/20 text-pink-400"
-  },
-  {
-    title: "Headphones", category: "Audio", delay: 0.4, rotation: 8,
-    image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[50%] -right-[3%] lg:top-[45%] lg:right-[2%]",
-    sizeClasses: "w-20 h-28 lg:w-44 lg:h-48", colorCls: "hover:shadow-amber-500/20 text-amber-400"
-  },
-  {
-    title: "Leather Handbag", category: "Bags", delay: 0.5, rotation: -6,
-    image: "https://images.unsplash.com/photo-1691480150204-66dd1eb77391?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[70%] left-[2%] lg:bottom-[25%] lg:left-[8%]",
-    sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-emerald-500/20 text-emerald-400"
-  },
-  {
-    title: "Iphone 17 pro max", category: "Electronics", delay: 0.6, rotation: 5,
-    image: "https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "top-[70%] right-[1%] lg:bottom-[25%] lg:right-[8%]",
-    sizeClasses: "w-20 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-blue-500/20 text-blue-400"
-  },
-  {
-    title: "Nike Air Max", category: "Fashion", delay: 0.7, rotation: -5,
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "bottom-[0%] left-[20%] lg:bottom-[5%] lg:left-[25%]",
-    sizeClasses: "w-20 h-28 lg:w-48 lg:h-48", colorCls: "hover:shadow-red-500/20 text-red-400"
-  },
-  {
-    title: "Galaxy Buds", category: "Neural Tech", delay: 0.8, rotation: 7,
-    image: "https://images.unsplash.com/photo-1600374917838-1df876d745c7?q=80&w=600&auto=format&fit=crop",
-    positionClasses: "bottom-[0%] right-[20%] lg:bottom-[5%] lg:right-[25%]",
-    sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-cyan-500/20 text-cyan-400"
-  }
+const HERO_CARDS: HeroFloatingCardProps[] = [
+  { title: "Apple Vision Pro", category: "Neural Tech", delay: 0.1, rotation: -8, image: "https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop", positionClasses: "top-[1%] left-[16%] lg:top-[10%] lg:left-[5%]", sizeClasses: "w-21 h-29 lg:w-48 lg:h-64", colorCls: "hover:shadow-cyan-500/20 text-cyan-400" },
+  { title: "PS5", category: "Wearables", delay: 0.2, rotation: 6, image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[1%] right-[16%] lg:top-[10%] lg:right-[5%]", sizeClasses: "w-21 h-29 lg:w-40 lg:h-56", colorCls: "hover:shadow-purple-500/20 text-purple-400" },
+  { title: "Dyson", category: "Aesthetic", delay: 0.3, rotation: -4, image: "https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[50%] -left-[4%] lg:top-[45%] lg:left-[2%]", sizeClasses: "w-20 h-28 lg:w-40 lg:h-52", colorCls: "hover:shadow-pink-500/20 text-pink-400" },
+  { title: "Headphones", category: "Audio", delay: 0.4, rotation: 8, image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[50%] -right-[3%] lg:top-[45%] lg:right-[2%]", sizeClasses: "w-20 h-28 lg:w-44 lg:h-48", colorCls: "hover:shadow-amber-500/20 text-amber-400" },
+  { title: "Leather Handbag", category: "Bags", delay: 0.5, rotation: -6, image: "https://images.unsplash.com/photo-1691480150204-66dd1eb77391?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[70%] left-[2%] lg:bottom-[25%] lg:left-[8%]", sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-emerald-500/20 text-emerald-400" },
+  { title: "Iphone 17 pro max", category: "Electronics", delay: 0.6, rotation: 5, image: "https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[70%] right-[1%] lg:bottom-[25%] lg:right-[8%]", sizeClasses: "w-22 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-blue-500/20 text-blue-400" },
+  { title: "Nike Air Max", category: "Fashion", delay: 0.7, rotation: -5, image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[0%] left-[20%] lg:bottom-[5%] lg:left-[25%]", sizeClasses: "w-20 h-28 lg:w-48 lg:h-48", colorCls: "hover:shadow-red-500/20 text-red-400" },
+  { title: "Galaxy Buds", category: "Neural Tech", delay: 0.8, rotation: 7, image: "https://images.unsplash.com/photo-1600374917838-1df876d745c7?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[0%] right-[20%] lg:bottom-[5%] lg:right-[25%]", sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-cyan-500/20 text-cyan-400" }
 ];
 
-// 3. الهيرو سكشن الأساسي
 const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () => void; onExploreClick: () => void }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
   const yParallax = useTransform(scrollYProgress, [0, 1], ['0%', '25%']);
   const opacityFade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
   const messages = useAIOrderingStore((state) => state.messages);
+  const prefersReducedMotion = useReducedMotion();
+  
   const cartItemsCount = useMemo(() => {
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
     return lastCartMessage?.content?.items?.length || 0;
@@ -239,7 +205,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
   const capsuleControls = useAnimation();
 
   useEffect(() => {
-    if (cartItemsCount > prevCountRef.current) {
+    if (cartItemsCount > prevCountRef.current && !prefersReducedMotion) {
       capsuleControls.start({
         scale: [1, 1.04, 0.97, 1.02, 1],
         x: [0, -4, 4, -2, 2, 0],
@@ -252,34 +218,29 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
       });
     }
     prevCountRef.current = cartItemsCount;
-  }, [cartItemsCount, capsuleControls]);
+  }, [cartItemsCount, capsuleControls, prefersReducedMotion]);
 
   return (
-    <section ref={containerRef} className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-0 lg:pb-0">
-
-      {/* 3D Background Canvas */}
+    <section ref={containerRef} className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-0 lg:pb-0" aria-label="Introduction">
       <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
         <Suspense fallback={null}>
           <Canvas {...heroCanvasConfig}>
-            <ParticleField count={20000} radius={66} color="#ffffff" size={0.065} rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} />
+            <ParticleField count={10000} radius={66} color="#ffffff" size={0.065} rotationSpeed={{ x: -0.0001, y: -0.0001, z: -0.001 }} />
             <Preload all />
           </Canvas>
         </Suspense>
       </div>
 
-      {/* GPU Offloaded Blurs */}
-      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform translate-z-0" />
-      <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform translate-z-0" />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)] opacity-50 pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[70%] rounded-full bg-cyan-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform translate-z-0" aria-hidden="true" />
+      <div className="absolute bottom-[-10%] right-[-20%] w-[70%] h-[70%] rounded-full bg-purple-600/15 blur-[120px] pointer-events-none mix-blend-screen will-change-transform translate-z-0" aria-hidden="true" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)] opacity-50 pointer-events-none" aria-hidden="true" />
 
       <motion.div
-        style={{ y: yParallax, opacity: opacityFade, willChange: "transform, opacity" }}
+        style={{ y: prefersReducedMotion ? 0 : yParallax, opacity: opacityFade, willChange: "transform, opacity" }}
         className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10 h-full"
       >
-        {/* تم مسح الـ lg:grid والـ lg:grid-cols-2 وتوحيد التوسيط */}
         <div className="w-full flex flex-col items-center justify-center min-h-[75vh] lg:min-h-[100svh] relative">
-
-          {/* Text & Capsule Container - (دائماً متسنتر في كل الشاشات) */}
+          
           <div className="flex flex-col items-center text-center max-w-3xl w-full relative z-30 pointer-events-auto">
             <motion.h1
               initial="hidden" animate="visible" variants={fadeUpVariant}
@@ -293,7 +254,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
 
             <motion.p
               initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.1 }}
-              className="text-sm sm:text-lg md:text-xl text-zinc-300 mb-10 leading-relaxed font-light max-w-lg shadow-black mx-auto"
+              className="text-sm sm:text-lg md:text-xl text-zinc-300 mb-10 leading-relaxed font-light max-w-lg mx-auto"
             >
               Tell our AI exactly what you need. We secure the best deal across our global inventory and drop it at your door in minutes.
             </motion.p>
@@ -302,49 +263,54 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.2 }}
               className="w-full max-w-xl mx-auto"
             >
-              {/* Order Capsule */}
-              <motion.div
+              {/* ACCESSIBLE ORDER CAPSULE BUTTON */}
+              <motion.button
                 onClick={onOrderClick}
+                aria-label={cartItemsCount > 0 ? `Review order with ${cartItemsCount} items` : "Start AI order"}
                 animate={
-                  cartItemsCount > 0
+                  cartItemsCount > 0 && !prefersReducedMotion
                     ? { y: [0, -6, 0], boxShadow: ["0px 0px 40px rgba(0,0,0,0.8)", "0px 10px 40px rgba(6,182,212,0.3)", "0px 0px 40px rgba(0,0,0,0.8)"] }
                     : { y: 0, boxShadow: "0px 0px 40px rgba(0,0,0,0.8)" }
                 }
-                transition={cartItemsCount > 0 ? { duration: 3, repeat: Infinity, ease: "easeInOut" } : {}}
-                className="group relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-zinc-900/90 border border-white/10 backdrop-blur-2xl transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900 cursor-pointer"
+                transition={cartItemsCount > 0 && !prefersReducedMotion ? { duration: 3, repeat: Infinity, ease: "easeInOut" } : {}}
+                className="group w-full relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-zinc-900/90 border border-white/10 backdrop-blur-2xl transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 focus-visible:outline-offset-4 cursor-pointer"
               >
-                <div className={`absolute -inset-[1px] rounded-[73px] blur-md transition-all duration-1000 -z-10 ${cartItemsCount > 0 ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-100' : 'bg-gradient-to-r from-cyan-500/40 to-purple-500/40 opacity-80 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl'}`} />
+                <div className={`absolute -inset-[1px] rounded-[73px] blur-md transition-all duration-1000 -z-10 ${cartItemsCount > 0 ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-100' : 'bg-gradient-to-r from-cyan-500/40 to-purple-500/40 opacity-80 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl'}`} aria-hidden="true" />
 
                 <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 transform-gpu relative">
-                  <Bot size={18} strokeWidth={1.5} className="sm:w-6 sm:h-6" />
+                  <Bot size={18} strokeWidth={1.5} className="sm:w-6 sm:h-6" aria-hidden="true" />
                   {cartItemsCount > 0 && (
-                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-black text-[#050505] shadow-[0_0_10px_rgba(6,182,212,0.8)]">{cartItemsCount}</motion.span>
+                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-black text-[#050505] shadow-[0_0_10px_rgba(6,182,212,0.8)]" aria-hidden="true">
+                        {cartItemsCount}
+                    </motion.span>
                   )}
                 </div>
 
-                <div className="flex-1 px-3 sm:px-4 min-w-0 text-left">
+                <div className="flex-1 px-3 sm:px-4 min-w-0 text-left" aria-live="polite">
                   <p className={`text-[11px] sm:text-sm md:text-base font-light truncate transition-colors ${cartItemsCount > 0 ? 'text-cyan-200 font-medium' : 'text-zinc-300'}`}>
                     {cartItemsCount > 0 ? "Your order is ready. Tap to review." : "I need noise-canceling headphones..."}
                   </p>
                 </div>
 
-                <button className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3 rounded-full bg-white text-black font-bold text-[10px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu">
+                <span className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3 rounded-full bg-white text-black font-bold text-[10px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu pointer-events-none">
                   {cartItemsCount > 0 ? "Confirm Order!" : "order with air"}
-                </button>
-              </motion.div>
+                </span>
+              </motion.button>
 
               <div className="mt-6 flex items-center justify-center gap-6">
-                <button onClick={onExploreClick} className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-cyan-300 transition-colors flex items-center gap-1 group transform-gpu">
-                  Explore trending products <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                <button 
+                  onClick={onExploreClick} 
+                  className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-cyan-300 transition-colors flex items-center gap-1 group transform-gpu rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 focus-visible:outline-offset-4"
+                >
+                  Explore trending products <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" aria-hidden="true" />
                 </button>
               </div>
             </motion.div>
           </div>
 
-          {/* Floating Cards Container - أصبحت Absolute في كل الشاشات لتطويق النص */}
           <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center perspective-1000">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }} animate={{ opacity: 1, scale: 1, rotateY: 0 }} transition={{ duration: 1.2, ease: premiumEasing, delay: 0.2 }}
+              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }} animate={{ opacity: 1, scale: 1, rotateY: 0 }} transition={{ duration: 1.2, ease: TRANSITION_PREMIUM, delay: 0.2 }}
               style={{ willChange: "transform, opacity" }}
               className="relative w-full h-full flex items-center justify-center"
             >
@@ -353,7 +319,6 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
               ))}
             </motion.div>
           </div>
-
         </div>
       </motion.div>
     </section>
@@ -362,7 +327,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
 HeroSection.displayName = 'HeroSection';
 
 // ============================================================================
-// --- 3. GLOBAL SCALE SECTION ---
+// --- 2. GLOBAL SCALE SECTION ---
 // ============================================================================
 
 const AnimatedCounter = memo(({ value, text, icon: Icon }: { value: number, text: string, icon: React.ElementType }) => {
@@ -386,31 +351,31 @@ const AnimatedCounter = memo(({ value, text, icon: Icon }: { value: number, text
         whileHover={{ scale: 1.05 }}
         style={{ willChange: "transform" }}
         className="relative group flex flex-col items-center p-6 rounded-[30px] bg-black/60 backdrop-blur-xl border border-purple-500/30 hover:border-purple-400/80 transition-all duration-500 overflow-hidden text-center transform-gpu"
+        role="group"
+        aria-label={`${value} ${text}`}
     >
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-        <div className="mb-4 p-3 rounded-full bg-purple-950/50 border border-purple-400/20 text-purple-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(168,85,247,0.3)]">
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" aria-hidden="true" />
+        <div className="mb-4 p-3 rounded-full bg-purple-950/50 border border-purple-400/20 text-purple-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(168,85,247,0.3)]" aria-hidden="true">
             <Icon size={28} />
         </div>
-        <span ref={ref} className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-2" style={{fontFamily: "'Orbitron', sans-serif"}}>0</span>
-        <span className="text-sm text-purple-300/80 font-mono uppercase tracking-widest">{text}</span>
+        <span ref={ref} className="text-4xl md:text-5xl font-black text-white tracking-tighter mb-2" style={{fontFamily: "'Orbitron', sans-serif"}} aria-hidden="true">0</span>
+        <span className="text-sm text-purple-300/80 font-mono uppercase tracking-widest" aria-hidden="true">{text}</span>
     </motion.div>
   );
 });
 AnimatedCounter.displayName = 'AnimatedCounter';
 
 const Globe = memo(() => {
-  const globeRef = useRef<THREE.Group>(null!);
+  const globeRef = useRef<THREE.Group>(null);
   const pulseRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const prefersReducedMotion = useReducedMotion();
 
-  // CRITICAL PERF: Compute geometry and flat trajectory arrays precisely ONCE.
-  // We flatten Vector3 paths to direct x,y,z objects to avoid Class instantiation overhead during render loop.
   const { paths, pulseTrajectories } = useMemo(() => {
     const points = [
       { lat: 40.7128, lon: -74.0060 }, { lat: 51.5074, lon: -0.1278 },
       { lat: 35.6895, lon: 139.6917 }, { lat: 25.2048, lon: 55.2708 },
       { lat: 1.3521, lon: 103.8198 }, { lat: 30.0444, lon: 31.2357 },
     ];
-
     const radius = 5;
     const getPos = (lat: number, lon: number) => {
       const phi = (90 - lat) * (Math.PI / 180);
@@ -438,35 +403,29 @@ const Globe = memo(() => {
     const segments = 200;
     const trajectories = curves.map(curve => {
       const pts = curve.getPoints(segments);
-      // Flatten into raw objects for zero-allocation reading
       return pts.map(p => ({ x: p.x, y: p.y, z: p.z }));
     });
 
     return { paths: curves, pulseTrajectories: trajectories };
   }, []);
 
-  // Shared geometry definitions prevent WebGL memory bloat
-  const sphereGeo = useMemo(() => new THREE.SphereGeometry(5, 32, 32), []); // Reduced from 48x48
+  const sphereGeo = useMemo(() => new THREE.SphereGeometry(5, 32, 32), []);
   const haloGeo = useMemo(() => new THREE.SphereGeometry(5, 24, 24), []);
   const pulseGeo = useMemo(() => new THREE.SphereGeometry(0.08, 12, 12), []);
   const tubeGeos = useMemo(() => paths.map(curve => new THREE.TubeGeometry(curve, 24, 0.02, 3, false)), [paths]);
 
   useFrame((state, delta) => {
-    const safeDelta = delta > 0.1 ? 0.1 : delta;
+    if (prefersReducedMotion) return;
+    const safeDelta = Math.min(delta, 0.1);
     if (globeRef.current) globeRef.current.rotation.y += safeDelta * 0.05;
 
     const time = state.clock.elapsedTime;
-
-    // CRITICAL PERF: Zero object allocation loop.
-    // We explicitly avoid .lerp() or Class methods here.
     for (let i = 0; i < pulseRefs.current.length; i++) {
       const mesh = pulseRefs.current[i];
       if (!mesh) continue;
-
       const loopTime = 6 + (i % 3);
       const t = (time % loopTime) / loopTime;
       const exactIndex = Math.floor(t * 200);
-
       const target = pulseTrajectories[i][exactIndex];
       if(target) {
         mesh.position.set(target.x, target.y, target.z);
@@ -479,15 +438,12 @@ const Globe = memo(() => {
       <mesh geometry={sphereGeo}>
         <meshPhysicalMaterial color="#1e3a8a" emissive="#172554" emissiveIntensity={0.5} roughness={0.4} metalness={0.6} clearcoat={1} clearcoatRoughness={0.1} />
       </mesh>
-
       <mesh scale={[1.05, 1.05, 1.05]} geometry={haloGeo}>
         <meshBasicMaterial color="#3b82f6" transparent opacity={0.15} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-
       <mesh scale={[1.2, 1.2, 1.2]} geometry={haloGeo}>
         <meshBasicMaterial color="#a855f7" transparent opacity={0.05} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-
       {tubeGeos.map((tubeGeo, i) => (
         <group key={i}>
           <mesh geometry={tubeGeo}>
@@ -505,8 +461,8 @@ Globe.displayName = 'Globe';
 
 const GlobalScaleSection = memo(() => {
   return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10">
-      <div className="absolute inset-0 z-0 transform-gpu" style={{ contain: 'strict' }}>
+    <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10" aria-label="Global Scale Statistics">
+      <div className="absolute inset-0 z-0 transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
         <Canvas {...globeCanvasConfig}>
           <ambientLight intensity={0.4} />
           <directionalLight position={[10, 10, 5]} intensity={2} color="#a855f7" />
@@ -538,7 +494,7 @@ const GlobalScaleSection = memo(() => {
               style={{ willChange: "transform, opacity" }}
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+                <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]" aria-hidden="true">
                   <GlobeIcon className="text-purple-400" size={20} />
                 </div>
                 <span className="text-sm font-mono text-purple-400 uppercase tracking-[0.3em] drop-shadow-md">Next-Gen Logistics</span>
@@ -566,9 +522,9 @@ const GlobalScaleSection = memo(() => {
           style={{ willChange: "transform, opacity" }}
           className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
         >
-          <AnimatedCounter value={1843} text="Active Drones" icon={Rocket} />
-          <AnimatedCounter value={212} text="Connected Cities" icon={MapIcon} />
-          <AnimatedCounter value={947204} text="Successful Drops" icon={CheckCircle2} />
+          <AnimatedCounter value={263} text="Active Drones" icon={Rocket} />
+          <AnimatedCounter value={3} text="Connected Cities" icon={MapIcon} />
+          <AnimatedCounter value={1863} text="Successful Drops" icon={CheckCircle2} />
         </motion.div>
       </div>
     </section>
@@ -577,8 +533,14 @@ const GlobalScaleSection = memo(() => {
 GlobalScaleSection.displayName = 'GlobalScaleSection';
 
 // ============================================================================
-// --- 2. HOW IT WORKS SECTION ---
+// --- 3. HOW IT WORKS SECTION ---
 // ============================================================================
+
+interface StepCardProps {
+  item: { icon: React.ElementType, step: string, title: string, description: string };
+  index: number;
+  isLast: boolean;
+}
 
 const PRODUCTION_STEPS = [
   { icon: Bot, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product in our global network without you scrolling through catalogs." },
@@ -587,9 +549,10 @@ const PRODUCTION_STEPS = [
   { icon: Rocket, step: "04", title: "Precision Doorstep Drop", description: "The autonomous drone arrives. Using computer vision and micro-thruster stabilization, it completes a contactless, verified handoff directly to your location." },
 ];
 
-const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUCTION_STEPS[0], index: number, isLast: boolean }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
+const HolographicStepCard = memo(({ item, index, isLast }: StepCardProps) => {
+  const cardRef = useRef<HTMLLIElement>(null);
   const { scrollYProgress } = useScroll({ target: cardRef, offset: ["start 95%", "center center"] });
+  const prefersReducedMotion = useReducedMotion();
 
   const opacity = useTransform(scrollYProgress, [0, 0.6, 1], [0, 0.5, 1]);
   const y = useTransform(scrollYProgress, [0, 1], [80, 0]);
@@ -600,12 +563,10 @@ const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUC
   const Icon = item.icon;
 
   return (
-    <div ref={cardRef} className="relative flex w-full gap-6 md:gap-12 pb-24 md:pb-32 last:pb-0 perspective-1000">
-
-      {/* 1. Flight Path Track */}
-      <div className="relative flex shrink-0 flex-col items-center">
+    <li ref={cardRef} className="relative flex w-full gap-6 md:gap-12 pb-24 md:pb-32 last:pb-0 perspective-1000">
+      <div className="relative flex shrink-0 flex-col items-center" aria-hidden="true">
         <motion.div
-          style={{ scale, opacity, willChange: "transform, opacity" }}
+          style={{ scale: prefersReducedMotion ? 1 : scale, opacity: prefersReducedMotion ? 1 : opacity, willChange: "transform, opacity" }}
           className="z-10 flex h-14 w-14 md:h-20 md:w-20 items-center justify-center rounded-2xl border border-cyan-400/40 bg-black/50 shadow-[0_0_30px_rgba(6,182,212,0.3)] backdrop-blur-md rotate-45 transform-gpu"
         >
           <div className="-rotate-45 flex flex-col items-center">
@@ -616,29 +577,28 @@ const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUC
         {!isLast && (
           <div className="absolute top-14 md:top-20 bottom-[-6rem] md:bottom-[-8rem] w-[2px] bg-white/5">
             <motion.div
-              style={{ scaleY, transformOrigin: "top", willChange: "transform" }}
+              style={{ scaleY: prefersReducedMotion ? 1 : scaleY, transformOrigin: "top", willChange: "transform" }}
               className="w-full h-full bg-gradient-to-b from-cyan-400 via-purple-500 to-transparent shadow-[0_0_10px_rgba(6,182,212,0.8)] transform-gpu"
             />
           </div>
         )}
       </div>
 
-      {/* 2. Holographic Panel */}
       <motion.div
-        style={{ opacity, y, rotateX, willChange: "transform, opacity" }}
+        style={{ opacity: prefersReducedMotion ? 1 : opacity, y: prefersReducedMotion ? 0 : y, rotateX: prefersReducedMotion ? 0 : rotateX, willChange: "transform, opacity" }}
         className="flex-1 mt-2 md:mt-4 transform-gpu"
       >
         <div className="group relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent p-6 md:p-10 backdrop-blur-xl transition-all duration-700 hover:border-cyan-400/40 hover:bg-white/[0.05] shadow-2xl">
-          <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/15 to-purple-500/15 opacity-0 group-hover:opacity-100 blur-2xl transition-all duration-700 pointer-events-none will-change-opacity translate-z-0" />
+          <div className="absolute -inset-px bg-gradient-to-r from-cyan-500/15 to-purple-500/15 opacity-0 group-hover:opacity-100 blur-2xl transition-all duration-700 pointer-events-none will-change-opacity translate-z-0" aria-hidden="true" />
 
           <div className="relative z-10 flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-center">
-            <div className="flex items-center justify-center h-14 w-14 md:h-20 md:w-20 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.2)] group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-500 shrink-0 transform-gpu">
+            <div className="flex items-center justify-center h-14 w-14 md:h-20 md:w-20 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.2)] group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-500 shrink-0 transform-gpu" aria-hidden="true">
               <Icon size={32} strokeWidth={1.5} className="group-hover:text-purple-300 transition-colors" />
             </div>
 
             <div>
               <h3 className="mb-3 text-2xl md:text-4xl font-bold tracking-tight text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all duration-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                {item.title}
+                <span className="sr-only">Step {item.step}: </span>{item.title}
               </h3>
               <p className="text-sm md:text-lg font-light leading-relaxed text-gray-400 group-hover:text-gray-300 transition-colors duration-500">
                 {item.description}
@@ -647,7 +607,7 @@ const HolographicStepCard = memo(({ item, index, isLast }: { item: typeof PRODUC
           </div>
         </div>
       </motion.div>
-    </div>
+    </li>
   );
 });
 HolographicStepCard.displayName = 'HolographicStepCard';
@@ -656,11 +616,12 @@ const HowItWorksSection = memo(() => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start end", "end start"] });
   const yParallax = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
+  const prefersReducedMotion = useReducedMotion();
 
   return (
-    <section ref={containerRef} className="relative min-h-screen w-full overflow-hidden bg-[#050505] py-32 lg:py-48 border-t border-white/5">
+    <section ref={containerRef} className="relative min-h-screen w-full overflow-hidden bg-[#050505] py-32 lg:py-48 border-t border-white/5" aria-labelledby="how-it-works-heading">
       <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
-        <motion.div style={{ y: yParallax, willChange: 'transform' }} className="absolute inset-0">
+        <motion.div style={{ y: prefersReducedMotion ? 0 : yParallax, willChange: 'transform' }} className="absolute inset-0">
           <div className="absolute top-[10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-cyan-600/10 blur-[150px] mix-blend-screen will-change-transform translate-z-0" />
           <div className="absolute bottom-[10%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-600/10 blur-[150px] mix-blend-screen will-change-transform translate-z-0" />
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_10%,transparent_100%)] opacity-50" />
@@ -673,12 +634,14 @@ const HowItWorksSection = memo(() => {
             initial={{ opacity: 0, scale: 0.8 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
             style={{ willChange: "transform, opacity" }}
             className="mb-8 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/30 px-5 py-2 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)] transform-gpu"
+            aria-hidden="true"
           >
-            <Activity size={16} className="animate-pulse text-cyan-400" />
+            <Activity size={16} className={`${prefersReducedMotion ? '' : 'animate-pulse'} text-cyan-400`} />
             <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">END-TO-END SYSTEM</span>
           </motion.div>
 
           <motion.h2
+            id="how-it-works-heading"
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1, duration: 0.8 }}
             style={{ willChange: "transform, opacity" }}
             className="text-5xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tighter text-white drop-shadow-2xl"
@@ -698,11 +661,11 @@ const HowItWorksSection = memo(() => {
           </motion.p>
         </div>
 
-        <div className="max-w-4xl mx-auto">
+        <ol className="max-w-4xl mx-auto w-full p-0 m-0 list-none">
           {PRODUCTION_STEPS.map((step, index) => (
             <HolographicStepCard key={step.step} item={step} index={index} isLast={index === PRODUCTION_STEPS.length - 1} />
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   );
@@ -710,12 +673,12 @@ const HowItWorksSection = memo(() => {
 HowItWorksSection.displayName = 'HowItWorksSection';
 
 // ============================================================================
-// --- 5. FINAL CTA & PARTNERS ---
+// --- 4. FINAL CTA & PARTNERS ---
 // ============================================================================
 
 const FinalCTA = memo(() => (
-  <section className="relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
-    <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }}>
+  <section className="relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5" aria-labelledby="cta-heading">
+    <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px] will-change-transform translate-z-0" />
     </div>
@@ -726,12 +689,12 @@ const FinalCTA = memo(() => (
         style={{ willChange: "transform, opacity" }}
         className="max-w-5xl mx-auto transform-gpu"
       >
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8 ring-1 ring-cyan-500/20">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-950/30 border border-cyan-500/30 backdrop-blur-md mb-8 ring-1 ring-cyan-500/20" aria-hidden="true">
           <Zap size={14} className="text-yellow-400 fill-yellow-400" />
           <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Next-Gen Shopping Experience</span>
         </div>
 
-        <h2 className="text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+        <h2 id="cta-heading" className="text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
           YOUR ORDER.<br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-400 drop-shadow-[0_0_40px_rgba(192,132,252,0.5)]">
             IN THE SKY.
@@ -743,14 +706,14 @@ const FinalCTA = memo(() => (
         </p>
 
         <div className="flex flex-col gap-6 justify-center items-center">
-          <Link href="/profile" className="group relative px-12 py-7 bg-white text-black font-black text-xl rounded-full overflow-hidden transition-all duration-300 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] transform-gpu">
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" />
+          <Link href="/profile" className="group relative px-12 py-7 bg-white text-black font-black text-xl rounded-full overflow-hidden transition-all duration-300 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 focus-visible:outline-offset-4 transform-gpu">
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity duration-300" aria-hidden="true" />
             <span className="relative flex items-center gap-3">
-              SIGN UP <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+              SIGN UP <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
             </span>
           </Link>
-          <button className="group px-12 py-7 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-3 transform-gpu">
-            <span>DOWNLOAD</span><ArrowDown className="w-6 h-6 group-hover:translate-y-1 transition-transform" />
+          <button className="group px-12 py-7 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 focus-visible:outline-offset-4 transform-gpu">
+            <span>DOWNLOAD APP</span><ArrowDown className="w-6 h-6 group-hover:translate-y-1 transition-transform" aria-hidden="true" />
           </button>
         </div>
         <p className="mt-12 text-[10px] text-gray-600 font-mono uppercase tracking-[0.2em]">Instant Delivery • Live Tracking • 100% Autonomous</p>
@@ -763,23 +726,28 @@ FinalCTA.displayName = 'FinalCTA';
 const TrustedBySection = memo(() => {
   const companies = ["NVIDIA", "STRIPE", "AWS", "CLOUDFLARE", "MASTERCARD"];
   return (
-    <section className="py-12 bg-black border-y border-white/5 overflow-hidden relative">
-      <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none will-change-transform translate-z-0" />
+    <section className="py-12 bg-black border-y border-white/5 overflow-hidden relative" aria-label="Trusted Partners">
+      <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none will-change-transform translate-z-0" aria-hidden="true" />
       <div className="container mx-auto px-4 mb-6 text-center relative z-10">
-        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Trusted by Industry Leaders</p>
+        <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]" aria-hidden="true">Trusted by Industry Leaders</p>
+        <span className="sr-only">Trusted by NVIDIA, STRIPE, AWS, CLOUDFLARE, and MASTERCARD.</span>
       </div>
       <div className="relative flex overflow-x-hidden group">
-        <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" />
-        <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" />
-        {/* Render hardware accelerated marquee */}
-        <div className="flex gap-16 animate-marquee whitespace-nowrap items-center hover:[animation-play-state:paused] transform-gpu">
+        <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-black to-transparent z-10 pointer-events-none" aria-hidden="true" />
+        <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-black to-transparent z-10 pointer-events-none" aria-hidden="true" />
+        
+        {/* CSS-based robust marquee to prevent reliance on missing tailwind config */}
+        <div className="flex gap-16 items-center hover:[animation-play-state:paused] transform-gpu" style={{ animation: 'marquee 25s linear infinite' }} aria-hidden="true">
           {[...companies, ...companies, ...companies, ...companies].map((company, index) => (
-            <span key={index} className="text-xl md:text-2xl font-bold text-gray-800 uppercase tracking-tighter hover:text-cyan-400 transition-colors duration-500 cursor-default select-none" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            <span key={index} className="text-xl md:text-2xl font-bold text-gray-800 uppercase tracking-tighter hover:text-cyan-400 transition-colors duration-500 cursor-default select-none whitespace-nowrap" style={{ fontFamily: "'Orbitron', sans-serif" }}>
               {company}
             </span>
           ))}
         </div>
       </div>
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+      `}} />
     </section>
   );
 });
@@ -791,12 +759,12 @@ TrustedBySection.displayName = 'TrustedBySection';
 
 const DynamicHeroSection = dynamic(() => Promise.resolve(HeroSection), {
   ssr: false,
-  loading: () => <section className="relative min-h-[100svh] w-full overflow-hidden bg-[#050505]" />
+  loading: () => <section className="relative min-h-[100svh] w-full overflow-hidden bg-[#050505]" aria-hidden="true" />
 });
 
 const DynamicGlobalScaleSection = dynamic(() => Promise.resolve(GlobalScaleSection), {
   ssr: false,
-  loading: () => <section className="relative min-h-screen w-full overflow-hidden bg-black" />
+  loading: () => <section className="relative min-h-screen w-full overflow-hidden bg-black" aria-hidden="true" />
 });
 
 // ============================================================================
@@ -806,15 +774,12 @@ const DynamicGlobalScaleSection = dynamic(() => Promise.resolve(GlobalScaleSecti
 export default function Page() {
   const { isOverlayVisible, setOverlayVisible } = useAIOrderingStore();
   const { isProductOverlayVisible, showProductOverlay, hideProductOverlay } = useUIStore();
-
   const { isMobile, isStandalone, mounted } = useDeviceDetection();
 
   if (!mounted) {
-    return <div className="min-h-screen w-full bg-black" />;
+    return <div className="min-h-screen w-full bg-black" aria-hidden="true" />;
   }
 
-  // --- التعديل السحري هنا ---
-  // لو موبايل + مش تطبيق = اعرض شاشة التحميل
   if (isMobile && !isStandalone) {
     return <MobileLandingView />;
   }
@@ -827,7 +792,6 @@ export default function Page() {
         <HowItWorksSection />
         <FinalCTA />
         <TrustedBySection />
-
       </main>
 
       <ProductOverlay isOpen={isProductOverlayVisible} onClose={hideProductOverlay} />

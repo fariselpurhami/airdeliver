@@ -2,24 +2,22 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Home,
   ShoppingBag,
   User,
-  Menu,
-  X as CloseIcon,
+  LucideIcon,
 } from "lucide-react";
 
 interface NavItem {
   href: string;
   label: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   isProtected: boolean;
 }
 
@@ -36,7 +34,6 @@ export default function Header() {
 
   const headerRef = useRef<HTMLElement>(null);
   const floatingBarRef = useRef<HTMLDivElement>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     let rafId: number;
@@ -72,7 +69,6 @@ export default function Header() {
         const targetUrl = `/login?callbackUrl=${encodeURIComponent(item.href)}`;
         router.push(targetUrl);
       }
-      setMobileMenuOpen(false);
     },
     [status, router]
   );
@@ -82,21 +78,22 @@ export default function Header() {
       <header
         ref={headerRef}
         data-scrolled="false"
-        className="fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-[50ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-[scrolled=true]:-translate-y-[100px] data-[scrolled=true]:opacity-0 data-[scrolled=true]:pointer-events-none transform-gpu will-change-transform"
+        className="fixed top-0 left-0 right-0 z-50 h-24 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] data-[scrolled=true]:-translate-y-[100px] data-[scrolled=true]:opacity-0 data-[scrolled=true]:pointer-events-none transform-gpu will-change-transform"
       >
-        <div className="container mx-auto px-6 h-full flex justify-between items-center relative">
+        <div className="container mx-auto px-5 sm:px-6 lg:px-12 h-full flex justify-between items-center relative">
           
           {/* Logo Section */}
-          <div className="pointer-events-auto px-3 py-1">
+          <div className="pointer-events-auto px-1 py-1">
             <Link
               href="/"
               prefetch={true}
-              className="group flex items-center gap-2 relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-sm block"
+              aria-label="Go to airdeliver homepage"
+              className="group flex items-center gap-2 relative z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-4 focus-visible:ring-offset-black rounded-sm block"
             >
               <div className="relative flex items-center mb-1">
                 <Image
                   src="/logo.png"
-                  alt="airdeliver homepage"
+                  alt=""
                   width={120}
                   height={22}
                   priority
@@ -116,26 +113,38 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Menu Button - (تم إزالة كلاس md:hidden ليظهر على كل الشاشات) */}
-          <div className="relative z-10 pointer-events-auto rounded-full">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="p-3 text-white hover:bg-white/10 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
-              type="button"
-              aria-label="Open navigation menu"
-            >
-              <Menu size={24} aria-hidden="true" />
-            </button>
-          </div>
-
+          {/* Inline Navigation (Replaces Hamburger) */}
+          <nav className="relative z-10 pointer-events-auto flex items-center gap-1 sm:gap-2 bg-zinc-900/40 border border-white/5 rounded-full p-1.5 backdrop-blur-md">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={`top-${item.href}`}
+                  href={item.href}
+                  prefetch={true}
+                  onClick={(e) => handleProtectedRouting(e, item)}
+                  aria-label={item.label}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                    isActive
+                      ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
+                      : "text-zinc-400 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       </header>
 
-      {/* Floating Action Bar */}
-      <div
+      {/* Enterprise-Grade Floating Action Bar */}
+      <nav
         ref={floatingBarRef}
         data-scrolled="false"
-        className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-6 rounded-full border border-white/40 bg-white/30 px-6 py-3 backdrop-blur-xl shadow-[0_8px_32px_rgba(255,255,255,0.25)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] translate-y-[100px] opacity-0 scale-90 pointer-events-none data-[scrolled=true]:translate-y-0 data-[scrolled=true]:opacity-100 data-[scrolled=true]:scale-100 data-[scrolled=true]:pointer-events-auto transform-gpu will-change-transform"
+        aria-label="Quick navigation"
+        className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-[#0A0A0A]/85 p-1.5 backdrop-blur-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] translate-y-[100px] opacity-0 scale-95 pointer-events-none data-[scrolled=true]:translate-y-0 data-[scrolled=true]:opacity-100 data-[scrolled=true]:scale-100 data-[scrolled=true]:pointer-events-auto transform-gpu will-change-transform"
       >
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -145,77 +154,19 @@ export default function Header() {
               href={item.href}
               prefetch={true}
               onClick={(e) => handleProtectedRouting(e, item)}
-              className={`relative flex items-center justify-center p-3.5 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black ${
+              aria-label={item.label}
+              aria-current={isActive ? "page" : undefined}
+              className={`relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                 isActive
-                  ? "bg-white/90 shadow-lg text-black scale-110"
-                  : "text-black/70 hover:text-black hover:bg-white/50 hover:scale-105"
+                  ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] scale-105"
+                  : "text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95"
               }`}
             >
-              <item.icon size={26} strokeWidth={isActive ? 2.5 : 2} />
+              <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />
             </Link>
           );
         })}
-      </div>
-
-      {/* Sidebar Menu - (تم إزالة كلاس md:hidden ليعمل على الديسكتوب أيضاً) */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-2xl transform-gpu will-change-opacity"
-          >
-            <motion.div
-              initial={{ x: 100 }}
-              animate={{ x: 0 }}
-              exit={{ x: 100 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="absolute right-0 top-0 bottom-0 w-[85vw] max-w-sm bg-[#050505] border-l border-white/10 p-8 flex flex-col shadow-2xl transform-gpu will-change-transform contain-strict"
-            >
-              <div className="flex justify-between items-center mb-12 border-b border-white/5 pb-6">
-                <Image
-                  src="/logo.png"
-                  alt="airdeliver logo"
-                  width={120}
-                  height={24}
-                  className="object-contain"
-                />
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 text-gray-400 hover:text-white hover:rotate-90 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-full"
-                  type="button"
-                  aria-label="Close navigation menu"
-                >
-                  <CloseIcon size={24} aria-hidden="true" />
-                </button>
-              </div>
-
-              <nav className="flex flex-col gap-3">
-                {navItems.map((item) => {
-                  const isActive = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      prefetch={true}
-                      onClick={(e) => handleProtectedRouting(e, item)}
-                      className={`flex items-center gap-4 p-5 rounded-2xl text-sm font-bold uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
-                        isActive
-                          ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-                          : "text-gray-500 hover:text-white hover:bg-white/5"
-                      }`}
-                    >
-                      <item.icon size={20} aria-hidden="true" />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      </nav>
     </>
   );
 }
