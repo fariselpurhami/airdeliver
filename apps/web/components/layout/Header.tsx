@@ -114,7 +114,7 @@ export default function Header() {
           </div>
 
           {/* Inline Navigation (Replaces Hamburger) */}
-          <nav className="relative z-10 pointer-events-auto flex items-center gap-1 sm:gap-2 bg-zinc-900/40 border border-white/5 rounded-full p-1.5 backdrop-blur-md">
+          <nav className="relative z-10 pointer-events-auto flex items-center gap-1 sm:gap-2">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (

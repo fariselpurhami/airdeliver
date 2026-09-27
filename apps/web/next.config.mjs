@@ -1,3 +1,9 @@
+// FILE: next.config.mjs
+// ============================================================================
+// ENTERPRISE NEXT.JS CONFIGURATION
+// Enforces strict security boundaries, WebGL optimizations, and Edge standalone output.
+// ============================================================================
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -7,6 +13,7 @@ const __dirname = path.dirname(__filename);
 const isDevelopment = process.env.NODE_ENV === 'development';
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://api:8000';
 
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins: ["192.168.1.11"],
   turbopack: {
@@ -31,6 +38,8 @@ const nextConfig = {
   ],
   reactCompiler: true,
   experimental: {
+    // CRITICAL: Enables React's Taint API to prevent Server-to-Client secret leakage.
+    taint: true,
     optimizePackageImports: [
       'lucide-react',
       'date-fns',
@@ -65,11 +74,13 @@ const nextConfig = {
     ],
   },
   webpack: (config, { isServer, dev }) => {
+    // WebGL Shader Compilation
     config.module.rules.push({
       test: /\.(glsl|vs|fs|vert|frag)$/,
       use: ['raw-loader', 'glslify-loader'],
     });
 
+    // Aggressive Chunk Splitting for 3D Assets (Three.js/Fiber)
     if (!dev && !isServer) {
       config.optimization.splitChunks.cacheGroups = {
         ...config.optimization.splitChunks.cacheGroups,
