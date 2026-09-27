@@ -232,21 +232,13 @@ const ParticleField = memo(({ count, radius, color, size, rotationSpeed, positio
 
   return (
     <group ref={groupRef} position={position}>
-      <points ref={pointsRef} frustumCulled={true}>
+      <points ref={pointsRef} frustumCulled={false}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
         </bufferGeometry>
         <pointsMaterial 
           transparent color={materialColor} size={size} sizeAttenuation depthWrite={false} 
           toneMapped={false} opacity={0.8} 
-          onBeforeCompile={(shader) => {
-            shader.fragmentShader = shader.fragmentShader.replace(
-              'void main() {',
-              `void main() {
-                vec2 pt = gl_PointCoord - vec2(0.5);
-                if (dot(pt, pt) > 0.20) discard;`
-            );
-          }}
         />
       </points>
     </group>
@@ -399,7 +391,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: { onOrderClick: () =
                 </div>
 
                 <span className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3 rounded-full bg-white text-black font-bold text-[10px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu pointer-events-none">
-                  {cartItemsCount > 0 ? "Confirm Order!" : "order with air"}
+                  {cartItemsCount > 0 ? "Confirm Order!" : "Order with Air"}
                 </span>
               </motion.button>
 
@@ -516,7 +508,7 @@ const Globe = memo(() => {
   const sphereGeo = useMemo(() => new THREE.SphereGeometry(5, 32, 32), []);
   const haloGeo = useMemo(() => new THREE.SphereGeometry(5, 24, 24), []);
   const pulseGeo = useMemo(() => new THREE.SphereGeometry(0.08, 12, 12), []);
-  const tubeGeos = useMemo(() => paths.map(curve => new THREE.TubeGeometry(curve, 24, 0.02, 3, false)), [paths]);
+  const tubeGeos = useMemo(() => paths.map(curve => new THREE.TubeGeometry(curve, 8, 0.02, 3, false)), [paths]);
 
   useEffect(() => {
     return () => {
@@ -547,22 +539,25 @@ const Globe = memo(() => {
   });
 
   return (
+  
     <group ref={globeRef}>
-      <mesh geometry={sphereGeo}>
+      {/* إضافة frustumCulled={false} هنا */}
+      <mesh frustumCulled={false} geometry={sphereGeo}>
         <meshStandardMaterial color="#1e3a8a" emissive="#172554" emissiveIntensity={0.5} roughness={0.4} metalness={0.6} />
       </mesh>
-      <mesh scale={[1.05, 1.05, 1.05]} geometry={haloGeo}>
+      <mesh frustumCulled={false} scale={[1.05, 1.05, 1.05]} geometry={haloGeo}>
         <meshBasicMaterial color="#3b82f6" transparent opacity={0.15} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-      <mesh scale={[1.2, 1.2, 1.2]} geometry={haloGeo}>
+      <mesh frustumCulled={false} scale={[1.2, 1.2, 1.2]} geometry={haloGeo}>
         <meshBasicMaterial color="#a855f7" transparent opacity={0.05} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
       {tubeGeos.map((tubeGeo, i) => (
         <group key={i}>
-          <mesh geometry={tubeGeo}>
+          {/* وإضافتها هنا أيضاً للخطوط */}
+          <mesh frustumCulled={false} geometry={tubeGeo}>
             <meshBasicMaterial color="#d8b4fe" transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
-          <mesh ref={(el) => { pulseRefs.current[i] = el; }} geometry={pulseGeo}>
+          <mesh frustumCulled={false} ref={(el) => { pulseRefs.current[i] = el; }} geometry={pulseGeo}>
             <meshBasicMaterial color="#ffffff" toneMapped={false} />
           </mesh>
         </group>

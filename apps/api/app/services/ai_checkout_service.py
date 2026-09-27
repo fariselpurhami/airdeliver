@@ -220,7 +220,7 @@ class AICheckoutService:
                 status=OrderStatus.PENDING,
                 total_price=total_amount,
                 delivery_address=safe_address,
-                created_at=datetime.now(timezone.utc).replace(tzinfo=None)
+                created_at = datetime.now(timezone.utc)
             )
             
             self.db.add(new_order)
