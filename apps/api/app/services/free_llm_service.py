@@ -375,7 +375,7 @@ class FreeLLMService:
         messages: List[Dict[str, Any]],
         model: str,
         temperature: float = 0.2,
-        max_tokens: int = 512,
+        max_tokens: int = 4096,
         top_p: float = 0.9,
         response_format: Optional[Dict[str, str]] = None,
         timeout_seconds: Optional[float] = None,
@@ -568,7 +568,7 @@ class FreeLLMService:
                 ],
                 model=model_name,
                 temperature=safe_temperature,
-                max_tokens=safe_max_tokens,
+                max_tokens=4096,
                 top_p=0.9,
                 response_format={"type": "json_object"} if json_mode else None,
                 **kwargs,  # امتصاص أي باراميترات إضافية إلى طبقة الـ LLM (قابلة للتوسعة)
