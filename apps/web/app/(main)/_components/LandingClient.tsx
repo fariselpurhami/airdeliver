@@ -549,7 +549,7 @@ const Globe = memo(() => {
   return (
     <group ref={globeRef}>
       <mesh geometry={sphereGeo}>
-        <meshPhysicalMaterial color="#1e3a8a" emissive="#172554" emissiveIntensity={0.5} roughness={0.4} metalness={0.6} clearcoat={1} clearcoatRoughness={0.1} />
+        <meshStandardMaterial color="#1e3a8a" emissive="#172554" emissiveIntensity={0.5} roughness={0.4} metalness={0.6} />
       </mesh>
       <mesh scale={[1.05, 1.05, 1.05]} geometry={haloGeo}>
         <meshBasicMaterial color="#3b82f6" transparent opacity={0.15} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} />
@@ -574,7 +574,7 @@ Globe.displayName = 'Globe';
 
 const GlobalScaleSection = memo(() => {
   return (
-    <section className="relative min-h-screen w-full overflow-hidden bg-black flex flex-col justify-between pb-10" style={{ contain: 'content' }} aria-label="Global Scale Statistics">
+    <section className="relative min-h-[100svh] w-full overflow-hidden bg-black flex flex-col justify-between pb-10" style={{ contain: 'content' }} aria-label="Global Scale Statistics">
       <div className="absolute inset-0 z-0 transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
         <Canvas {...globeCanvasConfig} dpr={[1, 1.5]} performance={{ min: 0.5 }}>
           <ambientLight intensity={0.4} />
