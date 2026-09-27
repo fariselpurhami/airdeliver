@@ -86,32 +86,6 @@ const getAbsoluteImageUrl = (relativePath: string | undefined): string => { //[c
     return `${apiBase}${cleanPath}`; //[cite: 1]
 };
 
-const useTextToSpeech = (messages: ExtendedMessage[]) => {
-    useEffect(() => {
-        const lastMessage = messages[messages.length - 1]; //[cite: 1]
-
-        if (lastMessage && lastMessage.sender === 'ai' && lastMessage.contentType !== 'typing') { //[cite: 1]
-            const textToSpeak = typeof lastMessage.content === 'string' ? lastMessage.content :
-                                lastMessage.intro_message || "Here are the results.";  //[cite: 1]
-
-            window.speechSynthesis.cancel(); //[cite: 1]
-
-            const utterance = new SpeechSynthesisUtterance(textToSpeak); //[cite: 1]
-            utterance.lang = 'en-US';  //[cite: 1]
-            utterance.rate = 1.1;  //[cite: 1]
-            utterance.pitch = 1.0; //[cite: 1]
-
-            const voices = window.speechSynthesis.getVoices(); //[cite: 1]
-            const preferredVoice = voices.find(v => v.name.includes("Google US English") || v.name.includes("Samantha")); //[cite: 1]
-            if (preferredVoice) utterance.voice = preferredVoice; //[cite: 1]
-
-            window.speechSynthesis.speak(utterance); //[cite: 1]
-        }
-        
-        return () => window.speechSynthesis.cancel(); //[cite: 1]
-    }, [messages.length]); //[cite: 1]
-};
-
 const HolographicFlightDeck = React.memo(({ data }: { data: FlightData }) => {
     if (!data) return null; //[cite: 1]
 
@@ -1314,8 +1288,6 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, on
         onClose(); //[cite: 1]
         router.push(`/auth?mode=${mode}`); //[cite: 1]
     }, [actions, onClose, router]);
-
-    useTextToSpeech(messages);
 
     return (
         <AnimatePresence>
