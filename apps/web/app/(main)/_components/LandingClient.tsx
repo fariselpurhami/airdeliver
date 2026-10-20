@@ -259,15 +259,15 @@ const CosmicDustCanvas = memo(() => {
     const initParticles = (w: number, h: number) => {
       // Dense starfield matching the reference image while capping max count for 60fps guarantee
       const rawCount = Math.floor((w * h) / 1);
-      const count = Math.min(Math.max(rawCount, 2000), 15000);
+      const count = Math.min(Math.max(rawCount, 10000), 10000);
       const nextParticles: StarParticle[] = new Array(count);
 
       for (let i = 0; i < count; i++) {
         const rand = Math.random();
         const isBright = rand > 0.95;
         const size = isBright
-          ? Math.random() * 0.4 + 0.4
-          : Math.random() * 0.5 + 0.5;
+          ? Math.random() * 0.3 + 0.3
+          : Math.random() * 0.4 + 0.4;
 
         nextParticles[i] = {
           x: Math.random() * w,
@@ -418,10 +418,13 @@ const CosmicDustCanvas = memo(() => {
         className="absolute inset-0 transform-gpu"
         style={{
           background: [
-            'radial-gradient(ellipse 85% 60% at 18% 18%, rgba(13, 148, 136, 0.28) 0%, rgba(6, 182, 212, 0.12) 42%, transparent 75%)',
-            'radial-gradient(ellipse 80% 65% at 78% 58%, rgba(126, 34, 206, 0.30) 0%, rgba(109, 40, 217, 0.16) 45%, transparent 78%)',
-            'radial-gradient(ellipse 75% 55% at 50% 82%, rgba(88, 28, 135, 0.25) 0%, rgba(49, 46, 129, 0.12) 50%, transparent 80%)',
-            'linear-gradient(165deg, #061b22 0%, #070b16 42%, #130924 78%, #050508 100%)'
+            'radial-gradient(ellipse 85% 60% at 18% 18%, rgba(13, 148, 136, 0.15) 0%, rgba(6, 182, 212, 0.05) 42%, transparent 75%)',
+      // تقليل الشفافية من 0.30 لـ 0.15 ومن 0.16 لـ 0.06
+            'radial-gradient(ellipse 80% 65% at 78% 58%, rgba(126, 34, 206, 0.15) 0%, rgba(109, 40, 217, 0.06) 45%, transparent 78%)',
+      // تقليل الشفافية من 0.25 لـ 0.12 ومن 0.12 لـ 0.05
+            'radial-gradient(ellipse 75% 55% at 50% 82%, rgba(88, 28, 135, 0.12) 0%, rgba(49, 46, 129, 0.05) 50%, transparent 80%)',
+      // تغميق ألوان القاعدة الأساسية لتكون أقرب للأسود
+            'linear-gradient(165deg, #030d12 0%, #03050a 42%, #080412 78%, #020203 100%)'
           ].join(', ')
         }}
       />
@@ -434,13 +437,7 @@ const CosmicDustCanvas = memo(() => {
       />
 
       {/* Subtle Edge Vignette for Depth & Seamless Bottom Transition */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(circle at 50% 48%, transparent 35%, rgba(4, 6, 10, 0.55) 100%), linear-gradient(to bottom, transparent 78%, #050505 100%)'
-        }}
-      />
+      
     </div>
   );
 });
@@ -555,7 +552,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
               initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.1 }}
               className="text-sm sm:text-lg md:text-xl text-zinc-300 mb-10 leading-relaxed font-light max-w-lg mx-auto"
             >
-              Tell our AI exactly what you need. We secure the best deal across our global inventory and drop it at your door in minutes.
+              Your needs, instantly fulfilled. Our AI secures the best deal and tracks your delivery in real time.
             </motion.p>
 
             <motion.div
