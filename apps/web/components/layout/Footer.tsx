@@ -101,8 +101,8 @@ const Footer = () => {
                         </Link>
                     </div>
 
-                    <p className="text-gray-400/80 text-[11px] font-extralight tracking-[0.4em] max-w-sm mt-2">
-                        Commerce. Takes Flight.
+                    <p className="text-gray-400/80 text-[13px] font-extralight max-w-sm mt-2">
+                        Future of Commerce: Powered by AI.
                     </p>
                 </div>
 
