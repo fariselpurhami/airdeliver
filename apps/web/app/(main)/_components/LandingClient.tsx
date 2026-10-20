@@ -9,8 +9,8 @@ import React, {
   useRef, useMemo, useEffect, useReducer, memo, useId, Component, ErrorInfo, ReactNode 
 } from 'react';
 import { 
-  motion, useScroll, useInView, useTransform, 
-  useMotionValue, useAnimation, useReducedMotion 
+  motion, useScroll, useTransform, 
+  useAnimation, useReducedMotion 
 } from 'framer-motion';
 
 // Monorepo Path Aliases
@@ -155,8 +155,12 @@ class RUMErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState>
     const errorPayload = {
       traceId: this.props.traceId,
       timestamp: Date.now(),
-      event: 'ERROR',
-      metadata: { message: error.message, stack: error.stack, componentStack: errorInfo.componentStack }
+      event: 'ERROR' as const,
+      metadata: {
+        message: error.message.slice(0, 256),
+        stack: error.stack ? error.stack.slice(0, 1024) : undefined,
+        componentStack: errorInfo.componentStack ? errorInfo.componentStack.slice(0, 1024) : undefined
+      }
     };
     if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
       navigator.sendBeacon('/api/telemetry/rum', JSON.stringify(errorPayload));
@@ -191,14 +195,14 @@ interface HeroFloatingCardProps {
 
 // Colors Restored for visual hierarchy!
 const HERO_CARDS: ReadonlyArray<HeroFloatingCardProps> = [
-  { title: "Apple Vision Pro", category: "Neural Tech", delay: 0.1, rotation: -8, image: "https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop", positionClasses: "top-[1%] left-[16%] lg:top-[10%] lg:left-[5%]", sizeClasses: "w-21 h-29 lg:w-48 lg:h-64", colorCls: "hover:shadow-cyan-500/30 text-cyan-400" },
-  { title: "PS5", category: "Wearables", delay: 0.2, rotation: 6, image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[1%] right-[16%] lg:top-[10%] lg:right-[5%]", sizeClasses: "w-21 h-29 lg:w-40 lg:h-56", colorCls: "hover:shadow-purple-500/30 text-purple-400" },
-  { title: "Dyson", category: "Aesthetic", delay: 0.3, rotation: -4, image: "https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[50%] -left-[4%] lg:top-[45%] lg:left-[2%]", sizeClasses: "w-20 h-28 lg:w-40 lg:h-52", colorCls: "hover:shadow-pink-500/30 text-pink-400" },
-  { title: "Headphones", category: "Audio", delay: 0.4, rotation: 8, image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[50%] -right-[3%] lg:top-[45%] lg:right-[2%]", sizeClasses: "w-20 h-28 lg:w-44 lg:h-48", colorCls: "hover:shadow-amber-500/30 text-amber-400" },
-  { title: "Leather Handbag", category: "Bags", delay: 0.5, rotation: -6, image: "https://images.unsplash.com/photo-1691480150204-66dd1eb77391?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[70%] left-[2%] lg:bottom-[25%] lg:left-[8%]", sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-emerald-500/30 text-emerald-400" },
-  { title: "Iphone 17 pro max", category: "Electronics", delay: 0.6, rotation: 5, image: "https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[70%] right-[1%] lg:bottom-[25%] lg:right-[8%]", sizeClasses: "w-22 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-blue-500/30 text-blue-400" },
-  { title: "Nike Air Max", category: "Fashion", delay: 0.7, rotation: -5, image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[0%] left-[20%] lg:bottom-[5%] lg:left-[25%]", sizeClasses: "w-20 h-28 lg:w-48 lg:h-48", colorCls: "hover:shadow-red-500/30 text-red-400" },
-  { title: "Galaxy Buds", category: "Neural Tech", delay: 0.8, rotation: 7, image: "https://images.unsplash.com/photo-1600374917838-1df876d745c7?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[0%] right-[20%] lg:bottom-[5%] lg:right-[25%]", sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-cyan-500/30 text-cyan-400" }
+  { title: "Apple Vision Pro", category: "Neural Tech", delay: 0.1, rotation: -8, image: "https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop", positionClasses: "top-[1%] left-[16%] lg:top-[10%] lg:left-[5%]", sizeClasses: "w-21 h-29 lg:w-48 lg:h-64", colorCls: "hover:shadow-cyan-500/30 text-grey" },
+  { title: "PS5", category: "Wearables", delay: 0.2, rotation: 6, image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[1%] right-[16%] lg:top-[10%] lg:right-[5%]", sizeClasses: "w-21 h-29 lg:w-40 lg:h-56", colorCls: "hover:shadow-purple-500/30 text-grey" },
+  { title: "Dyson", category: "Aesthetic", delay: 0.3, rotation: -4, image: "https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[50%] -left-[4%] lg:top-[45%] lg:left-[2%]", sizeClasses: "w-20 h-28 lg:w-40 lg:h-52", colorCls: "hover:shadow-pink-500/30 text-grey" },
+  { title: "Headphones", category: "Audio", delay: 0.4, rotation: 8, image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[50%] -right-[3%] lg:top-[45%] lg:right-[2%]", sizeClasses: "w-20 h-28 lg:w-44 lg:h-48", colorCls: "hover:shadow-amber-500/30 text-grey" },
+  { title: "Leather Handbag", category: "Bags", delay: 0.5, rotation: -6, image: "https://images.unsplash.com/photo-1691480150204-66dd1eb77391?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[70%] left-[2%] lg:bottom-[25%] lg:left-[8%]", sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-emerald-500/30 text-grey" },
+  { title: "Iphone 17 pro max", category: "Electronics", delay: 0.6, rotation: 5, image: "https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[70%] right-[1%] lg:bottom-[25%] lg:right-[8%]", sizeClasses: "w-22 h-28 lg:w-40 lg:h-56", colorCls: "hover:shadow-blue-500/30 text-grey" },
+  { title: "Nike Air Max", category: "Fashion", delay: 0.7, rotation: -5, image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[0%] left-[20%] lg:bottom-[5%] lg:left-[25%]", sizeClasses: "w-20 h-28 lg:w-48 lg:h-48", colorCls: "hover:shadow-red-500/30 text-grey" },
+  { title: "Galaxy Buds", category: "Neural Tech", delay: 0.8, rotation: 7, image: "https://images.unsplash.com/photo-1600374917838-1df876d745c7?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[0%] right-[20%] lg:bottom-[5%] lg:right-[25%]", sizeClasses: "w-20 h-28 lg:w-36 lg:h-48", colorCls: "hover:shadow-cyan-500/30 text-grey" }
 ];
 
 const PRODUCTION_STEPS = [
@@ -209,96 +213,234 @@ const PRODUCTION_STEPS = [
 ] as const;
 
 // ============================================================================
-// --- [5] HIGH-PERFORMANCE 2D CANVAS (COSMIC DUST ENGINE - B&W ONLY) ---
+// --- [5] HIGH-PERFORMANCE 2D CANVAS (COSMIC NEBULA & STARFIELD ENGINE) ---
 // ============================================================================
 
+interface StarParticle {
+  x: number;
+  y: number;
+  size: number;
+  vx: number;
+  vy: number;
+  alpha: number;
+  da: number;
+  colorRgb: string;
+  isBright: boolean;
+}
+
+const STAR_PALETTE = [
+  '255, 255, 255', // Pure crisp white
+  '255, 255, 255', // Pure crisp white (weighted higher)
+  '207, 250, 254', // Soft cyan-white tint
+  '233, 213, 255', // Soft lavender-purple tint
+  '165, 243, 252', // Cosmic teal-cyan highlight
+] as const;
+
 const CosmicDustCanvas = memo(() => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: true });
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
+    const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
     if (!ctx) return;
 
-    let animationFrameId: number;
-    let particles: Array<{ x: number, y: number, radius: number, vx: number, vy: number, alpha: number, da: number }> = [];
+    let animationFrameId = 0;
+    let isVisible = true;
+    let isTabActive = !document.hidden;
+    let width = 0;
+    let height = 0;
+    let particles: StarParticle[] = [];
 
-    const initParticles = () => {
-      particles = [];
-      const count = Math.floor((canvas.width * canvas.height) / 7000); 
+    const initParticles = (w: number, h: number) => {
+      // Dense starfield matching the reference image while capping max count for 60fps guarantee
+      const rawCount = Math.floor((w * h) / 1);
+      const count = Math.min(Math.max(rawCount, 2000), 15000);
+      const nextParticles: StarParticle[] = new Array(count);
+
       for (let i = 0; i < count; i++) {
-        particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          radius: Math.random() * 1.5 + 0.2, 
-          vx: (Math.random() - 0.5) * 0.15, 
-          vy: (Math.random() - 0.5) * 0.15, 
-          alpha: Math.random(),
-          da: (Math.random() - 0.5) * 0.02 
-        });
+        const rand = Math.random();
+        const isBright = rand > 0.95;
+        const size = isBright
+          ? Math.random() * 0.4 + 0.4
+          : Math.random() * 0.5 + 0.5;
+
+        nextParticles[i] = {
+          x: Math.random() * w,
+          y: Math.random() * h,
+          size,
+          vx: (Math.random() - 0.5) * 0.05,
+          vy: (Math.random() - 0.5) * 0.05,
+          alpha: isBright ? Math.random() * 0.35 + 0.45 : Math.random() * 0.65 + 0.15,
+          da: (Math.random() * 0.012 + 0.003) * (Math.random() > 0.5 ? 1 : -1),
+          colorRgb: STAR_PALETTE[i % STAR_PALETTE.length],
+          isBright,
+        };
       }
+      particles = nextParticles;
     };
 
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      initParticles();
-    };
+    const renderFrame = (animate: boolean) => {
+      ctx.clearRect(0, 0, width, height);
 
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      particles.forEach(p => {
-        if (!prefersReducedMotion) {
+      const len = particles.length;
+      for (let i = 0; i < len; i++) {
+        const p = particles[i];
+
+        if (animate) {
           p.x += p.vx;
           p.y += p.vy;
           p.alpha += p.da;
 
-          if (p.alpha <= 0.1 || p.alpha >= 0.9) p.da = -p.da;
-          
-          if (p.x < 0) p.x = canvas.width;
-          if (p.x > canvas.width) p.x = 0;
-          if (p.y < 0) p.y = canvas.height;
-          if (p.y > canvas.height) p.y = 0;
+          if (p.alpha <= 0.12) {
+            p.alpha = 0.12;
+            p.da = -p.da;
+          } else if (p.alpha >= 0.98) {
+            p.alpha = 0.98;
+            p.da = -p.da;
+          }
+
+          if (p.x < 0) p.x = width;
+          else if (p.x > width) p.x = 0;
+          if (p.y < 0) p.y = height;
+          else if (p.y > height) p.y = 0;
         }
 
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        // Strictly White Cosmic Dust
-        ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
-        ctx.fill();
-      });
+        ctx.fillStyle = `rgba(${p.colorRgb}, ${p.alpha.toFixed(2)})`;
 
-      animationFrameId = requestAnimationFrame(draw);
+        // Fast sub-pixel / micro-star rendering via fillRect; smooth circles for brighter stars
+        if (!p.isBright) {
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+        } else {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * 0.75, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     };
 
-    window.addEventListener('resize', resize);
-    resize();
-    draw();
+    const stopLoop = () => {
+      if (animationFrameId !== 0) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = 0;
+      }
+    };
+
+    const tick = () => {
+      if (!isVisible || !isTabActive || prefersReducedMotion) {
+        animationFrameId = 0;
+        return;
+      }
+      renderFrame(true);
+      animationFrameId = requestAnimationFrame(tick);
+    };
+
+    const startLoop = () => {
+      if (prefersReducedMotion) {
+        renderFrame(false);
+        return;
+      }
+      if (animationFrameId === 0 && isVisible && isTabActive) {
+        animationFrameId = requestAnimationFrame(tick);
+      }
+    };
+
+    const updateDimensions = () => {
+      const rect = container.getBoundingClientRect();
+      const nextW = Math.max(1, Math.floor(rect.width || window.innerWidth));
+      const nextH = Math.max(1, Math.floor(rect.height || window.innerHeight));
+      if (nextW === width && nextH === height) return;
+
+      width = nextW;
+      height = nextH;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      initParticles(width, height);
+      renderFrame(false);
+    };
+
+    updateDimensions();
+    startLoop();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateDimensions();
+    });
+    resizeObserver.observe(container);
+
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        isVisible = Boolean(entry?.isIntersecting);
+        if (isVisible) {
+          startLoop();
+        } else {
+          stopLoop();
+        }
+      },
+      { threshold: 0.01 }
+    );
+    intersectionObserver.observe(container);
+
+    const handleVisibilityChange = () => {
+      isTabActive = !document.hidden;
+      if (isTabActive) {
+        startLoop();
+      } else {
+        stopLoop();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animationFrameId);
+      stopLoop();
+      resizeObserver.disconnect();
+      intersectionObserver.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [prefersReducedMotion]);
 
   return (
-    <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#050505]" style={{ contain: 'strict' }} aria-hidden="true">
-      {/* Black and White Radial Nebula */}
-      <div 
-        className="absolute inset-0 opacity-40"
+    <div
+      ref={containerRef}
+      className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#04060A]"
+      style={{ contain: 'strict' }}
+      aria-hidden="true"
+    >
+      {/* Multi-layered Cosmic Teal & Deep Violet/Purple Nebula matching reference image */}
+      <div
+        className="absolute inset-0 transform-gpu"
         style={{
-          background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08) 0%, transparent 50%), radial-gradient(circle at 70% 70%, rgba(200,200,200,0.05) 0%, transparent 40%)'
+          background: [
+            'radial-gradient(ellipse 85% 60% at 18% 18%, rgba(13, 148, 136, 0.28) 0%, rgba(6, 182, 212, 0.12) 42%, transparent 75%)',
+            'radial-gradient(ellipse 80% 65% at 78% 58%, rgba(126, 34, 206, 0.30) 0%, rgba(109, 40, 217, 0.16) 45%, transparent 78%)',
+            'radial-gradient(ellipse 75% 55% at 50% 82%, rgba(88, 28, 135, 0.25) 0%, rgba(49, 46, 129, 0.12) 50%, transparent 80%)',
+            'linear-gradient(165deg, #061b22 0%, #070b16 42%, #130924 78%, #050508 100%)'
+          ].join(', ')
         }}
       />
-      <canvas 
-        ref={canvasRef} 
-        className="absolute inset-0 w-full h-full" 
+
+      {/* Crisp Dense Starfield Canvas */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full transform-gpu"
         style={{ mixBlendMode: 'screen' }}
       />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#050505_100%)] opacity-90" />
+
+      {/* Subtle Edge Vignette for Depth & Seamless Bottom Transition */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 48%, transparent 35%, rgba(4, 6, 10, 0.55) 100%), linear-gradient(to bottom, transparent 78%, #050505 100%)'
+        }}
+      />
     </div>
   );
 });
@@ -344,7 +486,7 @@ const HeroFloatingCard = memo(({ title, image, category, delay, positionClasses,
 HeroFloatingCard.displayName = 'HeroFloatingCard';
 
 // ============================================================================
-// --- [7] HERO SECTION (B&W Background, Vibrant UI) ---
+// --- [7] HERO SECTION (Cosmic Teal/Purple Starfield Background, Vibrant UI) ---
 // ============================================================================
 
 interface HeroSectionProps {
@@ -386,16 +528,16 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
   }, [cartItemsCount, capsuleControls, prefersReducedMotion]);
 
   return (
-    <section ref={containerRef} className="relative w-full bg-[#050505] overflow-hidden flex items-center pt-28 pb-16 lg:pt-32 lg:pb-32 isolate" style={{ contain: 'layout paint' }} aria-labelledby={titleId}>
+    <section ref={containerRef} className="relative w-full bg-[#04060A] overflow-hidden flex items-center min-h-[100svh] pt-28 pb-16 lg:pt-32 lg:pb-32 isolate" style={{ contain: 'layout paint' }} aria-labelledby={titleId}>
       
-      {/* Background is strictly B&W Shiny Space Dust */}
+      {/* High-Performance Cosmic Teal & Purple Starfield Background */}
       <CosmicDustCanvas />
 
       <motion.div
         style={{ y: prefersReducedMotion ? 0 : yParallax, opacity: opacityFade }}
         className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10 h-full transform-gpu"
       >
-        <div className="w-full flex flex-col items-center justify-center relative min-h-[75vh]">
+        <div className="w-full flex flex-col items-center justify-center relative h-full min-h-[600px]">
           
           <div className="flex flex-col items-center text-center max-w-3xl w-full relative z-30 pointer-events-auto">
             <motion.h1
@@ -470,8 +612,8 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
               initial={{ opacity: 0, scale: 0.9, rotateY: 10 }} animate={{ opacity: 1, scale: 1, rotateY: 0 }} transition={{ duration: 1.2, ease: TRANSITION_PREMIUM, delay: 0.2 }}
               className="relative w-full h-full flex items-center justify-center transform-gpu"
             >
-              {HERO_CARDS.map((card, idx) => (
-                <HeroFloatingCard key={idx} {...card} />
+              {HERO_CARDS.map((card) => (
+                <HeroFloatingCard key={card.title} {...card} />
               ))}
             </motion.div>
           </div>
@@ -665,8 +807,9 @@ const FinalCTA = memo(() => (
 ));
 FinalCTA.displayName = 'FinalCTA';
 
-const TrustedBySection = memo(() => {
+const TrustedBySection = memo(({ nonce }: { readonly nonce?: string }) => {
   const companies = ["NVIDIA", "STRIPE", "AWS", "CLOUDFLARE", "MASTERCARD"];
+  const repeatedCompanies = [...companies, ...companies, ...companies, ...companies];
   return (
     <section className="py-12 bg-transparent border-y border-white/5 overflow-hidden relative isolate" style={{ contain: 'layout paint' }} aria-label="Trusted Partners">
       <div className="absolute inset-0 bg-cyan-900/5 blur-3xl pointer-events-none transform-gpu" aria-hidden="true" />
@@ -679,14 +822,14 @@ const TrustedBySection = memo(() => {
         <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-[#050505] to-transparent z-10 pointer-events-none" aria-hidden="true" />
         
         <div className="flex gap-16 items-center hover:[animation-play-state:paused] transform-gpu" style={{ animation: 'marquee 25s linear infinite' }} aria-hidden="true">
-          {[...companies, ...companies, ...companies, ...companies].map((company, index) => (
-            <span key={index} className="text-xl md:text-2xl font-bold text-zinc-800 uppercase tracking-tighter hover:text-cyan-400 transition-colors duration-500 cursor-default select-none whitespace-nowrap" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          {repeatedCompanies.map((company, index) => (
+            <span key={`${company}-${index}`} className="text-xl md:text-2xl font-bold text-zinc-800 uppercase tracking-tighter hover:text-cyan-400 transition-colors duration-500 cursor-default select-none whitespace-nowrap" style={{ fontFamily: "'Orbitron', sans-serif" }}>
               {company}
             </span>
           ))}
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{__html: `
+      <style nonce={nonce} dangerouslySetInnerHTML={{__html: `
         @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
       `}} />
     </section>
@@ -769,7 +912,7 @@ export function LandingClient({ nonce, initialTraceId }: LandingClientProps) {
           <HeroSection onOrderClick={handleOrderClick} onExploreClick={handleExploreClick} />
           <HowItWorksSection />
           <FinalCTA />
-          <TrustedBySection />
+          <TrustedBySection nonce={nonce} />
         </main>
 
         <ProductOverlay isOpen={uiState.status === 'PRODUCT_OVERLAY_ACTIVE'} onClose={handleClose} />
