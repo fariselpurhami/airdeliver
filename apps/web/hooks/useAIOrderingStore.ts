@@ -136,11 +136,7 @@ const generateMessageId = () => Date.now() + messageIdCounter++;
 const generateUUID = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
 const initialWelcomeMessage: Message = {
-  id: 0,
-  sender: 'ai',
-  contentType: 'text',
-  content: `Don't search. Just ask. airdeliverOS scans thousands of products and secures them for instant air-drop.`,
-  timestamp: Date.now(),
+ 
 };
 
 const SILENT_COMMAND_TRIGGERS = new Set([

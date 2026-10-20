@@ -2,28 +2,28 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation'; //[cite: 1]
-import { ProductDetailsCard } from '../products/ProductDetailsCard'; //[cite: 1]
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'; //[cite: 1]
-import { motion, AnimatePresence, useAnimation } from 'framer-motion'; //[cite: 1]
-import { 
-    Bot, User, CornerDownRight, ShoppingCart, Cpu, X, 
-    ChevronLeft, ChevronRight, Save, ChevronDown, ChevronUp, Trash2, Undo2, AlertCircle, 
-    ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap, 
+import { useRouter } from 'next/navigation';
+import { ProductDetailsCard } from '../products/ProductDetailsCard';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
+import {
+    Bot, User, CornerDownRight, ShoppingCart, Cpu, X,
+    ChevronLeft, ChevronRight, Save, ChevronDown, ChevronUp, Trash2, Undo2, AlertCircle,
+    ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap,
     Activity, Signal, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock, Eye, ShieldCheck
-} from 'lucide-react'; //[cite: 1]
-import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore'; //[cite: 1]
-import Image from 'next/image'; //[cite: 1]
-import useEmblaCarousel from 'embla-carousel-react'; //[cite: 1]
-import { loadStripe, StripeElementsOptions, Stripe } from '@stripe/stripe-js'; //[cite: 1]
-import { Elements } from '@stripe/react-stripe-js'; //[cite: 1]
-import AIPaymentForm from './AIPaymentForm'; //[cite: 1]
-import { useSession } from "next-auth/react"; //[cite: 1]
-import { useShallow } from 'zustand/react/shallow'; //[cite: 1]
-import { AIVoiceOverlay } from './AIVoiceOverlay'; //[cite: 1]
-import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'; //[cite: 1]
-import ReactMarkdown from 'react-markdown'; //[cite: 1]
-import remarkGfm from 'remark-gfm'; //[cite: 1]
+} from 'lucide-react';
+import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
+import Image from 'next/image';
+import useEmblaCarousel from 'embla-carousel-react';
+import { loadStripe, StripeElementsOptions, Stripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import AIPaymentForm from './AIPaymentForm';
+import { useSession } from "next-auth/react";
+import { useShallow } from 'zustand/react/shallow';
+import { AIVoiceOverlay } from './AIVoiceOverlay';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // --- ENTERPRISE CONTRACT DEFINITIONS ---
 export interface AIProduct {
@@ -36,6 +36,8 @@ export interface AIProduct {
     stock_level?: string;
     quantity?: number;
     product_id?: number;
+    brand?: string;
+    reviews_count?: string | number;
 }
 
 export interface FlightData {
@@ -68,114 +70,193 @@ declare global {
     }
 }
 
-const DEFAULT_PLACEHOLDER = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC"; //[cite: 1]
-const ZOMBIE_CONNECTION_THRESHOLD_MS = 60_000; //[cite: 1]
-const SIMULATED_AUTH_DELAY_MS = 500; //[cite: 1]
+const DEFAULT_PLACEHOLDER = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC";
+const ZOMBIE_CONNECTION_THRESHOLD_MS = 60_000;
+const SIMULATED_AUTH_DELAY_MS = 500;
 
-const getAbsoluteImageUrl = (relativePath: string | undefined): string => { //[cite: 1]
-    if (!relativePath) return DEFAULT_PLACEHOLDER; //[cite: 1]
-    if (relativePath.startsWith('http') || relativePath.startsWith('data:')) return relativePath; //[cite: 1]
+const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
+    if (!relativePath) return DEFAULT_PLACEHOLDER;
+    const trimmed = relativePath.trim();
+    if (trimmed.startsWith('data:image/')) return trimmed;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        try {
+            const parsed = new URL(trimmed);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                return parsed.toString();
+            }
+        } catch {
+            return DEFAULT_PLACEHOLDER;
+        }
+        return DEFAULT_PLACEHOLDER;
+    }
 
-    const apiBase = process.env.NEXT_PUBLIC_API_URL //[cite: 1]
-        ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '') //[cite: 1]
-        : 'http://localhost:8000'; //[cite: 1]
-    
-    const cleanPath = relativePath.startsWith('/') ? relativePath : `/${relativePath}`; //[cite: 1]
-    if (cleanPath.includes('default.jpeg')) return DEFAULT_PLACEHOLDER; //[cite: 1]
+    const apiBase = process.env.NEXT_PUBLIC_API_URL
+        ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '')
+        : 'http://localhost:8000';
 
-    return `${apiBase}${cleanPath}`; //[cite: 1]
+    const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    if (cleanPath.includes('default.jpeg')) return DEFAULT_PLACEHOLDER;
+
+    return `${apiBase}${cleanPath}`;
 };
 
+const extractBrandAndTitle = (product: AIProduct): { brand: string; title: string } => {
+    if (product.brand && product.brand.trim().length > 0) {
+        return { brand: product.brand.trim().toUpperCase(), title: product.name };
+    }
+    const knownLuxuryTokens = [
+        'GUCCI', 'PRADA', 'DIOR', 'HERMES', 'HERMÈS', 'BALENCIAGA', 'SAINT LAURENT',
+        'LOUIS VUITTON', 'BOTTEGA VENETA', 'CARTIER', 'ROLEX', 'CHANEL', 'FENDI',
+        'BURBERRY', 'VERSACE', 'GIVENCHY', 'VALENTINO', 'LOEWE', 'CELINE', 'APPLE', 'SONY', 'NIKE'
+    ];
+    const upperName = (product.name || '').trim().toUpperCase();
+    for (const brand of knownLuxuryTokens) {
+        if (upperName.startsWith(`${brand} `)) {
+            const remaining = product.name.trim().slice(brand.length).trim();
+            return {
+                brand,
+                title: remaining.length > 0 ? remaining : product.name
+            };
+        }
+    }
+    const words = (product.name || '').trim().split(/\s+/);
+    if (words.length > 2) {
+        return {
+            brand: words[0].toUpperCase(),
+            title: product.name
+        };
+    }
+    return {
+        brand: (product.stock_level || 'AIRDELIVER SELECT').toUpperCase(),
+        title: product.name
+    };
+};
+
+// Custom 4-point sparkle icon matching the screenshot's "" star
+const FourPointSparkle = React.memo(({ className = "w-3.5 h-3.5 text-white/50" }: { className?: string }) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+        <path d="M12 2C12.7 7.5 16.5 11.3 22 12C16.5 12.7 12.7 16.5 12 22C11.3 16.5 7.5 12.7 2 12C7.5 11.3 11.3 7.5 12 2Z" />
+    </svg>
+));
+FourPointSparkle.displayName = 'FourPointSparkle';
+
+// Custom bookmark-star badge icon matching the top-right product card action button in the screenshot
+const BookmarkStarIcon = React.memo(() => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M6 3C4.89543 3 4 3.89543 4 5V21L12 17.5L20 21V5C20 3.89543 19.1046 3 18 3H6ZM12 7.2L13.09 9.41L15.53 9.76L13.76 11.48L14.18 13.91L12 12.77L9.82 13.91L10.24 11.48L8.47 9.76L10.91 9.41L12 7.2Z" />
+    </svg>
+));
+BookmarkStarIcon.displayName = 'BookmarkStarIcon';
+
+// Custom sleek paper-plane Send icon matching the bottom-right glowing blue icon in the screenshot
+const SendPlaneIcon = React.memo(({ size = 20 }: { size?: number }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+    >
+        <path d="M4 4L20 12L4 20L7.5 12L4 4Z" />
+        <path d="M7.5 12H14" />
+    </svg>
+));
+SendPlaneIcon.displayName = 'SendPlaneIcon';
+
 const HolographicFlightDeck = React.memo(({ data }: { data: FlightData }) => {
-    if (!data) return null; //[cite: 1]
+    if (!data) return null;
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.9 }} //[cite: 1]
-            animate={{ opacity: 1, scale: 1 }} //[cite: 1]
-            style={{ willChange: 'transform, opacity' }} //[cite: 1]
-            className="w-full bg-[#050B14] border border-cyan-500/30 rounded-2xl overflow-hidden relative mt-2 shadow-[0_0_30px_rgba(6,182,212,0.15)] transform-gpu" //[cite: 1]
+            initial={{ opacity: 0, scale: 0.94 }}
+            animate={{ opacity: 1, scale: 1 }}
+            style={{ willChange: 'transform, opacity' }}
+            className="w-full bg-[#070B14]/85 backdrop-blur-2xl rounded-3xl overflow-hidden relative mt-3 shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_30px_rgba(56,189,248,0.12)] transform-gpu"
         >
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.05)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" /> 
-         
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.04)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+
             <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/10 to-transparent w-[50%] skew-x-12 pointer-events-none" //[cite: 1]
-                animate={{ left: ['-100%', '200%'] }} //[cite: 1]
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }} //[cite: 1]
-                style={{ willChange: 'left' }} //[cite: 1]
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-sky-400/10 to-transparent w-[50%] skew-x-12 pointer-events-none"
+                animate={{ left: ['-100%', '200%'] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                style={{ willChange: 'left' }}
             />
 
             <div className="p-5 relative z-10">
-                <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4"> 
+                <div className="flex justify-between items-start mb-6 pb-4">
                     <div>
-                        <div className="flex items-center gap-2 mb-1"> 
-                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> 
-                            <span className="text-xs font-bold text-cyan-400 tracking-[0.2em] uppercase">Live Uplink</span> 
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="w-2 h-2 bg-sky-400 rounded-full animate-pulse shadow-[0_0_8px_#38BDF8]" />
+                            <span className="text-xs font-semibold text-sky-300 tracking-[0.2em] uppercase">Live Uplink</span>
                         </div>
-                        <h3 className="text-lg font-black text-white font-mono">{data.mission_id}</h3> 
+                        <h3 className="text-lg font-bold text-white font-mono">{data.mission_id}</h3>
                     </div>
-                    <div className="text-right">
-                        <span className="block text-[10px] text-gray-500 uppercase tracking-widest">Drone ID</span> 
-                        <span className="font-mono text-cyan-200">{data.drone_id}</span> 
+                    <div className="text-end">
+                        <span className="block text-[10px] text-white/45 uppercase tracking-widest">Drone ID</span>
+                        <span className="font-mono text-sky-200">{data.drone_id}</span>
                     </div>
                 </div>
 
                 <div className="h-32 w-full relative mb-6 mx-auto flex items-center justify-center">
                     <svg className="w-full h-full absolute inset-0 overflow-visible">
                         <motion.path
-                            d="M 20,60 Q 150,10 280,60" //[cite: 1]
-                            fill="none" //[cite: 1]
-                            stroke="rgba(6, 182, 212, 0.3)" //[cite: 1]
-                            strokeWidth="2" //[cite: 1]
-                            strokeDasharray="5 5" //[cite: 1]
+                            d="M 20,60 Q 150,10 280,60"
+                            fill="none"
+                            stroke="rgba(56, 189, 248, 0.25)"
+                            strokeWidth="2"
+                            strokeDasharray="5 5"
                         />
-                         <motion.path
-                            d="M 20,60 Q 150,10 280,60" //[cite: 1]
-                            fill="none" //[cite: 1]
-                            stroke="#06b6d4" //[cite: 1]
-                            strokeWidth="2" //[cite: 1]
-                            initial={{ pathLength: 0 }} //[cite: 1]
-                            animate={{ pathLength: 1 }} //[cite: 1]
-                            transition={{ duration: 2, ease: "easeInOut" }} //[cite: 1]
+                        <motion.path
+                            d="M 20,60 Q 150,10 280,60"
+                            fill="none"
+                            stroke="#38BDF8"
+                            strokeWidth="2"
+                            initial={{ pathLength: 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 2, ease: "easeInOut" }}
                         />
-                        <circle cx="20" cy="60" r="4" fill="#06b6d4" /> 
-                        <text x="20" y="80" fill="gray" fontSize="10" textAnchor="middle">HQ</text> 
+                        <circle cx="20" cy="60" r="4" fill="#38BDF8" />
+                        <text x="20" y="80" fill="rgba(255,255,255,0.45)" fontSize="10" textAnchor="middle">HQ</text>
                         <motion.g
-                            initial={{ offsetDistance: "0%" }} //[cite: 1]
-                            animate={{ offsetDistance: "100%" }} //[cite: 1]
-                            transition={{ duration: 10, repeat: Infinity, ease: "linear" }} //[cite: 1]
-                            style={{ offsetPath: 'path("M 20,60 Q 150,10 280,60")' }} //[cite: 1]
+                            initial={{ offsetDistance: "0%" }}
+                            animate={{ offsetDistance: "100%" }}
+                            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                            style={{ offsetPath: 'path("M 20,60 Q 150,10 280,60")' }}
                         >
-                            <circle cx="0" cy="0" r="6" fill="#06b6d4" className="drop-shadow-[0_0_10px_rgba(6,182,212,1)]" /> 
+                            <circle cx="0" cy="0" r="6" fill="#38BDF8" className="drop-shadow-[0_0_10px_rgba(56,189,248,1)]" />
                         </motion.g>
-                        <circle cx="280" cy="60" r="4" fill="#ef4444" /> 
-                        <circle cx="280" cy="60" r="8" fill="none" stroke="#ef4444" strokeOpacity="0.5" className="animate-ping" /> 
-                        <text x="280" y="80" fill="gray" fontSize="10" textAnchor="middle">YOU</text> 
+                        <circle cx="280" cy="60" r="4" fill="#F43F5E" />
+                        <circle cx="280" cy="60" r="8" fill="none" stroke="#F43F5E" strokeOpacity="0.5" className="animate-ping" />
+                        <text x="280" y="80" fill="rgba(255,255,255,0.45)" fontSize="10" textAnchor="middle">YOU</text>
                     </svg>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center border border-white/5"> 
-                        <Clock size={16} className="text-cyan-400 mb-2" /> 
-                        <span className="text-[10px] text-gray-500 uppercase">ETA</span> 
-                        <span className="text-sm font-bold text-white">{data.estimated_arrival_mins} min</span> 
+                <div className="grid grid-cols-3 gap-2.5">
+                    <div className="bg-white/[0.04] rounded-2xl p-3 flex flex-col items-center">
+                        <Clock size={16} className="text-sky-300 mb-2" />
+                        <span className="text-[10px] text-white/45 uppercase">ETA</span>
+                        <span className="text-sm font-semibold text-white">{data.estimated_arrival_mins} min</span>
                     </div>
-                    <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center border border-white/5">
-                        <Navigation size={16} className="text-purple-400 mb-2" /> 
-                        <span className="text-[10px] text-gray-500 uppercase">Dist</span> 
-                        <span className="text-sm font-bold text-white">{data.distance_km} km</span> 
+                    <div className="bg-white/[0.04] rounded-2xl p-3 flex flex-col items-center">
+                        <Navigation size={16} className="text-indigo-300 mb-2" />
+                        <span className="text-[10px] text-white/45 uppercase">Dist</span>
+                        <span className="text-sm font-semibold text-white">{data.distance_km} km</span>
                     </div>
-                    <div className="bg-white/5 rounded-xl p-3 flex flex-col items-center border border-white/5">
-                        <Wind size={16} className="text-green-400 mb-2" /> 
-                        <span className="text-[10px] text-gray-500 uppercase">Weather</span> 
-                        <span className="text-[10px] font-bold text-white text-center leading-tight">{data.weather_condition}</span> 
+                    <div className="bg-white/[0.04] rounded-2xl p-3 flex flex-col items-center">
+                        <Wind size={16} className="text-emerald-300 mb-2" />
+                        <span className="text-[10px] text-white/45 uppercase">Weather</span>
+                        <span className="text-[10px] font-semibold text-white text-center leading-tight">{data.weather_condition}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-cyan-950/30 p-2 text-center border-t border-cyan-500/20"> 
-                <span className="text-[10px] font-mono text-cyan-300 animate-pulse"> 
-                    &gt;&gt; SYSTEM STATUS: {data.status} &lt;&lt; 
+            <div className="bg-sky-950/25 p-2.5 text-center">
+                <span className="text-[10px] font-mono text-sky-300 animate-pulse">
+                    &gt;&gt; SYSTEM STATUS: {data.status} &lt;&lt;
                 </span>
             </div>
         </motion.div>
@@ -184,150 +265,139 @@ const HolographicFlightDeck = React.memo(({ data }: { data: FlightData }) => {
 HolographicFlightDeck.displayName = 'HolographicFlightDeck';
 
 const DroneTelemetryWidget = React.memo(() => {
-    const [stats, setStats] = useState({ speed: 45, alt: 120, bat: 98, stab: 100 }); //[cite: 1]
+    const [stats, setStats] = useState({ speed: 45, alt: 120, bat: 98, stab: 100 });
 
     useEffect(() => {
-        const interval = setInterval(() => { //[cite: 1]
-            setStats(prev => ({ //[cite: 1]
-                speed: Math.max(40, Math.min(60, prev.speed + (Math.random() - 0.5) * 5)), //[cite: 1]
-                alt: Math.max(115, Math.min(125, prev.alt + (Math.random() - 0.5) * 2)), //[cite: 1]
-                bat: Math.max(90, prev.bat - 0.01), //[cite: 1]
-                stab: Math.min(100, Math.max(98, prev.stab + (Math.random() - 0.5))) //[cite: 1]
-            })); //[cite: 1]
-        }, 1000); //[cite: 1]
-        return () => clearInterval(interval); //[cite: 1]
+        const interval = setInterval(() => {
+            setStats(prev => ({
+                speed: Math.max(40, Math.min(60, prev.speed + (Math.random() - 0.5) * 5)),
+                alt: Math.max(115, Math.min(125, prev.alt + (Math.random() - 0.5) * 2)),
+                bat: Math.max(90, prev.bat - 0.01),
+                stab: Math.min(100, Math.max(98, prev.stab + (Math.random() - 0.5)))
+            }));
+        }, 1000);
+        return () => clearInterval(interval);
     }, []);
 
     const TelemetryItem = ({ icon: Icon, label, value, unit, color }: { icon: any, label: string, value: number, unit: string, color: string }) => (
-        <div className="flex flex-col items-start p-2 rounded-xl bg-white/5 border border-white/5 relative overflow-hidden group"> 
-            <div className={`absolute top-0 right-0 p-1.5 opacity-20 group-hover:opacity-100 transition-opacity duration-500 ${color}`}> 
-                <Icon size={14} /> 
+        <div className="flex flex-col items-start p-2.5 rounded-2xl bg-white/[0.04] relative overflow-hidden group">
+            <div className={`absolute top-0 end-0 p-1.5 opacity-25 group-hover:opacity-100 transition-opacity duration-500 ${color}`}>
+                <Icon size={14} />
             </div>
-            <span className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mb-0.5">{label}</span> 
-            <div className="flex items-baseline gap-0.5"> 
-                <span className="text-sm font-mono font-bold text-white tracking-tight">{value.toFixed(1)}</span> 
-                <span className="text-[8px] text-gray-400">{unit}</span> 
+            <span className="text-[9px] text-white/45 uppercase tracking-wider font-semibold mb-0.5">{label}</span>
+            <div className="flex items-baseline gap-0.5">
+                <span className="text-sm font-mono font-bold text-white tracking-tight">{value.toFixed(1)}</span>
+                <span className="text-[8px] text-white/45">{unit}</span>
             </div>
-            <div className="w-full h-0.5 bg-gray-800 mt-1.5 rounded-full overflow-hidden"> 
-                <motion.div 
-                    className={`h-full ${color.replace('text-', 'bg-')}`} 
-                    initial={{ width: 0 }} //[cite: 1]
-                    animate={{ width: `${Math.min(100, (value / (label === 'PWR' ? 100 : 60)) * 100)}%` }} //[cite: 1]
-                    transition={{ duration: 0.5 }} //[cite: 1]
-                    style={{ willChange: 'width' }} //[cite: 1]
+            <div className="w-full h-0.5 bg-white/10 mt-1.5 rounded-full overflow-hidden">
+                <motion.div
+                    className={`h-full ${color.replace('text-', 'bg-')}`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, (value / (label === 'PWR' ? 100 : 60)) * 100)}%` }}
+                    transition={{ duration: 0.5 }}
+                    style={{ willChange: 'width' }}
                 />
             </div>
         </div>
     );
 
     return (
-        <div className="grid grid-cols-4 gap-2 w-full mt-2"> 
-            <TelemetryItem icon={Wind} label="SPD" value={stats.speed} unit="km/h" color="text-cyan-400" /> 
-            <TelemetryItem icon={Navigation} label="ALT" value={stats.alt} unit="m" color="text-purple-400" /> 
-            <TelemetryItem icon={Zap} label="PWR" value={stats.bat} unit="%" color="text-green-400" /> 
-            <TelemetryItem icon={Activity} label="STAB" value={stats.stab} unit="%" color="text-blue-400" /> 
+        <div className="grid grid-cols-4 gap-2 w-full mt-2">
+            <TelemetryItem icon={Wind} label="SPD" value={stats.speed} unit="km/h" color="text-sky-400" />
+            <TelemetryItem icon={Navigation} label="ALT" value={stats.alt} unit="m" color="text-indigo-400" />
+            <TelemetryItem icon={Zap} label="PWR" value={stats.bat} unit="%" color="text-emerald-400" />
+            <TelemetryItem icon={Activity} label="STAB" value={stats.stab} unit="%" color="text-blue-400" />
         </div>
     );
 });
 DroneTelemetryWidget.displayName = 'DroneTelemetryWidget';
 
-const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, totalItems }: { product: AIProduct, onSelect: (product: AIProduct, elementId: string) => void, onViewDetails: (product: AIProduct) => void, totalItems: number }) => {
-    const slideWidthClass = "flex-none w-[280px] snap-center"; //[cite: 1]
-    const rawImagePath = product.image_url || product.image; //[cite: 1]
-    const imageUrl = useMemo(() => getAbsoluteImageUrl(rawImagePath), [rawImagePath]); //[cite: 1]
-    const elementId = `product-carousel-img-${product.id}`; //[cite: 1]
+const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails }: {
+    product: AIProduct;
+    onSelect: (product: AIProduct, elementId: string) => void;
+    onViewDetails: (product: AIProduct) => void;
+    totalItems: number;
+}) => {
+    const rawImagePath = product.image_url || product.image;
+    const imageUrl = useMemo(() => getAbsoluteImageUrl(rawImagePath), [rawImagePath]);
+    const elementId = `product-carousel-img-${product.id}`;
+    const { brand, title } = useMemo(() => extractBrandAndTitle(product), [product]);
+    const displayRating = product.rating ? Number(product.rating).toFixed(1) : '4.8';
+    const displayReviews = product.reviews_count ? `${product.reviews_count} reviews` : '1.2k reviews';
 
     const handleSelect = useCallback(() => {
-        onSelect({ ...product, image: rawImagePath }, elementId); //[cite: 1]
+        onSelect({ ...product, image: rawImagePath }, elementId);
     }, [product, rawImagePath, elementId, onSelect]);
 
     return (
-        <div className={`embla__slide ${slideWidthClass} px-2 py-4`}> 
+        <div className="embla__slide flex-none w-[262px] sm:w-[274px] snap-start px-2.5 py-3">
             <motion.div
-                className="flex flex-col p-0 bg-gradient-to-br from-[#0F172A] to-[#020617] backdrop-blur-3xl rounded-[32px] border border-white/10 h-full text-left shadow-2xl relative group overflow-hidden transform-gpu" //[cite: 1]
-                whileHover={{ 
-                    scale: 1.02, //[cite: 1]
-                    border: "1px solid rgba(6, 182, 212, 0.5)", //[cite: 1]
-                    boxShadow: "0 20px 50px -12px rgba(6, 182, 212, 0.25)"  //[cite: 1]
+                className="relative flex flex-col h-full rounded-[32px] p-3.5 bg-white/[0.06] backdrop-blur-[24px] border border-white/[0.08] shadow-[0_16px_40px_-10px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.15)] group overflow-hidden transform-gpu"
+                whileHover={{
+                    scale: 1.02,
+                    backgroundColor: "rgba(255, 255, 255, 0.09)"
                 }}
-                initial={{ opacity: 0, y: 20 }} //[cite: 1]
-                animate={{ opacity: 1, y: 0 }} //[cite: 1]
-                transition={{ type: 'spring', stiffness: 200, damping: 25 }} //[cite: 1]
-                style={{ willChange: 'transform, opacity' }} //[cite: 1]
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+                style={{ willChange: 'transform, opacity, background-color' }}
             >
-                <motion.button
-                    onClick={(e) => { e.stopPropagation(); onViewDetails(product); }} //[cite: 1]
-                    initial={{ opacity: 0, y: -10 }} //[cite: 1]
-                    animate={{ opacity: 1, y: 0 }} //[cite: 1]
-                    whileHover={{ scale: 1.1, backgroundColor: "rgba(6, 182, 212, 1)", color: "#000" }} //[cite: 1]
-                    className="absolute top-4 right-2 z-50 p-2.5 rounded-full bg-black/40 border border-white/10 text-white backdrop-blur-md opacity-60 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 shadow-[0_0_20px_rgba(0,0,0,0.5)] transform-gpu" //[cite: 1]
-                    title="Inspect Hologram" //[cite: 1]
+                <div 
+                    className="relative w-full aspect-square rounded-[24px] bg-gradient-to-b from-white/[0.05] to-transparent flex items-center justify-center p-4 overflow-hidden mb-3 cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetails(product);
+                    }}
                 >
-                    <Eye size={18} strokeWidth={2.5} /> 
-                </motion.button>
-                
-                <div className="relative h-48 w-full flex items-center justify-center bg-gradient-to-b from-white/5 to-transparent p-4 overflow-hidden"> 
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-cyan-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" /> 
+                    <button
+                        type="button"
+                        aria-label={`Inspect ${product.name}`}
+                        className="absolute top-2.5 end-2.5 z-30 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md text-white/90 hover:text-white flex items-center justify-center transition-colors shadow-sm"
+                    >
+                        <BookmarkStarIcon />
+                    </button>
                     <Image
-                        id={elementId} //[cite: 1]
-                        src={imageUrl} //[cite: 1]
-                        alt={product.name} //[cite: 1]
-                        width={250} //[cite: 1]
-                        height={250} //[cite: 1]
-                        loading="lazy" //[cite: 1]
-                        decoding="async" //[cite: 1]
-                        className="w-auto h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] group-hover:scale-110 group-hover:-rotate-2 transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1) transform-gpu" //[cite: 1]
+                        id={elementId}
+                        src={imageUrl}
+                        alt={product.name}
+                        width={200}
+                        height={200}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-auto h-full max-h-[140px] object-contain drop-shadow-[0_14px_22px_rgba(0,0,0,0.22)] group-hover:scale-105 transition-transform duration-500 ease-out transform-gpu"
                     />
-                </div>
-
-                <div className="p-5 flex flex-col flex-grow relative z-10"> 
-                  
-                    <div className="flex justify-between items-start mb-2"> 
-                         <h4 className="text-lg font-medium text-white leading-tight tracking-[-0.01em] break-words" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{product.name}</h4> 
-                    </div>
-                   
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2"> 
-                      <div className="flex min-w-0 items-center gap-2"> 
-                        {product.rating ? ( //[cite: 1]
-                          <div className="flex items-center gap-1 text-amber-300"> 
-                            <Star className="h-3.5 w-3.5 shrink-0 fill-current" /> 
-                            <span className="text-[11px] font-medium tracking-[0.08em] text-white/60 sm:text-xs"> 
-                              ({product.rating}/5.0) 
-                           </span>
-                         </div>
-                       ) : null}
-
-                       <span className="text-[10px] font-mono text-white/45 sm:text-[11px]"> 
-                         ID: {product.id} 
-                       </span>
-                     </div>
-
-                     <div className="shrink-0 text-[13px] font-normal leading-none text-white/95 tabular-nums sm:text-sm"> 
-                       ${(Number(product.price) || 0).toFixed(2)} 
-                     </div>
-                   </div>
-             
-                   {product.stock_level ? ( //[cite: 1]
-
-                    <div className="mt-4"> 
-                      <div className="inline-flex items-center rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200 sm:text-sm"> 
-                    {product.stock_level} 
                  </div>
-               </div>
-             ) : null}
 
-                    <div className="mt-auto pt-4 border-t border-white/5"> 
-                        <motion.button
-                            whileHover={{ scale: 1.02 }} //[cite: 1]
-                            whileTap={{ scale: 0.96 }} //[cite: 1]
-                            onClick={handleSelect} //[cite: 1]
-                            className="w-full relative overflow-hidden rounded-full bg-white text-black font-medium px-4 py-3 flex items-center justify-center gap-2 group/btn shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all duration-300 transform-gpu" //[cite: 1]
-                        >
-                            <span className="relative z-10 flex items-center gap-2 text-[11px] font-medium tracking-[0.14em] uppercase"> 
-                                <ShoppingBag size={15} strokeWidth={1.75} absoluteStrokeWidth /> 
-                                Add To Cart 
+                    {/* Bottom Dark Obsidian Details Surface */}
+                 <div className="flex flex-col flex-grow px-1">
+                    <span className="text-[11px] font-semibold text-white/50 tracking-wider uppercase mb-1 truncate">
+                        {brand}
+                    </span>
+                    
+                    <h4 
+                        className="text-[15px] font-semibold text-white/95 leading-tight tracking-tight line-clamp-2 mb-3"
+                        title={product.name}
+                    >
+                        {title}
+                    </h4>
+
+                    <div className="mt-auto flex items-center justify-between">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-white/40 font-medium">PRICE</span>
+                            <span className="text-[17px] font-bold text-white tracking-tight leading-none">
+                                ${(Number(product.price) || 0).toFixed(2)}
                             </span>
-                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300 transform-gpu" /> 
+                        </div>
+
+                        <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handleSelect}
+                            className="h-9 px-4 rounded-full bg-white text-black flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(255,255,255,0.15)] hover:shadow-[0_4px_16px_rgba(255,255,255,0.25)] transition-shadow"
+                        >
+                            <ShoppingBag size={14} strokeWidth={2.5} />
+                            <span className="text-[12px] font-bold tracking-wide">ADD</span>
                         </motion.button>
                     </div>
                 </div>
@@ -337,33 +407,60 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails, tota
 });
 CarouselProductCard.displayName = 'CarouselProductCard';
 
-const ProductCarousel = React.memo(({ products, onViewDetails, onSelect }: { products: AIProduct[], onSelect: (product: AIProduct, elementId: string) => void, onViewDetails: (product: AIProduct) => void }) => {
-    const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start', containScroll: 'trimSnaps', dragFree: false }); //[cite: 1]
-    
-    const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]); //[cite: 1]
-    const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]); //[cite: 1]
-    
-    const canScroll = products.length > 1; //[cite: 1]
+const ProductCarousel = React.memo(({ products, onViewDetails, onSelect }: {
+    products: AIProduct[];
+    onSelect: (product: AIProduct, elementId: string) => void;
+    onViewDetails: (product: AIProduct) => void;
+}) => {
+    const [emblaRef, emblaApi] = useEmblaCarousel({
+        loop: false,
+        align: 'start',
+        containScroll: 'trimSnaps',
+        
+        dragFree: false
+    });
+
+    const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+    const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+
+    const canScroll = products.length > 1;
 
     return (
-        <div className="relative my-6 px-0 group/carousel w-full overflow-visible"> 
-            <div className="overflow-hidden p-2 -mx-4" ref={emblaRef}> 
-                <div className="flex gap-2 pl-4 pr-8 snap-x snap-mandatory"> 
+        <div className="relative my-3 -mx-6 group/carousel w-[calc(100%+3rem)] overflow-visible">
+            {/* Ambient radial glow behind the active product card */}
+            <div className="absolute inset-x-10 top-1/2 -translate-y-1/2 h-56 bg-sky-500/10 blur-[70px] rounded-full pointer-events-none" />
+
+            <div className="overflow-hidden py-2" ref={emblaRef}>
+                <div className="flex items-stretch px-2 snap-x snap-mandatory">
                     {products.map((p, i) => (
-                        <CarouselProductCard 
-                            key={p.id || i} //[cite: 1]
-                            product={p} //[cite: 1]
-                            onSelect={onSelect} //[cite: 1]
-                            onViewDetails={onViewDetails} //[cite: 1]
-                            totalItems={products.length} //[cite: 1]
+                        <CarouselProductCard
+                            key={p.id || i}
+                            product={p}
+                            onSelect={onSelect}
+                            onViewDetails={onViewDetails}
+                            totalItems={products.length}
                         />
                     ))}
                 </div>
             </div>
-            {canScroll && ( //[cite: 1]
+            {canScroll && (
                 <>
-                    <button onClick={scrollPrev} className="hidden sm:flex absolute top-1/2 -translate-y-1/2 left-0 p-3 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full z-20 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all opacity-0 group-hover/carousel:opacity-100 -translate-x-2 group-hover/carousel:translate-x-2 duration-300 shadow-xl transform-gpu"><ChevronLeft size={20}/></button> 
-                    <button onClick={scrollNext} className="hidden sm:flex absolute top-1/2 -translate-y-1/2 right-0 p-3 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full z-20 hover:bg-cyan-500 hover:text-black hover:border-cyan-400 transition-all opacity-0 group-hover/carousel:opacity-100 translate-x-2 group-hover/carousel:translate-x-0 duration-300 shadow-xl transform-gpu"><ChevronRight size={20}/></button> 
+                    <button
+                        type="button"
+                        onClick={scrollPrev}
+                        aria-label="Previous product"
+                        className="hidden sm:flex absolute top-1/2 -translate-y-1/2 start-3 p-2.5 bg-white/[0.08] backdrop-blur-2xl rounded-full z-20 text-white/80 hover:bg-white/[0.18] hover:text-white transition-all opacity-0 group-hover/carousel:opacity-100 duration-300 shadow-xl transform-gpu"
+                    >
+                        <ChevronLeft size={18} />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={scrollNext}
+                        aria-label="Next product"
+                        className="hidden sm:flex absolute top-1/2 -translate-y-1/2 end-3 p-2.5 bg-white/[0.08] backdrop-blur-2xl rounded-full z-20 text-white/80 hover:bg-white/[0.18] hover:text-white transition-all opacity-0 group-hover/carousel:opacity-100 duration-300 shadow-xl transform-gpu"
+                    >
+                        <ChevronRight size={18} />
+                    </button>
                 </>
             )}
         </div>
@@ -373,53 +470,54 @@ ProductCarousel.displayName = 'ProductCarousel';
 
 const AIReasoning = React.memo(({ text }: { text: string }) => (
     <motion.div
-        initial={{ opacity: 0, height: 0, scale: 0.95 }} //[cite: 1]
-        animate={{ opacity: 1, height: 'auto', scale: 1 }} //[cite: 1]
-        style={{ willChange: 'transform, opacity, height' }} //[cite: 1]
-        className="flex items-start gap-3 p-4 mt-4 bg-[#0A1116] border border-cyan-900/50 rounded-2xl max-w-lg relative overflow-hidden transform-gpu" //[cite: 1]
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ willChange: 'transform, opacity' }}
+        className="flex flex-col gap-1.5 my-2 max-w-lg relative transform-gpu"
     >
-        <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" /> 
-        <div className="absolute -right-4 -top-4 w-16 h-16 bg-cyan-500/10 blur-xl rounded-full pointer-events-none" /> 
-        <div>
-            <span className="block text-[10px] font-black text-cyan-300 tracking-widest mb-1">airdeliverOS</span> 
-            <p className="text-sm text-cyan-100/80 font-sans leading-relaxed">{text}</p> 
+        <div className="flex items-center gap-1.5 text-[12px] font-medium text-white/50 tracking-wide">
+            <FourPointSparkle className="w-3.5 h-3.5 text-white/50" />
+            <span>airdeliverOS</span>
         </div>
+        <p className="text-[14px] text-white/85 font-normal leading-[1.55]">{text}</p>
+        <div className="my-5 w-full h-px bg-gradient-to-r from-transparent via-white to-transparent" />
     </motion.div>
 ));
 AIReasoning.displayName = 'AIReasoning';
 
 const ExpandableUserMessage = React.memo(({ text }: { text: string }) => {
-    const [isExpanded, setIsExpanded] = useState(false); //[cite: 1]
+    const [isExpanded, setIsExpanded] = useState(false);
 
-    const needsExpansion = text.length > 250 || text.split('\n').length > 4; //[cite: 1]
+    const needsExpansion = text.length > 250 || text.split('\n').length > 4;
 
-    if (!needsExpansion) { //[cite: 1]
-        return <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal">{text}</p>; //[cite: 1]
+    if (!needsExpansion) {
+        return <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-white/95 font-normal">{text}</p>;
     }
 
     return (
-        <div className="flex flex-col w-full"> 
+        <div className="flex flex-col w-full">
             <motion.div
-                initial={false} //[cite: 1]
-                animate={{ height: isExpanded ? 'auto' : '71px' }}  //[cite: 1]
-                className="overflow-hidden relative transform-gpu" //[cite: 1]
-                style={{ willChange: 'height' }} //[cite: 1]
+                initial={false}
+                animate={{ height: isExpanded ? 'auto' : '71px' }}
+                className="overflow-hidden relative transform-gpu"
+                style={{ willChange: 'height' }}
             >
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal"> 
+                <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-white/95 font-normal">
                     {text}
                 </p>
-               
             </motion.div>
 
             <button
-                onClick={() => setIsExpanded(!isExpanded)} //[cite: 1]
-                className="mt-0.5 flex items-center justify-center p-1 hover:bg-white/10 rounded-full transition-colors self-end text-cyan-400 group" //[cite: 1]
+                type="button"
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="mt-1 flex items-center justify-center p-1 hover:bg-white/10 rounded-full transition-colors self-end text-sky-300 group"
                 title={isExpanded ? "Hide Details" : "Show More"}
+                aria-label={isExpanded ? "Hide Details" : "Show More"}
             >
-                {isExpanded ? ( //[cite: 1]
-                    <ChevronUp size={18} className="group-hover:-translate-y-0.5 transition-transform" /> 
+                {isExpanded ? (
+                    <ChevronUp size={16} className="group-hover:-translate-y-0.5 transition-transform" />
                 ) : (
-                    <ChevronDown size={18} className="group-hover:translate-y-0.5 transition-transform animate-bounce" /> 
+                    <ChevronDown size={16} className="group-hover:translate-y-0.5 transition-transform animate-bounce" />
                 )}
             </button>
         </div>
@@ -427,134 +525,139 @@ const ExpandableUserMessage = React.memo(({ text }: { text: string }) => {
 });
 ExpandableUserMessage.displayName = 'ExpandableUserMessage';
 
-const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction, onNavigateToAuth, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: { 
-    message: ExtendedMessage, 
-    onSend: (t: string) => void, 
-    onViewDetails: (p: AIProduct) => void, 
-    isActiveAction: boolean, 
-    onNavigateToAuth: (mode: 'SIGNIN'|'SIGNUP') => void, 
-    onProductSelect: (p: AIProduct, id: string) => void,
-    onConfirmOrder: () => void,
-    onClearCart: () => void,
-    onRestore: () => void,
-    onSave: () => void,
-    onCancel: () => void
+const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction, onNavigateToAuth, onProductSelect, onConfirmOrder, onClearCart, onRestore, onSave, onCancel }: {
+    message: ExtendedMessage;
+    onSend: (t: string) => void;
+    onViewDetails: (p: AIProduct) => void;
+    isActiveAction: boolean;
+    onNavigateToAuth: (mode: 'SIGNIN' | 'SIGNUP') => void;
+    onProductSelect: (p: AIProduct, id: string) => void;
+    onConfirmOrder: () => void;
+    onClearCart: () => void;
+    onRestore: () => void;
+    onSave: () => void;
+    onCancel: () => void;
 }) => {
-    const isAI = message.sender === 'ai'; //[cite: 1]
+    const isAI = message.sender === 'ai';
 
     const renderContent = () => {
-        switch (message.contentType) { //[cite: 1]
-            case 'image_user_upload':
-                const hasCaption = typeof message.content === 'string' && message.content.trim().length > 0 &&  //[cite: 1]
-                                  !message.content.includes("Analyzing") &&  //[cite: 1]
-                                  !message.content.includes("Processing"); //[cite: 1]
-                const hasImg = !!message.imageUrl; //[cite: 1]
+        switch (message.contentType) {
+            case 'image_user_upload': {
+                const hasCaption = typeof message.content === 'string' && message.content.trim().length > 0 &&
+                    !message.content.includes("Analyzing") &&
+                    !message.content.includes("Processing");
+                const hasImg = !!message.imageUrl;
 
                 return (
-                    <div className="flex flex-col gap-2 items-end w-full"> 
-                        {hasImg && ( //[cite: 1]
-                            <div className="relative w-[100px] sm:w-[140px] aspect-[4/3] flex-none overflow-hidden shadow-sm rounded-xl border border-white/10 bg-black/20"> 
-                               
+                    <div className="flex flex-col gap-2 items-end w-full">
+                        {hasImg && (
+                            <div className="relative w-[110px] sm:w-[140px] aspect-[4/3] flex-none overflow-hidden shadow-lg rounded-2xl bg-white/[0.06] backdrop-blur-xl">
                                 <Image
-                                    src={message.imageUrl!} //[cite: 1]
-                                    alt="Uploaded" //[cite: 1]
-                                    fill //[cite: 1]
-                                    loading="lazy" //[cite: 1]
-                                    decoding="async" //[cite: 1]
-                                    className="object-contain" //[cite: 1]
+                                    src={message.imageUrl!}
+                                    alt="Uploaded"
+                                    fill
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="object-contain"
                                 />
                             </div>
                         )}
-                        {hasCaption && ( //[cite: 1]
-                             <div className="px-4 py-3 rounded-[32px] rounded-br-none bg-zinc-900 text-gray-100 text-[14px] leading-relaxed break-words max-w-[90%] shadow-md"> 
+                        {hasCaption && (
+                            <div className="px-4 py-3 rounded-[24px] rounded-br-sm bg-white/[0.09] backdrop-blur-2xl text-white/95 text-[14px] leading-relaxed break-words max-w-[90%] shadow-lg">
                                 {typeof message.content === 'string' ? message.content : ''}
-                             </div>
+                            </div>
                         )}
                     </div>
                 );
+            }
             case 'text':
             case 'error':
             case 'info':
-            case 'success_text':
-                
-                if (!isAI && message.contentType === 'text') { //[cite: 1]
-                    return <ExpandableUserMessage text={typeof message.content === 'string' ? message.content : ''} />; //[cite: 1]
+            case 'success_text': {
+                if (!isAI && message.contentType === 'text') {
+                    return <ExpandableUserMessage text={typeof message.content === 'string' ? message.content : ''} />;
                 }
                 return (
-                    <div className={`text-[12px] leading-relaxed text-white/90 font-normal break-words w-full space-y-2 ${message.contentType === 'error' ? 'bg-red-950/20 p-2 rounded' : ''}`}> 
-                        <ReactMarkdown 
-                            remarkPlugins={[remarkGfm]} //[cite: 1]
-                            components={{
-                                p: ({ node, ...props }) => ( //[cite: 1]
-                                    <p className="mb-3 last:mb-0 text-left whitespace-pre-wrap leading-normal" {...props} /> //[cite: 1]
-                                ),
-                                strong: ({ node, ...props }) => ( //[cite: 1]
-                                    <strong className="font-bold text-white" {...props} /> //[cite: 1]
-                                ),
-                                ul: ({ node, ...props }) => ( //[cite: 1]
-                                    <ul className="list-disc list-inside space-y-1.5 mb-3 mt-1.5 last:mb-0" {...props} /> //[cite: 1]
-                                ),
-                                li: ({ node, ...props }) => ( //[cite: 1]
-                                    <li className="pl-0 leading-normal" {...props} /> //[cite: 1]
-                                ),
-                            }}
-                        >
-                            {typeof message.content === 'string' ? message.content : ''}
-                        </ReactMarkdown>
+                    <div className={`w-full space-y-1.5 ${message.contentType === 'error' ? 'bg-rose-950/30 p-3 rounded-2xl text-rose-200' : ''}`}>
+                        
+                        <div className="text-[14px] leading-[1.55] text-white/85 font-normal break-words">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    p: ({ node, ...props }) => (
+                                        <p className="mb-2.5 last:mb-0 text-start whitespace-pre-wrap leading-[1.55]" {...props} />
+                                    ),
+                                    strong: ({ node, ...props }) => (
+                                        <strong className="font-semibold text-white" {...props} />
+                                    ),
+                                    ul: ({ node, ...props }) => (
+                                        <ul className="list-disc list-inside space-y-1.5 mb-2.5 mt-1.5 last:mb-0" {...props} />
+                                    ),
+                                    li: ({ node, ...props }) => (
+                                        <li className="ps-0 leading-[1.55]" {...props} />
+                                    ),
+                                }}
+                            >
+                                {typeof message.content === 'string' ? message.content : ''}
+                            </ReactMarkdown>
+                        </div>
                     </div>
                 );
+            }
             case 'FLIGHT_MANIFEST':
                 return (
-                    <div className="w-full -ml-2"> 
-                         <p className="whitespace-pre-line mb-2 text-sm px-2 leading-relaxed text-white font-medium"> 
-                             {typeof message.content === 'string' ? message.content : ''}
-                         </p>
-                         {message.flight_data && <HolographicFlightDeck data={message.flight_data} />}
+                    <div className="w-full">
+                        
+                        <p className="whitespace-pre-line mb-2 text-[14px] leading-[1.55] text-white/85 font-normal">
+                            {typeof message.content === 'string' ? message.content : ''}
+                        </p>
+                        {message.flight_data && <HolographicFlightDeck data={message.flight_data} />}
                     </div>
                 );
             case 'confirmation_prompt':
-                if (!isActiveAction) return null; //[cite: 1]
+                if (!isActiveAction) return null;
                 return (
-                    <div>
-                        <p className="whitespace-pre-wrap mb-4 text-[12px] leading-relaxed text-white/90 font-normal">{typeof message.content === 'string' ? message.content : ''}</p> 
-                        {isActiveAction && ( //[cite: 1]
-                            <div className="flex flex-wrap gap-3"> 
-                                {message.options?.map((option: string) => { //[cite: 1]
-                                    const isConfirm = option === 'Confirm Order'; //[cite: 1]
-                                
-                                    let buttonStyle = "bg-white/5 text-cyan-200 border-white/10 hover:bg-cyan-500 hover:text-black"; //[cite: 1]
-                                
-                                    if (isConfirm) { //[cite: 1]
-                                        buttonStyle = "bg-gradient-to-r from-cyan-400 to-cyan-500 text-[#020617] border-transparent shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_35px_rgba(6,182,212,0.6)]"; //[cite: 1]
-                                    } 
-                                    else if (option === 'Switch to PayPal') { //[cite: 1]
-                                        buttonStyle = "bg-[#003087] text-white border-transparent hover:bg-[#003087]/80";  //[cite: 1]
-                                    }
-                                    else if (option === 'Retry Payment') { //[cite: 1]
-                                        buttonStyle = "bg-green-600 text-white hover:bg-green-500 border-transparent shadow-[0_0_15px_rgba(22,163,74,0.3)]"; //[cite: 1]
+                    <div className="w-full">
+                        
+                        <p className="whitespace-pre-wrap mb-4 text-[14px] leading-[1.55] text-white/85 font-normal">
+                            {typeof message.content === 'string' ? message.content : ''}
+                        </p>
+                        {isActiveAction && (
+                            <div className="flex flex-wrap gap-2.5">
+                                {message.options?.map((option: string) => {
+                                    const isConfirm = option === 'Confirm Order';
+
+                                    let buttonStyle = "bg-white/[0.08] text-white/90 hover:bg-white/[0.16] shadow-[inset_0_1px_1px_rgba(255,255,255,0.18)]";
+
+                                    if (isConfirm) {
+                                        buttonStyle = "bg-gradient-to-r from-sky-400 to-cyan-400 text-[#05070E] shadow-[0_0_25px_rgba(56,189,248,0.35)] hover:shadow-[0_0_35px_rgba(56,189,248,0.55)]";
+                                    } else if (option === 'Switch to PayPal') {
+                                        buttonStyle = "bg-[#003087] text-white hover:bg-[#003087]/85";
+                                    } else if (option === 'Retry Payment') {
+                                        buttonStyle = "bg-emerald-600 text-white hover:bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]";
                                     }
 
                                     return (
                                         <motion.button
-                                            key={option} //[cite: 1]
-                                            whileHover={{ scale: 1.05 }} //[cite: 1]
-                                            whileTap={{ scale: 0.95 }} //[cite: 1]
-                                            onClick={() => { //[cite: 1]
-                                                if (option === 'Confirm Order') onConfirmOrder();  //[cite: 1]
-                                                else if (option === 'Clear Cart') onClearCart(); //[cite: 1]
-                                                else if (option === 'Sign In') onNavigateToAuth('SIGNIN'); //[cite: 1]
-                                                else if (option === 'Sign Up') onNavigateToAuth('SIGNUP'); //[cite: 1]
-                                                else if (option === 'Switch to PayPal') onSend("I want to use PayPal"); //[cite: 1]
-                                                else if (option === 'Retry Payment') onConfirmOrder();  //[cite: 1]
-                                                else if (option === 'Save for Later') onSave(); //[cite: 1]
-                                                else onSend(option); //[cite: 1]
+                                            type="button"
+                                            key={option}
+                                            whileHover={{ scale: 1.03 }}
+                                            whileTap={{ scale: 0.96 }}
+                                            onClick={() => {
+                                                if (option === 'Confirm Order') onConfirmOrder();
+                                                else if (option === 'Clear Cart') onClearCart();
+                                                else if (option === 'Sign In') onNavigateToAuth('SIGNIN');
+                                                else if (option === 'Sign Up') onNavigateToAuth('SIGNUP');
+                                                else if (option === 'Switch to PayPal') onSend("I want to use PayPal");
+                                                else if (option === 'Retry Payment') onConfirmOrder();
+                                                else if (option === 'Save for Later') onSave();
+                                                else onSend(option);
                                             }}
-                                            className={`flex items-center justify-center gap-2 px-6 py-3 rounded-full border transition-all duration-300 transform-gpu ${buttonStyle}`} //[cite: 1]
+                                            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-full backdrop-blur-2xl transition-all duration-300 transform-gpu ${buttonStyle}`}
                                         >
-                                            {isConfirm && <Zap size={16} strokeWidth={2.5} />} 
-                                        
-                                            <span className={`text-xs uppercase tracking-[0.15em] ${isConfirm ? 'font-black' : 'font-bold'}`}> 
-                                                {option} 
+                                            {isConfirm && <Zap size={15} strokeWidth={2.5} />}
+                                            <span className={`text-[11px] uppercase tracking-[0.14em] ${isConfirm ? 'font-bold' : 'font-semibold'}`}>
+                                                {option}
                                             </span>
                                         </motion.button>
                                     );
@@ -564,183 +667,212 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                     </div>
                 );
             case 'product_carousel':
-            case 'proactive_suggestion':
+            case 'proactive_suggestion': {
+                const insightText = (typeof message.content === 'string' && message.content.trim().length > 0)
+                    ? message.content
+                    : ((message.reason || message.ai_notes) || '');
+                const secondaryReasoning = (typeof message.content === 'string' && message.content.trim().length > 0 && (message.reason || message.ai_notes))
+                    ? (message.reason || message.ai_notes)
+                    : undefined;
+
                 return (
-                    <div className="w-full -ml-2"> 
-                        <p className="whitespace-pre-wrap mb-2 text-[12px] px-2 leading-relaxed text-white/90 font-normal">{typeof message.content === 'string' ? message.content : ''}</p> 
+                    <div className="w-full">
+                        {insightText && (
+                            <div className="mb-3">
+                               
+                                <p className="whitespace-pre-wrap text-[14px] leading-[1.55] text-white/85 font-normal">
+                                    {insightText}
+                                </p>
+                            </div>
+                        )}
+
                         
 
-<ProductCarousel products={message.products || []} onSelect={onProductSelect} onViewDetails={onViewDetails} /> 
-                        {(message.reason || message.ai_notes) && ( //[cite: 1]
-                            <div className="px-2"> 
-                                <AIReasoning text={(message.reason || message.ai_notes) as string} /> 
-                            </div>
+<ProductCarousel
+                            products={message.products || []}
+                            onSelect={onProductSelect}
+                            onViewDetails={onViewDetails}
+                        />
+
+                        {secondaryReasoning && (
+                            <AIReasoning text={secondaryReasoning} />
                         )}
                     </div>
                 );
+            }
             case 'recovery_prompt':
-               if (!isActiveAction) return null; //[cite: 1]
-               return (
-                  <div className="flex items-center justify-center w-full py-4"> 
-                     <motion.div 
-                         initial={{ scale: 0.9, opacity: 0, y: 10 }} //[cite: 1]
-                         animate={{ scale: 1, opacity: 1, y: 0 }} //[cite: 1]
-                         style={{ willChange: 'transform, opacity' }} //[cite: 1]
-                         className="flex items-center gap-2 p-2 bg-white/[0.04] backdrop-blur-3xl border border-white/10 rounded-[55px] shadow-2xl transform-gpu" //[cite: 1]
-                     >
-                         {[
-                             { icon: Undo2, label: "UNDO", action: onRestore, textColor: "text-white", hoverBg: "hover:bg-cyan-500/10" }, //[cite: 1]
-                             { icon: Save, label: "SAVE", action: onSave, textColor: "text-white", hoverBg: "hover:bg-purple-500/10" }, //[cite: 1]
-                             { icon: X, label: "CANCEL", action: onCancel, textColor: "text-white", hoverBg: "hover:bg-red-500/10" } //[cite: 1]
-                         ].map((btn, idx) => ( //[cite: 1]
-                             <motion.button 
-                                 key={idx} //[cite: 1]
-                                 whileHover={{ scale: 1.05 }} //[cite: 1]
-                                 whileTap={{ scale: 0.95 }} //[cite: 1]
-                                 onClick={btn.action}  //[cite: 1]
-                                 className={`flex flex-col items-center justify-center min-w-[60px] h-[60px] gap-2 rounded-full transition-all duration-300 transform-gpu ${btn.hoverBg} group`} //[cite: 1]
-                             >
-                                 <btn.icon size={17} strokeWidth={2.5} className="text-white opacity-80 group-hover:opacity-100" /> 
-                                 <span className={`text-[8px] font-black uppercase tracking-widest ${btn.textColor}`}> 
-                                     {btn.label} 
-                                 </span>
-                             </motion.button>
-                         ))}
-                      </motion.div>
-                  </div>
+                if (!isActiveAction) return null;
+                return (
+                    <div className="flex items-center justify-center w-full py-3">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 10 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            style={{ willChange: 'transform, opacity' }}
+                            className="flex items-center gap-2 p-2 bg-white/[0.06] backdrop-blur-3xl rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.15)] transform-gpu"
+                        >
+                            {[
+                                { icon: Undo2, label: "UNDO", action: onRestore, textColor: "text-white", hoverBg: "hover:bg-sky-500/15" },
+                                { icon: Save, label: "SAVE", action: onSave, textColor: "text-white", hoverBg: "hover:bg-indigo-500/15" },
+                                { icon: X, label: "CANCEL", action: onCancel, textColor: "text-white", hoverBg: "hover:bg-rose-500/15" }
+                            ].map((btn, idx) => (
+                                <motion.button
+                                    type="button"
+                                    key={idx}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={btn.action}
+                                    className={`flex flex-col items-center justify-center min-w-[60px] h-[60px] gap-1.5 rounded-full transition-all duration-300 transform-gpu ${btn.hoverBg} group`}
+                                >
+                                    <btn.icon size={17} strokeWidth={2.2} className="text-white opacity-80 group-hover:opacity-100" />
+                                    <span className={`text-[8px] font-bold uppercase tracking-widest ${btn.textColor}`}>
+                                        {btn.label}
+                                    </span>
+                                </motion.button>
+                            ))}
+                        </motion.div>
+                    </div>
                 );
-            default: return null; //[cite: 1]
+            default:
+                return null;
         }
     };
 
-    const contentNode = renderContent(); //[cite: 1]
+    const contentNode = renderContent();
 
-    if (['cart_preview', 'typing', 'payment_intent', 'ORDER_CANCELLED', 'system'].includes(message.contentType)) return null; //[cite: 1]
-    if (!contentNode) return null; //[cite: 1]
+    if (['cart_preview', 'typing', 'payment_intent', 'ORDER_CANCELLED', 'system'].includes(message.contentType)) return null;
+    if (!contentNode) return null;
 
     return (
         <motion.div
-            layout //[cite: 1]
-            initial={{ opacity: 0, y: 20, scale: 0.98 }} //[cite: 1]
-            animate={{ opacity: 1, y: 0, scale: 1 }} //[cite: 1]
-            style={{ willChange: 'transform, opacity' }} //[cite: 1]
-            className={`flex items-end gap-2 w-full mb-4 transform-gpu ${isAI ? 'justify-start' : 'justify-end'}`} //[cite: 1]
+            layout
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ willChange: 'transform, opacity' }}
+            className={`flex items-end gap-2 w-full mb-4 transform-gpu ${isAI ? 'justify-start' : 'justify-end'}`}
         >
-            <div className={`w-fit max-w-[98%] ${ //[cite: 1]
-                message.contentType === 'image_user_upload'  //[cite: 1]
-                    ? ''  //[cite: 1]
-                    : `px-4 py-3 ${isAI  //[cite: 1]
-                        ? 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20'   //[cite: 1]
-                        : 'w-fit max-w-[90%] px-4 py-4 rounded-[32px] rounded-br-none bg-zinc-900 text-gray-100 text-[14px] leading-relaxed break-words shadow-md'}` //[cite: 1]
-            } transform-gpu`}> 
-                {contentNode} 
+            <div
+                className={`${
+                    message.contentType === 'image_user_upload'
+                        ? 'w-full'
+                        : isAI
+                            ? 'w-full text-white/90'
+                            : 'w-fit max-w-[88%] px-4 py-3 rounded-[24px] rounded-br-sm bg-white/[0.09] backdrop-blur-2xl text-white/95 text-[14px] leading-relaxed break-words shadow-[0_10px_30px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.14)]'
+                } transform-gpu`}
+            >
+                {contentNode}
             </div>
         </motion.div>
     );
-
 }, (prevProps, nextProps) => {
-    return prevProps.message.id === nextProps.message.id &&  //[cite: 1]
-           prevProps.message.content === nextProps.message.content && //[cite: 1]
-           prevProps.isActiveAction === nextProps.isActiveAction; //[cite: 1]
+    return prevProps.message.id === nextProps.message.id &&
+           prevProps.message.content === nextProps.message.content &&
+           prevProps.isActiveAction === nextProps.isActiveAction;
 });
 ChatMessage.displayName = 'ChatMessage';
 
 const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, isMobileOpen, onCloseMobile }: {
-    messages: ExtendedMessage[],
-    glowingProductId: number | null,
-    onRemoveItem: (productId: number) => void,
-    isMobileOpen: boolean,
-    onCloseMobile: () => void
+    messages: ExtendedMessage[];
+    glowingProductId: number | null;
+    onRemoveItem: (productId: number) => void;
+    isMobileOpen: boolean;
+    onCloseMobile: () => void;
 }) => {
     const cart = useMemo(() => {
-        const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview'); //[cite: 1]
-        return (lastCartMessage?.content as { items: AIProduct[]; total: number }) || { items: [], total: 0 }; //[cite: 1]
+        const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+        return (lastCartMessage?.content as { items: AIProduct[]; total: number }) || { items: [], total: 0 };
     }, [messages]);
 
     return (
         <>
             <AnimatePresence>
-                {isMobileOpen && ( //[cite: 1]
-                    <motion.div 
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} //[cite: 1]
-                        onClick={onCloseMobile} //[cite: 1]
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[100] transform-gpu" //[cite: 1]
-                        style={{ willChange: 'opacity' }} //[cite: 1]
+                {isMobileOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onCloseMobile}
+                        className="absolute inset-0 bg-black/60 backdrop-blur-md z-[100] transform-gpu"
+                        style={{ willChange: 'opacity' }}
                     />
                 )}
             </AnimatePresence>
 
             <div className={`
-                absolute top-0 right-0 bottom-0 z-[110] w-[calc(100%+1px)] md:w-[460px] transform transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)
-                backdrop-blur-3xl bg-[#050B14]/95 border-l-0 md:border-l border-white/10 flex-col overflow-hidden will-change-transform
+                absolute top-0 end-0 bottom-0 z-[110] w-full md:w-[460px] transform transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)
+                backdrop-blur-3xl bg-[#060913]/95 flex-col overflow-hidden will-change-transform
                 ${isMobileOpen ? 'translate-x-0' : 'translate-x-full'}
                 ${!isMobileOpen ? 'hidden' : 'flex'}
             `}>
-                <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.05] pointer-events-none" /> 
-                
-                <div className="flex justify-between items-center p-5 border-b border-white/10 bg-black/20"> 
-                    <span className="text-sm font-bold uppercase text-white tracking-widest flex items-center gap-2"> 
-                        <ShoppingBag size={16} strokeWidth={2.5} /> 
+                <div className="flex justify-between items-center px-6 py-5 bg-white/[0.02]">
+                    <span className="text-xs font-semibold uppercase text-white/90 tracking-[0.18em] flex items-center gap-2">
+                        <ShoppingBag size={16} strokeWidth={2} />
+                        <span>Bag Summary</span>
                     </span>
-                    <button onClick={onCloseMobile} className="p-2 rounded-full bg-white/5 text-white hover:bg-red-500/80 transition-colors"> 
-                        <X size={18} /> 
+                    <button
+                        type="button"
+                        onClick={onCloseMobile}
+                        aria-label="Close bag summary"
+                        className="w-10 h-10 rounded-full bg-white/[0.08] text-white/80 hover:bg-white/[0.15] hover:text-white flex items-center justify-center transition-colors"
+                    >
+                        <X size={18} />
                     </button>
                 </div>
 
-                <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent relative z-10"> 
-                    <div className="space-y-4 flex-grow"> 
+                <div className="flex-grow p-6 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-sky-500/20 scrollbar-track-transparent relative z-10">
+                    <div className="space-y-3.5 flex-grow">
                         <AnimatePresence>
-                            {cart.items.length === 0 ? ( //[cite: 1]
-                                <motion.div 
-                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} //[cite: 1]
-                                    className="flex flex-col items-center justify-center h-48 text-gray-600 gap-3 border border-dashed border-white/5 rounded-3xl bg-white/[0.02]" //[cite: 1]
-                                >
-                                    <ShoppingCart size={32} className="opacity-30" /> 
-                                    <p className="text-xs uppercase tracking-widest font-mono">Empty | Cart</p> 
-                                </motion.div>
-                            ) : cart.items.map((item: AIProduct, index: number) => ( //[cite: 1]
+                            {cart.items.length === 0 ? (
                                 <motion.div
-                                    key={item.product_id || index} //[cite: 1]
-                                    layout //[cite: 1]
-                                    initial={{ opacity: 0, x: -20 }} //[cite: 1]
-                                    animate={{
-                                        opacity: 1, //[cite: 1]
-                                        x: 0, //[cite: 1]
-                                        backgroundColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.15)" : "rgba(255, 255, 255, 0.03)", //[cite: 1]
-                                        borderColor: item.product_id === glowingProductId ? "rgba(6, 182, 212, 0.5)" : "rgba(255, 255, 255, 0.05)", //[cite: 1]
-                                    }}
-                                    exit={{ opacity: 0, x: 20 }} //[cite: 1]
-                                    style={{ willChange: 'transform, opacity, background-color, border-color' }} //[cite: 1]
-                                    className="flex justify-between items-start p-3 rounded-2xl border transition-colors group relative overflow-hidden transform-gpu" //[cite: 1]
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="flex flex-col items-center justify-center h-48 text-white/35 gap-3 rounded-3xl bg-white/[0.03]"
                                 >
-                                    {item.product_id === glowingProductId && ( //[cite: 1]
-                                        <motion.div layoutId="glow" className="absolute inset-0 bg-cyan-500/5 pointer-events-none" transition={{ duration: 0.3 }} /> //[cite: 1]
+                                    <ShoppingCart size={30} className="opacity-40" />
+                                    <p className="text-xs uppercase tracking-widest font-mono">Empty | Bag</p>
+                                </motion.div>
+                            ) : cart.items.map((item: AIProduct, index: number) => (
+                                <motion.div
+                                    key={item.product_id || index}
+                                    layout
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{
+                                        opacity: 1,
+                                        x: 0,
+                                        backgroundColor: item.product_id === glowingProductId ? "rgba(56, 189, 248, 0.14)" : "rgba(255, 255, 255, 0.04)",
+                                    }}
+                                    exit={{ opacity: 0, x: 20 }}
+                                    style={{ willChange: 'transform, opacity, background-color' }}
+                                    className="flex justify-between items-start p-3.5 rounded-2xl transition-colors group relative overflow-hidden transform-gpu shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]"
+                                >
+                                    {item.product_id === glowingProductId && (
+                                        <motion.div layoutId="glow" className="absolute inset-0 bg-sky-400/5 pointer-events-none" transition={{ duration: 0.3 }} />
                                     )}
-                                    <div className="flex items-center gap-3 flex-1 min-w-0 relative z-10"> 
-                                        <div className="w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden"> 
-                                            <ShoppingBag size={16} className="text-gray-500" /> 
+                                    <div className="flex items-center gap-3 flex-1 min-w-0 relative z-10">
+                                        <div className="w-12 h-12 rounded-xl bg-white/[0.06] flex items-center justify-center overflow-hidden">
+                                            <ShoppingBag size={16} className="text-white/50" />
                                         </div>
-                                        <div className="flex flex-col min-w-0"> 
-                                            <span className="text-gray-100 text-sm font-bold leading-snug tracking-tight break-words" title={item.name}> 
-                                                {item.name} 
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-white/95 text-sm font-semibold leading-snug tracking-tight break-words" title={item.name}>
+                                                {item.name}
                                             </span>
-                                            <span className="text-[10px] text-gray-400 font-mono mt-0.5">QTY: {item.quantity}</span> 
+                                            <span className="text-[10px] text-white/45 font-mono mt-0.5">QTY: {item.quantity}</span>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col items-end gap-1 relative z-10"> 
-                                        <span className="font-bold text-cyan-300 font-mono text-sm"> 
-                                            ${(Number(item.price) * (item.quantity || 1)).toFixed(2)} 
+                                    <div className="flex flex-col items-end gap-1.5 relative z-10">
+                                        <span className="font-semibold text-sky-300 font-mono text-sm">
+                                            ${(Number(item.price) * (item.quantity || 1)).toFixed(2)}
                                         </span>
                                         <button
-                                            type="button" //[cite: 1]
-                                            onClick={(e) => { //[cite: 1]
-                                                e.stopPropagation();  //[cite: 1]
-                                                onRemoveItem(Number(item.product_id || item.id));  //[cite: 1]
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onRemoveItem(Number(item.product_id || item.id));
                                             }}
-                                            className="p-1.5 rounded-lg bg-red-500/10 text-red-400 active:bg-red-500 active:text-white md:hover:bg-red-500 md:hover:text-white transition-all duration-200" //[cite: 1]
-                                            title="Jettison Item" //[cite: 1]
+                                            className="p-1.5 rounded-full bg-rose-500/15 text-rose-300 active:bg-rose-500 active:text-white md:hover:bg-rose-500 md:hover:text-white transition-all duration-200"
+                                            title="Remove Item"
+                                            aria-label={`Remove ${item.name}`}
                                         >
-                                            <X size={14} /> 
+                                            <X size={13} />
                                         </button>
                                     </div>
                                 </motion.div>
@@ -749,21 +881,21 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, is
                     </div>
                 </div>
 
-                <div className="flex-shrink-0 p-6 border-t border-white/10 bg-[#050B14] space-y-6 relative z-20"> 
+                <div className="flex-shrink-0 p-6 bg-[#050811]/90 space-y-5 relative z-20">
                     <div>
-                        <h3 className="text-[10px] font-bold text-gray-500 tracking-widest mb-3 flex items-center gap-2"> 
-                            <Signal size={12} /> airdeliver X 
+                        <h3 className="text-[10px] font-semibold text-white/45 tracking-widest mb-2.5 flex items-center gap-2 uppercase">
+                            <Signal size={12} className="text-sky-400" /> airdeliver X
                         </h3>
-                        <DroneTelemetryWidget /> 
+                        <DroneTelemetryWidget />
                     </div>
-                    <div className="w-full h-[1px] bg-white/10" /> 
-                    <div className="flex justify-between items-end"> 
-                        <div className="flex flex-col"> 
-                            <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total</span> 
-                            <span className="text-[10px] text-gray-600">Including Service Fees</span> 
+                    <div className="w-full h-px bg-white/[0.07]" />
+                    <div className="flex justify-between items-end">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">Total</span>
+                            <span className="text-[10px] text-white/35">Including Service Fees</span>
                         </div>
-                        <span className="text-3xl font-bold text-white font-mono tracking-tighter"> 
-                            ${Number(cart.total || 0).toFixed(2)} 
+                        <span className="text-3xl font-bold text-white font-mono tracking-tighter">
+                            ${Number(cart.total || 0).toFixed(2)}
                         </span>
                     </div>
                 </div>
@@ -774,260 +906,312 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, is
 AIChatSidebar.displayName = 'AIChatSidebar';
 
 const ChatInput = React.memo(
-  ({ onSend, onSendImage, isTyping, isProcessing }: { 
-      onSend: (text: string) => void; 
-      onSendImage: (base64: string, raw: string, caption?: string) => void;
-      isTyping: boolean; 
-      isProcessing: boolean 
-  }) => {
-    const [value, setValue] = useState(''); //[cite: 1]
-    const [pendingImage, setPendingImage] = useState<{ url: string; base64: string } | null>(null); //[cite: 1]
-    const [isListening, setIsListening] = useState(false); //[cite: 1]
-    const fileInputRef = useRef<HTMLInputElement>(null); //[cite: 1]
-    const textareaRef = useRef<HTMLTextAreaElement>(null); //[cite: 1]
+    ({ onSend, onSendImage, isTyping, isProcessing }: {
+        onSend: (text: string) => void;
+        onSendImage: (base64: string, raw: string, caption?: string) => void;
+        isTyping: boolean;
+        isProcessing: boolean;
+    }) => {
+        const [value, setValue] = useState('');
+        const [pendingImage, setPendingImage] = useState<{ url: string; base64: string } | null>(null);
+        const [isListening, setIsListening] = useState(false);
+        const [isDragOver, setIsDragOver] = useState(false);
+        const fileInputRef = useRef<HTMLInputElement>(null);
+        const textareaRef = useRef<HTMLTextAreaElement>(null);
+        const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const handleAutoResize = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        setValue(e.target.value); //[cite: 1]
-        requestAnimationFrame(() => { //[cite: 1]
-            if (textareaRef.current) { //[cite: 1]
-                textareaRef.current.style.height = 'auto'; //[cite: 1]
-                textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`; //[cite: 1]
+        useEffect(() => {
+            return () => {
+                if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+            };
+        }, []);
+
+        const handleAutoResize = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+            setValue(e.target.value);
+            requestAnimationFrame(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto';
+                    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+                }
+            });
+        }, []);
+
+        const processSelectedFile = useCallback((file: File | undefined) => {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const fullDataUrl = reader.result as string;
+                const base64Raw = fullDataUrl.split(',')[1];
+                if (base64Raw) {
+                    setPendingImage({ url: fullDataUrl, base64: base64Raw });
+                }
+            };
+            reader.readAsDataURL(file);
+        }, []);
+
+        const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+            processSelectedFile(e.target.files?.[0]);
+            e.target.value = '';
+        }, [processSelectedFile]);
+
+        const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            processSelectedFile(e.dataTransfer.files?.[0]);
+        }, [processSelectedFile]);
+
+        const handleVoiceActivate = useCallback(() => {
+            const storeState = useAIOrderingStore.getState();
+            if (typeof storeState.setVoiceMode === 'function') {
+                storeState.setVoiceMode(true);
+                return;
             }
-        });
-    }, []);
+            if (!('webkitSpeechRecognition' in window)) {
+                return;
+            }
+            if (isListening) {
+                setIsListening(false);
+                return;
+            }
+            const recognition = new window.webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+            recognition.onstart = () => setIsListening(true);
+            recognition.onend = () => setIsListening(false);
+            recognition.onresult = (event: any) => {
+                const transcript = event.results?.[0]?.[0]?.transcript;
+                if (transcript) setValue(transcript);
+            };
+            recognition.start();
+        }, [isListening]);
 
-    const toggleVoice = useCallback(() => {
-        if (!('webkitSpeechRecognition' in window)) { //[cite: 1]
-            alert("Voice module not supported in this browser sector."); //[cite: 1]
-            return; //[cite: 1]
-        }
-        
-        if (isListening) { //[cite: 1]
-            setIsListening(false); //[cite: 1]
-            return; //[cite: 1]
-        }
+        const handleTriggerSend = useCallback(() => {
+            if (isTyping || isProcessing || (!value.trim() && !pendingImage)) return;
+            if (pendingImage) {
+                onSendImage(pendingImage.url, pendingImage.base64, value);
+                setPendingImage(null);
+                setValue('');
+            } else if (value.trim()) {
+                onSend(value);
+                setValue('');
+            }
+            if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto';
+            }
+        }, [isTyping, isProcessing, pendingImage, value, onSendImage, onSend]);
 
-        const recognition = new window.webkitSpeechRecognition(); //[cite: 1]
-        recognition.continuous = false; //[cite: 1]
-        recognition.interimResults = false; //[cite: 1]
-        recognition.lang = 'en-US'; //[cite: 1]
+        const isInputLocked = isTyping || isProcessing;
+        const isSendButtonDisabled = isInputLocked || (!value.trim() && !pendingImage);
 
-        recognition.onstart = () => setIsListening(true); //[cite: 1]
-        recognition.onend = () => setIsListening(false); //[cite: 1]
-        recognition.onresult = (event: any) => { //[cite: 1]
-            const transcript = event.results[0][0].transcript; //[cite: 1]
-            setValue(transcript); //[cite: 1]
-        };
-        recognition.start(); //[cite: 1]
-    }, [isListening]);
+        return (
+            <div
+                onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragOver(true);
+                }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={handleDrop}
+                className="px-5 pb-6 pt-2 flex-shrink-0 relative z-20"
+            >
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageSelect}
+                />
 
-    const handleImageSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]; //[cite: 1]
-        if (!file) return; //[cite: 1]
-
-        const reader = new FileReader(); //[cite: 1]
-        reader.onloadend = () => { //[cite: 1]
-            const fullDataUrl = reader.result as string; //[cite: 1]
-            const base64Raw = fullDataUrl.split(',')[1]; //[cite: 1]
-            setPendingImage({ url: fullDataUrl, base64: base64Raw }); //[cite: 1]
-        };
-        reader.readAsDataURL(file); //[cite: 1]
-        e.target.value = '';  //[cite: 1]
-    }, []);
-
-    const handleTriggerSend = useCallback(() => {
-        if (isTyping || isProcessing || (!value.trim() && !pendingImage)) return; //[cite: 1]
-        if (pendingImage) { //[cite: 1]
-            onSendImage(pendingImage.url, pendingImage.base64, value); //[cite: 1]
-            setPendingImage(null);  //[cite: 1]
-            setValue(''); //[cite: 1]
-        } else if (value.trim()) { //[cite: 1]
-            onSend(value); //[cite: 1]
-            setValue(''); //[cite: 1]
-        }
-        if (textareaRef.current) { //[cite: 1]
-            textareaRef.current.style.height = 'auto'; //[cite: 1]
-            textareaRef.current.style.height = '56px';  //[cite: 1]
-        }
-    }, [isTyping, isProcessing, pendingImage, value, onSendImage, onSend]);
-
-    const isInputLocked = isTyping || isProcessing; //[cite: 1]
-    const isSendButtonDisabled = isInputLocked || (!value.trim() && !pendingImage); //[cite: 1]
-    const hasInput = value.length > 0 || pendingImage !== null; //[cite: 1]
-    return (
-      <div className="p-6 border-t border-white/5 flex-shrink-0 bg-[#020617]/50 backdrop-blur-md relative z-20"> 
-         <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} /> 
-
-        <AnimatePresence>
-            {pendingImage && ( //[cite: 1]
-                <motion.div 
-                    initial={{ opacity: 0, y: 10, height: 0 }} //[cite: 1]
-                    animate={{ opacity: 1, y: 0, height: 'auto' }} //[cite: 1]
-                    exit={{ opacity: 0, y: 10, height: 0 }} //[cite: 1]
-                    style={{ willChange: 'transform, opacity, height' }} //[cite: 1]
-                    className="absolute -top-18 left-6 z-30 transform-gpu" //[cite: 1]
-                >
-                    <div className="relative group"> 
-                        <div className="w-20 h-20 rounded-xl overflow-hidden border border-cyan-500/50 shadow-lg bg-black/50 backdrop-blur-md"> 
-                            <Image src={pendingImage.url} alt="Preview" width={80} height={80} className="object-cover w-full h-full" /> 
-                        </div>
-                        <button 
-                            onClick={() => setPendingImage(null)} //[cite: 1]
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-transform" //[cite: 1]
+                <AnimatePresence>
+                    {pendingImage && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10, height: 0 }}
+                            animate={{ opacity: 1, y: 0, height: 'auto' }}
+                            exit={{ opacity: 0, y: 10, height: 0 }}
+                            style={{ willChange: 'transform, opacity, height' }}
+                            className="absolute -top-20 start-7 z-30 transform-gpu"
                         >
-                            <X size={12} /> 
+                            <div className="relative group">
+                                <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-[0_10px_25px_rgba(0,0,0,0.6),0_0_15px_rgba(56,189,248,0.3)] bg-black/60 backdrop-blur-md">
+                                    <Image src={pendingImage.url} alt="Preview" width={64} height={64} className="object-cover w-full h-full" />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setPendingImage(null)}
+                                    aria-label="Remove attached image"
+                                    className="absolute -top-1.5 -end-1.5 bg-rose-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-transform"
+                                >
+                                    <X size={11} />
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Luminous Floating Capsule Input Bar matching screenshot */}
+                <div
+                    className={`relative max-w-md mx-auto rounded-full p-[1.5px] transition-all duration-300 ${
+                        isDragOver
+                            ? 'bg-gradient-to-r from-sky-400 via-cyan-300 to-indigo-400 shadow-[0_0_40px_rgba(56,189,248,0.45)]'
+                            : 'bg-gradient-to-r from-[#38BDF8]/45 via-white/25 to-[#818CF8]/45 shadow-[0_0_32px_rgba(56,189,248,0.22),0_12px_32px_rgba(0,0,0,0.65)]'
+                    }`}
+                >
+                    <div className="flex items-center gap-2 bg-[#0E131F]/95 backdrop-blur-2xl rounded-full ps-2 pe-3 py-1.5">
+                        {/* Left Circular Camera Button */}
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            aria-label="Upload or scan image"
+                            title="Upload Visual Data"
+                            className="w-10 h-10 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-white/75 hover:text-white flex items-center justify-center transition-all flex-shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                        >
+                            <Camera size={18} strokeWidth={1.8} />
+                        </button>
+
+                        {/* Center Auto-Resizing Input */}
+                        <div className="relative flex-grow min-w-0 flex items-center">
+                            <textarea
+                                ref={textareaRef}
+                                value={value}
+                                onChange={handleAutoResize}
+                                rows={1}
+                                onFocus={() => {
+                                    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+                                    focusTimerRef.current = setTimeout(() => {
+                                        if (textareaRef.current) {
+                                            textareaRef.current.scrollIntoView({
+                                                behavior: 'smooth',
+                                                block: 'center'
+                                            });
+                                        }
+                                    }, 300);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        if (!isSendButtonDisabled) handleTriggerSend();
+                                    }
+                                }}
+                                placeholder={
+                                    isListening
+                                        ? 'Listening...'
+                                        : isInputLocked
+                                            ? 'Thinking...'
+                                            : 'Ask, drop image, or speak...'
+                                }
+                                disabled={isInputLocked}
+                                className="w-full bg-transparent py-2 px-1 text-[14px] text-white/95 placeholder-white/40 placeholder:whitespace-nowrap focus:outline-none transition-all duration-200 font-normal resize-none overflow-hidden no-scrollbar max-h-[120px] leading-snug"
+                                style={{ overflowY: textareaRef.current && textareaRef.current.scrollHeight > 120 ? 'auto' : 'hidden' }}
+                            />
+                        </div>
+
+                        {/* Right Inline Microphone Button */}
+                        <button
+                            type="button"
+                            onClick={handleVoiceActivate}
+                            aria-label="Speak to order"
+                            title="Talk to order with air"
+                            className="w-9 h-9 rounded-full text-white/60 hover:text-white hover:bg-white/[0.08] flex items-center justify-center transition-all flex-shrink-0"
+                        >
+                            <Mic size={18} strokeWidth={1.8} />
+                        </button>
+
+                        {/* Far-Right Glowing Sky-Blue Send Plane Button */}
+                        <button
+                            type="button"
+                            disabled={isSendButtonDisabled}
+                            onClick={handleTriggerSend}
+                            aria-label="Send message"
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-[#38BDF8] hover:text-[#7DD3FC] disabled:text-[#38BDF8]/35 transition-all flex-shrink-0 drop-shadow-[0_0_8px_rgba(56,189,248,0.45)]"
+                        >
+                            {isInputLocked ? (
+                                <Loader2 size={18} className="animate-spin text-[#38BDF8]" />
+                            ) : (
+                                <SendPlaneIcon size={20} />
+                            )}
                         </button>
                     </div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-
-        <div className="relative group max-w-4xl mx-auto flex items-center gap-2"> 
-          <AnimatePresence>
-              {!hasInput && ( //[cite: 1]
-                  <motion.div
-                      initial={{ width: 0, opacity: 0, scale: 0.8 }} //[cite: 1]
-                      animate={{ width: 'auto', opacity: 1, scale: 1 }} //[cite: 1]
-                      exit={{ width: 0, opacity: 0, scale: 0.5 }} //[cite: 1]
-                      transition={{ type: "spring", stiffness: 400, damping: 25 }} //[cite: 1]
-                      className="flex items-center gap-2 overflow-hidden flex-shrink-0 origin-left" //[cite: 1]
-                      style={{ willChange: 'width, opacity, transform' }} //[cite: 1]
-                  >
-                    <button
-                      type="button" //[cite: 1]
-                      onClick={() => fileInputRef.current?.click()} //[cite: 1]
-                      className="p-3 rounded-full bg-white/5 text-white hover:bg-cyan-500/20 transition-all border border-white/5 hover:border-cyan-500/50" //[cite: 1]
-                      title="Upload Visual Data" //[cite: 1]
-                    >
-                      <Camera size={20} /> 
-                    </button>
-
-                    <button
-                      type="button" //[cite: 1]
-                      onClick={() => useAIOrderingStore.getState().setVoiceMode(true)} //[cite: 1]
-                      className="p-3 rounded-full bg-white/5 text-white hover:bg-cyan-500/20 transition-all border border-white/5 hover:border-cyan-500/50 group" //[cite: 1]
-                      title="Talk to order with air" //[cite: 1]
-                    >
-                      <Mic size={20} className="group-hover:scale-110 transition-transform" /> 
-                    </button>
-                </motion.div>
-             )}
-         </AnimatePresence>
-         <div className="relative flex-grow min-w-0"> 
-           <textarea
-               ref={textareaRef} //[cite: 1]
-               value={value} //[cite: 1]
-               onChange={handleAutoResize} //[cite: 1]
-               rows={1} //[cite: 1]
-               onFocus={() => { //[cite: 1]
-                   setTimeout(() => { //[cite: 1]
-                       if (textareaRef.current) { //[cite: 1]
-                           textareaRef.current.scrollIntoView({ //[cite: 1]
-                               behavior: 'smooth', //[cite: 1]
-                               block: 'center' //[cite: 1]
-                           });
-                       }
-                   }, 300); //[cite: 1]
-               }}
-               onKeyDown={(e) => { //[cite: 1]
-                   if (e.key === 'Enter' && !e.shiftKey) { //[cite: 1]
-                       e.preventDefault();  //[cite: 1]
-                       if (!isSendButtonDisabled) handleTriggerSend(); //[cite: 1]
-                   }
-               }}
-               placeholder={isListening ? 'Listening...' : isInputLocked ? 'Thinking...' : 'Ask order with air...'} //[cite: 1]
-               disabled={isInputLocked} //[cite: 1]
-               className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800  placeholder:whitespace-nowrap focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed" //[cite: 1]
-               style={{ overflowY: textareaRef.current && textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden' }} //[cite: 1]
-           />
-            <button
-                disabled={isSendButtonDisabled} //[cite: 1]
-                onClick={handleTriggerSend} //[cite: 1]
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full  bg-cyan-600 hover:bg-cyan-500 disabled:bg-transparent disabled:text-gray-500 text-white transition-all" //[cite: 1]
-            >
-                {isInputLocked ? <Loader2 size={18} className="animate-spin" /> : <CornerDownRight size={18} />} 
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-});
+                </div>
+            </div>
+        );
+    }
+);
 ChatInput.displayName = 'ChatInput';
 
 const FlyToCartAnimator = React.memo(() => {
-  const flyQueue = useAIOrderingStore(useShallow(state => state.flyQueue)); //[cite: 1]
-  const removeFlyItem = useAIOrderingStore(state => state.removeFlyItem); //[cite: 1]
+    const flyQueue = useAIOrderingStore(useShallow(state => state.flyQueue));
+    const removeFlyItem = useAIOrderingStore(state => state.removeFlyItem);
 
-  return (
-    <AnimatePresence>
-      {flyQueue.map((item) => { //[cite: 1]
-          const startEl = document.getElementById(item.startElementId); //[cite: 1]
-          const endEl = document.getElementById('order-summary-cart-icon'); //[cite: 1]
-          
-          if (!startEl) return null; //[cite: 1]
-          const startRect = startEl.getBoundingClientRect(); //[cite: 1]
-          const endPos = endEl ? endEl.getBoundingClientRect() : { top: 50, left: window.innerWidth - 50 }; //[cite: 1]
+    return (
+        <AnimatePresence>
+            {flyQueue.map((item) => {
+                const startEl = document.getElementById(item.startElementId);
+                const endEl = document.getElementById('order-summary-cart-icon');
 
-          const imageSource = getAbsoluteImageUrl(item.image); //[cite: 1]
-          
-          const TARGET_SIZE = 10; //[cite: 1]
-          const targetScale = TARGET_SIZE / Math.max(startRect.width, 1); //[cite: 1]
-          
-          const midY = Math.min(startRect.top, endPos.top) - 80;  //[cite: 1]
+                if (!startEl) return null;
+                const startRect = startEl.getBoundingClientRect();
+                const endPos = endEl ? endEl.getBoundingClientRect() : { top: 50, left: window.innerWidth - 50 };
 
-          return (
-            <motion.div
-              key={item.animationId} //[cite: 1]
-              className="fixed z-[9999] rounded-full overflow-hidden border-2 border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.8)] transform-gpu" //[cite: 1]
-              style={{ 
-                  position: 'fixed', //[cite: 1]
-                  top: 0, //[cite: 1]
-                  left: 0, //[cite: 1]
-                  pointerEvents: 'none', //[cite: 1]
-                  width: startRect.width,  //[cite: 1]
-                  height: startRect.height,  //[cite: 1]
-                  willChange: 'transform, opacity'  //[cite: 1]
-              }}
-              initial={{ 
-                  x: startRect.left, //[cite: 1]
-                  y: startRect.top, //[cite: 1]
-                  opacity: 1, //[cite: 1]
-                  scale: 0.6, //[cite: 1]
-                  rotate: 0 //[cite: 1]
-              }}
-              animate={{ 
-                  x: [startRect.left, endPos.left - 10],  //[cite: 1]
-                  y: [startRect.top, midY, endPos.top - 10],  //[cite: 1]
-                  opacity: [1, 1, 0], //[cite: 1]
-                  scale: [0.6, 0.75, targetScale], //[cite: 1]
-                  rotate: [0, -20, 360] //[cite: 1]
-              }}
-              transition={{ 
-                  duration: 0.7, //[cite: 1]
-                  ease: "easeInOut", //[cite: 1]
-                  times: [0, 0.3, 1] //[cite: 1]
-              }}
-              onAnimationComplete={() => removeFlyItem(item.animationId)} //[cite: 1]
-            >
-              <Image src={imageSource} alt="product" width={100} height={100} priority className="w-full h-full object-cover" /> 
-            </motion.div>
-          );
-      })}
-    </AnimatePresence>
-  );
+                const imageSource = getAbsoluteImageUrl(item.image);
+
+                const TARGET_SIZE = 10;
+                const targetScale = TARGET_SIZE / Math.max(startRect.width, 1);
+
+                const midY = Math.min(startRect.top, endPos.top) - 80;
+
+                return (
+                    <motion.div
+                        key={item.animationId}
+                        className="fixed z-[9999] rounded-full overflow-hidden shadow-[0_0_30px_rgba(56,189,248,0.85)] transform-gpu"
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            pointerEvents: 'none',
+                            width: startRect.width,
+                            height: startRect.height,
+                            willChange: 'transform, opacity'
+                        }}
+                        initial={{
+                            x: startRect.left,
+                            y: startRect.top,
+                            opacity: 1,
+                            scale: 0.6,
+                            rotate: 0
+                        }}
+                        animate={{
+                            x: [startRect.left, endPos.left - 10],
+                            y: [startRect.top, midY, endPos.top - 10],
+                            opacity: [1, 1, 0],
+                            scale: [0.6, 0.75, targetScale],
+                            rotate: [0, -20, 360]
+                        }}
+                        transition={{
+                            duration: 0.7,
+                            ease: "easeInOut",
+                            times: [0, 0.3, 1]
+                        }}
+                        onAnimationComplete={() => removeFlyItem(item.animationId)}
+                    >
+                        <Image src={imageSource} alt="product" width={100} height={100} priority className="w-full h-full object-cover" />
+                    </motion.div>
+                );
+            })}
+        </AnimatePresence>
+    );
 });
-FlyToCartAnimator.displayName = 'FlyToCartAnimator'; //[cite: 1]
+FlyToCartAnimator.displayName = 'FlyToCartAnimator';
 
 const PaymentFatalError = React.memo(({ keyMissing }: { keyMissing: boolean }) => (
-    <div className="w-full h-full flex flex-col items-center justify-center p-10 text-center bg-black/40 backdrop-blur-xl rounded-[30px] border border-red-500/20"> 
-        <div className="p-4 bg-red-500/10 rounded-full mb-4 animate-pulse"> 
-            <ShieldOff size={48} className="text-red-400" /> 
+    <div className="w-full h-full flex flex-col items-center justify-center p-10 text-center bg-black/40 backdrop-blur-2xl rounded-[30px]">
+        <div className="p-4 bg-rose-500/10 rounded-full mb-4 animate-pulse">
+            <ShieldOff size={48} className="text-rose-400" />
         </div>
-        <h3 className="text-xl font-bold text-white mb-2 tracking-wide font-mono">SECURE GATEWAY OFFLINE</h3> 
-        <p className="text-gray-400 max-w-md text-sm leading-relaxed"> 
-            {keyMissing  //[cite: 1]
-                ? "Configuration Error: Stripe Public Key missing. System cannot initiate secure tunnel."  //[cite: 1]
-                : "Critical Protocol Failure: Unable to load payment processor module."} 
+        <h3 className="text-xl font-bold text-white mb-2 tracking-wide font-mono">SECURE GATEWAY OFFLINE</h3>
+        <p className="text-white/55 max-w-md text-sm leading-relaxed">
+            {keyMissing
+                ? "Configuration Error: Stripe Public Key missing. System cannot initiate secure tunnel."
+                : "Critical Protocol Failure: Unable to load payment processor module."}
         </p>
     </div>
 ));
@@ -1037,459 +1221,507 @@ PaymentFatalError.displayName = 'PaymentFatalError';
 // --- MAIN COMPONENT ---
 // ============================================================================
 
-export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-    const router = useRouter();    //[cite: 1]
-    const [detailProduct, setDetailProduct] = useState<AIProduct | null>(null); //[cite: 1]
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false); //[cite: 1]
-    
-    useBodyScrollLock({ locked: isOpen }); //[cite: 1]
-    const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''; //[cite: 1]
-    const stripePromise: Promise<Stripe | null> | null = useMemo(() => { //[cite: 1]
-        return STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null; //[cite: 1]
-    }, [STRIPE_PUBLISHABLE_KEY]); //[cite: 1]
-    
-    const [stripeObj, setStripeObj] = useState<Stripe | null>(null); //[cite: 1]
-    const [isStripeError, setIsStripeError] = useState(false); //[cite: 1]
-    const [isAnimationComplete, setIsAnimationComplete] = useState(false); //[cite: 1]
+export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+    const router = useRouter();
+    const [detailProduct, setDetailProduct] = useState<AIProduct | null>(null);
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+    const registerTimeout = useCallback((fn: () => void, delayMs: number) => {
+        const id = setTimeout(() => {
+            timersRef.current.delete(id);
+            fn();
+        }, delayMs);
+        timersRef.current.add(id);
+        return id;
+    }, []);
 
     useEffect(() => {
-        if (stripePromise) { //[cite: 1]
-            stripePromise //[cite: 1]
-                .then(stripe => { setStripeObj(stripe); setIsStripeError(false); }) //[cite: 1]
-                .catch(err => { console.error("Stripe Load Error:", err); setIsStripeError(true); }); //[cite: 1]
+        const activeTimers = timersRef.current;
+        return () => {
+            activeTimers.forEach(id => clearTimeout(id));
+            activeTimers.clear();
+        };
+    }, []);
+
+    useBodyScrollLock({ locked: isOpen });
+    const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+    const stripePromise: Promise<Stripe | null> | null = useMemo(() => {
+        return STRIPE_PUBLISHABLE_KEY ? loadStripe(STRIPE_PUBLISHABLE_KEY) : null;
+    }, [STRIPE_PUBLISHABLE_KEY]);
+
+    const [stripeObj, setStripeObj] = useState<Stripe | null>(null);
+    const [isStripeError, setIsStripeError] = useState(false);
+    const [isAnimationComplete, setIsAnimationComplete] = useState(false);
+
+    useEffect(() => {
+        let isMounted = true;
+        if (stripePromise) {
+            stripePromise
+                .then(stripe => {
+                    if (isMounted) {
+                        setStripeObj(stripe);
+                        setIsStripeError(false);
+                    }
+                })
+                .catch(err => {
+                    console.error("Stripe Load Error:", err);
+                    if (isMounted) setIsStripeError(true);
+                });
         } else {
-            setIsStripeError(true); //[cite: 1]
+            setIsStripeError(true);
         }
+        return () => {
+            isMounted = false;
+        };
     }, [stripePromise]);
-    
-    const messages = useAIOrderingStore(useShallow(state => state.messages)) as ExtendedMessage[]; //[cite: 1]
-    const isLoading = useAIOrderingStore(state => state.isLoading); //[cite: 1]
-    const isProcessing = useAIOrderingStore(state => state.isProcessing); //[cite: 1]
-    const paymentDetails = useAIOrderingStore(useShallow(state => state.paymentDetails)); //[cite: 1]
-    const glowingProductId = useAIOrderingStore(state => state.glowingProductId); //[cite: 1]
-    const socketStatus = useAIOrderingStore(state => state.socketStatus); //[cite: 1]
-    
-    const actions = useAIOrderingStore( //[cite: 1]
-        useShallow(state => ({ //[cite: 1]
-            sendMessage: state.sendMessage, //[cite: 1]
-            sendImage: state.sendImage, //[cite: 1]
-            addProductById: state.addProductById, //[cite: 1]
-            setOverlayVisible: state.setOverlayVisible, //[cite: 1]
-            resetChat: state.resetChat, //[cite: 1]
-            removeProductById: state.removeProductById, //[cite: 1]
-            initiateCheckoutRecovery: state.initiateCheckoutRecovery, //[cite: 1]
-            confirmCurrentOrder: state.confirmCurrentOrder, //[cite: 1]
-            clearCart: state.clearCart, //[cite: 1]
-            restoreCheckout: state.restoreCheckout, //[cite: 1]
-            saveForLater: state.saveForLater, //[cite: 1]
-            hardCancelOrder: state.hardCancelOrder, //[cite: 1]
-            addSocketAIMessage: state.addSocketAIMessage, //[cite: 1]
-            connectSocket: state.connectSocket, //[cite: 1]
-            disconnectSocket: state.disconnectSocket //[cite: 1]
+
+    const messages = useAIOrderingStore(useShallow(state => state.messages)) as ExtendedMessage[];
+    const isLoading = useAIOrderingStore(state => state.isLoading);
+    const isProcessing = useAIOrderingStore(state => state.isProcessing);
+    const paymentDetails = useAIOrderingStore(useShallow(state => state.paymentDetails));
+    const glowingProductId = useAIOrderingStore(state => state.glowingProductId);
+    const socketStatus = useAIOrderingStore(state => state.socketStatus);
+
+    const actions = useAIOrderingStore(
+        useShallow(state => ({
+            sendMessage: state.sendMessage,
+            sendImage: state.sendImage,
+            addProductById: state.addProductById,
+            setOverlayVisible: state.setOverlayVisible,
+            resetChat: state.resetChat,
+            removeProductById: state.removeProductById,
+            initiateCheckoutRecovery: state.initiateCheckoutRecovery,
+            confirmCurrentOrder: state.confirmCurrentOrder,
+            clearCart: state.clearCart,
+            restoreCheckout: state.restoreCheckout,
+            saveForLater: state.saveForLater,
+            hardCancelOrder: state.hardCancelOrder,
+            addSocketAIMessage: state.addSocketAIMessage,
+            connectSocket: state.connectSocket,
+            disconnectSocket: state.disconnectSocket
         }))
     );
 
-    const { data: session, status } = useSession(); //[cite: 1]
-    const chatEndRef = useRef<HTMLDivElement>(null); //[cite: 1]
-    const currentAccessToken = (session as any)?.accessToken; //[cite: 1]
-    const isConnectedRef = useRef(false); //[cite: 1]
+    const { data: session, status } = useSession();
+    const chatEndRef = useRef<HTMLDivElement>(null);
+    const currentAccessToken = (session as any)?.accessToken;
+    const isConnectedRef = useRef(false);
 
     const cartItems = useMemo(() => {
-        const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview'); //[cite: 1]
-        return (lastCartMessage?.content as { items: AIProduct[] })?.items || []; //[cite: 1]
+        const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+        return (lastCartMessage?.content as { items: AIProduct[] })?.items || [];
     }, [messages]);
-    
-    const cartControls = useAnimation(); //[cite: 1]
-    const prevCartCountRef = useRef(cartItems.length); //[cite: 1]
+
+    const cartControls = useAnimation();
+    const prevCartCountRef = useRef(cartItems.length);
 
     useEffect(() => {
-        if (cartItems.length > prevCartCountRef.current) { //[cite: 1]
-            cartControls.start({ //[cite: 1]
-                scale: [1, 1.25, 0.9, 1.1, 1], //[cite: 1]
-                rotate: [0, -12, 12, -6, 6, 0], //[cite: 1]
-                transition: { duration: 0.5, ease: "easeInOut" } //[cite: 1]
+        if (cartItems.length > prevCartCountRef.current) {
+            cartControls.start({
+                scale: [1, 1.25, 0.9, 1.1, 1],
+                rotate: [0, -12, 12, -6, 6, 0],
+                transition: { duration: 0.5, ease: "easeInOut" }
             });
         }
-        prevCartCountRef.current = cartItems.length; //[cite: 1]
+        prevCartCountRef.current = cartItems.length;
     }, [cartItems.length, cartControls]);
 
     const activeActionId = useMemo(() => {
-        const lastActionable = [...messages].reverse().find(m => //[cite: 1]
-            ['confirmation_prompt', 'recovery_prompt'].includes(m.contentType) //[cite: 1]
+        const lastActionable = [...messages].reverse().find(m =>
+            ['confirmation_prompt', 'recovery_prompt'].includes(m.contentType)
         );
-        return lastActionable?.id; //[cite: 1]
+        return lastActionable?.id;
     }, [messages]);
 
     useEffect(() => {
-        if (status === 'authenticated' && currentAccessToken && !isConnectedRef.current) { //[cite: 1]
-            isConnectedRef.current = true;  //[cite: 1]
-            actions.connectSocket(currentAccessToken); //[cite: 1]
-        } else if (status === 'unauthenticated') { //[cite: 1]
-            isConnectedRef.current = false; //[cite: 1]
-            actions.disconnectSocket(); //[cite: 1]
+        if (status === 'authenticated' && currentAccessToken && !isConnectedRef.current) {
+            isConnectedRef.current = true;
+            actions.connectSocket(currentAccessToken);
+        } else if (status === 'unauthenticated') {
+            isConnectedRef.current = false;
+            actions.disconnectSocket();
         }
-        return () => { 
-            isConnectedRef.current = false;  //[cite: 1]
-            actions.disconnectSocket();  //[cite: 1]
+        return () => {
+            isConnectedRef.current = false;
+            actions.disconnectSocket();
         };
     }, [status, currentAccessToken, actions]);
 
     useEffect(() => {
-        const scrollContainer = chatEndRef.current?.parentElement; //[cite: 1]
-        if (!scrollContainer) return; //[cite: 1]
+        const scrollContainer = chatEndRef.current?.parentElement;
+        if (!scrollContainer) return;
 
-        let rafId: number; //[cite: 1]
-        let timeoutId: NodeJS.Timeout; //[cite: 1]
+        let rafId: number;
+        let timeoutId: ReturnType<typeof setTimeout>;
 
-        const performScroll = () => { //[cite: 1]
-            rafId = requestAnimationFrame(() => { //[cite: 1]
-                const targetTop = scrollContainer.scrollHeight + 150; //[cite: 1]
-            
-                if (scrollContainer.scrollTop !== targetTop) { //[cite: 1]
-                    scrollContainer.scrollTo({ //[cite: 1]
-                        top: targetTop, //[cite: 1]
-                        behavior: 'smooth' //[cite: 1]
-                   });
+        const performScroll = () => {
+            rafId = requestAnimationFrame(() => {
+                const targetTop = scrollContainer.scrollHeight + 150;
+                if (scrollContainer.scrollTop !== targetTop) {
+                    scrollContainer.scrollTo({
+                        top: targetTop,
+                        behavior: 'smooth'
+                    });
                 }
             });
         };
 
-        performScroll(); //[cite: 1]
-        timeoutId = setTimeout(performScroll, 400); //[cite: 1]
+        performScroll();
+        timeoutId = setTimeout(performScroll, 400);
 
         return () => {
-            cancelAnimationFrame(rafId); //[cite: 1]
-            clearTimeout(timeoutId); //[cite: 1]
+            cancelAnimationFrame(rafId);
+            clearTimeout(timeoutId);
         };
     }, [messages, isLoading, activeActionId]);
-    
+
     useEffect(() => {
-        if (!paymentDetails) setIsAnimationComplete(false); //[cite: 1]
+        if (!paymentDetails) setIsAnimationComplete(false);
     }, [paymentDetails]);
 
-    const hasTriggeredRecoveryRef = useRef(false); //[cite: 1]
+    const hasTriggeredRecoveryRef = useRef(false);
     useEffect(() => {
-        hasTriggeredRecoveryRef.current = false; //[cite: 1]
+        hasTriggeredRecoveryRef.current = false;
     }, [cartItems.length, paymentDetails]);
 
     const handleClose = useCallback(() => {
-        if (paymentDetails && !isProcessing) { //[cite: 1]
-            if (hasTriggeredRecoveryRef.current) { //[cite: 1]
-                onClose(); //[cite: 1]
+        if (paymentDetails && !isProcessing) {
+            if (hasTriggeredRecoveryRef.current) {
+                onClose();
             } else {
-                actions.initiateCheckoutRecovery(); //[cite: 1]
-                hasTriggeredRecoveryRef.current = true; //[cite: 1]
+                actions.initiateCheckoutRecovery();
+                hasTriggeredRecoveryRef.current = true;
             }
-        } else if (!paymentDetails) { //[cite: 1]
-            onClose(); //[cite: 1]
+        } else if (!paymentDetails) {
+            onClose();
         }
     }, [paymentDetails, isProcessing, onClose, actions]);
-    
-    const handlePaymentSuccess = useCallback(() => {
-        actions.setOverlayVisible(false); //[cite: 1]
-        onClose(); //[cite: 1]
-        actions.resetChat(); //[cite: 1]
-    }, [onClose, actions]);
-    
-    const handleSendMessage = useCallback((rawText: string) => {
-        const text = rawText.trim(); //[cite: 1]
-        if (!text) return; //[cite: 1]
 
-        if (status !== 'authenticated') { //[cite: 1]
-            useAIOrderingStore.setState(state => ({ //[cite: 1]
-                messages: [...state.messages, { id: Date.now(), sender: 'user', contentType: 'text', content: text }], //[cite: 1]
-                isLoading: true //[cite: 1]
+    const handlePaymentSuccess = useCallback(() => {
+        actions.setOverlayVisible(false);
+        onClose();
+        actions.resetChat();
+    }, [onClose, actions]);
+
+    const handleSendMessage = useCallback((rawText: string) => {
+        const text = rawText.trim();
+        if (!text) return;
+
+        if (status !== 'authenticated') {
+            useAIOrderingStore.setState(state => ({
+                messages: [...state.messages, { id: Date.now(), sender: 'user', contentType: 'text', content: text }],
+                isLoading: true
             }));
-            setTimeout(() => { //[cite: 1]
-                actions.addSocketAIMessage({ //[cite: 1]
-                    type: 'confirmation_prompt', //[cite: 1]
-                    content: "Hey there! Ready to experience smart shopping? Let's get you set up in seconds.", //[cite: 1]
-                    options: ["Sign In", "Sign Up"], //[cite: 1]
+            registerTimeout(() => {
+                actions.addSocketAIMessage({
+                    type: 'confirmation_prompt',
+                    content: "Hey there! Ready to experience smart shopping? Let's get you set up in seconds.",
+                    options: ["Sign In", "Sign Up"],
                 });
-                useAIOrderingStore.setState({ isLoading: false }); //[cite: 1]
-            }, 500); //[cite: 1]
-            return; //[cite: 1]
+                useAIOrderingStore.setState({ isLoading: false });
+            }, SIMULATED_AUTH_DELAY_MS);
+            return;
         }
-        actions.sendMessage(text, false); //[cite: 1]
-    }, [status, actions]);
+        actions.sendMessage(text, false);
+    }, [status, actions, registerTimeout]);
 
     const handleProductSelect = useCallback((product: AIProduct, elementId: string): void => {
-        if (status !== 'authenticated') { //[cite: 1]
-            useAIOrderingStore.setState({ isLoading: true }); //[cite: 1]
-          
-            window.setTimeout(() => { //[cite: 1]
-                actions.addSocketAIMessage({ //[cite: 1]
-                    type: 'confirmation_prompt', //[cite: 1]
-                    content: 'Sign in to secure your selection.', //[cite: 1]
-                    options: ['Sign In', 'Sign Up'], //[cite: 1]
+        if (status !== 'authenticated') {
+            useAIOrderingStore.setState({ isLoading: true });
+
+            registerTimeout(() => {
+                actions.addSocketAIMessage({
+                    type: 'confirmation_prompt',
+                    content: 'Sign in to secure your selection.',
+                    options: ['Sign In', 'Sign Up'],
                 });
-                useAIOrderingStore.setState({ isLoading: false }); //[cite: 1]
-            }, SIMULATED_AUTH_DELAY_MS); //[cite: 1]
-          
-            return; //[cite: 1]
+                useAIOrderingStore.setState({ isLoading: false });
+            }, SIMULATED_AUTH_DELAY_MS);
+
+            return;
         }
 
-        const { messages } = useAIOrderingStore.getState(); //[cite: 1]
-        const lastMessage = messages[messages.length - 1] as ExtendedMessage; //[cite: 1]
-        const lastActiveTime = lastMessage?.timestamp ?? 0; //[cite: 1]
+        const { messages: currentMessages } = useAIOrderingStore.getState();
+        const lastMessage = currentMessages[currentMessages.length - 1] as ExtendedMessage | undefined;
+        const lastActiveTime = lastMessage?.timestamp ?? 0;
 
-        const isZombieConnection = (Date.now() - lastActiveTime) > ZOMBIE_CONNECTION_THRESHOLD_MS; //[cite: 1]
+        const isZombieConnection = (Date.now() - lastActiveTime) > ZOMBIE_CONNECTION_THRESHOLD_MS;
 
-        if (socketStatus !== 'connected' || isZombieConnection) { //[cite: 1]
-            if (!currentAccessToken) { //[cite: 1]
-                actions.addSocketAIMessage({ //[cite: 1]
-                    type: 'error', //[cite: 1]
-                    content: 'Session token missing. Cannot reconnect.', //[cite: 1]
+        if (socketStatus !== 'connected' || isZombieConnection) {
+            if (!currentAccessToken) {
+                actions.addSocketAIMessage({
+                    type: 'error',
+                    content: 'Session token missing. Cannot reconnect.',
                 });
-                return;  //[cite: 1]
+                return;
             }
 
-            useAIOrderingStore.setState({ isLoading: true }); //[cite: 1]
-            actions.disconnectSocket(); //[cite: 1]
-            actions.connectSocket(currentAccessToken); //[cite: 1]
+            useAIOrderingStore.setState({ isLoading: true });
+            actions.disconnectSocket();
+            actions.connectSocket(currentAccessToken);
         }
-        
-        actions.addProductById(product, elementId); //[cite: 1]
-    }, [status, socketStatus, currentAccessToken, actions]);
+
+        actions.addProductById(product, elementId);
+    }, [status, socketStatus, currentAccessToken, actions, registerTimeout]);
 
     const stripeAppearance = useMemo(() => ({
-        theme: 'night' as const, //[cite: 1]
-        labels: 'floating' as const, //[cite: 1]
+        theme: 'night' as const,
+        labels: 'floating' as const,
         variables: {
-            colorPrimary: '#06b6d4',  //[cite: 1]
-            colorBackground: '#0F172A',  //[cite: 1]
-            colorText: '#ffffff', //[cite: 1]
-            colorDanger: '#ef4444', //[cite: 1]
-            fontFamily: 'system-ui, sans-serif', //[cite: 1]
-            spacingUnit: '4px', //[cite: 1]
-            borderRadius: '16px', //[cite: 1]
-            colorIcon: '#ffffff',  //[cite: 1]
+            colorPrimary: '#38BDF8',
+            colorBackground: '#0A0E17',
+            colorText: '#ffffff',
+            colorDanger: '#f43f5e',
+            fontFamily: 'system-ui, sans-serif',
+            spacingUnit: '4px',
+            borderRadius: '16px',
+            colorIcon: '#ffffff',
         },
         rules: {
-            '.Input': { backgroundColor: '#1E293B', border: '1px solid #334155' }, //[cite: 1]
-            '.Input:focus': { border: '1px solid #06b6d4', boxShadow: '0 0 0 1px #06b6d4' }, //[cite: 1]
-            '.Tab': { backgroundColor: '#1E293B', color: '#ffffff' },  //[cite: 1]
-            '.Tab--selected': { backgroundColor: '#06b6d4', color: '#000000' }, //[cite: 1]
+            '.Input': { backgroundColor: '#111827', border: 'none' },
+            '.Input:focus': { boxShadow: '0 0 0 1px #38BDF8' },
+            '.Tab': { backgroundColor: '#111827', color: '#ffffff' },
+            '.Tab--selected': { backgroundColor: '#38BDF8', color: '#000000' },
         }
     }), []);
 
     const stripeOptions = useMemo<StripeElementsOptions | undefined>(() => {
-        const clientSecret = paymentDetails?.client_secret; //[cite: 1]
-        if (!clientSecret) return undefined; //[cite: 1]
-        return { clientSecret: clientSecret, appearance: stripeAppearance }; //[cite: 1]
+        const clientSecret = paymentDetails?.client_secret;
+        if (!clientSecret) return undefined;
+        return { clientSecret: clientSecret, appearance: stripeAppearance };
     }, [paymentDetails, stripeAppearance]);
 
-    const isPaymentMode = !!paymentDetails;  //[cite: 1]
-    const isKeyMissing = !STRIPE_PUBLISHABLE_KEY; //[cite: 1]
-    const isReadyToRender = stripeObj && stripeOptions && !isStripeError; //[cite: 1]
-    
+    const isPaymentMode = !!paymentDetails;
+    const isKeyMissing = !STRIPE_PUBLISHABLE_KEY;
+    const isReadyToRender = stripeObj && stripeOptions && !isStripeError;
+
     const handleNavigateToAuth = useCallback((mode: 'SIGNIN' | 'SIGNUP') => {
-        actions.setOverlayVisible(false); //[cite: 1]
-        onClose(); //[cite: 1]
-        router.push(`/auth?mode=${mode}`); //[cite: 1]
+        actions.setOverlayVisible(false);
+        onClose();
+        router.push(`/auth?mode=${mode}`);
     }, [actions, onClose, router]);
 
     return (
         <AnimatePresence>
-            {isOpen && ( //[cite: 1]
+            {isOpen && (
                 <motion.div
-                    key="chat-window" //[cite: 1]
-                    initial={{ opacity: 0 }} //[cite: 1]
-                    animate={{ opacity: 1 }} //[cite: 1]
-                    exit={{ opacity: 0 }} //[cite: 1]
-                    onClick={handleClose} //[cite: 1]
-                    style={{ colorScheme: 'dark', willChange: 'opacity', fontFamily: "'Montserrat', sans-serif" }} //[cite: 1]
-                    className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 overflow-hidden transform-gpu" //[cite: 1]
+                    key="chat-window"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={handleClose}
+                    style={{
+                        colorScheme: 'dark',
+                        willChange: 'opacity',
+                        fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Plus Jakarta Sans', 'Inter', sans-serif"
+                    }}
+                    className="fixed inset-0 z-50 bg-[#04070F]/95 backdrop-blur-3xl flex justify-center items-center p-0 sm:p-4 overflow-hidden transform-gpu"
                 >
-                   
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" /> 
-                    <FlyToCartAnimator /> 
-                    
+                    <FlyToCartAnimator />
+
                     <AnimatePresence>
-                        {detailProduct && ( //[cite: 1]
+                        {detailProduct && (
                             <motion.div
-                                initial={{ opacity: 0, backdropFilter: "blur(0px)" }} //[cite: 1]
-                                animate={{ opacity: 1, backdropFilter: "blur(16px)" }} //[cite: 1]
-                                exit={{ opacity: 0, backdropFilter: "blur(0px)" }} //[cite: 1]
-                                transition={{ duration: 0.3, ease: "easeOut" }} //[cite: 1]
-                                style={{ willChange: 'opacity, backdrop-filter' }} //[cite: 1]
-                                className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4 sm:p-4 transform-gpu" //[cite: 1]
-                                onClick={() => setDetailProduct(null)} //[cite: 1]
+                                initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                                animate={{ opacity: 1, backdropFilter: "blur(16px)" }}
+                                exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                                transition={{ duration: 0.3, ease: "easeOut" }}
+                                style={{ willChange: 'opacity, backdrop-filter' }}
+                                className="fixed inset-0 z-[100] bg-black/65 flex items-center justify-center p-4 transform-gpu"
+                                onClick={() => setDetailProduct(null)}
                             >
-                                <div onClick={(e) => e.stopPropagation()} className="w-full h-full max-w-[460px] max-h-[1050px] md:max-h-[90vh]"> 
-                                    <ProductDetailsCard product={detailProduct} onClose={() => setDetailProduct(null)} /> 
+                                <div onClick={(e) => e.stopPropagation()} className="w-full h-full max-w-[460px] max-h-[1050px] md:max-h-[90vh]">
+                                    <ProductDetailsCard product={detailProduct} onClose={() => setDetailProduct(null)} />
                                 </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
 
+                    {/* Borderless Swim-Free Main Surface */}
                     <motion.div
-                        initial={{ scale: 0.95, opacity: 0, y: 30 }} //[cite: 1]
-                        animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }} //[cite: 1]
-                        exit={{ scale: 0.95, opacity: 0, y: 30, transition: { duration: 0.3 } }} //[cite: 1]
-                        onClick={(e) => e.stopPropagation()} //[cite: 1]
-                        style={{ willChange: 'transform, opacity' }} //[cite: 1]
-                        className="w-full h-full max-w-[460px] max-h-[1050px] md:max-h-[90vh] flex flex-col bg-[#020617]/55 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative transform-gpu" //[cite: 1]
+                        initial={{ scale: 0.97, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } }}
+                        exit={{ scale: 0.97, opacity: 0, y: 20, transition: { duration: 0.25 } }}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ willChange: 'transform, opacity' }}
+                        className="w-full h-full max-w-[460px] max-h-full md:max-h-[92vh] flex flex-col bg-transparent overflow-hidden relative transform-gpu"
                     >
-                        <div className="absolute inset-[-1px] z-[120] rounded-[73px] overflow-hidden pointer-events-none"> 
-                            <AIVoiceOverlay /> 
+                        <div className="absolute inset-0 z-[120] overflow-hidden pointer-events-none">
+                            <AIVoiceOverlay />
                         </div>
-                       
-                        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full backface-hidden" /> 
-                        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full backface-hidden" /> 
 
-                        <header className="px-8 py-6 flex items-center flex-shrink-0 relative z-10"> 
-			    <div className="flex items-center gap-3"> 
-                                <div className="w-11 h-11 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-300"> 
-                                    <Bot size={18} /> 
-                                </div>
-                                <div>
-                                    <h2 className="text-[11px] text-gray-400 flex items-center gap-1 mt-1"> 
-                                       <Cpu size={12} className="text-cyan-500" /> 
-                                       Real-time shopping 
-                                    </h2>
-                                    <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1"> 
-                                        <ShieldCheck size={12} className="text-cyan-500" /> 
-                                        Secured 
-                                    </p>
-                                </div>
+                        {/* Atmospheric Multi-Point Radial Glows matching the screenshot */}
+                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[380px] h-[260px] bg-[#38BDF8]/15 blur-[95px] pointer-events-none rounded-full" />
+                        <div className="absolute top-16 end-0 w-[260px] h-[260px] bg-indigo-500/12 blur-[100px] pointer-events-none rounded-full" />
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[360px] h-[180px] bg-[#38BDF8]/10 blur-[90px] pointer-events-none rounded-full" />
+
+                        {/* Header: Left "airdeliverOS • Secured" Frosted Pill + Right Twin Glass Circle Buttons */}
+                        <header className="px-6 pt-6 pb-3 flex items-center justify-between flex-shrink-0 relative z-10">
+                            <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.08] backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.16)]">
+                                <span className="w-2 h-2 rounded-full bg-[#7DD3FC] shadow-[0_0_8px_#7DD3FC]" />
+                                <span className="text-[13px] font-medium text-white/95 tracking-tight">Order with Air</span>
+                                <span className="text-white/35 text-[12px]">•</span>
+                                <span className="text-[13px] font-normal text-white/50">Secured</span>
                             </div>
-                            <div className="flex items-center gap-3 ml-auto"> 
-                                {!isPaymentMode && ( //[cite: 1]
-                                    <div className="flex-shrink-0"> 
+
+                            <div className="flex items-center gap-2.5 ms-auto">
+                                {!isPaymentMode && (
+                                    <div className="flex-shrink-0">
                                         <motion.button
-                                            id="order-summary-cart-icon"  //[cite: 1]
-                                            animate={cartControls} //[cite: 1]
-                                            onClick={() => setIsMobileSidebarOpen(true)} //[cite: 1]
-                                            className="p-3 rounded-full bg-cyan-600/20 border border-cyan-500/50 text-cyan-400 hover:bg-cyan-600/40 transition-all flex items-center justify-center relative" //[cite: 1]
+                                            type="button"
+                                            id="order-summary-cart-icon"
+                                            animate={cartControls}
+                                            onClick={() => setIsMobileSidebarOpen(true)}
+                                            aria-label="Open shopping bag"
+                                            className="w-11 h-11 rounded-full bg-white/[0.08] backdrop-blur-2xl text-white/85 hover:bg-white/[0.15] hover:text-white transition-all flex items-center justify-center relative shadow-[0_8px_24px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.16)]"
                                         >
-                                            <ShoppingBag size={18} /> 
-                                            {cartItems.length > 0 && ( //[cite: 1]
-                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center"> 
-                                                    {cartItems.length} 
+                                            <ShoppingBag size={18} strokeWidth={1.8} />
+                                            {cartItems.length > 0 && (
+                                                <span className="absolute -top-0.5 -end-0.5 bg-[#475569] text-white text-[10px] font-semibold w-4 h-4 rounded-full flex items-center justify-center shadow-md">
+                                                    {cartItems.length}
                                                 </span>
                                             )}
-                                            </motion.button>
+                                        </motion.button>
                                     </div>
                                 )}
 
                                 <button
-                                    onClick={handleClose}  //[cite: 1]
-                                    className="p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300" //[cite: 1]
+                                    type="button"
+                                    onClick={handleClose}
+                                    aria-label="Close overlay"
+                                    className="w-11 h-11 rounded-full bg-white/[0.08] backdrop-blur-2xl text-white/85 hover:bg-white/[0.15] hover:text-white transition-all duration-300 flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.16)]"
                                 >
-                                    <X size={18} /> 
+                                    <X size={18} strokeWidth={1.8} />
                                 </button>
                             </div>
-                          </header>
+                        </header>
 
-                        <div className="flex-grow flex overflow-hidden relative z-10"> 
-                            <AnimatePresence mode="wait"> 
-                                {isPaymentMode ? ( //[cite: 1]
+                        {/* Main Content Area */}
+                        <div className="flex-grow flex overflow-hidden relative z-10">
+                            <AnimatePresence mode="wait">
+                                {isPaymentMode ? (
                                     <motion.div
-                                        key="payment" //[cite: 1]
-                                        initial={{ opacity: 0, x: 20 }} //[cite: 1]
-                                        animate={{ opacity: 1, x: 0 }} //[cite: 1]
-                                        exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }} //[cite: 1]
-                                        onAnimationComplete={() => setIsAnimationComplete(true)} //[cite: 1]
-                                        style={{ isolation: 'isolate', willChange: 'transform, opacity' }} //[cite: 1]
-                                        className="w-full h-full flex flex-col relative z-20 transform-gpu" //[cite: 1]
+                                        key="payment"
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
+                                        onAnimationComplete={() => setIsAnimationComplete(true)}
+                                        style={{ isolation: 'isolate', willChange: 'transform, opacity' }}
+                                        className="w-full h-full flex flex-col relative z-20 transform-gpu"
                                     >
-                                        {isReadyToRender && isAnimationComplete ? ( //[cite: 1]
+                                        {isReadyToRender && isAnimationComplete ? (
                                             (() => {
-                                                const hasValidData = Boolean( //[cite: 1]
-                                                    stripeOptions?.clientSecret && //[cite: 1]
-                                                    paymentDetails?.order_data && //[cite: 1]
-                                                    typeof paymentDetails.order_data.total === 'number' //[cite: 1]
+                                                const hasValidData = Boolean(
+                                                    stripeOptions?.clientSecret &&
+                                                    paymentDetails?.order_data &&
+                                                    typeof paymentDetails.order_data.total === 'number'
                                                 );
 
-                                                if (!hasValidData) { //[cite: 1]
+                                                if (!hasValidData) {
                                                     return (
-                                                        <div className="flex flex-col items-center justify-center h-full p-6 text-center"> 
-                                                           <div className="p-4 bg-red-500/10 rounded-full mb-4"> 
-                                                               <AlertCircle size={48} className="text-red-400" /> 
-                                                           </div>
-                                                           <h3 className="text-xl font-bold text-white mb-2 tracking-wide font-mono">DATA CONTRACT BREACH</h3> 
-                                                           <p className="text-gray-400 max-w-md text-sm leading-relaxed"> 
-                                                               Incomplete payment payload received from server. Missing order total or items. 
-                                                           </p>
-                                                       </div>
+                                                        <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                                                            <div className="p-4 bg-rose-500/10 rounded-full mb-4">
+                                                                <AlertCircle size={48} className="text-rose-400" />
+                                                            </div>
+                                                            <h3 className="text-xl font-bold text-white mb-2 tracking-wide font-mono">DATA CONTRACT BREACH</h3>
+                                                            <p className="text-white/55 max-w-md text-sm leading-relaxed">
+                                                                Incomplete payment payload received from server. Missing order total or items.
+                                                            </p>
+                                                        </div>
                                                     );
                                                 }
 
                                                 return (
-                                                    <Elements 
-                                                        key={`${stripeOptions.clientSecret}-loaded`}  //[cite: 1]
-                                                        stripe={stripeObj}  //[cite: 1]
-                                                        options={stripeOptions} //[cite: 1]
+                                                    <Elements
+                                                        key={`${stripeOptions.clientSecret}-loaded`}
+                                                        stripe={stripeObj}
+                                                        options={stripeOptions}
                                                     >
                                                         <AIPaymentForm
-                                                            orderId={paymentDetails.order_data.order_id} //[cite: 1]
-                                                            total={paymentDetails.order_data.total} //[cite: 1]
-                                                            items={paymentDetails.order_data.items} //[cite: 1]
-                                                            onPaymentSuccess={handlePaymentSuccess} //[cite: 1]
-                                                            clientSecret={stripeOptions.clientSecret} //[cite: 1]
+                                                            orderId={paymentDetails.order_data.order_id}
+                                                            total={paymentDetails.order_data.total}
+                                                            items={paymentDetails.order_data.items}
+                                                            onPaymentSuccess={handlePaymentSuccess}
+                                                            clientSecret={stripeOptions.clientSecret}
                                                         />
                                                     </Elements>
                                                 );
                                             })()
                                         ) : (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full z-50"> 
-                                                {isStripeError || isKeyMissing ? ( //[cite: 1]
-                                                     <PaymentFatalError keyMissing={isKeyMissing} /> //[cite: 1]
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full z-50">
+                                                {isStripeError || isKeyMissing ? (
+                                                    <PaymentFatalError keyMissing={isKeyMissing} />
                                                 ) : (
-                                                    <Loader2 size={26} className="text-cyan-500 animate-spin" /> //[cite: 1]
+                                                    <Loader2 size={26} className="text-sky-400 animate-spin" />
                                                 )}
                                             </div>
                                         )}
                                     </motion.div>
                                 ) : (
                                     <motion.div
-                                        key="chat" //[cite: 1]
-                                        initial={{ opacity: 0 }} //[cite: 1]
-                                        animate={{ opacity: 1 }} //[cite: 1]
-                                        exit={{ opacity: 0, transition: { duration: 0.1 } }} //[cite: 1]
-                                        style={{ willChange: 'opacity' }} //[cite: 1]
-                                        className="flex-grow flex flex-col relative z-10 w-full transform-gpu" //[cite: 1]
+                                        key="chat"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                                        style={{ willChange: 'opacity' }}
+                                        className="flex-grow flex flex-col relative z-10 w-full transform-gpu"
                                     >
-                                        <div className="flex-grow px-4 lg:px-12 py-8 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/10 scrollbar-track-transparent"> 
-                                            <AnimatePresence initial={false}>  
-                                                {messages.map((msg) => ( //[cite: 1]
+                                        <div className="flex-grow px-6 pt-4 pb-6 space-y-5 overflow-y-auto scrollbar-thin scrollbar-thumb-sky-500/10 scrollbar-track-transparent">
+                                            {/* Hero Headline Section matching the screenshot */}
+                                            <div className="pt-1 pb-2">
+                                                <h1 className="text-[23px] sm:text-[25px] font-semibold text-white tracking-[-0.02em] leading-snug">
+                                                    Don’t search. Just ask.
+                                                </h1>
+                                                <p className="text-[18px] sm:text-[20px] font-normal text-white/45 tracking-[-0.01em] leading-snug mt-0.5">
+                                                    airdeliverOS scans thousand of products and secures them for instant delivery.
+                                                </p>
+                                            </div>
+
+                                            <AnimatePresence initial={false}>
+                                                {messages.map((msg) => (
                                                     <ChatMessage
-                                                        key={msg.id} //[cite: 1]
-                                                        message={msg} //[cite: 1]
-                                                        isActiveAction={msg.id === activeActionId} //[cite: 1]
-                                                        onSend={handleSendMessage} //[cite: 1]
-                                                        onNavigateToAuth={handleNavigateToAuth} //[cite: 1]
-                                                        onProductSelect={handleProductSelect} //[cite: 1]
-                                                        onViewDetails={setDetailProduct} //[cite: 1]
-                                                        onConfirmOrder={actions.confirmCurrentOrder} //[cite: 1]
-                                                        onClearCart={actions.clearCart} //[cite: 1]
-                                                        onRestore={actions.restoreCheckout} //[cite: 1]
-                                                        onSave={actions.saveForLater} //[cite: 1]
-                                                        onCancel={actions.hardCancelOrder} //[cite: 1]
+                                                        key={msg.id}
+                                                        message={msg}
+                                                        isActiveAction={msg.id === activeActionId}
+                                                        onSend={handleSendMessage}
+                                                        onNavigateToAuth={handleNavigateToAuth}
+                                                        onProductSelect={handleProductSelect}
+                                                        onViewDetails={setDetailProduct}
+                                                        onConfirmOrder={actions.confirmCurrentOrder}
+                                                        onClearCart={actions.clearCart}
+                                                        onRestore={actions.restoreCheckout}
+                                                        onSave={actions.saveForLater}
+                                                        onCancel={actions.hardCancelOrder}
                                                     />
                                                 ))}
                                             </AnimatePresence>
-                                            <div ref={chatEndRef} /> 
+                                            <div ref={chatEndRef} />
                                         </div>
-                                        <ChatInput onSend={handleSendMessage} onSendImage={actions.sendImage} isTyping={isLoading} isProcessing={isProcessing} /> 
+
+                                        <ChatInput
+                                            onSend={handleSendMessage}
+                                            onSendImage={actions.sendImage}
+                                            isTyping={isLoading}
+                                            isProcessing={isProcessing}
+                                        />
                                     </motion.div>
                                 )}
                             </AnimatePresence>
-                                 
-                            {!(isPaymentMode) && ( //[cite: 1]
-                                 <AIChatSidebar
-                                     messages={messages} //[cite: 1]
-                                     glowingProductId={glowingProductId} //[cite: 1]
-                                     onRemoveItem={actions.removeProductById} //[cite: 1]
-                                     isMobileOpen={isMobileSidebarOpen} //[cite: 1]
-                                     onCloseMobile={() => setIsMobileSidebarOpen(false)} //[cite: 1]
-                                 />
+
+                            {!isPaymentMode && (
+                                <AIChatSidebar
+                                    messages={messages}
+                                    glowingProductId={glowingProductId}
+                                    onRemoveItem={actions.removeProductById}
+                                    isMobileOpen={isMobileSidebarOpen}
+                                    onCloseMobile={() => setIsMobileSidebarOpen(false)}
+                                />
                             )}
-                       </div>
-                   </motion.div>
-               </motion.div>
-           )}
-       </AnimatePresence>
-   );
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
 }
