@@ -24,7 +24,7 @@ import ProductOverlay from '@/components/products/ProductOverlay';
 // Lucide Icons
 import { 
   MapIcon, Activity, Bot, ChevronRight, 
-  Rocket, Zap, ArrowRight, Cpu, ArrowDown
+  Rocket, Zap, ArrowRight, Cpu, ArrowDown, Camera, ShieldCheck
 } from 'lucide-react';
 
 // ============================================================================
@@ -208,8 +208,8 @@ const HERO_CARDS: ReadonlyArray<HeroFloatingCardProps> = [
 const PRODUCTION_STEPS = [
   { icon: Bot, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product in our global network without you scrolling through catalogs." },
   { icon: Cpu, step: "02", title: "Inventory Sync", description: "Within milliseconds, the system queries local hubs and databases to secure the best price and immediate availability, reserving your item autonomously." },
-  { icon: MapIcon, step: "03", title: "4D Route Computation", description: "An adaptive flight plan is generated. The AI factors in live weather layers, urban topology, and airspace corridors to chart the absolute fastest drone vector." },
-  { icon: Rocket, step: "04", title: "Precision Doorstep Drop", description: "The autonomous drone arrives. Using computer vision and micro-thruster stabilization, it completes a contactless, verified handoff directly to your location." },
+  { icon: Camera, step: "03", title: "Multimodal Visual Matching", description: "Upload a image or screenshot. Our computer vision models analyze texture, brand, and style to match real-world items in seconds." },
+  { icon: ShieldCheck, step: "04", title: "Autonomous One-Tap Checkout", description: "Review your personalized bag preview and complete your purchase securely with one-tap encrypted payment flow directly within the overlay." },
 ] as const;
 
 // ============================================================================
@@ -739,7 +739,7 @@ const HowItWorksSection = memo(() => {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.8 }}
             className="mt-8 max-w-2xl text-lg md:text-xl font-light leading-relaxed text-zinc-400 transform-gpu"
           >
-            Watch how our neural network translates your thoughts into a physical product at your door in under 15 minutes.
+            Watch how our neural network translates your thoughts into a verified, checkout-ready product in seconds.
           </motion.p>
         </div>
 
@@ -775,15 +775,15 @@ const FinalCTA = memo(() => (
           <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Next-Gen Shopping Experience</span>
         </div>
 
-        <h2 id="cta-heading" className="text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-          YOUR ORDER.<br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-400 drop-shadow-[0_0_40px_rgba(192,132,252,0.5)]">
-            IN THE SKY.
+        <h2 id="cta-heading" className="text-3xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          Future of Commerce:<br />
+          <span className="text-purple-400 drop-shadow-[0_0_40px_rgba(192,132,252,0.5)]">
+            Powered by AI.
           </span>
         </h2>
 
-        <p className="text-xl md:text-2xl text-zinc-400 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
-          Don't wait for traffic. Shop thousands of products and watch them arrive from the clouds in minutes.
+        <p className="text-[14px] md:text-2xl text-zinc-400 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
+          Don't search. Just ask. Shop thousands of curated products with our intelligent multimodal AI.
         </p>
 
         <div className="flex flex-col gap-6 justify-center items-center">
@@ -797,7 +797,7 @@ const FinalCTA = memo(() => (
             <span>DOWNLOAD APP</span><ArrowDown className="w-6 h-6 group-hover:translate-y-1 transition-transform" aria-hidden="true" />
           </button>
         </div>
-        <p className="mt-12 text-[10px] text-zinc-600 font-mono uppercase tracking-[0.2em]">Instant Delivery • Live Tracking • 100% Autonomous</p>
+        <p className="mt-12 text-[9px] text-zinc-600 font-mono uppercase">Multimodal AI • One-Tap Checkout • 100% Autonomous</p>
       </motion.div>
     </div>
   </section>
