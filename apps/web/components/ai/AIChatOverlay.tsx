@@ -882,13 +882,7 @@ const AIChatSidebar = React.memo(({ messages, glowingProductId, onRemoveItem, is
                 </div>
 
                 <div className="flex-shrink-0 p-6 bg-[#050811]/90 space-y-5 relative z-20">
-                    <div>
-                        <h3 className="text-[10px] font-semibold text-white/45 tracking-widest mb-2.5 flex items-center gap-2 uppercase">
-                            <Signal size={12} className="text-sky-400" /> airdeliver X
-                        </h3>
-                        <DroneTelemetryWidget />
-                    </div>
-                    <div className="w-full h-px bg-white/[0.07]" />
+                  
                     <div className="flex justify-between items-end">
                         <div className="flex flex-col">
                             <span className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">Total</span>
@@ -1050,22 +1044,22 @@ const ChatInput = React.memo(
 
                 {/* Luminous Floating Capsule Input Bar matching screenshot */}
                 <div
-                    className={`relative max-w-md mx-auto rounded-full p-[1.5px] transition-all duration-300 ${
+                    className={`relative w-[340px] mx-auto rounded-full p-[1.5px] transition-all duration-300 ${
                         isDragOver
                             ? 'bg-gradient-to-r from-sky-400 via-cyan-300 to-indigo-400 shadow-[0_0_40px_rgba(56,189,248,0.45)]'
                             : 'bg-gradient-to-r from-[#38BDF8]/45 via-white/25 to-[#818CF8]/45 shadow-[0_0_32px_rgba(56,189,248,0.22),0_12px_32px_rgba(0,0,0,0.65)]'
                     }`}
                 >
-                    <div className="flex items-center gap-2 bg-[#0E131F]/95 backdrop-blur-2xl rounded-full ps-2 pe-3 py-1.5">
+                    <div className="flex items-center gap-1.5 bg-[#0E131F]/95 backdrop-blur-2xl rounded-full ps-1.5 pe-2 py-1">
                         {/* Left Circular Camera Button */}
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             aria-label="Upload or scan image"
                             title="Upload Visual Data"
-                            className="w-10 h-10 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-white/75 hover:text-white flex items-center justify-center transition-all flex-shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                            className="w-9 h-9 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-white/75 hover:text-white flex items-center justify-center transition-all flex-shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
                         >
-                            <Camera size={18} strokeWidth={1.8} />
+                            <Camera size={17} strokeWidth={1.8} />
                         </button>
 
                         {/* Center Auto-Resizing Input */}
@@ -1100,7 +1094,7 @@ const ChatInput = React.memo(
                                             : 'Ask, drop image, or speak...'
                                 }
                                 disabled={isInputLocked}
-                                className="w-full bg-transparent py-2 px-1 text-[14px] text-white/95 placeholder-white/40 placeholder:whitespace-nowrap focus:outline-none transition-all duration-200 font-normal resize-none overflow-hidden no-scrollbar max-h-[120px] leading-snug"
+                                className="w-full bg-transparent py-1.5 px-1 text-[13px] text-white/95 placeholder-white/40 placeholder:whitespace-nowrap focus:outline-none transition-all duration-200 font-normal resize-none overflow-hidden no-scrollbar max-h-[120px] leading-snug"
                                 style={{ overflowY: textareaRef.current && textareaRef.current.scrollHeight > 120 ? 'auto' : 'hidden' }}
                             />
                         </div>
@@ -1122,12 +1116,12 @@ const ChatInput = React.memo(
                             disabled={isSendButtonDisabled}
                             onClick={handleTriggerSend}
                             aria-label="Send message"
-                            className="w-9 h-9 rounded-full flex items-center justify-center text-[#38BDF8] hover:text-[#7DD3FC] disabled:text-[#38BDF8]/35 transition-all flex-shrink-0 drop-shadow-[0_0_8px_rgba(56,189,248,0.45)]"
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-[#38BDF8] hover:text-[#7DD3FC] disabled:text-[#38BDF8]/35 transition-all flex-shrink-0 drop-shadow-[0_0_8px_rgba(56,189,248,0.45)]"
                         >
                             {isInputLocked ? (
-                                <Loader2 size={18} className="animate-spin text-[#38BDF8]" />
+                                <Loader2 size={17} className="animate-spin text-[#38BDF8]" />
                             ) : (
-                                <SendPlaneIcon size={20} />
+                                <SendPlaneIcon size={18} />
                             )}
                         </button>
                     </div>
@@ -1561,8 +1555,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
                             <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.08] backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.16)]">
                                 <span className="w-2 h-2 rounded-full bg-[#7DD3FC] shadow-[0_0_8px_#7DD3FC]" />
                                 <span className="text-[13px] font-medium text-white/95 tracking-tight">Order with Air</span>
-                                <span className="text-white/35 text-[12px]">•</span>
-                                <span className="text-[13px] font-normal text-white/50">Secured</span>
+                                
                             </div>
 
                             <div className="flex items-center gap-2.5 ms-auto">
@@ -1673,7 +1666,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
                                                 <h1 className="text-[23px] sm:text-[25px] font-semibold text-white tracking-[-0.02em] leading-snug">
                                                     Don’t search. Just ask.
                                                 </h1>
-                                                <p className="text-[18px] sm:text-[20px] font-normal text-white/45 tracking-[-0.01em] leading-snug mt-0.5">
+                                                <p className="text-[15px] sm:text-[20px] font-normal text-white/45 tracking-[-0.01em] leading-snug mt-0.5">
                                                     airdeliverOS scans thousand of products and secures them for instant delivery.
                                                 </p>
                                             </div>
