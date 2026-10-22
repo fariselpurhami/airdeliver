@@ -477,7 +477,7 @@ const AIReasoning = React.memo(({ text }: { text: string }) => (
     >
         <div className="flex items-center gap-1.5 text-[12px] font-medium text-white/50 tracking-wide">
             <FourPointSparkle className="w-3.5 h-3.5 text-white/50" />
-            <span>airdeliverOS</span>
+            <span>airdeliverOS Insight</span>
         </div>
         <p className="text-[14px] text-white/85 font-normal leading-[1.55]">{text}</p>
         <div className="my-5 w-full h-px bg-gradient-to-r from-transparent via-white to-transparent" />
@@ -1667,7 +1667,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
                                                     Don’t search. Just ask.
                                                 </h1>
                                                 <p className="text-[15px] sm:text-[20px] font-normal text-white/45 tracking-[-0.01em] leading-snug mt-0.5">
-                                                    airdeliverOS scans thousand of products and secures them for instant delivery.
+                                                    Powered by airdeliver, Turning intent into reality.
                                                 </p>
                                             </div>
 
