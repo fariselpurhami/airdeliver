@@ -10,7 +10,7 @@ import {
     Bot, User, CornerDownRight, ShoppingCart, Cpu, X,
     ChevronLeft, ChevronRight, Save, ChevronDown, ChevronUp, Trash2, Undo2, AlertCircle,
     ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap,
-    Activity, Signal, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock, Eye, ShieldCheck
+    Activity, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock, Eye, ShieldCheck
 } from 'lucide-react';
 import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
 import Image from 'next/image';
@@ -40,22 +40,12 @@ export interface AIProduct {
     reviews_count?: string | number;
 }
 
-export interface FlightData {
-    mission_id: string;
-    drone_id: string;
-    estimated_arrival_mins: number;
-    distance_km: number;
-    weather_condition: string;
-    status: string;
-}
-
 export interface ExtendedMessage {
     id: number | string;
     sender: 'ai' | 'user' | 'system';
-    contentType: 'text' | 'image_user_upload' | 'error' | 'info' | 'success_text' | 'FLIGHT_MANIFEST' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'recovery_prompt' | 'cart_preview' | 'typing' | 'payment_intent' | 'ORDER_CANCELLED';
+    contentType: 'text' | 'image_user_upload' | 'error' | 'info' | 'success_text' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'recovery_prompt' | 'cart_preview' | 'typing' | 'payment_intent' | 'ORDER_CANCELLED';
     content: string | { items: AIProduct[]; total: number };
     imageUrl?: string;
-    flight_data?: FlightData;
     options?: string[];
     products?: AIProduct[];
     reason?: string;
@@ -167,150 +157,7 @@ const SendPlaneIcon = React.memo(({ size = 20 }: { size?: number }) => (
 ));
 SendPlaneIcon.displayName = 'SendPlaneIcon';
 
-const HolographicFlightDeck = React.memo(({ data }: { data: FlightData }) => {
-    if (!data) return null;
 
-    return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.94 }}
-            animate={{ opacity: 1, scale: 1 }}
-            style={{ willChange: 'transform, opacity' }}
-            className="w-full bg-[#070B14]/85 backdrop-blur-2xl rounded-3xl overflow-hidden relative mt-3 shadow-[0_20px_50px_rgba(0,0,0,0.6),0_0_30px_rgba(56,189,248,0.12)] transform-gpu"
-        >
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(56,189,248,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.04)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
-
-            <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-sky-400/10 to-transparent w-[50%] skew-x-12 pointer-events-none"
-                animate={{ left: ['-100%', '200%'] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                style={{ willChange: 'left' }}
-            />
-
-            <div className="p-5 relative z-10">
-                <div className="flex justify-between items-start mb-6 pb-4">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="w-2 h-2 bg-sky-400 rounded-full animate-pulse shadow-[0_0_8px_#38BDF8]" />
-                            <span className="text-xs font-semibold text-sky-300 tracking-[0.2em] uppercase">Live Uplink</span>
-                        </div>
-                        <h3 className="text-lg font-bold text-white font-mono">{data.mission_id}</h3>
-                    </div>
-                    <div className="text-end">
-                        <span className="block text-[10px] text-white/45 uppercase tracking-widest">Drone ID</span>
-                        <span className="font-mono text-sky-200">{data.drone_id}</span>
-                    </div>
-                </div>
-
-                <div className="h-32 w-full relative mb-6 mx-auto flex items-center justify-center">
-                    <svg className="w-full h-full absolute inset-0 overflow-visible">
-                        <motion.path
-                            d="M 20,60 Q 150,10 280,60"
-                            fill="none"
-                            stroke="rgba(56, 189, 248, 0.25)"
-                            strokeWidth="2"
-                            strokeDasharray="5 5"
-                        />
-                        <motion.path
-                            d="M 20,60 Q 150,10 280,60"
-                            fill="none"
-                            stroke="#38BDF8"
-                            strokeWidth="2"
-                            initial={{ pathLength: 0 }}
-                            animate={{ pathLength: 1 }}
-                            transition={{ duration: 2, ease: "easeInOut" }}
-                        />
-                        <circle cx="20" cy="60" r="4" fill="#38BDF8" />
-                        <text x="20" y="80" fill="rgba(255,255,255,0.45)" fontSize="10" textAnchor="middle">HQ</text>
-                        <motion.g
-                            initial={{ offsetDistance: "0%" }}
-                            animate={{ offsetDistance: "100%" }}
-                            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                            style={{ offsetPath: 'path("M 20,60 Q 150,10 280,60")' }}
-                        >
-                            <circle cx="0" cy="0" r="6" fill="#38BDF8" className="drop-shadow-[0_0_10px_rgba(56,189,248,1)]" />
-                        </motion.g>
-                        <circle cx="280" cy="60" r="4" fill="#F43F5E" />
-                        <circle cx="280" cy="60" r="8" fill="none" stroke="#F43F5E" strokeOpacity="0.5" className="animate-ping" />
-                        <text x="280" y="80" fill="rgba(255,255,255,0.45)" fontSize="10" textAnchor="middle">YOU</text>
-                    </svg>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2.5">
-                    <div className="bg-white/[0.04] rounded-2xl p-3 flex flex-col items-center">
-                        <Clock size={16} className="text-sky-300 mb-2" />
-                        <span className="text-[10px] text-white/45 uppercase">ETA</span>
-                        <span className="text-sm font-semibold text-white">{data.estimated_arrival_mins} min</span>
-                    </div>
-                    <div className="bg-white/[0.04] rounded-2xl p-3 flex flex-col items-center">
-                        <Navigation size={16} className="text-indigo-300 mb-2" />
-                        <span className="text-[10px] text-white/45 uppercase">Dist</span>
-                        <span className="text-sm font-semibold text-white">{data.distance_km} km</span>
-                    </div>
-                    <div className="bg-white/[0.04] rounded-2xl p-3 flex flex-col items-center">
-                        <Wind size={16} className="text-emerald-300 mb-2" />
-                        <span className="text-[10px] text-white/45 uppercase">Weather</span>
-                        <span className="text-[10px] font-semibold text-white text-center leading-tight">{data.weather_condition}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-sky-950/25 p-2.5 text-center">
-                <span className="text-[10px] font-mono text-sky-300 animate-pulse">
-                    &gt;&gt; SYSTEM STATUS: {data.status} &lt;&lt;
-                </span>
-            </div>
-        </motion.div>
-    );
-});
-HolographicFlightDeck.displayName = 'HolographicFlightDeck';
-
-const DroneTelemetryWidget = React.memo(() => {
-    const [stats, setStats] = useState({ speed: 45, alt: 120, bat: 98, stab: 100 });
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setStats(prev => ({
-                speed: Math.max(40, Math.min(60, prev.speed + (Math.random() - 0.5) * 5)),
-                alt: Math.max(115, Math.min(125, prev.alt + (Math.random() - 0.5) * 2)),
-                bat: Math.max(90, prev.bat - 0.01),
-                stab: Math.min(100, Math.max(98, prev.stab + (Math.random() - 0.5)))
-            }));
-        }, 1000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const TelemetryItem = ({ icon: Icon, label, value, unit, color }: { icon: any, label: string, value: number, unit: string, color: string }) => (
-        <div className="flex flex-col items-start p-2.5 rounded-2xl bg-white/[0.04] relative overflow-hidden group">
-            <div className={`absolute top-0 end-0 p-1.5 opacity-25 group-hover:opacity-100 transition-opacity duration-500 ${color}`}>
-                <Icon size={14} />
-            </div>
-            <span className="text-[9px] text-white/45 uppercase tracking-wider font-semibold mb-0.5">{label}</span>
-            <div className="flex items-baseline gap-0.5">
-                <span className="text-sm font-mono font-bold text-white tracking-tight">{value.toFixed(1)}</span>
-                <span className="text-[8px] text-white/45">{unit}</span>
-            </div>
-            <div className="w-full h-0.5 bg-white/10 mt-1.5 rounded-full overflow-hidden">
-                <motion.div
-                    className={`h-full ${color.replace('text-', 'bg-')}`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(100, (value / (label === 'PWR' ? 100 : 60)) * 100)}%` }}
-                    transition={{ duration: 0.5 }}
-                    style={{ willChange: 'width' }}
-                />
-            </div>
-        </div>
-    );
-
-    return (
-        <div className="grid grid-cols-4 gap-2 w-full mt-2">
-            <TelemetryItem icon={Wind} label="SPD" value={stats.speed} unit="km/h" color="text-sky-400" />
-            <TelemetryItem icon={Navigation} label="ALT" value={stats.alt} unit="m" color="text-indigo-400" />
-            <TelemetryItem icon={Zap} label="PWR" value={stats.bat} unit="%" color="text-emerald-400" />
-            <TelemetryItem icon={Activity} label="STAB" value={stats.stab} unit="%" color="text-blue-400" />
-        </div>
-    );
-});
-DroneTelemetryWidget.displayName = 'DroneTelemetryWidget';
 
 const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails }: {
     product: AIProduct;
@@ -604,16 +451,6 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                     </div>
                 );
             }
-            case 'FLIGHT_MANIFEST':
-                return (
-                    <div className="w-full">
-                        
-                        <p className="whitespace-pre-line mb-2 text-[14px] leading-[1.55] text-white/85 font-normal">
-                            {typeof message.content === 'string' ? message.content : ''}
-                        </p>
-                        {message.flight_data && <HolographicFlightDeck data={message.flight_data} />}
-                    </div>
-                );
             case 'confirmation_prompt':
                 if (!isActiveAction) return null;
                 return (

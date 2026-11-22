@@ -64,7 +64,6 @@ export interface Message {
   msgId?: string;
   sender: 'user' | 'ai';
   contentType: MessageContentType;
-  flight_data?: Record<string, unknown>;
   imageUrl?: string;
   content: unknown;
   options?: string[];
@@ -498,8 +497,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         options: response.options as string[],
         reason: response.reason as string,
         ai_notes: response.ai_notes as string,
-        timestamp: Date.now(),
-        flight_data: response.flight_data as Record<string, unknown>
+        timestamp: Date.now()
       };
 
       // Flow specific states

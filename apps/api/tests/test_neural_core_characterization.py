@@ -46,7 +46,7 @@ class FakeEngine:
 
 
 class FakeProduct:
-    def __init__(self, id=1, name="Drone X", price=499.0, inventory=12):
+    def __init__(self, id=1, name="Aurora Headphones", price=499.0, inventory=12):
         self.id = id
         self.name = name
         self.price = price
@@ -123,12 +123,12 @@ class TestAnalyzeIntent:
         service = make_service()
 
         async def fake_infer(messages):
-            return '{"intent": "PRODUCT_SEARCH", "query": "drone"}'
+            return '{"intent": "PRODUCT_SEARCH", "query": "headphones"}'
 
         monkeypatch.setattr(service, "_execute_llm_inference", fake_infer)
-        decision = await service._analyze_intent("I want a drone", SessionMemory(user_name="F"))
+        decision = await service._analyze_intent("I want headphones", SessionMemory(user_name="F"))
         assert decision.intent == "PRODUCT_SEARCH"
-        assert decision.query == "drone"
+        assert decision.query == "headphones"
 
     async def test_history_is_included_in_messages(self, monkeypatch):
         service = make_service()
@@ -229,7 +229,7 @@ class TestProductSearchHandler:
                 raise RuntimeError("milvus down")
 
         service = make_service(engine=RaisingEngine())
-        resp = await service._handle_product_search(db=None, query="drone")
+        resp = await service._handle_product_search(db=None, query="headphones")
         assert resp.confidence == 0.0
         assert "databanks" in resp.text
 
@@ -241,9 +241,9 @@ class TestProductSearchHandler:
                 return []
 
         service = make_service(engine=EmptyEngine())
-        resp = await service._handle_product_search(db=None, query="drone")
+        resp = await service._handle_product_search(db=None, query="headphones")
         assert "couldn't find a perfect match" in resp.text
-        assert "drone" in resp.text
+        assert "headphones" in resp.text
 
     async def test_product_result_text_uses_real_fields(self):
         """In-stock product: name, price and dispatch status come from the
@@ -254,8 +254,8 @@ class TestProductSearchHandler:
                 return [FakeProduct()]
 
         service = make_service(engine=OneProductEngine())
-        resp = await service._handle_product_search(db=None, query="drone")
-        assert "Drone X" in resp.text
+        resp = await service._handle_product_search(db=None, query="headphones")
+        assert "Aurora Headphones" in resp.text
         assert "$499.0" in resp.text
         assert "immediate dispatch" in resp.text
 
@@ -265,7 +265,7 @@ class TestProductSearchHandler:
                 return [FakeProduct(inventory=0)]
 
         service = make_service(engine=OosEngine())
-        resp = await service._handle_product_search(db=None, query="drone")
+        resp = await service._handle_product_search(db=None, query="headphones")
         assert "awaiting restock" in resp.text
 
 
@@ -308,7 +308,7 @@ class TestHandleMessage:
             return RouterDecision(intent="PRODUCT_SEARCH", query=None)
 
         monkeypatch.setattr(service, "_analyze_intent", fake_analyze)
-        resp = await service.handle_message(db=None, message="show me drones", user=None, session_id="s3")
+        resp = await service.handle_message(db=None, message="show me headphones", user=None, session_id="s3")
         # query falls back to the raw message; engine failure -> degradation text
         assert resp.telemetry.intent == "PRODUCT_SEARCH"
         assert "databanks" in resp.text

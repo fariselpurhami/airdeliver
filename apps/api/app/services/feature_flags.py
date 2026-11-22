@@ -4,7 +4,6 @@ class FeatureFlags:
     def __init__(self):
         self._flags = {
             "new-checkout-flow": (False, 10),
-            "drone-visualizer-v2": (True, 100),
             "ai-chatbot-enabled": True,
         }
 

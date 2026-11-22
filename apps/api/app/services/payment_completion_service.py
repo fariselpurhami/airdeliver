@@ -36,7 +36,7 @@ class PaymentCompletionService:
             await self.rabbitmq.publish(
                 {
                     "user_id": user_id,
-                    "content": "Payment confirmed! 🚀 Your drone is being assigned.",
+                    "content": "Payment confirmed! 🚀 Your order is being prepared for delivery.",
                     "type": "success_text"
                 },
                 "airdeliver.ai.response.out"
@@ -47,27 +47,11 @@ class PaymentCompletionService:
                     "user_id": user_id,
                     "content": {
                         "order_id": order.id,
-                        "status": "PAID",
-                        "estimated_delivery": "15 mins"
+                        "status": "PAID"
                     },
                     "type": "ORDER_CONFIRMED"
                 },
                 "airdeliver.ai.response.out"
-            )
-
-            await self.rabbitmq.publish(
-                {
-                    "order_id": order.id,
-                    "user_id": user_id,
-                    "location": {
-                        "address": order.delivery_address,
-                        "lat": order.delivery_lat,
-                        "lon": order.delivery_lon
-                    },
-                    "transaction_id": transaction_id,
-                    "priority": "HIGH"
-                },
-                "airdeliver.logistics.mission.create"
             )
 
         except Exception as e:

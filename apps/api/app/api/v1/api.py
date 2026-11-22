@@ -11,7 +11,6 @@ from .endpoints import (
     webhooks,
     ai_ordering,
     ai_support,
-    tools,
     health
 )
 api_router = APIRouter()
@@ -19,7 +18,6 @@ api_router = APIRouter()
 api_router.include_router(health.router, tags=["Health"])
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(products.router, prefix="/products", tags=["Products"]) 
-api_router.include_router(tools.router, prefix="/tools", tags=["AI Tools"])
 api_router.include_router(ai_support.router, prefix="/ai-support", tags=["AI Neural Core"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])

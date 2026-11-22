@@ -24,7 +24,6 @@ from app.core.config import CoreSettings, get_core_settings
 from app.core.limiter import limiter
 from app.services.cache_service import IAsyncCacheClient, NoOpCacheClient, RedisCacheClient
 from app.services.rabbitmq_service import get_rabbitmq_service
-from app.websockets.tracking_ws import router as tracking_router
 
 from app.websockets.voice_ws import router as voice_router
 
@@ -42,8 +41,6 @@ def register_routes(app: FastAPI, settings: CoreSettings) -> None:
     # Register REST API
     app.include_router(api_router, prefix=settings.API_V1_STR)
 
-    # Register Tracking WebSockets
-    app.include_router(tracking_router, prefix="/ws")
 
     # --- NEW ROUTER REGISTRATION ---
     # Mounts at: /api/v1/ordering/voice-stream
@@ -253,7 +250,6 @@ def register_routes(app: FastAPI, settings: CoreSettings) -> None:
     app.mount("/static", StaticFiles(directory=str(STATIC_DIRECTORY)), name="static")
 
     app.include_router(api_router, prefix=settings.API_V1_STR)
-    app.include_router(tracking_router, prefix="/ws")
 
     @app.get(HEALTH_ENDPOINT, tags=["health"])
     async def read_root() -> dict[str, str]:

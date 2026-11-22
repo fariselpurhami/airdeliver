@@ -6,7 +6,7 @@ import React, { Suspense, useRef, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView } from 'framer-motion';
-import { Cpu, Rocket, Leaf, Map, ChevronRight, Target, Zap, Shield, Globe, Users } from 'lucide-react';
+import { Cpu, Leaf, ChevronRight, Target, Zap, Shield, Globe, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import Image from 'next/image';
 import * as THREE from 'three';
@@ -246,14 +246,6 @@ export default function AboutPage() {
 
             <InnovationMonolith 
                 index={1}
-                icon={Rocket}
-                title="Autonomous Fleet"
-                text="A fully automated aerial fleet. Our drones are engineered for speed, reliability, and all-weather operation. They communicate with each other to form a cohesive swarm, ensuring your package arrives instantly, anywhere."
-                videoSrc="/videos/drone_visual.mp4"
-            />
-
-            <InnovationMonolith 
-                index={2}
                 icon={Leaf}
                 title="Sustainable Grid"
                 text="We built our network on a zero-emission foundation. Our operations are powered by clean energy sources and optimized for minimal consumption, redefining commerce to be as good for the planet as it is for you."
@@ -263,16 +255,6 @@ export default function AboutPage() {
          </div>
       </section>
 
-       <section className="py-32 px-4 relative overflow-hidden z-10">
-            <div className="absolute inset-0 bg-grid-cyan-400/[0.03] -z-10" />
-            <div className="container mx-auto max-w-6xl">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <StatModule value={1200000} label="CO₂ Tons Offset" icon={Leaf} />
-                    <StatModule value={10582} label="Active Drone Units" icon={Target} />
-                    <StatModule value={127} label="Connected Cities" icon={Map} />
-                </div>
-            </div>
-       </section>
 
       <section className="py-32 px-4 z-10">
         <div className="container mx-auto max-w-6xl">

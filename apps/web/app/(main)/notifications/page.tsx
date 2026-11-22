@@ -21,13 +21,12 @@ import {
     Signal
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import * as THREE from 'three';
-import { Notification, WebSocketNotification } from '@/types';
+import { Notification } from '@/types';
 
 // ============================================================================
 // --- 1. ARCHITECTURAL CONFIGURATION ---
@@ -211,7 +210,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
   );
 };
 
-const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead, isWebSocketConnected }: any) => {
+const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead }: any) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const filters = ['All', 'Unread', 'Orders', 'Security'];
 
@@ -219,17 +218,6 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
     <div className="sticky top-24 z-30 w-full max-w-4xl mx-auto mb-12">
         <div className="relative p-2 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl flex items-center justify-between">
             
-            {/* Status Pod */}
-            <div className="hidden md:flex items-center gap-3 px-6 border-r border-white/10">
-                <div className="relative">
-                    <div className={`w-2 h-2 rounded-full ${isWebSocketConnected ? 'bg-green-500' : 'bg-red-500'} animate-pulse`} />
-                    <div className={`absolute inset-0 w-2 h-2 rounded-full ${isWebSocketConnected ? 'bg-green-500' : 'bg-red-500'} blur-sm`} />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                    {isWebSocketConnected ? 'Live Feed' : 'Offline'}
-                </span>
-            </div>
-
             {/* Filter Switch */}
             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar px-2">
                 {filters.map((filter) => (
@@ -334,27 +322,7 @@ export default function NotificationsPage() {
     const [undoItem, setUndoItem] = useState<any>(null);
     const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const handleNewNotification = useCallback((newNotification: WebSocketNotification) => {
-        const formatted: Notification = {
-            ...newNotification,
-            id: newNotification.id || Date.now(),
-            timestamp: "Just now",
-            cta: null,
-            read: false,
-        };
-        setLiveNotifications(prev => [formatted, ...prev]);
-        toast.custom((t) => (
-            <div className="bg-black/80 backdrop-blur-md border border-cyan-500/30 p-4 rounded-2xl shadow-2xl flex items-center gap-4">
-                <div className="p-2 bg-cyan-500/10 rounded-full text-cyan-400"><Bell size={18} /></div>
-                <div>
-                    <h4 className="font-bold text-white text-sm">{formatted.title}</h4>
-                    <p className="text-xs text-gray-400">{formatted.body}</p>
-                </div>
-            </div>
-        ));
-    }, []);
-
-    const { isConnected } = useRealtimeUpdates(null, { onNotification: handleNewNotification });
+    // No live notification socket exists in the backend; the list is REST-fed.
 
     const handleMarkAsRead = async (id: number) => {
         mutate((d = []) => d.map(n => n.id === id ? { ...n, read: true } : n), false);
@@ -448,7 +416,6 @@ export default function NotificationsPage() {
                     activeFilter={filter} 
                     onFilterChange={setFilter} 
                     onMarkAllAsRead={handleMarkAllAsRead} 
-                    isWebSocketConnected={isConnected}
                 />
 
                 <motion.div layout className="space-y-12">

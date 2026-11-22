@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import random
 import uuid
 import asyncio
 import time
@@ -92,11 +91,6 @@ class AICheckoutService:
     UI_CHANNEL_PREFIX = "airdeliver:response:"
     CACHE_CART_PREFIX = "ai_cart:"
     
-    # Flight Simulation Constants (Domain Logic)
-    FLIGHT_SPEED_KPH = 120.0
-    FLIGHT_PREP_BUFFER_MINS = 5
-    FLIGHT_MIN_RANGE_KM = 3.5
-    FLIGHT_MAX_RANGE_KM = 15.0
 
     def __init__(
         self,
@@ -432,22 +426,11 @@ class AICheckoutService:
 
             await self.cache.delete(self._get_cart_key(payload.user_id))
 
-            flight_data = self._generate_flight_manifest(order.id)
-            
             await self._send_to_ui(payload.user_id, {
-                "content": f"Payment Secured! Order #{order.id} is confirmed. AirAero X is on the way.",
-                "type": "success_text",
-                "sound": "drone_takeoff"
+                "content": f"Payment Secured! Order #{order.id} is confirmed and being prepared for delivery.",
+                "type": "success_text"
             })
 
-            await asyncio.sleep(0.5)  # Intentional jitter for sequential UI presentation
-            
-            await self._send_to_ui(payload.user_id, {
-                "content": "Uploading Live Telemetry...",
-                "type": "FLIGHT_MANIFEST",
-                "flight_data": flight_data
-            })
-            
             self._emit_analytics_event(
                 "airdeliver.ai.analytics.conversion",
                 {"user_id": payload.user_id, "order_id": order.id, "revenue": str(order.total_price)}
@@ -457,26 +440,6 @@ class AICheckoutService:
             await self.db.rollback()
             logger.critical("Critical failure in payment success handler", extra={"order_id": payload.order_id, "error": str(e)})
             await self._send_to_ui(payload.user_id, {"content": "Order confirmed! Check your email for details.", "type": "success_text"})
-
-    def _generate_flight_manifest(self, order_id: int) -> Dict[str, Any]:
-        """
-        Generates deterministic telemetry parameters for the UI simulation dashboard.
-        """
-        distance_km = random.uniform(self.FLIGHT_MIN_RANGE_KM, self.FLIGHT_MAX_RANGE_KM)
-        flight_time_mins = (distance_km / self.FLIGHT_SPEED_KPH) * 60
-        total_eta_mins = int(flight_time_mins + self.FLIGHT_PREP_BUFFER_MINS)
-        
-        return {
-            "mission_id": f"MSN-{order_id}-{random.randint(1000, 9999)}",
-            "drone_id": f"AIR-X-{random.randint(100, 999)} (Stealth)",
-            "distance_km": round(distance_km, 1),
-            "cruising_altitude": f"{random.randint(100, 300)}ft",
-            "speed_kph": int(self.FLIGHT_SPEED_KPH),
-            "estimated_arrival_mins": total_eta_mins,
-            "weather_condition": random.choice(["Clear Sky", "Tailwind", "Optimal Visibility"]),
-            "battery_status": "100%",
-            "status": "PRE-FLIGHT CHECK COMPLETE"
-        }
 
     # --- ❌ RECOVERY & CANCELLATION WORKFLOWS ---
 

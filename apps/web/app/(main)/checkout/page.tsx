@@ -91,20 +91,6 @@ const InputField = ({ icon: Icon, label, placeholder, type = "text", half = fals
     </div>
 );
 
-const TelemetryRow = ({ icon: Icon, label, value, status }: any) => {
-    const statusColor = status === 'active' ? 'text-cyan-400' : status === 'warning' ? 'text-yellow-400' : 'text-gray-300';
-    return (
-        // GLASS ROW
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 w-full">
-            <div className="flex items-center gap-3">
-                <Icon size={16} className="text-gray-500 flex-shrink-0" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 truncate">{label}</span>
-            </div>
-            <span className={`text-sm font-mono font-bold ${statusColor} whitespace-nowrap ml-2`}>{value}</span>
-        </div>
-    );
-};
-
 // ============================================================================
 // --- 3. THE MAIN PAGE ---
 // ============================================================================
@@ -207,32 +193,8 @@ export default function CheckoutPage() {
                                 className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[30px] p-6 md:p-8 shadow-[0_0_50px_rgba(0,0,0,0.3)] w-full"
                             >
                                 <div className="flex justify-between items-start mb-8">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>Flight Telemetry</h2>
-                                        <div className="flex items-center gap-2">
-                                            <span className="relative flex h-2 w-2">
-                                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                            </span>
-                                            <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">System Online</span>
-                                        </div>
-                                    </div>
+                                    <h2 className="text-xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Review & Place Order</h2>
                                     <Cpu size={24} className="text-cyan-500" />
-                                </div>
-
-                                <div className="relative w-full h-40 bg-black/40 rounded-2xl border border-white/10 mb-6 overflow-hidden flex items-center justify-center group">
-                                    <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[length:20px_20px] opacity-30" />
-                                    <div className="w-full h-px bg-cyan-500/20 absolute top-1/2" />
-                                    <div className="h-full w-px bg-cyan-500/20 absolute left-1/2" />
-                                    <Plane className="text-cyan-400 relative z-10 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]" size={32} />
-                                    <div className="absolute bottom-2 right-3 text-[9px] font-mono text-cyan-500">RADAR: ACTIVE</div>
-                                </div>
-
-                                <div className="space-y-3 mb-8 w-full">
-                                    <TelemetryRow icon={Plane} label="Unit ID" value="Interceptor-X1" status="active" />
-                                    <TelemetryRow icon={Wind} label="Wind" value="12 km/h (Stable)" status="active" />
-                                    <TelemetryRow icon={Navigation} label="Distance" value="4.2 km" status="neutral" />
-                                    <TelemetryRow icon={Clock} label="ETA" value="~14 min" status="warning" />
                                 </div>
 
                                 <button 
@@ -243,9 +205,9 @@ export default function CheckoutPage() {
                                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                     <div className="relative flex items-center justify-center gap-3 z-10">
                                         {isProcessing ? (
-                                            <><div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /><span className="text-black font-black uppercase tracking-[0.2em] text-xs">INITIALIZING...</span></>
+                                            <><div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /><span className="text-black font-black uppercase tracking-[0.2em] text-xs">PLACING ORDER...</span></>
                                         ) : (
-                                            <><span className="text-black font-black uppercase tracking-[0.2em] text-xs group-hover:text-white transition-colors">INITIATE LAUNCH</span><Rocket className="text-black group-hover:text-white transition-colors" size={18} /></>
+                                            <><span className="text-black font-black uppercase tracking-[0.2em] text-xs group-hover:text-white transition-colors">PLACE ORDER</span></>
                                         )}
                                     </div>
                                 </button>

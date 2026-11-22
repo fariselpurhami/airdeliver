@@ -26,7 +26,7 @@ class FakeCache:
 
 
 class FakeProduct:
-    def __init__(self, id=1, name="Aurora Drone", price=499.0, inventory=12):
+    def __init__(self, id=1, name="Aurora Headphones", price=499.0, inventory=12):
         self.id = id
         self.name = name
         self.price = price
@@ -78,7 +78,7 @@ class TestVisualRouting:
 
         assert len(engine.calls) == 1
         assert engine.calls[0]["image_input"] == VALID_IMAGE
-        assert "Aurora Drone" in response.text
+        assert "Aurora Headphones" in response.text
         assert response.telemetry.intent == "VISUAL_SEARCH"
 
     async def test_image_search_does_not_call_llm_router(self, monkeypatch):

@@ -37,14 +37,14 @@ const legalSections = [
     icon: Globe,
     title: "3. User Responsibilities",
     humanText: "Don't order illegal stuff. Give us a safe place to land. Be a good human.",
-    legalText: "The User warrants that all goods requested for transport comply with local, federal, and international laws. The User assumes full liability for ensuring the designated drop-off zone is clear of obstructions and safe for aerial drone approach. airdeliver reserves the right to terminate service immediately upon detection of illicit activity."
+    legalText: "The User warrants that all goods requested comply with applicable laws. airdeliver reserves the right to terminate service immediately upon detection of illicit activity."
   },
   {
     id: "intellectual-property",
     icon: Scale,
     title: "4. Intellectual Property",
-    humanText: "Our tech, our code, our drones. You can use the app, but please don't try to reverse-engineer our AI.",
-    legalText: "All algorithms, neural network architectures, drone designs, and software interfaces associated with airdeliver are the exclusive intellectual property of airdeliver Systems Inc. Users are granted a limited, non-exclusive, non-transferable license to access the platform for personal use only. Reverse engineering is strictly prohibited."
+    humanText: "Our tech, our code. You can use the app, but please don't try to reverse-engineer our AI.",
+    legalText: "All algorithms, neural network architectures, and software interfaces associated with airdeliver are the exclusive intellectual property of airdeliver Systems Inc. Users are granted a limited, non-exclusive, non-transferable license to access the platform for personal use only. Reverse engineering is strictly prohibited."
   },
   {
     id: "payment-terms",
@@ -57,7 +57,7 @@ const legalSections = [
     id: "liability",
     icon: AlertTriangle,
     title: "6. Limitation of Liability",
-    humanText: "We aren't liable if a bird hits the drone or if you drop your phone while ordering.",
+    humanText: "We aren't liable for delivery issues outside our control or if you drop your phone while ordering.",
     legalText: "To the maximum extent permitted by law, airdeliver shall not be liable for indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from (i) your access to or use of or inability to access or use the Service; (ii) any conduct or content of any third party on the Service."
   }
 ];

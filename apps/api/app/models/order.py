@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from .user import User
     from .product import Product
     from .audit_trail import AuditTrail
-    from .mission import Mission
 
 class Order(SQLModel, table=True):
     __tablename__ = "orders"
@@ -63,9 +62,6 @@ class Order(SQLModel, table=True):
         sa_relationship=relationship(
             "OrderItem", back_populates="order", cascade="all, delete-orphan"
         )
-    )
-    mission: Mapped[Optional["Mission"]] = Relationship(
-        sa_relationship=relationship("Mission", back_populates="order", uselist=False)
     )
     audit_trails: Mapped[List["AuditTrail"]] = Relationship(
         sa_relationship=relationship(

@@ -107,9 +107,6 @@ const CartItemCapsule = ({ item, index }: { item: CartItem, index: number }) => 
                     </span>
                 </div>
                 
-                <p className="text-sm text-gray-400 mb-4 font-light max-w-md">
-                    Automated handling unit ready for dispatch.
-                </p>
 
                 <div className="flex items-center justify-between sm:justify-start gap-8 border-t border-white/5 pt-4">
                     <div className="text-left">
@@ -121,7 +118,7 @@ const CartItemCapsule = ({ item, index }: { item: CartItem, index: number }) => 
                         <p className="text-lg font-mono text-cyan-400">x{item.quantity}</p>
                     </div>
                     <div className="text-left hidden sm:block">
-                        <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Total Payload</p>
+                        <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Total</p>
                         <p className="text-lg font-mono text-white">${(item.price * item.quantity).toFixed(2)}</p>
                     </div>
                 </div>
@@ -162,10 +159,10 @@ const VoidState = () => (
         </motion.div>
         
         <h3 className="text-3xl font-bold text-white mb-4" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-            Manifest Empty
+            Your cart is empty
         </h3>
         <p className="text-gray-400 max-w-md mb-10 leading-relaxed">
-            The cargo bay is currently clear. Initiate product acquisition to begin autonomous dispatch sequence.
+            Browse the catalog and add items to get started.
         </p>
         
         <Link href="/products" passHref>
@@ -195,31 +192,11 @@ const LogisticsPanel = ({ total, itemCount, clearCart }: { total: number, itemCo
                 <Cpu size={24} />
             </div>
             <div>
-                <h2 className="text-xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Flight Manifest</h2>
-                <p className="text-xs text-gray-500 uppercase tracking-wider">System Status: Active</p>
-            </div>
+                <h2 className="text-xl font-bold text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>Order Summary</h2>
+                            </div>
         </div>
         
-        {/* --- Telemetry Data --- */}
         <div className="flex-grow space-y-5 mb-8">
-            <div className="flex justify-between items-center group">
-                <span className="text-sm text-gray-400 flex items-center gap-2 group-hover:text-cyan-400 transition-colors"><Zap size={16} /> Assigned Unit</span> 
-                <span className="text-white font-mono text-sm border border-white/10 px-2 py-1 rounded bg-white/5">{itemCount > 0 ? 'DRONE-X1' : '--'}</span>
-            </div>
-            <div className="flex justify-between items-center group">
-                <span className="text-sm text-gray-400 flex items-center gap-2 group-hover:text-cyan-400 transition-colors"><Route size={16} /> Vector</span> 
-                <span className={`text-sm font-mono ${itemCount > 0 ? 'text-cyan-400 animate-pulse' : 'text-gray-600'}`}>{itemCount > 0 ? 'Calculating...' : '--'}</span>
-            </div>
-             <div className="flex justify-between items-center group">
-                <span className="text-sm text-gray-400 flex items-center gap-2 group-hover:text-green-400 transition-colors"><CloudSun size={16} /> Conditions</span> 
-                <span className="text-green-400 font-mono text-sm">{itemCount > 0 ? 'Optimal' : '--'}</span>
-            </div>
-            <div className="flex justify-between items-center group">
-                <span className="text-sm text-gray-400 flex items-center gap-2 group-hover:text-cyan-400 transition-colors"><Clock size={16} /> ETA</span> 
-                <span className="text-white font-mono text-sm">{itemCount > 0 ? '14m 30s' : '--'}</span>
-            </div>
-
-            <div className="w-full h-px bg-white/10 my-4" />
 
             <div className="flex justify-between items-end">
                 <span className="text-sm text-gray-400 uppercase tracking-widest">Total Value</span> 
@@ -237,7 +214,7 @@ const LogisticsPanel = ({ total, itemCount, clearCart }: { total: number, itemCo
                 >
                     <span className="absolute inset-0 bg-gradient-to-r from-[#00C6FF] to-[#7F00FF] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     <span className="relative flex items-center gap-2">
-                        Initialize Checkout <Plane size={18} fill="currentColor" />
+                        Proceed to Checkout
                     </span>
                 </motion.button>
             </Link>
@@ -251,7 +228,7 @@ const LogisticsPanel = ({ total, itemCount, clearCart }: { total: number, itemCo
                     disabled={itemCount === 0}
                     className="text-[10px] uppercase tracking-wider text-red-500/70 hover:text-red-500 disabled:opacity-30 transition-colors hover:underline decoration-red-500/30 underline-offset-4"
                 >
-                    Abort & Clear
+                    Clear Cart
                 </button>
             </div>
         </div>
@@ -316,7 +293,7 @@ export default function CartPage() {
                         </motion.span>
                     </h1>
                     <p className="text-xl text-gray-400 max-w-2xl mx-auto font-light leading-relaxed">
-                        Review manifest for autonomous dispatch. Ensure payload parameters are correct before initializing flight sequence.
+                        Review your items before placing the order.
                     </p>
                 </motion.section>
 

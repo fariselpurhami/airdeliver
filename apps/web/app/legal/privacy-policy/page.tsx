@@ -28,15 +28,15 @@ const privacyProtocols = [
     id: "geo-spatial",
     icon: Radio,
     title: "2. Geo-Spatial Intelligence",
-    humanText: "Our drones need precise coordinates to land safely. We track delivery locations, not your movements.",
-    legalText: "To enable Level 5 Autonomous Delivery, we process high-precision Geo-Spatial Data including latitude, longitude, and altitude of designated Drop Zones. This data is utilized exclusively for flight path optimization and obstacle avoidance algorithms. User location tracking is active only during the 'Last Mile' delivery phase and is purged from active cache post-delivery."
+    humanText: "We use your delivery address to deliver your order. We do not track your movements.",
+    legalText: "To deliver your orders, we process the delivery address you provide. It is used exclusively for fulfilling and routing your delivery, and is never sold or shared for advertising."
   },
   {
     id: "ai-training",
     icon: Fingerprint,
     title: "3. AI Model Training",
     humanText: "We use delivery data to make our robots smarter. Don't worry, your personal details are stripped out first.",
-    legalText: "Anonymized, aggregated operational data (e.g., flight times, weather responses, route efficiency) is ingested by our Neural Network to enhance fleet autonomy. This process employs Differential Privacy techniques to ensure that no individual user's data can be reverse-engineered or isolated from the aggregate dataset."
+    legalText: "Anonymized, aggregated order data is used to improve product recommendations. This process is designed so that no individual user's data can be isolated from the aggregate dataset."
   },
   {
     id: "data-sharing",

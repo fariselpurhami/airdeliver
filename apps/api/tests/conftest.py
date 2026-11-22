@@ -22,7 +22,6 @@ _DUMMY_ENV = {
     "RABBITMQ_USER": "test",
     "RABBITMQ_PASS": "test",
     "RABBITMQ_HOST": "localhost",
-    "DRONE_JWT_SECRET": "test-drone-jwt-0123456789abcdef0123456789ab",
     "VAPID_PUBLIC_KEY": "test-vapid-public",
     "VAPID_PRIVATE_KEY": "test-vapid-private",
     "USE_REDIS": "false",

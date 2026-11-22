@@ -23,12 +23,12 @@ const faqCategories = [
         title: "Operational Protocols",
         items: [
             {
-                q: "How fast is the autonomous fleet?",
-                a: "Our standard autonomous delivery is completed in under 30 minutes within designated city zones. Express Drone Mode can reduce this to as little as 10 minutes, subject to airspace clearance and atmospheric conditions."
+                q: "How fast is delivery?",
+                a: "Delivery timing depends on the partner store fulfilling your order and your location. The AI assistant can check the current status of any order for you."
             },
             {
-                q: "What implies 'AI Optimization'?",
-                a: "Our AI Core analyzes your cart, delivery coordinates, and real-time network traffic to calculate the most energy-efficient flight path. It dynamically reroutes to avoid congestion, ensuring maximum speed and sustainability."
+                q: "What does the AI assistant do?",
+                a: "It answers product questions, compares options, and manages your cart and checkout, strictly from live partner-store inventory. If something is not in stock, it says so."
             }
         ]
     },
@@ -37,12 +37,12 @@ const faqCategories = [
         title: "Logistics & Tracking",
         items: [
             {
-                q: "How do I track my payload?",
-                a: "Access the 'Tracking' tracking module in your profile. Our interface renders a live 3D holographic map of your drone's vector, telemetry data, and estimated time of arrival (ETA) down to the second."
+                q: "How do I track my order?",
+                a: "Open the tracking page for your order to see its current status, items, and total."
             },
             {
-                q: "Is the landing zone secure?",
-                a: "Yes. Our drones utilize LIDAR and computer vision to scan the drop zone for obstacles, pets, or humans. If a safety risk is detected, the drone will hover and request user confirmation or reroute to a secondary zone."
+                q: "Is my payment secure?",
+                a: "Payments are processed over encrypted channels by our payment providers. Your card details never touch our servers."
             }
         ]
     }

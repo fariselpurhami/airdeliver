@@ -29,7 +29,6 @@ class OrderCreate(OrderBase):
 
 class OrderUpdate(SQLModel):
     status: Optional[OrderStatus] = None
-    drone_id: Optional[int] = None
 
 class OrderRead(OrderBase):
     id: int
@@ -39,7 +38,6 @@ class OrderRead(OrderBase):
     created_at: datetime
     updated_at: datetime
     items: List[OrderItemRead] = []
-    drone_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
 
 class PaginatedOrders(SQLModel):

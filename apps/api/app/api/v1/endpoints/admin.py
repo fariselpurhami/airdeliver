@@ -17,7 +17,6 @@ class AdminStatsResponse(BaseModel):
     total_revenue: float
     total_orders: int
     total_products: int
-    active_drones: int
     pending_deliveries: int
     active_users_today: int
 
@@ -64,14 +63,6 @@ async def get_admin_stats(db: AsyncSession = Depends(deps.get_async_session)):
 
     total_orders = (await db.execute(select(func.count(models.Order.id)))).first() or 0
     total_products = (await db.execute(select(func.count(models.Product.id)))).first() or 0
-    active_drones = (
-        await db.execute(
-            select(func.count(models.Drone.id)).where(
-                models.Drone.status.in_(["active", "idle", "charging"])
-            )
-        )
-    ).first() or 0
-
     pending_deliveries = (
         await db.execute(
             select(func.count(models.Order.id)).where(
@@ -80,13 +71,19 @@ async def get_admin_stats(db: AsyncSession = Depends(deps.get_async_session)):
         )
     ).first() or 0
 
-    active_users_today = random.randint(50, 250)
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    active_users_today = (
+        await db.execute(
+            select(func.count(func.distinct(models.Order.user_id))).where(
+                models.Order.created_at >= today_start
+            )
+        )
+    ).first() or 0
 
     return AdminStatsResponse(
         total_revenue=total_revenue,
         total_orders=total_orders,
         total_products=total_products,
-        active_drones=active_drones,
         pending_deliveries=pending_deliveries,
         active_users_today=active_users_today,
     )

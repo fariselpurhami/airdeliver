@@ -3,9 +3,10 @@
 'use client';
 
 import CinematicBackground from '@/components/ui/CinematicBackground';
-import React, { useEffect, useRef, Suspense, useState } from 'react';
+import React, { useEffect, useMemo, useRef, Suspense, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
+import { api } from '@/lib/api';
 import { motion, useMotionValue, useSpring, useInView } from 'framer-motion';
 import {
     AlertCircle, Lock, Loader2, DollarSign, Package,
@@ -30,7 +31,6 @@ interface Stats {
     total_revenue: number;
     total_orders: number;
     total_products: number;
-    active_drones: number;
     pending_deliveries: number;
     active_users_today: number;
 }
@@ -48,28 +48,51 @@ interface PaginatedOrdersResponse {
 interface RevenueData { name: string; revenue: number; }
 interface ActivityEvent { id: string; icon: React.ReactNode; description: string; time: string; color: string; }
 
-const mockRevenueData: RevenueData[] = [
-    { name: '00:00', revenue: 420 }, { name: '04:00', revenue: 350 }, { name: '08:00', revenue: 900 },
-    { name: '12:00', revenue: 1200 }, { name: '16:00', revenue: 1500 }, { name: '20:00', revenue: 1100 },
-    { name: '24:00', revenue: 800 },
-];
-const mockActivityData: ActivityEvent[] = [
-    { id: '1', icon: <Package size={14} />, description: 'Order #1045 dispatched', time: '2m ago', color: 'text-cyan-400' },
-    { id: '2', icon: <Wifi size={14} />, description: 'Drone Fleet Sync Complete', time: '12m ago', color: 'text-green-400' },
-    { id: '3', icon: <Zap size={14} />, description: 'High demand detected in Sector 7', time: '28m ago', color: 'text-yellow-400' },
-    { id: '4', icon: <Database size={14} />, description: 'Inventory Manifest Updated', time: '45m ago', color: 'text-purple-400' },
-];
+const fetcher = (url: string) => api.get(url).then(res => res.data);
 
-const fetcher = async (url: string) => {
-    return {
-        total_revenue: 124500,
-        total_orders: 843,
-        total_products: 156,
-        active_drones: 42,
-        pending_deliveries: 12,
-        active_users_today: 890
-    } as Stats;
-};
+type ChartRange = '1H' | '24H' | '7D' | '30D';
+
+/** Aggregate real orders into a revenue series for the selected range. */
+function buildRevenueSeries(orders: Order[], range: ChartRange): RevenueData[] {
+    const now = Date.now();
+    const rangeMs: Record<ChartRange, number> = {
+        '1H': 60 * 60 * 1000,
+        '24H': 24 * 60 * 60 * 1000,
+        '7D': 7 * 24 * 60 * 60 * 1000,
+        '30D': 30 * 24 * 60 * 60 * 1000,
+    };
+    const byHour = range === '1H' || range === '24H';
+    const bucketMs = range === '1H' ? 5 * 60 * 1000 : byHour ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    const cutoff = now - rangeMs[range];
+    const buckets = new Map<number, number>();
+
+    for (const order of orders) {
+        const ts = new Date(order.created_at).getTime();
+        if (Number.isNaN(ts) || ts < cutoff) continue;
+        const bucket = Math.floor(ts / bucketMs) * bucketMs;
+        buckets.set(bucket, (buckets.get(bucket) || 0) + (order.total_price || 0));
+    }
+
+    return [...buckets.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([ts, revenue]) => ({
+            name: byHour
+                ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+            revenue: Math.round(revenue * 100) / 100,
+        }));
+}
+
+function relativeTime(iso: string): string {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    if (Number.isNaN(diffMs) || diffMs < 0) return 'just now';
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+}
 
 // ============================================================================
 // --- 1. ARCHITECTURAL BACKGROUND ---
@@ -220,11 +243,21 @@ const ActivityTimeline = ({ events }: { events: ActivityEvent[] }) => {
 };
 
 function DashboardContent() {
-    const { data: statsData } = useSWR<Stats>('/api/v1/admin/stats', fetcher);
-    const stats = statsData || {
-        total_revenue: 124500, total_orders: 843, total_products: 156,
-        active_drones: 42, pending_deliveries: 12, active_users_today: 890
-    };
+    const { data: statsData } = useSWR<Stats>('/admin/stats', fetcher);
+    const { data: ordersData } = useSWR<PaginatedOrdersResponse>('/admin/orders?limit=100', fetcher);
+    const [chartRange, setChartRange] = useState<ChartRange>('24H');
+
+    const stats = statsData || null;
+    const orders = ordersData?.orders || [];
+
+    const revenueSeries = useMemo(() => buildRevenueSeries(orders, chartRange), [orders, chartRange]);
+    const activityEvents: ActivityEvent[] = useMemo(() => orders.slice(0, 8).map(order => ({
+        id: String(order.id),
+        icon: <Package size={14} />,
+        description: `Order #${order.id} ${order.status} - $${Number(order.total_price).toFixed(2)}`,
+        time: relativeTime(order.created_at),
+        color: 'text-cyan-400',
+    })), [orders]);
 
     return (
         <div className="w-full max-w-[1600px] mx-auto p-6 md:p-10 space-y-8 mt-20 relative z-10">
@@ -247,16 +280,14 @@ function DashboardContent() {
                 </div>
                 <div className="flex items-center gap-4 text-xs font-mono text-gray-500 bg-white/5 border border-white/5 px-4 py-2 rounded-full backdrop-blur-md">
                     <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> ONLINE</span>
-                    <span className="h-3 w-[1px] bg-white/10" />
-                    <span className="flex items-center gap-2"><Server size={12} /> US-EAST-1</span>
                 </div>
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Total Revenue" value={stats.total_revenue} icon={DollarSign} color="cyan" delay={0.1} />
-                <StatCard title="Active Drones" value={stats.active_drones} icon={Wifi} color="purple" delay={0.2} />
-                <StatCard title="Orders Today" value={stats.total_orders} icon={Package} color="blue" delay={0.3} />
-                <StatCard title="Pending Drops" value={stats.pending_deliveries} icon={Truck} color="yellow" delay={0.4} />
+                <StatCard title="Total Revenue" value={stats ? stats.total_revenue : '—'} icon={DollarSign} color="cyan" delay={0.1} />
+                <StatCard title="Products" value={stats ? stats.total_products : '—'} icon={HardDrive} color="purple" delay={0.2} />
+                <StatCard title="Total Orders" value={stats ? stats.total_orders : '—'} icon={Package} color="blue" delay={0.3} />
+                <StatCard title="Pending Deliveries" value={stats ? stats.pending_deliveries : '—'} icon={Truck} color="yellow" delay={0.4} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -273,15 +304,25 @@ function DashboardContent() {
                             <BarChart2 className="text-cyan-400" /> Revenue Stream
                         </h2>
                         <div className="flex gap-2">
-                            {['1H', '24H', '7D', '30D'].map(p => (
-                                <button key={p} className={`px-3 py-1 text-[10px] font-bold rounded-lg border transition-all ${p === '24H' ? 'bg-cyan-500 text-black border-cyan-500' : 'bg-transparent text-gray-500 border-white/10 hover:border-white/20'}`}>
-                                    {p}
+                            {(['1H', '24H', '7D', '30D'] as ChartRange[]).map(range => (
+                                <button
+                                    key={range}
+                                    onClick={() => setChartRange(range)}
+                                    className={`px-3 py-1 text-[10px] font-bold rounded-lg border transition-all ${range === chartRange ? 'bg-cyan-500 text-black border-cyan-500' : 'bg-transparent text-gray-500 border-white/10 hover:border-white/20'}`}
+                                >
+                                    {range}
                                 </button>
                             ))}
                         </div>
                     </div>
                     <div className="h-[300px]">
-                        <RevenueChart data={mockRevenueData} />
+                        {revenueSeries.length > 0 ? (
+                            <RevenueChart data={revenueSeries} />
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-sm text-gray-500">
+                                No orders in this range yet.
+                            </div>
+                        )}
                     </div>
                 </motion.div>
 
@@ -293,15 +334,14 @@ function DashboardContent() {
                 >
                     <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-l from-purple-500/50 to-transparent opacity-50" />
                     <h2 className="text-xl font-bold text-white mb-8 flex items-center gap-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        <Clock className="text-purple-400" /> Neural Feed
+                        <Clock className="text-purple-400" /> Recent Orders
                     </h2>
-                    <ActivityTimeline events={mockActivityData} />
+                    {activityEvents.length > 0 ? (
+                        <ActivityTimeline events={activityEvents} />
+                    ) : (
+                        <p className="text-sm text-gray-500">No recent orders.</p>
+                    )}
 
-                    <div className="mt-8 pt-4 border-t border-white/5">
-                        <button className="w-full py-3 rounded-2xl bg-white/5 border border-white/5 text-xs font-bold text-gray-400 hover:bg-white/10 hover:text-white transition-all uppercase tracking-widest">
-                            View System Logs
-                        </button>
-                    </div>
                 </motion.div>
             </div>
         </div>

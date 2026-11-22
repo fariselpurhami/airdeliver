@@ -54,11 +54,7 @@ class CoreSettings(BaseAppConfig):
     RABBITMQ_HOST: str = Field(..., alias="RABBITMQ_HOST")
     RABBITMQ_PORT: int = Field(5672, alias="RABBITMQ_PORT", ge=1, le=65535)
     
-    DRONE_JWT_SECRET: SecretStr = Field(..., alias="DRONE_JWT_SECRET", min_length=32)
     
-    EXCHANGE_TELEMETRY: str = "drone.telemetry"
-    EXCHANGE_EVENTS: str = "drone.events"
-    EXCHANGE_COMMANDS: str = "drone.commands"
     QUEUE_TELEMETRY: str = "api.telemetry.processor"
     QUEUE_EVENTS: str = "api.events.processor"
     
