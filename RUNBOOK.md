@@ -162,3 +162,12 @@ CI/CD is handled via **GitHub Actions**, including linting, security scans, and 
 ---
 
 **airdeliver — building the future of intelligent commerce and autonomous logistics.**
+
+## Manual root shortcuts
+
+`make help` lists local developer shortcuts. `make up`, `make down`, `make restart`
+and `make logs` consistently use docker-compose.yml plus docker-compose.dev.yml
+and project airdeliver_dev. `down` retains data volumes. These commands are manual,
+not invoked by CI or Compose. They do not install dependencies or migrate data.
+`dev-auto-watch.sh` is optional, needs nodemon, and rebuilds that same combined
+stack when architectural inputs change. It is not needed to run the app normally.

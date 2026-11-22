@@ -8,9 +8,10 @@ if ! command -v nodemon &> /dev/null; then
 fi
 
 WATCH_PATHS=(
+    "docker-compose.yml"
     "docker-compose.dev.yml"
     "./apps/web/package.json"
-    "./apps/web/pnpm-lock.yaml"
+    "./pnpm-lock.yaml"
     "./apps/web/Dockerfile"
     "./apps/web/entrypoint.sh"
     "./apps/api/pyproject.toml"
@@ -24,8 +25,8 @@ nodemon \
     --delay 3 \
     --exec 'bash -c "
         echo \"\n\n🚀 ARCHITECTURAL CHANGE DETECTED: REBUILDING...\"
-        docker compose -f docker-compose.dev.yml -p airdeliver_dev up -d --build --force-recreate
-        docker compose -f docker-compose.dev.yml -p airdeliver_dev logs -f web
+        docker compose -f docker-compose.yml -f docker-compose.dev.yml -p airdeliver_dev up -d --build --force-recreate
+        docker compose -f docker-compose.yml -f docker-compose.dev.yml -p airdeliver_dev logs -f web
         echo \"\n✅ BUILD COMPLETE. WAITING FOR CHANGES...\"
     "' \
     --ext "yml,yaml,json,py,ts,sh" \

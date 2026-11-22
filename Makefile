@@ -1,16 +1,20 @@
-.PHONY: up down restart logs
+# Manual local-development shortcuts. Never invoked automatically by Compose.
+COMPOSE = docker compose -f docker-compose.yml -f docker-compose.dev.yml -p airdeliver_dev
 
-# تجهيز البيئة وتشغيل المشروع
+.PHONY: help up down restart logs
+
+help:
+	@printf '%s\n' 'make up      Start combined local-development stack' 'make down    Stop stack, retaining data volumes' 'make restart Restart existing containers' 'make logs    Follow stack logs'
+
 up:
-	@echo "Checking network airdeliver-global-net..."
-	@docker network inspect airdeliver-global-net >/dev/null 2>&1 || docker network create airdeliver-global-net
-	@echo "Starting containers..."
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml -p airdeliver_dev up -d
+	@docker network inspect airdeliver-global-net || docker network create airdeliver-global-net
+	$(COMPOSE) up -d
 
-# إيقاف المشروع
 down:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml -p airdeliver_dev down
+	$(COMPOSE) down
 
-# عرض اللوجز
+restart:
+	$(COMPOSE) restart
+
 logs:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml -p airdeliver_dev logs -f
+	$(COMPOSE) logs -f
