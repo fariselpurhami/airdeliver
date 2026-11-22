@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app import models, schemas
 from app.db.session import get_async_session
 from app.api import deps
@@ -17,10 +17,20 @@ async def read_products(
     db: AsyncSession = Depends(get_async_session),
     skip: int = 0,
     limit: int = 100,
+    page: Optional[int] = None,
+    category: Optional[str] = None,
 ):
-    # 🚀 التعديل هنا: إضافة .scalars() لاستخراج الكائنات النظيفة
+    # The storefront sends page/limit/category; honor page (1-based) as an
+    # alias for skip and apply the category filter when provided.
+    if page is not None and page > 1:
+        skip = (page - 1) * limit
+
+    stmt = select(models.Product)
+    if category:
+        stmt = stmt.where(models.Product.category == category)
+
     products_from_db = (
-        await db.execute(select(models.Product).offset(skip).limit(limit))
+        await db.execute(stmt.offset(skip).limit(limit))
     ).scalars().all()
 
     enriched_products = []
