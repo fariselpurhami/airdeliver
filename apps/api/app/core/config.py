@@ -145,6 +145,7 @@ class PayPalSettings(BaseAppConfig):
 
 
 class MpesaSettings(BaseAppConfig):
+    MPESA_SIMULATION_ENABLED: bool = Field(False, alias="MPESA_SIMULATION_ENABLED")
     MPESA_CONSUMER_KEY: str = Field(..., alias="MPESA_CONSUMER_KEY")
     MPESA_CONSUMER_SECRET: SecretStr = Field(..., alias="MPESA_CONSUMER_SECRET")
     MPESA_API_BASE_URL: AnyHttpUrl = Field(

@@ -30,6 +30,7 @@ os.environ.setdefault("TRANSFORMERS_CACHE", TRANSFORMERS_CACHE)
 for cache_dir in (HF_CACHE_ROOT, HF_HUB_CACHE, HF_DATASETS_CACHE, TRANSFORMERS_CACHE):
     Path(cache_dir).mkdir(parents=True, exist_ok=True)
 
+from pydantic import ValidationError
 import aio_pika
 import psutil
 import torch
@@ -682,14 +683,26 @@ class WorkerRuntime:
         if self.services.http_client is None:
             raise StartupDependencyError("HTTP Client not initialized prior to payments")
             
-        self.services.payment = PaymentOrchestrator(
-            gateways=[
-                StripeGateway(get_stripe_settings()),
-                PayPalGateway(get_paypal_settings(), cache_client, self.services.http_client),
-                MpesaGateway(get_mpesa_settings(), cache_client, self.services.http_client),
-        
-            ]
+        gateways = []
+        factories = (
+            ("stripe", get_stripe_settings, lambda value: StripeGateway(value)),
+            ("paypal", get_paypal_settings, lambda value: PayPalGateway(value, cache_client, self.services.http_client)),
+            ("mpesa", get_mpesa_settings, lambda value: MpesaGateway(value, cache_client, self.services.http_client)),
         )
+        for label, settings_factory, gateway_factory in factories:
+            try:
+                gateway_settings = settings_factory()
+            except ValidationError:
+                logger.warning("Payment gateway not configured: %s", label)
+                continue
+            gateway = gateway_factory(gateway_settings)
+            if isinstance(gateway, MpesaGateway) and not gateway.available_for_checkout:
+                logger.warning("M-Pesa live adapter unavailable; development simulation is disabled")
+                continue
+            gateways.append(gateway)
+        if not gateways:
+            raise StartupDependencyError("No payment gateway is configured and available")
+        self.services.payment = PaymentOrchestrator(gateways)
         self.services.payment_ready = True
         self.services.refresh_readiness()
     

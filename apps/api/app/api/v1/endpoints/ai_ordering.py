@@ -143,7 +143,7 @@ async def get_ai_checkout_service(
     try:
         gateways.append(StripeGateway(get_stripe_settings()))
     except Exception as exc:
-        logger.warning("Stripe gateway unavailable for checkout: %s", exc)
+        logger.warning("Stripe gateway unavailable for checkout", extra={"error_type": type(exc).__name__})
 
     for label, get_settings, gateway_cls in (
         ("PayPal", get_paypal_settings, PayPalGateway),
@@ -152,16 +152,22 @@ async def get_ai_checkout_service(
         try:
             gateway_settings = get_settings()
         except Exception as exc:
-            logger.warning("%s gateway unavailable for checkout: %s", label, exc)
+            logger.warning("Payment gateway unavailable for checkout", extra={"provider": label, "error_type": type(exc).__name__})
             continue
         try:
             client = httpx.AsyncClient(timeout=httpx.Timeout(5.0))
-            gateways.append(gateway_cls(gateway_settings, cache, client))
             http_clients.append(client)
+            gateway = gateway_cls(gateway_settings, cache, client)
+            if isinstance(gateway, MpesaGateway) and not gateway.available_for_checkout:
+                logger.warning("M-Pesa live adapter unavailable for checkout")
+                continue
+            gateways.append(gateway)
         except Exception as exc:
-            logger.warning("%s gateway init failed: %s", label, exc)
+            logger.warning("Payment gateway initialization failed", extra={"provider": label, "error_type": type(exc).__name__})
 
     if not gateways:
+        for client in http_clients:
+            await client.aclose()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="No payment gateway is configured.",

@@ -88,3 +88,33 @@ async def test_payment_outbox_exposes_scan_error_without_dying(monkeypatch):
     runtime.services.rabbitmq = object()
     await runtime.run_payment_outbox()
     assert runtime.payment_outbox_status == {"state": "error", "error_type": "RuntimeError"}
+
+
+def test_payment_initialization_accepts_only_configured_real_gateway(monkeypatch):
+    from pydantic import ValidationError
+    from app.core.config import StripeSettings
+    from app.services.payment_orchestrator import GatewayProvider
+    runtime = worker.WorkerRuntime()
+    runtime.services.http_client = object()
+    monkeypatch.setattr(worker, "get_stripe_settings", lambda: StripeSettings(
+        STRIPE_SECRET_KEY="sk_test_dummy", STRIPE_WEBHOOK_SECRET="whsec_dummy", STRIPE_PUBLISHABLE_KEY="pk_test_dummy"))
+    def missing():
+        raise ValidationError.from_exception_data("UnconfiguredGateway", [])
+    monkeypatch.setattr(worker, "get_paypal_settings", missing)
+    monkeypatch.setattr(worker, "get_mpesa_settings", missing)
+    runtime.initialize_payment(object())
+    assert runtime.services.payment_ready is True
+    assert set(runtime.services.payment._gateways) == {GatewayProvider.STRIPE}
+
+
+def test_payment_initialization_rejects_no_configured_gateway(monkeypatch):
+    from pydantic import ValidationError
+    runtime = worker.WorkerRuntime()
+    runtime.services.http_client = object()
+    def missing():
+        raise ValidationError.from_exception_data("UnconfiguredGateway", [])
+    for name in ("get_stripe_settings", "get_paypal_settings", "get_mpesa_settings"):
+        monkeypatch.setattr(worker, name, missing)
+    with pytest.raises(worker.StartupDependencyError, match="No payment gateway"):
+        runtime.initialize_payment(object())
+    assert runtime.services.payment_ready is False

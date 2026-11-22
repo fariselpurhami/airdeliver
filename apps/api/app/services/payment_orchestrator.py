@@ -3,6 +3,8 @@
 import asyncio
 import contextvars
 import logging
+import os
+from urllib.parse import urlparse
 import re
 from hashlib import sha256
 from abc import ABC, abstractmethod
@@ -43,6 +45,7 @@ class PayPalSettings(BaseModel):
 
 
 class MpesaSettings(BaseModel):
+    MPESA_SIMULATION_ENABLED: bool = False
     consumer_key: SecretStr = Field(..., description="Daraja API Consumer Key")
     consumer_secret: SecretStr = Field(..., description="Daraja API Consumer Secret")
     passkey: SecretStr = Field(..., description="Daraja STK Passkey")
@@ -517,7 +520,20 @@ class MpesaGateway(IPaymentGateway):
     def provider(self) -> GatewayProvider:
         return GatewayProvider.MPESA
 
+    @property
+    def available_for_checkout(self) -> bool:
+        return (
+            getattr(self._settings, "MPESA_SIMULATION_ENABLED", False) is True
+            and os.getenv("APP_ENV", "production") == "development"
+            and urlparse(str(getattr(self._settings, "MPESA_API_BASE_URL", ""))).hostname == "sandbox.safaricom.co.ke"
+        )
+
     async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
+        if not self.available_for_checkout:
+            return GatewayResult(
+                provider=self.provider, status=PaymentStatus.FAILURE,
+                error_message="M-Pesa live STK push is not implemented. No payment request was sent.",
+            )
         phone_number = request.metadata.get("phone_number")
         if not phone_number:
             return GatewayResult(
@@ -527,7 +543,7 @@ class MpesaGateway(IPaymentGateway):
             )
 
         try:
-            logger.info("Initiating M-Pesa STK Push", extra={"anonymized_phone": f"***{phone_number[-4:]}"})
+            logger.info("Simulating M-Pesa STK Push", extra={"anonymized_phone": f"***{phone_number[-4:]}"})
             
             # Network simulation for STK push
             await asyncio.sleep(0.05)
@@ -535,8 +551,8 @@ class MpesaGateway(IPaymentGateway):
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.PENDING_CONFIRMATION,
-                transaction_id=f"ws_{request.order_id}_{request.idempotency_key[:8]}",
-                raw_response={"message": "STK Push sent. Awaiting user PIN."}
+                transaction_id=f"simulated_{request.order_id}_{request.idempotency_key[:8]}",
+                raw_response={"simulated": True, "message": "Simulation only: no STK push was sent."}
             )
         except Exception as e:
             logger.error(f"Mpesa Init Failed: {str(e)}", exc_info=True)

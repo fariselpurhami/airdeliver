@@ -202,3 +202,18 @@ class TestCheckoutServiceProvider:
         from app.services.payment_orchestrator import GatewayProvider
         assert GatewayProvider.STRIPE in service.orchestrator._gateways
         assert len(service.orchestrator._gateways) == 1
+
+
+@pytest.mark.asyncio
+async def test_disabled_mpesa_cannot_be_checkout_only_gateway(monkeypatch):
+    from types import SimpleNamespace
+    def missing():
+        raise ValueError("not configured")
+    monkeypatch.setattr(ai_ordering, "get_stripe_settings", missing)
+    monkeypatch.setattr(ai_ordering, "get_paypal_settings", missing)
+    monkeypatch.setattr(ai_ordering, "get_mpesa_settings", lambda: SimpleNamespace(MPESA_SIMULATION_ENABLED=False))
+    agen = ai_ordering.get_ai_checkout_service(db=None, cache=None, rabbitmq=None)
+    with pytest.raises(HTTPException) as error:
+        await agen.__anext__()
+    assert error.value.status_code == 503
+    await agen.aclose()
