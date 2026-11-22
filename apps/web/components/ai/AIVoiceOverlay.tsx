@@ -210,15 +210,19 @@ export const AIVoiceOverlay = React.memo(() => {
 
                 // Transport Layer Establishment
                 const wsBase = process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.host}`;
-                const httpBase = wsBase.replace('ws', 'http').replace('wss', 'https');
+                const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api/v1';
 
-                // طلب التذكرة من الباك إند
-                const ticketResponse = await fetch(`${httpBase}/api/v1/ordering/ticket`, {
+                // Authenticated one-time ticket (same flow as the /chat socket)
+                const sessionToken = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('next-auth.session-token='))
+                    ?.split('=')[1] || '';
+
+                const ticketResponse = await fetch(`${apiBase}/ai-ordering/ticket`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        // لو بتبعت Token حطه هنا
-                        // 'Authorization': `Bearer ${session?.accessToken}` 
+                        ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}),
                     }
                 });
 
@@ -229,7 +233,7 @@ export const AIVoiceOverlay = React.memo(() => {
                 }
 
                 const { ticket } = await ticketResponse.json();
-                const wsUrl = `${wsBase}/api/v1/ordering/voice-stream?ticket=${ticket}`;
+                const wsUrl = `${wsBase}/api/v1/ai-ordering/voice-stream?ticket=${ticket}`;
 
                 const ws = new WebSocket(wsUrl);
                 ws.binaryType = 'arraybuffer';
