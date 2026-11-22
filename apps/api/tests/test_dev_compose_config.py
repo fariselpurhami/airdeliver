@@ -241,3 +241,18 @@ def test_proxy_upgrade_preserves_production_tls_and_does_not_force_docker_api(pr
     for proxy in (prod,dev):
         assert 'DOCKER_API_VERSION' not in proxy.get('environment',{})
         assert any(v['target']=='/var/run/docker.sock' and v.get('read_only') for v in proxy['volumes'])
+
+
+def test_dev_routes_replace_all_production_tls_labels(prepared):
+    root,_=prepared
+    prod=config(root,['docker-compose.yml'],root/'.env.dev')['services']
+    dev=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')['services']
+    for name in ('api','web'):
+        labels=dev[name]['labels']
+        assert labels['traefik.http.routers.'+name+'.entrypoints']=='web'
+        assert not any('.tls' in key or 'middlewares' in key for key in labels)
+        assert 'localhost' in labels['traefik.http.routers.'+name+'.rule']
+        assert prod[name]['labels']['traefik.http.routers.'+name+'.entrypoints']=='websecure'
+        assert prod[name]['labels']['traefik.http.routers.'+name+'.tls.certresolver']=='letsencrypt'
+    assert dev['grafana']['labels']=={'traefik.enable':'false'}
+    assert prod['grafana']['labels']['traefik.http.routers.grafana.tls.certresolver']=='letsencrypt'

@@ -19,30 +19,46 @@ def main():
     print(subprocess.check_output(['docker','version','--format','{{json .Server}}'],text=True),flush=True)
     with tempfile.TemporaryDirectory(prefix='adl-proxy-ci-') as tmp:
         path=Path(tmp)/'compose.json'
-        path.write_text(json.dumps({'services':{
-            'proxy':{'image':image,'command':['--providers.docker=true','--providers.docker.exposedbydefault=false','--entrypoints.web.address=:80','--log.level=DEBUG'],
-                     'volumes':['/var/run/docker.sock:/var/run/docker.sock:ro'],'ports':['127.0.0.1::80']},
-            'echo':{'image':'traefik/whoami:v1.11.0','labels':{'traefik.enable':'true','traefik.http.routers.probe.rule':'Host(`proxy-test.local`)','traefik.http.routers.probe.entrypoints':'web','traefik.http.services.probe.loadbalancer.server.port':'80'}}}}))
+        import os, runpy, shutil
+        setup=runpy.run_path(str(ROOT/'scripts/configure_dev_env.py'))
+        shutil.copyfile(ROOT/'.env.dev.example',Path(tmp)/'.env.dev.example')
+        base=['docker','compose','--project-directory',tmp,'--env-file','/dev/null','-f',str(ROOT/'docker-compose.dev-setup.yml')]
+        source=json.loads(subprocess.check_output([*base,'config','--format','json'],text=True,env={**os.environ,'LOCAL_UID':str(os.getuid()),'LOCAL_GID':str(os.getgid())}))['services']['configure']['environment']
+        source={k:v.replace('$$','$') if isinstance(v,str) else str(v) for k,v in source.items()}
+        setup['prepare'](tmp,source_env=source,fresh=True)
+        effective=json.loads(subprocess.check_output(['docker','compose','--project-directory',tmp,'--env-file',str(Path(tmp)/'.env.dev'),'-f',str(ROOT/'docker-compose.yml'),'-f',str(ROOT/'docker-compose.dev.yml'),'config','--format','json'],text=True))['services']
+        services={'proxy':{'image':image,'command':effective['reverse-proxy']['command']+['--log.level=DEBUG'],
+                     'volumes':['/var/run/docker.sock:/var/run/docker.sock:ro'],'ports':['127.0.0.1::80']}}
+        for name in ('api','web','grafana'):
+            labels=effective[name]['labels'].copy()
+            port_key='traefik.http.services.'+name+'.loadbalancer.server.port'
+            if port_key in labels:
+                labels[port_key]='80' # probe HTTP backend only, real routing rules unchanged
+            services[name]={'image':'traefik/whoami:v1.11.0','hostname':name,'labels':labels}
+        path.write_text(json.dumps({'services':services}))
         compose=['docker','compose','--env-file','/dev/null','-p',project,'-f',str(path)]
         try:
             subprocess.run([*compose,'up','-d','--wait'],check=True)
             mapped=subprocess.check_output([*compose,'port','proxy','80'],text=True).strip()
             url='http://127.0.0.1:'+mapped.rsplit(':',1)[1]
-            error=None
-            for _ in range(40):
-                try:
-                    with urlopen(Request(url,headers={'Host':'proxy-test.local'}),timeout=2) as resp:
-                        body=resp.read().decode();assert resp.status==200 and 'Hostname:' in body
-                    break
-                except Exception as exc:
-                    error=type(exc).__name__;time.sleep(1)
-            else:
-                raise RuntimeError('Docker-discovered HTTP route unavailable: '+str(error))
+            for route,expected in (('/', 'web'),('/api/v1/health','api')):
+                error=None
+                for _ in range(40):
+                    try:
+                        with urlopen(Request(url+route,headers={'Host':'localhost'}),timeout=2) as resp:
+                            body=resp.read().decode();assert resp.status==200 and 'Hostname: '+expected in body
+                        break
+                    except Exception as exc:
+                        error=type(exc).__name__;time.sleep(1)
+                else:
+                    raise RuntimeError('Combined-dev HTTP route unavailable '+route+': '+str(error))
             logs=subprocess.check_output([*compose,'logs','proxy'],text=True)
             assert 'Provider connection established with docker' in logs,logs
             assert 'client version 1.24 is too old' not in logs,logs
             assert 'Provider error, retrying' not in logs,logs
-            print(json.dumps({'result':'passed','image':image,'docker_discovery':True,'real_http_route':True,'forced_api_version':False}),flush=True)
+            assert "EntryPoint doesn't exist" not in logs,logs
+            assert 'nonexistent certificate resolver' not in logs,logs
+            print(json.dumps({'result':'passed','image':image,'docker_discovery':True,'real_http_route':True,'combined_dev_labels':True,'routes':['/','/api/v1/health'],'forced_api_version':False}),flush=True)
         finally:
             subprocess.run([*compose,'logs','--tail','45'],check=False)
             subprocess.run([*compose,'down','--remove-orphans'],check=True)

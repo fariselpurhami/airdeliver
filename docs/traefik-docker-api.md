@@ -32,3 +32,21 @@ Official sources:
 - https://github.com/traefik/traefik/pull/12256
 - https://github.com/traefik/traefik/releases/tag/v3.7.19
 - https://github.com/traefik/traefik/security/advisories/GHSA-p956-6gvv-mxqp
+
+## Combined-development router labels
+
+Compose merges label lists by label key; a partial API rule override retained
+production websecure and letsencrypt settings. Development now uses `!override`
+for complete local API/web HTTP labels. Grafana's proxy router is disabled only
+in dev. Production TLS, cert resolver, middleware and monitoring auth remain.
+The Docker integration now extracts the actual combined Compose labels and
+proxy command, and checks separate web `/` and API `/api/v1/health` routes.
+Probe backends verify routing, not the full Next.js/API application.
+After pull, recreate affected services, not just proxy:
+
+```sh
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml -p airdeliver_dev up -d --no-deps --force-recreate reverse-proxy api web grafana
+```
+
+Open `http://localhost/`. Inspect `http://localhost/api/v1/health` for actual API
+health. Do not use HTTPS locally. Mac confirmation remains needed after restart.

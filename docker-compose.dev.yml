@@ -341,9 +341,10 @@ services:
        timeout: 5s
        retries: 20
        start_period: 60s
-    labels:
+    labels: !override
       - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=(Host(`localhost`) || Host(`${HOST_IP}`)) && PathPrefix(`/api`)"
+      - "traefik.http.routers.api.entrypoints=web"
+      - "traefik.http.routers.api.rule=(Host(`localhost`) || Host(`127.0.0.1`) || Host(`${HOST_IP}`)) && PathPrefix(`/api`)"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
     command: /opt/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --ws-ping-interval 20 --ws-ping-timeout 20
     logging:
@@ -482,7 +483,17 @@ services:
     restart: "no"
     profiles: ["tools"]
 
+  # No production monitoring router/certificate configuration on local HTTP.
+  grafana:
+    labels: !override
+      - "traefik.enable=false"
+
   web:
+    labels: !override
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.entrypoints=web"
+      - "traefik.http.routers.web.rule=Host(`localhost`) || Host(`127.0.0.1`) || Host(`${HOST_IP}`)"
+      - "traefik.http.services.web.loadbalancer.server.port=3000"
     container_name: airdeliver-web
     build:
       context: ./apps/web
