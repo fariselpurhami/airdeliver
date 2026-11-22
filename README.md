@@ -141,3 +141,10 @@ For production deployments, disaster recovery, and architecture testing, please 
 This project is proprietary and licensed under the conditions outlined in [LICENSE.txt](https://www.google.com/search?q=./LICENSE.txt).
 
 ---
+
+## Object storage: local now, AWS later
+
+Use the combined base+dev Compose stack: pinned RustFS1.0.6 locally, Amazon S3
+as the future production target. No AWS spending or account setup occurs locally.
+See [exact commands, data boundaries and IAM example](docs/object-storage.md).
+Older MinIO instructions below/elsewhere are historical, not the active path.

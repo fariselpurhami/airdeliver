@@ -27,8 +27,8 @@ def main():
     identity=uuid.uuid4().hex[:16]
     project='airdeliver-seed-ci-'+identity
     compose=['docker','compose','--env-file','/dev/null','-p',project,'-f',str(API.parents[1]/'docker-compose.seed-ci.yml')]
-    backend=os.environ.get('TEST_OBJECT_STORAGE_BACKEND','minio')
-    if backend not in {'minio','rustfs','seaweed'}:
+    backend=os.environ.get('TEST_OBJECT_STORAGE_BACKEND','rustfs')
+    if backend not in {'rustfs','seaweed'}:
         raise SystemExit('Unknown disposable object storage backend')
     if backend!='minio':
         compose+=['-f',str(API.parents[1]/('docker-compose.storage-'+backend+'-ci.yml'))]

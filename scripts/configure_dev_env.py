@@ -80,6 +80,8 @@ def prepare(root, preserve_existing=False, source_env=None, fresh=False):
     for key in (*SECRET_FIELDS, 'POSTGRES_PASSWORD', 'RABBITMQ_PASS'):
         if not values.get(key):
             values[key] = 'Dev!' + secrets.token_hex(24) + 'A9'
+    values['DEV_S3_ACCESS_KEY'] = values.get('DEV_S3_ACCESS_KEY') or 'adl' + secrets.token_hex(10)
+    values['DEV_S3_SECRET_KEY'] = values.get('DEV_S3_SECRET_KEY') or secrets.token_hex(32)
     host = values.get('HOST_IP') or '127.0.0.1'
     if host != 'localhost':
         try:

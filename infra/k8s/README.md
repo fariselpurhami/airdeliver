@@ -39,3 +39,14 @@ Production manifests for the full airdeliver stack. These mirror
   corresponding operators (CloudNativePG, Spotahome Redis, RabbitMQ Cluster
   Operator, OpenSearch Operator, milvus-operator) rather than growing these
   manifests.
+
+## Object storage target
+
+`10-milvus.yml` now requires external Amazon S3 configuration via
+`milvus-s3-config`. See `../../docs/object-storage.md` and the non-applied
+`../s3/milvus-s3-config.yml.example`. Workload IAM role/service-account binding,
+bucket provisioning and permission checks are prerequisites, not automated.
+The old MinIO manifests are preserved in `legacy/minio.yml.example` for
+historical reference only. No PVC is deleted by this repository change.
+Do not upgrade an existing Milvus2.3 installation or change its bucket in place
+without Milvus's supported upgrade and data migration/rollback plan.

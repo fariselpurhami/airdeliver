@@ -144,8 +144,11 @@ def test_fresh_cli_generates_private_credentials_and_isolates_unknown_volumes(tm
     assert db_volume.startswith('airdeliver_dev_postgres19_fresh_')
     assert mq_volume.startswith('airdeliver_dev_rabbitmq_fresh_')
     assert db_volume!='airdeliver_dev_postgres-data' and mq_volume!='airdeliver_dev_rabbitmq-data'
-    for name in ('redis-data','opensearch-data','etcd-data','minio-data','milvus-data'):
+    for name in ('redis-data','opensearch-data'):
         assert model['volumes'][name]['name']==db_volume+'_'+name
+    for name in ('etcd-data','milvus-data'):
+        assert model['volumes'][name]['name']==db_volume+'_rustfs_v1_'+name
+    assert model['volumes']['rustfs-data']['name']==db_volume+'_rustfs_v1_data'
     for field in ('postgres_password','rabbitmq_pass'):
         path=tmp_path/'secrets/dev'/field
         assert len(path.read_text().strip())>=32
@@ -173,3 +176,53 @@ def test_seeder_compose_uses_real_settings_aliases_and_independent_network(prepa
     assert parsed.target_count==1000 and parsed.batch_size==16
     assert parsed.embedding_model=='Alibaba-NLP/gte-Qwen2-1.5B-instruct'
     assert parsed.opensearch_user=='admin' and parsed.opensearch_pass
+
+
+def test_dev_rustfs_is_free_local_and_cannot_inherit_aws_config(prepared, monkeypatch):
+    root,_=prepared
+    monkeypatch.setenv('S3_ENDPOINT','s3.eu-west-1.amazonaws.com:443')
+    monkeypatch.setenv('S3_BUCKET_NAME','must-not-contact')
+    monkeypatch.setenv('S3_USE_IAM','true')
+    model=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')
+    server=model['services']['minio']; milvus=model['services']['milvus']
+    assert server['image'].startswith('rustfs/rustfs:1.0.6@sha256:')
+    assert 'build' not in server and not server.get('profiles') and not server.get('ports')
+    assert server['environment']['RUSTFS_ACCESS_KEY']==milvus['environment']['MINIO_ACCESS_KEY_ID']
+    assert server['environment']['RUSTFS_SECRET_KEY']==milvus['environment']['MINIO_SECRET_ACCESS_KEY']
+    assert not milvus.get('entrypoint')
+    assert milvus['environment']['MINIO_ADDRESS']=='minio:9000'
+    assert milvus['environment']['MINIO_BUCKETNAME']=='airdeliver-dev'
+    assert milvus['environment']['MINIO_USESSL']=='false'
+    assert milvus['environment']['MINIO_USEIAM']=='false'
+    assert milvus['environment']['MINIO_USEVIRTUALHOST']=='false'
+    assert model['volumes']['etcd-data']['name'].endswith('_rustfs_v1_etcd-data')
+    assert model['volumes']['milvus-data']['name'].endswith('_rustfs_v1_milvus-data')
+    # Compose prunes unreferenced definitions, but no Docker volume is removed.
+    assert '  minio-data:' in (ROOT/'docker-compose.dev.yml').read_text()
+    assert server['volumes'][0]['source']=='rustfs-data'
+
+
+def test_production_has_external_s3_and_no_legacy_dependency(prepared):
+    root,_=prepared
+    model=config(root,['docker-compose.yml'],root/'.env.dev')
+    assert 'minio' not in model['services'] # profile disabled by default
+    milvus=model['services']['milvus']; env=milvus['environment']
+    assert set(milvus['depends_on'])=={'etcd'}
+    assert env['MINIO_USESSL']=='true' and env['MINIO_USEIAM']=='true'
+    assert env['MINIO_USEVIRTUALHOST']=='true' and env['MINIO_CLOUDPROVIDER']=='aws'
+    assert env['MINIO_ACCESS_KEY_ID']==env['MINIO_SECRET_ACCESS_KEY']==''
+    assert 'S3_BUCKET_NAME must name a pre-created bucket' in milvus['entrypoint'][2]
+
+
+def test_production_guard_rejects_incomplete_or_non_aws_settings(prepared):
+    root,_=prepared
+    guard=config(root,['docker-compose.yml'],root/'.env.dev')['services']['milvus']['entrypoint'][2].replace('$$','$')
+    valid=dict(MINIO_BUCKETNAME='example-bucket',MINIO_REGION='us-east-1',MINIO_ADDRESS='s3.us-east-1.amazonaws.com:443',MINIO_USEIAM='true')
+    # Replace only final exec with a sentinel, no network or Milvus binary needed.
+    guard=guard.replace('exec milvus run standalone','exit 0')
+    def run(overrides):
+        return subprocess.run(['/bin/sh','-ec',guard],env={**valid,**overrides},capture_output=True).returncode
+    assert run({})==0
+    for override in ({'MINIO_BUCKETNAME':''},{'MINIO_REGION':''},{'MINIO_ADDRESS':'minio:9000'},{'MINIO_ADDRESS':'https://s3.us-east-1.amazonaws.com'},{'MINIO_USEIAM':'false'},{'MINIO_USEIAM':'bad'}):
+        assert run(override)!=0
+    assert run({'MINIO_USEIAM':'false','MINIO_ACCESS_KEY_ID':'dummy','MINIO_SECRET_ACCESS_KEY':'dummy'})==0

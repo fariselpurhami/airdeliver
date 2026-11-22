@@ -1,0 +1,18 @@
+# Example only, not applied automatically. Supply an existing bucket and region.
+# IAM/IRSA service-account binding is infrastructure-specific, NOT provisioned here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: milvus-s3-config
+  namespace: airdeliver
+data:
+  MINIO_ADDRESS: s3.us-east-1.amazonaws.com:443
+  MINIO_REGION: us-east-1
+  MINIO_BUCKETNAME: REPLACE_WITH_PRECREATED_BUCKET
+  MINIO_ROOTPATH: milvus
+  MINIO_USESSL: 'true'
+  MINIO_USEIAM: 'true'
+  MINIO_CLOUDPROVIDER: aws
+  MINIO_USEVIRTUALHOST: 'true'
+  MINIO_ACCESS_KEY_ID: ''
+  MINIO_SECRET_ACCESS_KEY: ''

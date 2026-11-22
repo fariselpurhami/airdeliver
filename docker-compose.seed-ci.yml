@@ -10,20 +10,19 @@ services:
       timeout: 5s
       retries: 30
   minio:
-    build:
-      context: ./infra/minio-ce
-    image: airdeliver-minio-ce:source-7aac2a2
-    pull_policy: build
-    command: minio server /minio_data
+    image: rustfs/rustfs:1.0.6@sha256:ee717072290bec9b11abfc0365f8310b00df1cd9b3639943edae47bdef05044a
+    user: '0:0'
+    command: [server, /data]
     environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-    mem_limit: 512m
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin
+      RUSTFS_CONSOLE_ENABLE: 'false'
+    mem_limit: 1536m
     healthcheck:
-      test: [CMD, curl, -f, http://localhost:9000/minio/health/live]
+      test: [CMD, curl, -f, http://localhost:9000/health]
       interval: 5s
       timeout: 5s
-      retries: 30
+      retries: 48
   milvus:
     image: milvusdb/milvus:v2.6.17
     command: [milvus, run, standalone]
@@ -32,6 +31,12 @@ services:
       MINIO_ADDRESS: minio:9000
       MINIO_ACCESS_KEY_ID: minioadmin
       MINIO_SECRET_ACCESS_KEY: minioadmin
+      MINIO_USESSL: 'false'
+      MINIO_USEIAM: 'false'
+      MINIO_REGION: us-east-1
+      MINIO_BUCKETNAME: airdeliver-ci
+      MINIO_ROOTPATH: milvus
+      MINIO_USEVIRTUALHOST: 'false'
     mem_limit: 2560m
     ports:
       - '127.0.0.1::19530'
