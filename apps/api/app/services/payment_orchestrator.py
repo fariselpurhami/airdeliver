@@ -31,9 +31,13 @@ class StripeSettings(BaseModel):
 
 
 class PayPalSettings(BaseModel):
-    client_id: SecretStr = Field(..., description="PayPal OAuth Client ID")
-    client_secret: SecretStr = Field(..., description="PayPal OAuth Client Secret")
-    environment: str = Field(default="sandbox", pattern="^(sandbox|production)$")
+    """Structural type for the gateway; the live object is
+    app.core.config.PayPalSettings (env-backed)."""
+    PAYPAL_CLIENT_ID: str = Field(..., description="PayPal OAuth Client ID")
+    PAYPAL_CLIENT_SECRET: SecretStr = Field(..., description="PayPal OAuth Client Secret")
+    PAYPAL_API_BASE_URL: str = Field(
+        default="https://api-m.sandbox.paypal.com", description="PayPal API base URL"
+    )
 
 
 class MpesaSettings(BaseModel):
@@ -267,8 +271,12 @@ class StripeGateway(IPaymentGateway):
 
 class PayPalGateway(IPaymentGateway):
     """
-    Robust PayPal Integration Scaffold using isolated connection pools.
+    Live PayPal integration: OAuth2 client-credentials token (cached) and the
+    v2 Orders API. Returns the buyer approval URL as the action_url; capture
+    completes via the PayPal return/webhook flow.
     """
+
+    TOKEN_CACHE_KEY: str = "paypal:oauth_token"
 
     def __init__(self, settings: PayPalSettings, cache: IAsyncCacheClient, http_client: httpx.AsyncClient):
         self._settings = settings
@@ -279,45 +287,94 @@ class PayPalGateway(IPaymentGateway):
     def provider(self) -> GatewayProvider:
         return GatewayProvider.PAYPAL
 
+    def _base_url(self) -> str:
+        return str(self._settings.PAYPAL_API_BASE_URL).rstrip("/")
+
+    async def _get_access_token(self) -> str:
+        try:
+            cached = await self._cache.get(self.TOKEN_CACHE_KEY)
+            if cached:
+                return cached
+        except Exception as exc:
+            logger.warning("PayPal token cache read failed; fetching fresh token", extra={"error": str(exc)})
+
+        response = await self._http_client.post(
+            f"{self._base_url()}/v1/oauth2/token",
+            data={"grant_type": "client_credentials"},
+            auth=(
+                self._settings.PAYPAL_CLIENT_ID,
+                self._settings.PAYPAL_CLIENT_SECRET.get_secret_value(),
+            ),
+            headers={"Accept": "application/json"},
+        )
+        response.raise_for_status()
+        body = response.json()
+        token = body["access_token"]
+        ttl = max(int(body.get("expires_in", 300)) - 60, 30)
+        try:
+            await self._cache.set(self.TOKEN_CACHE_KEY, token, ttl=ttl)
+        except Exception as exc:
+            logger.warning("PayPal token cache write failed", extra={"error": str(exc)})
+        return token
+
     async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
         try:
-            transaction_id = f"PAY-{request.order_id}-{request.idempotency_key[:8]}"
-            
-            logger.info("Initializing PayPal intent", extra={"order_id": request.order_id})
-            
-            # Simulated resilient network call with pooled client context
-            payload = {
-                "intent": "CAPTURE",
-                "purchase_units": [{
-                    "reference_id": request.order_id,
-                    "amount": {
-                        "currency_code": request.currency,
-                        "value": str(request.amount)
-                    }
-                }]
+            token = await self._get_access_token()
+            purchase_unit: Dict[str, Any] = {
+                "reference_id": str(request.order_id),
+                "amount": {
+                    "currency_code": request.currency,
+                    "value": str(request.amount),
+                },
             }
-            
-            # NOTE: In production, URL resolution maps to environment settings.
-            base_url = str(self._settings.PAYPAL_API_BASE_URL).rstrip("/")
-            # Network invocation (pseudo-implementation structure representing accurate bounds)
-            # response = await self._http_client.post(
-            #     f"{base_url}/v2/checkout/orders",
-            #     json=payload,
-            #     headers={"PayPal-Request-Id": request.idempotency_key}
-            # )
-            # response.raise_for_status()
-            await asyncio.sleep(0.05) # Simulated latency
-            action_url = f"https://www.sandbox.paypal.com/checkoutnow?token={transaction_id}"
-            
+            user_ref = request.metadata.get("user_id")
+            if user_ref is not None:
+                purchase_unit["custom_id"] = str(user_ref)
+
+            logger.info("Creating PayPal order", extra={"order_id": request.order_id})
+            response = await self._http_client.post(
+                f"{self._base_url()}/v2/checkout/orders",
+                json={"intent": "CAPTURE", "purchase_units": [purchase_unit]},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "PayPal-Request-Id": request.idempotency_key,
+                    "Content-Type": "application/json",
+                },
+            )
+            response.raise_for_status()
+            body = response.json()
+
+            action_url = next(
+                (link["href"] for link in body.get("links", []) if link.get("rel") == "approve"),
+                None,
+            )
+            if not action_url:
+                logger.error("PayPal order missing approval link", extra={"order_id": request.order_id})
+                return GatewayResult(
+                    provider=self.provider,
+                    status=PaymentStatus.FAILURE,
+                    error_message="PayPal did not return an approval link.",
+                )
+
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.REQUIRES_ACTION,
-                transaction_id=transaction_id,
+                transaction_id=body.get("id"),
                 action_url=action_url,
-                
-                raw_response={"client_id": self._settings.PAYPAL_CLIENT_ID},
+                raw_response={"paypal_order_id": body.get("id")},
             )
 
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "PayPal API rejected the request",
+                extra={"status_code": e.response.status_code, "order_id": request.order_id},
+                exc_info=True,
+            )
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                error_message="PayPal rejected the payment request.",
+            )
         except httpx.RequestError as e:
             logger.error(f"PayPal Network unreachable: {str(e)}", exc_info=True)
             return GatewayResult(
