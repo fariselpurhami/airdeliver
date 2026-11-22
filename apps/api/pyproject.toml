@@ -59,7 +59,7 @@ psutil = "7.2.2"
 # --- SECURITY & AUTH ---
 bcrypt = "^5.0.0"
 pwdlib = {extras = ["argon2"], version = "^0.3.1"}
-python-jose = {version = "3.5.0", extras = ["cryptography"]}
+pyjwt = {version = "^2.10.1", extras = ["cryptography"]}
 
 # --- 3RD PARTY INTEGRATIONS ---
 stripe = "^15.6.1" # FROZEN: v15.2.0 contains Stripe API breaking changes
@@ -94,6 +94,7 @@ faker-commerce = "1.0.4"
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.1.1"
 trio = "^0.34.0"
+pytest-asyncio = "^1.5.0"
 
 [build-system]
 requires = ["poetry-core"]

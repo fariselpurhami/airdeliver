@@ -10,7 +10,8 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError as JWTError
 from pydantic import ValidationError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession

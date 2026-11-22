@@ -2,7 +2,8 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Dict
-from jose import jwt, JWTError
+import jwt
+from jwt.exceptions import InvalidTokenError as JWTError
 from pwdlib import PasswordHash  # 👈 The Modern Replacement
 from app.core.config import settings
 from app import models
