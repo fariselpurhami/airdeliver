@@ -244,12 +244,12 @@ class NeuralCoreService:
             )
 
         if not products:
-            text = f"I scanned the entire inventory for '{query}', but couldn't find a perfect match. Want to broaden the search?"
+            text = f"I searched our catalog for '{query}', but couldn't find a perfect match. Want to broaden the search?"
         else:
             top_product = products[0]
             inventory_qty = getattr(top_product, "inventory", 0)
-            status = "ready for immediate dispatch 🚀" if inventory_qty > 0 else "currently awaiting restock"
-            text = f"Found it! The **{top_product.name}** is available at **${top_product.price}** and is {status}. Shall we secure it?"
+            status = "listed as in stock" if inventory_qty > 0 else "listed as out of stock"
+            text = f"Found it! The **{top_product.name}** is available at **${top_product.price}** and is {status}. Shipping and delivery timing have not been verified."
 
         return NeuralCoreResponse(
             text=text,
@@ -281,11 +281,11 @@ class NeuralCoreService:
         else:
             top_product = products[0]
             inventory_qty = getattr(top_product, "inventory", 0)
-            status = "ready for immediate dispatch 🚀" if inventory_qty > 0 else "currently awaiting restock"
+            status = "listed as in stock" if inventory_qty > 0 else "listed as out of stock"
             extra = f" for '{caption.strip()}'" if caption.strip() else ""
             text = (
                 f"Visual match{extra}: the **{top_product.name}** is available at "
-                f"**${top_product.price}** and is {status}. Shall we secure it?"
+                f"**${top_product.price}** and is {status}. Shipping and delivery timing have not been verified."
             )
             confidence = 0.9
 
@@ -298,7 +298,7 @@ class NeuralCoreService:
 
     def _handle_order_tracking(self, order_id: Optional[str]) -> NeuralCoreResponse:
         if order_id:
-            text = f"Confirmed. Initiating satellite tracking for Order #{order_id}..."
+            text = f"You can use the tracking option for Order #{order_id}. Its current status has not been checked yet."
             action = TrackOrderAction(action="track_order", payload={"order_id": order_id})
         else:
             text = "I can certainly track that down. Could you provide the exact Order ID?"
@@ -307,16 +307,16 @@ class NeuralCoreService:
         return NeuralCoreResponse(
             text=text,
             confidence=0.98,
-            explain="Order Telemetry Protocol",
+            explain="Order Tracking Option",
             action=action,
             telemetry={"intent": "TRACK_ORDER", "entities": [order_id] if order_id else [], "turn": 0}
         )
 
     def _handle_support_handoff(self) -> NeuralCoreResponse:
         return NeuralCoreResponse(
-            text="I understand completely. Elevating your session to a human specialist right now. Please hold.",
+            text="You can use the support option to request a human specialist. You have not been connected yet.",
             confidence=1.0,
-            explain="Priority Support Escalation",
+            explain="Support Handoff Option",
             action=SupportHandoffAction(action="initiate_support_handoff", payload={}),
             telemetry={"intent": "SUPPORT_HANDOFF", "entities": [], "turn": 0}
         )

@@ -119,14 +119,14 @@ class TestVisualGrounding:
         assert "Volt Charger" in response.text
         assert "59.5" in response.text
 
-    async def test_out_of_stock_product_is_reported_as_restock(self):
+    async def test_out_of_stock_product_is_reported_without_restock_promise(self):
         engine = FakeVisualEngine(results=[FakeProduct(inventory=0)])
         service = make_service(engine)
         response = await service.handle_message(
             db=None, message="", user=None,
             session_id="session-visual-5", image_base64=VALID_IMAGE,
         )
-        assert "restock" in response.text.lower()
+        assert "out of stock" in response.text.lower()
 
     async def test_no_matches_is_honest_no_invention(self):
         engine = FakeVisualEngine(results=[])

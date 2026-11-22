@@ -150,3 +150,16 @@ continuity and distinct-owner isolation. Anonymous chat still uses bearer-like
 client session IDs, with no verified ownership or server-issued anonymous cookie.
 Concurrent writes to one session remain last-write-wins. Action completion and
 uncalibrated confidence claims are separate next work, not fixed by isolation.
+
+## Checkpoint7: support action proposals are not completed actions
+
+Four regressions failed before changes. Text and visual search had inferred
+immediate dispatch or planned restock from inventory quantity alone. They now
+report catalog stock and explicitly unverified shipping timing. Order tracking
+and human support preserve their typed action proposals but no longer claim
+satellite tracking or completed escalation. No backend order lookup, support
+connection or frontend action execution is added or claimed. Repository search
+found action definitions and service/tests, not a frontend executor for these
+actions. Existing characterization assertions about dispatch/restock are changed
+to stock-only contracts, backed by the new failing-before tests. Hardcoded
+confidence fields remain uncalibrated and require a caller/schema migration.

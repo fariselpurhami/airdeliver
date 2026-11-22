@@ -246,7 +246,7 @@ class TestProductSearchHandler:
         assert "headphones" in resp.text
 
     async def test_product_result_text_uses_real_fields(self):
-        """In-stock product: name, price and dispatch status come from the
+        """In-stock product: name, price and stock status come from the
         product record itself, not invented by the LLM."""
 
         class OneProductEngine(FakeEngine):
@@ -257,16 +257,17 @@ class TestProductSearchHandler:
         resp = await service._handle_product_search(db=None, query="headphones")
         assert "Aurora Headphones" in resp.text
         assert "$499.0" in resp.text
-        assert "immediate dispatch" in resp.text
+        assert "listed as in stock" in resp.text
+        assert "not been verified" in resp.text
 
-    async def test_out_of_stock_product_mentions_restock(self):
+    async def test_out_of_stock_product_reports_stock_only(self):
         class OosEngine(FakeEngine):
             async def perform_hybrid_search_pure(self, db, query, limit=5):
                 return [FakeProduct(inventory=0)]
 
         service = make_service(engine=OosEngine())
         resp = await service._handle_product_search(db=None, query="headphones")
-        assert "awaiting restock" in resp.text
+        assert "listed as out of stock" in resp.text
 
 
 # --- handle_message orchestration -------------------------------------------------
