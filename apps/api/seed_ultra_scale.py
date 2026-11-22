@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     milvus_collection: str = Field(PRODUCT_TEXT_COLLECTION, alias='MILVUS_COLLECTION')
     embedding_model: str = Field(PRODUCT_TEXT_MODEL_NAME, alias='EMBEDDING_MODEL')
     api_embedding_revision: str | None = Field(None, alias='PRODUCT_TEXT_MODEL_REVISION')
-    embedding_revision: str | None = Field(None, validation_alias=AliasChoices('SEED_EMBEDDING_REVISION','PRODUCT_TEXT_MODEL_REVISION'))
+    embedding_revision: str | None = Field(None, alias='SEED_EMBEDDING_REVISION')
     embedding_dimension: PositiveInt = Field(PRODUCT_TEXT_MODEL_DIMENSION, alias='SEED_EMBEDDING_DIMENSION')
     embedding_max_seq_length: int = Field(256, ge=32, le=8192, alias='SEED_EMBEDDING_MAX_SEQ_LENGTH')
     embedding_threads: int = Field(2, ge=1, le=16, alias='SEED_EMBEDDING_THREADS')
