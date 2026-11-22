@@ -785,28 +785,40 @@ class AICommerceEngine:
         if anchor is None or getattr(anchor, "id", None) is None:
             raise ValidationError("anchor product is required")
 
+        # The caller/cache/index can hold old catalog facts. Resolve the anchor
+        # and all displayed recommendations from the current database rows.
+        anchor_rows = await self._fetch_products_from_db_by_ids(db, [int(anchor.id)])
+        if not anchor_rows or not anchor_rows[0].is_active:
+            return []
+        anchor = anchor_rows[0]
+        anchor_price = _safe_product_price(anchor)
+        max_accessory_ratio = 2.0 if anchor_price < 50 else 0.6
+        max_price = anchor_price * max_accessory_ratio if anchor_price > 0 else 1000.0
+        search_filter = SearchFilter(price_max=max_price, excluded_ids=[int(anchor.id)])
         cache_key = _cache_key("bundle", {"anchor_id": str(anchor.id), "version": 8})
 
         if self.cache_client:
             try:
                 cached = await self.cache_client.get_json(cache_key)
-                if cached:
-                    return [Product(**item) for item in cached]
+                if isinstance(cached, list) and cached:
+                    # Read existing snapshot caches as IDs only. New writes use
+                    # IDs too, so mutable prices/names never become authority.
+                    ids = []
+                    for item in cached[:self.limits.max_bundle_size]:
+                        raw = item.get("id") if isinstance(item, dict) else item
+                        if type(raw) is int and 0 < raw <= 9223372036854775807:
+                            ids.append(raw)
+                    rows = await self._fetch_products_from_db_by_ids(db, ids)
+                    current_cached = self._filter_products(rows, search_filter)[:self.limits.max_bundle_size]
+                    if current_cached:
+                        return current_cached
             except Exception:
                 logger.warning("bundle cache read failed", extra={"anchor_id": str(anchor.id)})
 
         started_at = time.perf_counter()
-
         try:
             clean_name_root = _clean_product_name_root(anchor.name)
-            anchor_price = _safe_product_price(anchor)
             anchor_category = _safe_str(getattr(anchor, "category", ""), "").lower()
-
-            is_cheap_item = anchor_price < 50
-            max_accessory_ratio = 2.0 if is_cheap_item else 0.6
-            max_price = anchor_price * max_accessory_ratio if anchor_price > 0 else 1000.0
-
-            search_filter = SearchFilter(price_max=max_price)
             search_queries = [
                 f"accessories for {clean_name_root}",
                 f"compatible parts {clean_name_root}",
@@ -825,7 +837,8 @@ class AICommerceEngine:
                         ))
             except asyncio.TimeoutError:
                 logger.warning("bundle generation timed out", extra={"anchor_id": str(anchor.id)})
-                return await self._get_emergency_fallback(db, anchor_category or clean_name_root, search_filter)
+                fallback = await self._get_emergency_fallback(db, anchor_category or clean_name_root, search_filter)
+                return self._filter_products(fallback, search_filter)[:self.limits.max_bundle_size]
 
             approved: List[Product] = []
             seen_ids: set[Any] = {anchor.id}
@@ -875,13 +888,14 @@ class AICommerceEngine:
                     if len(approved) >= self.limits.max_bundle_size:
                         break
 
-            final_result = approved[: self.limits.max_bundle_size]
+            current = await self._fetch_products_from_db_by_ids(db, [int(p.id) for p in approved])
+            final_result = self._filter_products(current, search_filter)[:self.limits.max_bundle_size]
 
             if self.cache_client and final_result:
                 try:
                     await self.cache_client.set_json(
                         cache_key,
-                        [item.model_dump(mode="json") for item in final_result],
+                        [int(item.id) for item in final_result],
                         ttl=self.limits.cache_ttl_bundle_seconds,
                     )
                 except Exception:
@@ -999,6 +1013,7 @@ class AICommerceEngine:
             price_max = anchor_price * 1.3 if anchor_price > 0 else 1_000_000.0
             category = _sanitize_category(removed_item.category, self.limits.max_category_length)
 
+            alternative_filter = SearchFilter(price_min=price_min, price_max=price_max, category=category, excluded_ids=[int(removed_id)])
             alternatives: List[Product] = []
 
             try:
@@ -1032,21 +1047,23 @@ class AICommerceEngine:
                     )
                     if search_res and search_res[0]:
                         ids = [int(hit["entity"]["id"]) for hit in search_res[0]]
-                        alternatives = await self._fetch_products_from_db_by_ids(db, ids)
+                        alternatives = self._filter_products(
+                            await self._fetch_products_from_db_by_ids(db, ids), alternative_filter)
             except Exception:
                 logger.warning("vector alternative search failed", extra={"removed_id": removed_id}, exc_info=True)
 
             if not alternatives:
                 query = f"best quality alternative to {removed_item.name} {removed_item.category or ''}"
-                filters = {"price_min": price_min, "price_max": price_max, "category": category}
+                filters = alternative_filter.to_cache_dict()
                 alternatives = await self.perform_hybrid_search_pure(db, query, limit=limit, filters=filters)
-                alternatives = [product for product in alternatives if product.id != removed_id]
+                alternatives = self._filter_products(alternatives, alternative_filter)
 
             if not alternatives:
                 statement = (
                     select(Product)
                     .where(
                         Product.category == removed_item.category,
+                        Product.is_active.is_(True),
                         Product.id != removed_id,
                         Product.price >= price_min,
                         Product.price <= price_max,
@@ -1056,7 +1073,7 @@ class AICommerceEngine:
                 )
                 alternatives = list((await db.execute(statement)).scalars().all())
 
-            return alternatives[:limit]
+            return self._filter_products(alternatives, alternative_filter)[:limit]
 
         except Exception:
             logger.exception("alternative discovery failed", extra={"removed_id": removed_id, "limit": limit})
@@ -1366,7 +1383,7 @@ class AICommerceEngine:
             return []
 
         unique_ids = list(dict.fromkeys(int(item) for item in ids))
-        statement = select(Product).where(col(Product.id).in_(unique_ids))
+        statement = select(Product).where(col(Product.id).in_(unique_ids)).execution_options(populate_existing=True)
         rows = list((await db.execute(statement)).scalars().all())
         by_id = {int(product.id): product for product in rows}
         return [by_id[item_id] for item_id in unique_ids if item_id in by_id]

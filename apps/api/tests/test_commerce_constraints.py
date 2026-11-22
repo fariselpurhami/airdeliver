@@ -60,5 +60,6 @@ async def test_bundle_never_uses_one_db_session_concurrently():
         return []
     engine.perform_hybrid_search_pure = search
     anchor = Product(id=1, sku="anchor", name="phone", description="", price=100)
+    engine._fetch_products_from_db_by_ids = AsyncMock(return_value=[anchor])
     await engine.generate_perfect_bundle(AsyncMock(), anchor)
     assert maximum == 1
