@@ -259,3 +259,14 @@ voice production readiness is made by the loopback test.
 Provider sources inspected:
 https://elevenlabs.io/docs/eleven-agents/libraries/web-sockets
 https://elevenlabs.io/docs/eleven-agents/api-reference/eleven-agents/websocket
+
+## Checkpoint14: remove unused drone compliance remnant
+
+User explicitly allowed deletion if no real use. Drone subsystem was already
+removed359dc1b, with migration f3a91c07b2d4 and follow-up CI/docs removal. The old
+compliance_service.py had no imports/callers in repository search, no registered
+route, no test, and only two hardcoded flight exclusion circles. It checked the
+destination only, so could not validate a flight path, and has no current commerce
+use. Remove this orphan, not a functioning compliance integration. Voice has
+already had repair/test checkpoints; it is not an untouched later subsystem.
+Live microphone/provider acceptance remains unverified, as checkpoint13 states.
