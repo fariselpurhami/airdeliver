@@ -161,7 +161,7 @@ services:
       - "traefik.http.middlewares.auth-monitor.basicauth.users=${TRAEFIK_DASHBOARD_USER:?TRAEFIK_DASHBOARD_USER is required}:${TRAEFIK_DASHBOARD_PASS_HASH:?TRAEFIK_DASHBOARD_PASS_HASH is required}"
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.7-pg19-bookworm@sha256:89879f41d564f67b0c1462a491d16fcbc6de39ac10db17e7a4bba2138a5e0ba5
     container_name: airdeliver-db
     restart: always
     command: postgres -c shared_buffers=1024MB -c effective_cache_size=3072MB -c maintenance_work_mem=256MB -c checkpoint_completion_target=0.9 -c wal_buffers=16MB -c default_statistics_target=100 -c random_page_cost=1.1 -c effective_io_concurrency=200 -c work_mem=4MB -c min_wal_size=1GB -c max_wal_size=4GB -c max_worker_processes=8 -c max_parallel_workers_per_gather=4 -c max_parallel_workers=8
@@ -174,7 +174,7 @@ services:
       - postgres_password
       - postgres_db
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
       - ./db_init/01-enable-vector.sql:/docker-entrypoint-initdb.d/01-enable-vector.sql:ro
     networks:
       - global-net
@@ -188,7 +188,9 @@ services:
     deploy: *default-core-deploy
 
   postgres-backup:
-    image: prodrigestivill/postgres-backup-local
+    build:
+      context: ./infra/postgres-backup
+    image: airdeliver-postgres-backup:19.0-0.8.7
     container_name: airdeliver-db-backup
     restart: always
     environment:
@@ -394,7 +396,8 @@ services:
     environment:
       <<: *runtime-environment
       STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
-      STRIPE_PUBLISHABLE_KEY: "${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?STRIPE_PUBLISHABLE_KEY is required}"
+      # Optional adapter: missing credentials keep checkout unavailable, never successful.
+      STRIPE_PUBLISHABLE_KEY: "${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}"
       POSTGRES_SERVER: "postgres"
       RABBITMQ_HOST: "mq"
       REDIS_HOST: "redis"
@@ -478,7 +481,7 @@ services:
     user: airdeliver
     restart: always
     stop_grace_period: 125s
-    env_file: .env
+    env_file: ${AIRDELIVER_ENV_FILE:-.env}
     environment:
       - APP_ENV=production
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
@@ -533,7 +536,7 @@ services:
       target: runner
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
-        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is required}
+        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
     restart: always
     environment:
       - NEXTAUTH_URL=https://airdeliver.com

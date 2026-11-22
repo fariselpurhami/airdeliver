@@ -99,7 +99,7 @@ def seed_products(session: Session, products_data: List[Dict[str, Any]]) -> None
         # 2. Bulk fetch existing SKUs (Eliminates N+1 DB calls)
         existing_products = session.execute(
             select(models.Product.sku).where(models.Product.sku.in_(incoming_skus))
-        ).all()
+        ).scalars().all()
         existing_skus: Set[str] = set(existing_products)
 
         # 3. Filter for truly new products

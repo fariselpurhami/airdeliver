@@ -35,3 +35,6 @@ huggingface_cache/
 # --- Deploy ---
 .vercel
 *.tmp
+
+# Local database archives can contain private data.
+backups/

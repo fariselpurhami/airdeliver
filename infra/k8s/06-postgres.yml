@@ -43,7 +43,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: pgvector/pgvector:pg16
+          image: pgvector/pgvector:0.8.7-pg19-bookworm@sha256:89879f41d564f67b0c1462a491d16fcbc6de39ac10db17e7a4bba2138a5e0ba5
           # Raised from the default 100: the API HPA (max 6 pods x 5 gunicorn
           # workers) plus the worker need headroom; see DB_POOL_* in
           # 00-namespace-config.yml for the matching client-side math.
@@ -80,7 +80,7 @@ spec:
             periodSeconds: 10
           volumeMounts:
             - name: data
-              mountPath: /var/lib/postgresql/data
+              mountPath: /var/lib/postgresql
             - name: init
               mountPath: /docker-entrypoint-initdb.d
       volumes:

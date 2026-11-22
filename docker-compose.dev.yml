@@ -40,12 +40,13 @@ services:
         max-file: "3"
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.7-pg19-bookworm@sha256:89879f41d564f67b0c1462a491d16fcbc6de39ac10db17e7a4bba2138a5e0ba5
     container_name: airdeliver-db
     restart: always
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./db_init/01-enable-vector.sql:/docker-entrypoint-initdb.d/01-enable-vector.sql
+    # Replace the old mount list, never attach a PG16 data directory to PG19.
+    volumes: !override
+      - postgres19-data:/var/lib/postgresql
+      - ./db_init/01-enable-vector.sql:/docker-entrypoint-initdb.d/01-enable-vector.sql:ro
     command: postgres -c shared_buffers=256MB -c effective_cache_size=1536MB -c work_mem=16MB -c maintenance_work_mem=128MB
     ports:
       - "5432:5432"
@@ -254,9 +255,10 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
-    env_file: .env
+    env_file: ${AIRDELIVER_ENV_FILE:-.env}
     environment:
-      - DATABASE_URI=${DATABASE_URL_SYNC}    
+      - APP_ENV=development
+      - DATABASE_URI=${DATABASE_URL_ASYNC}
     command: >
       sh -c "alembic upgrade head &&
              python -m app.db.initial_data"
@@ -275,7 +277,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
-    env_file: .env
+    env_file: ${AIRDELIVER_ENV_FILE:-.env}
     restart: always
     stop_grace_period: 10s
     dns:
@@ -355,8 +357,9 @@ services:
     user: airdeliver
     restart: always
     stop_grace_period: 60s
-    env_file: .env
+    env_file: ${AIRDELIVER_ENV_FILE:-.env}
     environment:
+      - APP_ENV=development
       - DATABASE_URI=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_SERVER}:${POSTGRES_PORT}/${POSTGRES_DB}
       - POSTGRES_SERVER=${POSTGRES_SERVER}
       - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
@@ -423,7 +426,7 @@ services:
       target: production
     container_name: airdeliver-seeder
     command: /opt/venv/bin/python /app/seed_ultra_scale.py
-    env_file: .env
+    env_file: ${AIRDELIVER_ENV_FILE:-.env}
     environment:
       - SEED_TARGET_COUNT=1000
       - SEED_BATCH_SIZE=64
@@ -458,14 +461,17 @@ services:
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     restart: always
     environment:
-     - AUTH_URL=http://${HOST_IP}:3000
+     - AUTH_URL=${AUTH_URL:-http://127.0.0.1:3000}
+     - NEXTAUTH_URL=${AUTH_URL:-http://127.0.0.1:3000}
+     - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://127.0.0.1/api/v1}
+     - API_URL=http://api:8000/api/v1
      - AUTH_SECRET=${AUTH_SECRET}
      - AUTH_TRUST_HOST=true
      - NODE_ENV=development
      - HOSTNAME=0.0.0.0
      - NEXT_TELEMETRY_DISABLED=1
      - PNPM_HOME=/pnpm
-     - PATH=/pnpm:$PATH
+     - PATH=/pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
      - WATCHPACK_POLLING=true
      - CI=true
      - PNPM_CONFIG_CONFIRM_MODULES_PURGE=false
@@ -486,7 +492,7 @@ services:
         - "3000:3000"
     networks:
         - global-net
-    command: pnpm dev --turbo --hostname 0.0.0.0 --port 3000 --experimental-https
+    command: pnpm exec next dev --hostname 0.0.0.0 --port 3000
     healthcheck:
       test:
         [
@@ -513,6 +519,7 @@ services:
           memory: 1G
 
 volumes:
+  postgres19-data:
   postgres-data:
   rabbitmq-data:
   redis-data:
@@ -535,3 +542,17 @@ networks:
   global-net:
     name: airdeliver-global-net
     external: true
+
+# Local copies preserve the existing credential values. Production continues to
+# use its original secrets/ paths when this dev override is not supplied.
+secrets:
+  postgres_user:
+    file: ${AIRDELIVER_DEV_SECRET_DIR:-./secrets}/postgres_user
+  postgres_password:
+    file: ${AIRDELIVER_DEV_SECRET_DIR:-./secrets}/postgres_password
+  postgres_db:
+    file: ${AIRDELIVER_DEV_SECRET_DIR:-./secrets}/postgres_db
+  rabbitmq_user:
+    file: ${AIRDELIVER_DEV_SECRET_DIR:-./secrets}/rabbitmq_user
+  rabbitmq_pass:
+    file: ${AIRDELIVER_DEV_SECRET_DIR:-./secrets}/rabbitmq_pass

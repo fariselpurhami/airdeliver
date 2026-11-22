@@ -1,0 +1,19 @@
+# One-shot local config helper. No app services, ports or named data volumes.
+# Keep host ownership on Mac/Linux by supplying LOCAL_UID/LOCAL_GID.
+services:
+  configure:
+    image: python:3.13-slim
+    user: "${LOCAL_UID:?LOCAL_UID is required}:${LOCAL_GID:?LOCAL_GID is required}"
+    working_dir: /work
+    network_mode: none
+    read_only: true
+    environment:
+      AIRDELIVER_DEV_CONFIG_INPUT: compose
+      PYTHONDONTWRITEBYTECODE: "1"
+    env_file:
+      - path: .env.dev.example
+      - path: .env
+        required: false
+    volumes:
+      - .:/work
+    command: ["python", "scripts/configure_dev_env.py", "--preserve-existing"]

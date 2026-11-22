@@ -7,11 +7,22 @@ on:
     branches: ["main"]
     paths:
       - 'apps/api/**'
+      - 'scripts/configure_dev_env.py'
+      - 'scripts/backup_dev_db.sh'
+      - 'docker-compose*.yml'
+      - '.env.dev.example'
+      - 'infra/postgres-backup/**'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches: ["main"]
     paths:
       - 'apps/api/**'
+      - 'scripts/configure_dev_env.py'
+      - 'scripts/backup_dev_db.sh'
+      - 'docker-compose*.yml'
+      - '.env.dev.example'
+      - 'infra/postgres-backup/**'
+      - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 
 jobs:
@@ -20,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: pgvector/pgvector:0.8.7-pg19-bookworm
+        image: pgvector/pgvector:0.8.7-pg19-bookworm@sha256:89879f41d564f67b0c1462a491d16fcbc6de39ac10db17e7a4bba2138a5e0ba5
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -34,6 +45,7 @@ jobs:
           --health-retries 12
     env:
       TEST_POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@localhost:5432/airdeliver_test_ci
+      TEST_DOCKER_ENGINE: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +61,12 @@ jobs:
         working-directory: apps/api
         run: poetry install
 
+      - name: Build PostgreSQL 19 backup and restore image
+        run: docker build -t airdeliver-postgres-backup:ci infra/postgres-backup
+
       - name: Migrate PostgreSQL 19 and run tests
         working-directory: apps/api
+        env:
+          TEST_PG_BACKUP_IMAGE: airdeliver-postgres-backup:ci
+          AIRDELIVER_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: poetry run python scripts/verify_postgres_integration.py
