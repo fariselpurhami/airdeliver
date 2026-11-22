@@ -404,6 +404,18 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   },
 
   handleSocketMessage: (payload) => {
+    // Backend ERROR frames (e.g. DELIVERY_FAILED when the broker publish
+    // fails) must surface honestly instead of being rendered as an unknown
+    // message type.
+    if (payload.type === 'ERROR') {
+      get().appendSystemMessage({
+        type: 'error',
+        content: typeof payload.content === 'string'
+          ? payload.content
+          : 'Service temporarily unavailable. Please try again.',
+      });
+      return;
+    }
     get().addSocketAIMessage(payload);
   },
 

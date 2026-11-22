@@ -138,3 +138,31 @@ describe('sendImage', () => {
     expect(socketSpy).not.toHaveBeenCalled();
   });
 });
+
+describe('handleSocketMessage', () => {
+  it('surfaces backend ERROR frames as visible error messages', () => {
+    useAIOrderingStore.setState({
+      messages: [
+        { id: 1, sender: 'ai', contentType: 'typing', content: null },
+      ],
+      isLoading: true,
+      isProcessing: true,
+    } as Partial<StoreSnapshot>);
+
+    useAIOrderingStore.getState().handleSocketMessage({
+      type: 'ERROR',
+      code: 'DELIVERY_FAILED',
+      content: 'Service temporarily unavailable. Please try again.',
+    });
+
+    const state = useAIOrderingStore.getState();
+    expect(state.messages.some((m) => m.contentType === 'typing')).toBe(false);
+    expect(
+      state.messages.some(
+        (m) => m.contentType === 'error' && m.content === 'Service temporarily unavailable. Please try again.'
+      )
+    ).toBe(true);
+    expect(state.isLoading).toBe(false);
+    expect(state.isProcessing).toBe(false);
+  });
+});
