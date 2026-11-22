@@ -24,10 +24,13 @@ from app.services.ai_behavior_engine import BehaviorEngine
 from app.services.ai_cart_service import AICartService
 from app.services.ai_checkout_service import AICheckoutService
 from app.services.ai_nlu_service import AINLUService
+from pydantic import BaseModel as _PayPalBaseModel
+from app.services.payment_completion_service import PaymentCompletionService
 from app.services.payment_orchestrator import (
     IPaymentGateway,
     MpesaGateway,
     PaymentOrchestrator,
+    PaymentStatus,
     PayPalGateway,
     StripeGateway,
 )
@@ -37,6 +40,11 @@ from app.core.config import (
     get_paypal_settings,
     get_stripe_settings,
 )
+
+class PayPalCaptureRequest(_PayPalBaseModel):
+    order_id: str
+    paypal_order_id: str
+
 
 logger = logging.getLogger("airdeliver.websocket")
 router = APIRouter()
@@ -292,6 +300,48 @@ async def confirm_order(
         "country": payload.country,
     })
     return {"status": "accepted"}
+
+
+@router.post("/checkout/paypal/capture", status_code=status.HTTP_200_OK)
+@limiter.limit("10/minute")
+async def capture_paypal_order(
+    request: Request,
+    payload: PayPalCaptureRequest = Body(...),
+    current_user: models.User = Depends(deps.get_current_active_user),
+    db: AsyncSession = Depends(deps.get_async_session),
+    rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
+    cache: IAsyncCacheClient = Depends(get_cache_from_request),
+):
+    """Capture a buyer-approved PayPal order and finalize the local order.
+
+    Called by the frontend when PayPal redirects the buyer back. Verifies the
+    local order belongs to the caller before touching PayPal.
+    """
+    order = await db.get(models.Order, int(payload.order_id))
+    if not order or order.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    try:
+        gateway = PayPalGateway(get_paypal_settings(), cache, httpx.AsyncClient(timeout=httpx.Timeout(5.0)))
+    except Exception as exc:
+        logger.error("PayPal gateway unavailable for capture: %s", exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PayPal unavailable")
+
+    try:
+        result = await gateway.capture_order(payload.paypal_order_id)
+    finally:
+        await gateway._http_client.aclose()
+
+    if result.status != PaymentStatus.SUCCESS:
+        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=result.error_message or "Capture failed")
+
+    completion = PaymentCompletionService(db, rabbitmq, cache)
+    await completion.finalize_successful_payment(
+        order_id=int(payload.order_id),
+        user_id=current_user.id,
+        transaction_id=payload.paypal_order_id,
+    )
+    return {"status": "captured", "order_id": payload.order_id}
 
 
 @router.post("/checkout/cancel", status_code=status.HTTP_202_ACCEPTED)

@@ -386,6 +386,57 @@ class PayPalGateway(IPaymentGateway):
             logger.warning("PayPal intent initialization was cancelled by orchestrator timeout")
             raise
 
+    async def capture_order(self, paypal_order_id: str) -> GatewayResult:
+        """Capture a buyer-approved PayPal order (post-redirect completion)."""
+        try:
+            token = await self._get_access_token()
+            response = await self._http_client.post(
+                f"{self._base_url()}/v2/checkout/orders/{paypal_order_id}/capture",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+            )
+            response.raise_for_status()
+            body = response.json()
+            if body.get("status") == "COMPLETED":
+                return GatewayResult(
+                    provider=self.provider,
+                    status=PaymentStatus.SUCCESS,
+                    transaction_id=paypal_order_id,
+                    raw_response={"capture_status": "COMPLETED"},
+                )
+            logger.warning(
+                "PayPal capture incomplete",
+                extra={"paypal_order_id": paypal_order_id, "status": body.get("status")},
+            )
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                transaction_id=paypal_order_id,
+                error_message=f"PayPal capture ended in status {body.get('status')}.",
+            )
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "PayPal capture rejected",
+                extra={"status_code": e.response.status_code, "paypal_order_id": paypal_order_id},
+                exc_info=True,
+            )
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                transaction_id=paypal_order_id,
+                error_message="PayPal rejected the capture.",
+            )
+        except httpx.RequestError as e:
+            logger.error(f"PayPal capture network failure: {str(e)}", exc_info=True)
+            return GatewayResult(
+                provider=self.provider,
+                status=PaymentStatus.FAILURE,
+                transaction_id=paypal_order_id,
+                error_message="PayPal services are unreachable.",
+            )
+
 
 class MpesaGateway(IPaymentGateway):
     """
