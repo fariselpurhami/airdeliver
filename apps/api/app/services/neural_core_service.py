@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import time
@@ -35,16 +36,20 @@ logger = logging.getLogger("airdeliver.neural_core")
 # =============================================================================
 
 class ChatMessage(BaseModel):
-    role: Literal["system", "user", "assistant"]
-    content: str
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=10000)
 
 
 class SessionMemory(BaseModel):
-    user_name: str
-    history: List[ChatMessage] = Field(default_factory=list)
+    user_name: str = Field(max_length=256)
+    history: List[ChatMessage] = Field(default_factory=list, max_length=10)
     
     def append_turn(self, user_msg: str, ai_msg: str, max_turns: int = 5) -> None:
         """Appends a conversation turn and securely truncates to maintain context limits."""
+        if type(max_turns) is not int or not 1 <= max_turns <= 5:
+            raise ValueError("Context turns must be between one and five")
+        # Trim before mutation so subsequent validated hydration always stays bounded.
+        self.history = self.history[-(max_turns - 1) * 2:] if max_turns > 1 else []
         self.history.append(ChatMessage(role="user", content=user_msg))
         self.history.append(ChatMessage(role="assistant", content=ai_msg))
         
@@ -143,7 +148,7 @@ class NeuralCoreService:
             if raw_data:
                 return SessionMemory.model_validate(raw_data)
         except (ValidationError, TypeError, ValueError) as exc:
-            logger.warning("neural_core.session.corrupted_state", extra={"session_id": session_id, "error": str(exc)})
+            logger.warning("neural_core.session.corrupted_state", extra={"error_type": type(exc).__name__})
             # State corrupted or schema changed; graceful fallback to fresh session
             
         return SessionMemory(user_name=user_name)
@@ -333,6 +338,14 @@ class NeuralCoreService:
         start_time = time.monotonic()
         user_name = user.full_name if user and getattr(user, "full_name", None) else "Client"
         
+        # Browser session IDs are caller-controlled. Bind authenticated history
+        # to the authenticated owner, never client-provided user IDs or names.
+        if user is not None:
+            owner = getattr(user, "id", None)
+            if type(owner) is not int or owner <= 0:
+                raise ValueError("Authenticated chat requires a valid owner")
+            digest = hashlib.sha256(session_id.encode()).hexdigest()
+            session_id = f"owner:{owner}:{digest}"
         memory = await self._hydrate_session(session_id, user_name)
 
         # Visual queries skip the LLM intent router entirely: an image upload

@@ -136,3 +136,17 @@ Read-all route exercised as real FastAPI HTTP request.562localPG19tests passed,
 Subscription endpoint still double-encodes JSON, lacks resubscribe upsert and
 strict endpoint/key schema. Provider-egress controls and subscription validation
 remain separate next work; list/read fix does not certify push security.
+
+## Checkpoint6: authenticated support session isolation
+
+Two regressions failed before changes. Reusing a caller-controlled session ID
+shared cached history across authenticated users. The authenticated owner ID now
+namespaces a SHA256 digest of the client session ID; legacy unscoped history is
+not loaded by signed-in users. No cache data deletion or migration performed.
+Cached history accepts user/assistant messages only, at most ten messages and
+10000 characters per message. Invalid cache content starts a fresh session and
+logs only the exception type, not cache content. Tests cover same-owner context
+continuity and distinct-owner isolation. Anonymous chat still uses bearer-like
+client session IDs, with no verified ownership or server-issued anonymous cookie.
+Concurrent writes to one session remain last-write-wins. Action completion and
+uncalibrated confidence claims are separate next work, not fixed by isolation.
