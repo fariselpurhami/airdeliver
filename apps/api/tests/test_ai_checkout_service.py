@@ -48,12 +48,24 @@ class FakeDB:
 
     def add(self, obj):
         self.added.append(obj)
+        if isinstance(obj, Order):
+            self._order = obj
         if isinstance(obj, Order) and obj.id is None:
             obj.id = self._next_id
 
     def add_all(self, objs):
         for o in objs:
             self.add(o)
+
+    async def execute(self, statement):
+        params = statement.compile().params
+        order = self._order
+        matches = (order is not None and order.user_id == params.get("user_id_1")
+                   and order.checkout_request_id == params.get("checkout_request_id_1"))
+        class Result:
+            def scalars(self): return self
+            def one_or_none(self): return order if matches else None
+        return Result()
 
     async def flush(self):
         pass
@@ -85,7 +97,7 @@ class FakeRabbit:
 
 
 def make_orchestrator(status=PaymentStatus.SUCCESS, client_secret="sec_123", action_url=None, exc=None):
-    orch = SimpleNamespace()
+    orch = SimpleNamespace(available_providers=["stripe"])
     if exc is not None:
         orch.process_payment = AsyncMock(side_effect=exc)
     else:
@@ -106,7 +118,7 @@ def make_service(cart=None, order=None, orchestrator=None):
 
 CART = {"items": [{"product_id": 7, "name": "Shoes", "quantity": 2, "price": "10.50"}]}
 SHIPPING = {"recipient_name": "Test Buyer", "line1": "123 Main Street", "line2": "", "city": "New York", "region": "NY", "postal_code": "10001", "country": "US", "phone": "+12125550123"}
-CONFIRM = {"user_id": 1, "shipping_address": SHIPPING, "email": "u@example.com"}
+CONFIRM = {"checkout_request_id": "a02cf0a7-67a1-4dcc-96d6-45b7be67d306", "user_id": 1, "shipping_address": SHIPPING, "email": "u@example.com"}
 
 
 @pytest.mark.asyncio
@@ -156,30 +168,36 @@ async def test_confirm_order_corrupt_price_rolls_back():
 
 
 @pytest.mark.asyncio
-async def test_confirm_order_gateway_decline_marks_order_failed():
+async def test_confirm_order_gateway_failure_preserves_unconfirmed_order():
     orch = make_orchestrator(status=PaymentStatus.FAILURE)
     svc, cache, db, rabbit, _ = make_service(cart=dict(CART), orchestrator=orch)
     await svc.handle_confirm_order(dict(CONFIRM))
     orders = [o for o in db.added if isinstance(o, Order)]
-    assert orders[0].status == OrderStatus.FAILED
+    assert orders[0].status == OrderStatus.PENDING
+    assert not orders[0].checkout_data.get("handoff")
+    assert orders[0].payment_setup_lease_until is None
 
 
 @pytest.mark.asyncio
-async def test_confirm_order_gateway_timeout_marks_failed():
+async def test_confirm_order_gateway_timeout_preserves_unconfirmed_order():
     orch = make_orchestrator(exc=asyncio.TimeoutError())
     svc, cache, db, rabbit, _ = make_service(cart=dict(CART), orchestrator=orch)
     await svc.handle_confirm_order(dict(CONFIRM))
     orders = [o for o in db.added if isinstance(o, Order)]
-    assert orders[0].status == OrderStatus.FAILED
+    assert orders[0].status == OrderStatus.PENDING
+    assert not orders[0].checkout_data.get("handoff")
+    assert orders[0].payment_setup_lease_until is None
 
 
 @pytest.mark.asyncio
-async def test_confirm_order_success_without_tokens_is_treated_as_failure():
+async def test_confirm_order_success_without_tokens_remains_unconfirmed():
     orch = make_orchestrator(status=PaymentStatus.SUCCESS, client_secret=None, action_url=None)
     svc, cache, db, rabbit, _ = make_service(cart=dict(CART), orchestrator=orch)
     await svc.handle_confirm_order(dict(CONFIRM))
     orders = [o for o in db.added if isinstance(o, Order)]
-    assert orders[0].status == OrderStatus.FAILED
+    assert orders[0].status == OrderStatus.PENDING
+    assert not orders[0].checkout_data.get("handoff")
+    assert orders[0].payment_setup_lease_until is None
     intents = [p for _, p in cache.published if p.get("type") == "payment_intent"]
     assert not intents
 

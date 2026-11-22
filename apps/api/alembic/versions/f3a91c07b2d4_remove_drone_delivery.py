@@ -24,8 +24,10 @@ def upgrade() -> None:
     op.drop_index(op.f('ix_missions_mission_id_str'), table_name='missions')
     op.drop_table('missions')
 
-    op.drop_column('orders', 'drone_id')
-    op.drop_column('notifications', 'related_drone_id')
+    # Some deployments had these columns from schema.sql, while the
+    # initial Alembic revision did not create them. Support both histories.
+    op.execute(sa.text('ALTER TABLE orders DROP COLUMN IF EXISTS drone_id'))
+    op.execute(sa.text('ALTER TABLE notifications DROP COLUMN IF EXISTS related_drone_id'))
 
     # Tables bootstrapped outside alembic (schema.sql); IF EXISTS keeps this
     # migration safe on databases that never had them.

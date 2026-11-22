@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING, Dict, Any
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, JSON
+from sqlalchemy import Column, JSON, DateTime
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime, timezone
 
@@ -18,8 +18,7 @@ class AIMemory(SQLModel, table=True):
     context_data: Dict[str, Any] = Field(sa_column=Column(JSON))
     last_updated: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        nullable=False,
-        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)}
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(timezone.utc))
     )
 
     user: Mapped["User"] = Relationship(sa_relationship=relationship("User", back_populates="ai_memory"))

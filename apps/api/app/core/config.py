@@ -100,6 +100,15 @@ class CoreSettings(BaseAppConfig):
     def blank_optional_model_settings(cls, value):
         return None if value == "" else value
 
+    @field_validator("BACKEND_CORS_ORIGINS")
+    @classmethod
+    def require_cors_origins_not_paths(cls, origins):
+        for origin in origins:
+            if (origin.path not in {"", "/", None} or origin.query or origin.fragment
+                    or origin.username or origin.password):
+                raise ValueError("CORS entries must be origins without a path or credentials")
+        return origins
+
     OPENSEARCH_HOST: str = Field("opensearch", alias="OPENSEARCH_HOST")
     OPENSEARCH_PORT: int = Field(9200, alias="OPENSEARCH_PORT", ge=1, le=65535)
     OPENSEARCH_USE_SSL: bool = Field(False, alias="OPENSEARCH_USE_SSL")

@@ -57,6 +57,7 @@ class RecordingCheckoutService:
 
     async def handle_confirm_order(self, payload):
         self.calls.append(("confirm", payload))
+        return {"status": "pending"}
 
     async def handle_cancel_order(self, payload):
         self.calls.append(("cancel", payload))
@@ -72,7 +73,7 @@ def client():
     nlu = RecordingNluService()
     app.dependency_overrides[ai_ordering.get_ai_nlu_service] = lambda: nlu
     # NOTE: no `with` - TestClient lifespan startup hangs in this suite.
-    yield TestClient(app, raise_server_exceptions=True), cart, checkout, nlu
+    yield TestClient(app, raise_server_exceptions=True, headers={"Idempotency-Key":"a02cf0a7-67a1-4dcc-96d6-45b7be67d306"}), cart, checkout, nlu
     app.dependency_overrides.clear()
 
 
@@ -233,3 +234,29 @@ def test_checkout_options_only_exposes_server_configured_providers(client):
     response = c.get("/api/v1/ai-ordering/checkout/options")
     assert response.status_code == 200
     assert response.json() == {"providers":["stripe"], "currencies":["USD"], "countries":["US"], "locale":"en-US"}
+
+@pytest.mark.parametrize('state,expected', [('ready',200),('paid',200),('pending',202),('conflict',409),('review_required',409),('reconciliation_required',409),('rejected',400)])
+def test_checkout_http_status_and_no_store(client, monkeypatch, state, expected):
+    c, _, checkout, _ = client
+    monkeypatch.setattr(ai_ordering.limiter, 'enabled', False)
+    async def result(payload):
+        assert payload['checkout_request_id'] == 'a02cf0a7-67a1-4dcc-96d6-45b7be67d306'
+        assert payload['user_id'] == 1
+        return {'status': state}
+    monkeypatch.setattr(checkout, 'handle_confirm_order', result)
+    from tests.test_ai_checkout_service import SHIPPING
+    response = c.post('/api/v1/ai-ordering/checkout/confirm', json={'shipping_address': SHIPPING})
+    assert response.status_code == expected
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.json()['status'] == state
+
+@pytest.mark.parametrize('key', [None, 'not-a-uuid'])
+def test_checkout_requires_valid_request_identity(client, monkeypatch, key):
+    c, _, checkout, _ = client
+    monkeypatch.setattr(ai_ordering.limiter, 'enabled', False)
+    from tests.test_ai_checkout_service import SHIPPING
+    c.headers.pop('Idempotency-Key', None)
+    headers = {} if key is None else {'Idempotency-Key': key}
+    response = c.post('/api/v1/ai-ordering/checkout/confirm', json={'shipping_address': SHIPPING}, headers=headers)
+    assert response.status_code == 422
+    assert checkout.calls == []

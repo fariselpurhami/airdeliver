@@ -19,6 +19,7 @@ export default function ShippingAddressForm({ onSubmit, onBack, initialValue }: 
   const [submitting, setSubmitting] = useState(false);
   const busy = useRef(false);
   const [error, setError] = useState('');
+  const [signInNeeded, setSignInNeeded] = useState(false);
   useEffect(() => {
     let active = true;
     api.get<{ providers: string[] }>('/ai-ordering/checkout/options').then(({ data }) => {
@@ -27,7 +28,7 @@ export default function ShippingAddressForm({ onSubmit, onBack, initialValue }: 
       setProviders(available);
       setProvider(available.includes('stripe') ? 'stripe' : 'paypal');
       if (!available.length) setError('Payment is temporarily unavailable. No charge has been made.');
-    }).catch(() => { if (active) setError('Sign in and check your connection to continue checkout.'); })
+    }).catch(() => { if (active) { setSignInNeeded(true); setError('Sign in and check your connection to continue checkout.'); } })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
@@ -48,11 +49,11 @@ export default function ShippingAddressForm({ onSubmit, onBack, initialValue }: 
         event.preventDefault();
         if (busy.current || !providers.includes(provider)) return;
         busy.current = true;
-        setSubmitting(true); setError('');
+        setSubmitting(true); setSignInNeeded(false); setError('');
         try {
           const ok = await onSubmit(address, provider);
-          if (!ok) setError('Checkout could not start. Check your details and try again. No charge has been made.');
-        } catch { setError('Checkout could not start. Please try again.'); }
+          if (!ok) setError('Checkout could not be confirmed. Retry this same checkout or review your existing orders in your profile before starting another one.');
+        } catch { setError('Checkout could not be confirmed. Review your existing orders before starting another checkout.'); }
         finally { busy.current = false; setSubmitting(false); }
       }} className="grid grid-cols-1 gap-4">
         {fields.map(field => <label key={field.key} className="block text-sm text-slate-200">
@@ -74,7 +75,7 @@ export default function ShippingAddressForm({ onSubmit, onBack, initialValue }: 
             {loading ? <option>Loading payment methods...</option> : providers.map(value => <option key={value} value={value}>{value === 'stripe' ? 'Card and available Stripe payment methods' : 'PayPal'}</option>)}
           </select>
         </label>
-        {error && <div role="alert" className="rounded-lg border border-red-400 p-3 text-sm text-red-200">{error} <Link href="/login" className="underline">Sign in</Link></div>}
+        {error && <div role="alert" className="rounded-lg border border-red-400 p-3 text-sm text-red-200">{error} <Link href={signInNeeded ? '/login' : '/profile'} className="underline">{signInNeeded ? 'Sign in' : 'Review orders in your profile'}</Link></div>}
         <p className="text-xs text-slate-400">US shipping only at launch. This form checks address format, not carrier deliverability. No payment details are collected here.</p>
         <button type="submit" disabled={submitting || loading || !providers.length} className="rounded-lg bg-cyan-400 px-4 py-3 font-semibold text-slate-950 disabled:opacity-40">{submitting ? 'Preparing secure payment...' : 'Continue to secure payment'}</button>
         <button type="button" onClick={onBack} disabled={submitting} className="rounded-lg border border-slate-600 px-4 py-3">Back to cart</button>

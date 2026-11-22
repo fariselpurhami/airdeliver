@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, JSON, Enum as SAEnum
+from sqlalchemy import Column, JSON, DateTime, Index, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime, timezone
 from .enums import OrderStatus, CancellationReason
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 class Order(SQLModel, table=True):
     __tablename__ = "orders"
+    __table_args__ = (Index("uq_orders_user_checkout_request", "user_id", "checkout_request_id", unique=True),)
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
 
@@ -30,18 +31,23 @@ class Order(SQLModel, table=True):
     total_price: float = Field(default=0.0, nullable=False)
     currency: str = Field(default="USD", min_length=3, max_length=3)
     shipping_address_data: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    checkout_request_id: Optional[str] = Field(default=None, max_length=36)
+    checkout_fingerprint: Optional[str] = Field(default=None, max_length=64)
+    checkout_data: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    payment_setup_generation: int = Field(default=0)
+    payment_setup_lease_until: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
 
     # 2. حالة الدفع (الـ Checkout Service يحتاجها لتحديث الحالة لاحقاً)
     is_paid: bool = Field(default=False)
-    paid_at: Optional[datetime] = Field(default=None)
+    paid_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     stripe_payment_id: Optional[str] = Field(default=None, nullable=True)
     payment_transaction_id: Optional[str] = Field(default=None, max_length=255, nullable=True)
     
 
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(timezone.utc)),
     )
     
 

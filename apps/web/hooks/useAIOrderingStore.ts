@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { produce } from 'immer';
 import { useCartStore } from './useCartStore';
 import type { ShippingAddress } from '@/lib/commerce';
+import { getCheckoutRequestKey, retireCheckoutRequestKey } from '@/lib/checkout-request';
 
 // --- Domain Types ---
 
@@ -24,6 +25,7 @@ export type PaymentOrderItem = {
 };
 
 export type PaymentDetails = {
+  checkout_request_id?: string;
   orderId: number;
   total: number;
   gateways: PaymentGateway[];
@@ -88,6 +90,7 @@ interface AIOrderingState {
   // Data
   messages: Message[];
   paymentDetails: PaymentDetails | null;
+  activeCheckoutRequestId: string | null;
   recoveryOrderDetails: PaymentDetails | null;
   suggestedProductIds: number[] | null;
   flyQueue: FlyItem[];
@@ -194,6 +197,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   isShippingStep: false,
   shippingAddress: null,
   paymentDetails: null,
+  activeCheckoutRequestId: null,
   recoveryOrderDetails: null,
   suggestedProductIds: null,
   isLoading: false,
@@ -523,7 +527,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
       // Flow specific states
       if (response.type === 'payment_intent') {
-        state.paymentDetails = response.content as PaymentDetails;
+        const incoming = response.content as PaymentDetails;
+        if (incoming.checkout_request_id && incoming.checkout_request_id !== state.activeCheckoutRequestId) return;
+        state.paymentDetails = incoming;
         state.recoveryMode = false;
         return; // Don't push to chat
       }
@@ -873,16 +879,40 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
+      const checkoutKey = path === '/checkout/confirm'
+        ? await getCheckoutRequestKey(token, body, useCartStore.getState().items) : null;
+      if (checkoutKey) set({ activeCheckoutRequestId: checkoutKey });
       const response = await fetch(`${apiBase}/ai-ordering${path}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(checkoutKey ? { 'Idempotency-Key': checkoutKey } : {}),
         },
         credentials: 'include',
         body: JSON.stringify(body),
         signal: controller.signal,
       });
+      if (checkoutKey) {
+        const result = await response.json();
+        if (result.status === 'review_required' && result.cart) {
+          get().addSocketAIMessage({ type: 'cart_preview', content: result.cart, reason: 'Catalog Price Update' });
+          get().appendSystemMessage({ type: 'error', content: 'Prices changed. Review the refreshed cart and confirm again before payment.' });
+          return true;
+        }
+        if (!response.ok) return false;
+        if (result.status === 'ready' && result.payment) {
+          get().addSocketAIMessage({ type: 'payment_intent', content: result.payment });
+          return true;
+        }
+        if (result.status === 'paid') {
+          retireCheckoutRequestKey(checkoutKey);
+          set({ paymentDetails: null, activeCheckoutRequestId: null, recoveryMode: false });
+          get().appendSystemMessage({ type: 'success_text', content: `Order #${result.order_id} is already paid. Review it in your profile before starting another checkout.` });
+          return true;
+        }
+        return false;
+      }
       return response.ok;
     } catch {
       return false;
@@ -954,9 +984,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   confirmCurrentOrder: () => {
     set({ isShippingStep: true, isOverlayVisible: true, isProcessing: false, isLoading: false });
   },
-  cancelShipping: () => set({ isShippingStep: false }),
+  cancelShipping: () => set({ isShippingStep: false, activeCheckoutRequestId: null }),
   submitShippingAddress: async (address, provider) => {
-    if (get().socketStatus !== 'connected' || !get().authToken) return false;
+    if (!get().authToken) return false;
     set({ isProcessing: true, isLoading: true, shippingAddress: address });
     const ok = await get()._postCartCommand('/checkout/confirm', { shipping_address: address, payment_provider: provider });
     set({ isShippingStep: !ok, isProcessing: false, isLoading: false });

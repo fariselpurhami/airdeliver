@@ -39,3 +39,21 @@ it('only sends structured shipping after explicit submission with an authenticat
   expect(post).toHaveBeenCalledWith('/checkout/confirm', { shipping_address: shipping, payment_provider: 'stripe' });
   useAIOrderingStore.setState(original, true);
 });
+
+it('keeps uncertain checkout errors honest and offers order review', async () => {
+  jest.mocked(api.get).mockResolvedValue({ data: { providers: ['stripe'] } });
+  const submit = jest.fn<(address: ShippingAddress, provider: 'stripe' | 'paypal') => Promise<boolean>>().mockResolvedValue(false);
+  const { container } = render(<ShippingAddressForm onSubmit={submit} onBack={jest.fn()} initialValue={{ recipient_name: 'Test Buyer', line1: '123 Main Street', line2: '', city: 'New York', region: 'NY', postal_code: '10001', country: 'US', phone: '+12125550123' }} />);
+  const button = screen.getByRole('button', { name: /continue to secure payment/i });
+  await waitFor(() => expect(button).toBeEnabled());
+  fireEvent.click(button);
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Checkout could not be confirmed');
+  expect(alert).not.toHaveTextContent('No charge has been made');
+  expect(screen.getByRole('link', { name: /review orders/i })).toHaveAttribute('href', '/profile');
+  const visualPath = process.env.CHECKOUT_VISUAL_PATH;
+  if (visualPath?.startsWith('/tmp/')) {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(visualPath, '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/shipping-preview.css"></head><body style="margin:0;background:#020617;font-family:Arial,sans-serif"><main style="max-width:520px;margin:auto">' + container.innerHTML + '</main></body></html>');
+  }
+});

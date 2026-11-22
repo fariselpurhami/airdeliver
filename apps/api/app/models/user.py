@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, Enum as SAEnum
+from sqlalchemy import Column, DateTime, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime, timezone
 from pydantic import EmailStr
@@ -36,12 +36,12 @@ class User(SQLModel, table=True):
     )
     
     # Diamond Standard: UTC Timezones + Update Tracking
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+        sa_column=Column(DateTime(timezone=True), nullable=False, onupdate=lambda: datetime.now(timezone.utc)),
     )
-    last_login: Optional[datetime] = Field(default=None)
+    last_login: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
 
     phone_number: Optional[str] = Field(default=None, index=True, nullable=True)
     address: Optional[str] = Field(default=None, nullable=True)

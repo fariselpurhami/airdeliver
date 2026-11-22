@@ -15,6 +15,7 @@ x-runtime-environment: &runtime-environment
   PRODUCT_VISION_MODEL_REVISION: "${PRODUCT_VISION_MODEL_REVISION:-}"
   USE_REDIS: "true"
   COOKIES_SECURE: "${COOKIES_SECURE:-true}"
+  LEGACY_TIMESTAMP_TIMEZONE: "${LEGACY_TIMESTAMP_TIMEZONE:-}"
   BACKEND_CORS_ORIGINS: "${BACKEND_CORS_ORIGINS:-[\"http://localhost:3000\"]}"
 
 x-logging: &default-logging

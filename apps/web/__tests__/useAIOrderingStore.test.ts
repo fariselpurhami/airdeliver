@@ -6,6 +6,8 @@
 
 import type * as JestGlobals from '@jest/globals';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
+import { getCheckoutRequestKey } from '@/lib/checkout-request';
+jest.mock('@/lib/checkout-request',()=>({getCheckoutRequestKey:jest.fn(),retireCheckoutRequestKey:jest.fn()}));
 
 type StoreSnapshot = ReturnType<typeof useAIOrderingStore.getState>;
 
@@ -242,4 +244,36 @@ describe('handleSocketMessage', () => {
     expect(state.isLoading).toBe(false);
     expect(state.isProcessing).toBe(false);
   });
+});
+
+describe('checkout HTTP reconciliation',()=>{
+  beforeEach(()=>{
+    jest.mocked(getCheckoutRequestKey).mockResolvedValue('a02cf0a7-67a1-4dcc-96d6-45b7be67d306');
+    useAIOrderingStore.setState({authToken:'real-backend-token'});
+  });
+  it('sends bearer and idempotency headers and accepts a direct handoff without a socket',async()=>{
+    const payment={checkout_request_id:'a02cf0a7-67a1-4dcc-96d6-45b7be67d306',gateway_provider:'stripe',client_secret:'test-secret',order_data:{order_id:7,total:21,items:[],currency:'USD'}};
+    global.fetch=jest.fn<typeof fetch>().mockResolvedValue({ok:true,json:async()=>({status:'ready',payment})} as Response);
+    expect(await useAIOrderingStore.getState()._postCartCommand('/checkout/confirm',{})).toBe(true);
+    const headers=(jest.mocked(global.fetch).mock.calls[0]![1] as RequestInit).headers as Record<string,string>;
+    expect(headers.Authorization).toBe('Bearer real-backend-token');
+    expect(headers['Idempotency-Key']).toBe('a02cf0a7-67a1-4dcc-96d6-45b7be67d306');
+    expect(useAIOrderingStore.getState().paymentDetails).toEqual(payment);
+  });
+  it('keeps an accepted-but-unconfirmed checkout open rather than showing success',async()=>{
+    global.fetch=jest.fn<typeof fetch>().mockResolvedValue({ok:true,json:async()=>({status:'pending',order_id:7})} as Response);
+    expect(await useAIOrderingStore.getState()._postCartCommand('/checkout/confirm',{})).toBe(false);
+  });
+  it('shows refreshed catalog prices even when the socket misses the update',async()=>{
+    global.fetch=jest.fn<typeof fetch>().mockResolvedValue({ok:false,json:async()=>({status:'review_required',cart:{items:[{product_id:7,name:'Shoes',price:'12.50',quantity:2}],total:'25.00'}})} as Response);
+    expect(await useAIOrderingStore.getState()._postCartCommand('/checkout/confirm',{})).toBe(true);
+    expect(useAIOrderingStore.getState().messages.some(m=>m.contentType==='cart_preview')).toBe(true);
+  });
+});
+
+
+it('ignores a delayed payment handoff from a different checkout request',()=>{
+  useAIOrderingStore.setState({activeCheckoutRequestId:'current-request',paymentDetails:null});
+  useAIOrderingStore.getState().addSocketAIMessage({type:'payment_intent',content:{checkout_request_id:'older-request',client_secret:'wrong-order'}});
+  expect(useAIOrderingStore.getState().paymentDetails).toBeNull();
 });

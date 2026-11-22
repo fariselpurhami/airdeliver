@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING, Dict, Any
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, Enum as SAEnum, JSON, Index
+from sqlalchemy import DateTime, Column, Enum as SAEnum, JSON, Index
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime, timezone
 from .enums import NotificationType
@@ -26,7 +26,7 @@ class NotificationBase(SQLModel):
     # Global Standard: Use UTC aware datetime
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        nullable=False
+        sa_column=Column(DateTime(timezone=True), nullable=False)
     )
 
 class Notification(NotificationBase, table=True):

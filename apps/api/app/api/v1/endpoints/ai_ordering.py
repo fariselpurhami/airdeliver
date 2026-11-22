@@ -9,7 +9,7 @@ from typing import Optional, Literal
 
 from typing import AsyncGenerator, List
 import httpx
-from fastapi import APIRouter, Body, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status, Request, Response, Header
 from pydantic import BaseModel, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocketState
@@ -307,17 +307,24 @@ async def checkout_options(
 @limiter.limit("10/minute")
 async def confirm_order(
     request: Request,
+    response: Response,
+    idempotency_key: uuid.UUID = Header(..., alias="Idempotency-Key"),
     payload: ConfirmOrderRequest = Body(...),
     current_user: models.User = Depends(deps.get_current_active_user),
     checkout_service: AICheckoutService = Depends(get_ai_checkout_service),
 ):
-    await checkout_service.handle_confirm_order({
+    result = await checkout_service.handle_confirm_order({
+        "checkout_request_id": str(idempotency_key),
         "user_id": current_user.id,
         "email": current_user.email,
         "shipping_address": payload.shipping_address.model_dump(),
         "payment_provider": payload.payment_provider,
     })
-    return {"status": "accepted"}
+    response.headers["Cache-Control"] = "no-store"
+    result = result or {"status": "rejected"}
+    response.status_code = {"ready": 200, "paid": 200, "pending": 202,
+                            "conflict": 409, "review_required": 409, "reconciliation_required": 409}.get(result["status"], 400)
+    return result
 
 
 @router.post("/checkout/paypal/capture", status_code=status.HTTP_200_OK)

@@ -1,0 +1,54 @@
+# .github/workflows/backend-ci.yml
+
+name: Backend CI
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'apps/api/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: ["main"]
+    paths:
+      - 'apps/api/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg19-bookworm
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: airdeliver_test_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d airdeliver_test_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      TEST_POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@localhost:5432/airdeliver_test_ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: poetry install
+
+      - name: Migrate PostgreSQL 19 and run tests
+        working-directory: apps/api
+        run: poetry run python scripts/verify_postgres_integration.py

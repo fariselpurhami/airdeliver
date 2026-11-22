@@ -144,10 +144,10 @@ def register_middleware(app: FastAPI, settings: CoreSettings) -> None:
     if settings.BACKEND_CORS_ORIGINS:
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+            allow_origins=[str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS],
             allow_credentials=True,
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-            allow_headers=["Authorization", "Content-Type", "Accept", "Origin"],
+            allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "Idempotency-Key", "X-Requested-With"],
         )
 
     @app.middleware("http")
