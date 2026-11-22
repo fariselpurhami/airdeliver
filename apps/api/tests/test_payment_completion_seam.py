@@ -6,13 +6,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.models.enums import OrderStatus
+from app.models.order import Order
 from app.services.payment_completion_service import PaymentCompletionService
 
 
 def _service(order):
     db = AsyncMock()
+    db.add = MagicMock()
     result = MagicMock()
-    result.one_or_none.return_value = order
+    result.scalars.return_value.one_or_none.return_value = order
     db.execute = AsyncMock(return_value=result)
     rabbitmq = AsyncMock()
     cache = AsyncMock()
@@ -20,11 +22,7 @@ def _service(order):
 
 
 def _order(status=OrderStatus.PENDING, total=42.5):
-    o = MagicMock()
-    o.id = 7
-    o.status = status
-    o.total_price = total
-    return o
+    return Order(id=7, user_id=99, status=status, total_price=total)
 
 
 @pytest.mark.asyncio

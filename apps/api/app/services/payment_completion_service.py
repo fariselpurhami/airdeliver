@@ -1,6 +1,7 @@
 # apps/api/app/services/payment_completion_service.py
 
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -23,18 +24,33 @@ class PaymentCompletionService:
     async def finalize_successful_payment(self, order_id: int, user_id: int, transaction_id: str):
         statement = select(Order).where(Order.id == order_id).with_for_update()
         result = await self.db.execute(statement)
-        order = result.one_or_none()
+        order = result.scalars().one_or_none()
 
         if not order:
             logger.error(f"Order {order_id} not found during payment finalization.")
             return
 
-        if order.status in [OrderStatus.PROCESSING, OrderStatus.IN_TRANSIT, OrderStatus.DELIVERED]:
+        if order.user_id != user_id:
+            raise ValueError("Payment owner does not match order owner")
+        if not transaction_id or len(transaction_id) > 255:
+            raise ValueError("Invalid payment transaction identifier")
+        if order.payment_transaction_id and order.payment_transaction_id != transaction_id:
+            raise ValueError("Payment transaction does not match order")
+        if order.is_paid or order.status in {
+            OrderStatus.PROCESSING, OrderStatus.ASSIGNED,
+            OrderStatus.IN_TRANSIT, OrderStatus.DELIVERED,
+        }:
             return
+        if order.status not in {OrderStatus.PENDING, OrderStatus.FAILED}:
+            raise ValueError("Order state requires manual payment reconciliation")
 
         try:
             order.status = OrderStatus.PROCESSING
             order.payment_transaction_id = transaction_id
+            if transaction_id.startswith("pi_"):
+                order.stripe_payment_id = transaction_id
+            order.is_paid = True
+            order.paid_at = datetime.now(timezone.utc)
             self.db.add(order)
             await self.db.commit()
             await self.db.refresh(order)

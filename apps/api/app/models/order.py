@@ -33,6 +33,7 @@ class Order(SQLModel, table=True):
     is_paid: bool = Field(default=False)
     paid_at: Optional[datetime] = Field(default=None)
     stripe_payment_id: Optional[str] = Field(default=None, nullable=True)
+    payment_transaction_id: Optional[str] = Field(default=None, max_length=255, nullable=True)
     
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -7,6 +7,7 @@ import base64
 import hashlib
 import json
 import logging
+import math
 import os
 import random
 import re
@@ -93,8 +94,18 @@ class SearchFilter:
         category = cls._optional_str(value.get("category"))
         
         excluded_ids = value.get("excluded_ids")
-        if excluded_ids is not None and not isinstance(excluded_ids, list):
-            excluded_ids = None
+        if excluded_ids is not None:
+            if not isinstance(excluded_ids, list):
+                raise ValidationError("excluded_ids must be a list of positive integers")
+            normalized_ids = []
+            for item in excluded_ids:
+                if isinstance(item, bool) or not re.fullmatch(r"[0-9]+", str(item)):
+                    raise ValidationError("excluded_ids must contain positive integers")
+                item_id = int(item)
+                if item_id <= 0 or item_id > 9223372036854775807:
+                    raise ValidationError("excluded product ID out of range")
+                normalized_ids.append(item_id)
+            excluded_ids = list(dict.fromkeys(normalized_ids))
         if price_min is not None and price_min < 0:
             raise ValidationError("price_min must be >= 0")
         if price_max is not None and price_max < 0:
@@ -102,7 +113,7 @@ class SearchFilter:
         if price_min is not None and price_max is not None and price_min > price_max:
             raise ValidationError("price_min cannot be greater than price_max")
 
-        return cls(price_min=price_min, price_max=price_max, category=category)
+        return cls(price_min=price_min, price_max=price_max, category=category, excluded_ids=excluded_ids)
 
     @staticmethod
     def _optional_float(value: Any) -> Optional[float]:
@@ -111,7 +122,10 @@ class SearchFilter:
         if isinstance(value, bool):
             raise ValidationError("boolean is not a valid numeric filter")
         try:
-            return float(value)
+            number = float(value)
+            if not math.isfinite(number):
+                raise ValueError("numeric filters must be finite")
+            return number
         except (TypeError, ValueError) as exc:
             raise ValidationError("invalid numeric filter") from exc
 
@@ -695,16 +709,16 @@ class AICommerceEngine:
                 f"essential gear {clean_name_root}",
             ]
 
-            tasks = [
-                self.perform_hybrid_search_pure(db, query, limit=5, filters=search_filter.to_cache_dict())
-                for query in search_queries
-            ]
-
+            # An AsyncSession owns mutable transaction state and cannot be
+            # shared by simultaneous database operations. Keep the three
+            # searches inside one deadline, but use the session serially.
             try:
-                grouped_results = await asyncio.wait_for(
-                    asyncio.gather(*tasks, return_exceptions=False),
-                    timeout=self.limits.bundle_timeout_seconds,
-                )
+                async with asyncio.timeout(self.limits.bundle_timeout_seconds):
+                    grouped_results = []
+                    for query in search_queries:
+                        grouped_results.append(await self.perform_hybrid_search_pure(
+                            db, query, limit=5, filters=search_filter.to_cache_dict()
+                        ))
             except asyncio.TimeoutError:
                 logger.warning("bundle generation timed out", extra={"anchor_id": str(anchor.id)})
                 return await self._get_emergency_fallback(db, anchor_category or clean_name_root, search_filter)
@@ -974,7 +988,7 @@ class AICommerceEngine:
                 cached_ids = await self.cache_client.get_json(cache_key)
                 if cached_ids and isinstance(cached_ids, list):
                     products = await self._fetch_products_from_db_by_ids(db, [int(item) for item in cached_ids])
-                    return products
+                    return self._filter_products(products, filter_obj)[:safe_limit]
             except Exception:
                 logger.warning("search cache read failed", extra={"query": sanitized_query})
 
@@ -1005,11 +1019,12 @@ class AICommerceEngine:
 
         if not sorted_ids:
             logger.info("hybrid search returned no vector/keyword results; using sql fallback", extra={"query": sanitized_query})
-            return await self._fallback_sql_search(db, sanitized_query, safe_limit)
+            return await self._fallback_sql_search(db, sanitized_query, safe_limit, filter_obj)
 
         try:
             products = await self._fetch_products_from_db_by_ids(db, [int(document_id) for document_id in sorted_ids])
 
+            products = self._filter_products(products, filter_obj)
             if self.cache_client and products:
                 try:
                     await self.cache_client.set_json(
@@ -1024,7 +1039,7 @@ class AICommerceEngine:
 
         except Exception:
             logger.exception("failed to fetch ranked products from database", extra={"query": sanitized_query})
-            return await self._fallback_sql_search(db, sanitized_query, safe_limit)
+            return await self._fallback_sql_search(db, sanitized_query, safe_limit, filter_obj)
 
     async def _search_opensearch(
         self,
@@ -1252,7 +1267,20 @@ class AICommerceEngine:
         by_id = {int(product.id): product for product in rows}
         return [by_id[item_id] for item_id in unique_ids if item_id in by_id]
 
-    async def _fallback_sql_search(self, db: AsyncSession, query: str, limit: int = 20) -> List[Product]:
+    @staticmethod
+    def _filter_products(products: Sequence[Product], filters: SearchFilter) -> List[Product]:
+        """Recheck indexed/cache hits against current database catalog facts."""
+        excluded = set(filters.excluded_ids or [])
+        return [product for product in products
+                if product.is_active and product.id not in excluded
+                and (filters.price_min is None or product.price >= filters.price_min)
+                and (filters.price_max is None or product.price <= filters.price_max)
+                and (not filters.category or product.category == filters.category)]
+
+    async def _fallback_sql_search(
+        self, db: AsyncSession, query: str, limit: int = 20,
+        filters: Optional[SearchFilter] = None,
+    ) -> List[Product]:
         try:
             clean_query = _sanitize_query_text(query, self.limits.max_query_length)
         except ValidationError:
@@ -1273,6 +1301,16 @@ class AICommerceEngine:
                 .order_by(col(Product.rating).desc())
                 .limit(limit)
             )
+            filters = filters or SearchFilter()
+            statement = statement.where(Product.is_active.is_(True))
+            if filters.price_min is not None:
+                statement = statement.where(Product.price >= filters.price_min)
+            if filters.price_max is not None:
+                statement = statement.where(Product.price <= filters.price_max)
+            if filters.category:
+                statement = statement.where(Product.category == filters.category)
+            if filters.excluded_ids:
+                statement = statement.where(col(Product.id).notin_(filters.excluded_ids))
             return list((await db.execute(statement)).scalars().all())
         except Exception:
             logger.exception("sql fallback search failed", extra={"query": clean_query, "limit": limit})
