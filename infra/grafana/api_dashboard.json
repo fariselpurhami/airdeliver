@@ -1,7 +1,9 @@
 {
   "__inputs": [],
   "__requires": [],
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
@@ -15,7 +17,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "sum(rate(starlette_requests_total[5m])) by (path)",
+          "expr": "sum(rate(http_requests_total[5m])) by (handler)",
           "legendFormat": "{{path}}",
           "refId": "A"
         }
@@ -27,7 +29,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(starlette_request_duration_seconds_bucket[5m])) by (le, path))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, handler))",
           "legendFormat": "{{path}}",
           "refId": "B"
         }
@@ -39,7 +41,7 @@
       "datasource": "Prometheus",
       "targets": [
         {
-          "expr": "sum(rate(starlette_requests_total{status_code=~\"5..\"}[5m])) by (path)",
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m])) by (handler)",
           "legendFormat": "{{path}}",
           "refId": "C"
         }
@@ -48,7 +50,10 @@
   ],
   "refresh": "10s",
   "title": "airdeliver API Overview",
-  "time": { "from": "now-1h", "to": "now" },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "timezone": "browser",
   "version": 1
 }
