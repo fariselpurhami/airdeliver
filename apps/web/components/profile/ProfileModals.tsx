@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import useSWR from 'swr';
 
 // -----------------------------------------------------------------------------
@@ -55,7 +56,7 @@ const ANIMATION_CONFIG = {
   initial: { opacity: 0, scale: 0.985 },
   animate: { opacity: 1, scale: 1 },
   exit: { opacity: 0, scale: 0.985 },
-  transition: { duration: 0.18, ease: 'easeOut' },
+  transition: { duration: 0.18, ease: 'easeOut' as const },
 };
 
 const ModalWrapper = memo(
@@ -70,7 +71,7 @@ const ModalWrapper = memo(
     isOpen: boolean;
     onClose: () => void;
     title: string;
-    icon?: React.ElementType;
+    icon?: LucideIcon;
     children: React.ReactNode;
     maxWidth?: string;
   }) => {
@@ -270,7 +271,7 @@ export const ViewOrdersModal = memo(
             </div>
           )}
 
-          {data?.orders?.length > 0 && (
+          {(data?.orders?.length ?? 0) > 0 && (
             <div className="w-full overflow-x-auto rounded-xl border border-white/10 bg-white/[0.02]">
               <table className="min-w-full divide-y divide-white/10 text-left">
                 <thead className="bg-black/40 text-xs font-semibold uppercase tracking-[0.16em] text-white/55">
@@ -282,7 +283,7 @@ export const ViewOrdersModal = memo(
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {data.orders.map((order) => (
+                  {(data?.orders ?? []).map((order) => (
                     <OrderRow key={order.id} order={order} />
                   ))}
                 </tbody>

@@ -122,7 +122,7 @@ const extractBrandAndTitle = (product: AIProduct): { brand: string; title: strin
     const words = (product.name || '').trim().split(/\s+/);
     if (words.length > 2) {
         return {
-            brand: words[0].toUpperCase(),
+            brand: words[0]?.toUpperCase() ?? '',
             title: product.name
         };
     }
@@ -1686,7 +1686,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
                                                         onClearCart={actions.clearCart}
                                                         onRestore={actions.restoreCheckout}
                                                         onSave={actions.saveForLater}
-                                                        onCancel={actions.hardCancelOrder}
+                                                        onCancel={() => actions.hardCancelOrder('changed_mind')}
                                                     />
                                                 ))}
                                             </AnimatePresence>

@@ -209,7 +209,7 @@ ProtocolCard.displayName = 'ProtocolCard';
 
 export default function PrivacyPage() {
     const [mode, setMode] = useState<'human' | 'legal'>('human');
-    const [activeSection, setActiveSection] = useState(privacyProtocols[0].id);
+    const [activeSection, setActiveSection] = useState(privacyProtocols[0]?.id ?? '');
     const { scrollYProgress } = useScroll();
     const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
     const [isMounted, setIsMounted] = useState(false);

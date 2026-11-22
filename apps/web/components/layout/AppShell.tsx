@@ -28,7 +28,7 @@ export default function AppShell({ children }: AppShellProps) {
       </main>
       <Footer />
       <AIChatOverlay
-        isVisible={isOverlayVisible}
+        isOpen={isOverlayVisible}
         onClose={() => setOverlayVisible(false)}
       />
       <Chatbot />

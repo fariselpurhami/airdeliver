@@ -15,7 +15,7 @@ const formatPrice = (value: number | string | undefined | null): string => {
 };
 
 // 🛡️ L8 FIX: إيقاف الـ Parallax تماماً على شاشات اللمس (الموبايل) لمنع تسريب الذاكرة
-const useParallax = (ref: React.RefObject<HTMLDivElement>) => {
+const useParallax = (ref: React.RefObject<HTMLDivElement | null>) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const rotateX = useTransform(y, [-100, 100], [5, -5]); 
@@ -47,18 +47,10 @@ const useParallax = (ref: React.RefObject<HTMLDivElement>) => {
   return { rotateX, rotateY };
 };
 
-export interface Product {
-  id: number;
-  name: string;
-  description: string;
-  price: number | string;
-  image_url: string | null;
-  inventory: number;
-  predicted_delivery?: string;
-  trending_status?: string;
-  stock_level?: string;
-  isAIRec?: boolean;
-}
+// Canonical product contract lives in types/index; re-exported here for
+// existing importers (ProductDetailsCard).
+export type { Product } from '@/types';
+import type { Product } from '@/types';
 
 export const ProductCard = ({ product, priority = false, onOpen }: { product: Product, priority?: boolean, onOpen: (product: Product) => void }) => {
   const cardRef = useRef<HTMLDivElement>(null);

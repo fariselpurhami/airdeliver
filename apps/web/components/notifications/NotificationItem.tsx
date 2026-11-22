@@ -12,12 +12,13 @@ import {
     X,
     Clock
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Notification } from '@/types';
 import React from 'react';
 
 type NotificationType = Notification['type'];
 
-const typeConfig: Record<NotificationType | 'default', { icon: React.ElementType; color: string }> = {
+const typeConfig: Record<NotificationType | 'default', { icon: LucideIcon; color: string }> = {
     order_update: { icon: Package, color: 'text-cyan-400' },
     security: { icon: Shield, color: 'text-amber-500' },
     payment: { icon: Banknote, color: 'text-green-400' },

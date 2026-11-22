@@ -12,7 +12,8 @@ const BODY_SCROLL_LOCK_COUNT_ATTR = 'data-body-scroll-lock-count';
 
 function getBody(): HTMLBodyElement | null {
   if (typeof document === 'undefined') return null;
-  return document.body;
+  // lib.dom types document.body as HTMLElement in some versions
+  return document.body as HTMLBodyElement;
 }
 
 export function useBodyScrollLock({

@@ -45,7 +45,8 @@ function isPublicRoute(pathname: string): boolean {
     return true;
   }
   for (let i = 0; i < PUBLIC_PREFIX_ROUTES.length; i++) {
-    if (pathname.startsWith(PUBLIC_PREFIX_ROUTES[i])) {
+    const prefix = PUBLIC_PREFIX_ROUTES[i];
+    if (prefix && pathname.startsWith(prefix)) {
       return true;
     }
   }

@@ -62,7 +62,7 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-function useInViewport<T extends HTMLElement>(): [React.RefObject<T>, boolean] {
+function useInViewport<T extends HTMLElement>(): [React.RefObject<T | null>, boolean] {
   const ref = useRef<T>(null);
   const [inView, setInView] = useState(true);
 
@@ -71,7 +71,7 @@ function useInViewport<T extends HTMLElement>(): [React.RefObject<T>, boolean] {
     if (!node || typeof IntersectionObserver === 'undefined') return;
 
     const observer = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
+      ([entry]) => setInView(entry?.isIntersecting ?? false),
       { threshold: 0 }
     );
     observer.observe(node);

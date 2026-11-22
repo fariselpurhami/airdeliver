@@ -133,8 +133,8 @@ export default async function RootLayout({ children }: RootLayoutProps) {
           <Toaster position="bottom-right" richColors closeButton expand={false} />
         </Providers>
 
-        {/* Bind analytics securely using the strictly extracted Edge nonce */}
-        <Analytics nonce={nonce} />
+        {/* @vercel/analytics does not accept a CSP nonce in this version */}
+        <Analytics />
         <SpeedInsights />
       </body>
     </html>

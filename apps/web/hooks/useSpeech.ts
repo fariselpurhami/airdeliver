@@ -17,7 +17,8 @@ type SpeechRecognitionConstructor = new () => SpeechRecognition;
 declare global {
   interface Window {
     SpeechRecognition: SpeechRecognitionConstructor;
-    webkitSpeechRecognition: SpeechRecognitionConstructor;
+    // another ambient declaration already types this as any; keep them in sync
+    webkitSpeechRecognition: any;
   }
 }
 

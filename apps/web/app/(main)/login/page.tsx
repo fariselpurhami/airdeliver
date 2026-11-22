@@ -44,7 +44,7 @@ interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     error?: string;
 }
 
-const TRANSITION_PREMIUM = [0.16, 1, 0.3, 1];
+const TRANSITION_PREMIUM: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 // ============================================================================
 // --- 1. HIGH-PERFORMANCE 3D BACKGROUND ---
@@ -86,7 +86,7 @@ const ParticleField = memo(({ count, radius, color, size, rotationSpeed }: Parti
         <group ref={groupRef} position={[0, 0, -60]}>
             <points ref={pointsRef} frustumCulled={true}>
                 <bufferGeometry>
-                    <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+                    <bufferAttribute attach="attributes-position" args={[positions, 3]} />
                 </bufferGeometry>
                 <pointsMaterial
                     transparent

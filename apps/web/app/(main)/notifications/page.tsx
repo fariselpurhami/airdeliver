@@ -20,6 +20,7 @@ import {
     Activity,
     Signal
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
@@ -91,7 +92,13 @@ const DynamicNotificationBackground = dynamic(() => Promise.resolve(Notification
 // --- 3. UI COMPONENTS (The Modules) ---
 // ============================================================================
 
-const typeConfig: { [key: string]: { icon: React.ElementType; color: string; bg: string; border: string } } = {
+interface NotificationTypeStyle {
+    icon: LucideIcon;
+    color: string;
+    bg: string;
+    border: string;
+}
+const typeConfig: Record<string, NotificationTypeStyle> & { default: NotificationTypeStyle } = {
     security: { 
         icon: Shield, 
         color: 'text-red-400', 
@@ -450,7 +457,10 @@ export default function NotificationsPage() {
                     ) : !hasData ? (
                         <CinematicEmptyState />
                     ) : (
-                        groups.map(group => grouped[group]?.length > 0 && (
+                        groups.map(group => {
+                            const items = grouped[group];
+                            if (!items || items.length === 0) return null;
+                            return (
                             <motion.div key={group} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                 <div className="flex items-center gap-4 mb-6">
                                     <div className="h-px bg-white/10 flex-grow" />
@@ -458,7 +468,7 @@ export default function NotificationsPage() {
                                     <div className="h-px bg-white/10 flex-grow" />
                                 </div>
                                 <div className="space-y-4">
-                                    {grouped[group].map((n, i) => (
+                                    {items.map((n, i) => (
                                         <NotificationItem 
                                             key={n.id} 
                                             notification={n} 
@@ -469,7 +479,8 @@ export default function NotificationsPage() {
                                     ))}
                                 </div>
                             </motion.div>
-                        ))
+                            );
+                        })
                     )}
                 </motion.div>
             </div>

@@ -9,9 +9,13 @@ import { LazyMotion, domAnimation } from "framer-motion";
 
 export interface ProvidersProps {
   readonly children: ReactNode;
+  /** CSP nonce threaded from the root layout for inline provider scripts. */
+  readonly nonce?: string;
+  /** Reserved for RUM telemetry binding; accepted but not yet consumed. */
+  readonly traceId?: string;
 }
 
-export function Providers({ children }: ProvidersProps) {
+export function Providers({ children, nonce }: ProvidersProps) {
   return (
     <SessionProvider>
       <ThemeProvider 
@@ -19,6 +23,7 @@ export function Providers({ children }: ProvidersProps) {
         defaultTheme="system" 
         enableSystem 
         disableTransitionOnChange
+        nonce={nonce}
       >
         <LazyMotion features={domAnimation}>
           {children}

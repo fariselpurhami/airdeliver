@@ -121,10 +121,10 @@ export const IOSInstallPrompt = memo(function IOSInstallPrompt({ isOpen, onClose
 
       if (event.shiftKey && activeElement === firstNode) {
         event.preventDefault();
-        lastNode.focus();
+        lastNode?.focus();
       } else if (!event.shiftKey && activeElement === lastNode) {
         event.preventDefault();
-        firstNode.focus();
+        firstNode?.focus();
       }
     };
 

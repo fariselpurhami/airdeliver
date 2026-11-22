@@ -124,7 +124,7 @@ interface AIOrderingState {
   // Actions - UI & Cart
   setOverlayVisible: (isVisible: boolean) => void;
   setVoiceMode: (isActive: boolean) => void;
-  addProductById: (product: { id: number; image_url?: string | null; image?: string; [key: string]: unknown }, startElementId: string) => void;
+  addProductById: (product: { id: number; image_url?: string | null; image?: string }, startElementId: string) => void;
   removeFlyItem: (animationId: string) => void;
   removeProductById: (productId: number) => void;
   clearCart: () => void;

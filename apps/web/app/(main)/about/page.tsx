@@ -7,6 +7,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView } from 'framer-motion';
 import { Cpu, Rocket, Leaf, Map, ChevronRight, Target, Zap, Shield, Globe, Users } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import Image from 'next/image';
 import * as THREE from 'three';
 
@@ -46,7 +47,7 @@ const InnovationMonolith = ({
     videoSrc, 
     index 
 }: { 
-    icon: React.ElementType, 
+    icon: LucideIcon, 
     title: string, 
     text: string, 
     videoSrc: string,
@@ -106,7 +107,7 @@ const InnovationMonolith = ({
     );
 };
 
-const StatModule = ({ value, label, icon: Icon }: { value: number; label: string; icon: React.ElementType }) => {
+const StatModule = ({ value, label, icon: Icon }: { value: number; label: string; icon: LucideIcon }) => {
     const ref = useRef<HTMLSpanElement>(null);
     const motionValue = useMotionValue(0);
     const springValue = useSpring(motionValue, { damping: 50, stiffness: 50 });
