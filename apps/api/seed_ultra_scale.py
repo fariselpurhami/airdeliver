@@ -1,6 +1,10 @@
 import asyncio
 import json
 import logging
+import hashlib
+import math
+import os
+import re
 import random
 import signal
 import ssl
@@ -14,11 +18,13 @@ from typing import Any, Final, Protocol, runtime_checkable
 
 from opensearchpy import AsyncOpenSearch, helpers
 from opensearchpy.exceptions import RequestError
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, PositiveInt, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pymilvus import DataType, MilvusClient
-from sentence_transformers import SentenceTransformer
-from sqlalchemy import text
+from sqlalchemy import text, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from app.models.product import Product as DatabaseProduct
+from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -41,7 +47,7 @@ def configure_logging(level: str) -> logging.Logger:
 
 
 def now_naive_utc() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)  # Compatibility name; never strip timezone information.
 
 
 def quantize_price(value: Decimal) -> Decimal:
@@ -59,67 +65,90 @@ def json_log(logger: logging.Logger, level: int, event: str, **fields: Any) -> N
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore', hide_input_in_errors=True)
+    postgres_dsn: str = Field(..., alias='DATABASE_URI', repr=False)
+    app_env: str = Field('development', alias='APP_ENV')
+    allow_production: bool = Field(False, alias='SEED_ALLOW_PRODUCTION')
+    opensearch_host: str = Field('opensearch', alias='OPENSEARCH_HOST')
+    opensearch_port: int = Field(9200, alias='OPENSEARCH_PORT')
+    opensearch_index: str = Field('airdeliver_products', alias='OPENSEARCH_INDEX')
+    opensearch_pass: SecretStr | None = Field(None, alias='OPENSEARCH_PASS')
+    opensearch_user: str | None = Field(None, alias='OPENSEARCH_USER')
+    opensearch_use_ssl: bool = Field(True, alias='OPENSEARCH_USE_SSL')
+    opensearch_verify_certs: bool = Field(True, alias='OPENSEARCH_VERIFY_CERTS')
+    opensearch_bulk_chunk_size: PositiveInt = Field(64, alias='OPENSEARCH_BULK_CHUNK_SIZE')
+    opensearch_bulk_max_chunk_bytes: PositiveInt = Field(2_097_152, alias='OPENSEARCH_BULK_MAX_CHUNK_BYTES')
+    milvus_uri: str = Field('http://milvus:19530', alias='MILVUS_URI')
+    milvus_token: SecretStr | None = Field(None, alias='MILVUS_TOKEN')
+    milvus_collection: str = Field(PRODUCT_TEXT_COLLECTION, alias='MILVUS_COLLECTION')
+    embedding_model: str = Field(PRODUCT_TEXT_MODEL_NAME, alias='EMBEDDING_MODEL')
+    embedding_revision: str | None = Field(None, validation_alias=AliasChoices('SEED_EMBEDDING_REVISION','PRODUCT_TEXT_MODEL_REVISION'))
+    embedding_dimension: PositiveInt = Field(PRODUCT_TEXT_MODEL_DIMENSION, alias='SEED_EMBEDDING_DIMENSION')
+    embedding_max_seq_length: int = Field(256, ge=32, le=8192, alias='SEED_EMBEDDING_MAX_SEQ_LENGTH')
+    embedding_threads: int = Field(2, ge=1, le=16, alias='SEED_EMBEDDING_THREADS')
+    embedding_encode_batch_size: int = Field(1, ge=1, le=32, alias='EMBEDDING_ENCODE_BATCH_SIZE')
+    batch_size: int = Field(16, ge=1, le=256, validation_alias=AliasChoices('SEED_BATCH_SIZE','BATCH_SIZE'))
+    target_count: int = Field(1000, ge=1, le=10_000_000, validation_alias=AliasChoices('SEED_TARGET_COUNT','TARGET_COUNT'))
+    random_seed: int = Field(20260514, validation_alias=AliasChoices('SEED_RANDOM_SEED','RANDOM_SEED'))
+    log_level: str = Field('INFO', alias='LOG_LEVEL')
+    postgres_pool_size: int = Field(2, ge=1, le=8, alias='POSTGRES_POOL_SIZE')
+    postgres_max_overflow: int = Field(0, ge=0, le=8, alias='POSTGRES_MAX_OVERFLOW')
+    retry_attempts: PositiveInt = Field(3, alias='RETRY_ATTEMPTS')
+    retry_min_seconds: PositiveInt = Field(1, alias='RETRY_MIN_SECONDS')
+    retry_max_seconds: PositiveInt = Field(8, alias='RETRY_MAX_SECONDS')
+    milvus_enabled: bool = Field(True, alias='MILVUS_ENABLED')
+    opensearch_enabled: bool = Field(True, alias='OPENSEARCH_ENABLED')
+    fail_on_milvus_error: bool = Field(True, alias='FAIL_ON_MILVUS_ERROR')
+    fail_on_opensearch_error: bool = Field(True, alias='FAIL_ON_OPENSEARCH_ERROR')
 
-    postgres_dsn: str = Field(..., alias="DATABASE_URI")
-    opensearch_host: str = Field(..., alias="OPENSEARCH_HOST")
-    opensearch_port: int = Field(9200, alias="OPENSEARCH_PORT")
-    opensearch_index: str = Field("airdeliver_products", alias="OPENSEARCH_INDEX")
-    opensearch_pass: SecretStr | None = Field(default=None, alias="OPENSEARCH_PASS")
-    opensearch_user: str | None = Field(default=None, alias="OPENSEARCH_USER")
-    opensearch_use_ssl: bool = Field(True, alias="OPENSEARCH_USE_SSL")
-    opensearch_verify_certs: bool = Field(True, alias="OPENSEARCH_VERIFY_CERTS")
-    opensearch_bulk_chunk_size: PositiveInt = Field(100, alias="OPENSEARCH_BULK_CHUNK_SIZE")
-    opensearch_bulk_max_chunk_bytes: PositiveInt = Field(2_097_152, alias="OPENSEARCH_BULK_MAX_CHUNK_BYTES")
-    milvus_uri: str = Field(..., alias="MILVUS_URI")
-    milvus_token: SecretStr | None = Field(default=None, alias="MILVUS_TOKEN")
-    milvus_collection: str = Field("airdeliver_products", alias="MILVUS_COLLECTION")
-    embedding_model: str = Field("Alibaba-NLP/gte-Qwen2-1.5B-instruct", alias="EMBEDDING_MODEL")
-    batch_size: PositiveInt = Field(32, alias="BATCH_SIZE")
-    target_count: PositiveInt = Field(1000, alias="TARGET_COUNT")
-    random_seed: int = Field(20260514, alias="RANDOM_SEED")
-    log_level: str = Field("INFO", alias="LOG_LEVEL")
-    embedding_encode_batch_size: PositiveInt = Field(16, alias="EMBEDDING_ENCODE_BATCH_SIZE")
-    postgres_pool_size: PositiveInt = Field(20, alias="POSTGRES_POOL_SIZE")
-    postgres_max_overflow: PositiveInt = Field(10, alias="POSTGRES_MAX_OVERFLOW")
-    retry_attempts: PositiveInt = Field(5, alias="RETRY_ATTEMPTS")
-    retry_min_seconds: PositiveInt = Field(1, alias="RETRY_MIN_SECONDS")
-    retry_max_seconds: PositiveInt = Field(16, alias="RETRY_MAX_SECONDS")
-    milvus_enabled: bool = Field(True, alias="MILVUS_ENABLED")
-    opensearch_enabled: bool = Field(True, alias="OPENSEARCH_ENABLED")
-    fail_on_milvus_error: bool = Field(False, alias="FAIL_ON_MILVUS_ERROR")
-    fail_on_opensearch_error: bool = Field(True, alias="FAIL_ON_OPENSEARCH_ERROR")
+    @field_validator('embedding_revision', mode='before')
+    @classmethod
+    def revision_or_none(cls, value):
+        if not value:
+            return None
+        if not re.fullmatch(r'[a-fA-F0-9]{40}',value):
+            raise ValueError('Pin the embedding revision to a 40-character commit SHA')
+        return value
 
-    @model_validator(mode="after")
-    def validate_opensearch_auth(self) -> "Settings":
-        if (self.opensearch_user is None) ^ (self.opensearch_pass is None):
-            raise ValueError("OPENSEARCH_USER and OPENSEARCH_PASS must be provided together")
+    @field_validator('postgres_dsn')
+    @classmethod
+    def async_postgres_only(cls, value):
+        if not value.startswith('postgresql+asyncpg://'):
+            raise ValueError('DATABASE_URI must use postgresql+asyncpg')
+        return value
+
+    @model_validator(mode='after')
+    def validate_configuration(self):
+        if self.opensearch_enabled and bool(self.opensearch_user) != bool(self.opensearch_pass and self.opensearch_pass.get_secret_value()):
+            raise ValueError('OPENSEARCH_USER and OPENSEARCH_PASS must be provided together')
+        if self.app_env.lower() in {'production','prod'} and not self.allow_production:
+            raise ValueError('Demo seeding is disabled in production without SEED_ALLOW_PRODUCTION=true')
+        if self.embedding_model==PRODUCT_TEXT_MODEL_NAME and self.embedding_revision is None:
+            self.embedding_revision=DEFAULT_PRODUCT_TEXT_MODEL_REVISION
+        if self.milvus_enabled and self.milvus_collection==PRODUCT_TEXT_COLLECTION:
+            if self.embedding_model!='Alibaba-NLP/gte-Qwen2-1.5B-instruct' or self.embedding_dimension!=1536:
+                raise ValueError('The API product collection requires its GTE model and 1536 dimensions; use a separate collection for experiments')
+        if self.retry_max_seconds < self.retry_min_seconds:
+            raise ValueError('Retry maximum must be at least the minimum')
         return self
 
-    @field_validator("opensearch_index", "milvus_collection")
+    @field_validator('opensearch_index','milvus_collection','embedding_model','milvus_uri','opensearch_host')
     @classmethod
-    def validate_resource_name(cls, value: str) -> str:
-        if not (normalized := value.strip()):
-            raise ValueError("Resource name must not be empty")
-        return normalized
-
-    @field_validator("postgres_dsn", "milvus_uri", "embedding_model", "opensearch_host")
-    @classmethod
-    def validate_non_empty(cls, value: str) -> str:
-        if not (normalized := value.strip()):
-            raise ValueError("Value must not be empty")
-        return normalized
+    def non_empty(cls,value):
+        if not value.strip():
+            raise ValueError('Resource names and endpoints must not be empty')
+        return value.strip()
 
 
 class Product(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: int
-    sku: str
-    name: str
+    sku: str = Field(max_length=128)
+    name: str = Field(max_length=255)
     description: str
     price: Decimal
-    category: str
+    category: str = Field(max_length=128)
     inventory: int
     image: str
     rating: float
@@ -134,7 +163,7 @@ class Product(BaseModel):
     @classmethod
     def validate_currency(cls, value: str) -> str:
         normalized = value.strip().upper()
-        if len(normalized) != 3:
+        if len(normalized) != 3 or not normalized.isascii() or not normalized.isalpha():
             raise ValueError("Currency must be a 3-letter ISO code")
         return normalized
 
@@ -148,7 +177,7 @@ class Product(BaseModel):
     @field_validator("price")
     @classmethod
     def validate_price(cls, value: Decimal) -> Decimal:
-        if value <= 0:
+        if not value.is_finite() or value <= 0:
             raise ValueError("Price must be positive")
         return quantize_price(value)
 
@@ -180,8 +209,8 @@ class ProductVector(BaseModel):
     @field_validator("vector")
     @classmethod
     def validate_vector(cls, value: list[float]) -> list[float]:
-        if not value:
-            raise ValueError("Vector must not be empty")
+        if not value or not all(math.isfinite(x) for x in value) or sum(x*x for x in value) == 0:
+            raise ValueError("Vector must be finite, non-empty and nonzero")
         return value
 
 
@@ -332,7 +361,8 @@ class RetryPolicy:
 
 class ProductGenerator:
     def __init__(self, random_seed: int) -> None:
-        self._rng = random.Random(random_seed)
+        self._random_seed = random_seed
+        self._namespace = hashlib.sha256(str(random_seed).encode()).hexdigest()[:16]
         self._categories = tuple(CATALOG_DATA.keys())
         self._attr_mapping = {
             "Electronics": "Configuration",
@@ -354,35 +384,35 @@ class ProductGenerator:
             return []
 
         end_id = min(start_id + batch_size - 1, limit)
-        created_at = now_naive_utc()
+        created_at = datetime(2026, 1, 1, tzinfo=UTC)  # Explicit, deterministic demo timestamp.
         products: list[Product] = []
 
         for product_id in range(start_id, end_id + 1):
-            category = self._rng.choice(self._categories)
+            rng = random.Random(f"{self._random_seed}:{product_id}")
+            category = rng.choice(self._categories)
             category_data = CATALOG_DATA[category]
             
             # Entity-level attribute resolution to prevent hallucinations
-            template = self._rng.choice(category_data.products)
-            spec = self._rng.choice(template.specs)
-            color = self._rng.choice(template.colors)
+            template = rng.choice(category_data.products)
+            spec = rng.choice(template.specs)
+            color = rng.choice(template.colors)
 
             attr_key = self._attr_mapping.get(category, "Specification")
             attributes = {"Color/Variant": color, attr_key: spec}
 
             premium_tokens = {"1TB", "2TB", "4TB", "Max", "Pro", "18K", "Diamond", "Extrait"}
             premium_multiplier = Decimal("1.25") if any(token in spec or token in template.name for token in premium_tokens) else Decimal("1.00")
-            noise = Decimal(str(round(self._rng.uniform(0.98, 1.02), 4)))
+            noise = Decimal(str(round(rng.uniform(0.98, 1.02), 4)))
             final_price = quantize_price(Decimal(template.base_price) * premium_multiplier * noise)
 
             description = (
-                f"Experience the pinnacle of {category.replace('_', ' ').title()} craftsmanship with the {template.name}. "
-                f"Featuring a stunning {color} finish and configured with {spec}. "
-                "Engineered for uncompromising performance and timeless aesthetic appeal. "
-                "100% authentic global stock."
+                f"Demo catalog item: {template.name}. Sample variant: {color}; {spec}. "
+                "Price, stock, rating and specifications are synthetic test data, not a merchant offer. "
+                "The image is illustrative, not verified product photography."
             )
-            
-            sku = f"GLB-{category[:3].upper()}-{product_id:08d}"
-            tags = [category.replace("_", " "), "Premium", template.name.split()[0], "Official"]
+            sku = f"ADL-DEMO-v1-{self._namespace}-{product_id:08d}"
+            attributes.update({'_seed_dataset':'airdeliver-demo-v1', '_seed_ordinal':str(product_id), '_seed_random':str(self._random_seed)})
+            tags = [category.replace('_',' '), 'Demo', template.name.split()[0]]
 
             products.append(
                 Product(
@@ -392,9 +422,9 @@ class ProductGenerator:
                     description=description,
                     price=final_price,
                     category=category,
-                    inventory=self._rng.randint(5, 500),
+                    inventory=rng.randint(5, 500),
                     image=template.image,
-                    rating=round(self._rng.uniform(4.0, 5.0), 1),
+                    rating=round(rng.uniform(4.0, 5.0), 1),
                     attributes=attributes,
                     tags=tags,
                     created_at=created_at,
@@ -423,41 +453,23 @@ class PostgresRepository:
             max_overflow=settings.postgres_max_overflow,
             pool_pre_ping=True,
             future=True,
+            hide_parameters=True,
         )
         self._session_factory = async_sessionmaker(bind=self._engine, class_=AsyncSession, expire_on_commit=False)
 
     async def initialize_schema(self) -> None:
-        async def operation() -> None:
-            async with self._engine.begin() as connection:
-                await connection.execute(
-                    text(
-                        """
-                        CREATE TABLE IF NOT EXISTS products (
-                            id BIGINT PRIMARY KEY,
-                            sku VARCHAR(255) UNIQUE NOT NULL,
-                            name VARCHAR(512) NOT NULL,
-                            description TEXT NOT NULL,
-                            price NUMERIC(12, 2) NOT NULL,
-                            category VARCHAR(255) NOT NULL,
-                            inventory INTEGER NOT NULL,
-                            image VARCHAR(2048) NOT NULL,
-                            rating NUMERIC(3, 1) NOT NULL,
-                            attributes JSONB NOT NULL,
-                            tags JSONB NOT NULL,
-                            created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-                            updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-                            currency VARCHAR(3) NOT NULL,
-                            is_active BOOLEAN NOT NULL
-                        );
-                        """
-                    )
-                )
-                await connection.execute(text("CREATE INDEX IF NOT EXISTS idx_products_category ON products (category);"))
-                await connection.execute(text("CREATE INDEX IF NOT EXISTS idx_products_sku ON products (sku);"))
-                await connection.execute(text("CREATE INDEX IF NOT EXISTS idx_products_attributes ON products USING GIN (attributes);"))
-
-        await self._retry.run(operation, "postgres_initialize_schema")
-        json_log(self._logger, logging.INFO, "postgres_schema_initialized")
+        # Migrations own the schema. Seeding must not create a parallel catalog.
+        async with self._engine.connect() as connection:
+            migrated = (await connection.execute(text("SELECT to_regclass('alembic_version')"))).scalar_one()
+            columns = (await connection.execute(text("SELECT column_name,data_type,column_default FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='products'"))).mappings().all()
+            by_name = {row['column_name']:row for row in columns}
+            if not migrated or set(Product.model_fields)-set(by_name):
+                raise RuntimeError('Run alembic upgrade head before seeding; the migrated products schema is required')
+            if any(by_name[name]['data_type']!='timestamp with time zone' for name in ('created_at','updated_at')):
+                raise RuntimeError('Run the catalog timestamp migration before seeding; do not guess historical timezone')
+            if not by_name['id']['column_default']:
+                raise RuntimeError('The migrated products.id database-generated sequence is required')
+        json_log(self._logger,logging.INFO,'postgres_schema_verified')
 
     async def get_max_id(self) -> int | None:
         async def operation() -> int | None:
@@ -469,38 +481,30 @@ class PostgresRepository:
         return await self._retry.run(operation, "postgres_get_max_id")
 
     async def insert_batch(self, products: Sequence[Product]) -> int:
-        if not products:
-            return 0
-
-        async def operation() -> int:
-            payload = []
-            for product in products:
-                item = product.model_dump()
-                item["tags"] = json.dumps(item["tags"], ensure_ascii=False)
-                item["attributes"] = json.dumps(item["attributes"], ensure_ascii=False)
-                payload.append(item)
-
-            statement = text(
-                """
-                INSERT INTO products (
-                    id, sku, name, description, price, category, inventory,
-                    image, rating, attributes, tags, created_at, updated_at, currency, is_active
-                ) VALUES (
-                    :id, :sku, :name, :description, :price, :category, :inventory,
-                    :image, :rating, CAST(:attributes AS JSONB), CAST(:tags AS JSONB), :created_at, :updated_at, :currency, :is_active
-                )
-                ON CONFLICT (id) DO NOTHING
-                """
-            )
-
-            async with self._session_factory() as session:
-                result = await session.execute(statement, payload)
-                await session.commit()
-                return result.rowcount or 0
-
-        inserted = await self._retry.run(operation, "postgres_insert_batch")
-        json_log(self._logger, logging.INFO, "postgres_batch_inserted", requested=len(products), inserted=inserted)
+        _, inserted = await self.persist_batch(products)
         return inserted
+
+    async def persist_batch(self, products: Sequence[Product]) -> tuple[list[Product], int]:
+        if not products:
+            return [], 0
+        skus = [item.sku for item in products]
+        if len(skus)!=len(set(skus)):
+            raise ValueError('Duplicate SKUs within one batch')
+        payload = [item.model_dump(exclude={'id'}) for item in products]
+        table = DatabaseProduct.__table__
+        async def operation():
+            async with self._session_factory() as session:
+                statement = pg_insert(table).values(payload).on_conflict_do_nothing(index_elements=['sku']).returning(table.c.id)
+                inserted = len((await session.execute(statement)).scalars().all())
+                rows = (await session.execute(select(table).where(table.c.sku.in_(skus)))).mappings().all()
+                actual = {row['sku']:Product.model_validate(dict(row)) for row in rows}
+                if len(actual)!=len(skus):
+                    raise RuntimeError('The database did not return every requested catalog SKU')
+                await session.commit()
+                return [actual[sku] for sku in skus], inserted
+        actual, inserted = await self._retry.run(operation,'postgres_persist_batch')
+        json_log(self._logger,logging.INFO,'postgres_batch_persisted',requested=len(products),inserted=inserted,existing=len(products)-inserted)
+        return actual, inserted
 
     async def close(self) -> None:
         await self._engine.dispose()
@@ -516,6 +520,8 @@ class MilvusRepository:
         self._token = settings.milvus_token.get_secret_value() if settings.milvus_token else None
         self._client: MilvusClient | None = None
         self._collection_name = settings.milvus_collection
+        self._model_name = settings.embedding_model
+        self._model_revision = settings.embedding_revision
         self._dimension = 0
 
     async def _ensure_client(self) -> MilvusClient:
@@ -546,16 +552,25 @@ class MilvusRepository:
 
             def sync_init() -> None:
                 has_collection = client.has_collection(self._collection_name)
-                if has_collection and drop_existing:
-                    client.drop_collection(self._collection_name)
-                    has_collection = False
+                if drop_existing:
+                    raise ValueError('Destructive collection resets are disabled; choose a new collection explicitly')
+                if has_collection:
+                    description = client.describe_collection(self._collection_name)
+                    fields = {f['name']:f for f in description.get('fields',[])}
+                    if int(fields.get('vector',{}).get('params',{}).get('dim',0))!=dimension:
+                        raise ValueError('Existing Milvus collection dimension differs from the embedding model; no collection was dropped')
+                    required={'id','vector','price','rating','category'}
+                    if not required.issubset(fields):
+                        raise ValueError('Existing Milvus collection is not an API product schema')
+                    if 'attributes' not in fields and not description.get('enable_dynamic_field',False):
+                        raise ValueError('Milvus needs an attributes field or dynamic fields for product metadata')
                 if not has_collection:
-                    schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=False)
+                    schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=True)
                     schema.add_field("id", DataType.INT64, is_primary=True)
                     schema.add_field("vector", DataType.FLOAT_VECTOR, dim=self._dimension)
-                    schema.add_field("price", DataType.DOUBLE)
-                    schema.add_field("rating", DataType.DOUBLE)
-                    schema.add_field("category", DataType.VARCHAR, max_length=255)
+                    schema.add_field("price", DataType.FLOAT)
+                    schema.add_field("rating", DataType.FLOAT)
+                    schema.add_field("category", DataType.VARCHAR, max_length=128)
                     schema.add_field("attributes", DataType.JSON)
                     index_params = client.prepare_index_params()
                     index_params.add_index(field_name="vector", metric_type="COSINE", index_type="AUTOINDEX")
@@ -567,7 +582,13 @@ class MilvusRepository:
         json_log(self._logger, logging.INFO, "milvus_schema_initialized", dimension=dimension, collection=self._collection_name)
 
     async def insert_batch(self, products: Sequence[Product], vectors: Sequence[ProductVector]) -> int:
-        if not self._enabled or not vectors:
+        if not self._enabled:
+            return 0
+        if len(products)!=len(vectors) or any(product.id!=vector.product_id for product,vector in zip(products,vectors)):
+            raise ValueError('Product/vector identity mismatch')
+        if any(len(vector.vector)!=self._dimension for vector in vectors) and self._dimension:
+            raise ValueError('Milvus vector dimension mismatch')
+        if not vectors:
             return 0
 
         async def operation() -> int:
@@ -579,11 +600,13 @@ class MilvusRepository:
                     "price": vector.price,
                     "rating": vector.rating,
                     "category": vector.category,
-                    "attributes": vector.attributes,
+                    "attributes": {**vector.attributes, '_embedding_model':self._model_name, '_embedding_revision':self._model_revision or 'unpinned'},
                 }
                 for vector in vectors
             ]
-            await asyncio.to_thread(client.insert, collection_name=self._collection_name, data=data)
+            result = await asyncio.to_thread(client.upsert, collection_name=self._collection_name, data=data)
+            if int(result.get('upsert_count',-1))!=len(vectors):
+                raise RuntimeError('Milvus did not confirm every requested upsert')
             return len(vectors)
 
         inserted = await self._retry.run(operation, "milvus_insert_batch")
@@ -591,8 +614,10 @@ class MilvusRepository:
         return inserted
 
     async def close(self) -> None:
-        self._client = None
-        json_log(self._logger, logging.INFO, "milvus_closed")
+        if self._client is not None:
+            await asyncio.to_thread(self._client.close)
+            self._client = None
+        json_log(self._logger,logging.INFO,'milvus_closed')
 
 
 class OpenSearchRepository:
@@ -627,7 +652,7 @@ class OpenSearchRepository:
         else:
             kwargs["use_ssl"] = False
 
-        self._client = AsyncOpenSearch(**kwargs)
+        self._client = AsyncOpenSearch(**kwargs) if self._enabled else None
 
     def _base_mappings(self) -> dict[str, Any]:
         return {
@@ -689,7 +714,7 @@ class OpenSearchRepository:
 
         async def operation() -> None:
             if drop_existing:
-                await self._client.indices.delete(index=self._index_name, ignore=[400, 404])
+                raise ValueError("Destructive index resets are disabled; choose a new index explicitly")
 
             exists = await self._client.indices.exists(index=self._index_name)
             if exists:
@@ -703,6 +728,8 @@ class OpenSearchRepository:
                     self._vector_mode = "dense_vector"
                 else:
                     self._vector_mode = "source_only"
+                if vector_field and int(vector_field.get('dimension',vector_field.get('dims',0)))!=dimension:
+                    raise ValueError('Existing OpenSearch vector dimension differs from the embedding model; no index was dropped')
                 return
 
             try:
@@ -729,8 +756,8 @@ class OpenSearchRepository:
     async def insert_batch(self, products: Sequence[Product], vectors: Sequence[ProductVector]) -> int:
         if not self._enabled or not products:
             return 0
-        if len(products) != len(vectors):
-            raise ValueError("Products and vectors length mismatch")
+        if len(products) != len(vectors) or any(product.id!=vector.product_id for product,vector in zip(products,vectors)):
+            raise ValueError("Products and vectors length or identity mismatch")
         if self._vector_mode == "unknown":
             raise RuntimeError("OpenSearch schema must be initialized before insert")
 
@@ -767,6 +794,8 @@ class OpenSearchRepository:
                 raise_on_error=True,
                 refresh=False,
             )
+            if int(success_count)!=len(products):
+                raise RuntimeError('OpenSearch did not confirm every requested product')
             return int(success_count)
 
         inserted = await self._retry.run(operation, "opensearch_insert_batch")
@@ -774,7 +803,8 @@ class OpenSearchRepository:
         return inserted
 
     async def close(self) -> None:
-        await self._client.close()
+        if self._client is not None:
+            await self._client.close()
         json_log(self._logger, logging.INFO, "opensearch_closed")
 
 
@@ -782,8 +812,15 @@ class EmbeddingService:
     def __init__(self, settings: Settings, logger: logging.Logger) -> None:
         self._logger = logger
         self._encode_batch_size = settings.embedding_encode_batch_size
-        self._model = SentenceTransformer(settings.embedding_model, device="cpu", trust_remote_code=False)
+        import torch
+        from sentence_transformers import SentenceTransformer
+        torch.set_num_threads(settings.embedding_threads)
+        self._model = SentenceTransformer(settings.embedding_model, revision=settings.embedding_revision, device='cpu', trust_remote_code=False)
+        self._model.max_seq_length = settings.embedding_max_seq_length
         self._dimension = int(self._model.get_embedding_dimension())
+        if self._dimension!=settings.embedding_dimension:
+            raise ValueError('Embedding model dimension does not match SEED_EMBEDDING_DIMENSION')
+        self._model.eval()
         if self._dimension <= 0:
             raise ValueError("Embedding dimension must be positive")
         json_log(self._logger, logging.INFO, "embedding_model_loaded", model=settings.embedding_model, dimension=self._dimension)
@@ -809,13 +846,13 @@ class EmbeddingService:
             return [row.astype(float).tolist() for row in embeddings]
 
         vectors = await asyncio.to_thread(encode)
-        if len(vectors) != len(products):
+        if len(vectors) != len(products) or any(len(v)!=self._dimension or not all(math.isfinite(x) for x in v) or sum(x*x for x in v)==0 for v in vectors):
             raise RuntimeError("Embedding service returned invalid vector count")
         return vectors
 
     @staticmethod
     def _compose_text(product: Product) -> str:
-        attr_text = " ".join(f"{k}: {v}" for k, v in product.attributes.items())
+        attr_text = " ".join(f"{k}: {v}" for k, v in product.attributes.items() if not k.startswith("_seed_"))
         return f"{product.name} {attr_text} {product.description} {product.category} {product.currency} {' '.join(product.tags)}"
 
 
@@ -842,70 +879,55 @@ class SeederService:
     def stop(self) -> None:
         self._is_running = False
 
-    async def run(self) -> None:
+    async def run(self) -> dict:
         await self._postgres.initialize_schema()
-
-        max_id = await self._postgres.get_max_id()
-        start_id = (max_id or 0) + 1
-        fresh_start = start_id == 1
-
-        await self._initialize_indexes(fresh_start)
-
-        if start_id > self._settings.target_count:
-            json_log(self._logger, logging.INFO, "seeding_skipped", start_id=start_id, target_count=self._settings.target_count, reason="target_already_reached")
-            return
-
-        current_id = start_id
-        total_generated = 0
-
-        while current_id <= self._settings.target_count and self._is_running:
-            products = self._generator.generate_batch(current_id, self._settings.batch_size, self._settings.target_count)
-            if not products:
-                break
-
-            embeddings = await self._embedding.embed_products(products)
-            vectors = self._build_product_vectors(products, embeddings)
-
-            try:
-                postgres_result, milvus_result, opensearch_result = await asyncio.gather(
-                    self._postgres.insert_batch(products),
-                    self._run_optional_sink(self._milvus.insert_batch(products, vectors), "milvus", self._settings.fail_on_milvus_error),
-                    self._run_optional_sink(self._opensearch.insert_batch(products, vectors), "opensearch", self._settings.fail_on_opensearch_error),
-                    return_exceptions=False,
-                )
-            except asyncio.CancelledError:
-                json_log(self._logger, logging.WARNING, "seeding_cancelled")
-                raise
-
-            current_id += len(products)
-            total_generated += len(products)
-
-            json_log(
-                self._logger,
-                logging.INFO,
-                "seeding_progress",
-                batch_size=len(products),
-                postgres_inserted=postgres_result,
-                milvus_status=milvus_result,
-                opensearch_status=opensearch_result,
-                next_id=current_id,
-                total_generated=total_generated,
-                target_count=self._settings.target_count,
-            )
-
-        json_log(self._logger, logging.INFO, "seeding_completed", total_generated=total_generated, final_target=self._settings.target_count)
+        use_vectors = self._settings.milvus_enabled or self._settings.opensearch_enabled
+        self._initialization_degraded = False
+        if use_vectors:
+            await self._initialize_indexes(False)
+        inserted = generated = 0
+        degraded = self._initialization_degraded
+        # Stable SKUs, not MAX(id), identify this demo dataset. Replaying every SKU
+        # repairs indexes after a prior interruption without replacing catalog rows.
+        for current_id in range(1,self._settings.target_count+1,self._settings.batch_size):
+            if not self._is_running:
+                raise asyncio.CancelledError('Demo seeding interrupted; rerun to reconcile indexes')
+            candidates = self._generator.generate_batch(current_id,self._settings.batch_size,self._settings.target_count)
+            products, new_rows = await self._postgres.persist_batch(candidates)
+            inserted += new_rows
+            vectors=[]
+            if use_vectors:
+                embeddings=await self._embedding.embed_products(products)
+                vectors=self._build_product_vectors(products,embeddings)
+            statuses={}
+            for name,sink,enabled,fail_hard in (
+                ('milvus',self._milvus,self._settings.milvus_enabled,self._settings.fail_on_milvus_error),
+                ('opensearch',self._opensearch,self._settings.opensearch_enabled,self._settings.fail_on_opensearch_error)):
+                statuses[name]=await self._run_optional_sink(sink.insert_batch(products,vectors),name,fail_hard) if enabled else 'disabled'
+                if statuses[name]=='degraded':
+                    degraded=True
+            generated += len(products)
+            json_log(self._logger,logging.INFO,'seeding_progress',processed=generated,inserted=inserted,target=self._settings.target_count,**statuses)
+        summary={'status':'degraded' if degraded else 'completed','processed':generated,'inserted':inserted,'target':self._settings.target_count,
+                 'milvus':'enabled' if self._settings.milvus_enabled else 'disabled','opensearch':'enabled' if self._settings.opensearch_enabled else 'disabled'}
+        json_log(self._logger,logging.INFO if not degraded else logging.ERROR,'seeding_completed' if not degraded else 'seeding_incomplete',**summary)
+        if degraded:
+            raise RuntimeError('One or more configured indexes failed; rerun to reconcile persisted products')
+        return summary
 
     async def _initialize_indexes(self, fresh_start: bool) -> None:
-        await self._run_optional_sink(
-            self._milvus.initialize_schema(self._embedding.dimension, drop_existing=fresh_start),
-            "milvus",
-            self._settings.fail_on_milvus_error,
-        )
-        await self._run_optional_sink(
-            self._opensearch.initialize_schema(self._embedding.dimension, drop_existing=fresh_start),
-            "opensearch",
-            self._settings.fail_on_opensearch_error,
-        )
+        if self._settings.milvus_enabled:
+            status = await self._run_optional_sink(
+                self._milvus.initialize_schema(self._embedding.dimension, drop_existing=False),
+                "milvus", self._settings.fail_on_milvus_error,
+            )
+            self._initialization_degraded |= status=='degraded'
+        if self._settings.opensearch_enabled:
+            status = await self._run_optional_sink(
+                self._opensearch.initialize_schema(self._embedding.dimension, drop_existing=False),
+                "opensearch", self._settings.fail_on_opensearch_error,
+            )
+            self._initialization_degraded |= status=='degraded'
 
     async def _run_optional_sink(self, operation: Any, sink_name: str, fail_hard: bool) -> str | int:
         try:
@@ -913,13 +935,17 @@ class SeederService:
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            json_log(self._logger, logging.ERROR, "sink_operation_failed", sink=sink_name, error=type(exc).__name__, message=str(exc))
+            json_log(self._logger, logging.ERROR, "sink_operation_failed", sink=sink_name, error=type(exc).__name__)
             if fail_hard:
                 raise
             return "degraded"
 
     @staticmethod
     def _build_product_vectors(products: Sequence[Product], embeddings: Sequence[list[float]]) -> list[ProductVector]:
+        if len(products)!=len(embeddings):
+            raise ValueError("Products and embeddings length mismatch")
+        if len({len(v) for v in embeddings})>1:
+            raise ValueError("Mixed embedding dimensions")
         return [
             ProductVector(
                 product_id=product.id,
@@ -947,7 +973,8 @@ async def application_context(settings: Settings) -> AsyncGenerator[SeederServic
         stack.push_async_callback(milvus.close)
         stack.push_async_callback(opensearch.close)
 
-        embedding = EmbeddingService(settings, logger)
+        await postgres.initialize_schema()
+        embedding = EmbeddingService(settings, logger) if (settings.milvus_enabled or settings.opensearch_enabled) else None
         generator = ProductGenerator(settings.random_seed)
         
         service = SeederService(

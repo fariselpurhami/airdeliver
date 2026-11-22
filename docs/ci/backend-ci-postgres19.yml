@@ -70,3 +70,10 @@ jobs:
           TEST_PG_BACKUP_IMAGE: airdeliver-postgres-backup:ci
           AIRDELIVER_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: poetry run python scripts/verify_postgres_integration.py
+
+      - name: Verify seeder with real search services and learned embeddings
+        working-directory: apps/api
+        timeout-minutes: 10
+        run: |
+          sudo sysctl -w vm.max_map_count=262144
+          poetry run python scripts/verify_seed_search_integration.py

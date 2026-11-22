@@ -1,6 +1,15 @@
 # PostgreSQL 19 deployment and local bootstrap
 
-Work in progress until the backup image's Docker integration is green. This does not certify the full platform as production-ready.
+The PG19 backup/restore and fresh-config Docker checkpoint passed CI: https://github.com/fariselpurhami/airdeliver/actions/runs/45062515486 . This does not certify the full platform as production-ready.
+
+## Fresh local development without existing credentials
+
+```sh
+LOCAL_UID="$(id -u)" LOCAL_GID="$(id -g)" docker compose --env-file /dev/null -f docker-compose.dev-setup.yml run --rm configure --fresh
+docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml -p airdeliver_dev up --build -V
+```
+
+Fresh mode generates development-only credentials locally. It records unique new PG19 and RabbitMQ volume names in `.env.dev`, rather than pairing new passwords with unknown old storage. It does not overwrite an existing `.env.dev`, original secret files, `.env`, or old volumes. No passwords need to be pasted anywhere. The default helper command below remains the preservation path for an existing setup.
 
 ## Existing local development checkout
 

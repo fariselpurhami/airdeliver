@@ -155,3 +155,19 @@ def test_fresh_cli_generates_private_credentials_and_isolates_unknown_volumes(tm
     repeated=subprocess.run(args,capture_output=True,text=True,env=env)
     assert repeated.returncode!=0 and 'already exists' in repeated.stderr
     assert (tmp_path/'.env.dev').read_bytes()==before
+
+
+
+def test_seeder_compose_uses_real_settings_aliases_and_independent_network(prepared,monkeypatch):
+    root,_=prepared
+    monkeypatch.setenv('COMPOSE_PROFILES','tools')
+    model=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')
+    service=model['services']['api-seeder']; values=service['environment']
+    assert values['SEED_BATCH_SIZE']=='16' and values['EMBEDDING_ENCODE_BATCH_SIZE']=='1'
+    assert 'network_mode' not in service and 'global-net' in service['networks']
+    assert 'api' not in service['depends_on']
+    from seed_ultra_scale import Settings
+    parsed=Settings(_env_file=None,**values)
+    assert parsed.target_count==1000 and parsed.batch_size==16
+    assert parsed.embedding_model=='Alibaba-NLP/gte-Qwen2-1.5B-instruct'
+    assert parsed.opensearch_user=='admin' and parsed.opensearch_pass

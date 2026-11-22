@@ -42,6 +42,7 @@ SELECT coalesce(string_agg(format(
 FROM information_schema.columns
 WHERE table_schema='public' AND data_type='timestamp without time zone'
 AND (table_name,column_name) IN (
+  ('products','created_at'),('products','updated_at'),
   ('users','created_at'),('users','updated_at'),('users','last_login'),
   ('orders','created_at'),('orders','updated_at'),('orders','paid_at'),
   ('user_activities','created_at'),('user_badges','awarded_at'),

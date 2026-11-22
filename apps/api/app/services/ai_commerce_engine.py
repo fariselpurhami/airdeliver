@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION
+
 import asyncio
 import base64
 import hashlib
@@ -228,7 +230,7 @@ ACCESSORY_SAFE_KEYWORDS: frozenset[str] = frozenset(
     }
 )
 
-PRODUCT_TEXT_MODEL = ModelSpec(name="Alibaba-NLP/gte-Qwen2-1.5B-instruct", dimension=1536)
+PRODUCT_TEXT_MODEL = ModelSpec(name=PRODUCT_TEXT_MODEL_NAME, dimension=PRODUCT_TEXT_MODEL_DIMENSION)
 PRODUCT_VISION_MODEL = ModelSpec(name="google/siglip2-so400m-patch14-384", dimension=1152)
 
 
@@ -362,7 +364,7 @@ class ModelRegistry:
 
             model = SentenceTransformer(
                 PRODUCT_TEXT_MODEL.name,
-                revision=get_core_settings().PRODUCT_TEXT_MODEL_REVISION,
+                revision=get_core_settings().PRODUCT_TEXT_MODEL_REVISION or DEFAULT_PRODUCT_TEXT_MODEL_REVISION,
                 trust_remote_code=False,
                 device=self._device,
                 model_kwargs={"dtype": self._dtype},
@@ -476,7 +478,7 @@ class HybridSearchReranker:
 class AICommerceEngine:
     SCHEMA_CONFIG: Dict[str, CollectionSpec] = {
         "product_text": CollectionSpec(
-            name="airdeliver_products_sota_v4",
+            name=PRODUCT_TEXT_COLLECTION,
             dim=PRODUCT_TEXT_MODEL.dimension,
             description="Semantic Product Search",
         ),

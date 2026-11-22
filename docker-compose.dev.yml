@@ -428,25 +428,45 @@ services:
     command: /opt/venv/bin/python /app/seed_ultra_scale.py
     env_file: ${AIRDELIVER_ENV_FILE:-.env}
     environment:
-      - SEED_TARGET_COUNT=1000
-      - SEED_BATCH_SIZE=64
-      - OMP_NUM_THREADS=4
+      - SEED_TARGET_COUNT=${SEED_TARGET_COUNT:-1000}
+      - SEED_BATCH_SIZE=${SEED_BATCH_SIZE:-16}
+      - SEED_RANDOM_SEED=${SEED_RANDOM_SEED:-20260514}
+      - EMBEDDING_ENCODE_BATCH_SIZE=${EMBEDDING_ENCODE_BATCH_SIZE:-1}
+      - SEED_EMBEDDING_THREADS=2
+      - SEED_EMBEDDING_MAX_SEQ_LENGTH=256
+      - POSTGRES_POOL_SIZE=2
+      - POSTGRES_MAX_OVERFLOW=0
+      - OMP_NUM_THREADS=2
       - APP_ENV=development
       - DATABASE_URI=${DATABASE_URL_ASYNC}
       - POSTGRES_SERVER=postgres
       - OPENSEARCH_HOST=opensearch
-      - REDIS_URL=redis://redis:6379/0
-      - EMBEDDING_MODEL_PATH=Alibaba-NLP/gte-Qwen2-1.5B-instruct
-      - OMP_NUM_THREADS=4
+      - OPENSEARCH_USER=admin
+      - OPENSEARCH_PASS=${OPENSEARCH_ADMIN_PASSWORD}
+      - OPENSEARCH_USE_SSL=false
+      - MILVUS_URI=http://milvus:19530
+      - MILVUS_ENABLED=${SEED_MILVUS_ENABLED:-true}
+      - OPENSEARCH_ENABLED=${SEED_OPENSEARCH_ENABLED:-true}
+      - PRODUCT_TEXT_MODEL_REVISION=${PRODUCT_TEXT_MODEL_REVISION:-}
+      - EMBEDDING_MODEL=Alibaba-NLP/gte-Qwen2-1.5B-instruct
       - HF_HOME=/data/storage/models_cache/huggingface
     volumes:
       - ./apps/api:/app:delegated
       - ${PWD}/data/storage:/data/storage
-    network_mode: service:api
+    networks:
+      - global-net
     user: root
     depends_on:
-      api:
+      postgres:
         condition: service_healthy
+      api-migrator:
+        condition: service_completed_successfully
+      opensearch:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+    mem_limit: 8g
+    cpus: 2
     restart: "no"
     profiles: ["tools"]
 

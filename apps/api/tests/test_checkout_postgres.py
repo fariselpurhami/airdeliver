@@ -152,3 +152,30 @@ async def test_already_aware_columns_are_not_reinterpreted_on_migration_replay(p
     async with sessions() as db:
         restored=(await db.execute(text('SELECT created_at FROM users WHERE id=:id'),{'id':uid})).scalar_one()
         assert restored==original
+
+
+@pytest.mark.asyncio
+async def test_catalog_timestamp_migration_requires_explicit_legacy_zone(pg_checkout,monkeypatch):
+    from alembic import command
+    from alembic.config import Config
+    sessions,_,pid,_,_,_=pg_checkout
+    monkeypatch.setenv('DATABASE_URI',os.environ['TEST_POSTGRES_DSN'])
+    monkeypatch.delenv('LEGACY_TIMESTAMP_TIMEZONE',raising=False)
+    async with sessions() as db:
+        original=(await db.execute(text('SELECT created_at,updated_at FROM products WHERE id=:id'),{'id':pid})).one()
+        for field in ('created_at','updated_at'):
+            await db.execute(text(f"ALTER TABLE products ALTER COLUMN {field} TYPE TIMESTAMP WITHOUT TIME ZONE USING {field} AT TIME ZONE 'UTC'"))
+        await db.commit()
+    await asyncio.to_thread(command.stamp,Config('alembic.ini'),'e85af324d765')
+    with pytest.raises(Exception,match='explicit LEGACY_TIMESTAMP_TIMEZONE'):
+        await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'head')
+    monkeypatch.setenv('LEGACY_TIMESTAMP_TIMEZONE','UTC')
+    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'head')
+    async with sessions() as db:
+        restored=(await db.execute(text('SELECT created_at,updated_at FROM products WHERE id=:id'),{'id':pid})).one()
+        assert restored==original and all(value.tzinfo is not None for value in restored)
+    monkeypatch.setenv('LEGACY_TIMESTAMP_TIMEZONE','America/Los_Angeles')
+    await asyncio.to_thread(command.stamp,Config('alembic.ini'),'e85af324d765')
+    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'head')
+    async with sessions() as db:
+        assert (await db.execute(text('SELECT created_at,updated_at FROM products WHERE id=:id'),{'id':pid})).one()==original
