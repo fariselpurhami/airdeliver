@@ -520,8 +520,10 @@ services:
 
 volumes:
   postgres19-data:
+    name: ${AIRDELIVER_DEV_POSTGRES_VOLUME:-${COMPOSE_PROJECT_NAME:-airdeliver_dev}_postgres19-data}
   postgres-data:
   rabbitmq-data:
+    name: ${AIRDELIVER_DEV_RABBITMQ_VOLUME:-${COMPOSE_PROJECT_NAME:-airdeliver_dev}_rabbitmq-data}
   redis-data:
   opensearch-data:
   api-static-data:

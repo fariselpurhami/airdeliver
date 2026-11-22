@@ -16,4 +16,5 @@ services:
         required: false
     volumes:
       - .:/work
-    command: ["python", "scripts/configure_dev_env.py", "--preserve-existing"]
+    entrypoint: ["python", "scripts/configure_dev_env.py"]
+    command: ["--preserve-existing"]

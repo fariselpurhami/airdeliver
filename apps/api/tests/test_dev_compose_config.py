@@ -121,3 +121,37 @@ def test_env_serialization_roundtrips_special_characters(tmp_path):
         assert result.returncode==0
         got=json.loads(result.stdout)['services']['probe']['environment']['SAMPLE'].replace('$$','$')
         assert got==value
+
+
+def test_fresh_cli_generates_private_credentials_and_isolates_unknown_volumes(tmp_path):
+    import sys
+    shutil.copyfile(ROOT/'.env.dev.example',tmp_path/'.env.dev.example')
+    (tmp_path/'scripts').mkdir()
+    shutil.copyfile(ROOT/'scripts/configure_dev_env.py',tmp_path/'scripts/configure_dev_env.py')
+    source=config(tmp_path,['docker-compose.dev-setup.yml'],Path('/dev/null'))['services']['configure']['environment']
+    source={key:value.replace('$$','$') if isinstance(value,str) else str(value) for key,value in source.items()}
+    if os.environ.get('TEST_DOCKER_ENGINE')=='1':
+        args=[*COMPOSE,'--project-directory',str(tmp_path),'--env-file','/dev/null','-p','airdeliver_dev','-f',str(ROOT/'docker-compose.dev-setup.yml'),'run','--rm','-T','configure','--fresh']
+        env=dict(os.environ,LOCAL_UID=str(os.getuid()),LOCAL_GID=str(os.getgid()))
+    else:
+        args=[sys.executable,str(tmp_path/'scripts/configure_dev_env.py'),'--fresh']
+        env={**os.environ,**source}
+    result=subprocess.run(args,capture_output=True,text=True,env=env)
+    assert result.returncode==0,result.stderr
+    model=config(tmp_path,['docker-compose.yml','docker-compose.dev.yml'],tmp_path/'.env.dev')
+    db_volume=model['volumes']['postgres19-data']['name']
+    mq_volume=model['volumes']['rabbitmq-data']['name']
+    assert db_volume.startswith('airdeliver_dev_postgres19_fresh_')
+    assert mq_volume.startswith('airdeliver_dev_rabbitmq_fresh_')
+    assert db_volume!='airdeliver_dev_postgres-data' and mq_volume!='airdeliver_dev_rabbitmq-data'
+    for field in ('postgres_password','rabbitmq_pass'):
+        path=tmp_path/'secrets/dev'/field
+        assert len(path.read_text().strip())>=32
+        assert path.stat().st_mode&0o777==0o600
+        assert path.read_text().strip() not in result.stdout
+    assert not (tmp_path/'.env').exists()
+    assert (tmp_path/'.env.dev').stat().st_mode&0o777==0o600
+    before=(tmp_path/'.env.dev').read_bytes()
+    repeated=subprocess.run(args,capture_output=True,text=True,env=env)
+    assert repeated.returncode!=0 and 'already exists' in repeated.stderr
+    assert (tmp_path/'.env.dev').read_bytes()==before

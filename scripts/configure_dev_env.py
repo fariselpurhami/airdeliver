@@ -45,7 +45,7 @@ def write_private(path, contents):
         out.write(contents)
 
 
-def prepare(root, preserve_existing=False, source_env=None):
+def prepare(root, preserve_existing=False, source_env=None, fresh=False):
     root = Path(root).resolve()
     target = root / '.env.dev'
     if target.exists():
@@ -63,6 +63,16 @@ def prepare(root, preserve_existing=False, source_env=None):
         if missing:
             raise ValueError('Existing credentials not found locally for: ' + ', '.join(missing) + '. Fill them locally; they will not be guessed.')
     values = {**template, **old}
+    if fresh:
+        if preserve_existing:
+            raise ValueError('Choose fresh or preservation mode, not both')
+        # Fresh credentials must never be paired with an unknown existing DB or
+        # broker volume. Store the private, stable volume names in .env.dev.
+        identity = secrets.token_hex(12)
+        values.update(POSTGRES_USER='airdeliver', POSTGRES_DB='airdeliver',
+                      POSTGRES_PASSWORD='', RABBITMQ_USER='airdeliver', RABBITMQ_PASS='',
+                      AIRDELIVER_DEV_POSTGRES_VOLUME='airdeliver_dev_postgres19_fresh_' + identity,
+                      AIRDELIVER_DEV_RABBITMQ_VOLUME='airdeliver_dev_rabbitmq_fresh_' + identity)
     values['AUTH_SECRET'] = values.get('AUTH_SECRET') or values.get('NEXTAUTH_SECRET') or ''
     defaults = {'POSTGRES_USER': 'airdeliver', 'POSTGRES_DB': 'airdeliver', 'RABBITMQ_USER': 'airdeliver'}
     for key, default in defaults.items():
@@ -126,12 +136,14 @@ def prepare(root, preserve_existing=False, source_env=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--preserve-existing', action='store_true', help='Require existing local DB and RabbitMQ credentials; never guess them')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--preserve-existing', action='store_true', help='Require existing local DB and RabbitMQ credentials; never guess them')
+    mode.add_argument('--fresh', action='store_true', help='Generate local dev credentials and isolate new PG19 and RabbitMQ volumes; leave originals untouched')
     args = parser.parse_args()
     if os.environ.get('AIRDELIVER_DEV_CONFIG_INPUT') != 'compose':
         parser.exit(1, 'Run this helper through docker-compose.dev-setup.yml so Compose parses existing env values safely.\n')
     try:
-        target = prepare(Path(__file__).resolve().parents[1], args.preserve_existing)
+        target = prepare(Path(__file__).resolve().parents[1], args.preserve_existing, fresh=args.fresh)
     except (OSError, ValueError) as exc:
         parser.exit(1, str(exc) + '\n')
     print(f'Prepared {target.name} and private development secret files. No secret values were printed.')
