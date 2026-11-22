@@ -484,7 +484,7 @@ class AICheckoutService:
                         order_cancelled = True
                         logger.info("Order discarded by user", extra={"order_id": payload.order_id, "user_id": payload.user_id})
 
-                    elif order.status in {OrderStatus.PROCESSING, OrderStatus.SHIPPED}:
+                    elif order.status in {OrderStatus.PROCESSING, OrderStatus.ASSIGNED, OrderStatus.IN_TRANSIT}:
                          await self._send_error(
                              payload.user_id, 
                              "Cannot discard: Your order is already in progress. Please contact support."

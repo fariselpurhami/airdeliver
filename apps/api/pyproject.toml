@@ -98,6 +98,7 @@ faker-commerce = "1.0.4"
 pytest = "^9.1.1"
 trio = "^0.34.0"
 pytest-asyncio = "^1.5.0"
+pytest-cov = "^7.1.0"
 
 [build-system]
 requires = ["poetry-core"]
