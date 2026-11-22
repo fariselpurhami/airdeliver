@@ -8,9 +8,19 @@ from unittest.mock import patch, AsyncMock, MagicMock
 import json
 from datetime import datetime, timezone
 from app.main import app
+from app.services.cache_service import NoOpCacheClient
 from app.websockets.tracking_ws import TelemetryMessage, TelemetryPayload
 
 pytestmark = pytest.mark.anyio
+
+
+@pytest.fixture(autouse=True)
+def _app_cache():
+    """The endpoint requires app.state.cache (normally set by lifespan startup,
+    which needs live RabbitMQ/Redis). Provide an inert cache for the WS tests."""
+    app.state.cache = NoOpCacheClient()
+    yield
+    del app.state.cache
 
 @pytest.fixture
 def test_client():
@@ -64,7 +74,7 @@ async def test_websocket_handle_telemetry():
             websocket.send_json(telemetry_msg)
 
             await anyio.sleep(0.1) 
-            mock_update_last_seen.assert_called_once_with(drone_id)
+            mock_update_last_seen.assert_called_once()  # current signature: (drone_id, cache)
             mock_add_task.assert_called_once()
         
             args, kwargs = mock_add_task.call_args
@@ -74,3 +84,4 @@ async def test_websocket_handle_telemetry():
             persisted_payload = args[2]
             assert persisted_payload["drone_id"] == drone_id
             assert persisted_payload["lat"] == telemetry_payload["lat"]
+
