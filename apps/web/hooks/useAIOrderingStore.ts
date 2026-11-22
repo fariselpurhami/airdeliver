@@ -157,10 +157,15 @@ const generateMessageId = () => Date.now() + messageIdCounter++;
 // Faster UUID generation for UI tasks
 const generateUUID = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-// TODO(product): the welcome message was never populated - it is an empty
-// object cast to Message. Preserving that exact runtime behavior for now;
-// the chat render path already tolerates it.
-const initialWelcomeMessage = {} as Message;
+// Initial assistant greeting shown when the overlay opens. Must be a fully
+// populated Message: the render path requires id/sender/contentType/content.
+const initialWelcomeMessage: Message = {
+  id: 0,
+  sender: 'ai',
+  contentType: 'text',
+  content: "Welcome to AirDeliver. Tell me what you're looking for and I'll find it, build your cart, and check you out.",
+  timestamp: Date.now(),
+};
 
 const SILENT_COMMAND_TRIGGERS = new Set([
   "clear cart", "confirm order", "checkout", "pay now",
