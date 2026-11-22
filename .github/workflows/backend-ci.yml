@@ -18,6 +18,22 @@ jobs:
   test:
     name: Backend tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg19-bookworm
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: airdeliver_test_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d airdeliver_test_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      TEST_POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@localhost:5432/airdeliver_test_ci
     steps:
       - uses: actions/checkout@v4
 
@@ -33,6 +49,6 @@ jobs:
         working-directory: apps/api
         run: poetry install
 
-      - name: Run tests
+      - name: Migrate PostgreSQL 19 and run tests
         working-directory: apps/api
-        run: poetry run pytest tests/ -q
+        run: poetry run python scripts/verify_postgres_integration.py
