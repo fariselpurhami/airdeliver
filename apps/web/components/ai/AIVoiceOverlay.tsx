@@ -154,7 +154,20 @@ export const AIVoiceOverlay = React.memo(() => {
         const chunk = audioQueueRef.current.shift();
         if (chunk && audioContextRef.current) {
             try {
-                const audioBuffer = await audioContextRef.current.decodeAudioData(chunk);
+                // ElevenLabs agents can emit encoded (mp3) or raw PCM16 audio.
+                // Try the container decoder first; fall back to manual PCM16@16k.
+                let audioBuffer: AudioBuffer;
+                try {
+                    audioBuffer = await audioContextRef.current.decodeAudioData(chunk.slice(0));
+                } catch {
+                    const pcm = new Int16Array(chunk);
+                    const buffer = audioContextRef.current.createBuffer(1, pcm.length, AUDIO_SAMPLE_RATE);
+                    const channel = buffer.getChannelData(0);
+                    for (let i = 0; i < pcm.length; i++) {
+                        channel[i] = (pcm[i] ?? 0) / 0x8000;
+                    }
+                    audioBuffer = buffer;
+                }
                 const source = audioContextRef.current.createBufferSource();
                 source.buffer = audioBuffer;
                 
