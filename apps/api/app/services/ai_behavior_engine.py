@@ -301,6 +301,32 @@ class BehaviorEngine:
 
     # --- 📡 EVENT TRACKING ---
 
+    async def register_interaction(self, user_id: int, signal: str, weight: float = 1.0) -> None:
+        """Seam adapter: accepts the NLU service's text signals and converts them
+        into neural events the OmniNet can learn from.
+
+        The NLU has always called this method (guarded by hasattr), but it never
+        existed, so conversational behavioral signals were silently dropped.
+        The signal text is embedded with the shared 1536-dim product text model
+        (the OmniNet's native internal dimension, Identity adapter) and staged
+        through the standard track_interaction path.
+        """
+        signal = (signal or "").strip()
+        if not signal:
+            return
+        try:
+            from app.services.ai_commerce_engine import ModelRegistry
+
+            model = ModelRegistry().get_text_model()
+            vector = await asyncio.to_thread(model.encode, signal, convert_to_numpy=True)
+            vec_list = vector.tolist()
+        except Exception as exc:
+            logger.warning("register_interaction embedding failed", extra={"user_id": user_id, "error": str(exc)})
+            return
+
+        interaction_type = ActionType.SEARCH_HIT.value if weight >= 2.0 else ActionType.VIEW.value
+        await self.track_interaction(user_id, interaction_type, {"vec": vec_list})
+
     async def track_interaction(self, user_id: int, interaction_type: str, raw_metadata: Dict[str, Any]) -> None:
         """Asynchronously stages an interaction event into the neural buffer."""
         if interaction_type not in ACTION_MAP:
