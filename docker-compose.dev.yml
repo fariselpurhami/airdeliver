@@ -464,6 +464,10 @@ services:
       - EMBEDDING_MODEL=Alibaba-NLP/gte-Qwen2-1.5B-instruct
       - HF_TOKEN=${HF_TOKEN:-}
       - HF_HOME=/data/storage/models_cache/huggingface
+      # Pin library-specific overrides too: env_file values otherwise escape
+      # the shared bind mount and vanish with a tools run --rm container.
+      - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
+      - HF_HUB_CACHE=/data/storage/models_cache/huggingface/hub
     volumes:
       - ./apps/api:/app:delegated
       - ${PWD}/data/storage:/data/storage

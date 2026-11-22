@@ -280,3 +280,16 @@ def test_optional_hf_token_reaches_all_model_downloaders(prepared,monkeypatch):
         assert services[name]['environment']['HF_TOKEN']=='hf_not_a_real_credential_test_only'
         assert services[name]['environment']['HF_HOME']=='/data/storage/models_cache/huggingface'
         assert any(v['target']=='/data/storage' for v in services[name]['volumes'])
+
+
+def test_seeder_cache_overrides_stale_env_file_and_stays_on_shared_mount(prepared, monkeypatch):
+    root,_=prepared
+    monkeypatch.setenv('COMPOSE_PROFILES','tools')
+    with (root/'.env.dev').open('a') as env:
+        env.write('\nSENTENCE_TRANSFORMERS_HOME=/datastorage/models/cache/sentence_transformers\nHF_HUB_CACHE=/root/ephemeral-hub\n')
+    services=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')['services']
+    for name in ('api','api-worker','api-seeder'):
+        values=services[name]['environment']
+        assert values['SENTENCE_TRANSFORMERS_HOME']=='/data/storage/models_cache/sentence_transformers'
+        assert values['HF_HUB_CACHE']=='/data/storage/models_cache/huggingface/hub'
+        assert any(v['type']=='bind' and v['target']=='/data/storage' for v in services[name]['volumes'])

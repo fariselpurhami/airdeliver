@@ -280,3 +280,21 @@ completed. Existing queue/routing foundations preserved. Tests cover positive an
 negative confirms; actual downstream cart mutation and UI acknowledgement are
 separate, not claimed by a broker receipt. Existing unit test broker fixture now
 supplies the real publish-result contract instead of an unconstrained AsyncMock.
+
+## Seeder cache persistence correction
+
+The running developer seeder inherited a SENTENCE_TRANSFORMERS_HOME value
+outside /data/storage, despite HF_HOME being mounted. Sentence Transformers
+uses its own cache variable first. A tools run with --rm then loses that
+container-local model cache. API and worker already pin the mounted path.
+Pin the seeder's Sentence Transformers and Hub cache paths to those same
+shared directories, overriding stale or mistyped env_file values. No cache
+files are moved or deleted by this configuration change.
+
+A regression renders the actual combined Compose configuration after injecting
+an outside-mount Sentence Transformers path and Hub path into .env.dev.
+All three model consumers retain the expected cache paths and storage bind.
+Local Compose tests: 15 passed. Full disposable PostgreSQL19 verification,
+including migrations: 613 passed, 2 skipped, 20 existing warnings.
+This validates configuration, not completeness of any developer's model files.
+An exact-revision offline load must verify those before claiming reuse.
