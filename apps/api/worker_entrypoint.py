@@ -827,6 +827,7 @@ class WorkerRuntime:
             "readiness": ready,
             "startup_error": self.services.startup_error,
             "payment_outbox": self.payment_outbox_status,
+            "behavior_model": self.services.behavior.model_status() if self.services.behavior is not None else {"state": "unavailable", "inference_ready": False},
             "voice_brain": {
                 "ready": self.voice_brain.ready,
                 "loading": self.voice_brain.loading,

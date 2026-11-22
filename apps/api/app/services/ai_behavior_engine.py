@@ -3,19 +3,24 @@
 import asyncio
 import base64
 import json
+import hashlib
 import logging
 import math
+import re
 import struct
 import time
+import uuid
 from enum import Enum
 from typing import List, Dict, Optional, Any, Set, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator, ConfigDict
 
 from app.services.cache_service import IAsyncCacheClient
+from app.core.config import get_core_settings
+from app.services.behavior_checkpoint import ModelArtifactError, load_behavior_checkpoint
 
 logger = logging.getLogger("airdeliver.singularity")
 
@@ -109,12 +114,13 @@ class TemporalEmbedding(nn.Module):
         return pe
 
 class OmniNetConfig(BaseModel):
-    internal_dim: int = 1536
-    intermediate_size: int = 6144
-    heads: int = 24
-    layers: int = 6
-    dropout: float = 0.1
-    layer_norm_eps: float = 1e-6
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    internal_dim: int = Field(1536, ge=4, le=4096)
+    intermediate_size: int = Field(6144, ge=4, le=16384)
+    heads: int = Field(24, ge=1, le=64)
+    layers: int = Field(6, ge=1, le=12)
+    dropout: float = Field(0.1, ge=0, lt=1)
+    layer_norm_eps: float = Field(1e-6, gt=0, le=0.1)
     supported_dims: Dict[str, int] = {
         "dim_1536": 1536,
         "dim_1152": 1152,
@@ -123,6 +129,17 @@ class OmniNetConfig(BaseModel):
         "dim_512": 512,
         "dim_384": 384
     }
+
+    @model_validator(mode="after")
+    def valid_architecture(self):
+        if self.internal_dim % 2 or self.internal_dim % self.heads:
+            raise ValueError("Model dimension must be even and divisible by the head count")
+        if not self.supported_dims or len(self.supported_dims) > 10:
+            raise ValueError("Invalid adapter dimensions")
+        if any(not 0 < value <= 4096 or key != f"dim_{value}" for key, value in self.supported_dims.items()):
+            raise ValueError("Adapter names must identify their positive input dimension")
+        return self
+
 
 class OmniNet(nn.Module):
     """Neural Core mapping multi-modal inputs to a unified Intent Space."""
@@ -184,19 +201,115 @@ class BehaviorEngine:
     Replaces implicit globals with explicit lifecycle controls and dependency injection.
     """
 
-    def __init__(self, cache: IAsyncCacheClient, net_config: Optional[OmniNetConfig] = None):
+    def __init__(
+        self, cache: IAsyncCacheClient, net_config: Optional[OmniNetConfig] = None, *,
+        checkpoint_path: Optional[str] = None, checkpoint_sha256: Optional[str] = None,
+        embedding_sources: Optional[Dict[str, str]] = None,
+        allow_untrained_inference: bool = False,
+    ):
         self.cache = cache
-        self.device = self._resolve_device()
-
+        settings = get_core_settings()
         self.net_config = net_config or OmniNetConfig()
-        self.brain = OmniNet(self.net_config).to(self.device)
-        self.brain.eval()
+        self.device = torch.device("cpu")
+        self.brain: Optional[OmniNet] = None
+        self._model_state: Dict[str, Any] = {
+            "state": "untrained", "source": "none", "inference_ready": False,
+            "production_approved": False, "model_version": None, "sha256": None,
+        }
+        self._trained_dims: Set[int] = set()
+        self._model_namespace = "unavailable"
+        if embedding_sources is None:
+            from app.services.ai_commerce_engine import PRODUCT_TEXT_MODEL, PRODUCT_VISION_MODEL
+            self.embedding_sources = {
+                f"dim_{PRODUCT_TEXT_MODEL.dimension}": f"{PRODUCT_TEXT_MODEL.name}@{settings.PRODUCT_TEXT_MODEL_REVISION or 'unversioned'}",
+                f"dim_{PRODUCT_VISION_MODEL.dimension}": f"{PRODUCT_VISION_MODEL.name}@{settings.PRODUCT_VISION_MODEL_REVISION or 'unversioned'}",
+            }
+        else:
+            self.embedding_sources = dict(embedding_sources)
+        path = checkpoint_path or settings.BEHAVIOR_CHECKPOINT_PATH
+        if path:
+            loaded = load_behavior_checkpoint(
+                path, expected_sha256=checkpoint_sha256 or settings.BEHAVIOR_CHECKPOINT_SHA256,
+                expected_actions=ACTION_MAP, production=settings.APP_ENV == "production",
+            )
+            manifest = loaded.manifest
+            if manifest.training_source == "untrained":
+                raise ModelArtifactError("An untrained checkpoint cannot enable behavior inference")
+            if net_config is None:
+                self.net_config = OmniNetConfig(**manifest.architecture)
+            elif net_config.model_dump() != manifest.architecture:
+                raise ModelArtifactError("Checkpoint architecture does not match requested model")
+            expected_sources = {key: self.embedding_sources.get(key, "unsupported") for key in manifest.embedding_sources}
+            if expected_sources != manifest.embedding_sources:
+                raise ModelArtifactError("Checkpoint embedding sources do not match configured embedding models")
+            if settings.APP_ENV == "production" and any(not re.fullmatch(r"[a-fA-F0-9]{40}", value.rsplit("@", 1)[-1]) for value in expected_sources.values()):
+                raise ModelArtifactError("Production behavior requires pinned embedding model revisions")
+            if not set(manifest.embedding_sources) <= set(self.net_config.supported_dims):
+                raise ModelArtifactError("Checkpoint references an unsupported adapter")
+            self.device = self._resolve_device()
+            # Meta construction avoids allocating random weights before loading
+            # the artifact, and assign avoids a second CPU parameter copy.
+            with torch.device("meta"):
+                self.brain = OmniNet(self.net_config)
+            try:
+                self.brain.load_state_dict(loaded.state_dict, strict=True, assign=True)
+                self.brain.to(self.device).eval()
+            except (RuntimeError, ValueError) as exc:
+                raise ModelArtifactError("Checkpoint tensor shapes do not match the architecture") from exc
+            self._trained_dims = {int(key[4:]) for key in manifest.embedding_sources}
+            self._model_namespace = loaded.sha256[:24]
+            self._model_state = {
+                "state": "real_validated" if manifest.production_approved else "trained_unvalidated",
+                "source": manifest.training_source, "inference_ready": True,
+                "production_approved": manifest.production_approved,
+                "model_version": manifest.model_version, "sha256": loaded.sha256,
+                "evaluation_source": manifest.evaluation_source,
+                "evaluation_examples": manifest.evaluation_examples,
+                "metrics": dict(manifest.metrics),
+            }
+        elif allow_untrained_inference:
+            if settings.APP_ENV != "development":
+                raise ModelArtifactError("Untrained inference is restricted to explicit development tests")
+            self.device = self._resolve_device()
+            self.brain = OmniNet(self.net_config).to(self.device).eval()
+            self._model_namespace = "research-" + uuid.uuid4().hex[:16]
+            self._trained_dims = set(self.net_config.supported_dims.values())
+            for dim in self._trained_dims:
+                self.embedding_sources.setdefault(f"dim_{dim}", "development-research@unversioned")
+            self._model_state.update(state="research_only", source="untrained", inference_ready=True)
+        else:
+            logger.warning("Behavior inference unavailable: no trained checkpoint configured")
 
         self.synaptic_buffer: asyncio.Queue = asyncio.Queue(maxsize=50000)
         self._shutdown_event = asyncio.Event()
         self._worker_task: Optional[asyncio.Task] = None
         self._background_tasks: set = set()
         self._inference_lock = asyncio.Lock()
+
+    def model_status(self) -> Dict[str, Any]:
+        return dict(self._model_state)
+
+    def ghost_key(self, user_id: int) -> str:
+        return f"{self._key_ghost(user_id)}:{self._model_namespace}"
+
+    def stream_key(self, user_id: int, dimension: int) -> str:
+        source = self.embedding_sources.get(f"dim_{dimension}", "unsupported")
+        version = hashlib.sha256(source.encode()).hexdigest()[:16]
+        return f"{self._key_stream(user_id, dimension)}:{version}"
+
+    async def get_ghost_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
+        if self.brain is None:
+            return None
+        raw = await self.cache.get(self.ghost_key(user_id))
+        if not raw:
+            return None
+        try:
+            data = json.loads(raw)
+            if data.get("model_id") != self._model_namespace:
+                return None
+            return data
+        except (ValueError, TypeError, AttributeError):
+            return None
 
     def _resolve_device(self) -> torch.device:
         if torch.cuda.is_available():
@@ -272,7 +385,7 @@ class BehaviorEngine:
         """
         try:
             dna_future = self._analyze_financial_dna(user_id)
-            ghost_future = self.cache.get(self._key_ghost(user_id))
+            ghost_future = self.get_ghost_profile(user_id)
             seen_future = self.cache.client.scard(self._key_seen_24h(user_id))
 
             results = await asyncio.gather(dna_future, ghost_future, seen_future, return_exceptions=True)
@@ -281,7 +394,7 @@ class BehaviorEngine:
             ghost_data = results[1] if not isinstance(results[1], Exception) else None
             interaction_vol = results[2] if isinstance(results[2], int) else 0
 
-            has_intent = isinstance(ghost_data, str) and len(ghost_data) > 10
+            has_intent = isinstance(ghost_data, dict) and bool(ghost_data.get("pos"))
 
             # Intent Classification Matrix
             segment = SegmentType.VIP if tier == FinancialTier.HIGH else SegmentType.STANDARD
@@ -299,7 +412,7 @@ class BehaviorEngine:
                 persona=persona,
                 segment=segment,
                 metrics=UserProfileMetrics(engagement_score=interaction_vol, neural_active=has_intent),
-                meta={"engine": "Singularity_v10.0", "latency": "RealTime"}
+                meta={"engine": "Singularity_v10.0", "latency": "RealTime", "model_state": self._model_state["state"], "model_source": self._model_state["source"]}
             )
             return profile.model_dump()
 
@@ -377,7 +490,7 @@ class BehaviorEngine:
             return
 
         dim = len(vector)
-        if f"dim_{dim}" not in self.net_config.supported_dims:
+        if f"dim_{dim}" not in self.net_config.supported_dims or f"dim_{dim}" not in self.embedding_sources:
             return
 
         packet = {
@@ -471,7 +584,7 @@ class BehaviorEngine:
 
                 users_to_update.add(uid)
 
-                stream_key = self._key_stream(uid, dim)
+                stream_key = self.stream_key(uid, dim)
                 active_dim_key = self._key_active_dim(uid)
 
                 try:
@@ -516,10 +629,14 @@ class BehaviorEngine:
 
     async def _dream_future(self, user_id: int) -> None:
         """Re-evaluates the user's temporal embedding sequence to compute their current 'Ghost'."""
+        if self.brain is None:
+            return
         try:
             active_dim_str = await self.cache.get(self._key_active_dim(user_id))
             target_dim = int(active_dim_str) if active_dim_str else self.net_config.internal_dim
-            key = self._key_stream(user_id, target_dim)
+            if target_dim not in self._trained_dims:
+                return
+            key = self.stream_key(user_id, target_dim)
 
             raw_data = await self.cache.client.lrange(key, 0, -1)
             if len(raw_data) < 3:
@@ -570,9 +687,10 @@ class BehaviorEngine:
                 "pos": pos_ghost.cpu().numpy().tolist()[0],
                 "neg": neg_ghost.cpu().numpy().tolist()[0],
                 "src_dim": target_dim,
+                "model_id": self._model_namespace,
                 "ts": now
             }
-            await self.cache.set(self._key_ghost(user_id), json.dumps(ghost_data), ttl=3600)
+            await self.cache.set(self.ghost_key(user_id), json.dumps(ghost_data), ttl=3600)
 
         except Exception as e:
             logger.error("Ghost sequence generation failed", extra={"user_id": user_id, "error": str(e)})
@@ -582,12 +700,13 @@ class BehaviorEngine:
         Re-ranks inventory candidates based on semantic distance to the user's current Ghost vector.
         Operates strictly in batch mode to maximize GPU/MPS throughput.
         """
-        ghost_json = await self.cache.get(self._key_ghost(user_id))
-        if not ghost_json:
+        if self.brain is None:
+            return candidates
+        ghost = await self.get_ghost_profile(user_id)
+        if not ghost:
             return candidates
 
         try:
-            ghost = json.loads(ghost_json)
             pos_vec = torch.tensor(ghost['pos'], device=self.device)
             neg_vec = torch.tensor(ghost['neg'], device=self.device)
 
@@ -599,6 +718,8 @@ class BehaviorEngine:
                     continue
 
                 v_dim = len(v)
+                if v_dim not in self._trained_dims:
+                    continue
                 adapter_key = f"dim_{v_dim}"
 
                 if v_dim == self.net_config.internal_dim:

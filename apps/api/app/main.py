@@ -25,6 +25,7 @@ from app.core.config import CoreSettings, get_core_settings
 from app.core.limiter import limiter
 from app.services.cache_service import IAsyncCacheClient, NoOpCacheClient, RedisCacheClient
 from app.services.rabbitmq_service import get_rabbitmq_service
+from app.services.ai_behavior_engine import BehaviorEngine
 
 from app.websockets.voice_ws import router as voice_router
 
@@ -61,6 +62,7 @@ class ApplicationResources:
     cache: IAsyncCacheClient
     rabbitmq: Any
     response_consumer_task: asyncio.Task[None] | None = None
+    behavior: BehaviorEngine | None = None
 
 
 class InvalidMessageError(ValueError):
@@ -293,6 +295,9 @@ async def startup_resources(app: FastAPI, settings: CoreSettings) -> Application
     app.state.resources = resources
 
     try:
+        resources.behavior = BehaviorEngine(cache_client)
+        app.state.behavior = resources.behavior
+        await resources.behavior.start()
         # Queue binding is startup work, not a detached task that can fail
         # unnoticed while the API reports a successful startup.
         await start_response_consumer(app)
@@ -305,6 +310,8 @@ async def startup_resources(app: FastAPI, settings: CoreSettings) -> Application
 
 
 async def shutdown_resources(resources: ApplicationResources) -> None:
+    if resources.behavior is not None:
+        await resources.behavior.stop()
     if resources.response_consumer_task is not None:
         resources.response_consumer_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):

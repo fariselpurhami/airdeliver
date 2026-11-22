@@ -89,16 +89,16 @@ async def test_real_consolidation_creates_finite_nonfallback_ghost(monkeypatch):
     import app.services.ai_behavior_engine as module
     monkeypatch.setattr(module, "OmniNetConfig", tiny_config)
     cache = DecodingCache()
-    engine = BehaviorEngine(cache)
+    engine = BehaviorEngine(cache, allow_untrained_inference=True)
     await engine.start()
     for index in range(3):
         await engine.track_interaction(7, "view", {"vec": np.linspace(0.01, 1, 384).tolist(), "id": index + 1, "price": 20})
     for _ in range(100):
-        if await cache.get(engine._key_ghost(7)):
+        if await cache.get(engine.ghost_key(7)):
             break
         await asyncio.sleep(0.01)
     await engine.stop()
-    ghost = await cache.get_json(engine._key_ghost(7))
+    ghost = await cache.get_json(engine.ghost_key(7))
     assert ghost, "No ghost was produced by the real queue/consolidation/inference flow"
     assert len(ghost["pos"]) == len(ghost["neg"]) == 24
     assert np.isfinite(ghost["pos"]).all()

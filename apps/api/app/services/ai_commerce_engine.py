@@ -362,6 +362,7 @@ class ModelRegistry:
 
             model = SentenceTransformer(
                 PRODUCT_TEXT_MODEL.name,
+                revision=get_core_settings().PRODUCT_TEXT_MODEL_REVISION,
                 trust_remote_code=False,
                 device=self._device,
                 model_kwargs={"dtype": self._dtype},
@@ -394,9 +395,11 @@ class ModelRegistry:
 
             logger.info("loading vision model", extra={"model": PRODUCT_VISION_MODEL.name, "device": self._device})
 
-            processor = AutoProcessor.from_pretrained(PRODUCT_VISION_MODEL.name)
+            revision = get_core_settings().PRODUCT_VISION_MODEL_REVISION
+            processor = AutoProcessor.from_pretrained(PRODUCT_VISION_MODEL.name, revision=revision)
             model = AutoModel.from_pretrained(
                 PRODUCT_VISION_MODEL.name,
+                revision=revision,
                 trust_remote_code=True,
                 torch_dtype=self._dtype if self._device == "cuda" else None,
             ).to(self._device)

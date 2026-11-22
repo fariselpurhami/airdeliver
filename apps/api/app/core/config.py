@@ -6,7 +6,7 @@ from pathlib import Path
 import urllib.parse
 from typing import List, Literal, Optional
 
-from pydantic import AnyHttpUrl, Field, SecretStr, computed_field
+from pydantic import AnyHttpUrl, Field, SecretStr, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -89,6 +89,16 @@ class CoreSettings(BaseAppConfig):
     
     AI_CHAT_STATE_TTL_SECONDS: int = Field(900, ge=60)
     EMBEDDING_MODEL_PATH: str = Field("all-MiniLM-L6-v2", alias="EMBEDDING_MODEL_PATH")
+
+    BEHAVIOR_CHECKPOINT_PATH: Optional[str] = None
+    BEHAVIOR_CHECKPOINT_SHA256: Optional[str] = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
+    PRODUCT_TEXT_MODEL_REVISION: Optional[str] = None
+    PRODUCT_VISION_MODEL_REVISION: Optional[str] = None
+
+    @field_validator("BEHAVIOR_CHECKPOINT_PATH", "BEHAVIOR_CHECKPOINT_SHA256", "PRODUCT_TEXT_MODEL_REVISION", "PRODUCT_VISION_MODEL_REVISION", mode="before")
+    @classmethod
+    def blank_optional_model_settings(cls, value):
+        return None if value == "" else value
 
     OPENSEARCH_HOST: str = Field("opensearch", alias="OPENSEARCH_HOST")
     OPENSEARCH_PORT: int = Field(9200, alias="OPENSEARCH_PORT", ge=1, le=65535)

@@ -93,7 +93,7 @@ def collect(model_name, full_brain=False):
         internal_dim=24, intermediate_size=48, heads=4, layers=1, dropout=0,
         supported_dims={f"dim_{dimension}": dimension})
     cache = MemoryCache()
-    engine = behavior.BehaviorEngine(cache, net_config=config)
+    engine = behavior.BehaviorEngine(cache, net_config=config, allow_untrained_inference=True)
 
     class Registry:
         def get_text_model(self):
@@ -114,7 +114,7 @@ def collect(model_name, full_brain=False):
             await engine._consolidate_memory(batch)
             while engine._background_tasks:
                 await asyncio.gather(*list(engine._background_tasks))
-            ghost_json = await cache.get(engine._key_ghost(1))
+            ghost_json = await cache.get(engine.ghost_key(1))
             assert ghost_json, "Consolidation/inference produced no ghost"
             ghost = json.loads(ghost_json)
             for kind in ("pos", "neg"):

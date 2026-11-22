@@ -1601,7 +1601,8 @@ class UserDnaStore:
         self._config = config
 
     async def get(self, user_id: int) -> UserDNA:
-        cache_key = RedisKeys.user_dna(user_id)
+        model_version = self._behavior_engine.model_status().get("sha256") if self._behavior_engine else None
+        cache_key = f"{RedisKeys.user_dna(user_id)}:{model_version or 'untrained'}"
 
         try:
             if hasattr(self._cache, "get_json"):
@@ -5134,7 +5135,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
         current_vector = None
 
         try:
-            ghost_json = await self.cache.get_json(RedisKeys.ghost_profile(user_id))
+            ghost_json = await self.behavior_engine.get_ghost_profile(user_id) if self.behavior_engine else None
             embedding_provider = getattr(self.search_engine, "get_query_embedding", None)
 
             if callable(embedding_provider):

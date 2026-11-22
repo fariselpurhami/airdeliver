@@ -241,6 +241,7 @@ async def save_cart(
 
 
 async def get_ai_nlu_service(
+    request: Request,
     db: AsyncSession = Depends(deps.get_async_session),
     cache: IAsyncCacheClient = Depends(get_cache_from_request),
     rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
@@ -256,7 +257,7 @@ async def get_ai_nlu_service(
         rabbitmq=rabbitmq,
         cache=cache,
         llm_service=llm_service,
-        behavior_engine=BehaviorEngine(cache),
+        behavior_engine=request.app.state.behavior,
     )
 
 

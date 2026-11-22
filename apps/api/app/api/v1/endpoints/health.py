@@ -5,7 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
+from app.api.deps import get_current_admin_user
 from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -62,3 +63,11 @@ async def health_check(
         "database": database_status,
         "redis": redis_status,
     }
+
+
+@router.get("/health/behavior")
+async def behavior_model_health(request: Request, current_admin=Depends(get_current_admin_user)) -> dict:
+    engine = getattr(request.app.state, "behavior", None)
+    if engine is None:
+        return {"state": "unavailable", "inference_ready": False, "production_approved": False}
+    return engine.model_status()
