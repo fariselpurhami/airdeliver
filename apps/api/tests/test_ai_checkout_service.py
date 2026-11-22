@@ -67,7 +67,10 @@ class FakeDB:
     async def rollback(self):
         self.rollbacks += 1
 
-    async def get(self, model, pk):
+    async def get(self, model, pk, **kwargs):
+        from app.models.product import Product
+        if model is Product and pk == 7:
+            return Product(id=7, sku="shoe", name="Shoes", description="", price="10.50", inventory=99)
         if self._order is not None and self._order.id == pk:
             return self._order
         return None
@@ -231,3 +234,50 @@ async def test_cancel_order_refuses_in_progress_order():
     assert order.status == OrderStatus.PROCESSING
     errors = [p for _, p in cache.published if p.get("type") == "error"]
     assert errors
+
+
+@pytest.mark.asyncio
+async def test_checkout_rejects_stale_price_and_refreshes_cart_before_charge():
+    import copy
+    svc, cache, db, _, orch = make_service(cart=copy.deepcopy(CART))
+    from app.models.product import Product
+    original_get = db.get
+    async def current_product(model, pk, **kwargs):
+        if model is Product:
+            return Product(id=7, sku="shoe", name="Shoes", description="", price="12.00", inventory=10)
+        return await original_get(model, pk)
+    db.get = current_product
+    cache.set_json = AsyncMock()
+    await svc.handle_confirm_order(dict(CONFIRM))
+    orch.process_payment.assert_not_awaited()
+    assert not [item for item in db.added if isinstance(item, Order)]
+    updated = cache.set_json.await_args.args[1]
+    assert updated["items"][0]["price"] == "12.00"
+    assert any(payload.get("type") == "cart_preview" for _, payload in cache.published)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["missing", "inactive", "out_of_stock", "wrong_currency"])
+async def test_checkout_rechecks_product_availability_and_currency(kind):
+    import copy
+    from app.models.product import Product
+    svc, _, db, _, orch = make_service(cart=copy.deepcopy(CART))
+    async def product_lookup(model, pk, **kwargs):
+        if kind == "missing":
+            return None
+        return Product(id=7, sku="shoe", name="Shoes", description="", price="10.50",
+                       inventory=0 if kind == "out_of_stock" else 10,
+                       is_active=kind != "inactive", currency="EUR" if kind == "wrong_currency" else "USD")
+    db.get = product_lookup
+    await svc.handle_confirm_order(dict(CONFIRM))
+    orch.process_payment.assert_not_awaited()
+    assert not [item for item in db.added if isinstance(item, Order)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("quantity", [0, -1, 1.5, 100])
+async def test_checkout_rejects_corrupt_quantities(quantity):
+    svc, _, db, _, orch = make_service(cart={"items": [{"product_id": 7, "quantity": quantity, "price": "10.50"}]})
+    await svc.handle_confirm_order(dict(CONFIRM))
+    orch.process_payment.assert_not_awaited()
+    assert not [item for item in db.added if isinstance(item, Order)]

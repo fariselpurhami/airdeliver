@@ -12,13 +12,14 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Protocol
 
-from pydantic import BaseModel, EmailStr, Field, ValidationError
+from pydantic import AliasChoices, BaseModel, EmailStr, Field, ValidationError, field_validator
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from app.services.payment_orchestrator import PaymentRequest, PaymentStatus
 from app.services.cache_service import IAsyncCacheClient
 from app.services.rabbitmq_service import RabbitMQService
 from app.models.order import Order, OrderItem
+from app.models.product import Product
 from app.models.enums import OrderStatus, CancellationReason
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -59,6 +60,19 @@ class NotificationServiceProtocol(Protocol):
 
 # --- DOMAIN TRANSFER OBJECTS (DTOs) ---
 # Enforcing boundary validation and type safety
+
+class ValidatedCheckoutItem(BaseModel):
+    product_id: int = Field(gt=0, validation_alias=AliasChoices("product_id", "id"))
+    quantity: int = Field(gt=0, le=99)
+    price: Decimal = Field(ge=0, allow_inf_nan=False, max_digits=10, decimal_places=2)
+
+    @field_validator("product_id", "quantity", mode="before")
+    @classmethod
+    def reject_booleans(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("Boolean identifiers/quantities are invalid")
+        return value
+
 
 class ConfirmOrderPayload(BaseModel):
     user_id: int
@@ -151,19 +165,23 @@ class AICheckoutService:
 
         cart = await self.cache.get_json(self._get_cart_key(payload.user_id))
         
-        if not cart or not cart.get("items"):
+        if not isinstance(cart, dict) or not isinstance(cart.get("items"), list) or not cart["items"]:
             await self._send_error(payload.user_id, "Your cart is empty or has expired.")
             return
 
         try:
-            # Reconstruct financial totals strictly via Decimal
-            total_amount = sum(
-                (Decimal(str(item["price"])) * int(item["quantity"]) for item in cart["items"]),
-                Decimal("0.00")
-            )
-        except (InvalidOperation, KeyError, ValueError) as e:
-            logger.error("Cart financial structure corruption", extra={"user_id": payload.user_id, "error": str(e)})
-            await self._send_error(payload.user_id, "Cart total calculation error.")
+            if len(cart["items"]) > 100:
+                raise ValueError("Cart exceeds the line-item limit")
+            validated = [ValidatedCheckoutItem.model_validate(item) for item in cart["items"]]
+            counts = {}
+            for item in validated:
+                counts[item.product_id] = counts.get(item.product_id, 0) + item.quantity
+                if counts[item.product_id] > 99:
+                    raise ValueError("Product quantity exceeds the checkout limit")
+            cart = dict(cart, items=[dict(original, **item.model_dump(mode="json"))
+                                    for original, item in zip(cart["items"], validated)])
+        except (ValidationError, TypeError, ValueError):
+            await self._send_error(payload.user_id, "Invalid cart data. Please review your items and quantities.")
             return
 
         new_order = None
@@ -177,6 +195,9 @@ class AICheckoutService:
             safe_address = payload.address.strip() if payload.address and payload.address.strip() else "Address pending via Chat"
             
             order_items_to_create = []
+            verified_items = []
+            prices_changed = False
+            total_amount = Decimal("0.00")
             for item in items_payload:
                 # الاستخراج الآمن مع التأكد من النوع
                 raw_pid = item.get("product_id") or item.get("id")
@@ -192,10 +213,21 @@ class AICheckoutService:
                     
                     # الدقة المالية (Financial Precision): 
                     # فرض رقمين عشريين لمنع كسور النقود الوهمية (Floating Point Anomalies).
-                    # ⚠️ ARCHITECTURAL WARNING: الاعتماد على السعر القادم من العميل هو ثغرة أمنية حرجة.
-                    # في نظام L9 الحقيقي، يجب سحب السعر من قاعدة البيانات هنا وليس من الـ Payload.
+                    # Catalog facts are authoritative; the cart price is used
+                    # only to detect a change requiring another user review.
                     raw_price = str(item.get("price", "0.00"))
-                    price_per_unit = Decimal(raw_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
+                    cart_price = Decimal(raw_price)
+                    product = await self.db.get(Product, product_id, with_for_update=True)
+                    if product is None or not product.is_active or product.inventory < counts[product_id]:
+                        raise ValueError("Product is unavailable or no longer has sufficient stock")
+                    if product.currency.upper() != self.DEFAULT_CURRENCY.upper():
+                        raise ValueError("Product currency does not match checkout currency")
+                    price_per_unit = Decimal(str(product.price)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
+                    if not price_per_unit.is_finite() or price_per_unit < 0:
+                        raise ValueError("Product has an invalid catalog price")
+                    prices_changed = prices_changed or cart_price != price_per_unit
+                    total_amount += price_per_unit * quantity
+                    verified_items.append({**item, "name": product.name, "price": str(price_per_unit)})
                 
                 except (ValueError, TypeError, InvalidOperation) as e:
                     raise ValueError(f"Malformed data in cart item {raw_pid}: {str(e)}") from e
@@ -207,6 +239,20 @@ class AICheckoutService:
                         price_per_unit=price_per_unit
                     )
                 )
+
+            cart["items"] = verified_items
+            cart["total"] = str(total_amount)
+            if prices_changed:
+                # Release catalog locks before cache/UI I/O. A changed price
+                # needs a fresh user review, never an automatic higher charge.
+                await self.db.rollback()
+                cart["updated_at"] = datetime.now(timezone.utc).isoformat()
+                await self.cache.set_json(self._get_cart_key(payload.user_id), cart, ttl=86400)
+                await self._send_to_ui(payload.user_id, {"type": "cart_preview", "content": cart, "reason": "Catalog Price Update"})
+                await self._send_error(payload.user_id, "Prices changed. Please review your refreshed cart before confirming payment.")
+                return
+            if total_amount <= 0:
+                raise ValueError("Checkout total must be positive")
 
             # 2. Database Transaction Phase: الآن فقط نتحدث مع قاعدة البيانات
             new_order = Order(
