@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict
 import random
 from app.api import deps
 from app import models
+from app.models.enums import OrderStatus
 
 router = APIRouter()
 
@@ -56,20 +57,20 @@ async def get_admin_stats(db: AsyncSession = Depends(deps.get_async_session)):
     total_revenue = (
         await db.execute(
             select(func.sum(models.Order.total_price)).where(
-                models.Order.status.in_(["Delivered", "In Transit"])
+                models.Order.status.in_([OrderStatus.DELIVERED, OrderStatus.IN_TRANSIT])
             )
         )
-    ).first() or 0.0
+    ).scalar() or 0.0
 
-    total_orders = (await db.execute(select(func.count(models.Order.id)))).first() or 0
-    total_products = (await db.execute(select(func.count(models.Product.id)))).first() or 0
+    total_orders = (await db.execute(select(func.count(models.Order.id)))).scalar() or 0
+    total_products = (await db.execute(select(func.count(models.Product.id)))).scalar() or 0
     pending_deliveries = (
         await db.execute(
             select(func.count(models.Order.id)).where(
-                models.Order.status == "Processing"
+                models.Order.status == OrderStatus.PROCESSING
             )
         )
-    ).first() or 0
+    ).scalar() or 0
 
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     active_users_today = (
@@ -78,7 +79,7 @@ async def get_admin_stats(db: AsyncSession = Depends(deps.get_async_session)):
                 models.Order.created_at >= today_start
             )
         )
-    ).first() or 0
+    ).scalar() or 0
 
     return AdminStatsResponse(
         total_revenue=total_revenue,
