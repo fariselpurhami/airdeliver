@@ -16,6 +16,7 @@ from app.services.cache_service import IAsyncCacheClient
 from app.services.rabbitmq_service import RabbitMQService
 from app.services.ai_commerce_engine import AICommerceEngine
 
+from app.schemas.cart_recommendation import CartRecommendationEvent, CART_RECOMMENDATION_ROUTING_KEY
 from app.models.product import Product
 from app.models.order import Order, OrderItem
 from app.models.enums import OrderStatus, CancellationReason
@@ -250,11 +251,24 @@ class AICartService:
             # Vector Bundle Engine Injection
             if self.commerce_engine:
                 await self._trigger_intelligent_bundling(payload.user_id, product)
+            else:
+                await self._request_optional_recommendations(payload.user_id, int(product.id), "added")
 
             await self._send_to_ui(payload.user_id, {
                 "type": "confirmation_prompt",
                 "options": ["Confirm Order"]
             })
+
+    async def _request_optional_recommendations(self, user_id: int, product_id: int, operation: str) -> None:
+        """Read-only follow-up. Broker failure must never undo a saved cart."""
+        try:
+            event = CartRecommendationEvent(user_id=user_id, product_id=product_id, operation=operation)
+            async with asyncio.timeout(1.0):
+                outcome = await self.rabbitmq.publish(event.model_dump(), CART_RECOMMENDATION_ROUTING_KEY, max_retries=1)
+            if not outcome.is_success:
+                logger.warning("cart optional recommendation event unconfirmed")
+        except Exception as exc:
+            logger.warning("cart optional recommendation unavailable", extra={"error_type": type(exc).__name__})
 
     async def _trigger_intelligent_bundling(self, user_id: int, product: Product) -> None:
         BUNDLE_FETCH_TIMEOUT_SECONDS: Final[float] = 120.0
@@ -713,6 +727,9 @@ class AICartService:
                     },
                 )
                 return
+
+            if not self.commerce_engine and payload.action != "clear_all":
+                await self._request_optional_recommendations(payload.user_id, int(payload.product_id), "removed")
 
             alternatives = await _find_alternatives(payload)
 

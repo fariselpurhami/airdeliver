@@ -49,6 +49,7 @@ from app.core.config import (
     get_paypal_settings,
     get_stripe_settings,
 )
+from app.schemas.cart_recommendation import (CartRecommendationEvent, CART_RECOMMENDATION_ROUTING_KEY, CART_RECOMMENDATION_QUEUE)
 from app.services.ai_behavior_engine import BehaviorEngine
 from app.services.ai_commerce_engine import (
     AICommerceEngine,
@@ -538,6 +539,36 @@ class WorkerRuntime:
 
             await service.process_message(payload)
 
+    async def cart_recommendation_handler_impl(self, payload: dict) -> None:
+        # Dedicated read-only event. Never replay add/remove mutations here.
+        event = CartRecommendationEvent.model_validate(payload)
+        await self.wait_for_readiness(required_ai=True)
+        async with self.services.session_maker() as db:
+            from app.services.ai_cart_service import AICartService
+            from app.models.product import Product
+            async with asyncio.timeout(30.0):
+                service = AICartService(db, self.services.cache, self.services.rabbitmq)
+                cart = await service._get_cart_from_redis(event.user_id)
+                still_in_cart = any(item.product_id == event.product_id for item in cart.items)
+                if still_in_cart != (event.operation == "added"):
+                    return
+                if event.operation == "added":
+                    anchor = await db.get(Product, event.product_id)
+                    if anchor is None or not anchor.is_active:
+                        return
+                    products = await self.services.commerce.generate_perfect_bundle(db, anchor)
+                    text = "Related catalog items for your selection. Compatibility has not been verified."
+                else:
+                    products = await self.services.commerce.find_genius_alternatives(db, event.product_id, limit=3)
+                    text = "Other catalog options after your removal. Compare the listed details before choosing."
+                if not products:
+                    return
+                await service._send_to_ui(event.user_id, {
+                    "content": text, "type": "product_carousel",
+                    "products": [p.model_dump(mode="json") for p in products[:4]],
+                    "secondary_suggestions": True, "reason": "Related Catalog Items",
+                })
+
     async def add_cart_handler_impl(self, payload: dict) -> None:
         await self.wait_for_readiness(required_ai=False)
 
@@ -731,6 +762,11 @@ class WorkerRuntime:
                 "queue": "q.ai.chat",
                 "key": "airdeliver.ai.chat.in",
                 "handler": self.chat_handler_impl,
+            },
+            "cart_recommendation": {
+                "queue": CART_RECOMMENDATION_QUEUE,
+                "key": CART_RECOMMENDATION_ROUTING_KEY,
+                "handler": self.cart_recommendation_handler_impl,
             },
             "cart_add": {
                 "queue": "q.ai.cart.add",
