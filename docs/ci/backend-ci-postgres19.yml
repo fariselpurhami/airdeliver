@@ -4,7 +4,7 @@ name: Backend CI
 
 on:
   push:
-    branches: ["main", "hardening/pg19-dev-bootstrap"]
+    branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial"]
     paths:
       - 'apps/api/**'
       - 'scripts/configure_dev_env.py'
@@ -13,6 +13,7 @@ on:
       - '.env.dev.example'
       - 'infra/postgres-backup/**'
       - 'infra/minio-ce/**'
+      - 'infra/storage-ci/**'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches: ["main"]
@@ -24,6 +25,7 @@ on:
       - '.env.dev.example'
       - 'infra/postgres-backup/**'
       - 'infra/minio-ce/**'
+      - 'infra/storage-ci/**'
       - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 
@@ -31,6 +33,10 @@ jobs:
   test:
     name: Backend tests
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        storage: [rustfs, seaweed]
     services:
       postgres:
         image: pgvector/pgvector:0.8.7-pg19-bookworm@sha256:89879f41d564f67b0c1462a491d16fcbc6de39ac10db17e7a4bba2138a5e0ba5
@@ -48,6 +54,7 @@ jobs:
     env:
       TEST_POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@localhost:5432/airdeliver_test_ci
       TEST_DOCKER_ENGINE: "1"
+      TEST_OBJECT_STORAGE_BACKEND: ${{ matrix.storage }}
     steps:
       - uses: actions/checkout@v4
 

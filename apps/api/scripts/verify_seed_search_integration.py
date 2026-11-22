@@ -27,6 +27,11 @@ def main():
     identity=uuid.uuid4().hex[:16]
     project='airdeliver-seed-ci-'+identity
     compose=['docker','compose','--env-file','/dev/null','-p',project,'-f',str(API.parents[1]/'docker-compose.seed-ci.yml')]
+    backend=os.environ.get('TEST_OBJECT_STORAGE_BACKEND','minio')
+    if backend not in {'minio','rustfs','seaweed'}:
+        raise SystemExit('Unknown disposable object storage backend')
+    if backend!='minio':
+        compose+=['-f',str(API.parents[1]/('docker-compose.storage-'+backend+'-ci.yml'))]
     try:
         subprocess.run([*compose,'up','-d','--build','--wait','--wait-timeout','240'],check=True)
         def port(service,number):
@@ -40,7 +45,7 @@ def main():
             OPENSEARCH_INDEX='airdeliver_seed_e2e_'+identity,OPENSEARCH_USE_SSL=False,OPENSEARCH_USER=None,OPENSEARCH_PASS=None,
             EMBEDDING_MODEL=model,SEED_EMBEDDING_REVISION='1110a243fdf4706b3f48f1d95db1a4f5529b4d41',SEED_EMBEDDING_DIMENSION=384,SEED_TARGET_COUNT=17,SEED_BATCH_SIZE=7,
             SEED_RANDOM_SEED=int(identity,16),RETRY_ATTEMPTS=1)
-        asyncio.run(verify(values))
+        asyncio.run(verify(values,compose,backend))
     except BaseException:
         subprocess.run([*compose,'logs','--tail','60'],check=False)
         raise
@@ -49,7 +54,7 @@ def main():
         subprocess.run([*compose,'down','--volumes','--remove-orphans'],check=True)
 
 
-async def verify(settings):
+async def verify(settings,compose,backend):
     async with seed.application_context(settings) as service:
         first=await service.run()
         assert first['inserted']==17 and first['status']=='completed'
@@ -66,11 +71,26 @@ async def verify(settings):
         assert {r['id'] for r in vectors}==ids and all(len(r['vector'])==384 for r in vectors)
         search=await asyncio.to_thread(client.search,collection_name=settings.milvus_collection,data=[vectors[0]['vector']],limit=17,output_fields=['id'],search_params={'metric_type':'COSINE'})
         assert search and search[0] and search[0][0]['distance']>0.99
+        # Force durable object storage IO, then discard/recreate Milvus compute.
+        # etcd and this trial's S3 volume survive, but no Milvus local cache does.
+        await asyncio.to_thread(client.flush,settings.milvus_collection)
+        await asyncio.to_thread(client.release_collection,settings.milvus_collection)
+        await asyncio.to_thread(client.close)
+        service._milvus._client=None
+        subprocess.run([*compose,'up','-d','--no-deps','--force-recreate','--renew-anon-volumes','--wait','--wait-timeout','240','milvus'],check=True)
+        mapped=subprocess.check_output([*compose,'port','milvus','19530'],text=True).strip()
+        service._milvus._uri='http://127.0.0.1:'+mapped.rsplit(':',1)[1]
+        client=await service._milvus._ensure_client()
+        await asyncio.to_thread(client.load_collection,settings.milvus_collection)
+        persisted=await asyncio.to_thread(client.query,collection_name=settings.milvus_collection,filter='id in '+json.dumps(sorted(ids)),output_fields=['id','vector'],consistency_level='Strong',limit=100)
+        assert {r['id'] for r in persisted}==ids and all(len(r['vector'])==384 for r in persisted)
+        recovered=await asyncio.to_thread(client.search,collection_name=settings.milvus_collection,data=[vectors[0]['vector']],limit=17,output_fields=['id'],search_params={'metric_type':'COSINE'})
+        assert recovered and recovered[0] and recovered[0][0]['distance']>0.99
         await service._opensearch._client.indices.refresh(index=settings.opensearch_index)
         indexed=await service._opensearch._client.search(index=settings.opensearch_index,body={'query':{'match_all':{}},'size':100})
         assert {int(hit['_id']) for hit in indexed['hits']['hits']}==ids
         print(json.dumps({'result':'passed','postgres_rows':len(rows),'milvus_rows':len(vectors),'opensearch_rows':len(indexed['hits']['hits']),
-                          'embedding_dimension':service._embedding.dimension,'model':'all-MiniLM-L6-v2','rerun_inserted':second['inserted'],'scope':'isolated test indexes, not the production GTE model'}))
+                          'object_storage':backend,'milvus_recreated_without_local_cache':True,'embedding_dimension':service._embedding.dimension,'model':'all-MiniLM-L6-v2','rerun_inserted':second['inserted'],'scope':'isolated test indexes, not the production GTE model'}))
         # Keep only the unrelated test fixtures in the shared disposable DB.
         async with service._postgres._engine.begin() as db:
             await db.execute(text('DELETE FROM products WHERE sku LIKE :pattern'),{'pattern':pattern})

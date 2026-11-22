@@ -1,0 +1,27 @@
+# Isolated compatibility trial only, not a production configuration or cutover.
+services:
+  minio:
+    build: !reset null
+    pull_policy: always
+    image: rustfs/rustfs:1.0.6@sha256:ee717072290bec9b11abfc0365f8310b00df1cd9b3639943edae47bdef05044a
+    user: '0:0'
+    entrypoint: !reset null
+    command: [server, /data]
+    environment:
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_CONSOLE_ENABLE: 'false'
+      RUSTFS_OBS_LOGGER_LEVEL: warn
+    volumes:
+      - object-trial-data:/data
+    ports:
+      - '127.0.0.1::9000'
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:9000/health]
+      interval: 5s
+      timeout: 5s
+      retries: 48
+    mem_limit: 1536m
+volumes:
+  object-trial-data:

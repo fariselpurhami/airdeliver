@@ -1,0 +1,22 @@
+# Isolated compatibility trial only, not a production configuration or cutover.
+services:
+  minio:
+    build: !reset null
+    pull_policy: always
+    image: chrislusf/seaweedfs:4.54@sha256:4b42c212543a0acd4c0e675215ecdcaf62a186ef98def76c7e12701871222d15
+    command: [server, '-dir=/data', '-ip=minio', '-ip.bind=0.0.0.0', '-s3', '-filer', '-s3.port=9000', '-s3.config=/etc/seaweed-s3-ci.json', '-master.telemetry=false', '-volume.max=2', '-master.volumeSizeLimitMB=100', '-volume.fileSizeLimitMB=100']
+    environment:
+      WEED_JWT_FILER_SIGNING_KEY: disposable-ci-only-signing-key-not-a-user-secret
+    volumes:
+      - object-trial-data:/data
+      - ./infra/storage-ci/seaweed-s3.json:/etc/seaweed-s3-ci.json:ro
+    ports:
+      - '127.0.0.1::9000'
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://localhost:9333/cluster/status]
+      interval: 5s
+      timeout: 5s
+      retries: 48
+    mem_limit: 1536m
+volumes:
+  object-trial-data:
