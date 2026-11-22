@@ -410,6 +410,7 @@ services:
       HF_HOME: "/data/storage/models_cache/huggingface"
       SENTENCE_TRANSFORMERS_HOME: "/data/storage/models_cache/sentence_transformers"
       STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+      PAYPAL_CHECKOUT_ORIGIN: "${PAYPAL_CHECKOUT_ORIGIN:-}"
       PAYPAL_CLIENT_ID: "${PAYPAL_CLIENT_ID:-}"
       PAYPAL_CLIENT_SECRET: "${PAYPAL_CLIENT_SECRET:-}"
       PAYPAL_WEBHOOK_ID: "${PAYPAL_WEBHOOK_ID:-}"

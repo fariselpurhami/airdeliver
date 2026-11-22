@@ -5,7 +5,7 @@ import json
 import logging
 import asyncio
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Literal
 
 from typing import AsyncGenerator, List
 import httpx
@@ -24,6 +24,7 @@ from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 from app.services.ai_behavior_engine import BehaviorEngine
 from app.services.ai_cart_service import AICartService
 from app.services.ai_checkout_service import AICheckoutService
+from app.schemas.shipping import ShippingAddress
 from app.services.ai_nlu_service import AINLUService
 from pydantic import BaseModel as _PayPalBaseModel
 from app.services.payment_completion_service import PaymentCompletionService
@@ -113,8 +114,8 @@ class RemoveFromCartRequest(BaseModel):
 
 
 class ConfirmOrderRequest(BaseModel):
-    address: Optional[str] = Field(default=None, max_length=255)
-    country: str = Field(default="US", min_length=2, max_length=2)
+    shipping_address: ShippingAddress
+    payment_provider: Optional[Literal["stripe", "paypal"]] = None
 
 
 class CancelOrderRequest(BaseModel):
@@ -293,19 +294,28 @@ async def reset_session(
     return {"status": "accepted"}
 
 
+@router.get("/checkout/options")
+async def checkout_options(
+    current_user: models.User = Depends(deps.get_current_active_user),
+    checkout_service: AICheckoutService = Depends(get_ai_checkout_service),
+):
+    return {"providers": checkout_service.orchestrator.available_providers,
+            "currencies": [AICheckoutService.DEFAULT_CURRENCY.upper()], "countries": ["US"], "locale": "en-US"}
+
+
 @router.post("/checkout/confirm", status_code=status.HTTP_202_ACCEPTED)
 @limiter.limit("10/minute")
 async def confirm_order(
     request: Request,
-    payload: ConfirmOrderRequest = Body(default_factory=ConfirmOrderRequest),
+    payload: ConfirmOrderRequest = Body(...),
     current_user: models.User = Depends(deps.get_current_active_user),
     checkout_service: AICheckoutService = Depends(get_ai_checkout_service),
 ):
     await checkout_service.handle_confirm_order({
         "user_id": current_user.id,
         "email": current_user.email,
-        "address": payload.address or getattr(current_user, "address", None),
-        "country": payload.country,
+        "shipping_address": payload.shipping_address.model_dump(),
+        "payment_provider": payload.payment_provider,
     })
     return {"status": "accepted"}
 
@@ -342,7 +352,7 @@ async def capture_paypal_order(
     try:
         result = await gateway.capture_order(
             payload.paypal_order_id, expected_order_id=order.id, expected_user_id=current_user.id,
-            expected_amount=Decimal(str(order.total_price)), expected_currency=AICheckoutService.DEFAULT_CURRENCY,
+            expected_amount=Decimal(str(order.total_price)), expected_currency=order.currency,
         )
     finally:
         await gateway._http_client.aclose()

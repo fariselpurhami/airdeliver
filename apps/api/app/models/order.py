@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, Enum as SAEnum
+from sqlalchemy import Column, JSON, Enum as SAEnum
 from sqlalchemy.orm import Mapped, relationship
 from datetime import datetime, timezone
 from .enums import OrderStatus, CancellationReason
@@ -28,6 +28,8 @@ class Order(SQLModel, table=True):
     )
 
     total_price: float = Field(default=0.0, nullable=False)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
+    shipping_address_data: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
 
     # 2. حالة الدفع (الـ Checkout Service يحتاجها لتحديث الحالة لاحقاً)
     is_paid: bool = Field(default=False)

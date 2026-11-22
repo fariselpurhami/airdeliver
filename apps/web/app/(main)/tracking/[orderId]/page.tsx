@@ -3,6 +3,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import { FiLoader, FiPackage, FiAlertTriangle, FiCheckCircle, FiClock } from 'react-icons/fi';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
@@ -36,8 +37,8 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
     failed: { label: 'Failed', className: 'text-red-400' },
 };
 
-export default function TrackingPage({ params }: { params: { orderId: string } }) {
-  const { orderId } = params;
+export default function TrackingPage() {
+  const { orderId } = useParams<{ orderId: string }>();
   const swrFetcher = (url: string) => api.get(url).then(res => res.data);
   // The backend exposes order history at GET /orders/me; there is no
   // per-order detail endpoint, so we look the order up in the user's list.

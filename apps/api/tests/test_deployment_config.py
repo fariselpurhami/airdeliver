@@ -68,3 +68,22 @@ def test_payment_reference_migration_backfills_existing_records(monkeypatch):
         rows = connection.exec_driver_sql("SELECT payment_transaction_id FROM orders ORDER BY id").scalars().all()
         assert rows == ["pi_existing", None]
     engine.dispose()
+
+
+def test_shipping_currency_migration_retains_historical_usd_without_inventing_address(monkeypatch):
+    import importlib.util
+    import sqlalchemy as sa
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    path = Path(__file__).resolve().parents[1] / 'alembic/versions/c63ed102b543_order_shipping_currency.py'
+    spec = importlib.util.spec_from_file_location('shipping_migration', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    engine = sa.create_engine('sqlite://')
+    with engine.begin() as connection:
+        connection.exec_driver_sql('CREATE TABLE orders (id INTEGER PRIMARY KEY)')
+        connection.exec_driver_sql('INSERT INTO orders VALUES (1)')
+        monkeypatch.setattr(module, 'op', Operations(MigrationContext.configure(connection)))
+        module.upgrade()
+        assert connection.exec_driver_sql('SELECT currency, shipping_address_data FROM orders').first() == ('USD', None)
+    engine.dispose()

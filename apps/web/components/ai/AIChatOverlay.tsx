@@ -18,6 +18,8 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { loadStripe, StripeElementsOptions, Stripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import AIPaymentForm from './AIPaymentForm';
+import ShippingAddressForm from '@/components/checkout/ShippingAddressForm';
+import PayPalApproval from '@/components/checkout/PayPalApproval';
 import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
 import { AIVoiceOverlay } from './AIVoiceOverlay';
@@ -1110,6 +1112,10 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
     const messages = useAIOrderingStore(useShallow(state => state.messages)) as ExtendedMessage[];
     const isLoading = useAIOrderingStore(state => state.isLoading);
     const isProcessing = useAIOrderingStore(state => state.isProcessing);
+    const isShippingStep = useAIOrderingStore(state => state.isShippingStep);
+    const shippingAddress = useAIOrderingStore(state => state.shippingAddress);
+    const submitShippingAddress = useAIOrderingStore(state => state.submitShippingAddress);
+    const cancelShipping = useAIOrderingStore(state => state.cancelShipping);
     const paymentDetails = useAIOrderingStore(useShallow(state => state.paymentDetails));
     const glowingProductId = useAIOrderingStore(state => state.glowingProductId);
     const socketStatus = useAIOrderingStore(state => state.socketStatus);
@@ -1330,7 +1336,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
     const handleNavigateToAuth = useCallback((mode: 'SIGNIN' | 'SIGNUP') => {
         actions.setOverlayVisible(false);
         onClose();
-        router.push(`/auth?mode=${mode}`);
+        router.push(`/login?mode=${mode}`);
     }, [actions, onClose, router]);
 
     return (
@@ -1430,7 +1436,11 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
                         {/* Main Content Area */}
                         <div className="flex-grow flex overflow-hidden relative z-10">
                             <AnimatePresence mode="wait">
-                                {isPaymentMode ? (
+                                {isShippingStep ? (
+                                    <ShippingAddressForm initialValue={shippingAddress} onSubmit={submitShippingAddress} onBack={cancelShipping} />
+                                ) : paymentDetails?.gateway_provider === 'paypal' && paymentDetails.order_data ? (
+                                    <PayPalApproval approvalUrl={paymentDetails.action_url || ''} orderId={paymentDetails.order_data.order_id} total={paymentDetails.order_data.total} currency={paymentDetails.order_data.currency} />
+                                ) : isPaymentMode ? (
                                     <motion.div
                                         key="payment"
                                         initial={{ opacity: 0, x: 20 }}
@@ -1475,6 +1485,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
                                                             items={orderData!.items}
                                                             onPaymentSuccess={handlePaymentSuccess}
                                                             clientSecret={stripeOptions.clientSecret}
+                                                            currency={orderData!.currency}
                                                         />
                                                     </Elements>
                                                 );

@@ -14,6 +14,7 @@ from app.services.payment_orchestrator import (
 
 def make_gateway(api_body=None, api_status=200, token_cached=None):
     settings = MagicMock()
+    settings.PAYPAL_CHECKOUT_ORIGIN = "https://store.example"
     settings.PAYPAL_CLIENT_ID = "cid"
     settings.PAYPAL_CLIENT_SECRET = MagicMock()
     settings.PAYPAL_CLIENT_SECRET.get_secret_value.return_value = "secret"
@@ -100,3 +101,37 @@ async def test_missing_approval_link_is_failure():
     result = await gw.create_payment_intent(make_request())
     assert result.status == PaymentStatus.FAILURE
     assert "approval link" in (result.error_message or "")
+
+
+@pytest.mark.asyncio
+async def test_return_urls_use_server_configuration_and_local_order_reference():
+    gw, http, _ = make_gateway(api_body={"id":"ABC", "links":[{"rel":"payer-action", "href":"https://www.sandbox.paypal.com/checkoutnow?token=ABC"}]}, token_cached="t")
+    result = await gw.create_payment_intent(make_request())
+    assert result.status == PaymentStatus.REQUIRES_ACTION
+    context = http.post.call_args.kwargs["json"]["payment_source"]["paypal"]["experience_context"]
+    assert context["return_url"] == "https://store.example/checkout/paypal/return?order_id=7"
+    assert context["cancel_url"] == "https://store.example/checkout/paypal/cancel?order_id=7"
+    assert context["user_action"] == "CONTINUE"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("origin", [None, "", "http://store.example", "https://store.example/path", "https://user@store.example", "https://store.example?next=bad"])
+async def test_invalid_origin_cannot_initialize_paypal_checkout(origin):
+    gw, http, _ = make_gateway(token_cached="t")
+    gw._settings.PAYPAL_CHECKOUT_ORIGIN = origin
+    assert not gw.checkout_available
+    result = await gw.create_payment_intent(make_request())
+    assert result.status == PaymentStatus.FAILURE
+    http.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_physical_order_sends_the_frozen_delivery_address_to_paypal():
+    from tests.test_ai_checkout_service import SHIPPING
+    from app.schemas.shipping import ShippingAddress
+    request = make_request().model_copy(update={"shipping_address": ShippingAddress(**SHIPPING)})
+    gw, http, _ = make_gateway(api_body={"id":"ABC", "links":[{"rel":"approve", "href":"https://www.paypal.com/checkoutnow?token=ABC"}]}, token_cached="t")
+    await gw.create_payment_intent(request)
+    body = http.post.call_args.kwargs["json"]
+    assert body["purchase_units"][0]["shipping"]["address"]["postal_code"] == "10001"
+    assert body["payment_source"]["paypal"]["experience_context"]["shipping_preference"] == "SET_PROVIDED_ADDRESS"

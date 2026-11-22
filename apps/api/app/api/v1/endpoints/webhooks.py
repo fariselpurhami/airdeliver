@@ -85,7 +85,7 @@ async def _delegate_payment_success(payment_intent: dict, session: AsyncSession,
     expected = Decimal(str(order.total_price)) * 100
     if (isinstance(amount_received, bool) or not isinstance(amount_received, int)
             or not expected.is_finite() or expected <= 0 or Decimal(amount_received) != expected
-            or payment_intent.get("currency", "").upper() != AICheckoutService.DEFAULT_CURRENCY.upper()):
+            or payment_intent.get("currency", "").upper() != order.currency.upper()):
         raise ValueError("Payment amount/currency mismatch")
     completion_service = PaymentCompletionService(session, rabbitmq, cache)
     # Propagate failures. A successful HTTP ack must not hide failed settlement.
@@ -141,7 +141,7 @@ async def paypal_webhook(
                 raise ValueError("PayPal local order reference mismatch")
             gateway.validate_order_details(
                 details, paypal_order_id, expected_order_id=order_id, expected_user_id=user_id,
-                expected_amount=Decimal(str(order.total_price)), expected_currency=AICheckoutService.DEFAULT_CURRENCY,
+                expected_amount=Decimal(str(order.total_price)), expected_currency=order.currency,
                 require_completed=True,
             )
             capture_ids = {capture["id"] for capture in unit["payments"]["captures"]}

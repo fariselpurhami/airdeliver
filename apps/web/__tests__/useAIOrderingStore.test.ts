@@ -164,12 +164,13 @@ describe('_dispatchCommand', () => {
     expect(postSpy).toHaveBeenCalledWith('/cart/clear', {});
   });
 
-  it('maps confirm/checkout/pay phrases to POST /checkout/confirm', async () => {
+  it('collects shipping before sending any checkout payment request', async () => {
     for (const message of ['__INTERNAL_CONFIRM_ORDER__', 'checkout', 'pay now', 'retry payment']) {
       const postSpy = jest.fn<(path: string, body?: Record<string, unknown>) => Promise<boolean>>().mockResolvedValue(true);
       useAIOrderingStore.setState({ _postCartCommand: postSpy } as Partial<StoreSnapshot>);
       await useAIOrderingStore.getState()._dispatchCommand({ message });
-      expect(postSpy).toHaveBeenCalledWith('/checkout/confirm', {});
+      expect(postSpy).not.toHaveBeenCalled();
+      expect(useAIOrderingStore.getState().isShippingStep).toBe(true);
     }
   });
 

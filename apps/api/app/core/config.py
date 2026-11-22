@@ -145,6 +145,7 @@ class StripeSettings(BaseAppConfig):
     api_version: str = Field(default="2026-06-24.dahlia")    
 
 class PayPalSettings(BaseAppConfig):
+    PAYPAL_CHECKOUT_ORIGIN: Optional[str] = Field(default=None, max_length=2048)
     PAYPAL_WEBHOOK_ID: Optional[str] = Field(default=None, alias="PAYPAL_WEBHOOK_ID", max_length=50)
     PAYPAL_CLIENT_ID: str = Field(..., alias="PAYPAL_CLIENT_ID", min_length=1)
     PAYPAL_CLIENT_SECRET: SecretStr = Field(..., alias="PAYPAL_CLIENT_SECRET", min_length=1)

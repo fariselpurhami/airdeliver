@@ -10,7 +10,7 @@ import time
 
 from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List, Protocol
+from typing import Optional, Dict, Any, List, Protocol, Literal
 
 from pydantic import AliasChoices, BaseModel, EmailStr, Field, ValidationError, field_validator
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -19,6 +19,7 @@ from app.services.payment_orchestrator import PaymentRequest, PaymentStatus
 from app.services.cache_service import IAsyncCacheClient
 from app.services.rabbitmq_service import RabbitMQService
 from app.models.order import Order, OrderItem
+from app.schemas.shipping import ShippingAddress
 from app.models.product import Product
 from app.models.enums import OrderStatus, CancellationReason
 
@@ -77,8 +78,10 @@ class ValidatedCheckoutItem(BaseModel):
 class ConfirmOrderPayload(BaseModel):
     user_id: int
     email: Optional[EmailStr] = None
-    address: Optional[str] = Field(default="Address pending via Chat", max_length=255)
-    country: str = Field(default="US", min_length=2, max_length=2)
+    shipping_address: ShippingAddress
+    payment_provider: Optional[Literal["stripe", "paypal"]] = None
+    address: Optional[str] = Field(default=None, max_length=255)
+    country: Optional[str] = Field(default=None, min_length=2, max_length=2)
 
 class PaymentSuccessPayload(BaseModel):
     user_id: int
@@ -159,10 +162,13 @@ class AICheckoutService:
         try:
             payload = ConfirmOrderPayload(**raw_payload)
         except ValidationError as e:
-            logger.warning("Invalid checkout payload boundary", extra={"error": str(e)})
+            logger.warning("Invalid checkout payload boundary", extra={"error_count": e.error_count()})
             await self._send_error(raw_payload.get("user_id", 0), "Invalid checkout data provided.")
             return
 
+        if payload.payment_provider and payload.payment_provider not in self.orchestrator.available_providers:
+            await self._send_error(payload.user_id, "The selected payment method is unavailable. Please choose another method.")
+            return
         cart = await self.cache.get_json(self._get_cart_key(payload.user_id))
         
         if not isinstance(cart, dict) or not isinstance(cart.get("items"), list) or not cart["items"]:
@@ -192,7 +198,7 @@ class AICheckoutService:
             if not items_payload:
                 raise ValueError("Cart is empty; cannot initiate order.")
             
-            safe_address = payload.address.strip() if payload.address and payload.address.strip() else "Address pending via Chat"
+            safe_address = payload.shipping_address.display_address()
             
             order_items_to_create = []
             verified_items = []
@@ -260,6 +266,8 @@ class AICheckoutService:
                 status=OrderStatus.PENDING,
                 total_price=total_amount,
                 delivery_address=safe_address,
+                currency=self.DEFAULT_CURRENCY.upper(),
+                shipping_address_data=payload.shipping_address.model_dump(),
                 created_at = datetime.now(timezone.utc)
             )
             
@@ -335,7 +343,9 @@ class AICheckoutService:
                 order_id=str(new_order.id),
                 amount=total_amount,
                 currency=self.DEFAULT_CURRENCY,
-                region=payload.country,
+                preferred_provider=payload.payment_provider,
+                shipping_address=payload.shipping_address,
+                region=payload.shipping_address.country,
                 idempotency_key=idempotency_key,
                 metadata={
                     "user_id": str(payload.user_id),
@@ -444,7 +454,8 @@ class AICheckoutService:
             "order_data": {
                 "order_id": new_order.id,
                 "total": float(new_order.total_price), # تحويل لـ float ليتوافق مع UI
-                "items": safe_ui_items
+                "items": safe_ui_items,
+                "currency": new_order.currency,
             },
             "gateway_provider": provider
         }

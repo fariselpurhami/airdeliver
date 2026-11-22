@@ -11,6 +11,8 @@ import {
     Rocket, Clock, ScanLine
 } from 'lucide-react';
 import * as THREE from 'three';
+import CheckoutStart from '@/components/checkout/CheckoutStart';
+import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 
 // ============================================================================
 // --- 1. THE HYPERDRIVE ENGINE (Background) ---
@@ -95,15 +97,14 @@ const InputField = ({ icon: Icon, label, placeholder, type = "text", half = fals
 // --- 3. THE MAIN PAGE ---
 // ============================================================================
 
-export default function CheckoutPage() {
+function CheckoutVisualPrototype() {
     const [isMounted, setIsMounted] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => { setIsMounted(true); }, []);
 
     const handleLaunch = () => {
-        setIsProcessing(true);
-        setTimeout(() => setIsProcessing(false), 4000);
+        useAIOrderingStore.getState().confirmCurrentOrder();
     };
 
     return (
@@ -219,3 +220,7 @@ export default function CheckoutPage() {
         </div>
     );
 }
+
+// Preserve the original visual foundation above, but all customers use the
+// same real delivery/payment flow as the assistant.
+export default CheckoutStart;

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { DEFAULT_CURRENCY, formatMoney } from '@/lib/commerce';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Lock,
@@ -60,10 +61,11 @@ interface AIPaymentFormProps {
     total: number;
     items: Item[];
     onPaymentSuccess: () => void;
-    clientSecret?: string; 
+    clientSecret?: string;
+    currency?: string;
 }
 
-const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, clientSecret }: AIPaymentFormProps) => {
+const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, clientSecret, currency = DEFAULT_CURRENCY }: AIPaymentFormProps) => {
     const stripe = useStripe();
     const elements = useElements();
 
@@ -154,7 +156,7 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, cli
                                 <span className="text-gray-300 break-words leading-relaxed group-hover/item:text-white transition-colors flex-1">
                                     {item.name} <span className="text-cyan-500/70 text-[10px] ml-1 font-bold whitespace-nowrap">x{item.quantity}</span>
                                 </span>
-                                <span className="text-white font-mono opacity-80 mt-1 shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
+                                <span className="text-white font-mono opacity-80 mt-1 shrink-0">{formatMoney(item.price * item.quantity, currency)}</span>
                             </div>
                         )) : (
                             <p className="text-gray-600 text-xs italic">Encrypted details hidden.</p>
@@ -165,9 +167,9 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, cli
                         <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
                         <div className="flex items-baseline gap-1">
                             <span className="text-3xl font-black text-white tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                                ${total.toFixed(2)}
+                                {formatMoney(total, currency)}
                             </span>
-                            <span className="text-xs text-gray-500 font-bold">USD</span>
+                            <span className="text-xs text-gray-500 font-bold">{currency}</span>
                         </div>
                     </div>
                 </div>
@@ -217,7 +219,7 @@ const AIPaymentForm = React.memo(({ orderId, total, items, onPaymentSuccess, cli
                                    ) : (
                                         <>
                                             <span className="font-black text-white tracking-widest text-sm group-hover:text-cyan-200 transition-colors">
-                                                PAY ${(total).toFixed(2)}
+                                                PAY {formatMoney(total, currency)}
                                             </span>
                                             <div className="p-1 rounded-full bg-cyan-500/20 text-cyan-400 group-hover:translate-x-1 transition-transform">
                                                 <ArrowRight size={16} />

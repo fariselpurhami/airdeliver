@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Final
 
 import httpx
 import stripe
+from app.schemas.shipping import ShippingAddress
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from tenacity import (
     retry,
@@ -37,6 +38,7 @@ class StripeSettings(BaseModel):
 class PayPalSettings(BaseModel):
     """Structural type for the gateway; the live object is
     app.core.config.PayPalSettings (env-backed)."""
+    PAYPAL_CHECKOUT_ORIGIN: Optional[str] = None
     PAYPAL_CLIENT_ID: str = Field(..., description="PayPal OAuth Client ID")
     PAYPAL_CLIENT_SECRET: SecretStr = Field(..., description="PayPal OAuth Client Secret")
     PAYPAL_API_BASE_URL: str = Field(
@@ -117,6 +119,8 @@ class PaymentRequest(BaseModel):
     region: str = Field(..., min_length=2, max_length=2)
     idempotency_key: str = Field(..., min_length=16, max_length=255)
     metadata: Dict[str, str] = Field(default_factory=dict)
+    preferred_provider: Optional[GatewayProvider] = None
+    shipping_address: Optional[ShippingAddress] = None
 
     @field_validator("currency", "region", mode="before")
     def force_uppercase(cls, v: str) -> str:
@@ -152,6 +156,10 @@ class IPaymentGateway(ABC):
     @abstractmethod
     def provider(self) -> GatewayProvider:
         pass
+
+    @property
+    def checkout_available(self) -> bool:
+        return True
 
     @abstractmethod
     async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
@@ -292,6 +300,23 @@ class PayPalGateway(IPaymentGateway):
     def provider(self) -> GatewayProvider:
         return GatewayProvider.PAYPAL
 
+    def _checkout_origin(self) -> Optional[str]:
+        value = getattr(self._settings, "PAYPAL_CHECKOUT_ORIGIN", None)
+        if not isinstance(value, str) or not value:
+            return None
+        parsed = urlparse(value)
+        local_http = (os.getenv("APP_ENV") == "development" and parsed.scheme == "http"
+                      and parsed.hostname in {"localhost", "127.0.0.1"})
+        if (not parsed.hostname or (parsed.scheme != "https" and not local_http)
+                or parsed.username or parsed.password or parsed.query or parsed.fragment
+                or parsed.path not in {"", "/"}):
+            return None
+        return value.rstrip("/")
+
+    @property
+    def checkout_available(self) -> bool:
+        return self._checkout_origin() is not None
+
     def _base_url(self) -> str:
         return str(self._settings.PAYPAL_API_BASE_URL).rstrip("/")
 
@@ -327,6 +352,10 @@ class PayPalGateway(IPaymentGateway):
 
     async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
         try:
+            origin = self._checkout_origin()
+            if origin is None:
+                return GatewayResult(provider=self.provider, status=PaymentStatus.FAILURE,
+                                     error_message="PayPal browser checkout is not configured.")
             token = await self._get_access_token()
             purchase_unit: Dict[str, Any] = {
                 "reference_id": str(request.order_id),
@@ -335,6 +364,14 @@ class PayPalGateway(IPaymentGateway):
                     "value": str(request.amount),
                 },
             }
+            if request.shipping_address is not None:
+                address = request.shipping_address
+                purchase_unit["shipping"] = {
+                    "name": {"full_name": address.recipient_name},
+                    "address": {"address_line_1": address.line1, "address_line_2": address.line2,
+                                "admin_area_2": address.city, "admin_area_1": address.region,
+                                "postal_code": address.postal_code, "country_code": address.country},
+                }
             user_ref = request.metadata.get("user_id")
             if user_ref is not None:
                 purchase_unit["custom_id"] = str(user_ref)
@@ -342,7 +379,13 @@ class PayPalGateway(IPaymentGateway):
             logger.info("Creating PayPal order", extra={"order_id": request.order_id})
             response = await self._http_client.post(
                 f"{self._base_url()}/v2/checkout/orders",
-                json={"intent": "CAPTURE", "purchase_units": [purchase_unit]},
+                json={"intent": "CAPTURE", "purchase_units": [purchase_unit],
+                      "payment_source": {"paypal": {"experience_context": {
+                          "return_url": f"{origin}/checkout/paypal/return?order_id={request.order_id}",
+                          "cancel_url": f"{origin}/checkout/paypal/cancel?order_id={request.order_id}",
+                          "user_action": "CONTINUE",
+                          "shipping_preference": "SET_PROVIDED_ADDRESS" if request.shipping_address else "NO_SHIPPING",
+                      }}}},
                 headers={
                     "Authorization": f"Bearer {token}",
                     "PayPal-Request-Id": request.idempotency_key,
@@ -353,7 +396,7 @@ class PayPalGateway(IPaymentGateway):
             body = response.json()
 
             action_url = next(
-                (link["href"] for link in body.get("links", []) if link.get("rel") == "approve"),
+                (link["href"] for link in body.get("links", []) if link.get("rel") in {"approve", "payer-action"}),
                 None,
             )
             if not action_url:
@@ -595,6 +638,10 @@ class PaymentOrchestrator:
             "DEFAULT": [GatewayProvider.STRIPE],
         }
 
+    @property
+    def available_providers(self) -> List[str]:
+        return [provider.value for provider, gateway in self._gateways.items() if gateway.checkout_available]
+
     async def process_payment(self, request: PaymentRequest, corr_id: str) -> OrchestrationResponse:
         """
         Executes parallel, fault-tolerant payment intent generation.
@@ -609,7 +656,9 @@ class PaymentOrchestrator:
         })
 
         target_providers = self._routing_rules.get(request.region, self._routing_rules["DEFAULT"])
-        active_gateways = [self._gateways[p] for p in target_providers if p in self._gateways]
+        if request.preferred_provider is not None:
+            target_providers = [request.preferred_provider] if request.preferred_provider in target_providers else []
+        active_gateways = [self._gateways[p] for p in target_providers if p in self._gateways and self._gateways[p].checkout_available]
 
         if not active_gateways:
             logger.critical("No valid routing configuration for requested region", extra={"region": request.region})

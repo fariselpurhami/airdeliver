@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from app.services.payment_orchestrator import (
     GatewayProvider,
+    IPaymentGateway,
     GatewayResult,
     OrchestrationResponse,
     PaymentOrchestrator,
@@ -28,7 +29,7 @@ def make_request(**overrides):
     return PaymentRequest(**base)
 
 
-class FakeGateway:
+class FakeGateway(IPaymentGateway):
     def __init__(self, provider, result=None, exc=None, delay=0.0):
         self._provider = provider
         self._result = result
@@ -150,3 +151,18 @@ async def test_all_gateways_slow_returns_latency_failure():
     resp = await orch.process_payment(make_request(region="EG"), "corr-7")
     assert resp.status == PaymentStatus.FAILURE
     assert "latency" in resp.error_message.lower()
+
+
+@pytest.mark.asyncio
+async def test_explicit_payment_choice_does_not_initialize_another_provider():
+    stripe = FakeGateway(GatewayProvider.STRIPE, ok_result(GatewayProvider.STRIPE))
+    paypal = FakeGateway(GatewayProvider.PAYPAL, ok_result(GatewayProvider.PAYPAL))
+    result = await PaymentOrchestrator([stripe, paypal]).process_payment(make_request(region="US", preferred_provider="paypal"), "choice")
+    assert result.primary_gateway.provider == GatewayProvider.PAYPAL
+    assert paypal.calls == 1
+    assert stripe.calls == 0
+
+
+def test_unconfigured_browser_gateway_is_not_advertised():
+    gateway = FakeGateway(GatewayProvider.STRIPE, ok_result(GatewayProvider.STRIPE))
+    assert PaymentOrchestrator([gateway]).available_providers == ["stripe"]

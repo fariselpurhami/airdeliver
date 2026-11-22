@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
 import { useCartStore } from './useCartStore';
+import type { ShippingAddress } from '@/lib/commerce';
 
 // --- Domain Types ---
 
@@ -32,6 +33,7 @@ export type PaymentDetails = {
     order_id: number;
     total: number;
     items: PaymentOrderItem[];
+    currency?: string;
   };
   gateway_provider?: string;
   action_url?: string;
@@ -135,6 +137,12 @@ interface AIOrderingState {
   removeProductById: (productId: number) => void;
   clearCart: () => void;
 
+  authToken: string | null;
+  isShippingStep: boolean;
+  shippingAddress: ShippingAddress | null;
+  submitShippingAddress: (address: ShippingAddress, provider: 'stripe' | 'paypal') => Promise<boolean>;
+  cancelShipping: () => void;
+
   // Actions - Checkout & Flow
   fetchInitialSuggestions: () => void;
   clearPayment: () => void;
@@ -182,6 +190,9 @@ const NOISY_TEXT_FRAGMENTS = [
 export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   // --- Initial State ---
   messages: [initialWelcomeMessage],
+  authToken: null,
+  isShippingStep: false,
+  shippingAddress: null,
   paymentDetails: null,
   recoveryOrderDetails: null,
   suggestedProductIds: null,
@@ -205,6 +216,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
   // --- Socket Logic ---
   connectSocket: async (token: string) => {
+    set({ authToken: token });
     const {
       socket,
       socketStatus,
@@ -406,6 +418,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     set({
       socket: null,
       socketStatus: 'disconnected',
+      authToken: null,
       reconnectAttempts: 0,
       reconnectTimeoutId: null,
       abortController: null
@@ -685,7 +698,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     try {
       const response = await fetch('/api/v1/ai-support/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(get().authToken ? { Authorization: `Bearer ${get().authToken}` } : {}) },
         credentials: 'include',
         body: JSON.stringify({
           message,
@@ -819,7 +832,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     } else if (message === '__INTERNAL_SAVE_FOR_LATER__' || lower.includes('save for later')) {
       path = '/cart/save';
     } else if (message === '__INTERNAL_CONFIRM_ORDER__' || lower.includes('confirm order') || lower.includes('checkout') || lower.includes('pay now') || lower.includes('retry payment')) {
-      path = '/checkout/confirm';
+      get().confirmCurrentOrder();
+      return;
     } else if (message === '__CANCEL__' || payload.type === 'CANCEL_INTENT' || lower.includes('cancel order')) {
       path = '/checkout/cancel';
       if (rawMessage && typeof rawMessage === 'object') {
@@ -854,9 +868,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
   _postCartCommand: async (path, body = {}) => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api/v1';
-    const token = typeof document !== 'undefined'
-      ? (document.cookie.split('; ').find(row => row.startsWith('next-auth.session-token='))?.split('=')[1] || '')
-      : '';
+    const token = get().authToken;
+    if (!token) return false;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
@@ -939,8 +952,15 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   clearCart: () => get()._sendInternalCommand('__INTERNAL_CLEAR_CART__'),
   
   confirmCurrentOrder: () => {
-    set({ isProcessing: true, isLoading: true });
-    get()._sendInternalCommand('__INTERNAL_CONFIRM_ORDER__', {}, true);
+    set({ isShippingStep: true, isOverlayVisible: true, isProcessing: false, isLoading: false });
+  },
+  cancelShipping: () => set({ isShippingStep: false }),
+  submitShippingAddress: async (address, provider) => {
+    if (get().socketStatus !== 'connected' || !get().authToken) return false;
+    set({ isProcessing: true, isLoading: true, shippingAddress: address });
+    const ok = await get()._postCartCommand('/checkout/confirm', { shipping_address: address, payment_provider: provider });
+    set({ isShippingStep: !ok, isProcessing: false, isLoading: false });
+    return ok;
   },
 
   triggerResetConfirmation: () => {

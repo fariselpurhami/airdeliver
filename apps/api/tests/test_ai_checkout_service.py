@@ -105,7 +105,8 @@ def make_service(cart=None, order=None, orchestrator=None):
 
 
 CART = {"items": [{"product_id": 7, "name": "Shoes", "quantity": 2, "price": "10.50"}]}
-CONFIRM = {"user_id": 1, "address": "12 Nile St", "country": "EG", "email": "u@example.com"}
+SHIPPING = {"recipient_name": "Test Buyer", "line1": "123 Main Street", "line2": "", "city": "New York", "region": "NY", "postal_code": "10001", "country": "US", "phone": "+12125550123"}
+CONFIRM = {"user_id": 1, "shipping_address": SHIPPING, "email": "u@example.com"}
 
 
 @pytest.mark.asyncio
@@ -117,6 +118,8 @@ async def test_confirm_order_happy_path_creates_order_and_payment_intent():
     assert orders, "an Order should have been persisted"
     assert orders[0].status == OrderStatus.PENDING
     assert Decimal(str(orders[0].total_price)) == Decimal("21.00")
+    assert orders[0].shipping_address_data["postal_code"] == "10001"
+    assert orders[0].currency == "USD"
     assert db.commits >= 1
     orch.process_payment.assert_awaited_once()
     # UI receives the payment intent with client_secret but no raw gateway response
@@ -281,3 +284,11 @@ async def test_checkout_rejects_corrupt_quantities(quantity):
     await svc.handle_confirm_order(dict(CONFIRM))
     orch.process_payment.assert_not_awaited()
     assert not [item for item in db.added if isinstance(item, Order)]
+
+
+@pytest.mark.asyncio
+async def test_missing_shipping_cannot_create_order_or_start_payment():
+    svc, _, db, _, orch = make_service(cart=dict(CART))
+    await svc.handle_confirm_order({"user_id": 1, "email": "u@example.com"})
+    assert not db.added
+    orch.process_payment.assert_not_awaited()

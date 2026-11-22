@@ -117,13 +117,14 @@ class TestCartEndpoints:
 class TestCheckoutEndpoints:
     def test_confirm_order_injects_user_context(self, client):
         c, _, checkout, _nlu = client
-        resp = c.post("/api/v1/ai-ordering/checkout/confirm", json={})
+        from tests.test_ai_checkout_service import SHIPPING
+        resp = c.post("/api/v1/ai-ordering/checkout/confirm", json={"shipping_address": SHIPPING})
         assert resp.status_code == 202
         name, payload = checkout.calls[0]
         assert name == "confirm"
         assert payload["user_id"] == 1
         assert payload["email"] == "user@test.local"
-        assert payload["country"] == "US"
+        assert payload["shipping_address"]["country"] == "US"
 
     def test_cancel_order_forwards_order_id(self, client):
         c, _, checkout, _nlu = client
@@ -217,3 +218,18 @@ async def test_disabled_mpesa_cannot_be_checkout_only_gateway(monkeypatch):
         await agen.__anext__()
     assert error.value.status_code == 503
     await agen.aclose()
+
+
+def test_http_checkout_requires_structured_shipping(client):
+    c, _, checkout, _ = client
+    response = c.post("/api/v1/ai-ordering/checkout/confirm", json={})
+    assert response.status_code == 422
+    assert checkout.calls == []
+
+
+def test_checkout_options_only_exposes_server_configured_providers(client):
+    c, _, checkout, _ = client
+    checkout.orchestrator = SimpleNamespace(available_providers=["stripe"])
+    response = c.get("/api/v1/ai-ordering/checkout/options")
+    assert response.status_code == 200
+    assert response.json() == {"providers":["stripe"], "currencies":["USD"], "countries":["US"], "locale":"en-US"}
