@@ -55,6 +55,9 @@ export type MessageContentType =
   | 'payment_intent' 
   | 'success_text' 
   | 'ORDER_CANCELLED' 
+  | 'ORDER_CONFIRMED' 
+  | 'system' 
+  | 'info' 
   | 'recovery_prompt' 
   | 'reset_prompt' 
   | 'image_user_upload';

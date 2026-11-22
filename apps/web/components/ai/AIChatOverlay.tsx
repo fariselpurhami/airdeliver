@@ -576,7 +576,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
 
     const contentNode = renderContent();
 
-    if (['cart_preview', 'typing', 'payment_intent', 'ORDER_CANCELLED', 'system'].includes(message.contentType)) return null;
+    if (['cart_preview', 'typing', 'payment_intent', 'ORDER_CANCELLED', 'ORDER_CONFIRMED', 'system'].includes(message.contentType)) return null;
     if (!contentNode) return null;
 
     return (
