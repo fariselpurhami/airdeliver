@@ -10,6 +10,7 @@ from app.api.deps import get_async_session
 from app.models.order import Order
 from app.models.enums import OrderStatus
 from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
+from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 from app.services.payment_completion_service import PaymentCompletionService
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ async def stripe_webhook(
     settings: CoreSettings = Depends(get_core_settings),
     session: AsyncSession = Depends(get_async_session),
     rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
+    cache: IAsyncCacheClient = Depends(get_cache_from_request),
 ):
 
     webhook_secret = settings.STRIPE_WEBHOOK_SECRET
@@ -51,7 +53,7 @@ async def stripe_webhook(
     data_object = event["data"]["object"]
 
     if event_type == "payment_intent.succeeded":
-        await _delegate_payment_success(data_object, session, rabbitmq)
+        await _delegate_payment_success(data_object, session, rabbitmq, cache)
     
     elif event_type == "payment_intent.payment_failed":
         await _delegate_payment_failure(data_object, session, rabbitmq)
@@ -59,7 +61,7 @@ async def stripe_webhook(
     return {"status": "success"}
 
 
-async def _delegate_payment_success(payment_intent: dict, session: AsyncSession, rabbitmq: RabbitMQService):
+async def _delegate_payment_success(payment_intent: dict, session: AsyncSession, rabbitmq: RabbitMQService, cache=None):
 
     metadata = payment_intent.get("metadata", {})
     order_id = metadata.get("order_id")
@@ -70,7 +72,7 @@ async def _delegate_payment_success(payment_intent: dict, session: AsyncSession,
         logger.error(f"❌ Missing metadata in PaymentIntent {transaction_id}")
         return
 
-    completion_service = PaymentCompletionService(session, rabbitmq)
+    completion_service = PaymentCompletionService(session, rabbitmq, cache)
     
     try:
         await completion_service.finalize_successful_payment(
