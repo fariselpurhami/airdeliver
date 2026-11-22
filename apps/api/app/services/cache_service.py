@@ -152,6 +152,10 @@ class IAsyncCacheClient(ABC):
     @abstractmethod
     async def publish(self, channel: str, message: str) -> int: ...
 
+    async def publish_required(self, channel: str, message: str) -> int:
+        """Required delivery must not turn a backend failure into zero listeners."""
+        raise NotImplementedError("This cache backend has no strict publication contract")
+
     @abstractmethod
     async def subscribe(self, channel: str) -> Any: ...
 
@@ -329,6 +333,11 @@ class RedisCacheClient(IAsyncCacheClient):
     
     @with_resilience(default_factory=lambda: 0)
     async def publish(self, channel: str, message: str) -> int:
+        return await self.client.publish(channel, message)
+
+    async def publish_required(self, channel: str, message: str) -> int:
+        if self._redis is None:
+            await self.connect()
         return await self.client.publish(channel, message)
 
     @with_resilience(default_factory=lambda: None)

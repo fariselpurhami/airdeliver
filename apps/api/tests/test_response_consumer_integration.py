@@ -77,7 +77,7 @@ async def test_broker_response_reaches_socket_in_another_api_process():
     socket.send_text = AsyncMock()
     await remote_manager.connect(99, socket)
     class SharedRedis:
-        async def publish(self, channel, body):
+        async def publish_required(self, channel, body):
             assert channel == "airdeliver:response:99"
             await remote_manager.send_to_user(99, body)
             return 1
@@ -99,7 +99,17 @@ async def test_bridge_failure_is_not_silently_acknowledged():
         async def __aexit__(self, exc_type, *args):
             assert exc_type is ValueError
     cache = AsyncMock()
-    cache.publish.side_effect = ValueError("invalid backend state")
+    cache.publish_required.side_effect = ValueError("invalid backend state")
     message = SimpleNamespace(body=b'{"user_id":99}', process=lambda **kwargs: Process())
     with pytest.raises(ValueError, match="invalid backend"):
         await main.relay_response_message(message, AsyncMock(), cache=cache)
+
+
+@pytest.mark.asyncio
+async def test_real_redis_required_publication_propagates_failure():
+    from app.services.cache_service import RedisCacheClient
+    from redis.exceptions import ConnectionError
+    cache = RedisCacheClient("redis://localhost:6379/0")
+    cache._redis = SimpleNamespace(publish=AsyncMock(side_effect=ConnectionError("offline")))
+    with pytest.raises(ConnectionError):
+        await cache.publish_required("airdeliver:response:99", "{}")

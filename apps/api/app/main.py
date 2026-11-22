@@ -217,7 +217,7 @@ async def relay_response_message(
             # process consumed the shared durable RabbitMQ queue.
             for attempt in range(3):
                 try:
-                    await asyncio.wait_for(cache.publish(f"airdeliver:response:{user_id}", serialized), timeout=5.0)
+                    await asyncio.wait_for(cache.publish_required(f"airdeliver:response:{user_id}", serialized), timeout=5.0)
                     break
                 except (RedisConnectionError, RedisTimeoutError, OSError, asyncio.TimeoutError):
                     if attempt == 2:
