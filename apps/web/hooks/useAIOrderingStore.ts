@@ -820,13 +820,13 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         const orderId = (rawMessage as Record<string, unknown>).orderId;
         if (typeof orderId === 'number') body = { order_id: orderId };
       }
-    } else if (
-      message === '__INTERNAL_RESET_SESSION__' ||
-      message === '__INTERNAL_GET_INITIAL_SUGGESTIONS__' ||
-      message === '__INTERNAL_INITIATE_RECOVERY__'
-    ) {
-      // No live backend equivalent exists for these; they previously
-      // black-holed on an unconsumed queue. Dropped deliberately.
+    } else if (message === '__INTERNAL_RESET_SESSION__') {
+      path = '/session/reset';
+    } else if (message === '__INTERNAL_GET_INITIAL_SUGGESTIONS__') {
+      path = '/session/suggestions';
+    } else if (message === '__INTERNAL_INITIATE_RECOVERY__') {
+      // No handler has ever existed for this command (checked both the NLU
+      // service and the worker). Dropped deliberately.
       return;
     } else {
       // Unknown internal command: drop rather than fake an ACK.
@@ -834,7 +834,10 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     }
 
     const ok = await get()._postCartCommand(path, body);
-    if (!ok) {
+    // Cart sync and opening suggestions are best-effort hydration calls:
+    // their failure was silent on the worker path too, so keep it quiet.
+    const quiet = path === '/cart/sync' || path === '/session/suggestions';
+    if (!ok && !quiet) {
       set({ isLoading: false, isProcessing: false });
       get().appendSystemMessage({
         type: 'error',

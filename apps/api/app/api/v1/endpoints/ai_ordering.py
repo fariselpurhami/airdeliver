@@ -19,8 +19,10 @@ from app import models
 from app.api import deps
 from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
 from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
+from app.services.ai_behavior_engine import BehaviorEngine
 from app.services.ai_cart_service import AICartService
 from app.services.ai_checkout_service import AICheckoutService
+from app.services.ai_nlu_service import AINLUService
 from app.services.payment_orchestrator import (
     IPaymentGateway,
     MpesaGateway,
@@ -217,6 +219,58 @@ async def save_cart(
     cart_service: AICartService = Depends(get_ai_cart_service),
 ):
     await cart_service.handle_save_cart({"user_id": current_user.id})
+    return {"status": "accepted"}
+
+
+async def get_ai_nlu_service(
+    db: AsyncSession = Depends(deps.get_async_session),
+    cache: IAsyncCacheClient = Depends(get_cache_from_request),
+    rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
+    commerce_engine=Depends(deps.get_ai_commerce_engine),
+    llm_service=Depends(deps.get_llm_service),
+) -> AINLUService:
+    # Raises RuntimeError("AI infrastructure is offline") via the commerce
+    # engine dependency when OpenSearch/Milvus are down; FastAPI surfaces
+    # that as an honest 500 rather than a fake success.
+    return AINLUService(
+        db=db,
+        search_engine=commerce_engine,
+        rabbitmq=rabbitmq,
+        cache=cache,
+        llm_service=llm_service,
+        behavior_engine=BehaviorEngine(cache),
+    )
+
+
+@router.post("/session/suggestions", status_code=status.HTTP_202_ACCEPTED)
+async def initial_suggestions(
+    current_user: models.User = Depends(deps.get_current_active_user),
+    nlu_service: AINLUService = Depends(get_ai_nlu_service),
+):
+    """Personalized opening suggestions - the live path the chat worker ran."""
+    await nlu_service.process_message({
+        "user_id": current_user.id,
+        "email": current_user.email,
+        "message": "__INTERNAL_GET_INITIAL_SUGGESTIONS__",
+        "type": "CHAT_MESSAGE",
+        "client_msg_id": str(uuid.uuid4()),
+    })
+    return {"status": "accepted"}
+
+
+@router.post("/session/reset", status_code=status.HTTP_202_ACCEPTED)
+async def reset_session(
+    current_user: models.User = Depends(deps.get_current_active_user),
+    nlu_service: AINLUService = Depends(get_ai_nlu_service),
+):
+    """Clear assistant memory/context for this user and empty the cart."""
+    await nlu_service.process_message({
+        "user_id": current_user.id,
+        "email": current_user.email,
+        "message": "__INTERNAL_RESET_SESSION__",
+        "type": "CHAT_MESSAGE",
+        "client_msg_id": str(uuid.uuid4()),
+    })
     return {"status": "accepted"}
 
 

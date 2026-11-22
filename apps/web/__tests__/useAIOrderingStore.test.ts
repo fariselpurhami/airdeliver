@@ -179,10 +179,30 @@ describe('_dispatchCommand', () => {
     expect(postSpy).toHaveBeenCalledWith('/checkout/cancel', { order_id: 9 });
   });
 
-  it('drops commands with no live backend instead of faking an ACK', async () => {
+  it('maps reset session to POST /session/reset', async () => {
+    const { postSpy, done } = run({ message: '__INTERNAL_RESET_SESSION__' });
+    await done;
+    expect(postSpy).toHaveBeenCalledWith('/session/reset', {});
+  });
+
+  it('maps initial suggestions to POST /session/suggestions', async () => {
     const { postSpy, done } = run({ message: '__INTERNAL_GET_INITIAL_SUGGESTIONS__' });
     await done;
+    expect(postSpy).toHaveBeenCalledWith('/session/suggestions', {});
+  });
+
+  it('drops the one command with no live backend instead of faking an ACK', async () => {
+    const { postSpy, done } = run({ message: '__INTERNAL_INITIATE_RECOVERY__' });
+    await done;
     expect(postSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps suggestion-fetch failure silent (best-effort hydration)', async () => {
+    const postSpy = jest.fn<(path: string, body?: Record<string, unknown>) => Promise<boolean>>().mockResolvedValue(false);
+    useAIOrderingStore.setState({ _postCartCommand: postSpy } as Partial<StoreSnapshot>);
+    await useAIOrderingStore.getState()._dispatchCommand({ message: '__INTERNAL_GET_INITIAL_SUGGESTIONS__' });
+    const state = useAIOrderingStore.getState();
+    expect(state.messages.some((m) => m.contentType === 'error')).toBe(false);
   });
 
   it('surfaces an honest error when the command request fails', async () => {
