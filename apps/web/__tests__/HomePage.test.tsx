@@ -1,7 +1,22 @@
 // apps/web/__tests__/HomePage.test.tsx
+//
+// Characterizes the landing page as it exists today. The page itself
+// (app/(main)/page.tsx) is an async server component that reads headers(),
+// so the tests render the client tree it delegates to: LandingClient.
 
+// Types come from @jest/globals; the values stay as jest-injected globals so
+// the SWC jest transform keeps hoisting jest.mock() calls.
+import type * as JestGlobals from '@jest/globals';
+declare global {
+  const jest: typeof JestGlobals.jest;
+  const describe: typeof JestGlobals.describe;
+  const it: typeof JestGlobals.it;
+  const expect: typeof JestGlobals.expect;
+  const beforeEach: typeof JestGlobals.beforeEach;
+}
+import '@testing-library/jest-dom/jest-globals';
 import { render, screen, fireEvent } from '@testing-library/react';
-import HomePage from '../app/(main)/page';
+import { LandingClient } from '../app/(main)/_components/LandingClient';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 import { useUIStore } from '@/hooks/useUIStore';
 
@@ -10,76 +25,115 @@ jest.mock('@/hooks/useUIStore');
 
 const mockSetOverlayVisible = jest.fn();
 const mockShowProductOverlay = jest.fn();
+const mockHideProductOverlay = jest.fn();
+
+const renderLanding = () =>
+  render(<LandingClient nonce="test-nonce" initialTraceId="test-trace" />);
 
 describe('HomePage', () => {
   beforeEach(() => {
     mockSetOverlayVisible.mockClear();
     mockShowProductOverlay.mockClear();
+    mockHideProductOverlay.mockClear();
 
-    (useAIOrderingStore as jest.Mock).mockReturnValue({
+    // Zustand-style mocks: support both useStore() and useStore(selector).
+    const aiState = {
+      messages: [],
+      isLoading: false,
+      isProcessing: false,
+      paymentDetails: null,
+      glowingProductId: null,
+      socketStatus: 'disconnected',
+      flyQueue: [],
+      removeFlyItem: jest.fn(),
       setOverlayVisible: mockSetOverlayVisible,
-    });
+      sendMessage: jest.fn(),
+      sendImage: jest.fn(),
+      addProductById: jest.fn(),
+      removeProductById: jest.fn(),
+      resetChat: jest.fn(),
+      initiateCheckoutRecovery: jest.fn(),
+      confirmCurrentOrder: jest.fn(),
+      clearCart: jest.fn(),
+      restoreCheckout: jest.fn(),
+      saveForLater: jest.fn(),
+      hardCancelOrder: jest.fn(),
+      addSocketAIMessage: jest.fn(),
+      connectSocket: jest.fn(),
+      disconnectSocket: jest.fn(),
+    };
+    (useAIOrderingStore as unknown as ReturnType<typeof JestGlobals.jest.fn>).mockImplementation(
+      ((selector?: unknown) =>
+        typeof selector === 'function'
+          ? (selector as (state: typeof aiState) => unknown)(aiState)
+          : aiState) as (...args: unknown[]) => unknown
+    );
 
-    (useUIStore as jest.Mock).mockReturnValue({
+    const uiState = {
       showProductOverlay: mockShowProductOverlay,
-    });
+      hideProductOverlay: mockHideProductOverlay,
+    };
+    (useUIStore as unknown as ReturnType<typeof JestGlobals.jest.fn>).mockImplementation(
+      ((selector?: unknown) =>
+        typeof selector === 'function'
+          ? (selector as (state: typeof uiState) => unknown)(uiState)
+          : uiState) as (...args: unknown[]) => unknown
+    );
   });
 
   it('renders the main headline', () => {
-    render(<HomePage />);
+    renderLanding();
     const headline = screen.getByRole('heading', {
-      name: /THE FUTURE/i,
+      name: /shopping at the\s+speed of thought/i,
     });
     expect(headline).toBeInTheDocument();
   });
 
   it('renders the main action buttons', () => {
-    render(<HomePage />);
-    expect(screen.getByRole('button', { name: /order with air/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Explore Products/i })).toBeInTheDocument();
+    renderLanding();
+    expect(screen.getByRole('button', { name: /start ai order/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /explore trending products/i })).toBeInTheDocument();
   });
 
   it('renders all main page sections', () => {
-    render(<HomePage />);
-    expect(screen.getByRole('heading', { name: /How It Works/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Global Scale/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Trusted by Innovators/i })).toBeInTheDocument();
+    renderLanding();
+    expect(screen.getByRole('heading', { name: /how it\s+works/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /future of commerce/i })).toBeInTheDocument();
   });
 
-  it('calls the AI ordering store when "order with air" is clicked', () => {
-    render(<HomePage />);
-    const orderButton = screen.getByRole('button', { name: /Order with air/i });
+  it('calls the AI ordering store when the order button is clicked', () => {
+    renderLanding();
+    const orderButton = screen.getByRole('button', { name: /start ai order/i });
     fireEvent.click(orderButton);
     expect(mockSetOverlayVisible).toHaveBeenCalledTimes(1);
     expect(mockSetOverlayVisible).toHaveBeenCalledWith(true);
   });
 
-  it('calls the UI store when "Explore Products" is clicked', () => {
-    render(<HomePage />);
-    const exploreButton = screen.getByRole('button', { name: /Explore Products/i });
+  it('calls the UI store when "Explore trending products" is clicked', () => {
+    renderLanding();
+    const exploreButton = screen.getByRole('button', { name: /explore trending products/i });
     fireEvent.click(exploreButton);
     expect(mockShowProductOverlay).toHaveBeenCalledTimes(1);
   });
 
-  it('renders timeline steps in HowItWorksSection', () => {
-    render(<HomePage />);
-    expect(screen.getByText('AI Takes Your Order')).toBeInTheDocument();
-    expect(screen.getByText('Smart System Finds Best Option')).toBeInTheDocument();
-    expect(screen.getByText('Instant Order Tracking')).toBeInTheDocument();
-    expect(screen.getByText('Fast, Optimized Delivery')).toBeInTheDocument();
+  it('renders the HowItWorks steps', () => {
+    renderLanding();
+    expect(screen.getByText('AI Intent Recognition')).toBeInTheDocument();
+    expect(screen.getByText('Inventory Sync')).toBeInTheDocument();
+    expect(screen.getByText('Multimodal Visual Matching')).toBeInTheDocument();
+    expect(screen.getByText('Autonomous One-Tap Checkout')).toBeInTheDocument();
   });
 
-  it('renders counters in GlobalScaleSection', () => {
-    render(<HomePage />);
-    expect(screen.getByText('Drones in Flight')).toBeInTheDocument();
-    expect(screen.getByText('Cities Connected')).toBeInTheDocument();
-    expect(screen.getByText('Orders Delivered')).toBeInTheDocument();
+  it('renders the final CTA', () => {
+    renderLanding();
+    expect(screen.getByRole('link', { name: /sign up/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /download app/i })).toBeInTheDocument();
   });
 
-  it('renders testimonials in TestimonialsSection', () => {
-    render(<HomePage />);
-    expect(screen.getByText('Elena M.')).toBeInTheDocument();
-    expect(screen.getByText('Kenji T.')).toBeInTheDocument();
-    expect(screen.getByText('Fatima Z.')).toBeInTheDocument();
+  it('renders the trusted partners strip', () => {
+    renderLanding();
+    expect(
+      screen.getByText(/Trusted by NVIDIA, STRIPE, AWS, CLOUDFLARE, and MASTERCARD/i)
+    ).toBeInTheDocument();
   });
 });

@@ -4,7 +4,10 @@ import nextJest from 'next/jest.js';
 import { readFileSync } from 'fs';
 import { pathsToModuleNameMapper } from 'ts-jest';
 
-const tsconfig = JSON.parse(readFileSync('./tsconfig.json', 'utf8'));
+// tsconfig.json carries a leading comment banner; strip comments before parsing.
+const tsconfig = JSON.parse(
+  readFileSync('./tsconfig.json', 'utf8').replace(/^\s*\/\*[\s\S]*?\*\//, '')
+);
 
 const createJestConfig = nextJest({
   dir: './',
@@ -13,6 +16,8 @@ const createJestConfig = nextJest({
 const config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  // next-auth v5 ships ESM only; let the next/jest transform compile it.
+  transformIgnorePatterns: ['/node_modules/(?![^]*next-auth/)'],
   moduleNameMapper: pathsToModuleNameMapper(tsconfig.compilerOptions.paths, {
     prefix: '<rootDir>/',
   }),
