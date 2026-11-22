@@ -1221,7 +1221,7 @@ Output ONE line of search keywords only.
 
         User Desire:
         {sanitized_question}
-        ""
+        """
 
         messages: List[Dict[str, Any]] = [{"role": "system", "content": system_core}]
         messages.extend(safe_history)
@@ -1252,6 +1252,7 @@ Output ONE line of search keywords only.
         fallback = self._deterministic_strategy_fallback(sanitized_query)
 
         # 💎 DECISION ENGINE PROMPT WITH PYDANTIC SCHEMA
+        system_core = """
         ROLE: Elite Search Architect and Intent Decoder operating as a deterministic semantic parser for commerce search.
 
         PRIMARY MISSION:
@@ -1788,14 +1789,14 @@ Output ONE line of search keywords only.
         No trailing text.
 
         JSON SCHEMA:
-        {
+        {{
           "selected_ids": [int],
-          "reasoning": {
+          "reasoning": {{
              "id": "Short punchy reason"
-          },
+          }},
           "intro_message": "String",
           "confidence_score": 0.0
-         }
+         }}
 
          JSON FIELD RULES:
          selected_ids must contain only integers from the provided product list.
@@ -1819,6 +1820,36 @@ Output ONE line of search keywords only.
                 response_format={"type": "json_object"},
             )
             parsed = _parse_json_model(CognitiveResponse, completion.choices[0].message.content or "")
+            # ---------------------------------------------------------------
+            # PROGRAMMATIC GROUNDING (anti-hallucination firewall):
+            # The model may only select products that were actually retrieved
+            # and presented to it. Drop any selected id that is not in the
+            # candidate set, and drop reasoning entries without a matching
+            # selection, so the reasoning-keys contract still holds.
+            # ---------------------------------------------------------------
+            valid_candidate_ids = {
+                int(p["id"]) for p in products_slice if p.get("id") is not None
+            }
+            grounded_ids = [pid for pid in parsed.selected_ids if pid in valid_candidate_ids]
+            dropped_ids = [pid for pid in parsed.selected_ids if pid not in valid_candidate_ids]
+            if dropped_ids:
+                logger.warning(
+                    "hallucinated_product_ids_dropped: model selected ids outside the retrieved candidate set",
+                    extra={
+                        "dropped_ids": dropped_ids,
+                        "candidate_count": len(valid_candidate_ids),
+                    },
+                )
+                parsed = CognitiveResponse(
+                    selected_ids=grounded_ids,
+                    reasoning={
+                        key: value
+                        for key, value in parsed.reasoning.items()
+                        if key in {str(pid) for pid in grounded_ids}
+                    },
+                    intro_message=parsed.intro_message,
+                    confidence_score=parsed.confidence_score,
+                )
             if not parsed.selected_ids:
                 parsed = CognitiveResponse(
                     selected_ids=fallback_ids,
@@ -1967,3 +1998,4 @@ async def get_free_llm_service() -> FreeLLMService:
         if _service_singleton is None:
             _service_singleton = FreeLLMService()
     return _service_singleton
+
