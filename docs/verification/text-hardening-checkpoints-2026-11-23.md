@@ -47,3 +47,26 @@ journey proven. The diagnostic no longer masquerades as any of those.
   invalid input, cancellation and durable behavior before changing them.
 - Behavior training file is pre-existing UNTRACKED work, excluded pending ownership
   check. Do not overwrite or accidentally commit it.
+
+
+## Checkpoint2: feature/experiment foundations
+
+Repository-wide caller search found no active application callers for these two
+service foundations.15new regressions failed before changes. Legacy boolean
+flag caused tuple-unpack failure; bool/negative/noninteger user IDs could enter
+percentage rollouts. Experiment defaults pretended a checkout-color experiment
+was active without a declared version/configuration.
+
+Preserved public feature/variant methods and registered feature names. Immutable
+validated rollout config accepts legacy bool/tuple and explicit Rollout objects.
+Unknown/invalid subjects are not enrolled. SHA256 namespaced cohorts are stable
+across processes without Python hash randomization or time. Versioned experiments
+must be supplied explicitly; default returns control/unassigned. This removes
+only an unconfigured demonstration assignment, not a deployed experiment.
+Assignments expose experiment version, not fabricated exposure/results.
+
+This is deterministic product configuration, NOT a behavioral model substitute.
+No claims of distributed config, live admin UI, durable exposure capture, A/B
+statistical significance or activation in app routes. New hashes would change
+cohorts if an external consumer existed; none was found in the repository.
+Local completePG19suite553passed,2skips,18warnings before final commit.
