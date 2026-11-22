@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from functools import partial
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, Final, Mapping, Optional, Set, TypeAlias
+from typing import Any, Awaitable, Callable, Dict, Final, List, Mapping, Optional, Set, TypeAlias
 
 HF_CACHE_ROOT = os.getenv("HF_HOME", "/tmp/huggingface")
 HF_HUB_CACHE = os.getenv("HF_HUB_CACHE", f"{HF_CACHE_ROOT}/hub")
@@ -288,7 +288,39 @@ class WorkerRuntime:
     async def track_behavior(self, user_id: Any, action: str, metadata: Dict[str, Any]) -> None:
         if not user_id or self.services.behavior is None:
             return
+        # Vector enrichment: events carrying a product id get its stored 1536-dim
+        # embedding so the OmniNet ghost profiles receive real semantic signal
+        # (previously every worker event arrived vector-less and was discarded
+        # by track_interaction before reaching the neural buffer).
+        product_id = metadata.get("id")
+        if product_id is not None and "vec" not in metadata:
+            vector = await self._product_vector(product_id)
+            if vector is not None:
+                metadata = {**metadata, "vec": vector}
         await self.services.behavior.track_interaction(user_id, action, metadata)
+
+    async def _product_vector(self, product_id: Any) -> Optional[List[float]]:
+        # Fetch a product embedding from Milvus by primary key.
+        commerce = self.services.commerce
+        if commerce is None:
+            return None
+        try:
+            pid = int(product_id)
+        except (TypeError, ValueError):
+            return None
+        try:
+            rows = await asyncio.to_thread(
+                commerce.milvus_client.get,
+                collection_name=commerce.milvus_product_text_col,
+                ids=[pid],
+            )
+        except Exception as exc:
+            logger.warning("behavior vector enrichment failed: %s", exc)
+            return None
+        if not rows:
+            return None
+        vector = rows[0].get("vector")
+        return list(vector) if vector is not None else None
 
     @staticmethod
     def is_message_startup_dependent(payload: dict) -> bool:
@@ -448,6 +480,33 @@ class WorkerRuntime:
             service = AICheckoutService(db, self.services.cache, self.services.rabbitmq, self.services.payment)
             await service.handle_cancel_order(payload)
 
+    async def removal_recovery_handler_impl(self, payload: dict) -> None:
+        # Consumes airdeliver.ai.intent.removal_recovery: a cart removal is a
+        # negative behavioral signal - feed the BehaviorEngine a discard event.
+        await self.wait_for_readiness(required_ai=False)
+        user_id = payload.get("user_id")
+        if user_id and self.services.behavior is not None:
+            await self.track_behavior(
+                user_id,
+                "discard",
+                {"id": payload.get("removed_product_id"), "context": "removal_recovery"},
+            )
+
+    async def analytics_conversion_handler_impl(self, payload: dict) -> None:
+        # Consumes airdeliver.ai.analytics.conversion: a completed order is the
+        # strongest buy signal (gravity 10) - feed it to the BehaviorEngine with
+        # the order revenue as price context.
+        await self.wait_for_readiness(required_ai=False)
+        user_id = payload.get("user_id")
+        if user_id and self.services.behavior is not None:
+            metadata: Dict[str, Any] = {"context": "conversion"}
+            revenue = payload.get("revenue")
+            try:
+                if revenue is not None:
+                    metadata["price"] = float(revenue)
+            except (TypeError, ValueError):
+                pass
+            await self.track_behavior(user_id, "buy", metadata)
     async def chat_handler_impl(self, payload: dict) -> None:
         await self.wait_for_readiness(required_ai=True)
 
@@ -679,6 +738,16 @@ class WorkerRuntime:
                 "queue": "q.ai.cart.save",
                 "key": "airdeliver.ai.cart.save",
                 "handler": self.save_cart_handler_impl,
+            },
+            "removal_recovery": {
+                "queue": "q.ai.intent.removal_recovery",
+                "key": "airdeliver.ai.intent.removal_recovery",
+                "handler": self.removal_recovery_handler_impl,
+            },
+            "analytics_conversion": {
+                "queue": "q.ai.analytics.conversion",
+                "key": "airdeliver.ai.analytics.conversion",
+                "handler": self.analytics_conversion_handler_impl,
             },
         }
 
