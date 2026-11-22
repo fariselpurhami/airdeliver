@@ -4,7 +4,7 @@ name: Backend CI
 
 on:
   push:
-    branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api", "hardening/dev-proxy-routes", "hardening/meta-confidence-boundaries", "hardening/feature-assignment-contracts", "hardening/bounded-text-inference", "hardening/notification-results", "hardening/notification-endpoints", "hardening/support-session-isolation", "hardening/support-action-truth", "hardening/support-inference-deadline", "hardening/behavior-offline-training", "hardening/push-subscription-contract"]
+    branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api", "hardening/dev-proxy-routes", "hardening/meta-confidence-boundaries", "hardening/feature-assignment-contracts", "hardening/bounded-text-inference", "hardening/notification-results", "hardening/notification-endpoints", "hardening/support-session-isolation", "hardening/support-action-truth", "hardening/support-inference-deadline", "hardening/behavior-offline-training", "hardening/push-subscription-contract", "hardening/ci-search-disk-budget"]
     paths:
       - 'apps/api/**'
       - 'scripts/configure_dev_env.py'
@@ -85,6 +85,22 @@ jobs:
           TEST_PG_BACKUP_IMAGE: airdeliver-postgres-backup:ci
           AIRDELIVER_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: poetry run python scripts/verify_postgres_integration.py
+
+      - name: Reclaim disposable CI download and build caches
+        run: |
+          test "$GITHUB_ACTIONS" = "true"
+          df -h /
+          # Installed environments and running services are not cache artifacts.
+          # Keep all images, containers and volumes. Never relax disk watermarks.
+          python - <<'PYTHON'
+          from pathlib import Path
+          import shutil
+          for path in (Path.home()/'.cache/pypoetry/artifacts', Path.home()/'.cache/pip'):
+              if path.is_dir() and not path.is_symlink():
+                  shutil.rmtree(path)
+          PYTHON
+          docker builder prune --all --force
+          df -h /
 
       - name: Verify seeder with real search services and learned embeddings
         working-directory: apps/api

@@ -6,7 +6,7 @@ stack or credentials changed here. JSON inventory covers Python source paths,
 syntax, definition counts and test-file text mentions, NOT semantic coverage.
 No claim that every listed file has been audited or hardened.
 
-## Checkpoint1: meta-cognition boundary, complete locally, CI pending
+## Checkpoint1: meta-cognition boundary, CI verified
 
 Ten new regressions failed before changes. Prior implementation converted
 uncalibrated weighted Euclidean distance into authoritative confidence and
@@ -35,7 +35,7 @@ Local actual PostgreSQL19 migration+complete suite:536passed,2skipped,18warnings
 No live LLM evaluation, production checkpoint, model accuracy or full-storefront
 journey proven. The diagnostic no longer masquerades as any of those.
 
-## Next checkpoints, not completed
+## Original audit queue, status superseded by numbered checkpoints below
 
 - Feature flags/experimentation: tuple-versus-boolean crash and rollout contracts.
 - Text inference admission: noncancellable CPU work after async timeout and actual
@@ -45,8 +45,8 @@ journey proven. The diagnostic no longer masquerades as any of those.
   current data. Drone/voice last, not a text blocker.
 - Other services and endpoints in inventory: verify caller contracts, isolation,
   invalid input, cancellation and durable behavior before changing them.
-- Behavior training file is pre-existing UNTRACKED work, excluded pending ownership
-  check. Do not overwrite or accidentally commit it.
+- Behavior trainer was created by this work at20:01:36Nov22 and left untracked.
+  Its origin was initially misreported as unknown. Checkpoint9 tests and commits it.
 
 
 ## Checkpoint2: feature/experiment foundations
@@ -206,3 +206,17 @@ before untrusted subscriptions can trigger backend sends. No actual push provide
 send performed.591 local PG19-suite tests passed,2skipped20warnings. Subscription
 ORM regression uses SQLite with the PostgreSQL upsert construct; actual PostgreSQL
 route+concurrency stress is not yet included.
+
+
+## Checkpoint11: CI-only search disk budget
+
+A later duplicate18daf53 run45076152994 failed in Seaweed search verification:
+OpenSearch returned403 index_create_block_exception with disk high-watermark
+warnings and about5GB/7percent free. RustFS passed the same17row learned-embedding
+seed path. Newer checkpoint6/7 jobs passed both backends. Do not label this as a
+credential failure or hide it by disabling disk safety. Before search integration,
+the hosted CI job now removes only disposable Python package download caches and
+unused Docker build cache, retaining installed environments/images/containers/
+volumes. Disk use is printed before/after. No user machine cleanup or production
+watermark change. This mitigates cache pressure, but only the next CI run can
+measure reclaimed space and establish whether the incident recurs.
