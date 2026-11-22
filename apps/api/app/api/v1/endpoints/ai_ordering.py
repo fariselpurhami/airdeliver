@@ -8,7 +8,7 @@ from typing import Optional
 
 from typing import AsyncGenerator, List
 import httpx
-from fastapi import APIRouter, Body, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status, Request
 from pydantic import BaseModel, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocketState
@@ -17,6 +17,7 @@ from app.services.ai_voice_service import AIVoiceOrchestrator
 # Internal Imports
 from app import models
 from app.api import deps
+from app.core.limiter import limiter
 from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
 from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 from app.services.ai_behavior_engine import BehaviorEngine
@@ -49,7 +50,9 @@ logger.info("🚀 AI ORDERING GATEWAY LOADED: v5.0 (Titanium Shield Enabled)")
 # --- 🎫 SECTION 1: SECURE AUTHENTICATION ---
 
 @router.post("/ticket")
+@limiter.limit("20/minute")
 async def generate_websocket_ticket(
+    request: Request,
     current_user: models.User = Depends(deps.get_current_active_user),
     cache: IAsyncCacheClient = Depends(get_cache_from_request),
 ):
@@ -275,7 +278,9 @@ async def reset_session(
 
 
 @router.post("/checkout/confirm", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("10/minute")
 async def confirm_order(
+    request: Request,
     payload: ConfirmOrderRequest = Body(default_factory=ConfirmOrderRequest),
     current_user: models.User = Depends(deps.get_current_active_user),
     checkout_service: AICheckoutService = Depends(get_ai_checkout_service),
