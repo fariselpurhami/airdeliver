@@ -9,7 +9,7 @@ import os
 import random
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Any, Awaitable, Callable, Dict, Iterable, List, Literal, Mapping, Optional, Protocol, Sequence, Tuple, Type, TypeVar, Union
@@ -135,9 +135,12 @@ class CommerceInteractionResponse(BaseModel):
 
 @dataclass(frozen=True)
 class ServiceModels:
-    brain_model: str = "openai/gpt-oss-120b"
-    reflex_model: str = "openai/gpt-oss-20b"
-    vision_model: str = "qwen/qwen3.6-27b"
+    # Defaults verified against the live Groq model catalog (2026-11):
+    # qwen/qwen3.6-27b was removed; qwen/qwen3.8-27b is its vision-capable successor.
+    # Env overrides: GROQ_BRAIN_MODEL / GROQ_MODEL / GROQ_VISION_MODEL.
+    brain_model: str = field(default_factory=lambda: os.getenv("GROQ_BRAIN_MODEL", "openai/gpt-oss-120b"))
+    reflex_model: str = field(default_factory=lambda: os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"))
+    vision_model: str = field(default_factory=lambda: os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.8-27b"))
 
 
 @dataclass(frozen=True)
