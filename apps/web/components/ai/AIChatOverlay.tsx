@@ -1605,10 +1605,11 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
                                     >
                                         {isReadyToRender && isAnimationComplete ? (
                                             (() => {
+                                                const orderData = paymentDetails?.order_data;
                                                 const hasValidData = Boolean(
                                                     stripeOptions?.clientSecret &&
-                                                    paymentDetails?.order_data &&
-                                                    typeof paymentDetails.order_data.total === 'number'
+                                                    orderData &&
+                                                    typeof orderData.total === 'number'
                                                 );
 
                                                 if (!hasValidData) {
@@ -1632,9 +1633,9 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
                                                         options={stripeOptions}
                                                     >
                                                         <AIPaymentForm
-                                                            orderId={paymentDetails.order_data.order_id}
-                                                            total={paymentDetails.order_data.total}
-                                                            items={paymentDetails.order_data.items}
+                                                            orderId={orderData!.order_id}
+                                                            total={orderData!.total}
+                                                            items={orderData!.items}
                                                             onPaymentSuccess={handlePaymentSuccess}
                                                             clientSecret={stripeOptions.clientSecret}
                                                         />

@@ -104,7 +104,8 @@ const AICatalogHero = React.memo(() => {
     const messages = useAIOrderingStore((state) => state.messages);
     const cartItemsCount = useMemo(() => {
         const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
-        return lastCartMessage?.content?.items?.length || 0;
+        const cartContent = lastCartMessage?.content as { items?: unknown[] } | undefined;
+        return cartContent?.items?.length || 0;
     }, [messages]);
 
     const smoothScrollY = useSpring(scrollY, {

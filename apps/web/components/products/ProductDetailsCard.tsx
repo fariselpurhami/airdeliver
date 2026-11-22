@@ -33,8 +33,6 @@ const RATING_STARS = [0, 1, 2, 3, 4] as const;
 const ADDED_STATE_DURATION_MS = 2000;
 const DEFAULT_DESCRIPTION =
   'Specifications classified. High-performance unit ready for deployment.';
-const DEFAULT_DELIVERY = '12 Mins';
-const DEFAULT_TRENDING = 'High Velocity';
 
 const formatPrice = (value: number | string | undefined | null): string => {
   if (value === undefined || value === null) return '0.00';
@@ -70,13 +68,16 @@ const ProductDetailsCardComponent = ({
     [product.description]
   );
 
+  // No fabricated fallbacks: these blocks render only when the backend
+  // supplies a real value. The old DEFAULT_DELIVERY/DEFAULT_TRENDING
+  // constants showed invented data for every product.
   const predictedDelivery = useMemo(
-    () => product.predicted_delivery?.trim() || DEFAULT_DELIVERY,
+    () => product.predicted_delivery?.trim() || null,
     [product.predicted_delivery]
   );
 
   const trendingStatus = useMemo(
-    () => product.trending_status?.trim() || DEFAULT_TRENDING,
+    () => product.trending_status?.trim() || null,
     [product.trending_status]
   );
 
@@ -221,29 +222,33 @@ const ProductDetailsCardComponent = ({
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
-                <div className="mb-2 flex items-center gap-2 text-cyan-300">
-                  <Rocket className="h-4 w-4 shrink-0" />
-                  <span className="text-xs uppercase tracking-[0.16em] text-white/55">
-                    Delivery ETA
-                  </span>
+              {predictedDelivery && (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+                  <div className="mb-2 flex items-center gap-2 text-cyan-300">
+                    <Rocket className="h-4 w-4 shrink-0" />
+                    <span className="text-xs uppercase tracking-[0.16em] text-white/55">
+                      Delivery ETA
+                    </span>
+                  </div>
+                  <div className="break-words text-sm font-medium text-white sm:text-base [overflow-wrap:anywhere]">
+                    {predictedDelivery}
+                  </div>
                 </div>
-                <div className="break-words text-sm font-medium text-white sm:text-base [overflow-wrap:anywhere]">
-                  {predictedDelivery}
-                </div>
-              </div>
+              )}
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
-                <div className="mb-2 flex items-center gap-2 text-fuchsia-300">
-                  <TrendingUp className="h-4 w-4 shrink-0" />
-                  <span className="text-xs uppercase tracking-[0.16em] text-white/55">
-                    Demand
-                  </span>
+              {trendingStatus && (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
+                  <div className="mb-2 flex items-center gap-2 text-fuchsia-300">
+                    <TrendingUp className="h-4 w-4 shrink-0" />
+                    <span className="text-xs uppercase tracking-[0.16em] text-white/55">
+                      Demand
+                    </span>
+                  </div>
+                  <div className="break-words text-sm font-medium text-white sm:text-base [overflow-wrap:anywhere]">
+                    {trendingStatus}
+                  </div>
                 </div>
-                <div className="break-words text-sm font-medium text-white sm:text-base [overflow-wrap:anywhere]">
-                  {trendingStatus}
-                </div>
-              </div>
+              )}
 
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
                 <div className="mb-2 flex items-center gap-2 text-emerald-300">

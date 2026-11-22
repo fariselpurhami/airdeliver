@@ -10,6 +10,7 @@ export interface Product {
   predicted_delivery?: string;
   trending_status?: string;
   stock_level?: string;
+  stock_status?: string;
   isAIRec?: boolean;
 }
 

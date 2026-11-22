@@ -15,10 +15,26 @@ export type PaymentGateway = {
   checkoutRequestId?: string;
 };
 
+export type PaymentOrderItem = {
+  id: number | string;
+  name: string;
+  quantity: number;
+  price: number;
+};
+
 export type PaymentDetails = {
   orderId: number;
   total: number;
   gateways: PaymentGateway[];
+  // Live contract from apps/api ai_checkout_service (payment_intent content):
+  client_secret?: string | null;
+  order_data?: {
+    order_id: number;
+    total: number;
+    items: PaymentOrderItem[];
+  };
+  gateway_provider?: string;
+  action_url?: string;
 };
 
 export type FlyItem = {

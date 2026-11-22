@@ -151,7 +151,7 @@ class RUMErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState>
     return { hasError: true }; 
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const errorPayload = {
       traceId: this.props.traceId,
       timestamp: Date.now(),
@@ -167,7 +167,7 @@ class RUMErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState>
     }
   }
 
-  render() { 
+  override render() { 
     return this.state.hasError ? this.props.fallback : this.props.children; 
   }
 }
@@ -503,7 +503,8 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
   
   const cartItemsCount = useMemo(() => {
     const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
-    return lastCartMessage?.content?.items?.length || 0;
+    const cartContent = lastCartMessage?.content as { items?: unknown[] } | undefined;
+    return cartContent?.items?.length || 0;
   }, [messages]);
 
   const prevCountRef = useRef(cartItemsCount);
