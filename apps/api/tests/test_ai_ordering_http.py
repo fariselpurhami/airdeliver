@@ -275,3 +275,15 @@ def test_cart_http_rejects_noninteger_or_excess_quantity(client,quantity):
     c,cart,_,_=client
     response=c.post('/api/v1/ai-ordering/cart/add',json={'product_id':5,'quantity':quantity})
     assert response.status_code==422 and cart.calls==[]
+
+
+def test_cart_backend_failure_is_retryable_not_accepted_success(client):
+    from app.services.ai_cart_service import CartPersistenceError
+    from unittest.mock import AsyncMock
+    c,cart,_,_=client
+    cart.handle_add_to_cart=AsyncMock(side_effect=CartPersistenceError('backend offline'))
+    response=c.post('/api/v1/ai-ordering/cart/add',json={'product_id':5})
+    assert response.status_code==503
+    assert response.headers['cache-control']=='no-store'
+    assert response.headers['retry-after']=='2'
+    assert 'backend offline' not in response.text

@@ -4,7 +4,7 @@ name: Backend CI
 
 on:
   push:
-    branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api", "hardening/dev-proxy-routes", "hardening/meta-confidence-boundaries", "hardening/feature-assignment-contracts", "hardening/bounded-text-inference", "hardening/notification-results", "hardening/notification-endpoints", "hardening/support-session-isolation", "hardening/support-action-truth", "hardening/support-inference-deadline", "hardening/behavior-offline-training", "hardening/push-subscription-contract", "hardening/ci-search-disk-budget", "hardening/cache-failure-privacy", "hardening/voice-real-transport", "hardening/remove-orphan-drone-compliance", "hardening/voice-command-truth", "hardening/root-entrypoints", "hardening/remove-root-editor-artifacts", "hardening/remove-stale-schema-dumps", "hardening/milvus-schema-diagnostics", "hardening/empty-milvus-rating-repair", "hardening/seeder-explicit-cache", "hardening/embedding-startup-readiness", "hardening/recommendation-live-facts", "hardening/cart-command-invariants"]
+    branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api", "hardening/dev-proxy-routes", "hardening/meta-confidence-boundaries", "hardening/feature-assignment-contracts", "hardening/bounded-text-inference", "hardening/notification-results", "hardening/notification-endpoints", "hardening/support-session-isolation", "hardening/support-action-truth", "hardening/support-inference-deadline", "hardening/behavior-offline-training", "hardening/push-subscription-contract", "hardening/ci-search-disk-budget", "hardening/cache-failure-privacy", "hardening/voice-real-transport", "hardening/remove-orphan-drone-compliance", "hardening/voice-command-truth", "hardening/root-entrypoints", "hardening/remove-root-editor-artifacts", "hardening/remove-stale-schema-dumps", "hardening/milvus-schema-diagnostics", "hardening/empty-milvus-rating-repair", "hardening/seeder-explicit-cache", "hardening/embedding-startup-readiness", "hardening/recommendation-live-facts", "hardening/cart-command-invariants", "hardening/cart-persistence-outcomes"]
     paths:
       - 'apps/api/**'
       - 'Makefile'
@@ -82,6 +82,14 @@ jobs:
 
       - name: Build PostgreSQL 19 backup and restore image
         run: docker build -t airdeliver-postgres-backup:ci infra/postgres-backup
+
+      - name: Build disposable Redis 7 test server
+        run: |
+          curl --fail --location --retry 2 https://download.redis.io/releases/redis-7.4.2.tar.gz -o /tmp/redis-test.tar.gz
+          echo '4ddebbf09061cbb589011786febdb34f29767dd7f89dbe712d2b68e808af6a1f  /tmp/redis-test.tar.gz' | sha256sum --check
+          tar -xzf /tmp/redis-test.tar.gz -C /tmp
+          make -C /tmp/redis-7.4.2 -j2 BUILD_TLS=no MALLOC=libc OPT='-O2' redis-server
+          echo "TEST_REDIS_SERVER_BIN=/tmp/redis-7.4.2/src/redis-server" >> "$GITHUB_ENV"
 
       - name: Migrate PostgreSQL 19 and run tests
         working-directory: apps/api

@@ -116,6 +116,16 @@ class IAsyncCacheClient(ABC):
     @abstractmethod
     async def get_json(self, key: str) -> Optional[Dict[str, Any]]: ...
 
+    async def get_json_required(self, key: str) -> Optional[Dict[str, Any]]:
+        """Authoritative state reads must distinguish missing data from outage."""
+        raise NotImplementedError("This backend cannot read required JSON state")
+
+    async def set_json_required(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+        raise NotImplementedError("This backend cannot persist required JSON state")
+
+    async def delete_required(self, key: str) -> None:
+        raise NotImplementedError("This backend cannot delete required state")
+
     # --- Sequential Memory (Lists) Operations ---
     @abstractmethod
     async def lpush(self, key: str, *values: str) -> int: ...
@@ -274,6 +284,29 @@ class RedisCacheClient(IAsyncCacheClient):
         except JSONDecodeError as e:
             logger.warning("JSON payload corruption detected", extra={"error_type": type(e).__name__})
             return None
+
+    async def get_json_required(self, key: str) -> Optional[Dict[str, Any]]:
+        if self._redis is None:
+            await self.connect()
+        data = await self.client.get(key)
+        return None if data is None else orjson.loads(data)
+
+    async def set_json_required(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+        serialized = orjson.dumps(value)
+        payload = serialized.decode("utf-8") if isinstance(serialized, bytes) else serialized
+        if self._redis is None:
+            await self.connect()
+        confirmed = await self.client.set(key, payload, ex=ttl)
+        if confirmed is not True:
+            raise RuntimeError("Required JSON state write was not confirmed")
+
+    async def delete_required(self, key: str) -> None:
+        if self._redis is None:
+            await self.connect()
+        # Zero means already absent, a valid idempotent delete result.
+        deleted = await self.client.delete(key)
+        if type(deleted) is not int or deleted < 0:
+            raise RuntimeError("Required state deletion was not confirmed")
 
     # --- Sequential Memory (Lists) Operations ---
     

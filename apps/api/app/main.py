@@ -25,6 +25,7 @@ from app.core.config import CoreSettings, get_core_settings
 from app.core.limiter import limiter
 from app.services.cache_service import IAsyncCacheClient, NoOpCacheClient, RedisCacheClient
 from app.services.rabbitmq_service import get_rabbitmq_service
+from app.services.ai_cart_service import CartPersistenceError
 from app.services.ai_behavior_engine import BehaviorEngine
 from app.services.ai_commerce_engine import initialize_query_embeddings
 
@@ -126,6 +127,11 @@ def build_health_payload(settings: CoreSettings) -> dict[str, str]:
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(CartPersistenceError)
+    async def cart_persistence_error(request: Request, exc: CartPersistenceError) -> JSONResponse:
+        return JSONResponse(status_code=503, headers={"Retry-After": "2", "Cache-Control": "no-store"},
+            content={"detail": "Cart state could not be confirmed. Refresh your cart before retrying."})
+
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         logger.exception(

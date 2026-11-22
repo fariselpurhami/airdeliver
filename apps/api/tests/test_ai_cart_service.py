@@ -23,6 +23,15 @@ class FakeCache:
         self.sets.append((key, value, ttl))
         self._cart = value
 
+    async def get_json_required(self,key):
+        return await self.get_json(key)
+
+    async def set_json_required(self,key,value,ttl=None):
+        await self.set_json(key,value,ttl)
+
+    async def delete_required(self,key):
+        await self.delete(key)
+
     async def publish(self, channel, message):
         self.published.append((channel, json.loads(message)))
 
@@ -132,11 +141,12 @@ async def test_add_to_cart_without_product_id_is_noop():
 
 
 @pytest.mark.asyncio
-async def test_corrupt_cart_state_resets_to_empty():
+async def test_corrupt_cart_state_is_not_reported_as_empty():
     svc, cache, db = make_service(cart={"items": [{"bogus": True}]})
-    await svc.handle_sync_cart({"user_id": 1})
-    previews = [p for _, p in cache.published if p.get("type") == "cart_preview"]
-    assert previews[0]["content"]["items"] == []
+    from app.services.ai_cart_service import CartPersistenceError
+    with pytest.raises(CartPersistenceError):
+        await svc.handle_sync_cart({"user_id": 1})
+    assert not cache.published
 
 
 @pytest.mark.asyncio

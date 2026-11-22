@@ -23,6 +23,10 @@ from app.services.free_llm_service import FreeLLMService
 logger = logging.getLogger("airdeliver.cart")
 
 
+class CartPersistenceError(RuntimeError):
+    """Cart outcome cannot be confirmed. Never present this as an empty cart."""
+
+
 # --- DOMAIN STATE MODELS ---
 
 class CartItemModel(BaseModel):
@@ -115,6 +119,8 @@ class AICartService:
                 "cart_state_synchronized",
                 extra={"user_id": payload.user_id, "item_count": len(cart.items)}
             )
+        except CartPersistenceError:
+            raise
         except Exception as exc:
             logger.error(
                 "cart_sync_critical_failure",
@@ -158,15 +164,11 @@ class AICartService:
         Rehydrates strict domain models from Redis RAM.
         """
         try:
-            raw_cart = await self.cache.get_json(self._get_cart_key(user_id))
-            if raw_cart:
-                return CartStateModel(**raw_cart)
-        except ValidationError as ve:
-            logger.error("Cart state corruption detected, resetting state", extra={"user_id": user_id, "error": str(ve)})
-        except Exception as e:
-            logger.error("Redis fetch failure", extra={"user_id": user_id, "error": str(e)})
-
-        return CartStateModel()
+            raw_cart = await self.cache.get_json_required(self._get_cart_key(user_id))
+            return CartStateModel() if raw_cart is None else CartStateModel.model_validate(raw_cart)
+        except Exception as exc:
+            logger.error("cart required read failed", extra={"error_type": type(exc).__name__})
+            raise CartPersistenceError("Cart could not be read; current state was preserved") from exc
 
     async def _update_cart_in_redis(self, user_id: int, cart: CartStateModel) -> None:
         """
@@ -179,7 +181,7 @@ class AICartService:
             # Ensure safe JSON serialization of Decimals via Pydantic
             cart_dict = cart.model_dump(mode='json')
 
-            await self.cache.set_json(self._get_cart_key(user_id), cart_dict, ttl=self.CART_TTL_SECONDS)
+            await self.cache.set_json_required(self._get_cart_key(user_id), cart_dict, ttl=self.CART_TTL_SECONDS)
 
             await self._send_to_ui(user_id, {
                 "content": cart_dict,
@@ -187,7 +189,8 @@ class AICartService:
                 "reason": "State Sync"
             })
         except Exception as e:
-            logger.error("Redis persistence failure", extra={"user_id": user_id, "error": str(e)})
+            logger.error("cart required write failed", extra={"error_type": type(e).__name__})
+            raise CartPersistenceError("Cart update could not be confirmed; refresh before retrying") from e
 
     # --- ➕ COMMAND: ADD TO CART ---
     async def handle_add_to_cart(self, raw_payload: dict) -> None:
@@ -765,6 +768,8 @@ class AICartService:
                 extra={},
             )
             raise
+        except CartPersistenceError:
+            raise
         except Exception as exc:
             logger.exception(
                 "remove_from_cart_failed",
@@ -797,7 +802,10 @@ class AICartService:
         except ValidationError:
             return
 
-        await self.cache.delete(self._get_cart_key(payload.user_id))
+        try:
+            await self.cache.delete_required(self._get_cart_key(payload.user_id))
+        except Exception as exc:
+            raise CartPersistenceError("Cart clear could not be confirmed; refresh before retrying") from exc
 
         try:
             statement = select(Order).where(
