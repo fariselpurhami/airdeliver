@@ -26,6 +26,7 @@ import {
   MapIcon, Activity, Bot, ChevronRight, 
   Rocket, Zap, ArrowRight, Cpu, ArrowDown, Camera, ShieldCheck
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 // ============================================================================
 // --- [1] ZERO-DEPENDENCY BOUNDARY VALIDATION CONTRACT (Zod-Compatible) ---
@@ -176,7 +177,7 @@ class RUMErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState>
 // --- [4] CONFIGURATIONS & ASSETS ---
 // ============================================================================
 
-const TRANSITION_PREMIUM = [0.16, 1, 0.3, 1];
+const TRANSITION_PREMIUM: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const fadeUpVariant = {
   hidden: { opacity: 0, y: 30 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: TRANSITION_PREMIUM } }
@@ -277,7 +278,7 @@ const CosmicDustCanvas = memo(() => {
           vy: (Math.random() - 0.5) * 0.05,
           alpha: isBright ? Math.random() * 0.35 + 0.45 : Math.random() * 0.65 + 0.15,
           da: (Math.random() * 0.012 + 0.003) * (Math.random() > 0.5 ? 1 : -1),
-          colorRgb: STAR_PALETTE[i % STAR_PALETTE.length],
+          colorRgb: STAR_PALETTE[i % STAR_PALETTE.length] ?? '#ffffff',
           isBright,
         };
       }
@@ -290,6 +291,7 @@ const CosmicDustCanvas = memo(() => {
       const len = particles.length;
       for (let i = 0; i < len; i++) {
         const p = particles[i];
+        if (!p) continue;
 
         if (animate) {
           p.x += p.vx;
@@ -627,7 +629,7 @@ HeroSection.displayName = 'HeroSection';
 // ============================================================================
 
 interface StepItem {
-  readonly icon: React.ElementType;
+  readonly icon: LucideIcon;
   readonly step: string;
   readonly title: string;
   readonly description: string;
