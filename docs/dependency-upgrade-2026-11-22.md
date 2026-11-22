@@ -52,12 +52,21 @@ platform markers (the win32 torch fallback); the Linux deployment installs
 
 - Backend suite in fresh py3.13 poetry env: **205 passed** (excludes
   tests/test_behavior_engine.py — see RAM note).
-- Model smoke test (`apps/api/scripts/smoke_behavior.py`): real
-  all-MiniLM-L6-v2 embeddings hashed before (torch 2.6.0) and after
-  (torch 2.15.0) — **identical hashes, identical cosine matrix and
-  nearest-neighbor ranking**; BehaviorEngine register_interaction +
-  get_user_profile flow works, profile keys unchanged.
-  Run: `poetry run python scripts/smoke_behavior.py --out /tmp/after.json --compare /tmp/before.json`
+- Original smoke-test behavioral claim is **retracted**. The old cache fake
+  returned non-awaitable values, staged only two events and did not run
+  consolidation. Matching MiniLM embeddings did not prove behavior inference.
+- Corrected smoke test, on the same revised source in the old torch 2.6.0
+  environment and new torch 2.15.0 environment: actual MiniLM embeddings,
+  three registered vector events, explicit consolidation, real tensor inference,
+  nonempty finite normalized positive/negative ghost vectors, and a non-fallback
+  profile all pass. Cross-environment cosine ranking and ghost numeric comparison
+  pass at tolerance 0.002. This uses a reduced 24-dimensional, one-layer OmniNet,
+  not the production-default brain or the production GTE model. Python also
+  differs between these environments (3.12 vs 3.13), so this is a compatibility
+  check of the environments, not an isolated torch benchmark.
+- Snapshots are retained at docs/verification/smoke-corrected-before.json and
+  docs/verification/smoke-corrected-after.json. The corrected script refuses old
+  snapshots that never proved inference.
 - torch 2.15 import RSS: 222 MB (torch 2.6 was 377 MB) — lighter.
 - linux/amd64 wheel availability: proven by installation on linux x86_64
   (this CI sandbox) and `poetry export` emits
@@ -66,11 +75,14 @@ platform markers (the win32 torch fallback); the Linux deployment installs
 
 ## NOT verified (sandbox limits)
 
-- tests/test_behavior_engine.py in the poetry env: the suite process is
-  OOM-killed on the 2 GB sandbox (OmniNet allocates ~300 MB of weights;
-  total RSS exceeds the limit). The engine itself is verified working
-  under the new deps via the smoke script above; run the file on any
-  machine with >= 4 GB free RAM to get a green badge.
+- The original adapter tests allocated the full default OmniNet and were
+  OOM-killed. Their test fixture now uses a reduced real tensor model, so the
+  adapter tests can run in the complete suite. This does not prove that the
+  default 1536-dimensional six-layer production brain fits the target machine.
+- Production Alibaba GTE embedding weights and the full default OmniNet still
+  need a separate real-model compatibility and resource test. There is no trained
+  OmniNet checkpoint in the current implementation. Functional tensor output
+  alone does not establish useful or calibrated behavioral predictions.
 - stripe 15.6.1 -> 17.1.0 spans two major releases. All mocked payment
   tests pass; live Stripe API calls (checkout session creation, webhook
   handling) should be smoke-tested once against the Stripe sandbox

@@ -31,3 +31,18 @@ Regression before changes: all 4 real-ORM boundary tests failed. They use a real
 - Payment side effects after commit are not atomically recoverable. A duplicate success can skip failed notifications/rewards/events.
 - Checkout must reprice and validate stock against current database products rather than treating old cart prices as final.
 - NLU/behavior embedding/profile/DTO seams, actual model inference, worker consolidation lifecycle, external dependency failure modes and full deployment integration remain under review.
+
+## Behavior/NLU/worker follow-up
+
+Six new boundary/inference regressions initially failed; all now pass. Fixes:
+
+- Supply an explicit causal attention mask instead of relying on an unsupported causal hint without a mask.
+- Store binary event packets as base64 ASCII for the existing Redis decode_responses=True connection. Inference still accepts legacy raw byte packets from binary clients.
+- Track inference tasks, drain queued events during shutdown, serialize model access, and move model inference off the async message loop.
+- Start consolidation during worker AI initialization and stop it before disconnecting Redis. Close resources on their original event loop even after startup errors.
+- Align NLU and BehaviorEngine ghost keys, expose the public embedding method, use the real memory persistence parameter, and convert the typed confidence assessment at the DTO boundary.
+- Run previously memory-heavy adapter tests with a small real-tensor brain fixture, without excluding any test files.
+
+Latest complete backend suite: **337 passed, 12 warnings**, no excluded files; **51% statement coverage including worker_entrypoint.py**. The model tests deliberately use a reduced brain, not a production-default resource test. A corrected real-MiniLM smoke comparison between the old and new dependency environments also passes; see dependency-upgrade-2026-11-22.md for scope and persisted snapshots.
+
+Important model limit: OmniNet currently initializes random weights and loads no trained checkpoint. Ghost tensor finiteness and API compatibility do not establish accurate preference prediction or stable semantics across restarts/workers. Training/calibration and production GTE/full-brain resource verification remain open. Nothing in this batch establishes million-user readiness.

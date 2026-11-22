@@ -442,7 +442,7 @@ class TestRedisKeys:
         assert RedisKeys.chat_history(7) == "airdeliver:v2:session:7:chat_history"
         assert RedisKeys.seen_products(7) == "airdeliver:v2:session:7:seen_products"
         assert RedisKeys.user_dna(7) == "dna:profile:7"
-        assert RedisKeys.ghost_profile(7) == "u:7:ghost_v2"
+        assert RedisKeys.ghost_profile(7) == "ai:beh:u:7:ghost_v2"
         assert RedisKeys.cart(7) == "ai_cart:7"
 
 

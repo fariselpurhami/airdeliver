@@ -654,6 +654,10 @@ class AICommerceEngine:
         if rows:
             self.milvus_client.insert(collection_name=collection_name, data=rows)
 
+    async def get_query_embedding(self, query: str) -> List[float]:
+        """Public embedding contract used by NLU's confidence assessment."""
+        return await self._get_query_embedding(query)
+
     async def _get_query_embedding(self, query: str) -> List[float]:
         sanitized = _sanitize_query_text(query, self.limits.max_query_length)
 

@@ -242,8 +242,12 @@ class WorkerRuntime:
             with suppress(Exception):
                 await self.services.health_runner.cleanup()
 
+        if self.services.behavior is not None:
+            with suppress(Exception):
+                await self.services.behavior.stop()
+
         if self.services.cache is not None:
-            close_method = getattr(self.services.cache, "close", None)
+            close_method = getattr(self.services.cache, "disconnect", None) or getattr(self.services.cache, "close", None)
             if callable(close_method):
                 result = close_method()
                 if asyncio.iscoroutine(result):
@@ -668,6 +672,7 @@ class WorkerRuntime:
         )
         self.services.llm = FreeLLMService()
         self.services.behavior = BehaviorEngine(cache_client)
+        await self.services.behavior.start()
         self.services.ai_ready = True
         self.services.ai_degraded = False
 
@@ -999,7 +1004,12 @@ runtime = WorkerRuntime()
 
 
 async def main() -> None:
-    await runtime.main()
+    try:
+        await runtime.main()
+    finally:
+        # Close resources on the loop that created them, including failures
+        # during startup. The outer fallback remains idempotent.
+        await runtime.close()
 
 
 if __name__ == "__main__":

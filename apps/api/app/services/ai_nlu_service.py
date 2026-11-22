@@ -986,7 +986,7 @@ class RedisKeys:
 
     @staticmethod
     def ghost_profile(user_id: int) -> str:
-        return f"u:{user_id}:ghost_v2"
+        return f"ai:beh:u:{user_id}:ghost_v2"
 
     @staticmethod
     def cart(user_id: int) -> str:
@@ -4909,7 +4909,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
             persistence_hook = getattr(self.search_engine, "remember_user_fact", None)
             if persistence_hook is not None and callable(persistence_hook):
                 try:
-                    await persistence_hook(user_id=user_id, fact=fact)
+                    await persistence_hook(user_id=user_id, fact_text=fact)
                     logger.info(
                         "bg_memorize_fact_persisted",
                         extra={"user_id": user_id},
@@ -5143,7 +5143,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
                     timeout=self.config.embedding_timeout_sec,
                 )
                 if ghost_json is not None and current_vector is not None:
-                    meta_analysis = self.meta_cognition.evaluate_confidence(ghost_json, current_vector)
+                    meta_analysis = self.meta_cognition.evaluate_confidence(ghost_json, current_vector).model_dump(mode="json")
         except asyncio.TimeoutError:
             StructuredLog.warning("meta_cognition_timeout", user_id=user_id)
         except Exception as exc:

@@ -64,3 +64,12 @@ async def test_register_interaction_survives_model_failure(monkeypatch):
     engine = BehaviorEngine(_FakeCache())
     # Must not raise: behavioral learning degrades silently, never breaks chat.
     await engine.register_interaction(7, "anything", weight=1.0)
+
+
+@pytest.fixture(autouse=True)
+def reduced_test_brain(monkeypatch):
+    """Test adapters with real tensors without allocating the production brain."""
+    import app.services.ai_behavior_engine as module
+    config = module.OmniNetConfig(internal_dim=24, intermediate_size=48, heads=4,
+                                 layers=1, supported_dims={"dim_1536": 1536})
+    monkeypatch.setattr(module, "OmniNetConfig", lambda: config)

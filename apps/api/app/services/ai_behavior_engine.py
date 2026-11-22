@@ -1,6 +1,7 @@
 # apps/api/app/services/ai_behavior_engine.py
 
 import asyncio
+import base64
 import json
 import logging
 import math
@@ -164,6 +165,8 @@ class OmniNet(nn.Module):
         time_emb = self.time_encoder(times)
 
         x = x + act_emb + time_emb
+        if mask is None:
+            mask = nn.Transformer.generate_square_subsequent_mask(x.size(1), device=x.device)
         x = self.transformer(x, mask=mask, is_causal=True)
         final_state = x[:, -1, :]  # Extract last temporal state
 
@@ -181,11 +184,11 @@ class BehaviorEngine:
     Replaces implicit globals with explicit lifecycle controls and dependency injection.
     """
 
-    def __init__(self, cache: IAsyncCacheClient):
+    def __init__(self, cache: IAsyncCacheClient, net_config: Optional[OmniNetConfig] = None):
         self.cache = cache
         self.device = self._resolve_device()
 
-        self.net_config = OmniNetConfig()
+        self.net_config = net_config or OmniNetConfig()
         self.brain = OmniNet(self.net_config).to(self.device)
         self.brain.eval()
 
@@ -193,6 +196,7 @@ class BehaviorEngine:
         self._shutdown_event = asyncio.Event()
         self._worker_task: Optional[asyncio.Task] = None
         self._background_tasks: set = set()
+        self._inference_lock = asyncio.Lock()
 
     def _resolve_device(self) -> torch.device:
         if torch.cuda.is_available():
@@ -215,6 +219,8 @@ class BehaviorEngine:
         if self._worker_task:
             await self._worker_task
             logger.info("🛑 BEHAVIOR ENGINE WORKER STOPPED.")
+        while self._background_tasks:
+            await asyncio.gather(*list(self._background_tasks), return_exceptions=True)
 
     # --- 🗄️ CACHE NAMESPACE ---
     @staticmethod
@@ -413,7 +419,7 @@ class BehaviorEngine:
 
     async def _synaptic_loop(self) -> None:
         """Drains the interaction queue and commits vectors to distributed storage."""
-        while not self._shutdown_event.is_set():
+        while not self._shutdown_event.is_set() or not self.synaptic_buffer.empty():
             batch = []
             while len(batch) < 50:
                 try:
@@ -474,7 +480,9 @@ class BehaviorEngine:
                     logger.error(f"Failed to encode event for user {uid}: {exc}. Skipping event.")
                     continue
 
-                pipe.rpush(stream_key, payload)
+                # This cache uses decode_responses=True. Persist ASCII rather
+                # than arbitrary binary which Redis cannot decode as UTF-8.
+                pipe.rpush(stream_key, "b64:" + base64.b64encode(payload).decode("ascii"))
                 pipe.ltrim(stream_key, -stream_max_len, -1)
                 pipe.expire(stream_key, stream_ttl_seconds)
                 pipe.set(active_dim_key, str(dim), ex=stream_ttl_seconds)
@@ -496,7 +504,10 @@ class BehaviorEngine:
 
             # تشغيل معالجة أحلام الذكاء الاصطناعي في الخلفية للمستخدمين المحدثين
             for uid in users_to_update:
-                asyncio.create_task(self._dream_future(uid))
+                task = asyncio.create_task(self._dream_future(uid), name=f"behavior-inference:{uid}")
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
+                task.add_done_callback(self._handle_background_task_result)
 
         except Exception as e:
             logger.error("Memory consolidation pipeline failure", extra={"error": str(e)})
@@ -519,11 +530,20 @@ class BehaviorEngine:
             expected_len = 12 + (target_dim * 4)
 
             for blob in raw_data:
+                if isinstance(blob, str):
+                    if not blob.startswith("b64:"):
+                        continue
+                    try:
+                        blob = base64.b64decode(blob[4:], validate=True)
+                    except (ValueError, TypeError):
+                        continue
                 if len(blob) != expected_len:
                     continue  # Protect against memory corruption or dimension shifts
 
                 ts, act = struct.unpack("di", blob[:12])
                 vec = struct.unpack(f"{target_dim}f", blob[12:])
+                if not 0 <= act < len(ACTION_MAP) or not all(math.isfinite(value) for value in vec):
+                    continue
                 vectors.append(vec)
                 actions.append(act)
                 times.append(max(0.0, now - ts))
@@ -531,12 +551,17 @@ class BehaviorEngine:
             if not vectors:
                 return
 
-            v_t = torch.tensor([vectors], dtype=torch.float32, device=self.device)
-            a_t = torch.tensor([actions], dtype=torch.long, device=self.device)
-            t_t = torch.tensor([times], dtype=torch.float32, device=self.device)
+            def infer():
+                v_t = torch.tensor([vectors], dtype=torch.float32, device=self.device)
+                a_t = torch.tensor([actions], dtype=torch.long, device=self.device)
+                t_t = torch.tensor([times], dtype=torch.float32, device=self.device)
+                with torch.no_grad():
+                    return self.brain(v_t, a_t, t_t, input_dim=target_dim)
 
-            with torch.no_grad():
-                pos_ghost, neg_ghost = self.brain(v_t, a_t, t_t, input_dim=target_dim)
+            # Keep CPU/GPU inference off the async message-processing loop and
+            # bound simultaneous access to this shared model instance.
+            async with self._inference_lock:
+                pos_ghost, neg_ghost = await asyncio.to_thread(infer)
 
             if pos_ghost is None or neg_ghost is None:
                 return
