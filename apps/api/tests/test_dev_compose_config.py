@@ -144,6 +144,8 @@ def test_fresh_cli_generates_private_credentials_and_isolates_unknown_volumes(tm
     assert db_volume.startswith('airdeliver_dev_postgres19_fresh_')
     assert mq_volume.startswith('airdeliver_dev_rabbitmq_fresh_')
     assert db_volume!='airdeliver_dev_postgres-data' and mq_volume!='airdeliver_dev_rabbitmq-data'
+    for name in ('redis-data','opensearch-data','etcd-data','minio-data','milvus-data'):
+        assert model['volumes'][name]['name']==db_volume+'_'+name
     for field in ('postgres_password','rabbitmq_pass'):
         path=tmp_path/'secrets/dev'/field
         assert len(path.read_text().strip())>=32

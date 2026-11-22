@@ -12,6 +12,7 @@ on:
       - 'docker-compose*.yml'
       - '.env.dev.example'
       - 'infra/postgres-backup/**'
+      - 'infra/minio-ce/**'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches: ["main"]
@@ -22,6 +23,7 @@ on:
       - 'docker-compose*.yml'
       - '.env.dev.example'
       - 'infra/postgres-backup/**'
+      - 'infra/minio-ce/**'
       - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 

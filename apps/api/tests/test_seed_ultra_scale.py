@@ -256,3 +256,10 @@ def test_api_and_seeder_share_text_model_dimension_collection_and_default_pin():
     assert value.embedding_dimension==PRODUCT_TEXT_MODEL.dimension==AICommerceEngine.SCHEMA_CONFIG['product_text'].dim==PRODUCT_TEXT_MODEL_DIMENSION
     assert value.milvus_collection==AICommerceEngine.SCHEMA_CONFIG['product_text'].name==PRODUCT_TEXT_COLLECTION
     assert value.embedding_revision==DEFAULT_PRODUCT_TEXT_MODEL_REVISION
+
+
+
+def test_api_collection_rejects_revision_mismatch_and_blank_alias_does_not_shadow_pin():
+    with pytest.raises(ValueError,match='same model revision'):
+        settings(MILVUS_ENABLED=True,SEED_EMBEDDING_REVISION='b'*40)
+    assert settings(MILVUS_ENABLED=True,SEED_EMBEDDING_REVISION='',PRODUCT_TEXT_MODEL_REVISION='b'*40).embedding_revision=='b'*40

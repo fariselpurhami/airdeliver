@@ -188,7 +188,10 @@ services:
           memory: 512M
 
   minio:
-    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    build:
+      context: ./infra/minio-ce
+    image: airdeliver-minio-ce:source-7aac2a2
+    pull_policy: build
     container_name: airdeliver-minio
     environment:
       MINIO_ACCESS_KEY: minioadmin
@@ -545,11 +548,16 @@ volumes:
   rabbitmq-data:
     name: ${AIRDELIVER_DEV_RABBITMQ_VOLUME:-${COMPOSE_PROJECT_NAME:-airdeliver_dev}_rabbitmq-data}
   redis-data:
+    name: ${AIRDELIVER_DEV_REDIS_VOLUME:-${AIRDELIVER_DEV_POSTGRES_VOLUME:-${COMPOSE_PROJECT_NAME:-airdeliver_dev}}_redis-data}
   opensearch-data:
+    name: ${AIRDELIVER_DEV_OPENSEARCH_VOLUME:-${AIRDELIVER_DEV_POSTGRES_VOLUME:-${COMPOSE_PROJECT_NAME:-airdeliver_dev}}_opensearch-data}
   api-static-data:
   etcd-data:
+    name: ${AIRDELIVER_DEV_ETCD_VOLUME:-${AIRDELIVER_DEV_POSTGRES_VOLUME:-${COMPOSE_PROJECT_NAME:-airdeliver_dev}}_etcd-data}
   minio-data:
+    name: ${AIRDELIVER_DEV_MINIO_VOLUME:-${AIRDELIVER_DEV_POSTGRES_VOLUME:-${COMPOSE_PROJECT_NAME:-airdeliver_dev}}_minio-data}
   milvus-data:
+    name: ${AIRDELIVER_DEV_MILVUS_VOLUME:-${AIRDELIVER_DEV_POSTGRES_VOLUME:-${COMPOSE_PROJECT_NAME:-airdeliver_dev}}_milvus-data}
   px4-source-data:
     driver: local
   pnpm-store:             

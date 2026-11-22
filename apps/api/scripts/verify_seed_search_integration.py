@@ -28,7 +28,7 @@ def main():
     project='airdeliver-seed-ci-'+identity
     compose=['docker','compose','--env-file','/dev/null','-p',project,'-f',str(API.parents[1]/'docker-compose.seed-ci.yml')]
     try:
-        subprocess.run([*compose,'up','-d','--wait','--wait-timeout','240'],check=True)
+        subprocess.run([*compose,'up','-d','--build','--wait','--wait-timeout','240'],check=True)
         def port(service,number):
             output=subprocess.check_output([*compose,'port',service,str(number)],text=True).strip()
             return int(output.rsplit(':',1)[1])

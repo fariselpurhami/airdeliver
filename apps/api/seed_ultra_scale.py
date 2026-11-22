@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     milvus_token: SecretStr | None = Field(None, alias='MILVUS_TOKEN')
     milvus_collection: str = Field(PRODUCT_TEXT_COLLECTION, alias='MILVUS_COLLECTION')
     embedding_model: str = Field(PRODUCT_TEXT_MODEL_NAME, alias='EMBEDDING_MODEL')
+    api_embedding_revision: str | None = Field(None, alias='PRODUCT_TEXT_MODEL_REVISION')
     embedding_revision: str | None = Field(None, validation_alias=AliasChoices('SEED_EMBEDDING_REVISION','PRODUCT_TEXT_MODEL_REVISION'))
     embedding_dimension: PositiveInt = Field(PRODUCT_TEXT_MODEL_DIMENSION, alias='SEED_EMBEDDING_DIMENSION')
     embedding_max_seq_length: int = Field(256, ge=32, le=8192, alias='SEED_EMBEDDING_MAX_SEQ_LENGTH')
@@ -101,7 +102,7 @@ class Settings(BaseSettings):
     fail_on_milvus_error: bool = Field(True, alias='FAIL_ON_MILVUS_ERROR')
     fail_on_opensearch_error: bool = Field(True, alias='FAIL_ON_OPENSEARCH_ERROR')
 
-    @field_validator('embedding_revision', mode='before')
+    @field_validator('embedding_revision','api_embedding_revision', mode='before')
     @classmethod
     def revision_or_none(cls, value):
         if not value:
@@ -123,11 +124,13 @@ class Settings(BaseSettings):
             raise ValueError('OPENSEARCH_USER and OPENSEARCH_PASS must be provided together')
         if self.app_env.lower() in {'production','prod'} and not self.allow_production:
             raise ValueError('Demo seeding is disabled in production without SEED_ALLOW_PRODUCTION=true')
-        if self.embedding_model==PRODUCT_TEXT_MODEL_NAME and self.embedding_revision is None:
-            self.embedding_revision=DEFAULT_PRODUCT_TEXT_MODEL_REVISION
+        if self.embedding_revision is None:
+            self.embedding_revision=self.api_embedding_revision or (DEFAULT_PRODUCT_TEXT_MODEL_REVISION if self.embedding_model==PRODUCT_TEXT_MODEL_NAME else None)
         if self.milvus_enabled and self.milvus_collection==PRODUCT_TEXT_COLLECTION:
-            if self.embedding_model!='Alibaba-NLP/gte-Qwen2-1.5B-instruct' or self.embedding_dimension!=1536:
+            if self.embedding_model!=PRODUCT_TEXT_MODEL_NAME or self.embedding_dimension!=PRODUCT_TEXT_MODEL_DIMENSION:
                 raise ValueError('The API product collection requires its GTE model and 1536 dimensions; use a separate collection for experiments')
+            if self.embedding_revision!=(self.api_embedding_revision or DEFAULT_PRODUCT_TEXT_MODEL_REVISION):
+                raise ValueError('The API collection requires the same model revision as PRODUCT_TEXT_MODEL_REVISION')
         if self.retry_max_seconds < self.retry_min_seconds:
             raise ValueError('Retry maximum must be at least the minimum')
         return self
@@ -562,6 +565,17 @@ class MilvusRepository:
                     required={'id','vector','price','rating','category'}
                     if not required.issubset(fields):
                         raise ValueError('Existing Milvus collection is not an API product schema')
+                    if description.get('auto_id',False) or not fields['id'].get('is_primary',False):
+                        raise ValueError('Milvus must preserve database-assigned primary IDs')
+                    if int(fields['id'].get('type',0))!=int(DataType.INT64) or int(fields['vector'].get('type',0))!=int(DataType.FLOAT_VECTOR):
+                        raise ValueError('Milvus primary ID and vector field types differ from the API contract')
+                    metrics=[]
+                    for name in client.list_indexes(self._collection_name):
+                        definition=client.describe_index(self._collection_name,name)
+                        if definition.get('field_name')=='vector':
+                            metrics.append(definition.get('metric_type','').upper())
+                    if metrics!=['COSINE']:
+                        raise ValueError('Milvus product vectors need the COSINE index used by API search')
                     if 'attributes' not in fields and not description.get('enable_dynamic_field',False):
                         raise ValueError('Milvus needs an attributes field or dynamic fields for product metadata')
                 if not has_collection:
