@@ -80,3 +80,12 @@ async def test_stripe_payment_must_match_local_amount_currency_and_reference(mon
     with pytest.raises(ValueError):
         await webhooks._delegate_payment_success(intent, db, AsyncMock(), AsyncMock())
     completion.finalize_successful_payment.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_empty_stripe_webhook_secret_fails_closed():
+    from pydantic import SecretStr
+    config = settings().model_copy(update={"STRIPE_WEBHOOK_SECRET": SecretStr("")})
+    with pytest.raises(HTTPException) as caught:
+        await webhooks.stripe_webhook(request_for(b"{}"), signed_header(b"{}", secret=""), config, AsyncMock(), AsyncMock(), AsyncMock())
+    assert caught.value.status_code == 503

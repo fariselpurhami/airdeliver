@@ -45,10 +45,13 @@ async def stripe_webhook(
     cache: IAsyncCacheClient = Depends(get_cache_from_request),
 ):
     payload = await _read_bounded_body(request)
+    webhook_secret = settings.STRIPE_WEBHOOK_SECRET.get_secret_value()
+    if not webhook_secret:
+        raise HTTPException(status_code=503, detail="Stripe webhook is not configured")
     try:
         event = stripe.Webhook.construct_event(
             payload=payload, sig_header=stripe_signature or "",
-            secret=settings.STRIPE_WEBHOOK_SECRET.get_secret_value(),
+            secret=webhook_secret,
         )
     except (ValueError, stripe.error.SignatureVerificationError):
         raise HTTPException(status_code=400, detail="Invalid webhook signature or payload")

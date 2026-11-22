@@ -32,9 +32,12 @@ if config.config_file_name is not None:
 
 DATABASE_URL = os.getenv("DATABASE_URI")
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URI environment variable is not set.")
+    from app.core.config import get_core_settings
+    DATABASE_URL = get_core_settings().DATABASE_URI
 
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# ConfigParser treats percent signs as interpolation markers. URL-encoded
+# credentials must survive unchanged when the engine reads this option.
+config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 target_metadata = SQLModel.metadata
 

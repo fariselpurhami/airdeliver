@@ -1,3 +1,17 @@
+x-runtime-environment: &runtime-environment
+  API_BASE_URL: "${API_BASE_URL:?API_BASE_URL is required}"
+  SECRET_KEY: "${SECRET_KEY:?SECRET_KEY is required}"
+  REFRESH_SECRET_KEY: "${REFRESH_SECRET_KEY:?REFRESH_SECRET_KEY is required}"
+  ALGORITHM: "${ALGORITHM:-HS256}"
+  INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:?INTERNAL_API_TOKEN is required}"
+  FIRST_SUPERUSER: "${FIRST_SUPERUSER:?FIRST_SUPERUSER is required}"
+  FIRST_SUPERUSER_PASSWORD: "${FIRST_SUPERUSER_PASSWORD:?FIRST_SUPERUSER_PASSWORD is required}"
+  VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY:-}"
+  VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY:-}"
+  USE_REDIS: "true"
+  COOKIES_SECURE: "${COOKIES_SECURE:-true}"
+  BACKEND_CORS_ORIGINS: "${BACKEND_CORS_ORIGINS:-[\"http://localhost:3000\"]}"
+
 x-logging: &default-logging
   driver: "json-file"
   options:
@@ -334,14 +348,15 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     environment:
-      - POSTGRES_SERVER=postgres
-      - REDIS_HOST=redis
-      - RABBITMQ_HOST=mq
-      - POSTGRES_USER_FILE=/run/secrets/postgres_user
-      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
-      - POSTGRES_DB_FILE=/run/secrets/postgres_db
-      - RABBITMQ_USER_FILE=/run/secrets/rabbitmq_user
-      - RABBITMQ_PASS_FILE=/run/secrets/rabbitmq_pass
+      <<: *runtime-environment
+      POSTGRES_SERVER: "postgres"
+      REDIS_HOST: "redis"
+      RABBITMQ_HOST: "mq"
+      POSTGRES_USER_FILE: "/run/secrets/postgres_user"
+      POSTGRES_PASSWORD_FILE: "/run/secrets/postgres_password"
+      POSTGRES_DB_FILE: "/run/secrets/postgres_db"
+      RABBITMQ_USER_FILE: "/run/secrets/rabbitmq_user"
+      RABBITMQ_PASS_FILE: "/run/secrets/rabbitmq_pass"
     secrets:
       - postgres_user
       - postgres_password
@@ -371,24 +386,36 @@ services:
     restart: always
     stop_grace_period: 125s
     environment:
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-      - POSTGRES_SERVER=postgres
-      - RABBITMQ_HOST=mq
-      - REDIS_HOST=redis
-      - OPENSEARCH_HOST=opensearch
-      - OPENSEARCH_PORT=9200
-      - OPENSEARCH_USER=admin
-      - OPENSEARCH_PASS=${OPENSEARCH_ADMIN_PASSWORD:?OPENSEARCH_ADMIN_PASSWORD is required}
-      - POSTGRES_USER_FILE=/run/secrets/postgres_user
-      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
-      - POSTGRES_DB_FILE=/run/secrets/postgres_db
-      - RABBITMQ_USER_FILE=/run/secrets/rabbitmq_user
-      - RABBITMQ_PASS_FILE=/run/secrets/rabbitmq_pass
-      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?STRIPE_PUBLISHABLE_KEY is required}
-      - WEB_CONCURRENCY=5
-      - HF_HOME=/data/storage/models_cache/huggingface
-      - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
+      <<: *runtime-environment
+      STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
+      STRIPE_PUBLISHABLE_KEY: "${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?STRIPE_PUBLISHABLE_KEY is required}"
+      POSTGRES_SERVER: "postgres"
+      RABBITMQ_HOST: "mq"
+      REDIS_HOST: "redis"
+      OPENSEARCH_HOST: "opensearch"
+      OPENSEARCH_PORT: "9200"
+      OPENSEARCH_USER: "admin"
+      OPENSEARCH_PASS: "${OPENSEARCH_ADMIN_PASSWORD:?OPENSEARCH_ADMIN_PASSWORD is required}"
+      POSTGRES_USER_FILE: "/run/secrets/postgres_user"
+      POSTGRES_PASSWORD_FILE: "/run/secrets/postgres_password"
+      POSTGRES_DB_FILE: "/run/secrets/postgres_db"
+      RABBITMQ_USER_FILE: "/run/secrets/rabbitmq_user"
+      RABBITMQ_PASS_FILE: "/run/secrets/rabbitmq_pass"
+      WEB_CONCURRENCY: "5"
+      HF_HOME: "/data/storage/models_cache/huggingface"
+      SENTENCE_TRANSFORMERS_HOME: "/data/storage/models_cache/sentence_transformers"
+      STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET:-}"
+      PAYPAL_CLIENT_ID: "${PAYPAL_CLIENT_ID:-}"
+      PAYPAL_CLIENT_SECRET: "${PAYPAL_CLIENT_SECRET:-}"
+      PAYPAL_WEBHOOK_ID: "${PAYPAL_WEBHOOK_ID:-}"
+      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      GROQ_BRAIN_MODEL: "${GROQ_BRAIN_MODEL:-openai/gpt-oss-120b}"
+      GROQ_MODEL: "${GROQ_MODEL:-openai/gpt-oss-20b}"
+      GROQ_VISION_MODEL: "${GROQ_VISION_MODEL:-qwen/qwen3.8-27b}"
+      TAVILY_API_KEY: "${TAVILY_API_KEY:-}"
+      ELEVENLABS_API_KEY: "${ELEVENLABS_API_KEY:-}"
+      ELEVENLABS_AGENT_ID: "${ELEVENLABS_AGENT_ID:-}"
+      PAYPAL_API_BASE_URL: "${PAYPAL_API_BASE_URL:-https://api-m.sandbox.paypal.com}"
     secrets:
       - postgres_user
       - postgres_password

@@ -72,3 +72,16 @@ Official references checked for this batch:
 - https://developer.paypal.com/api/webhooks/v1/verify-webhook-signature-post
 - https://developer.paypal.com/pay-upon-invoice/integrate
 - https://docs.stripe.com/webhooks
+
+## Production configuration and migration follow-up
+
+Baseline: four configuration tests failed. Production API and migrator were missing nine required CoreSettings variables; mounted *_FILE credentials were ignored. Alembic stopped before rendering any migration when DATABASE_URI was absent.
+
+- Add a shared explicit production environment mapping for required app settings. This avoids loading the entire root .env into the API/migrator, while passing the payment/LLM/voice settings the API actually uses. Enable the existing Redis service explicitly.
+- Resolve declared *_FILE settings, with file values taking precedence over stale plaintext environment/.env values. Missing, empty or oversized mounted files fail closed; file contents are never logged. Preserve secret spaces while trimming trailing newlines.
+- Alembic now derives its URL from the same settings when DATABASE_URI is absent, and escapes ConfigParser percent interpolation so encoded credentials survive. User/password/database URL components use percent encoding, including spaces.
+- Empty payment credentials are rejected rather than appearing configured. An empty Stripe webhook signing secret also explicitly returns 503 rather than accepting signatures made with an empty key.
+
+Latest full backend suite: **369 passed**, **52% coverage including worker**, no exclusions. All migrations render as PostgreSQL SQL offline through a42bc980f321, including an encoded-password configuration. The additive payment-reference migration/backfill is also executed against an isolated SQLite test table. Neither check proves PostgreSQL migration execution, production lock behavior or Docker startup.
+
+Docker and Podman executables and a Docker socket are absent in this execution environment. Compose YAML and required-setting coverage are parsed/tested, but no container build, compose config command, full stack boot or production integration result is claimed. Existing migration history contains feature-removal operations from earlier work; this batch adds no such removal. Review the migration chain against an existing deployment before applying it.

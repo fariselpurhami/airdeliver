@@ -1,6 +1,8 @@
 # apps/api/app/core/config.py
 
 import functools
+import os
+from pathlib import Path
 import urllib.parse
 from typing import List, Literal, Optional
 
@@ -15,6 +17,28 @@ class BaseAppConfig(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings,
+                                   dotenv_settings, file_secret_settings):
+        def mounted_files():
+            values = {}
+            for name, field in settings_cls.model_fields.items():
+                alias = field.alias or name
+                path = os.environ.get(f"{alias}_FILE")
+                if not path:
+                    continue
+                source = Path(path)
+                if source.stat().st_size > 65536:
+                    raise ValueError(f"Mounted setting {alias} exceeds the size limit")
+                value = source.read_text(encoding="utf-8").rstrip("\r\n")
+                if not value:
+                    raise ValueError(f"Mounted setting {alias} is empty")
+                values[alias] = value
+            return values
+        # An explicitly configured mounted secret takes precedence over stale
+        # plaintext environment/.env copies. Missing/empty files fail closed.
+        return init_settings, mounted_files, env_settings, dotenv_settings, file_secret_settings
 
 
 class CoreSettings(BaseAppConfig):
@@ -79,13 +103,15 @@ class CoreSettings(BaseAppConfig):
     @computed_field
     @property
     def DATABASE_URI(self) -> str:
-        password = urllib.parse.quote_plus(self.POSTGRES_PASSWORD.get_secret_value())
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{password}@{self.POSTGRES_SERVER}:5432/{self.POSTGRES_DB}"
+        password = urllib.parse.quote(self.POSTGRES_PASSWORD.get_secret_value(), safe="")
+        user = urllib.parse.quote(self.POSTGRES_USER, safe="")
+        database = urllib.parse.quote(self.POSTGRES_DB, safe="")
+        return f"postgresql+asyncpg://{user}:{password}@{self.POSTGRES_SERVER}:5432/{database}"
 
     @computed_field
     @property
     def RABBITMQ_URL(self) -> str:
-        password = urllib.parse.quote_plus(self.RABBITMQ_PASS.get_secret_value())
+        password = urllib.parse.quote(self.RABBITMQ_PASS.get_secret_value(), safe="")
         return f"amqp://{self.RABBITMQ_USER}:{password}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/"
 
     @computed_field
@@ -96,22 +122,22 @@ class CoreSettings(BaseAppConfig):
         
         auth_part = ""
         if self.REDIS_PASSWORD:
-            password = urllib.parse.quote_plus(self.REDIS_PASSWORD.get_secret_value())
+            password = urllib.parse.quote(self.REDIS_PASSWORD.get_secret_value(), safe="")
             auth_part = f":{password}@"
             
         return f"redis://{auth_part}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
 
 class StripeSettings(BaseAppConfig):
-    STRIPE_SECRET_KEY: SecretStr = Field(..., alias="STRIPE_SECRET_KEY")
-    STRIPE_WEBHOOK_SECRET: SecretStr = Field(..., alias="STRIPE_WEBHOOK_SECRET")
-    STRIPE_PUBLISHABLE_KEY: str = Field(..., alias="STRIPE_PUBLISHABLE_KEY")
+    STRIPE_SECRET_KEY: SecretStr = Field(..., alias="STRIPE_SECRET_KEY", min_length=1)
+    STRIPE_WEBHOOK_SECRET: SecretStr = Field(..., alias="STRIPE_WEBHOOK_SECRET", min_length=1)
+    STRIPE_PUBLISHABLE_KEY: str = Field(..., alias="STRIPE_PUBLISHABLE_KEY", min_length=1)
     api_version: str = Field(default="2026-06-24.dahlia")    
 
 class PayPalSettings(BaseAppConfig):
     PAYPAL_WEBHOOK_ID: Optional[str] = Field(default=None, alias="PAYPAL_WEBHOOK_ID", max_length=50)
-    PAYPAL_CLIENT_ID: str = Field(..., alias="PAYPAL_CLIENT_ID")
-    PAYPAL_CLIENT_SECRET: SecretStr = Field(..., alias="PAYPAL_CLIENT_SECRET")
+    PAYPAL_CLIENT_ID: str = Field(..., alias="PAYPAL_CLIENT_ID", min_length=1)
+    PAYPAL_CLIENT_SECRET: SecretStr = Field(..., alias="PAYPAL_CLIENT_SECRET", min_length=1)
     PAYPAL_API_BASE_URL: AnyHttpUrl = Field(
         default=AnyHttpUrl("https://api-m.sandbox.paypal.com"),
         alias="PAYPAL_API_BASE_URL"
