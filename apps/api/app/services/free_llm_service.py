@@ -434,7 +434,10 @@ class FreeLLMService:
             # دمج الباراميترات الآمنة فقط
             kwargs_to_send.update(safe_kwargs)
 
-            return await client.chat.completions.create(**kwargs_to_send)
+            # Admission is inside the timed invocation, so queueing also
+            # consumes the caller's timeout budget. Cancellation releases it.
+            async with self._execution_semaphore:
+                return await client.chat.completions.create(**kwargs_to_send)
 
         try:
             # 4. Enforce timeout at the asyncio layer
@@ -571,7 +574,7 @@ class FreeLLMService:
                 ],
                 model=model_name,
                 temperature=safe_temperature,
-                max_tokens=4096,
+                max_tokens=safe_max_tokens,
                 top_p=0.9,
                 response_format={"type": "json_object"} if json_mode else None,
                 **kwargs,  # امتصاص أي باراميترات إضافية إلى طبقة الـ LLM (قابلة للتوسعة)
@@ -580,7 +583,9 @@ class FreeLLMService:
             # 7. Extract and normalize content deterministically
             message = completion.choices[0].message if completion and completion.choices else None
             raw_content = getattr(message, "content", "") if message is not None else ""
-            normalized = _normalize_whitespace(raw_content or "")
+            # Preserve paragraphs and list boundaries for the chat UI.
+            # JSON whitespace is also safe to preserve for json.loads callers.
+            normalized = str(raw_content or "").strip()
 
             if json_mode:
                # في وضع الـ JSON، نفضّل إرجاع النص كما هو، مع افتراض أن المستهلك سيقوم بالـ json.loads

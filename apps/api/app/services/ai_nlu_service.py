@@ -59,14 +59,16 @@ RAM_PATTERN = re.compile(
 RAM_PATTERN_POST = re.compile(
     r"""
     (?ix)
+    (?=
     \b
-    (?P<ram_amount>\d+(?:\.\d+)?)   
-    [^\S\r\n]* # مسافات
+    (?P<ram_amount>\d+(?:\.\d+)?)
+    [^\S\r\n]*
     (?P<ram_unit>gb|gigabyte|gigabytes|mb|megabyte|megabytes)
     \b
-    (?:[^\S\r\n]+[\w.-]+){0,2}[^\S\r\n]* 
-    (?P<post_context>ram|memory)           
+    (?:[^\S\r\n]+[\w.-]+){0,2}[^\S\r\n]*
+    (?P<post_context>ram|memory)
     \b
+    )
     """,
     re.VERBOSE,
 )
@@ -134,6 +136,7 @@ def _extract_ram_candidates(text: str) -> List[float]:
         amount = float(match.group("ram_amount"))
         unit = match.group("ram_unit").lower()
         candidates.append(amount / MB_PER_GB if unit.startswith("m") else amount)
+    # The lookahead supports overlapping alternatives such as 8GB or 16GB.
     for match in RAM_PATTERN_POST.finditer(text):
         amount = float(match.group("ram_amount"))
         unit = match.group("ram_unit").lower()

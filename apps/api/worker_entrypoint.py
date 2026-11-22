@@ -612,8 +612,8 @@ class WorkerRuntime:
             future=True,
             pool_pre_ping=True,
             pool_recycle=1800,
-            pool_size=DEFAULT_DB_POOL_SIZE,
-            max_overflow=DEFAULT_DB_MAX_OVERFLOW,
+            pool_size=settings.DB_POOL_SIZE,
+            max_overflow=settings.DB_MAX_OVERFLOW,
         )
         session_maker_factory = sessionmaker(
             db_engine,
