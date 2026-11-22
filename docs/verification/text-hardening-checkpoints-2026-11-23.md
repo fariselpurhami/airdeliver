@@ -120,3 +120,19 @@ SSRF/egress controls for client-provided endpoints, delivery receipts, retry
 outbox, VAPID contact configuration and actual provider validation remain open.
 This is not production push delivery certification.558localPG19tests passed,
 2skipped18warnings before commit.
+
+
+## Checkpoint5: notification list/read representation
+
+Two actual regression tests failed before changes: SQLAlchemy Rows treated as
+notification models, and negative relative age for future timestamps. Uncovered
+second DTO seam: response requires cta/timestamp fields absent from ORM model.
+Explicit serialization now supplies known fields, optional cta from metadata,
+rendered timestamp, and scalar models scoped to authenticated user. Naive legacy
+times are labeled timezone unknown, never silently attached to a guessed zone.
+Read-all route exercised as real FastAPI HTTP request.562localPG19tests passed,
+2skips18warnings. No production data migration or notification delivery occurred.
+
+Subscription endpoint still double-encodes JSON, lacks resubscribe upsert and
+strict endpoint/key schema. Provider-egress controls and subscription validation
+remain separate next work; list/read fix does not certify push security.

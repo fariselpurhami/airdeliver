@@ -16,11 +16,16 @@ router = APIRouter()
 
 
 def format_timestamp(dt: datetime) -> str:
+    # Never guess a timezone for historical naive values.
+    if dt.tzinfo is None or dt.utcoffset() is None:
+        return dt.isoformat()+" (timezone unknown)"
     now = datetime.now(timezone.utc)
     diff = now - dt
 
     seconds = diff.total_seconds()
 
+    if seconds < 0:
+        return dt.isoformat()
     if seconds < 60:
         return f"{int(seconds)} seconds ago"
     elif seconds < 3600:
@@ -31,6 +36,15 @@ def format_timestamp(dt: datetime) -> str:
         return f"{int(seconds / 86400)} days ago"
     else:
         return dt.strftime("%Y-%m-%d")
+
+
+def serialize_notification(notif: Notification) -> NotificationRead:
+    return NotificationRead(
+        id=notif.id,title=notif.title,body=notif.body,type=notif.type,
+        read=notif.read,created_at=notif.created_at,
+        cta=notif.meta.get("cta") if isinstance(notif.meta,dict) and isinstance(notif.meta.get("cta"),str) else None,
+        timestamp=format_timestamp(notif.created_at),
+    )
 
 
 @router.get("", response_model=List[NotificationRead])
@@ -48,12 +62,11 @@ async def get_notifications(
         .order_by(Notification.created_at.desc())
         .limit(100)
     )
-    notifications = (await session.execute(statement)).all()
+    notifications = (await session.execute(statement)).scalars().all()
 
     response_notifications = []
     for notif in notifications:
-        notif_read = NotificationRead.model_validate(notif)
-        notif_read.timestamp = format_timestamp(notif.created_at)
+        notif_read = serialize_notification(notif)
         response_notifications.append(notif_read)
 
     return response_notifications
@@ -76,8 +89,7 @@ async def mark_notification_as_read(
     session.add(notif)
     await session.commit()
     await session.refresh(notif)
-    notif_read = NotificationRead.model_validate(notif)
-    notif_read.timestamp = format_timestamp(notif.created_at)
+    notif_read = serialize_notification(notif)
     return notif_read
 
 
