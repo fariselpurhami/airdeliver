@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app import main
 from app.core.config import get_core_settings
 from app.services.rabbitmq_service import RabbitMQService
+from app.services.cache_service import NoOpCacheClient
 
 
 @pytest.mark.asyncio
@@ -20,7 +21,7 @@ async def test_actual_broker_service_binds_and_relays_response(monkeypatch):
         exchange=exchange,
     )
     app = FastAPI()
-    app.state.resources = main.ApplicationResources(cache=AsyncMock(), rabbitmq=service)
+    app.state.resources = main.ApplicationResources(cache=NoOpCacheClient(), rabbitmq=service)
     from app.api.deps import WebSocketManager
     manager = WebSocketManager()
     socket = MagicMock()
@@ -66,3 +67,39 @@ def test_response_identity_rejects_ambiguous_values(value):
 def test_response_identity_accepts_positive_integer_producer_contract():
     assert main.extract_user_id({"user_id": 99}) == 99
     assert main.extract_user_id({"user_id": "99"}) == 99
+
+
+@pytest.mark.asyncio
+async def test_broker_response_reaches_socket_in_another_api_process():
+    from app.api.deps import WebSocketManager
+    local_manager, remote_manager = WebSocketManager(), WebSocketManager()
+    socket = MagicMock()
+    socket.send_text = AsyncMock()
+    await remote_manager.connect(99, socket)
+    class SharedRedis:
+        async def publish(self, channel, body):
+            assert channel == "airdeliver:response:99"
+            await remote_manager.send_to_user(99, body)
+            return 1
+    class Process:
+        async def __aenter__(self):
+            pass
+        async def __aexit__(self, *args):
+            pass
+    message = SimpleNamespace(body=b'{"user_id":99,"type":"ORDER_CONFIRMED"}', process=lambda **kwargs: Process())
+    await main.relay_response_message(message, local_manager, cache=SharedRedis())
+    socket.send_text.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_bridge_failure_is_not_silently_acknowledged():
+    class Process:
+        async def __aenter__(self):
+            pass
+        async def __aexit__(self, exc_type, *args):
+            assert exc_type is ValueError
+    cache = AsyncMock()
+    cache.publish.side_effect = ValueError("invalid backend state")
+    message = SimpleNamespace(body=b'{"user_id":99}', process=lambda **kwargs: Process())
+    with pytest.raises(ValueError, match="invalid backend"):
+        await main.relay_response_message(message, AsyncMock(), cache=cache)

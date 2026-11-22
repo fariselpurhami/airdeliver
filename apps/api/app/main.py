@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable, Protocol, cast
 
 from aio_pika.abc import AbstractIncomingMessage
+from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -192,8 +193,9 @@ def register_middleware(app: FastAPI, settings: CoreSettings) -> None:
 async def relay_response_message(
     message: AbstractIncomingMessage,
     websocket_manager: WebSocketManagerProtocol,
+    cache: IAsyncCacheClient | None = None,
 ) -> None:
-    async with message.process(requeue=False):
+    async with message.process(requeue=True):
         try:
             payload = decode_message_body(message.body)
             user_id = extract_user_id(payload)
@@ -208,20 +210,23 @@ async def relay_response_message(
         if not isinstance(message_type, str):
             message_type = "unknown"
 
-        try:
-            await websocket_manager.send_to_user(
-                user_id,
-                compact_json(payload),
-            )
-        except Exception:
-            logger.exception(
-                "Failed to relay AI response to websocket client.",
-                extra={
-                    "user_id": user_id,
-                    "message_type": message_type,
-                },
-            )
-            return
+        serialized = compact_json(payload)
+        if cache is not None and not isinstance(cache, NoOpCacheClient):
+            # The socket already subscribes to this user-specific Redis
+            # channel. Publishing here reaches it regardless of which API
+            # process consumed the shared durable RabbitMQ queue.
+            for attempt in range(3):
+                try:
+                    await asyncio.wait_for(cache.publish(f"airdeliver:response:{user_id}", serialized), timeout=5.0)
+                    break
+                except (RedisConnectionError, RedisTimeoutError, OSError, asyncio.TimeoutError):
+                    if attempt == 2:
+                        logger.exception("Response Redis bridge unavailable; broker delivery will requeue")
+                        raise
+                    await asyncio.sleep(2 ** attempt)
+        else:
+            # Development without Redis supports a single local process.
+            await websocket_manager.send_to_user(user_id, serialized)
 
         logger.info(
             "Relayed AI response.",
@@ -240,7 +245,7 @@ async def start_response_consumer(app: FastAPI) -> None:
     await rabbitmq.consume(
         RESPONSE_QUEUE_NAME,
         RESPONSE_ROUTING_KEY,
-        lambda message: relay_response_message(message=message, websocket_manager=websocket_manager),
+        lambda message: relay_response_message(message=message, websocket_manager=websocket_manager, cache=resources.cache),
     )
     logger.info("AI response consumer bound", extra={"queue": RESPONSE_QUEUE_NAME, "routing_key": RESPONSE_ROUTING_KEY})
 
