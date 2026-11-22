@@ -11,6 +11,7 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCartStore, type CartItem } from '@/hooks/useCartStore';
+import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import * as THREE from 'three';
 
@@ -67,6 +68,12 @@ const LoadingSpinner = () => (
 
 const CartItemCapsule = ({ item, index }: { item: CartItem, index: number }) => {
     const { removeFromCart } = useCartStore();
+
+    const handleRemove = (productId: number) => {
+        removeFromCart(productId);
+        // Keep the backend AI cart (checkout source of truth) in sync.
+        api.post('/ai-ordering/cart/remove', { product_id: productId }).catch(() => {});
+    };
     
     return (
         <motion.div
@@ -126,7 +133,7 @@ const CartItemCapsule = ({ item, index }: { item: CartItem, index: number }) => 
 
             {/* Action Module */}
             <button 
-                onClick={() => removeFromCart(item.id)} 
+                onClick={() => handleRemove(item.id)} 
                 className="absolute top-4 right-4 sm:relative sm:top-0 sm:right-0 p-3 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
                 title="Eject Item"
             >
@@ -240,7 +247,11 @@ const LogisticsPanel = ({ total, itemCount, clearCart }: { total: number, itemCo
 // ============================================================================
 
 export default function CartPage() {
-    const { items, clearCart } = useCartStore(); 
+    const { items, clearCart } = useCartStore();
+    const handleClearCart = () => {
+        clearCart();
+        api.post('/ai-ordering/cart/clear').catch(() => {});
+    };
     const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
     
     const [isMounted, setIsMounted] = useState(false);
@@ -318,7 +329,7 @@ export default function CartPage() {
 
                         {/* Right: Flight Panel */}
                         <div className="lg:col-span-4">
-                            <LogisticsPanel total={total} itemCount={items.length} clearCart={clearCart} />
+                            <LogisticsPanel total={total} itemCount={items.length} clearCart={handleClearCart} />
                         </div>
                     </div>
                 )}
