@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import anyio
 import logging
 import os
 import time
@@ -10,12 +11,12 @@ from typing import Any, Dict, Final, List, Literal, Optional
 
 from fastapi import Depends
 from groq import AsyncGroq
-from groq import APIStatusError, APIConnectionError, RateLimitError
+from groq import APIStatusError, APIConnectionError
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
@@ -107,6 +108,13 @@ class NeuralCoreConfig:
 # CORE SERVICE
 # =============================================================================
 
+def _retryable_llm_failure(exc: BaseException) -> bool:
+    """Retry transient transport, timeout, throttling and upstream failures only."""
+    return isinstance(exc, (APIConnectionError, asyncio.TimeoutError)) or (
+        isinstance(exc, APIStatusError) and (exc.status_code == 429 or exc.status_code >= 500)
+    )
+
+
 class NeuralCoreService:
     """
     Enterprise-Grade Neural Core Service (Llama 3.x via Native Groq).
@@ -169,7 +177,7 @@ class NeuralCoreService:
 
     @retry(
     
-        retry=retry_if_exception_type((APIConnectionError, RateLimitError, APIStatusError, asyncio.TimeoutError)),
+        retry=retry_if_exception(_retryable_llm_failure),
         wait=wait_exponential(multiplier=0.5, min=1.0, max=4.0),
         stop=stop_after_attempt(3),
         reraise=True
@@ -198,14 +206,16 @@ class NeuralCoreService:
         to maintain user engagement rather than dropping the connection.
         """
         if not self.is_healthy:
-            return RouterDecision(intent="SOCIAL_CHAT", social_reply="Systems are currently performing a cold restart. How can I help you today?")
+            return RouterDecision(intent="SOCIAL_CHAT", social_reply="Chat assistance is not configured right now. Please use the catalog or support page.")
 
         messages = [{"role": "system", "content": SYSTEM_ROUTING_PROMPT}]
         messages.extend([{"role": msg.role, "content": msg.content} for msg in memory.history])
         messages.append({"role": "user", "content": message})
 
         try:
-            raw_json = await self._execute_llm_inference(messages)
+            # One deadline covers every network attempt and retry backoff.
+            with anyio.fail_after(NeuralCoreConfig.LLM_TIMEOUT_SEC):
+                raw_json = await self._execute_llm_inference(messages)
             decision = RouterDecision.model_validate_json(raw_json)
 
             # Anti-hallucination grounding: an LLM-extracted order ID is only
@@ -213,20 +223,20 @@ class NeuralCoreService:
             if decision.order_id and decision.order_id not in message:
                 logger.warning(
                     "neural_core.router.ungrounded_order_id_dropped",
-                    extra={"dropped_order_id": decision.order_id},
+                    extra={"reason": "not_in_current_message"},
                 )
                 decision.order_id = None
 
             return decision
             
         except ValidationError as exc:
-            logger.error("neural_core.router.schema_violation", extra={"error": str(exc), "raw_payload": raw_json})
+            logger.error("neural_core.router.schema_violation", extra={"error_type": type(exc).__name__})
         except Exception as exc:
-            logger.error("neural_core.router.inference_failure", extra={"error": str(exc)})
+            logger.error("neural_core.router.inference_failure", extra={"error_type": type(exc).__name__})
             
         return RouterDecision(
             intent="SOCIAL_CHAT", 
-            social_reply="I'm experiencing a minor cognitive glitch, but I'm still here! What were we discussing?"
+            social_reply="Chat assistance is temporarily unavailable. Please try again or use the catalog or support page."
         )
 
     # --- ACTION HANDLERS -----------------------------------------------------

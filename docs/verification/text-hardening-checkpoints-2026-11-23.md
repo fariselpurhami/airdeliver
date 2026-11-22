@@ -163,3 +163,14 @@ found action definitions and service/tests, not a frontend executor for these
 actions. Existing characterization assertions about dispatch/restock are changed
 to stock-only contracts, backed by the new failing-before tests. Hardcoded
 confidence fields remain uncalibrated and require a caller/schema migration.
+
+## Checkpoint8: total routing deadline and private failure logs
+
+Three regressions failed before changes. Permanent HTTP400 errors previously
+retried three times; retries are now limited to connection/timeouts,429 and5xx.
+One8second anyio deadline surrounds all attempts and backoffs, not8seconds per
+attempt. Cancellation is not swallowed. Invalid provider JSON and exception text
+are no longer logged; error type is enough for diagnosis. Missing configuration
+and inference failure report unavailable, not a fabricated cold restart or glitch.
+Tests use controlled provider doubles, not paid/live Groq calls. This bounds the
+routing phase, not end-to-end product search, cache, visual or HTTP request time.

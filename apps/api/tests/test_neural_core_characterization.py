@@ -113,11 +113,11 @@ class TestRouterDecision:
 
 
 class TestAnalyzeIntent:
-    async def test_unhealthy_service_returns_cold_restart_social(self):
+    async def test_unconfigured_service_reports_unavailable(self):
         service = make_service(healthy=False)
         decision = await service._analyze_intent("hello", SessionMemory(user_name="F"))
         assert decision.intent == "SOCIAL_CHAT"
-        assert "cold restart" in decision.social_reply
+        assert "not configured" in decision.social_reply
 
     async def test_valid_llm_json_is_parsed(self, monkeypatch):
         service = make_service()
@@ -154,7 +154,7 @@ class TestAnalyzeIntent:
         monkeypatch.setattr(service, "_execute_llm_inference", fake_infer)
         decision = await service._analyze_intent("hi", SessionMemory(user_name="F"))
         assert decision.intent == "SOCIAL_CHAT"
-        assert "cognitive glitch" in decision.social_reply
+        assert "temporarily unavailable" in decision.social_reply
 
     async def test_inference_exception_falls_back_to_social(self, monkeypatch):
         service = make_service()
