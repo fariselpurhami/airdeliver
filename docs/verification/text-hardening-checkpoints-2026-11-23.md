@@ -187,3 +187,22 @@ Small synthetic tests exercise actual optimizer steps in both heads, artifact
 roundtrip and warm starts. No real-customer dataset, full-size training, capacity
 certification or online recommendation improvement is claimed. See
 behavior-offline-training.md for operation, dataset schema and remaining limits.
+
+## Checkpoint10: valid subscription JSON and resubscribe upsert
+
+A real ORM regression failed before changes: subscribe encoded a JSON string
+inside the JSON column. Subscriptions now store validated objects. PostgreSQL
+ON CONFLICT updates the existing unique user row atomically when resubscribing,
+not a second insert failing uniqueness. Browser endpoint and encryption-key shape
+are validated, including actual P256 point parsing. Plain HTTP, credentials,
+IP-literal hosts and nonstandard ports are rejected. Existing stored strings are
+not migrated or deleted. Current one-subscription-per-user foundation is retained,
+so resubscribing replaces that user's prior device rather than adding multidevice.
+
+This is input/schema hardening, NOT full SSRF prevention. DNS could resolve a
+hostname to private addresses, redirects and outbound network policy are not
+controlled here. Provider allowlist/egress enforcement remains a launch blocker
+before untrusted subscriptions can trigger backend sends. No actual push provider
+send performed.591 local PG19-suite tests passed,2skipped20warnings. Subscription
+ORM regression uses SQLite with the PostgreSQL upsert construct; actual PostgreSQL
+route+concurrency stress is not yet included.

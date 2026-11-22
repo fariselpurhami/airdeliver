@@ -8,7 +8,8 @@ from app.db.session import get_async_session
 from app.api import deps
 from app.models.user import User
 from app.models.notification import Notification
-from app.schemas.notification import NotificationRead
+from app.schemas.notification import NotificationRead, PushSubscriptionCreate
+from sqlalchemy.dialects.postgresql import insert
 from app.models.notification_subscription import NotificationSubscription
 from datetime import datetime, timezone
 
@@ -135,14 +136,16 @@ async def subscribe_to_push_notifications(
     *,
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(deps.get_current_active_user),
-    subscription_info: Any = Body(...),
+    subscription_info: PushSubscriptionCreate = Body(...),
 ):
-    import json
-
-    db_subscription = NotificationSubscription(
-        user_id=current_user.id, subscription_info_json=json.dumps(subscription_info)
+    # Validate also at this reusable boundary; HTTP requests are validated by FastAPI.
+    payload = PushSubscriptionCreate.model_validate(subscription_info).model_dump(exclude_none=True)
+    statement = insert(NotificationSubscription).values(
+        user_id=current_user.id, subscription_info_json=payload
+    ).on_conflict_do_update(
+        index_elements=[NotificationSubscription.user_id],
+        set_={"subscription_info_json": payload},
     )
-    session.add(db_subscription)
+    await session.execute(statement)
     await session.commit()
-
     return {"status": "subscribed"}
