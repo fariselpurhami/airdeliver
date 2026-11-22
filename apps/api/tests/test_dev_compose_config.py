@@ -256,3 +256,16 @@ def test_dev_routes_replace_all_production_tls_labels(prepared):
         assert prod[name]['labels']['traefik.http.routers.'+name+'.tls.certresolver']=='letsencrypt'
     assert dev['grafana']['labels']=={'traefik.enable':'false'}
     assert prod['grafana']['labels']['traefik.http.routers.grafana.tls.certresolver']=='letsencrypt'
+
+
+def test_worker_probe_matches_its_own_server_not_api_image(prepared):
+    root,_=prepared
+    for files in (['docker-compose.yml'],['docker-compose.yml','docker-compose.dev.yml']):
+        services=config(root,files,root/'.env.dev')['services']
+        worker=services['api-worker']['healthcheck']
+        assert worker['test']==['CMD','curl','-f','--max-time','5','http://localhost:8081/health']
+        assert 'http://localhost:8000/api/v1/health' in ' '.join(services['api']['healthcheck']['test'])
+        assert worker['start_period']=='1m0s'
+    source=(ROOT/'apps/api/worker_entrypoint.py').read_text()
+    assert 'HEALTH_SERVER_PORT: Final[int] = 8081' in source
+    assert 'raise StartupDependencyError("No payment gateway is configured and available")' in source

@@ -497,6 +497,14 @@ services:
       context: ./apps/api
       dockerfile: Dockerfile
     user: airdeliver
+    # Override API image's localhost:8000 health probe for the worker server.
+    # /health is infrastructure liveness; /ready still reports full startup readiness.
+    healthcheck:
+      test: [CMD, curl, -f, --max-time, '5', http://localhost:8081/health]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+      start_period: 60s
     restart: always
     stop_grace_period: 125s
     env_file: ${AIRDELIVER_ENV_FILE:-.env}

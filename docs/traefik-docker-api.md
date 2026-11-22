@@ -50,3 +50,12 @@ docker compose --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.y
 
 Open `http://localhost/`. Inspect `http://localhost/api/v1/health` for actual API
 health. Do not use HTTPS locally. Mac confirmation remains needed after restart.
+
+## Worker probe is not the API probe
+
+The shared API image probes8000, but the worker runs its own health server on8081.
+Compose now overrides the worker probe to `http://localhost:8081/health` for both
+production and combined development. This reports infrastructure liveness only.
+`http://localhost:8081/ready` reports full worker readiness and can still return
+503 for real startup dependencies. Missing real payment gateway configuration
+continues to fail fast and restart the worker; the probe fix does not hide it.
