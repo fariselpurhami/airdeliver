@@ -70,3 +70,33 @@ No claims of distributed config, live admin UI, durable exposure capture, A/B
 statistical significance or activation in app routes. New hashes would change
 cohorts if an external consumer existed; none was found in the repository.
 Local completePG19suite553passed,2skips,18warnings before final commit.
+
+
+## Checkpoint3: bounded text inference and optional Hub auth
+
+Two real-thread tests failed before changes. A timed-out/cancelled caller freed
+its asyncio semaphore while CPU encoding continued; separate request engines
+shared one model but not admission. Text query inference now has a weakly held
+process-wide per-model gate. One total25second deadline covers admission+compute.
+A submitted CPU job itself releases its gate in finally, not the timed-out
+coroutine. Late exceptions are observed. No second model and no timeout increase.
+Tests cover timeouts, cancellation, shared-instance blocking and eventual reuse.
+Logs expose queue deadline versus submitted work and actual encode duration,
+without query text/vectors. Not evidence of actual Mac latency or model quality.
+A hung native call cannot be killed safely by this implementation: subsequent
+callers time out without submitting more compute. Process-level restart remains
+an operational option, not automatic data deletion. Other direct model.encode
+paths, image inference, multi-process admission and distributed capacity remain
+separate audit work. No global-resource-fit claim.
+
+HF_TOKEN was already blank in .env.dev.example. Added optional read-token docs
+and explicit seeder mapping. Effective Compose test proves api/worker/seeder
+receive a sentinel token and share persistent cache mount/path. No real token
+used. Cache hits avoid weights downloads, but not every metadata/revision request.
+Do not promise offline operation or suppress warnings. Public models can work
+without token; auth improves download quotas and permits granted private access,
+not inference latency or automatic gated-model approval.
+
+Official sources:
+https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables
+https://huggingface.co/docs/hub/security-tokens

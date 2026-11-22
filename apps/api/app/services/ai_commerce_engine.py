@@ -14,6 +14,7 @@ import os
 import random
 import re
 import threading
+import weakref
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -332,6 +333,22 @@ def _clean_product_name_root(name: str) -> str:
 
 def _tokenize_lower_words(value: str) -> set[str]:
     return set(re.findall(r"\w+", value.lower(), flags=re.UNICODE))
+
+
+# One admission gate per shared model across request-scoped engine instances.
+# A Python thread cannot be cancelled by an asyncio deadline. The thread itself
+# owns release so timed-out/cancelled callers cannot admit overlapping work.
+_TEXT_MODEL_GATES = weakref.WeakKeyDictionary()
+_TEXT_MODEL_GATES_LOCK = threading.Lock()
+
+
+def _text_model_gate(model):
+    with _TEXT_MODEL_GATES_LOCK:
+        gate = _TEXT_MODEL_GATES.get(model)
+        if gate is None:
+            gate = threading.Lock()
+            _TEXT_MODEL_GATES[model] = gate
+        return gate
 
 
 class ModelRegistry:
@@ -666,16 +683,60 @@ class AICommerceEngine:
     async def _get_query_embedding(self, query: str) -> List[float]:
         sanitized = _sanitize_query_text(query, self.limits.max_query_length)
 
-        async with self._embedding_semaphore:
-            try:
-                vector = await asyncio.wait_for(
-                    asyncio.to_thread(self.embedding_model.encode, sanitized, convert_to_numpy=True),
-                    timeout=self.limits.embedding_timeout_seconds,
-                )
-            except asyncio.TimeoutError as exc:
-                raise ExternalDependencyError("embedding generation timed out") from exc
-            except Exception as exc:
-                raise ExternalDependencyError("embedding generation failed") from exc
+        gate = _text_model_gate(self.embedding_model)
+        started = time.monotonic()
+        deadline = started + self.limits.embedding_timeout_seconds
+        acquired = False
+        submitted = False
+        service_started = None
+        try:
+            while not acquired:
+                acquired = gate.acquire(blocking=False)
+                if acquired:
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError()
+                await asyncio.sleep(min(.01, remaining))
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise asyncio.TimeoutError()
+            service_started = time.monotonic()
+
+            def encode_and_release():
+                try:
+                    return self.embedding_model.encode(sanitized, convert_to_numpy=True)
+                finally:
+                    gate.release()
+                    logger.info("text embedding service finished: service_seconds=%.4f query_characters=%d", time.monotonic()-service_started, len(sanitized), extra={
+                        "service_seconds": round(time.monotonic()-service_started, 4),
+                        "query_characters": len(sanitized),
+                    })
+
+            future = asyncio.get_running_loop().run_in_executor(None, encode_and_release)
+            submitted = True
+            # Consume late exceptions after timeout without leaking raw inputs or
+            # producing an unobserved-future exception. Active compute still owns gate.
+            def consume_done(done):
+                if not done.cancelled():
+                    done.exception()
+            future.add_done_callback(consume_done)
+            vector = await asyncio.wait_for(asyncio.shield(future), timeout=remaining)
+        except asyncio.TimeoutError as exc:
+            logger.warning("text embedding deadline exceeded: elapsed_seconds=%.4f deadline_seconds=%.4f compute_submitted=%s", time.monotonic()-started, self.limits.embedding_timeout_seconds, submitted, extra={
+                "elapsed_seconds": round(time.monotonic()-started, 4),
+                "deadline_seconds": self.limits.embedding_timeout_seconds,
+                "compute_submitted": submitted,
+                "query_characters": len(sanitized),
+            })
+            raise ExternalDependencyError("embedding generation timed out") from exc
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            raise ExternalDependencyError("embedding generation failed") from exc
+        finally:
+            if acquired and not submitted:
+                gate.release()
 
         vector_list = vector.tolist()
         if len(vector_list) != PRODUCT_TEXT_MODEL.dimension:

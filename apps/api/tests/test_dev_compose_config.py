@@ -269,3 +269,14 @@ def test_worker_probe_matches_its_own_server_not_api_image(prepared):
     source=(ROOT/'apps/api/worker_entrypoint.py').read_text()
     assert 'HEALTH_SERVER_PORT: Final[int] = 8081' in source
     assert 'raise StartupDependencyError("No payment gateway is configured and available")' in source
+
+
+def test_optional_hf_token_reaches_all_model_downloaders(prepared,monkeypatch):
+    root,_=prepared
+    monkeypatch.setenv('COMPOSE_PROFILES','tools')
+    monkeypatch.setenv('HF_TOKEN','hf_not_a_real_credential_test_only')
+    services=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')['services']
+    for name in ('api','api-worker','api-seeder'):
+        assert services[name]['environment']['HF_TOKEN']=='hf_not_a_real_credential_test_only'
+        assert services[name]['environment']['HF_HOME']=='/data/storage/models_cache/huggingface'
+        assert any(v['target']=='/data/storage' for v in services[name]['volumes'])

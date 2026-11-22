@@ -462,6 +462,7 @@ services:
       - OPENSEARCH_ENABLED=${SEED_OPENSEARCH_ENABLED:-true}
       - PRODUCT_TEXT_MODEL_REVISION=${PRODUCT_TEXT_MODEL_REVISION:-}
       - EMBEDDING_MODEL=Alibaba-NLP/gte-Qwen2-1.5B-instruct
+      - HF_TOKEN=${HF_TOKEN:-}
       - HF_HOME=/data/storage/models_cache/huggingface
     volumes:
       - ./apps/api:/app:delegated
