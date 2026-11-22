@@ -5,15 +5,19 @@ from typing import Any, Optional, Dict
 import jwt
 from jwt.exceptions import InvalidTokenError as JWTError
 from pwdlib import PasswordHash  # 👈 The Modern Replacement
+from pwdlib.hashers.argon2 import Argon2Hasher
+from pwdlib.hashers.bcrypt import BcryptHasher
 from app.core.config import settings
 from app import models
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 # 🔥 Architectural Upgrade:
-# Using 'recommended()' automatically selects the best algorithm (Argon2 or Bcrypt)
-# and creates a future-proof hashing object.
-password_hash = PasswordHash.recommended()
+# Argon2 is the primary algorithm; the bcrypt hasher stays enabled so
+# legacy bcrypt hashes from before the pwdlib migration keep verifying
+# (PasswordHash.recommended() is argon2-only and RAISED UnknownHashError
+# on legacy hashes, breaking those users' logins with a 500).
+password_hash = PasswordHash((Argon2Hasher(), BcryptHasher()))
 
 ALGORITHM = "HS256"
 
@@ -53,7 +57,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     if hashed_password is None:
         return False
-    return password_hash.verify(plain_password, hashed_password)
+    try:
+        return password_hash.verify(plain_password, hashed_password)
+    except Exception:
+        # A malformed or unrecognized stored hash must never 500 a login
+        logger = __import__("logging").getLogger("airdeliver.security")
+        logger.error("Unrecognized password hash format during verification")
+        return False
 
 def get_password_hash(password: str) -> str:
     """
