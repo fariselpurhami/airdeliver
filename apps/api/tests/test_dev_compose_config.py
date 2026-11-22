@@ -226,3 +226,18 @@ def test_production_guard_rejects_incomplete_or_non_aws_settings(prepared):
     for override in ({'MINIO_BUCKETNAME':''},{'MINIO_REGION':''},{'MINIO_ADDRESS':'minio:9000'},{'MINIO_ADDRESS':'https://s3.us-east-1.amazonaws.com'},{'MINIO_USEIAM':'false'},{'MINIO_USEIAM':'bad'}):
         assert run(override)!=0
     assert run({'MINIO_USEIAM':'false','MINIO_ACCESS_KEY_ID':'dummy','MINIO_SECRET_ACCESS_KEY':'dummy'})==0
+
+
+def test_proxy_upgrade_preserves_production_tls_and_does_not_force_docker_api(prepared):
+    root,_=prepared
+    prod=config(root,['docker-compose.yml'],root/'.env.dev')['services']['reverse-proxy']
+    dev=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')['services']['reverse-proxy']
+    assert prod['image']==dev['image']
+    assert prod['image'].startswith('traefik:v3.7.19@sha256:')
+    assert '--api.dashboard=false' in prod['command']
+    assert '--entrypoints.web.http.redirections.entrypoint.scheme=https' in prod['command']
+    assert '--providers.docker.exposedbydefault=false' in prod['command']
+    assert '--api.insecure=true' not in prod['command']
+    for proxy in (prod,dev):
+        assert 'DOCKER_API_VERSION' not in proxy.get('environment',{})
+        assert any(v['target']=='/var/run/docker.sock' and v.get('read_only') for v in proxy['volumes'])

@@ -4,10 +4,11 @@ name: Backend CI
 
 on:
   push:
-    branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial"]
+    branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api"]
     paths:
       - 'apps/api/**'
       - 'scripts/configure_dev_env.py'
+      - 'scripts/verify_traefik_docker.py'
       - 'scripts/backup_dev_db.sh'
       - 'docker-compose*.yml'
       - '.env.dev.example'
@@ -22,6 +23,7 @@ on:
     paths:
       - 'apps/api/**'
       - 'scripts/configure_dev_env.py'
+      - 'scripts/verify_traefik_docker.py'
       - 'scripts/backup_dev_db.sh'
       - 'docker-compose*.yml'
       - '.env.dev.example'
@@ -90,3 +92,8 @@ jobs:
         run: |
           sudo sysctl -w vm.max_map_count=262144
           poetry run python scripts/verify_seed_search_integration.py
+
+      - name: Verify current Traefik Docker API negotiation and real HTTP route
+        if: matrix.storage == 'rustfs'
+        timeout-minutes: 3
+        run: python scripts/verify_traefik_docker.py
