@@ -39,11 +39,8 @@ class FakeCache:
 
 
 class FakeEngine:
-    """Stands in for AICommerceEngine.
-
-    NOTE: the real AICommerceEngine has NO find_products_from_message method,
-    so the default here intentionally omits it to reproduce production behavior.
-    """
+    """Stands in for AICommerceEngine. Intentionally minimal: any engine
+    failure (including a missing method) must degrade gracefully."""
 
     pass
 
@@ -169,9 +166,9 @@ class TestAnalyzeIntent:
         decision = await service._analyze_intent("hi", SessionMemory(user_name="F"))
         assert decision.intent == "SOCIAL_CHAT"
 
-    async def test_currently_no_grounding_on_llm_order_id(self, monkeypatch):
-        """CHARACTERIZATION of a gap: an LLM-hallucinated order_id (digits that
-        never appear in the user's message) is currently passed through as-is."""
+    async def test_hallucinated_order_id_is_dropped(self, monkeypatch):
+        """Anti-hallucination grounding: an LLM-extracted order_id whose digits
+        never appear in the user's message is dropped ( -> handler asks for it)."""
         service = make_service()
 
         async def fake_infer(messages):
@@ -179,8 +176,18 @@ class TestAnalyzeIntent:
 
         monkeypatch.setattr(service, "_execute_llm_inference", fake_infer)
         decision = await service._analyze_intent("where is my stuff?", SessionMemory(user_name="F"))
-        # Current behavior: hallucinated ID survives. (Hardening will change this.)
-        assert decision.order_id == "99999"
+        assert decision.intent == "TRACK_ORDER"
+        assert decision.order_id is None
+
+    async def test_grounded_order_id_is_kept(self, monkeypatch):
+        service = make_service()
+
+        async def fake_infer(messages):
+            return '{"intent": "TRACK_ORDER", "order_id": "12345"}'
+
+        monkeypatch.setattr(service, "_execute_llm_inference", fake_infer)
+        decision = await service._analyze_intent("where is order 12345?", SessionMemory(user_name="F"))
+        assert decision.order_id == "12345"
 
 
 # --- Action handlers ------------------------------------------------------------
@@ -213,22 +220,25 @@ class TestSupportHandoffHandler:
 
 
 class TestProductSearchHandler:
-    async def test_current_defect_engine_missing_method_degrades(self):
-        """CHARACTERIZATION of the confirmed defect: FakeEngine (like the real
-        AICommerceEngine) has no find_products_from_message, so the handler
-        lands in its except branch and returns the degradation text."""
-        service = make_service(engine=FakeEngine())
+    async def test_engine_failure_degrades_gracefully(self):
+        """Any engine failure (exception or missing method) must land in the
+        degradation branch, never crash the chat."""
+
+        class RaisingEngine(FakeEngine):
+            async def perform_hybrid_search_pure(self, db, query, limit=5):
+                raise RuntimeError("milvus down")
+
+        service = make_service(engine=RaisingEngine())
         resp = await service._handle_product_search(db=None, query="drone")
         assert resp.confidence == 0.0
         assert "databanks" in resp.text
 
     async def test_empty_product_list_text(self):
-        """Behavior contract for the not-found branch (exercised once the
-        engine call is repaired): zero results yields the broaden-search text."""
+        """Zero search results yields the broaden-search text."""
 
         class EmptyEngine(FakeEngine):
-            async def find_products_from_message(self, db, query, offset):
-                return [], None
+            async def perform_hybrid_search_pure(self, db, query, limit=5):
+                return []
 
         service = make_service(engine=EmptyEngine())
         resp = await service._handle_product_search(db=None, query="drone")
@@ -240,8 +250,8 @@ class TestProductSearchHandler:
         product record itself, not invented by the LLM."""
 
         class OneProductEngine(FakeEngine):
-            async def find_products_from_message(self, db, query, offset):
-                return [FakeProduct()], None
+            async def perform_hybrid_search_pure(self, db, query, limit=5):
+                return [FakeProduct()]
 
         service = make_service(engine=OneProductEngine())
         resp = await service._handle_product_search(db=None, query="drone")
@@ -251,8 +261,8 @@ class TestProductSearchHandler:
 
     async def test_out_of_stock_product_mentions_restock(self):
         class OosEngine(FakeEngine):
-            async def find_products_from_message(self, db, query, offset):
-                return [FakeProduct(inventory=0)], None
+            async def perform_hybrid_search_pure(self, db, query, limit=5):
+                return [FakeProduct(inventory=0)]
 
         service = make_service(engine=OosEngine())
         resp = await service._handle_product_search(db=None, query="drone")
@@ -291,7 +301,7 @@ class TestHandleMessage:
         assert "here for you" in resp.text
 
     async def test_product_route_uses_query_or_message(self, monkeypatch):
-        service = make_service(engine=FakeEngine())  # still hits the known defect path
+        service = make_service(engine=FakeEngine())  # FakeEngine raises -> degradation branch
         seen = {}
 
         async def fake_analyze(message, memory):
@@ -299,7 +309,7 @@ class TestHandleMessage:
 
         monkeypatch.setattr(service, "_analyze_intent", fake_analyze)
         resp = await service.handle_message(db=None, message="show me drones", user=None, session_id="s3")
-        # query falls back to the raw message; engine defect -> degradation text
+        # query falls back to the raw message; engine failure -> degradation text
         assert resp.telemetry.intent == "PRODUCT_SEARCH"
         assert "databanks" in resp.text
 
