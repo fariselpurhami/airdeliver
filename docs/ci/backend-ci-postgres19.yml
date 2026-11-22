@@ -93,7 +93,11 @@ jobs:
       - name: Reclaim disposable CI download and build caches
         run: |
           test "$GITHUB_ACTIONS" = "true"
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
           df -h /
+          # These preinstalled mobile/.NET SDKs are unused by this Python/Node job.
+          # Only disposable hosted runners, never self-hosted or developer machines.
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet
           # Installed environments and running services are not cache artifacts.
           # Keep all images, containers and volumes. Never relax disk watermarks.
           python - <<'PYTHON'

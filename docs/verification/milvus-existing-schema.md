@@ -26,3 +26,10 @@ vectors, validated against row identities/counts/search quality before an explic
 API read-target switch. Preserve the old collection for rollback. A seeder-only
 collection rename is insufficient because the API read target must match. No
 migration or target switch is implemented or authorized by this diagnostic.
+
+CI diagnostic run45078367209 passed Seaweed but RustFS hit the known OpenSearch
+disk high-watermark403 before schema creation. Cache-only cleanup was insufficient
+on that hosted runner. CI now additionally removes unused preinstalled Android
+and.NET SDKs, guarded to GitHub-hosted jobs only. No application volumes/images
+or production watermarks are removed/relaxed. Diagnostic remains unmerged until
+the exact updated checkpoint passes both jobs.
