@@ -51,8 +51,7 @@ def with_resilience(default_factory: Callable[[], Any] = lambda: None) -> Callab
                     "Cache connection/timeout failure",
                     extra={
                         "operation": func.__name__,
-                        "error": str(e),
-                        "args": args,
+                        "error_type": type(e).__name__,
                     }
                 )
                 return default_factory()
@@ -61,8 +60,7 @@ def with_resilience(default_factory: Callable[[], Any] = lambda: None) -> Callab
                     "Cache operation failed",
                     extra={
                         "operation": func.__name__,
-                        "error": str(e),
-                        "args": args,
+                        "error_type": type(e).__name__,
                     }
                 )
                 return default_factory()
@@ -204,7 +202,7 @@ class RedisCacheClient(IAsyncCacheClient):
             # Do not log the full URL to prevent credential leakage
             logger.info("Redis connection pool initialized successfully.")
         except RedisError as e:
-            logger.critical("Failed to establish initial Redis connection", extra={"error": str(e)})
+            logger.critical("Failed to establish initial Redis connection", extra={"error_type": type(e).__name__})
             raise RuntimeError(f"Cache initialization failed: {e}") from e
 
     async def disconnect(self) -> None:
@@ -257,9 +255,10 @@ class RedisCacheClient(IAsyncCacheClient):
         """Serializes dictionary to JSON and stores atomically."""
         try:
             # orjson returns bytes; Redis decodes responses natively.
-            json_payload = orjson.dumps(value).decode("utf-8")
+            serialized = orjson.dumps(value)
+            json_payload = serialized.decode("utf-8") if isinstance(serialized, bytes) else serialized
         except TypeError as e:
-            logger.error("JSON serialization failed", extra={"key": key, "error": str(e)})
+            logger.error("JSON serialization failed", extra={"error_type": type(e).__name__})
             return
             
         await self.set(key, json_payload, ttl=ttl)
@@ -273,7 +272,7 @@ class RedisCacheClient(IAsyncCacheClient):
         try:
             return orjson.loads(data)
         except JSONDecodeError as e:
-            logger.warning("JSON payload corruption detected", extra={"key": key, "error": str(e)})
+            logger.warning("JSON payload corruption detected", extra={"error_type": type(e).__name__})
             return None
 
     # --- Sequential Memory (Lists) Operations ---

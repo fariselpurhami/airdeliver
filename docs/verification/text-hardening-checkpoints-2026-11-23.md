@@ -220,3 +220,18 @@ unused Docker build cache, retaining installed environments/images/containers/
 volumes. Disk use is printed before/after. No user machine cleanup or production
 watermark change. This mitigates cache pressure, but only the next CI run can
 measure reclaimed space and establish whether the incident recurs.
+
+## Checkpoint12: cache failure fallback and privacy
+
+Two regressions failed before changes: Redis errors hit logger extra.args,
+which conflicts with the reserved LogRecord field and raises KeyError instead
+of returning the documented fallback. It also attempted to log raw operation
+arguments, which can contain chat, tokens, cart or session values. Error logs
+now retain operation and exception type only. JSON serialization/corruption and
+initial-connect logs likewise exclude keys/raw exceptions. Same fallback return
+contracts and Redis operations retained. Tests inject connection/Redis failures;
+this is not live failover or a change to fail-open rate-limit policy.
+
+A third failing-before regression covers the documented stdlib JSON fallback:
+json.dumps returns str, so unconditional.decode crashed. Both byte/string
+serializers now retain the same JSON storage contract.
