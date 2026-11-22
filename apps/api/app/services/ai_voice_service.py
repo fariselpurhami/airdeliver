@@ -243,7 +243,7 @@ class AIVoiceOrchestrator:
             try:
                 eleven_ws = await websockets.connect(
                     VoiceConfig.get_ws_url(),
-                    extra_headers=VoiceConfig.get_auth_headers(),
+                    additional_headers=VoiceConfig.get_auth_headers(),
                     ping_interval=VoiceConfig.WS_PING_INTERVAL,
                     ping_timeout=VoiceConfig.WS_PING_TIMEOUT
                 )
@@ -285,7 +285,7 @@ class AIVoiceOrchestrator:
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
 
-            if eleven_ws and not eleven_ws.closed:
+            if eleven_ws is not None:
                 with contextlib.suppress(Exception):
                     await eleven_ws.close()
 
@@ -312,7 +312,9 @@ class AIVoiceOrchestrator:
         while True:
             message = await client_ws.receive()
             
-            if "bytes" in message:
+            if message.get("type") == "websocket.disconnect":
+                raise WebSocketDisconnect(message.get("code", 1000))
+            if message.get("bytes") is not None:
                 if queue.full():
                     try:
                         queue.get_nowait()
@@ -320,7 +322,7 @@ class AIVoiceOrchestrator:
                     except asyncio.QueueEmpty: pass
                 await queue.put(message["bytes"])
 
-            elif "text" in message:
+            elif message.get("text") is not None:
                 try:
                     data = json.loads(message["text"])
                     if data.get("type") == ClientMessageType.INTERRUPT.value:
@@ -346,10 +348,15 @@ class AIVoiceOrchestrator:
 
             # 1. Ultra-Low Latency Audio Path
             if msg_type == "audio":
-                b64_audio = data.get("audio_base64")
+                b64_audio = data.get("audio_event", {}).get("audio_base_64") or data.get("audio_base64")
                 if b64_audio:
                     with contextlib.suppress(Exception):
                         await client_ws.send_bytes(base64.b64decode(b64_audio))
+
+            elif msg_type == "ping":
+                event_id = data.get("ping_event", {}).get("event_id")
+                if type(event_id) is int:
+                    await eleven_ws.send(json.dumps({"type": "pong", "event_id": event_id}))
 
             # 2. Text/Subtitle Path
             elif msg_type == "agent_response":
@@ -360,9 +367,12 @@ class AIVoiceOrchestrator:
 
             # 3. INTERCEPTOR: Client Tool Calls (The Bridge to Commerce OS)
             elif msg_type == "client_tool_call":
-                tool_call_id = data.get("tool_call_id")
-                tool_name = data.get("tool_name")
-                params = data.get("parameters", {})
+                call = data.get("client_tool_call", data)
+                tool_call_id = call.get("tool_call_id")
+                tool_name = call.get("tool_name")
+                params = call.get("parameters", {})
+                if not isinstance(tool_call_id, str) or not isinstance(tool_name, str) or not isinstance(params, dict):
+                    continue
                 
                 _structured_log("tool_call_intercepted", tool=tool_name, session_id=session_id)
                 

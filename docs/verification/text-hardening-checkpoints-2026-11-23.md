@@ -235,3 +235,27 @@ this is not live failover or a change to fail-open rate-limit policy.
 A third failing-before regression covers the documented stdlib JSON fallback:
 json.dumps returns str, so unconditional.decode crashed. Both byte/string
 serializers now retain the same JSON storage contract.
+
+## Checkpoint13: real voice transport boundary
+
+New real loopback TCP/WebSocket integration failed before changes because the
+installed websockets version rejects extra_headers. Correct additional_headers
+and current close semantics now tested through actual Uvicorn, browser-side
+WebSocket protocol and a local upstream server. Current provider audio envelope,
+subtitle frames, ping/pong and nested tool-call response use published schemas.
+Disconnect exits reader and closes upstream. PCM bytes roundtrip unchanged.
+Older top-level audio remains supported for compatibility.
+
+The upstream is a local protocol fixture, NOT ElevenLabs. Prior14 voice service
+tests use fake commerce/LLM/cache/socket boundaries and3 route tests replace the
+orchestrator. Those verify logic, not provider acceptance or audible quality.
+This new test uses real TCP/WebSocket libraries and production orchestrator but
+no real provider key, microphone, browser audio device or paid traffic. Live
+ElevenLabs agent authorization/configuration, sample-rate agreement, microphone
+capture/playback and full commerce-tool use still require an authorized real
+session. A key alone does not establish spend permission. No claim of complete
+voice production readiness is made by the loopback test.
+
+Provider sources inspected:
+https://elevenlabs.io/docs/eleven-agents/libraries/web-sockets
+https://elevenlabs.io/docs/eleven-agents/api-reference/eleven-agents/websocket
