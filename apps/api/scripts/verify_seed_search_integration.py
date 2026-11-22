@@ -55,6 +55,26 @@ def main():
 
 
 async def verify(settings,compose,backend):
+    # Only this script's UUID-isolated disposable Milvus server. Prove the exact
+    # empty legacy worker schema repairs through actual Milvus APIs, not mocks.
+    from scripts.repair_empty_product_collection import repair
+    from app.core.catalog_contract import PRODUCT_TEXT_COLLECTION, PRODUCT_TEXT_MODEL_DIMENSION
+    def verify_empty_repair():
+        client=seed.MilvusClient(uri=settings.milvus_uri)
+        try:
+            assert not client.has_collection(PRODUCT_TEXT_COLLECTION)
+            schema=seed.MilvusClient.create_schema(auto_id=False,enable_dynamic_field=True)
+            schema.add_field('id',seed.DataType.INT64,is_primary=True)
+            schema.add_field('vector',seed.DataType.FLOAT_VECTOR,dim=PRODUCT_TEXT_MODEL_DIMENSION)
+            schema.add_field('price',seed.DataType.FLOAT)
+            schema.add_field('category',seed.DataType.VARCHAR,max_length=128)
+            indexes=client.prepare_index_params()
+            indexes.add_index(field_name='vector',metric_type='COSINE',index_type='HNSW',params={'M':16,'efConstruction':200})
+            client.create_collection(collection_name=PRODUCT_TEXT_COLLECTION,schema=schema,index_params=indexes)
+            result=repair(client,PRODUCT_TEXT_COLLECTION,apply=True,writers_stopped=True)
+            assert result['missing_required_fields']==[] and result['writes_performed'] is True
+        finally:client.close()
+    await asyncio.to_thread(verify_empty_repair)
     async with seed.application_context(settings) as service:
         first=await service.run()
         assert first['inserted']==17 and first['status']=='completed'

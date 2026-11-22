@@ -351,6 +351,7 @@ class WorkerRuntime:
                 text_schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
                 text_schema.add_field(field_name="vector", datatype=DataType.FLOAT_VECTOR, dim=text_dimension)
                 text_schema.add_field(field_name="price", datatype=DataType.FLOAT)
+                text_schema.add_field(field_name="rating", datatype=DataType.FLOAT)
                 text_schema.add_field(field_name="category", datatype=DataType.VARCHAR, max_length=128)
 
                 text_index_params = client.prepare_index_params()
