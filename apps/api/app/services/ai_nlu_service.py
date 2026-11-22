@@ -4904,7 +4904,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
 
             logger.info(
                 "bg_memorize_fact_extracted",
-                extra={"user_id": user_id, "fact_preview": str(fact)[:200]},
+                extra={"fact_characters": len(str(fact))},
             )
 
             persistence_hook = getattr(self.search_engine, "remember_user_fact", None)
@@ -4919,7 +4919,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
                 except Exception as exc:
                     logger.warning(
                         "bg_memorize_engine_persist_failed",
-                        extra={"user_id": user_id, "error": str(exc)},
+                        extra={"error_type": type(exc).__name__},
                     )
 
             logger.debug(
@@ -4930,7 +4930,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
         except Exception as exc:
             logger.warning(
                 "bg_memorize_failed",
-                extra={"user_id": user_id, "error": str(exc)},
+                extra={"error_type": type(exc).__name__},
             )
 
     async def _mark_products_as_seen(self, user_id: int, products: Sequence[ProductLike]) -> None:

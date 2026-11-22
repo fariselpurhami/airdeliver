@@ -171,7 +171,7 @@ class NeuralCoreService:
                 ttl=NeuralCoreConfig.SESSION_TTL_SEC
             )
         except Exception as exc:
-            logger.error("neural_core.session.persist_failed", extra={"session_id": session_id, "error": str(exc)})
+            logger.error("neural_core.session.persist_failed", extra={"error_type": type(exc).__name__})
 
     # --- COGNITIVE ROUTING ---------------------------------------------------
 
@@ -245,7 +245,7 @@ class NeuralCoreService:
         try:
             products = await self.ai_engine.perform_hybrid_search_pure(db, query, limit=5)
         except Exception as exc:
-            logger.error("neural_core.engine.search_failed", extra={"query": query, "error": str(exc)})
+            logger.error("neural_core.engine.search_failed", extra={"error_type": type(exc).__name__})
             return NeuralCoreResponse(
                 text="Our global databanks are temporarily syncing. Let's try that search again in a moment.",
                 confidence=0.0,
@@ -274,7 +274,7 @@ class NeuralCoreService:
         try:
             products = await self.ai_engine.search_by_image_vector(image_base64, limit=5)
         except Exception as exc:
-            logger.error("neural_core.engine.visual_search_failed", extra={"error": str(exc)})
+            logger.error("neural_core.engine.visual_search_failed", extra={"error_type": type(exc).__name__})
             return NeuralCoreResponse(
                 text="Our visual search is temporarily syncing. Let's try that image again in a moment.",
                 confidence=0.0,
@@ -374,7 +374,7 @@ class NeuralCoreService:
         
         logger.info(
             "neural_core.request_routed", 
-            extra={"user_name": user_name, "session_id": session_id, "intent": decision.intent}
+            extra={"intent": decision.intent}
         )
 
         # Dispatch
