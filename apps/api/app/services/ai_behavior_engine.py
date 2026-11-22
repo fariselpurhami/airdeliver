@@ -250,6 +250,15 @@ class BehaviorEngine:
             logger.warning("Financial DNA fallback triggered.", extra={"user_id": user_id, "error": str(e)})
             return FinancialTier.MEDIUM
 
+    async def analyze_financial_dna(self, user_id: int) -> FinancialTier:
+        """Public facade for _analyze_financial_dna.
+
+        The NLU suggestion pipeline calls this exact name (guarded by
+        hasattr); without it the guard silently skipped tier analysis and
+        every user was treated as MEDIUM.
+        """
+        return await self._analyze_financial_dna(user_id)
+
     async def get_user_profile(self, user_id: int) -> Dict[str, Any]:
         """
         Retrieves real-time behavioral identity resolving concurrent downstream dependencies.
