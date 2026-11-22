@@ -1,0 +1,250 @@
+# infra/k8s/13-network-policy.yml
+# Default-deny network posture for the airdeliver namespace. Only the flows
+# the platform actually uses are allowed. Requires a CNI that enforces
+# NetworkPolicy (Calico, Cilium, ...); on a non-enforcing CNI these are inert.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: airdeliver
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# DNS egress for every pod (kube-dns).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: airdeliver
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Web: inbound from the ingress controller namespace only; outbound to the API.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: airdeliver-web
+  namespace: airdeliver
+spec:
+  podSelector:
+    matchLabels:
+      app: airdeliver-web
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: airdeliver-api
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# API: inbound from ingress and from the web pods (Next.js server-side calls);
+# outbound to data services and HTTPS to the internet (Stripe, PayPal, Groq,
+# Tavily, ElevenLabs).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: airdeliver-api
+  namespace: airdeliver
+spec:
+  podSelector:
+    matchLabels:
+      app: airdeliver-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+        - podSelector:
+            matchLabels:
+              app: airdeliver-web
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Prometheus scraping
+    - from:
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app: rabbitmq
+      ports:
+        - protocol: TCP
+          port: 5672
+    - to:
+        - podSelector:
+            matchLabels:
+              app: opensearch
+      ports:
+        - protocol: TCP
+          port: 9200
+    - to:
+        - podSelector:
+            matchLabels:
+              app: milvus
+      ports:
+        - protocol: TCP
+          port: 19530
+    - to:
+        - podSelector:
+            matchLabels:
+              app: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+    - to:
+        - podSelector:
+            matchLabels:
+              app: etcd
+      ports:
+        - protocol: TCP
+          port: 2379
+    # External HTTPS (payment gateways, LLM/TTS providers)
+    - ports:
+        - protocol: TCP
+          port: 443
+---
+# Worker: no inbound at all; outbound to the data services and HTTPS.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: airdeliver-api-worker
+  namespace: airdeliver
+spec:
+  podSelector:
+    matchLabels:
+      app: airdeliver-api-worker
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app: rabbitmq
+      ports:
+        - protocol: TCP
+          port: 5672
+    - to:
+        - podSelector:
+            matchLabels:
+              app: opensearch
+      ports:
+        - protocol: TCP
+          port: 9200
+    - to:
+        - podSelector:
+            matchLabels:
+              app: milvus
+      ports:
+        - protocol: TCP
+          port: 19530
+    - ports:
+        - protocol: TCP
+          port: 443
+---
+# Data services: accept only from API and worker pods.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: airdeliver-data-services
+  namespace: airdeliver
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: [postgres, redis, rabbitmq, opensearch, milvus]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values: [airdeliver-api, airdeliver-api-worker, milvus, prometheus]
+---
+# Etcd and MinIO serve Milvus only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: airdeliver-milvus-deps
+  namespace: airdeliver
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: [etcd, minio]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: milvus

@@ -1,0 +1,27 @@
+# infra/k8s/14-ddos-middleware.yml
+# Edge-level abuse protection (Traefik middlewares). These are the in-repo
+# layer; volumetric L3/L4 DDoS still needs a CDN/WAF in front (see README).
+
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: airdeliver-rate-limit
+  namespace: airdeliver
+spec:
+  rateLimit:
+    # Per-source-IP: ~100 req/min average with short bursts allowed,
+    # mirroring the app-level slowapi default.
+    average: 100
+    period: 1m
+    burst: 50
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: airdeliver-inflight-limit
+  namespace: airdeliver
+spec:
+  inFlightConn:
+    # Cap concurrent connections per source IP to blunt slowloris-style
+    # connection exhaustion.
+    amount: 20

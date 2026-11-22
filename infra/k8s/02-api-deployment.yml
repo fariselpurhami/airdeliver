@@ -30,6 +30,8 @@ spec:
         runAsUser: 1001
         runAsGroup: 1001
         fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -64,6 +66,11 @@ spec:
           env:
             - name: WEB_CONCURRENCY
               value: "5"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+
           resources:
             requests:
               cpu: "500m"
