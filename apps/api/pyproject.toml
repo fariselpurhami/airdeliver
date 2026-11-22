@@ -85,7 +85,7 @@ sentence-transformers = "6.1.0"
 sentencepiece = "^0.2.2"
 accelerate = "^1.15.0"
 huggingface-hub = "1.32.0"
-pillow = "^12.3.0"
+pillow = "^13.0.0"
 
 # --- DEV TOOLS ---
 faker = "^40.36.0"
