@@ -4,11 +4,17 @@ import logging
 import time
 from typing import Final
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, status
 from starlette.websockets import WebSocketState
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.api import deps
 from app.services.ai_commerce_engine import AICommerceEngine, get_ai_commerce_engine
 from app.services.ai_voice_service import AIVoiceOrchestrator
+from app.services.cache_service import IAsyncCacheClient
+from app.services.free_llm_service import FreeLLMService
+from app.services.rabbitmq_service import RabbitMQService
+from app import models
 
 logger = logging.getLogger("airdeliver.websockets.voice")
 
@@ -19,26 +25,42 @@ _TICKET_VALIDATION_ERROR: Final[str] = "INVALID_TICKET"
 @router.websocket("/voice-stream")
 async def voice_stream_endpoint(
     websocket: WebSocket,
-    ticket: str,
+    ticket: str = Query(default=None),
+    session: AsyncSession = Depends(deps.get_async_session),
+    cache: IAsyncCacheClient = Depends(deps.get_cache_client),
     commerce_engine: AICommerceEngine = Depends(get_ai_commerce_engine),
+    llm_service: FreeLLMService = Depends(deps.get_llm_service),
+    rabbitmq: RabbitMQService = Depends(deps.get_rabbitmq_service),
 ) -> None:
     """
     Establishes a bi-directional audio tunnel for the AI Voice Assistant.
-    Enforces strict connection lifecycle and error boundary isolation.
+    Enforces the same one-time ticket auth as the /chat socket
+    (POST /api/v1/ordering/ticket issues it; tickets live 30s, single use).
     """
-    # Note: In a production environment, cryptographic validation of the 'ticket'
-    # must occur here before accepting the socket to prevent unauthenticated resource exhaustion.
-    if not ticket or ticket.strip() == "":
-        await websocket.close(code=1008, reason=_TICKET_VALIDATION_ERROR)
-        logger.warning("Voice connection rejected: Missing or empty auth ticket.")
+    # 1. AUTHENTICATION PHASE (one-time ticket, real user identity)
+    try:
+        current_user: models.User = await deps.get_current_active_user_ws_ticket(
+            websocket=websocket,
+            ticket=ticket,
+            session=session,
+            cache=cache,
+        )
+    except Exception:
+        logger.warning("Voice connection rejected: missing/invalid/expired ticket.")
+        if websocket.client_state != WebSocketState.DISCONNECTED:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=_TICKET_VALIDATION_ERROR)
         return
 
-    # User identity extraction should ideally be decoded from a signed JWT/ticket.
-    # Hardcoded for architectural demonstration based on the provided context.
-    user_id = "user_authenticated"
+    user_id = str(current_user.id)
     session_id = f"voice_ws_{user_id}_{int(time.time())}"
 
-    orchestrator = AIVoiceOrchestrator(commerce_engine=commerce_engine)
+    orchestrator = AIVoiceOrchestrator(
+        commerce_engine=commerce_engine,
+        llm_service=llm_service,
+        rabbitmq=rabbitmq,
+        cache=cache,
+        db_session=session,
+    )
 
     try:
         logger.info("Initializing voice session.", extra={"session_id": session_id, "user_id": user_id})
