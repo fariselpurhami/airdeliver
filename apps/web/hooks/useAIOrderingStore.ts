@@ -151,9 +151,10 @@ const generateMessageId = () => Date.now() + messageIdCounter++;
 // Faster UUID generation for UI tasks
 const generateUUID = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
 
-const initialWelcomeMessage: Message = {
- 
-};
+// TODO(product): the welcome message was never populated - it is an empty
+// object cast to Message. Preserving that exact runtime behavior for now;
+// the chat render path already tolerates it.
+const initialWelcomeMessage = {} as Message;
 
 const SILENT_COMMAND_TRIGGERS = new Set([
   "clear cart", "confirm order", "checkout", "pay now",
@@ -315,8 +316,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
             set(produce((state: AIOrderingState) => {
               // Optimizing lookup from end of array since messages are chronological
               for (let i = state.messages.length - 1; i >= 0; i--) {
-                  if (state.messages[i].msgId === replyTo) {
-                      state.messages[i].status = 'sent';
+                  const message = state.messages[i];
+                  if (message && message.msgId === replyTo) {
+                      message.status = 'sent';
                       break;
                   }
               }
@@ -582,8 +584,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       set(produce((state: AIOrderingState) => {
         // Find from end
         for (let i = state.messages.length - 1; i >= 0; i--) {
-            if (state.messages[i].msgId === msgId && state.messages[i].status === 'sending') {
-                state.messages[i].status = 'failed';
+            const message = state.messages[i];
+            if (message && message.msgId === msgId && message.status === 'sending') {
+                message.status = 'failed';
                 break;
             }
         }
@@ -695,8 +698,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       // Find last cart preview
       let previousItems: Record<string, unknown>[] = [];
       for (let i = messages.length - 1; i >= 0; i--) {
-          if (messages[i].contentType === 'cart_preview') {
-              const content = messages[i].content as Record<string, unknown>;
+          const message = messages[i];
+          if (message && message.contentType === 'cart_preview') {
+              const content = message.content as Record<string, unknown>;
               if (Array.isArray(content?.items)) {
                   previousItems = content.items as Record<string, unknown>[];
               }
