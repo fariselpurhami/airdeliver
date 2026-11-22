@@ -181,8 +181,11 @@ class VoiceToolExecutor:
             payload.update({"type": "payment_intent", "timestamp": time.time()})
 
         try:
-            await self.rabbitmq.publish(payload, routing_key)
-            return json.dumps({"status": "SUCCESS", "action_executed": action.value})
+            outcome = await self.rabbitmq.publish(payload, routing_key)
+            if getattr(outcome, "is_success", None) is not True:
+                return json.dumps({"status": "FAILED", "error": "Broker did not confirm the request."})
+            return json.dumps({"status": "QUEUED", "action_requested": action.value,
+                               "message": "Request queued; completion is not confirmed yet."})
         except Exception as e:
             _structured_log("cart_action_dispatch_failed", logging.ERROR, error=str(e), user_id=user_id)
             return json.dumps({"status": "FAILED", "error": "Internal broker failure."})

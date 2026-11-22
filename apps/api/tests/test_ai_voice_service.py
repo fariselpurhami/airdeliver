@@ -52,7 +52,7 @@ def make_executor(products=None, web_intel="intel"):
         perform_hybrid_search_pure=AsyncMock(return_value=products or [])
     )
     llm = SimpleNamespace(_perform_web_search=AsyncMock(return_value=web_intel))
-    rabbit = SimpleNamespace(publish=AsyncMock())
+    rabbit = SimpleNamespace(publish=AsyncMock(return_value=SimpleNamespace(is_success=True)))
     executor = VoiceToolExecutor(
         commerce_engine=commerce,
         llm_service=llm,
@@ -115,7 +115,7 @@ async def test_cart_action_add_requires_product_id():
 async def test_cart_action_add_publishes_to_cart_queue():
     executor, _, _, rabbit = make_executor()
     out = json.loads(await executor.execute_cart_action({"action": "ADD", "product_id": 7}, "1", FakeWS()))
-    assert out["status"] == "SUCCESS"
+    assert out["status"] == "QUEUED"
     rabbit.publish.assert_awaited_once()
     payload, rk = rabbit.publish.await_args.args
     assert rk == "airdeliver.ai.cart.add"

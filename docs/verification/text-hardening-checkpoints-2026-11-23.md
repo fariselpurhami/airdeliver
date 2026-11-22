@@ -270,3 +270,13 @@ destination only, so could not validate a flight path, and has no current commer
 use. Remove this orphan, not a functioning compliance integration. Voice has
 already had repair/test checkpoints; it is not an untouched later subsystem.
 Live microphone/provider acceptance remains unverified, as checkpoint13 states.
+
+## Checkpoint15: voice broker admission is not completed cart action
+
+Two regressions failed before changes. Voice tool ignored publish result and
+claimed action_executed even when broker returned failure. It now requires an
+explicit positive broker confirmation and says QUEUED/action_requested, never
+completed. Existing queue/routing foundations preserved. Tests cover positive and
+negative confirms; actual downstream cart mutation and UI acknowledgement are
+separate, not claimed by a broker receipt. Existing unit test broker fixture now
+supplies the real publish-result contract instead of an unconstrained AsyncMock.
