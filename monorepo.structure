@@ -36,5 +36,4 @@ airdeliver/
 ├── tests/                      # integration tests (require live stack)
 ├── docker-compose.yml          # full stack
 ├── docker-compose.dev.yml      # local dev stack
-├── schema.sql / clean_schema.sql
 └── README.md / RUNBOOK.md

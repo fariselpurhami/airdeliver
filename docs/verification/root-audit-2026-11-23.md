@@ -47,12 +47,19 @@ Absence of a grep hit alone does not establish safe deletion.
   deleted because they have no automatic caller.
 - tests/: root load-test scenario. Does not prove million-user capacity by existing.
 
-## Retained pending narrower validation, not marked safe-to-delete
+## Deleted stale duplicate schema dumps, pending CI
 
-- schema.sql / clean_schema.sql: historical PostgreSQL16 schema dumps; current
-  runtime uses Alembic and neither is a Compose init mount. Mentioned in migration
-  history and project map. Need compare retained schema/functions against current
-  migrations before deciding archival/removal. Never execute as fresh PG19 schema.
+- schema.sql / clean_schema.sql: unused historical PostgreSQL16 schema-only dumps.
+  No DROP, INSERT, COPY, custom functions or triggers. Both duplicate11tables
+  from initial Alembic, but omit CREATE TABLE notification_subscriptions while
+  later altering that missing table, so neither is a complete bootstrap. They
+  omit current transaction ID, shipping and outbox/request-journal foundations.
+  No executable caller: no Compose mount, CI/script or migration load. Re-running
+  them against a migrated database would collide with existing CREATE TABLEs.
+  Alembic is the single tested schema path. Historical migration comments about
+  past installations remain valid and are not runtime file dependencies.
+
+## Retained pending narrower validation, not marked safe-to-delete
 - rootCA.pem: mkcert development public CA certificate, not a private key. No
   current repo reference found. Could have been manually installed in a browser;
   check certificate/TLS setup before removing rather than infer no use from grep.
