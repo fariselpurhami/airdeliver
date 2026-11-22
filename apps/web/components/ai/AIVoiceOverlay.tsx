@@ -144,7 +144,7 @@ export const AIVoiceOverlay = React.memo(() => {
     const analyserRef = useRef<AnalyserNode | null>(null);
     const audioQueueRef = useRef<ArrayBuffer[]>([]);
     const isPlayingRef = useRef<boolean>(false);
-    const animationFrameRef = useRef<number>();
+    const animationFrameRef = useRef<number>(undefined);
 
     // 4. Sequential Audio Decoder & Player
     const processAudioQueue = useCallback(async () => {
@@ -248,9 +248,10 @@ export const AIVoiceOverlay = React.memo(() => {
                     let volumeSum = 0;
                     
                     for (let i = 0; i < inputData.length; i++) {
-                        const s = Math.max(-1, Math.min(1, inputData[i]));
+                        const sample = inputData[i] ?? 0;
+                        const s = Math.max(-1, Math.min(1, sample));
                         pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                        volumeSum += Math.abs(inputData[i]);
+                        volumeSum += Math.abs(sample);
                     }
                     
                     ws.send(pcmData.buffer);
