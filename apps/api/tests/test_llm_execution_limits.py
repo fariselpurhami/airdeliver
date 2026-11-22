@@ -77,3 +77,45 @@ async def test_chat_cancellation_releases_admission_slot():
     with pytest.raises(asyncio.CancelledError):
         await task
     assert not svc._execution_semaphore.locked()
+
+
+def provider(create):
+    return SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+
+
+@pytest.mark.asyncio
+async def test_transient_provider_failure_retries_then_succeeds():
+    import httpx
+    from groq import APIConnectionError
+    svc = service()
+    create = AsyncMock(side_effect=[APIConnectionError(request=httpx.Request("POST", "https://provider.invalid")), completion("ok")])
+    svc._get_client = AsyncMock(return_value=provider(create))
+    assert (await svc._chat_completion(messages=[{"role": "user", "content": "q"}], model="test")).choices[0].message.content == "ok"
+    assert create.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_retry_backoff_is_inside_one_total_deadline():
+    import httpx
+    from groq import APIConnectionError
+    svc = service()
+    create = AsyncMock(side_effect=APIConnectionError(request=httpx.Request("POST", "https://provider.invalid")))
+    svc._get_client = AsyncMock(return_value=provider(create))
+    start = asyncio.get_running_loop().time()
+    with pytest.raises(asyncio.TimeoutError):
+        await svc._chat_completion(messages=[{"role": "user", "content": "q"}], model="test", timeout_seconds=.02)
+    assert asyncio.get_running_loop().time() - start < .2
+    assert create.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_invalid_provider_request_is_not_retried():
+    import httpx
+    from groq import BadRequestError
+    svc = service()
+    response = httpx.Response(400, request=httpx.Request("POST", "https://provider.invalid"))
+    create = AsyncMock(side_effect=BadRequestError("bad request", response=response, body={}))
+    svc._get_client = AsyncMock(return_value=provider(create))
+    with pytest.raises(BadRequestError):
+        await svc._chat_completion(messages=[{"role": "user", "content": "q"}], model="test")
+    assert create.await_count == 1

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Any, Awaitable, Callable, Dict, Iterable, List, Literal, Mapping, Optional, Protocol, Sequence, Tuple, Type, TypeVar, Union
 
-from groq import AsyncGroq
+from groq import AsyncGroq, APIConnectionError, APIStatusError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from tavily import TavilyClient
 
@@ -366,7 +366,7 @@ class FreeLLMService:
         async with self._client_lock:
             if self._client is None:
                 try:
-                    self._client = AsyncGroq(api_key=self._groq_api_key)
+                    self._client = AsyncGroq(api_key=self._groq_api_key, max_retries=0)
                 except Exception as exc:
                     raise ProviderUnavailableError("failed to initialize Groq client") from exc
 
@@ -439,9 +439,28 @@ class FreeLLMService:
             async with self._execution_semaphore:
                 return await client.chat.completions.create(**kwargs_to_send)
 
+        async def _invoke_with_retries() -> Any:
+            # One outer deadline covers queueing, every attempt and backoff.
+            # Do not hold the admission slot while waiting to retry.
+            for attempt in range(self.limits.retries + 1):
+                try:
+                    return await _invoke()
+                except Exception as exc:
+                    retryable = isinstance(exc, (APIConnectionError, asyncio.TimeoutError))
+                    if isinstance(exc, APIStatusError):
+                        retryable = exc.status_code in {408, 409, 429} or exc.status_code >= 500
+                    if not retryable or attempt >= self.limits.retries:
+                        raise
+                    logger.warning("llm_transient_retry", extra={
+                        "model": model, "attempt": attempt + 1,
+                        "error_type": type(exc).__name__, "correlation_id": correlation_id,
+                    })
+                    await asyncio.sleep(0.35 * (2 ** attempt))
+            raise ProviderUnavailableError(f"LLM execution failed for model={model}")
+
         try:
             # 4. Enforce timeout at the asyncio layer
-            response = await asyncio.wait_for(_invoke(), timeout=timeout_budget)
+            response = await asyncio.wait_for(_invoke_with_retries(), timeout=timeout_budget)
             return response
 
         except asyncio.TimeoutError:
@@ -467,20 +486,6 @@ class FreeLLMService:
                 exc_info=True,
             )
             raise
-
-        last_error: Optional[Exception] = None
-        async with self._execution_semaphore:
-            for attempt in range(self.limits.retries + 1):
-                try:
-                    return await asyncio.wait_for(_invoke(), timeout=timeout_budget)
-                except asyncio.TimeoutError as exc:
-                    last_error = TimeoutBudgetExceeded(f"LLM timeout on model={model}")
-                except Exception as exc:
-                    last_error = exc
-                if attempt < self.limits.retries:
-                    await asyncio.sleep(0.35 * (2 ** attempt))
-
-        raise ProviderUnavailableError(f"LLM execution failed for model={model}") from last_error
 
     async def generate_response(
         self,
