@@ -253,6 +253,44 @@ class NeuralCoreService:
             telemetry={"intent": "PRODUCT_SEARCH", "entities": [query], "turn": 0}
         )
 
+    async def _handle_visual_search(self, image_base64: str, caption: str = "") -> NeuralCoreResponse:
+        """Grounded visual product search: the answer is templated strictly
+        from the inventory records the engine returns."""
+        try:
+            products = await self.ai_engine.search_by_image_vector(image_base64, limit=5)
+        except Exception as exc:
+            logger.error("neural_core.engine.visual_search_failed", extra={"error": str(exc)})
+            return NeuralCoreResponse(
+                text="Our visual search is temporarily syncing. Let's try that image again in a moment.",
+                confidence=0.0,
+                explain="Visual Search Engine Unavailable",
+                telemetry={"intent": "VISUAL_SEARCH", "entities": [], "turn": 0}
+            )
+
+        if not products:
+            text = (
+                "I analyzed the image, but couldn't find a close match in our partner inventory. "
+                "Try a clearer shot of the item, or describe it and I'll search by text."
+            )
+            confidence = 0.3
+        else:
+            top_product = products[0]
+            inventory_qty = getattr(top_product, "inventory", 0)
+            status = "ready for immediate dispatch 🚀" if inventory_qty > 0 else "currently awaiting restock"
+            extra = f" for '{caption.strip()}'" if caption.strip() else ""
+            text = (
+                f"Visual match{extra}: the **{top_product.name}** is available at "
+                f"**${top_product.price}** and is {status}. Shall we secure it?"
+            )
+            confidence = 0.9
+
+        return NeuralCoreResponse(
+            text=text,
+            confidence=confidence,
+            explain="Visual Similarity Search",
+            telemetry={"intent": "VISUAL_SEARCH", "entities": [], "turn": 0}
+        )
+
     def _handle_order_tracking(self, order_id: Optional[str]) -> NeuralCoreResponse:
         if order_id:
             text = f"Confirmed. Initiating satellite tracking for Order #{order_id}..."
@@ -281,11 +319,12 @@ class NeuralCoreService:
     # --- PUBLIC ORCHESTRATOR -------------------------------------------------
 
     async def handle_message(
-        self, 
-        db: AsyncSession, 
-        message: str, 
-        user: Optional[models.User], 
-        session_id: str
+        self,
+        db: AsyncSession,
+        message: str,
+        user: Optional[models.User],
+        session_id: str,
+        image_base64: Optional[str] = None,
     ) -> NeuralCoreResponse:
         """
         Main entrypoint. Orchestrates memory hydration, LLM inference, 
@@ -295,6 +334,19 @@ class NeuralCoreService:
         user_name = user.full_name if user and getattr(user, "full_name", None) else "Client"
         
         memory = await self._hydrate_session(session_id, user_name)
+
+        # Visual queries skip the LLM intent router entirely: an image upload
+        # is unambiguous visual-search intent, and skipping the LLM keeps the
+        # path available during LLM outages.
+        if image_base64:
+            response = await self._handle_visual_search(image_base64, caption=message)
+            turn_count = len(memory.history) // 2
+            response.enrich_telemetry(turn=turn_count)
+            memory.append_turn(message or "[image upload]", response.text, max_turns=NeuralCoreConfig.MAX_CONTEXT_TURNS)
+            await self._persist_session(session_id, memory)
+            logger.info("neural_core.request_completed", extra={"intent": "VISUAL_SEARCH"})
+            return response
+
         decision = await self._analyze_intent(message, memory)
         
         logger.info(

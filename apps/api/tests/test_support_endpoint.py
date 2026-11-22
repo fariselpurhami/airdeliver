@@ -36,7 +36,10 @@ class CountingCache:
 
 
 class StubNeuralService:
-    async def handle_message(self, db, message, user, session_id):
+    last_image_base64 = "UNSET"
+
+    async def handle_message(self, db, message, user, session_id, image_base64=None):
+        StubNeuralService.last_image_base64 = image_base64
         return NeuralCoreResponse(
             text="stub reply",
             explain="stub",
@@ -105,6 +108,36 @@ class TestSupportEndpoint:
         resp = test_client.post(
             "/api/v1/ai-support/chat",
             json={"message": "x" * 4097, "session_id": "session-abc"},
+        )
+        assert resp.status_code == 422
+
+    def test_image_only_request_is_accepted(self, client):
+        test_client, _ = client
+        StubNeuralService.last_image_base64 = "UNSET"
+        resp = test_client.post(
+            "/api/v1/ai-support/chat",
+            json={"message": "", "session_id": "session-abc", "image_base64": "aGVsbG8="},
+        )
+        assert resp.status_code == 200
+        assert StubNeuralService.last_image_base64 == "aGVsbG8="
+
+    def test_empty_message_without_image_is_rejected(self, client):
+        test_client, _ = client
+        resp = test_client.post(
+            "/api/v1/ai-support/chat",
+            json={"message": "   ", "session_id": "session-abc"},
+        )
+        assert resp.status_code == 422
+
+    def test_image_size_bound_enforced(self, client):
+        test_client, _ = client
+        resp = test_client.post(
+            "/api/v1/ai-support/chat",
+            json={
+                "message": "what is this?",
+                "session_id": "session-abc",
+                "image_base64": "x" * 7_000_001,
+            },
         )
         assert resp.status_code == 422
 

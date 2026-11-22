@@ -65,7 +65,7 @@ class SupportRequestPayload(BaseModel):
     """
     message: str = Field(
         ...,
-        min_length=1,
+        min_length=0,
         max_length=4096,  # Hard bound on memory/token usage
         description="The user's message payload.",
         json_schema_extra={"example": "Where is my order?"}
@@ -76,6 +76,15 @@ class SupportRequestPayload(BaseModel):
         max_length=128,
         pattern=r"^[a-zA-Z0-9_-]+$",  # Restrict to safe, URL-friendly characters
         description="Idempotency and context tracking key."
+    )
+    image_base64: Optional[str] = Field(
+        default=None,
+        max_length=7_000_000,  # ~5MB binary ceiling; CWE-400 bound
+        description=(
+            "Optional base64-encoded image for visual product search. "
+            "When present, the request is routed to visual similarity search "
+            "and 'message' acts as an optional caption."
+        ),
     )
 
 # -----------------------------------------------------------------------------
@@ -120,6 +129,11 @@ async def handle_support_chat(
 
     # Cleanse inputs at the boundary
     clean_message = payload.message.strip()
+    if not clean_message and not payload.image_base64:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Provide a message, an image, or both.",
+        )
     
     logger.info(
         "Initiating Neural Core processing",
@@ -138,6 +152,7 @@ async def handle_support_chat(
             message=clean_message,
             user=current_user,
             session_id=payload.session_id,
+            image_base64=payload.image_base64,
         )
         
         # Inject correlation ID into successful telemetry for observability tracking
