@@ -147,6 +147,20 @@ def register_middleware(app: FastAPI, settings: CoreSettings) -> None:
         )
 
     @app.middleware("http")
+    async def add_security_headers(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), payment=(self)")
+        if settings.APP_ENV == "production":
+            response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+        return response
+
+    @app.middleware("http")
     async def ensure_response_charset(
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],

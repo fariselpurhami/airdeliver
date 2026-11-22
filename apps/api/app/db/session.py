@@ -14,8 +14,8 @@ from app.core.config import get_core_settings
 
 settings = get_core_settings()
 
-DEFAULT_POOL_SIZE: Final[int] = 10
-DEFAULT_MAX_OVERFLOW: Final[int] = 20
+DEFAULT_POOL_SIZE: Final[int] = settings.DB_POOL_SIZE
+DEFAULT_MAX_OVERFLOW: Final[int] = settings.DB_MAX_OVERFLOW
 DEFAULT_POOL_RECYCLE_SECONDS: Final[int] = 1800
 DEFAULT_POOL_TIMEOUT_SECONDS: Final[int] = 30
 

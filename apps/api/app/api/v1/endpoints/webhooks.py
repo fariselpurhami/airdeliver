@@ -52,6 +52,18 @@ async def stripe_webhook(
     event_type = event["type"]
     data_object = event["data"]["object"]
 
+    # Idempotency: Stripe retries deliveries; process each event ID once.
+    event_id = event.get("id")
+    if event_id:
+        dedupe_key = f"stripe_evt:{event_id}"
+        try:
+            already_seen = not await cache.add(dedupe_key, "1", ttl=86400)
+        except Exception:
+            already_seen = False  # cache down: fall through to the order-level idempotency
+        if already_seen:
+            logger.info("Stripe webhook duplicate skipped", extra={"event_id": event_id})
+            return {"status": "duplicate"}
+
     if event_type == "payment_intent.succeeded":
         await _delegate_payment_success(data_object, session, rabbitmq, cache)
     

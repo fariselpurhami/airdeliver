@@ -11,6 +11,7 @@ import logging
 from app import models
 from app.schemas.user import UserRead, UserCreate, UserUpdate
 from app.schemas.msg import Msg
+from app.core.limiter import limiter
 from app.api import deps
 from app.crud import crud_user
 from app.db.session import get_async_session
@@ -27,8 +28,9 @@ class DefaultPaymentMethod(BaseModel):
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def create_user(
-    *, session: AsyncSession = Depends(get_async_session), user_in: UserCreate
+    request: Request, *, session: AsyncSession = Depends(get_async_session), user_in: UserCreate
 ):
     user = await crud_user.user.get_by_email(db=session, email=user_in.email)
     if user:

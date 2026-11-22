@@ -39,6 +39,8 @@ class CoreSettings(BaseAppConfig):
     POSTGRES_USER: str = Field(..., alias="POSTGRES_USER")
     POSTGRES_PASSWORD: SecretStr = Field(..., alias="POSTGRES_PASSWORD")
     POSTGRES_DB: str = Field(..., alias="POSTGRES_DB")
+    DB_POOL_SIZE: int = Field(default=10, alias="DB_POOL_SIZE", ge=1)
+    DB_MAX_OVERFLOW: int = Field(default=20, alias="DB_MAX_OVERFLOW", ge=0)
 
     USE_REDIS: bool = Field(default=False, alias="USE_REDIS")
     REDIS_HOST: str = Field(default="redis", alias="REDIS_HOST")
