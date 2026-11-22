@@ -10,7 +10,8 @@ from pathlib import Path
 import stripe
 import logging
 from app import models
-from app.schemas.user import UserRead, UserCreate, UserUpdate
+from app.schemas.user import UserRead, UserCreate, UserUpdate, PublicRegistration
+from sqlalchemy.exc import IntegrityError
 from app.schemas.msg import Msg
 from app.core.limiter import limiter
 from app.api import deps
@@ -31,7 +32,7 @@ class DefaultPaymentMethod(BaseModel):
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 async def create_user(
-    request: Request, *, session: AsyncSession = Depends(get_async_session), user_in: UserCreate
+    request: Request, *, session: AsyncSession = Depends(get_async_session), user_in: PublicRegistration
 ):
     user = await crud_user.user.get_by_email(db=session, email=user_in.email)
     if user:
@@ -40,8 +41,14 @@ async def create_user(
             detail="The user with this email already exists in the system.",
         )
 
-    db_user = await crud_user.user.create(db=session, obj_in=user_in)
-    return db_user
+    internal_input = UserCreate(**user_in.model_dump(), role=models.UserRole.USER, is_active=True)
+    try:
+        return await crud_user.user.create(db=session, obj_in=internal_input)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail="Registration could not be completed. Try signing in if your account already exists.")
+
 
 
 @router.get("/me", response_model=UserRead)

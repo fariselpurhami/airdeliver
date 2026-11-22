@@ -1,7 +1,7 @@
 # apps/api/app/schemas/user.py
 
 from sqlmodel import SQLModel, Field
-from pydantic import EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from typing import Optional
 from app.models.user import UserRole
 
@@ -44,3 +44,11 @@ class UserInDBBase(UserBase):
 
 class User(UserRead):
     pass
+
+
+class PublicRegistration(BaseModel):
+    """Public callers cannot choose account privileges or activation state."""
+    model_config = ConfigDict(extra="forbid")
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    full_name: Optional[str] = Field(default=None, max_length=100)

@@ -5,6 +5,7 @@
 import React, { useState, Suspense, useEffect, useMemo, memo, useRef, useId } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from "next-auth/react";
+import { registerAccount, safeCallbackPath } from '@/lib/auth-flow';
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Preload } from '@react-three/drei';
@@ -221,9 +222,11 @@ SubmitButton.displayName = 'SubmitButton';
 
 const SignUpForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({ fullName: '', email: '', password: '' });
     const [error, setError] = useState('');
+    const busy = useRef(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -231,26 +234,29 @@ const SignUpForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (busy.current) return;
+        busy.current = true;
         setIsLoading(true); 
         setError('');
 
         try {
-            const result = await signIn('credentials', { 
-                redirect: false, 
-                email: formData.email, 
+            await registerAccount(formData);
+            const result = await signIn('credentials', {
+                redirect: false,
+                email: formData.email,
                 password: formData.password,
-                action: 'signup' 
             });
             
             if (result?.error) {
-                setError('Registration failed. Please check your network and try again.');
+                setError('Your account was created, but sign-in could not finish. Try signing in.');
             } else if (result?.ok) {
                 router.refresh();
-                router.push('/');
+                router.push(safeCallbackPath(searchParams.get('callbackUrl')));
             }
         } catch (err) {
-            setError('An unexpected error occurred. Please try again.');
+            setError('Registration could not be confirmed. If you already created this account, try signing in. Otherwise check your email and use a password of 8 to 128 characters.');
         } finally {
+            busy.current = false;
             setIsLoading(false);
         }
     };
@@ -272,7 +278,7 @@ const SignUpForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
             <form onSubmit={handleSubmit} className="space-y-4 max-w-[320px] mx-auto w-full relative z-30" noValidate>
                 <FormInput icon={User} label="Full Name" name="fullName" type="text" placeholder="Jane Doe" required disabled={isLoading} value={formData.fullName} onChange={handleChange} />
                 <FormInput icon={Mail} label="Email Address" name="email" type="email" placeholder="jane@example.com" required disabled={isLoading} value={formData.email} onChange={handleChange} />
-                <FormInput icon={Lock} label="Password" name="password" type="password" placeholder="••••••••" required disabled={isLoading} value={formData.password} onChange={handleChange} />
+                <FormInput icon={Lock} label="Password" name="password" type="password" minLength={8} maxLength={128} placeholder="••••••••" required disabled={isLoading} value={formData.password} onChange={handleChange} />
                 
                 {error && (
                     <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl backdrop-blur-md" role="alert" aria-live="assertive">
@@ -302,9 +308,11 @@ SignUpForm.displayName = 'SignUpForm';
 
 const SignInForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
+    const busy = useRef(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -312,6 +320,8 @@ const SignInForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (busy.current) return;
+        busy.current = true;
         setIsLoading(true); 
         setError('');
 
@@ -326,11 +336,12 @@ const SignInForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
                 setError('Invalid email or password.');
             } else if (result?.ok) {
                 router.refresh();
-                router.push('/');
+                router.push(safeCallbackPath(searchParams.get('callbackUrl')));
             }
         } catch (err) {
             setError('An unexpected error occurred. Please try again.');
         } finally {
+            busy.current = false;
             setIsLoading(false);
         }
     };
