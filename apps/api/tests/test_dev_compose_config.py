@@ -265,7 +265,8 @@ def test_worker_probe_matches_its_own_server_not_api_image(prepared):
         worker=services['api-worker']['healthcheck']
         assert worker['test']==['CMD','curl','-f','--max-time','5','http://localhost:8081/health']
         assert 'http://localhost:8000/api/v1/health' in ' '.join(services['api']['healthcheck']['test'])
-        assert worker['start_period']=='1m0s'
+        assert worker['start_period']=='6m30s'
+        assert services['api']['healthcheck']['start_period']=='6m30s'
     source=(ROOT/'apps/api/worker_entrypoint.py').read_text()
     assert 'HEALTH_SERVER_PORT: Final[int] = 8081' in source
     assert 'raise StartupDependencyError("No payment gateway is configured and available")' in source

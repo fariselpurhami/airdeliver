@@ -85,7 +85,7 @@ COPY --chown=$APP_UID:$APP_GID *.py .
 USER $APP_USER
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=390s --retries=3 \
   CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
 CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]

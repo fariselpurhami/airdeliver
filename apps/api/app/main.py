@@ -26,6 +26,7 @@ from app.core.limiter import limiter
 from app.services.cache_service import IAsyncCacheClient, NoOpCacheClient, RedisCacheClient
 from app.services.rabbitmq_service import get_rabbitmq_service
 from app.services.ai_behavior_engine import BehaviorEngine
+from app.services.ai_commerce_engine import initialize_query_embeddings
 
 from app.websockets.voice_ws import router as voice_router
 
@@ -332,6 +333,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     resources: ApplicationResources | None = None
     try:
         resources = await startup_resources(app, settings)
+        await initialize_query_embeddings()
         logger.info("Application startup complete.")
         yield
     finally:

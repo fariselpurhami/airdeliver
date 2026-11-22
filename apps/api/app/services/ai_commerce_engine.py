@@ -36,6 +36,8 @@ from app.core.config import CoreSettings, get_core_settings
 from app.models.product import Product
 from app.services.cache_service import IAsyncCacheClient, get_cache_client
 
+from app.services.embedding_warmup import (warm_text_encoder, WarmupPolicy, TextEmbeddingWarmupError, STARTUP_MODEL_BUDGET_SECONDS)
+
 logger = logging.getLogger("airdeliver.engine")
 
 
@@ -361,6 +363,8 @@ class ModelRegistry:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
                     cls._instance._text_model = None
+                    cls._instance._text_warmup_status = {"state": "not_started"}
+                    cls._instance._text_startup_rejected = threading.Event()
                     cls._instance._vision_model = None
                     cls._instance._vision_processor = None
                     cls._instance._model_lock = threading.RLock()
@@ -379,30 +383,60 @@ class ModelRegistry:
             logger.info("loading text embedding model", extra={"model": PRODUCT_TEXT_MODEL.name, "device": self._device})
             logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
 
-            model = SentenceTransformer(
-                PRODUCT_TEXT_MODEL.name,
-                revision=get_core_settings().PRODUCT_TEXT_MODEL_REVISION or DEFAULT_PRODUCT_TEXT_MODEL_REVISION,
-                trust_remote_code=False,
-                device=self._device,
-                model_kwargs={"dtype": self._dtype},
-            )
-
+            rejected = self._text_startup_rejected
+            if rejected.is_set():
+                raise TextEmbeddingWarmupError("Text model startup previously exceeded its budget; restart required")
+            self._text_warmup_status = {"state": "warming_up"}
+            def expire():
+                rejected.set()
+                self._text_warmup_status = {"state": "failed", "error": "startup_budget_exhausted"}
+                logger.error("text embedding startup budget exhausted; readiness rejected")
+            timer = threading.Timer(STARTUP_MODEL_BUDGET_SECONDS, expire)
+            timer.daemon = True
+            timer.start()
+            warmup_timer = None
             try:
-                if hasattr(model[0], "auto_model") and hasattr(model[0].auto_model, "config"):
-                    model[0].auto_model.config.use_cache = False
-            except Exception:
-                logger.debug("unable to disable transformer use_cache on embedding model")
+                model = SentenceTransformer(
+                    PRODUCT_TEXT_MODEL.name,
+                    revision=get_core_settings().PRODUCT_TEXT_MODEL_REVISION or DEFAULT_PRODUCT_TEXT_MODEL_REVISION,
+                    trust_remote_code=False,
+                    device=self._device,
+                    model_kwargs={"dtype": self._dtype},
+                )
+                try:
+                    if hasattr(model[0], "auto_model") and hasattr(model[0].auto_model, "config"):
+                        model[0].auto_model.config.use_cache = False
+                except Exception:
+                    logger.debug("unable to disable transformer use_cache on embedding model")
+                model.max_seq_length = 8192
+                model.to(self._device)
+                model.eval()
+                warmup_timer = threading.Timer(WarmupPolicy().budget_seconds, expire)
+                warmup_timer.daemon = True
+                warmup_timer.start()
+                with torch.no_grad():
+                    report = warm_text_encoder(model, PRODUCT_TEXT_MODEL.dimension, rejected=rejected)
+                if rejected.is_set():
+                    raise TextEmbeddingWarmupError("Text model startup budget exhausted")
+                self._text_warmup_status = report
+                self._text_model = model
+                logger.info("text embedding model ready dimension=%d", PRODUCT_TEXT_MODEL.dimension)
+                return model
+            except BaseException:
+                self._text_warmup_status = {"state": "failed", "error": "warmup_failed"}
+                logger.exception("text embedding startup failed; model not published")
+                raise
+            finally:
+                timer.cancel()
+                if warmup_timer is not None:
+                    warmup_timer.cancel()
 
-            model.max_seq_length = 8192
-            model.to(self._device)
-            model.eval()
+    def text_readiness(self):
+        return dict(self._text_warmup_status)
 
-            with torch.no_grad():
-                model.encode("warmup", show_progress_bar=False)
-
-            self._text_model = model
-            logger.info("text embedding model loaded", extra={"dimension": PRODUCT_TEXT_MODEL.dimension})
-            return model
+    def reject_text_startup(self):
+        self._text_startup_rejected.set()
+        self._text_warmup_status = {"state": "failed", "error": "startup_deadline_exceeded"}
 
     def get_vision_stack(self) -> Tuple[Any, Any]:
         if self._vision_model is not None and self._vision_processor is not None:
@@ -1509,6 +1543,18 @@ class AICommerceEngine:
 
 def get_embedding_model() -> SentenceTransformer:
     return model_registry.get_text_model()
+
+
+async def initialize_query_embeddings() -> SentenceTransformer:
+    # Shield avoids pretending that cancellation stopped native inference.
+    future = asyncio.get_running_loop().run_in_executor(None, get_embedding_model)
+    future.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+    try:
+        return await asyncio.wait_for(asyncio.shield(future), timeout=STARTUP_MODEL_BUDGET_SECONDS)
+    except asyncio.TimeoutError as exc:
+        model_registry.reject_text_startup()
+        logger.error("text model startup deadline exceeded; readiness rejected")
+        raise TextEmbeddingWarmupError("Text model startup deadline exceeded") from exc
 
 
 class MilvusConnectionError(RuntimeError):

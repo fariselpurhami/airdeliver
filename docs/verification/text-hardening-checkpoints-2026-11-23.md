@@ -298,3 +298,35 @@ Local Compose tests: 15 passed. Full disposable PostgreSQL19 verification,
 including migrations: 613 passed, 2 skipped, 20 existing warnings.
 This validates configuration, not completeness of any developer's model files.
 An exact-revision offline load must verify those before claiming reuse.
+
+## Query encoder startup readiness
+
+The developer's direct GTE encodes took 74.514s, 11.493s and 0.707s in one
+process after a 2.55s offline load. This proves startup-transient latency on
+that run, not its cause. Lazy page-in, kernel setup and resource pressure are
+not isolated. A single existing registry warmup was not enough evidence.
+
+The shared model registry now requires two consecutive valid query vectors
+under 5 seconds, up to 8 attempts, within a 240-second warmup budget. Total
+load/startup budget is 360 seconds. No model is published after failure. API
+lifespan awaits this before serving; worker AI readiness uses the same path.
+Worker health/readiness no longer returns success for cold/degraded AI.
+Docker health startup grace is 390 seconds. Use --wait-timeout 480 for each
+sequential API/worker startup. Request embedding deadline remains 25 seconds.
+
+Native thread inference cannot be safely killed. Budget expiry rejects
+readiness and model publication; ongoing native work can drain before process
+exit. Warmup shows two fast representative samples, not a latency guarantee
+for every future input/load. API's existing 8192-token cap, dtype/device and
+raw query embedding contract are unchanged. No provider calls are added.
+Each API process owns a model, so production worker count remains a separate
+RAM/capacity planning concern, not solved by a shared disk cache.
+
+Tests replay observed timings, reject unstable/invalid vectors and budget
+expiry, prove failed model publication and startup cleanup, and drive a real
+loopback HTTP server that cannot accept health traffic before lifespan warmup.
+CI also runs warmup on its real learned MiniLM encoder, not the 1.5B GTE model;
+this verifies the learned-encoder boundary, not Mac GTE startup performance.
+Current GTE query prompt omission remains unchanged, pending separate quality
+evaluation. The pinned model card recommends instruction-prefixed queries and
+unprefixed documents. Seeder uses unprefixed normalized document vectors.

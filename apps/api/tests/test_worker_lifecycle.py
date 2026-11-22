@@ -14,7 +14,7 @@ async def test_initialize_ai_starts_behavior_consolidation(monkeypatch):
     monkeypatch.setattr(worker, "get_core_settings", lambda: object())
     monkeypatch.setattr(worker, "get_opensearch_client", opensearch)
     monkeypatch.setattr(worker, "get_milvus_client", Mock(return_value=object()))
-    monkeypatch.setattr(worker, "get_embedding_model", Mock(return_value=object()))
+    monkeypatch.setattr(worker, "initialize_query_embeddings", AsyncMock(return_value=object()))
     async def commerce_engine(*args):
         return object()
     monkeypatch.setattr(worker, "get_ai_commerce_engine", commerce_engine)

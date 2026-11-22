@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import CoreSettings, get_core_settings
+from app.services.ai_commerce_engine import model_registry
 from app.db.session import get_async_session
 from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 logger = logging.getLogger(__name__)
@@ -55,6 +56,10 @@ async def health_check(
             redis_status = "error"
             overall_status = "error"
 
+    text_status = model_registry.text_readiness()["state"]
+    if text_status != "ready":
+        overall_status = "error"
+
     if overall_status == "error":
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
@@ -62,6 +67,7 @@ async def health_check(
         "status": overall_status,
         "database": database_status,
         "redis": redis_status,
+        "text_embeddings": text_status,
     }
 
 

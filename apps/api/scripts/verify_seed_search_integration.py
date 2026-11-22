@@ -76,6 +76,10 @@ async def verify(settings,compose,backend):
         finally:client.close()
     await asyncio.to_thread(verify_empty_repair)
     async with seed.application_context(settings) as service:
+        from app.services.embedding_warmup import warm_text_encoder
+        warmup=await asyncio.to_thread(warm_text_encoder,service._embedding._model,384)
+        assert warmup["state"]=="ready" and len(warmup["sample_seconds"])>=2
+        print(json.dumps({"real_learned_encoder_warmup":warmup,"model":"all-MiniLM-L6-v2","not_gte_performance":True}))
         first=await service.run()
         assert first['inserted']==17 and first['status']=='completed'
         second=await service.run()

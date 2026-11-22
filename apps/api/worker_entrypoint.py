@@ -56,6 +56,7 @@ from app.services.ai_commerce_engine import (
     get_milvus_client,
     get_opensearch_client,
     get_embedding_model,
+    initialize_query_embeddings,
     model_registry,
 )
 from app.services.ai_nlu_service import AINLUService
@@ -166,7 +167,7 @@ class ServiceRegistry:
     readiness_event: asyncio.Event = field(default_factory=asyncio.Event)
 
     def refresh_readiness(self) -> None:
-        ready = self.infrastructure_ready and self.consumer_ready and self.payment_ready
+        ready = self.infrastructure_ready and self.consumer_ready and self.payment_ready and self.ai_ready
         if ready:
             self.readiness_event.set()
         else:
@@ -658,7 +659,7 @@ class WorkerRuntime:
         self.ensure_milvus_schema(milvus_client)
 
         loop = asyncio.get_running_loop()
-        embedding_model = await loop.run_in_executor(None, get_embedding_model)
+        embedding_model = await initialize_query_embeddings()
 
         vision_loader = getattr(get_ai_commerce_engine, "get_vision_stack", None)
         if callable(vision_loader):
@@ -679,6 +680,7 @@ class WorkerRuntime:
         await self.services.behavior.start()
         self.services.ai_ready = True
         self.services.ai_degraded = False
+        self.services.refresh_readiness()
 
     def initialize_payment(self, cache_client: RedisCacheClient) -> None:
         if self.services.http_client is None:
@@ -822,6 +824,7 @@ class WorkerRuntime:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "rabbitmq": "connected" if rabbitmq_ready else "disconnected",
             "db": "ready" if db_ready else "not_initialized",
+            "text_embeddings": model_registry.text_readiness(),
             "ai_engine": "online" if ai_ready else ("degraded" if self.services.ai_degraded else "warming_up"),
             "payment": "ready" if self.services.payment_ready else "not_ready",
             "consumers": "ready" if self.services.consumer_ready else "not_ready",
@@ -836,7 +839,7 @@ class WorkerRuntime:
             },
         }
 
-        healthy = rabbitmq_ready and db_ready
+        healthy = rabbitmq_ready and db_ready and ready and ai_ready
         status_code = 200 if healthy else 503
         return web.json_response(
             {"status": "healthy" if healthy else "unhealthy", "details": status_details},

@@ -340,7 +340,7 @@ services:
        interval: 5s
        timeout: 5s
        retries: 20
-       start_period: 60s
+       start_period: 390s
     labels: !override
       - "traefik.enable=true"
       - "traefik.http.routers.api.entrypoints=web"
