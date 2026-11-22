@@ -1,56 +1,35 @@
-"""Seam tests: the live Stripe success path must also clear the paid cart and
-emit the conversion analytics event (these previously lived only in the
-never-invoked AICheckoutService.handle_payment_success)."""
-from unittest.mock import AsyncMock, MagicMock
-
+"""The live payment path preserves cart cleanup and durable conversion events."""
 import pytest
-
 from app.models.enums import OrderStatus
-from app.models.order import Order
-from app.services.payment_completion_service import PaymentCompletionService
-
-
-def _service(order):
-    db = AsyncMock()
-    db.add = MagicMock()
-    result = MagicMock()
-    result.scalars.return_value.one_or_none.return_value = order
-    db.execute = AsyncMock(return_value=result)
-    rabbitmq = AsyncMock()
-    cache = AsyncMock()
-    return PaymentCompletionService(db, rabbitmq, cache), db, rabbitmq, cache
-
-
-def _order(status=OrderStatus.PENDING, total=42.5):
-    return Order(id=7, user_id=99, status=status, total_price=total)
+from tests.test_payment_completion_orm import payment_service
 
 
 @pytest.mark.asyncio
-async def test_success_clears_cart_and_emits_conversion():
-    svc, _, rabbitmq, cache = _service(_order())
-    await svc.finalize_successful_payment(order_id=7, user_id=99, transaction_id="pi_1")
-
+async def test_success_clears_cart_and_emits_conversion(payment_service):
+    svc, _, _, rabbitmq, cache = payment_service
+    await svc.finalize_successful_payment(7, 99, "pi_1")
     cache.delete.assert_awaited_once_with("ai_cart:99")
-    routing_keys = [c.args[1] for c in rabbitmq.publish.await_args_list]
-    assert "airdeliver.ai.analytics.conversion" in routing_keys
-    conv = [c.args[0] for c in rabbitmq.publish.await_args_list if c.args[1] == "airdeliver.ai.analytics.conversion"][0]
-    assert conv["user_id"] == 99
-    assert conv["order_id"] == 7
-    assert float(conv["revenue"]) == 42.5
+    conversions = [call.args[0] for call in rabbitmq.publish.await_args_list if call.args[1] == "airdeliver.ai.analytics.conversion"]
+    assert len(conversions) == 1
+    assert conversions[0]["user_id"] == "99"  # Response consumer requires a string.
+    assert conversions[0]["order_id"] == 7
+    assert float(conversions[0]["revenue"]) == 42.5
+    assert conversions[0]["event_id"]
 
 
 @pytest.mark.asyncio
-async def test_success_without_cache_still_emits_conversion():
-    svc, _, rabbitmq, _ = _service(_order())
+async def test_success_without_cache_still_emits_conversion(payment_service):
+    svc, _, _, rabbitmq, _ = payment_service
     svc.cache = None
-    await svc.finalize_successful_payment(order_id=7, user_id=99, transaction_id="pi_1")
-    routing_keys = [c.args[1] for c in rabbitmq.publish.await_args_list]
-    assert "airdeliver.ai.analytics.conversion" in routing_keys
+    await svc.finalize_successful_payment(7, 99, "pi_1")
+    assert "airdeliver.ai.analytics.conversion" in [call.args[1] for call in rabbitmq.publish.await_args_list]
 
 
 @pytest.mark.asyncio
-async def test_already_paid_order_is_idempotent_noop():
-    svc, _, rabbitmq, cache = _service(_order(status=OrderStatus.PROCESSING))
-    await svc.finalize_successful_payment(order_id=7, user_id=99, transaction_id="pi_1")
+async def test_already_paid_order_is_idempotent_noop(payment_service):
+    svc, order, db, rabbitmq, cache = payment_service
+    order.status = OrderStatus.PROCESSING
+    await db.commit()
+    await svc.finalize_successful_payment(7, 99, "pi_1")
     rabbitmq.publish.assert_not_awaited()
     cache.delete.assert_not_awaited()

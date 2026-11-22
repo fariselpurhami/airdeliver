@@ -104,3 +104,13 @@ async def test_publish_handles_non_serializable_body():
 async def test_is_healthy_without_connection():
     svc = make_service()
     assert await svc.is_healthy() is False
+
+
+@pytest.mark.asyncio
+async def test_outbox_can_supply_stable_message_id_across_retries():
+    svc = make_service()
+    exchange = FakeExchange()
+    with patch.object(svc, "_ensure_exchange", new=AsyncMock(return_value=exchange)):
+        await svc.publish({"event_id": "event-1"}, "test", message_id="event-1")
+        await svc.publish({"event_id": "event-1"}, "test", message_id="event-1")
+    assert [message.message_id for message, _ in exchange.published] == ["event-1", "event-1"]

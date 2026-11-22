@@ -67,6 +67,7 @@ from app.services.payment_orchestrator import (
     StripeGateway,
 )
 from app.services.rabbitmq_service import RabbitMQService
+from app.services.payment_outbox_service import dispatch_pending
 
 try:
     if not hasattr(DynamicCache, "get_usable_length"):
@@ -179,6 +180,7 @@ class WorkerRuntime:
         self.background_tasks: Set[asyncio.Task[Any]] = set()
         self._closing = False
         self._signal_handlers_installed = False
+        self.payment_outbox_status: Dict[str, Any] = {"state": "not_started"}
 
     def create_background_task(self, coro: Awaitable[Any], name: str) -> asyncio.Task[Any]:
         task = asyncio.create_task(coro, name=name)
@@ -773,6 +775,28 @@ class WorkerRuntime:
         self.services.consumer_ready = True
         self.services.refresh_readiness()
 
+    async def run_payment_outbox(self) -> None:
+        while not self.shutdown_event.is_set():
+            try:
+                if self.services.session_maker is None or self.services.rabbitmq is None:
+                    raise StartupDependencyError("Payment outbox dependencies unavailable")
+                async with self.services.session_maker() as db:
+                    result = await dispatch_pending(db, self.services.rabbitmq, limit=10)
+                self.payment_outbox_status = {
+                    "state": "retrying" if result.failed else "running",
+                    "last_scan_at": datetime.now(timezone.utc).isoformat(),
+                    "sent": result.sent, "failed": result.failed,
+                }
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self.payment_outbox_status = {"state": "error", "error_type": type(exc).__name__}
+                logger.exception("Payment outbox scan failed")
+            try:
+                await asyncio.wait_for(self.shutdown_event.wait(), timeout=10.0)
+            except asyncio.TimeoutError:
+                pass
+
     async def health_check_handler(self, request: web.Request) -> web.Response:
         rabbitmq_ready = self.services.rabbitmq is not None and not getattr(self.services.rabbitmq, "is_closed", False)
         db_ready = self.services.db_engine is not None
@@ -789,6 +813,7 @@ class WorkerRuntime:
             "consumers": "ready" if self.services.consumer_ready else "not_ready",
             "readiness": ready,
             "startup_error": self.services.startup_error,
+            "payment_outbox": self.payment_outbox_status,
             "voice_brain": {
                 "ready": self.voice_brain.ready,
                 "loading": self.voice_brain.loading,
@@ -987,6 +1012,7 @@ class WorkerRuntime:
             logger.critical("RabbitMQ consumer initialization failed", exc_info=exc)
             raise
 
+        self.create_background_task(self.run_payment_outbox(), "payment-outbox")
         self.create_background_task(self.lazy_load_voice_brain(), "lazy-load-voice-brain")
 
         logger.info(

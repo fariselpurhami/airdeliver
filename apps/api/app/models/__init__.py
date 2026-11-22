@@ -14,6 +14,7 @@ from .notification import Notification
 from .order import Order, OrderItem 
 from .product import Product
 from .user import User
+from .payment_outbox import PaymentOutbox
 from .aimemory import AIMemory 
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "Product",
     "User",
     "AIMemory",
+    "PaymentOutbox",
 ]

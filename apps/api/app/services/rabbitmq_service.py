@@ -183,6 +183,7 @@ class RabbitMQService:
         routing_key: str,
         correlation_id: Optional[str] = None,
         max_retries: int = PUBLISH_MAX_RETRIES,
+        message_id: Optional[str] = None,
     ) -> PublishOutcome:
         """
         Publish a JSON message with publisher confirms.
@@ -191,6 +192,7 @@ class RabbitMQService:
         an HTTP 503, enqueue fallback work, or emit alerts.
         """
         cid = correlation_id or str(uuid.uuid4())
+        mid = message_id or str(uuid.uuid4())
         started_at = time.monotonic()
 
         try:
@@ -225,7 +227,7 @@ class RabbitMQService:
                     delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
                     app_id=APP_ID,
                     correlation_id=cid,
-                    message_id=str(uuid.uuid4()),
+                    message_id=mid,
                     timestamp=int(time.time()),
                 )
 

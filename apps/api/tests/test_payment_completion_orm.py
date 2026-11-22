@@ -13,6 +13,8 @@ from app.services.payment_completion_service import PaymentCompletionService
 def payment_service(monkeypatch):
     engine = create_engine("sqlite://")
     Order.__table__.create(engine)
+    from app.models.payment_outbox import PaymentOutbox
+    PaymentOutbox.__table__.create(engine)
     with Session(engine, expire_on_commit=False) as session:
         order = Order(id=7, user_id=99, total_price=42.5)
         session.add(order)
@@ -24,6 +26,8 @@ def payment_service(monkeypatch):
         db.rollback = AsyncMock(side_effect=session.rollback)
         db.add = session.add
         broker, cache = AsyncMock(), AsyncMock()
+        from app.services.rabbitmq_service import PublishOutcome, PublishResult
+        broker.publish.return_value = PublishOutcome(PublishResult.CONFIRMED, "test", "test", 1, 1.0)
         from app.services import payment_completion_service as module
         monkeypatch.setattr(module.gamification_service, "award_points_for_purchase", AsyncMock())
         yield PaymentCompletionService(db, broker, cache), order, db, broker, cache
@@ -74,3 +78,18 @@ async def test_cancelled_order_not_silently_reopened(payment_service):
         await service.finalize_successful_payment(7, 99, "pi_verified")
     assert order.status == OrderStatus.CANCELLED
     broker.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_committed_payment_recovers_notifications_after_broker_outage(payment_service):
+    import asyncio
+    service, order, db, broker, _ = payment_service
+    broker.publish.side_effect = RuntimeError("broker unavailable")
+    with pytest.raises(RuntimeError):
+        await service.finalize_successful_payment(7, 99, "pi_verified")
+    assert order.is_paid is True
+    broker.publish.side_effect = None
+    await asyncio.sleep(2.1)
+    await service.finalize_successful_payment(7, 99, "pi_verified")
+    successful_calls = [call for call in broker.publish.await_args_list if call.kwargs.get("message_id")]
+    assert len(successful_calls) >= 3, "Paid-state duplicate skipped delivery recovery"
