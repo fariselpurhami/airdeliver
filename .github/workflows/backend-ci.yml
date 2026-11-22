@@ -8,12 +8,10 @@ on:
     workflow_dispatch:
     paths:
       - 'apps/api/**'
-      - 'apps/drone-control/**'
   pull_request:
     branches: [ "main" ]
     paths:
       - 'apps/api/**'
-      - 'apps/drone-control/**'
 
 jobs:
   test:
@@ -21,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [api, drone-control]
+        service: [api]
     
     steps:
     - uses: actions/checkout@v4
@@ -48,7 +46,7 @@ jobs:
     needs: test
     strategy:
       matrix:
-        service: [api, drone-control]
+        service: [api]
         
     steps:
     - uses: actions/checkout@v4
@@ -66,7 +64,7 @@ jobs:
         push: true
         tags: yourusername/airdeliver-${{ matrix.service }}:latest
 
-        deploy-staging:
+  deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: build 
@@ -95,3 +93,4 @@ jobs:
         with:
           kubeconfig: ${{ secrets.KUBECONFIG_PRODUCTION }}
           args: apply -f infra/k8s/
+
