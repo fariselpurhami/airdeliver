@@ -7,7 +7,6 @@ from typing import List, Dict, Any
 from app import models, schemas
 from app.db.session import get_async_session
 from app.api import deps
-import random
 
 router = APIRouter()
 
@@ -31,12 +30,6 @@ async def read_products(
         if not data.get("image_url"):
             data["image_url"] = "/images/default.jpeg"
 
-        data["predicted_delivery"] = f"{random.randint(8, 25)} mins near your zone."
-        data["trending_status"] = (
-            "Trending in your region 🚀"
-            if p.inventory < 80 and random.choice([True, False])
-            else None
-        )
         data["stock_level"] = (
             f"Low stock – {p.inventory} left." if p.inventory < 20 else None
         )
@@ -113,10 +106,7 @@ async def get_product_suggestions(
         if not data.get("image_url"):
             data["image_url"] = "/images/default.jpeg"
 
-        data["rating"] = round(random.uniform(4.5, 5.0), 1)
-        data["reviews"] = random.randint(500, 2000)
-        data["delivery_eta"] = "Instant"
-        data["stock_status"] = "In Stock"
+        data["stock_status"] = "In Stock" if p.inventory > 0 else "Out of Stock"
         formatted_suggestions.append(data)
 
     return formatted_suggestions
@@ -142,8 +132,7 @@ async def get_featured_recommendation(
     if not data.get("image_url"):
         data["image_url"] = "/images/default.jpeg"
 
-    data["predicted_delivery"] = f"{random.randint(8, 25)} mins near your zone."
-    data["trending_status"] = "Top Recommendation 🔥"
     data["stock_level"] = f"Low stock – {featured_product.inventory} left."
 
     return data
+
