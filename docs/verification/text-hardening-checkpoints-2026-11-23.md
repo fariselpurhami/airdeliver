@@ -174,3 +174,16 @@ are no longer logged; error type is enough for diagnosis. Missing configuration
 and inference failure report unavailable, not a fabricated cold restart or glitch.
 Tests use controlled provider doubles, not paid/live Groq calls. This bounds the
 routing phase, not end-to-end product search, cache, visual or HTTP request time.
+
+## Checkpoint9: finish the previously uncommitted offline trainer
+
+Origin recovered: this work created behavior_training.py at20:01:36Nov22, not
+Faris's original backup. Dedicated dataset/split/real CPU training/warm-start/
+artifact tests and an operational module CLI now cover the previously untested
+candidate trainer. Output-overwrite regression failed before protection was
+added. CLI requires explicit architecture and new output path, bounds CPU threads,
+and never activates a serving model. Every result stays production_approved=false.
+Small synthetic tests exercise actual optimizer steps in both heads, artifact
+roundtrip and warm starts. No real-customer dataset, full-size training, capacity
+certification or online recommendation improvement is claimed. See
+behavior-offline-training.md for operation, dataset schema and remaining limits.
