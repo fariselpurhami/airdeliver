@@ -4,7 +4,7 @@ name: Backend CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "hardening/pg19-dev-bootstrap"]
     paths:
       - 'apps/api/**'
       - 'scripts/configure_dev_env.py'
