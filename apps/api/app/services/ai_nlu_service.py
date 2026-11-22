@@ -3578,7 +3578,8 @@ class AINLUService:
             )
             return [], fallback_trigger, ai_response_prefix
 
-        candidates = self.ranker.rerank(request.message_text, candidates)
+        # Offload the CPU-bound embedding rerank so the event loop stays responsive.
+        candidates = await asyncio.to_thread(self.ranker.rerank, request.message_text, candidates)
 
         if plan.constraints.excluded_keywords and candidates:
             filtered: List[ProductLike] = []
@@ -3677,7 +3678,7 @@ class AINLUService:
             return result
 
         if alternatives:
-            ranked = self.ranker.rerank(core_query, alternatives)[:5]
+            ranked = (await asyncio.to_thread(self.ranker.rerank, core_query, alternatives))[:5]
             ranked = _deduplicate_products(ranked)
             logger.info(
                 "strategic_search_tier_hit",
@@ -3692,7 +3693,7 @@ class AINLUService:
             filters=strict_filters,
         )
         if mid_tier:
-            ranked = self.ranker.rerank(core_query, mid_tier)[:5]
+            ranked = (await asyncio.to_thread(self.ranker.rerank, core_query, mid_tier))[:5]
             ranked = _deduplicate_products(ranked)
             logger.info(
                 "strategic_search_tier_hit",
