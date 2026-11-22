@@ -260,3 +260,18 @@ def test_checkout_requires_valid_request_identity(client, monkeypatch, key):
     response = c.post('/api/v1/ai-ordering/checkout/confirm', json={'shipping_address': SHIPPING}, headers=headers)
     assert response.status_code == 422
     assert checkout.calls == []
+
+
+@pytest.mark.parametrize('product_id', [0,-1,True,1.5,'7',2**63])
+@pytest.mark.parametrize('route', ['add','remove'])
+def test_cart_http_rejects_invalid_product_identity(client,product_id,route):
+    c,cart,_,_=client
+    response=c.post('/api/v1/ai-ordering/cart/'+route,json={'product_id':product_id})
+    assert response.status_code==422 and cart.calls==[]
+
+
+@pytest.mark.parametrize('quantity', [True,1.5,'2',100,-1])
+def test_cart_http_rejects_noninteger_or_excess_quantity(client,quantity):
+    c,cart,_,_=client
+    response=c.post('/api/v1/ai-ordering/cart/add',json={'product_id':5,'quantity':quantity})
+    assert response.status_code==422 and cart.calls==[]

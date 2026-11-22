@@ -38,7 +38,7 @@ class FakeDB:
         self.commits = 0
         self.rollbacks = 0
 
-    async def get(self, model, pk):
+    async def get(self, model, pk, **kwargs):
         return self._product
 
     def add(self, obj):
@@ -62,7 +62,7 @@ class FakeRabbit:
 
 
 def make_product(pid=7, name="Shoes", price=19.99):
-    return SimpleNamespace(id=pid, name=name, price=price, image_url="img", category="footwear")
+    return SimpleNamespace(id=pid, name=name, price=price, image_url="img", category="footwear",is_active=True,inventory=100)
 
 
 def make_service(cart=None, product=None):
@@ -177,3 +177,19 @@ async def test_financial_total_uses_exact_decimal_math():
     await svc.handle_add_to_cart({"user_id": 1, "product_id": 3, "quantity": 1})
     stored = cache.sets[-1][1]
     assert Decimal(stored["total"]) == Decimal("0.60")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('bad', [0,-1,100,True,1.5,'1.5'])
+async def test_internal_cart_command_rejects_invalid_quantity_without_cache_write(bad):
+    svc,cache,db=make_service(product=make_product())
+    await svc.handle_add_to_cart({'user_id':1,'product_id':7,'quantity':bad})
+    assert not cache.sets
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('field,bad', [('user_id',0),('user_id',-1),('user_id',True),('product_id',-1),('product_id',True),('product_id',2**64)])
+async def test_internal_cart_command_rejects_invalid_owner_product_ids(field,bad):
+    svc,cache,db=make_service(product=make_product())
+    await svc.handle_add_to_cart({**{'user_id':1,'product_id':7},field:bad})
+    assert not cache.sets

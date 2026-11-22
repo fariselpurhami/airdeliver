@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Optional, List, Dict, Any, Final, Sequence
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
@@ -39,9 +39,16 @@ class CartStateModel(BaseModel):
     updated_at: str = ""
 
 class CartOperationPayload(BaseModel):
-    user_id: int
-    product_id: Optional[int] = None
-    quantity: int = 1
+    user_id: int = Field(ge=1, le=9223372036854775807)
+    product_id: Optional[int] = Field(default=None, ge=1, le=9223372036854775807)
+    quantity: int = Field(default=1, ge=1, le=99)
+
+    @field_validator("user_id", "product_id", "quantity", mode="before")
+    @classmethod
+    def reject_boolean_identifiers_and_quantity(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("Boolean is not an identifier or quantity")
+        return value
     action: str = "default"
     notify_user: bool = True
 
@@ -193,8 +200,8 @@ class AICartService:
         if not payload.product_id:
             return
 
-        product = await self.db.get(Product, payload.product_id)
-        if not product:
+        product = await self.db.get(Product, payload.product_id, populate_existing=True)
+        if not product or not product.is_active or product.inventory <= 0:
             if payload.notify_user:
                 await self._send_to_ui(payload.user_id, {"content": "Product unavailable or out of stock.", "type": "error"})
             return
@@ -203,8 +210,22 @@ class AICartService:
 
         existing_item = next((item for item in cart.items if item.product_id == payload.product_id), None)
 
+        total_quantity = payload.quantity + (existing_item.quantity if existing_item else 0)
+        if total_quantity > 99 or total_quantity > product.inventory:
+            if payload.notify_user:
+                await self._send_to_ui(payload.user_id, {
+                    "content": "The requested quantity is unavailable. Your cart has not changed.",
+                    "type": "error",
+                })
+            return
+
         if existing_item:
-            existing_item.quantity += payload.quantity
+            existing_item.quantity = total_quantity
+            # A cached line is not authority for mutable catalog facts.
+            existing_item.price = Decimal(str(product.price))
+            existing_item.name = product.name
+            existing_item.category = getattr(product, 'category', '')
+            existing_item.image_url = getattr(product, 'image_url', '')
         else:
             cart.items.append(CartItemModel(
                 product_id=product.id,
@@ -219,7 +240,7 @@ class AICartService:
 
         if payload.notify_user:
             await self._send_to_ui(payload.user_id, {
-                "content": f"{product.name} secured in manifest.",
+                "content": f"{product.name} added to your cart. Stock is checked again at checkout.",
                 "type": "success_text"
             })
 

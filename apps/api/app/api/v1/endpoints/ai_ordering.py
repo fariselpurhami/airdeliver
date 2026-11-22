@@ -105,12 +105,12 @@ async def check_rate_limit(user_id: int, cache: IAsyncCacheClient) -> bool:
 
 
 class AddToCartRequest(BaseModel):
-    product_id: int
-    quantity: int = Field(default=1, ge=1, le=99)
+    product_id: int = Field(ge=1, le=9223372036854775807, strict=True)
+    quantity: int = Field(default=1, ge=1, le=99, strict=True)
 
 
 class RemoveFromCartRequest(BaseModel):
-    product_id: int
+    product_id: int = Field(ge=1, le=9223372036854775807, strict=True)
 
 
 class ConfirmOrderRequest(BaseModel):

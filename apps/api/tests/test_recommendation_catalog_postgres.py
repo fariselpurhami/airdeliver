@@ -146,3 +146,37 @@ async def test_malformed_cache_does_not_disable_existing_bundle_retrieval(catalo
     async with sessions() as db:
         result=await engine.generate_perfect_bundle(db,anchor)
         assert [p.id for p in result]==[kept.id]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change,quantity,existing', [
+    ({'is_active':False},1,0),
+    ({'inventory':0},1,0),
+    ({'inventory':2},3,0),
+    ({'inventory':3},2,2),
+    ({'inventory':500},50,60),
+])
+async def test_cart_add_rejects_unavailable_or_excess_total_without_mutation(catalog,change,quantity,existing):
+    from app.services.ai_cart_service import AICartService
+    from tests.test_ai_cart_service import FakeCache
+    sessions,(anchor,*_)=catalog
+    original={'items':[{'product_id':anchor.id,'name':anchor.name,'price':'100','quantity':existing}]} if existing else None
+    cache=FakeCache(original)
+    async with sessions() as db:
+        await db.execute(update(Product).where(Product.id==anchor.id).values(**change));await db.commit()
+    async with sessions() as db:
+        await AICartService(db,cache,object()).handle_add_to_cart({'user_id':1,'product_id':anchor.id,'quantity':quantity})
+    assert cache.sets==[]
+    assert any(p['type']=='error' for _,p in cache.published)
+
+
+@pytest.mark.asyncio
+async def test_cart_existing_line_refreshes_current_price_and_name(catalog):
+    from app.services.ai_cart_service import AICartService
+    from tests.test_ai_cart_service import FakeCache
+    sessions,(anchor,*_)=catalog
+    cache=FakeCache({'items':[{'product_id':anchor.id,'name':'Old name','price':'1.00','quantity':1}]})
+    async with sessions() as db:
+        await AICartService(db,cache,object()).handle_add_to_cart({'user_id':1,'product_id':anchor.id,'quantity':1})
+    item=cache.sets[-1][1]['items'][0]
+    assert item['name']==anchor.name and item['price']=='100.00' and item['quantity']==2
