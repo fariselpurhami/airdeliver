@@ -3,8 +3,10 @@
 import asyncio
 import contextvars
 import logging
+import re
+from hashlib import sha256
 from abc import ABC, abstractmethod
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from enum import Enum, unique
 from typing import Any, Dict, List, Optional, Final
 
@@ -291,8 +293,11 @@ class PayPalGateway(IPaymentGateway):
         return str(self._settings.PAYPAL_API_BASE_URL).rstrip("/")
 
     async def _get_access_token(self) -> str:
+        token_cache_key = self.TOKEN_CACHE_KEY + ":" + sha256(
+            f"{self._base_url()}:{self._settings.PAYPAL_CLIENT_ID}".encode()
+        ).hexdigest()[:20]
         try:
-            cached = await self._cache.get(self.TOKEN_CACHE_KEY)
+            cached = await self._cache.get(token_cache_key)
             if cached:
                 return cached
         except Exception as exc:
@@ -310,9 +315,9 @@ class PayPalGateway(IPaymentGateway):
         response.raise_for_status()
         body = response.json()
         token = body["access_token"]
-        ttl = max(int(body.get("expires_in", 300)) - 60, 30)
+        ttl = max(int(body.get("expires_in", 300)) - 60, 1)
         try:
-            await self._cache.set(self.TOKEN_CACHE_KEY, token, ttl=ttl)
+            await self._cache.set(token_cache_key, token, ttl=ttl)
         except Exception as exc:
             logger.warning("PayPal token cache write failed", extra={"error": str(exc)})
         return token
@@ -386,56 +391,115 @@ class PayPalGateway(IPaymentGateway):
             logger.warning("PayPal intent initialization was cancelled by orchestrator timeout")
             raise
 
-    async def capture_order(self, paypal_order_id: str) -> GatewayResult:
-        """Capture a buyer-approved PayPal order (post-redirect completion)."""
+    @staticmethod
+    def validate_order_details(
+        body: Dict[str, Any], paypal_order_id: str, *, expected_order_id: int,
+        expected_user_id: int, expected_amount: Decimal, expected_currency: str,
+        require_completed: bool = False,
+    ) -> None:
+        """Bind provider facts to the one local purchase unit before settlement."""
+        if body.get("id") != paypal_order_id or body.get("intent") != "CAPTURE":
+            raise ValueError("PayPal order identity or intent mismatch")
+        units = body.get("purchase_units", [])
+        if not isinstance(units, list) or len(units) != 1:
+            raise ValueError("Exactly one PayPal purchase unit is required")
+        unit = units[0]
+        if str(unit.get("reference_id")) != str(expected_order_id) or str(unit.get("custom_id")) != str(expected_user_id):
+            raise ValueError("PayPal purchase unit owner/reference mismatch")
+        amount = unit.get("amount", {})
+        actual = Decimal(str(amount.get("value", "NaN")))
+        expected = Decimal(str(expected_amount))
+        if (not actual.is_finite() or not expected.is_finite() or expected <= 0
+                or actual != expected or amount.get("currency_code") != expected_currency.upper()):
+            raise ValueError("PayPal amount/currency mismatch")
+        if require_completed:
+            captures = unit.get("payments", {}).get("captures", [])
+            if body.get("status") != "COMPLETED" or not captures:
+                raise ValueError("PayPal payment is not completed")
+            total = Decimal("0")
+            for capture in captures:
+                capture_amount = capture.get("amount", {})
+                value = Decimal(str(capture_amount.get("value", "NaN")))
+                if (capture.get("status") != "COMPLETED" or not capture.get("id")
+                        or capture_amount.get("currency_code") != expected_currency.upper()
+                        or not value.is_finite() or value <= 0):
+                    raise ValueError("PayPal capture funds are not completed")
+                total += value
+            if total != expected:
+                raise ValueError("PayPal completed capture total mismatch")
+
+    async def get_order_details(self, paypal_order_id: str) -> Dict[str, Any]:
+        if not re.fullmatch(r"[A-Z0-9]{1,36}", paypal_order_id):
+            raise ValueError("Invalid PayPal order identifier")
+        token = await self._get_access_token()
+        response = await self._http_client.get(
+            f"{self._base_url()}/v2/checkout/orders/{paypal_order_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def verify_webhook_signature(self, event: Dict[str, Any], headers: Any) -> bool:
+        webhook_id = getattr(self._settings, "PAYPAL_WEBHOOK_ID", None)
+        required = {
+            "auth_algo": "paypal-auth-algo", "cert_url": "paypal-cert-url",
+            "transmission_id": "paypal-transmission-id", "transmission_sig": "paypal-transmission-sig",
+            "transmission_time": "paypal-transmission-time",
+        }
+        if not webhook_id:
+            raise ValueError("PayPal webhook ID is not configured")
+        if any(not headers.get(name) for name in required.values()):
+            return False
+        payload = {key: headers[name] for key, name in required.items()}
+        payload.update({"webhook_id": webhook_id, "webhook_event": event})
+        token = await self._get_access_token()
+        response = await self._http_client.post(
+            f"{self._base_url()}/v1/notifications/verify-webhook-signature",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json=payload,
+        )
+        response.raise_for_status()
+        return response.json().get("verification_status") == "SUCCESS"
+
+    async def capture_order(
+        self, paypal_order_id: str, *, expected_order_id: int, expected_user_id: int,
+        expected_amount: Decimal, expected_currency: str,
+    ) -> GatewayResult:
+        """Verify ownership and price first, then idempotently capture/reconcile."""
         try:
-            token = await self._get_access_token()
-            response = await self._http_client.post(
-                f"{self._base_url()}/v2/checkout/orders/{paypal_order_id}/capture",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json",
-                },
-            )
-            response.raise_for_status()
-            body = response.json()
-            if body.get("status") == "COMPLETED":
-                return GatewayResult(
-                    provider=self.provider,
-                    status=PaymentStatus.SUCCESS,
-                    transaction_id=paypal_order_id,
-                    raw_response={"capture_status": "COMPLETED"},
+            body = await self.get_order_details(paypal_order_id)
+            expected = dict(expected_order_id=expected_order_id, expected_user_id=expected_user_id,
+                            expected_amount=expected_amount, expected_currency=expected_currency)
+            self.validate_order_details(body, paypal_order_id, **expected)
+            if body.get("status") != "COMPLETED":
+                if body.get("status") != "APPROVED":
+                    raise ValueError("PayPal order has not been approved")
+                token = await self._get_access_token()
+                response = await self._http_client.post(
+                    f"{self._base_url()}/v2/checkout/orders/{paypal_order_id}/capture",
+                    headers={
+                        "Authorization": f"Bearer {token}", "Content-Type": "application/json",
+                        "PayPal-Request-Id": f"capture-{paypal_order_id}", "Prefer": "return=representation",
+                    },
                 )
-            logger.warning(
-                "PayPal capture incomplete",
-                extra={"paypal_order_id": paypal_order_id, "status": body.get("status")},
-            )
-            return GatewayResult(
-                provider=self.provider,
-                status=PaymentStatus.FAILURE,
-                transaction_id=paypal_order_id,
-                error_message=f"PayPal capture ended in status {body.get('status')}.",
-            )
-        except httpx.HTTPStatusError as e:
-            logger.error(
-                "PayPal capture rejected",
-                extra={"status_code": e.response.status_code, "paypal_order_id": paypal_order_id},
-                exc_info=True,
-            )
-            return GatewayResult(
-                provider=self.provider,
-                status=PaymentStatus.FAILURE,
-                transaction_id=paypal_order_id,
-                error_message="PayPal rejected the capture.",
-            )
-        except httpx.RequestError as e:
-            logger.error(f"PayPal capture network failure: {str(e)}", exc_info=True)
-            return GatewayResult(
-                provider=self.provider,
-                status=PaymentStatus.FAILURE,
-                transaction_id=paypal_order_id,
-                error_message="PayPal services are unreachable.",
-            )
+                response.raise_for_status()
+                body = response.json()
+            self.validate_order_details(body, paypal_order_id, require_completed=True, **expected)
+            return GatewayResult(provider=self.provider, status=PaymentStatus.SUCCESS,
+                                 transaction_id=paypal_order_id, raw_response={"capture_status": "COMPLETED"})
+        except (ValueError, TypeError, KeyError, InvalidOperation):
+            logger.warning("PayPal capture rejected by order verification", extra={"paypal_order_id": paypal_order_id})
+            return GatewayResult(provider=self.provider, status=PaymentStatus.FAILURE,
+                                 error_message="PayPal order verification failed.")
+        except httpx.HTTPStatusError as exc:
+            logger.error("PayPal capture API failure", extra={"status_code": exc.response.status_code})
+            return GatewayResult(provider=self.provider, status=PaymentStatus.FAILURE,
+                                 error_message="PayPal rejected the capture.")
+        except httpx.RequestError:
+            logger.error("PayPal capture network failure")
+            return GatewayResult(provider=self.provider, status=PaymentStatus.FAILURE,
+                                 error_message="PayPal services are unreachable.")
+
 
 
 class MpesaGateway(IPaymentGateway):

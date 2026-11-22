@@ -86,7 +86,7 @@ def make_orchestrator(status=PaymentStatus.SUCCESS, client_secret="sec_123", act
     if exc is not None:
         orch.process_payment = AsyncMock(side_effect=exc)
     else:
-        gateway = SimpleNamespace(client_secret=client_secret, action_url=action_url, provider="stripe")
+        gateway = SimpleNamespace(client_secret=client_secret, action_url=action_url, provider="stripe", transaction_id="pi_test")
         resp = SimpleNamespace(status=status, primary_gateway=gateway, error_message="declined" if status != PaymentStatus.SUCCESS else None)
         orch.process_payment = AsyncMock(return_value=resp)
     return orch

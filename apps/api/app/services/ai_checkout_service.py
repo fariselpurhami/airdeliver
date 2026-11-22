@@ -359,6 +359,22 @@ class AICheckoutService:
             await self._handle_failed_payment(new_order, "Gateway token generation failed.")
             return
 
+        transaction_id = getattr(primary_gw, "transaction_id", None)
+        if not isinstance(transaction_id, str) or not transaction_id or len(transaction_id) > 255:
+            await self._handle_failed_payment(new_order, "Payment reference is missing.")
+            return
+        try:
+            new_order.payment_transaction_id = transaction_id
+            if str(provider) in {"stripe", "GatewayProvider.STRIPE"}:
+                new_order.stripe_payment_id = transaction_id
+            self.db.add(new_order)
+            await self.db.commit()
+        except SQLAlchemyError:
+            await self.db.rollback()
+            logger.error("Payment reference persistence failed", extra={"order_id": new_order.id}, exc_info=True)
+            await self._send_error(payload.user_id, "Payment setup could not be confirmed. Please check your order before retrying.")
+            return
+
         # 6. Secure Handoff to Client
         logger.info(
             "Payment intent successfully secured", 

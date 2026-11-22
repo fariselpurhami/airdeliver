@@ -4,6 +4,7 @@ import uuid
 import json
 import logging
 import asyncio
+from decimal import Decimal
 from typing import Optional
 
 from typing import AsyncGenerator, List
@@ -42,8 +43,8 @@ from app.core.config import (
 )
 
 class PayPalCaptureRequest(_PayPalBaseModel):
-    order_id: str
-    paypal_order_id: str
+    order_id: str = Field(pattern=r"^[1-9][0-9]{0,18}$")
+    paypal_order_id: str = Field(pattern=r"^[A-Z0-9]{1,36}$")
 
 
 logger = logging.getLogger("airdeliver.websocket")
@@ -321,6 +322,10 @@ async def capture_paypal_order(
     if not order or order.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
+    if order.payment_transaction_id != payload.paypal_order_id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Payment does not match this order")
+    if order.status not in {models.OrderStatus.PENDING, models.OrderStatus.FAILED} and not order.is_paid:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Order cannot accept payment")
     try:
         gateway = PayPalGateway(get_paypal_settings(), cache, httpx.AsyncClient(timeout=httpx.Timeout(5.0)))
     except Exception as exc:
@@ -328,7 +333,10 @@ async def capture_paypal_order(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PayPal unavailable")
 
     try:
-        result = await gateway.capture_order(payload.paypal_order_id)
+        result = await gateway.capture_order(
+            payload.paypal_order_id, expected_order_id=order.id, expected_user_id=current_user.id,
+            expected_amount=Decimal(str(order.total_price)), expected_currency=AICheckoutService.DEFAULT_CURRENCY,
+        )
     finally:
         await gateway._http_client.aclose()
 

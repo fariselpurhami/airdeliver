@@ -50,3 +50,25 @@ Important model limit: OmniNet currently initializes random weights and loads no
 ## Free LLM retry/deadline follow-up
 
 The retry foundation was unreachable after an unconditional return/raise. It now runs on connection errors and transient provider HTTP statuses only. Admission, all attempts and exponential backoff consume one outer deadline, and a slot is released during backoff. Invalid requests are not retried. SDK retries are disabled so nested retry policies do not multiply attempts. Cancellation still propagates. Regression baseline: two new tests failed, four passed; after the fix all six provider-limit tests pass. Full backend suite: **340 passed**, no exclusions. These are simulated transport failures, not proof of live provider quota/cost or availability. Stream-lifetime admission is not yet verified.
+
+## Payment authenticity and binding follow-up
+
+The earlier PayPal binding and pre-processing Stripe cache-claim findings above are addressed in this batch:
+
+- Persist the gateway's server-issued transaction reference before sending a payment URL/client secret to the browser. Legacy pending orders without a reference fail closed and need a new checkout, not an unverified capture.
+- Before PayPal capture, verify the local binding, then fetch provider-owned order details and match order ID, local reference, owner, amount and currency. Verify completed capture funds as well as the outer order status. Completed orders reconcile without a second capture POST; capture POSTs have a stable PayPal-Request-Id.
+- Add the PayPal webhook receiver, require PAYPAL_WEBHOOK_ID and signature headers, verify via PayPal's official verification endpoint, then match the independently fetched provider order and completed capture to the local record. The certificate URL is not fetched by this application.
+- Fix Stripe settings dependency and SecretStr unwrapping. Verify the original raw bytes, cap both webhook bodies at 256 KiB while streaming, match Stripe amount/currency/reference/owner, and propagate processing failures as retryable 503 responses rather than swallowing them.
+- Remove the pre-processing Redis claim that could mark failed work as already processed. The current order lock/state guard prevents repeat settlement, but this is NOT a durable event inbox or transactional outbox implementation.
+- PayPal OAuth cache keys now distinguish account/API environment, and cache TTL does not intentionally exceed a short token lifetime.
+
+Baseline: all seven new Stripe webhook tests failed before changes. Eight PayPal capture contract tests failed because the prior gateway accepted no server-owned expected-order facts. Tests now cover rejection without capture POST for wrong owner/reference/amount/currency, path rejection, completed reconciliation, exact raw-byte HMAC signature verification with the real Stripe SDK, request-size limits, error propagation, PayPal signature API wiring and both callback/capture endpoint bindings. Latest full backend suite: **362 passed**, **52% statement coverage including worker**; no excluded files. Provider HTTP is simulated. No live Stripe/PayPal payment, provider-console webhook registration, production callback delivery or full deployment boot was run.
+
+Remaining launch blockers include durable event/outbox recovery, settlement-side stock/reservation and refund handling, catalog repricing, production model validation, and deployment configuration checks. A paid-state commit can still precede a failed notification/reward/event; do not describe this as exactly-once end-to-end settlement. Current checkout is USD-only, and these checks deliberately enforce that existing currency rather than guessing a new one.
+
+Official references checked for this batch:
+- https://developer.paypal.com/api/orders/v2/orders-get
+- https://developer.paypal.com/api/orders/v2/orders-capture
+- https://developer.paypal.com/api/webhooks/v1/verify-webhook-signature-post
+- https://developer.paypal.com/pay-upon-invoice/integrate
+- https://docs.stripe.com/webhooks
