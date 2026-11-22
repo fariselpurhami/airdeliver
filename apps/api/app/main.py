@@ -156,6 +156,20 @@ def register_middleware(app: FastAPI, settings: CoreSettings) -> None:
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), payment=(self)")
+        # Strict CSP for API responses (JSON). Swagger/ReDoc HTML pages load
+        # their JS/CSS from a CDN, so they keep a documentation-only policy.
+        if request.url.path.startswith(("/docs", "/redoc", "/openapi.json")):
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'none'; script-src 'self' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "img-src 'self' data: https://fastapi.tiangolo.com; frame-ancestors 'none'",
+            )
+        else:
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+            )
         if settings.APP_ENV == "production":
             response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
         return response

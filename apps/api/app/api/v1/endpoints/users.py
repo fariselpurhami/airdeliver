@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 from pydantic import BaseModel, Field
+import io
 import shutil
 import os
 from pathlib import Path
@@ -88,16 +89,40 @@ async def upload_user_avatar(
     AVATARS_DIR = STATIC_DIR / "avatars"
     AVATARS_DIR.mkdir(parents=True, exist_ok=True)
 
-    if not file.content_type.startswith("image/"):
+    MAX_AVATAR_BYTES = 5 * 1024 * 1024  # 5 MB
+    ALLOWED_FORMATS = {"jpeg": ".jpg", "png": ".png", "webp": ".webp"}
+
+    data = await file.read(MAX_AVATAR_BYTES + 1)
+    if len(data) > MAX_AVATAR_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Image must be 5 MB or smaller.",
+        )
+    # Validate the actual bytes, not the client-supplied Content-Type header,
+    # and re-encode via PIL so SVG/polyglot payloads (stored XSS) are dropped.
+    try:
+        from PIL import Image
+
+        probe = Image.open(io.BytesIO(data))
+        probe.verify()
+        image_format = (probe.format or "").lower()
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="File must be an image."
         )
-    file_extension = Path(file.filename or "image.jpg").suffix
+    if image_format not in ALLOWED_FORMATS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Image must be JPEG, PNG or WebP.",
+        )
+    file_extension = ALLOWED_FORMATS[image_format]
     safe_filename = f"user_{current_user.id}{file_extension}"
     file_path = AVATARS_DIR / safe_filename
     try:
-        with file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        img = Image.open(io.BytesIO(data))
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        img.save(file_path, format=image_format.upper() if image_format != "jpeg" else "JPEG")
     except Exception as e:
         logger.error(f"Failed to save avatar file for user {current_user.id}: {e}")
         raise HTTPException(
