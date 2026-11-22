@@ -1,0 +1,16 @@
+# infra/k8s/12-storage.yml
+# Shared HuggingFace model cache for the api and api-worker pods.
+# Requires a ReadWriteMany-capable StorageClass (e.g. EFS, Filestore, CephFS,
+# or an in-cluster NFS provisioner). If none is available, give each workload
+# its own RWO PVC instead and let each warm its own cache on first boot.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airdeliver-model-cache
+  namespace: airdeliver
+spec:
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 30Gi

@@ -1,0 +1,54 @@
+# infra/k8s/05-api-worker.yml
+# RabbitMQ consumer (worker_entrypoint.py): executes voice-path and NLU cart/
+# order commands from the q.ai.* quorum queues. Single replica is intentional:
+# quorum queues already guarantee delivery, and one consumer keeps command
+# ordering per user trivially correct. Scale out only with a partition plan.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airdeliver-api-worker
+  namespace: airdeliver
+  labels:
+    app: airdeliver-api-worker
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: airdeliver-api-worker
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: airdeliver-api-worker
+    spec:
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: worker
+          image: yourregistry/airdeliver-api:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/worker_entrypoint.py"]
+          envFrom:
+            - configMapRef:
+                name: airdeliver-config
+            - secretRef:
+                name: airdeliver-secrets
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /data/storage
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: airdeliver-model-cache

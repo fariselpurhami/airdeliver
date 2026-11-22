@@ -1,4 +1,7 @@
 # infra/k8s/00-namespace-config.yml
+# Namespace, shared ConfigMap (non-secret env consumed by apps/api/app/core/config.py),
+# and the Secret template. Replace every CHANGE_ME before applying
+# (or create the secret out-of-band with `kubectl create secret generic airdeliver-secrets ...`).
 
 apiVersion: v1
 kind: Namespace
@@ -16,21 +19,48 @@ metadata:
 data:
   PYTHONUNBUFFERED: "1"
   PYTHONDONTWRITEBYTECODE: "1"
-  WORKER_CLASS: "uvicorn.workers.UvicornWorker"
-  DB_POOL_SIZE: "20"
-  DB_MAX_OVERFLOW: "10"
-  LOG_LEVEL: "INFO"
   ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  # --- service discovery (matches the Service names in this directory) ---
+  POSTGRES_SERVER: "postgres"
+  POSTGRES_PORT: "5432"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  USE_REDIS: "true"
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  OPENSEARCH_HOST: "opensearch"
+  OPENSEARCH_PORT: "9200"
+  OPENSEARCH_USE_SSL: "false"
+  OPENSEARCH_VERIFY_CERTS: "false"
+  MILVUS_URI: "http://milvus:19530"
+  # --- shared HuggingFace model cache (PVC, see 12-storage.yml) ---
+  HF_HOME: "/data/storage/models_cache/huggingface"
+  SENTENCE_TRANSFORMERS_HOME: "/data/storage/models_cache/sentence_transformers"
 ---
-
 apiVersion: v1
 kind: Secret
 metadata:
   name: airdeliver-secrets
   namespace: airdeliver
 type: Opaque
-data:
-
-  DATABASE_URL: "cG9zdGdyZXNxbDovL3VzZXI6cGFzcw==" 
-  RABBITMQ_URL: "YW1xcDovL3VzZXI6cGFzcw==" 
-  REDIS_URL: "cmVkaXM6Ly9yZWRpcw==" 
+stringData:
+  # All keys map 1:1 to the aliases in apps/api/app/core/config.py.
+  SECRET_KEY: "CHANGE_ME_min_32_chars"
+  REFRESH_SECRET_KEY: "CHANGE_ME_min_32_chars"
+  INTERNAL_API_TOKEN: "CHANGE_ME"
+  FIRST_SUPERUSER_PASSWORD: "CHANGE_ME_min_8_chars"
+  POSTGRES_USER: "airdeliver"
+  POSTGRES_PASSWORD: "CHANGE_ME"
+  POSTGRES_DB: "airdeliver"
+  RABBITMQ_USER: "airdeliver"
+  RABBITMQ_PASS: "CHANGE_ME"
+  OPENSEARCH_USER: "admin"
+  OPENSEARCH_PASS: "CHANGE_ME"
+  VAPID_PRIVATE_KEY: "CHANGE_ME"
+  STRIPE_SECRET_KEY: "CHANGE_ME"
+  STRIPE_WEBHOOK_SECRET: "CHANGE_ME"
+  STRIPE_PUBLISHABLE_KEY: "CHANGE_ME"
+  PAYPAL_CLIENT_ID: "CHANGE_ME"
+  PAYPAL_CLIENT_SECRET: "CHANGE_ME"
+  NEXTAUTH_SECRET: "CHANGE_ME_min_32_chars"

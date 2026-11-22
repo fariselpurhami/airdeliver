@@ -1,9 +1,10 @@
 # infra/k8s/01-service.yml
+# ClusterIP services for the API and web frontends.
 
 apiVersion: v1
 kind: Service
 metadata:
-  name: airdeliver-api-service
+  name: api
   namespace: airdeliver
   labels:
     app: airdeliver-api
@@ -11,14 +12,31 @@ metadata:
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
-    prometheus.io/path: "/api/v1/metrics"
+    prometheus.io/path: "/metrics"
 spec:
-  type: ClusterIP 
+  type: ClusterIP
   selector:
     app: airdeliver-api
   ports:
     - name: http
-      port: 80       
-      targetPort: 8000 
+      port: 8000
+      targetPort: 8000
       protocol: TCP
-  sessionAffinity: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: airdeliver
+  labels:
+    app: airdeliver-web
+    tier: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: airdeliver-web
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP

@@ -1,4 +1,7 @@
 # infra/k8s/02-api-deployment.yml
+# FastAPI app (gunicorn + uvicorn workers) with migration initContainer and HPA.
+# Websocket fan-out across replicas is safe: UI frames travel via the Redis
+# airdeliver:response:{user_id} relay (app/main.py), not in-process state.
 
 apiVersion: apps/v1
 kind: Deployment
@@ -7,30 +10,26 @@ metadata:
   namespace: airdeliver
   labels:
     app: airdeliver-api
-    version: "v1.0.0"
 spec:
-  replicas: 3 
-  revisionHistoryLimit: 5 
+  replicas: 2
+  revisionHistoryLimit: 5
   selector:
     matchLabels:
       app: airdeliver-api
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 25%     
-      maxUnavailable: 25% 
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
         app: airdeliver-api
-      annotations:
-        checksum/config: "${CONFIG_CHECKSUM}"
     spec:
       securityContext:
         runAsUser: 1001
         runAsGroup: 1001
         fsGroup: 1001
-
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
@@ -38,58 +37,63 @@ spec:
           labelSelector:
             matchLabels:
               app: airdeliver-api
-
+      initContainers:
+        - name: api-migrator
+          image: yourregistry/airdeliver-api:latest
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: airdeliver-config
+            - secretRef:
+                name: airdeliver-secrets
       containers:
-      - name: api
-        image: yourregistry/airdeliver-api:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8000
-          name: http
-
-        envFrom:
-          - configMapRef:
-              name: airdeliver-config
-          - secretRef:
-              name: airdeliver-secrets
-
-        resources:
-          requests:
-            cpu: "500m"   
-            memory: "512Mi" 
-          limits:
-            cpu: "2000m"   
-            memory: "2Gi"  
-
-        startupProbe: 
-          httpGet:
-            path: /api/v1/health
-            port: 8000
-          failureThreshold: 30
-          periodSeconds: 10
-
-        livenessProbe: 
-          httpGet:
-            path: /api/v1/health
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 5
-
-        readinessProbe: 
-          httpGet:
-            path: /api/v1/health
-            port: 8000
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          successThreshold: 1
-          failureThreshold: 3
-
-        lifecycle:
-          preStop:
-            exec:
-              command: ["/bin/sh", "-c", "sleep 10"] 
-
+        - name: api
+          image: yourregistry/airdeliver-api:latest
+          imagePullPolicy: IfNotPresent
+          command: ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker",
+                    "-b", "0.0.0.0:8000", "--keep-alive", "120", "--timeout", "120"]
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: airdeliver-config
+            - secretRef:
+                name: airdeliver-secrets
+          env:
+            - name: WEB_CONCURRENCY
+              value: "5"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          volumeMounts:
+            - name: model-cache
+              mountPath: /data/storage
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: airdeliver-model-cache
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -101,18 +105,12 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: airdeliver-api
-  minReplicas: 3
-  maxReplicas: 100 
+  minReplicas: 2
+  maxReplicas: 6
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 75
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
