@@ -290,7 +290,8 @@ services:
       - REDIS_HOST=redis
       - APP_ENV=development
       - LOG_LEVEL=info
-      - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      - DB_POOL_SIZE=3
+      - DB_MAX_OVERFLOW=5
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - HF_HOME=/data/storage/models_cache/huggingface
@@ -339,9 +340,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 11G
+          memory: 6G
         reservations:
-          memory: 512M
+          memory: 1G
 
   api-worker:
     container_name: airdeliver-api-worker
@@ -363,6 +364,8 @@ services:
       - RABBITMQ_HOST=mq
       - REDIS_HOST=redis
       - REDIS_URL=redis://redis:6379/0
+      - DB_POOL_SIZE=3
+      - DB_MAX_OVERFLOW=5
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - MILVUS_URI=http://milvus:19530
@@ -409,9 +412,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 7.9G
+          memory: 5G
         reservations:
-          memory: 2G
+          memory: 1G
 
   api-seeder:
     build:
@@ -505,7 +508,7 @@ services:
       resources:
         limits:
           cpus: '4.0'
-          memory: 5G
+          memory: 3G
         reservations:
           memory: 1G
 
