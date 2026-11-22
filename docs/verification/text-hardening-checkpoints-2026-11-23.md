@@ -100,3 +100,23 @@ not inference latency or automatic gated-model approval.
 Official sources:
 https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables
 https://huggingface.co/docs/hub/security-tokens
+
+
+## Checkpoint4: notification adapter truth and ORM boundary
+
+Two new regressions failed before changes, including a real SQLAlchemy result
+rather than a mock row. Push flow used result.all() Rows as subscriptions and
+swallowed the resulting exception, so it could silently send nothing. It now
+uses scalars(), bounded payload and explicit sent/failed counts. Provider
+rejection returns failure without logging recipient/payload/provider exceptions.
+Missing VAPID key and unexpected failures propagate instead of returning success.
+Email/SMS mock loggers are preserved as adapter method boundaries but explicitly
+raise unavailable; there is no configured actual email/SMS provider. Their old
+PII/content-bearing fake-delivery logs are removed. No active app caller of these
+methods was found. No external message, paid service or new account was used.
+
+Actual push transport is mocked in the ORM regression. Live subscription expiry,
+SSRF/egress controls for client-provided endpoints, delivery receipts, retry
+outbox, VAPID contact configuration and actual provider validation remain open.
+This is not production push delivery certification.558localPG19tests passed,
+2skipped18warnings before commit.
