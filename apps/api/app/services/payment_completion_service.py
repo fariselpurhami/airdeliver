@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.models.order import Order
 from app.models.enums import OrderStatus
 from app.services.rabbitmq_service import RabbitMQService
+from app.services.gamification_service import gamification_service
 from app.services.cache_service import IAsyncCacheClient
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,16 @@ class PaymentCompletionService:
                 except Exception as exc:
                     logger.warning("cart cleanup after payment failed", extra={"user_id": user_id, "error": str(exc)})
 
-            # 2. Emit the conversion analytics event (consumed by the worker
+            # 2. Award gamification points/badges for the paid order
+            #    (best-effort: never blocks or fails payment finalization).
+            try:
+                await gamification_service.award_points_for_purchase(
+                    self.db, user_id, float(order.total_price or 0)
+                )
+            except Exception as exc:
+                logger.warning("gamification award failed", extra={"order_id": order_id, "error": str(exc)})
+
+            # 3. Emit the conversion analytics event (consumed by the worker
             #    into the BehaviorEngine as the strongest buy signal).
             try:
                 await self.rabbitmq.publish(
