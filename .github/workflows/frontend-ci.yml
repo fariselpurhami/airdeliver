@@ -45,4 +45,9 @@ jobs:
         run: pnpm --filter airdeliver/apps/web exec jest --coverage=false
 
       - name: Build
+        # AUTH_SECRET is required at module load by auth.ts during next build's
+        # page-data collection. This is a build-time-only dummy; production
+        # injects the real secret at runtime.
+        env:
+          AUTH_SECRET: ci-build-dummy-secret-not-used-at-runtime
         run: pnpm --filter airdeliver/apps/web build
