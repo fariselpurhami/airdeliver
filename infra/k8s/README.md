@@ -12,7 +12,7 @@ Production manifests for the full airdeliver stack. These mirror
 - Container images pushed to a registry:
   - `apps/api` -> `yourregistry/airdeliver-api:latest`
   - `apps/web` -> `yourregistry/airdeliver-web:latest` (build args
-    `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` are baked in
+    `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` are baked in
     at build time).
 
 ## Install

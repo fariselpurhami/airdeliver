@@ -222,7 +222,8 @@ export const AIVoiceOverlay = React.memo(() => {
                 source.connect(analyser);
 
                 // Transport Layer Establishment
-                const wsBase = process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.host}`;
+                const wsBase = process.env.NEXT_PUBLIC_WS_URL
+                    || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
                 const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api/v1';
 
                 // Authenticated one-time ticket (same flow as the /chat socket)
