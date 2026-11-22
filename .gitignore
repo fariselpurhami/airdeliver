@@ -1,19 +1,37 @@
 # .gitignore
 
-apps/api/__pycache__/
-apps/api/.venv
+# --- Secrets: NEVER commit these ---
+.env
+.env.*
+!.env.example
+!.env.*.example
+secrets/
 
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+apps/api/.venv
+apps/api/hf_cache/
+
+# --- Node / Next.js ---
 apps/web/node_modules
 apps/web/.next
+node_modules/
 
+# --- Model caches & data volumes ---
 data/storage/models_cache/
 apps/api/storage/models_cache/
-
 data/
 huggingface_cache/
 *.pth
 *.bin
 *.safetensors
+
+# --- Editor / OS junk ---
+.DS_Store
+*.viminfo
+
+# --- Deploy ---
 .vercel
-.env*.local
-node_modules/
+*.tmp
