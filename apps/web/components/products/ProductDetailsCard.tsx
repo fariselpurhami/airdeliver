@@ -17,15 +17,27 @@ import {
   TrendingUp,
   Bot,
   Star,
-  ShieldCheck,
-  Zap,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 import { type Product } from './ProductCard';
 
+type ProductDetailsCardProduct = {
+  // Structural contract of only the fields this card renders. Accepts both
+  // the full Product and the lighter AIProduct shape from the chat carousel.
+  id: number | string;
+  name: string;
+  price: number | string;
+  image_url?: string | null;
+  description?: string;
+  predicted_delivery?: string;
+  trending_status?: string;
+  stock_level?: string | null;
+  isAIRec?: boolean;
+};
+
 type ProductDetailsCardProps = {
-  product: Product;
+  product: ProductDetailsCardProduct;
   onClose: () => void;
 };
 
@@ -105,7 +117,7 @@ const ProductDetailsCardComponent = ({
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
 
-      addProductById(product, uniqueBtnId);
+      addProductById({ ...product, id: product.id as number }, uniqueBtnId);
       setIsAdded(true);
 
       if (addedTimerRef.current) {
@@ -250,29 +262,6 @@ const ProductDetailsCardComponent = ({
                 </div>
               )}
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
-                <div className="mb-2 flex items-center gap-2 text-emerald-300">
-                  <ShieldCheck className="h-4 w-4 shrink-0" />
-                  <span className="text-xs uppercase tracking-[0.16em] text-white/55">
-                    Warranty
-                  </span>
-                </div>
-                <div className="text-sm font-medium text-white sm:text-base">
-                  Global Coverage
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
-                <div className="mb-2 flex items-center gap-2 text-amber-300">
-                  <Zap className="h-4 w-4 shrink-0" />
-                  <span className="text-xs uppercase tracking-[0.16em] text-white/55">
-                    Power Cell
-                  </span>
-                </div>
-                <div className="text-sm font-medium text-white sm:text-base">
-                  Included
-                </div>
-              </div>
             </div>
           </div>
         </section>

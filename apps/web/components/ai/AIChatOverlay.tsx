@@ -49,7 +49,7 @@ export interface FlightData {
     status: string;
 }
 
-export interface ExtendedMessage extends Omit<Message, 'content'> {
+export interface ExtendedMessage {
     id: number | string;
     sender: 'ai' | 'user' | 'system';
     contentType: 'text' | 'image_user_upload' | 'error' | 'info' | 'success_text' | 'FLIGHT_MANIFEST' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'recovery_prompt' | 'cart_preview' | 'typing' | 'payment_intent' | 'ORDER_CANCELLED';
@@ -1456,7 +1456,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
             actions.connectSocket(currentAccessToken);
         }
 
-        actions.addProductById(product, elementId);
+        actions.addProductById({ ...product, id: product.id as number }, elementId);
     }, [status, socketStatus, currentAccessToken, actions, registerTimeout]);
 
     const stripeAppearance = useMemo(() => ({
