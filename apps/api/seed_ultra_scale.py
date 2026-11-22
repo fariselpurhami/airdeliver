@@ -564,7 +564,7 @@ class MilvusRepository:
                         raise ValueError('Existing Milvus collection dimension differs from the embedding model; no collection was dropped')
                     required={'id','vector','price','rating','category'}
                     if not required.issubset(fields):
-                        raise ValueError('Existing Milvus collection is not an API product schema')
+                        raise ValueError(f'Existing Milvus collection {self._collection_name} is not an API product schema; missing fields={sorted(required-set(fields))}; present fields={sorted(fields)}. No data changed. Run python -m scripts.inspect_product_collection for read-only diagnosis; do not reset or drop the collection.')
                     if description.get('auto_id',False) or not fields['id'].get('is_primary',False):
                         raise ValueError('Milvus must preserve database-assigned primary IDs')
                     if int(fields['id'].get('type',0))!=int(DataType.INT64) or int(fields['vector'].get('type',0))!=int(DataType.FLOAT_VECTOR):
