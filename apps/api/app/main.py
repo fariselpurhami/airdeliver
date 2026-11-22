@@ -51,7 +51,7 @@ def register_routes(app: FastAPI, settings: CoreSettings) -> None:
         return build_health_payload(settings)
 
 class WebSocketManagerProtocol(Protocol):
-    async def send_to_user(self, user_id: str, message: str) -> None:
+    async def send_to_user(self, user_id: int, message: str) -> None:
         ...
 
 
@@ -96,16 +96,17 @@ def decode_message_body(body: bytes) -> dict[str, Any]:
     return decoded
 
 
-def extract_user_id(payload: dict[str, Any]) -> str:
+def extract_user_id(payload: dict[str, Any]) -> int:
     raw_user_id = payload.get("user_id")
-    if not isinstance(raw_user_id, str):
-        raise InvalidMessageError("Broker payload is missing a string user_id.")
-
-    user_id = raw_user_id.strip()
-    if not user_id:
-        raise InvalidMessageError("Broker payload contains an empty user_id.")
-
-    return user_id
+    if isinstance(raw_user_id, bool):
+        raise InvalidMessageError("Broker user_id must identify a positive integer user.")
+    if isinstance(raw_user_id, int) and raw_user_id > 0:
+        return raw_user_id
+    if isinstance(raw_user_id, str):
+        value = raw_user_id.strip()
+        if value.isascii() and value.isdigit() and len(value) <= 20 and int(value) > 0:
+            return int(value)
+    raise InvalidMessageError("Broker user_id must identify a positive integer user.")
 
 
 def compact_json(payload: dict[str, Any]) -> str:
@@ -236,23 +237,12 @@ async def start_response_consumer(app: FastAPI) -> None:
     rabbitmq = resources.rabbitmq
     websocket_manager = cast(WebSocketManagerProtocol, get_websocket_manager())
 
-    queue = await rabbitmq.channel.declare_queue(RESPONSE_QUEUE_NAME, durable=True)
-    await queue.bind(rabbitmq.exchange_name, routing_key=RESPONSE_ROUTING_KEY)
-
-    logger.info(
-        "AI response consumer started.",
-        extra={
-            "queue": RESPONSE_QUEUE_NAME,
-            "routing_key": RESPONSE_ROUTING_KEY,
-        },
+    await rabbitmq.consume(
+        RESPONSE_QUEUE_NAME,
+        RESPONSE_ROUTING_KEY,
+        lambda message: relay_response_message(message=message, websocket_manager=websocket_manager),
     )
-
-    await queue.consume(
-        lambda message: relay_response_message(
-            message=message,
-            websocket_manager=websocket_manager,
-        )
-    )
+    logger.info("AI response consumer bound", extra={"queue": RESPONSE_QUEUE_NAME, "routing_key": RESPONSE_ROUTING_KEY})
 
 
 async def initialize_cache_client(settings: CoreSettings) -> IAsyncCacheClient:
@@ -297,12 +287,14 @@ async def startup_resources(app: FastAPI, settings: CoreSettings) -> Application
     app.state.rabbitmq = rabbitmq
     app.state.resources = resources
 
-    consumer_task = asyncio.create_task(
-        start_response_consumer(app),
-        name="ai-response-consumer",
-    )
-    resources.response_consumer_task = consumer_task
-    app.state.response_consumer_task = consumer_task
+    try:
+        # Queue binding is startup work, not a detached task that can fail
+        # unnoticed while the API reports a successful startup.
+        await start_response_consumer(app)
+    except BaseException:
+        await shutdown_resources(resources)
+        raise
+    app.state.response_consumer_task = None
 
     return resources
 

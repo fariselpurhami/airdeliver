@@ -8,7 +8,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Final, Optional
+from typing import Any, Awaitable, Callable, Final, Optional
 
 import aio_pika
 import aio_pika.abc
@@ -375,6 +375,19 @@ class RabbitMQService:
             exchange=exchange,
             dlx=dlx,
         )
+
+    async def consume(
+        self, queue_name: str, routing_key: str,
+        callback: Callable[[aio_pika.abc.AbstractIncomingMessage], Awaitable[Any]],
+    ) -> aio_pika.abc.AbstractQueue:
+        """Bind a durable consumer using the service's connected topology."""
+        exchange = await self._ensure_exchange()
+        topology = self._topology
+        assert topology is not None, "RabbitMQ topology unavailable after connect()"
+        queue = await topology.channel.declare_queue(queue_name, durable=True)
+        await queue.bind(exchange, routing_key=routing_key)
+        await queue.consume(callback)
+        return queue
 
     async def _ensure_exchange(self) -> aio_pika.abc.AbstractExchange:
         topology = self._topology
