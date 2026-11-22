@@ -1,0 +1,648 @@
+[
+  {
+    "path": "apps/api/app/__init__.py",
+    "lines": 0,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/app/api/deps.py",
+    "lines": 336,
+    "functions": 23,
+    "unimplemented": [],
+    "test_name_hits": 4
+  },
+  {
+    "path": "apps/api/app/api/v1/api.py",
+    "lines": 27,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 31
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/admin.py",
+    "lines": 114,
+    "functions": 3,
+    "unimplemented": [],
+    "test_name_hits": 4
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/ai_ordering.py",
+    "lines": 590,
+    "functions": 19,
+    "unimplemented": [],
+    "test_name_hits": 3
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/ai_support.py",
+    "lines": 195,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/auth.py",
+    "lines": 136,
+    "functions": 3,
+    "unimplemented": [],
+    "test_name_hits": 9
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/cart.py",
+    "lines": 30,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 9
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/health.py",
+    "lines": 73,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 4
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/notifications.py",
+    "lines": 136,
+    "functions": 6,
+    "unimplemented": [],
+    "test_name_hits": 3
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/orders.py",
+    "lines": 112,
+    "functions": 1,
+    "unimplemented": [],
+    "test_name_hits": 6
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/products.py",
+    "lines": 148,
+    "functions": 4,
+    "unimplemented": [],
+    "test_name_hits": 12
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/users.py",
+    "lines": 248,
+    "functions": 8,
+    "unimplemented": [],
+    "test_name_hits": 3
+  },
+  {
+    "path": "apps/api/app/api/v1/endpoints/webhooks.py",
+    "lines": 160,
+    "functions": 5,
+    "unimplemented": [],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/app/core/catalog_contract.py",
+    "lines": 9,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/core/config.py",
+    "lines": 200,
+    "functions": 11,
+    "unimplemented": [],
+    "test_name_hits": 21
+  },
+  {
+    "path": "apps/api/app/core/limiter.py",
+    "lines": 6,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/core/logging_config.py",
+    "lines": 41,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/core/security.py",
+    "lines": 94,
+    "functions": 6,
+    "unimplemented": [],
+    "test_name_hits": 5
+  },
+  {
+    "path": "apps/api/app/crud/base.py",
+    "lines": 58,
+    "functions": 6,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/app/crud/crud_user.py",
+    "lines": 39,
+    "functions": 3,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/db/__init__.py",
+    "lines": 0,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/app/db/base.py",
+    "lines": 23,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/app/db/base_class.py",
+    "lines": 3,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/db/initial_data.py",
+    "lines": 153,
+    "functions": 4,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/db/session.py",
+    "lines": 89,
+    "functions": 3,
+    "unimplemented": [],
+    "test_name_hits": 17
+  },
+  {
+    "path": "apps/api/app/main.py",
+    "lines": 364,
+    "functions": 25,
+    "unimplemented": [],
+    "test_name_hits": 13
+  },
+  {
+    "path": "apps/api/app/models/__init__.py",
+    "lines": 37,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/app/models/aimemory.py",
+    "lines": 26,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/models/audit_trail.py",
+    "lines": 32,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/models/enums.py",
+    "lines": 34,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 8
+  },
+  {
+    "path": "apps/api/app/models/gamification.py",
+    "lines": 45,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/app/models/notification.py",
+    "lines": 51,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 3
+  },
+  {
+    "path": "apps/api/app/models/notification_subscription.py",
+    "lines": 23,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/models/order.py",
+    "lines": 99,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 24
+  },
+  {
+    "path": "apps/api/app/models/payment_outbox.py",
+    "lines": 22,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 4
+  },
+  {
+    "path": "apps/api/app/models/product.py",
+    "lines": 103,
+    "functions": 4,
+    "unimplemented": [],
+    "test_name_hits": 24
+  },
+  {
+    "path": "apps/api/app/models/user.py",
+    "lines": 81,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 34
+  },
+  {
+    "path": "apps/api/app/schemas/__init__.py",
+    "lines": 36,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/app/schemas/ai_actions.py",
+    "lines": 247,
+    "functions": 12,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/schemas/ai_ordering.py",
+    "lines": 18,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 3
+  },
+  {
+    "path": "apps/api/app/schemas/audit_trail.py",
+    "lines": 22,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/schemas/msg.py",
+    "lines": 6,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/schemas/notification.py",
+    "lines": 23,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 3
+  },
+  {
+    "path": "apps/api/app/schemas/order.py",
+    "lines": 50,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 24
+  },
+  {
+    "path": "apps/api/app/schemas/payment.py",
+    "lines": 25,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 17
+  },
+  {
+    "path": "apps/api/app/schemas/product.py",
+    "lines": 68,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 24
+  },
+  {
+    "path": "apps/api/app/schemas/shipping.py",
+    "lines": 45,
+    "functions": 3,
+    "unimplemented": [],
+    "test_name_hits": 7
+  },
+  {
+    "path": "apps/api/app/schemas/token.py",
+    "lines": 18,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 8
+  },
+  {
+    "path": "apps/api/app/schemas/user.py",
+    "lines": 54,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 34
+  },
+  {
+    "path": "apps/api/app/services/ai_behavior_engine.py",
+    "lines": 758,
+    "functions": 32,
+    "unimplemented": [],
+    "test_name_hits": 5
+  },
+  {
+    "path": "apps/api/app/services/ai_cart_service.py",
+    "lines": 802,
+    "functions": 30,
+    "unimplemented": [],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/app/services/ai_checkout_service.py",
+    "lines": 603,
+    "functions": 18,
+    "unimplemented": [],
+    "test_name_hits": 6
+  },
+  {
+    "path": "apps/api/app/services/ai_commerce_engine.py",
+    "lines": 1602,
+    "functions": 60,
+    "unimplemented": [],
+    "test_name_hits": 5
+  },
+  {
+    "path": "apps/api/app/services/ai_meta_cognition.py",
+    "lines": 95,
+    "functions": 6,
+    "unimplemented": [],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/app/services/ai_nlu_service.py",
+    "lines": 5511,
+    "functions": 157,
+    "unimplemented": [],
+    "test_name_hits": 5
+  },
+  {
+    "path": "apps/api/app/services/ai_voice_service.py",
+    "lines": 423,
+    "functions": 15,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/services/behavior_checkpoint.py",
+    "lines": 164,
+    "functions": 6,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/services/behavior_training.py",
+    "lines": 271,
+    "functions": 10,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/services/cache_service.py",
+    "lines": 425,
+    "functions": 80,
+    "unimplemented": [
+      157
+    ],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/app/services/compliance_service.py",
+    "lines": 30,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/services/experimentation_service.py",
+    "lines": 25,
+    "functions": 3,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/services/feature_flags.py",
+    "lines": 20,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/services/free_llm_service.py",
+    "lines": 2014,
+    "functions": 44,
+    "unimplemented": [],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/app/services/gamification_service.py",
+    "lines": 96,
+    "functions": 4,
+    "unimplemented": [],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/app/services/neural_core_service.py",
+    "lines": 403,
+    "functions": 13,
+    "unimplemented": [],
+    "test_name_hits": 3
+  },
+  {
+    "path": "apps/api/app/services/notification_service.py",
+    "lines": 72,
+    "functions": 4,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/app/services/payment_completion_service.py",
+    "lines": 83,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/services/payment_orchestrator.py",
+    "lines": 729,
+    "functions": 31,
+    "unimplemented": [],
+    "test_name_hits": 10
+  },
+  {
+    "path": "apps/api/app/services/payment_outbox_service.py",
+    "lines": 75,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/app/services/rabbitmq_service.py",
+    "lines": 455,
+    "functions": 16,
+    "unimplemented": [],
+    "test_name_hits": 4
+  },
+  {
+    "path": "apps/api/app/websockets/manager.py",
+    "lines": 33,
+    "functions": 4,
+    "unimplemented": [],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/app/websockets/voice_ws.py",
+    "lines": 88,
+    "functions": 1,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/create_db.py",
+    "lines": 18,
+    "functions": 1,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/create_db_and_tables.py",
+    "lines": 74,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/fix_milvus.py",
+    "lines": 28,
+    "functions": 1,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/hash_password.py",
+    "lines": 24,
+    "functions": 1,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/hf_cache/modules/__init__.py",
+    "lines": 0,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/hf_cache/modules/transformers_modules/Alibaba_hyphen_NLP/__init__.py",
+    "lines": 0,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/hf_cache/modules/transformers_modules/Alibaba_hyphen_NLP/gte_hyphen_Qwen2_hyphen_1_dot_5B_hyphen_instruct/__init__.py",
+    "lines": 0,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/hf_cache/modules/transformers_modules/Alibaba_hyphen_NLP/gte_hyphen_Qwen2_hyphen_1_dot_5B_hyphen_instruct/a9af15a6372d7d6b25e9fb07c2ccb9e1fe645644/__init__.py",
+    "lines": 0,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/hf_cache/modules/transformers_modules/Alibaba_hyphen_NLP/gte_hyphen_Qwen2_hyphen_1_dot_5B_hyphen_instruct/a9af15a6372d7d6b25e9fb07c2ccb9e1fe645644/modeling_qwen.py",
+    "lines": 1429,
+    "functions": 39,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/hf_cache/modules/transformers_modules/__init__.py",
+    "lines": 0,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 16
+  },
+  {
+    "path": "apps/api/init_data.py",
+    "lines": 109,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/nuke_milvus_v2.py",
+    "lines": 34,
+    "functions": 1,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/reset_db.py",
+    "lines": 14,
+    "functions": 0,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/scripts/smoke_behavior.py",
+    "lines": 186,
+    "functions": 20,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/scripts/verify_postgres_integration.py",
+    "lines": 56,
+    "functions": 2,
+    "unimplemented": [],
+    "test_name_hits": 1
+  },
+  {
+    "path": "apps/api/scripts/verify_seed_search_integration.py",
+    "lines": 100,
+    "functions": 3,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/seed_ultra_scale.py",
+    "lines": 1027,
+    "functions": 64,
+    "unimplemented": [],
+    "test_name_hits": 2
+  },
+  {
+    "path": "apps/api/sync_search.py",
+    "lines": 495,
+    "functions": 18,
+    "unimplemented": [],
+    "test_name_hits": 0
+  },
+  {
+    "path": "apps/api/worker_entrypoint.py",
+    "lines": 1067,
+    "functions": 37,
+    "unimplemented": [],
+    "test_name_hits": 4
+  }
+]

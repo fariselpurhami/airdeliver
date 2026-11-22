@@ -5131,26 +5131,12 @@ Execute your response adhering strictly to this visual and structural blueprint:
         else:
             is_unknown_product = False
 
-        meta_analysis: Dict[str, Any] = {"stance": "AUTHORITATIVE", "uncertainty": 0.0}
-        current_vector = None
-
-        try:
-            ghost_json = await self.behavior_engine.get_ghost_profile(user_id) if self.behavior_engine else None
-            embedding_provider = getattr(self.search_engine, "get_query_embedding", None)
-
-            if callable(embedding_provider):
-                current_vector = await asyncio.wait_for(
-                    embedding_provider(user_query),
-                    timeout=self.config.embedding_timeout_sec,
-                )
-                if ghost_json is not None and current_vector is not None:
-                    meta_analysis = self.meta_cognition.evaluate_confidence(ghost_json, current_vector).model_dump(mode="json")
-        except asyncio.TimeoutError:
-            StructuredLog.warning("meta_cognition_timeout", user_id=user_id)
-        except Exception as exc:
-            StructuredLog.warning("meta_cognition_failure", user_id=user_id, error=str(exc))
-
-        stance = str(meta_analysis.get("stance", "AUTHORITATIVE"))
+        # No calibrated confidence estimator is deployed. Missing history/model
+        # failures cannot turn into AUTHORITATIVE, and learned ghost output-space
+        # vectors cannot be compared with raw query embeddings by dimension alone.
+        # Avoid an expensive duplicate embedding for an unavailable estimator.
+        meta_analysis = self.meta_cognition.unavailable_assessment().model_dump(mode="json")
+        stance = str(meta_analysis["stance"])
         is_comparison = any(w in user_query.lower() for w in ["vs", "compare", "better", "difference", "or", "مقارنة", "الفرق", "أحسن"])
 
         current_date_str = datetime.now().strftime("%B %d, %Y")
@@ -5336,7 +5322,13 @@ The answer should feel premium, persuasive, and grounded in the user's actual in
         else:
             word_limit = "500"
             style_guide = "Educational, humble, collaborative."
-            strategy_instruction = "Teach the user about the feature, then guide the decision."
+            strategy_instruction = (
+                "Use only verified item attributes and the user's stated needs. "
+                "No calibrated confidence or learned preference estimate is available. "
+                "Do not infer a change in taste, certainty, suitability or financial capacity. "
+                "Explain known tradeoffs and ask for missing preferences when they matter. "
+                "Never treat a recommendation as transaction approval."
+            )
 
         specs_context = json.dumps(
             {k: v for k, v in product_data.items() if k in ["name", "price", "brand", "rating"]},
@@ -5360,7 +5352,7 @@ The answer should feel premium, persuasive, and grounded in the user's actual in
             if intent_payload.sentiment == UserSentiment.FRUSTRATED:
                 emotional_instruction = "CRITICAL TONE OVERRIDE: The user is frustrated. Be extremely concise, highly empathetic, completely drop any marketing fluff, and solve their problem instantly.\n"
             elif intent_payload.sentiment == UserSentiment.HESITANT:
-                emotional_instruction = "TONE OVERRIDE: The user is hesitant. Focus deeply on reassurance, warranty, premium build quality, and why this is a completely safe, risk-free investment.\n"
+                emotional_instruction = "TONE OVERRIDE: The user is hesitant. Explain only verified warranty and product facts. Do not claim any purchase is risk-free.\n"
             elif intent_payload.sentiment == UserSentiment.URGENT:
                 emotional_instruction = "TONE OVERRIDE: The user is in a rush. Cut the introduction. Give them the bottom line immediately. Focus on fast availability and immediate action.\n"
             elif intent_payload.sentiment == UserSentiment.EXCITED:
@@ -5368,7 +5360,7 @@ The answer should feel premium, persuasive, and grounded in the user's actual in
 
             # استبدال الاستراتيجية فقط للأسئلة المباشرة جداً لمنع الـ LLM من الإطالة
             if intent_payload.category == IntentCategory.PRICE_INQUIRY:
-                strategy_instruction = "The user ONLY wants to know the price. State clearly that the item is available for the price. Frame it as an excellent investment. Keep it extremely brief."
+                strategy_instruction = "The user ONLY wants to know the price. State clearly that the item is available for the price. Do not invent availability or value claims. Keep it extremely brief."
             elif intent_payload.category == IntentCategory.SPECS_INQUIRY:
                 features = ", ".join(intent_payload.required_features) if intent_payload.required_features else "specific components"
                 strategy_instruction = f"The user is asking about technical details ({features}). Answer exactly using the specs provided. Be highly accurate."
@@ -5380,7 +5372,7 @@ The answer should feel premium, persuasive, and grounded in the user's actual in
 {OSPersona.ELITE_BASE}
 
 Context:
-- Target profile: {persona} [Financial Power: {tier}]
+- Profile labels are unverified context, not facts about financial capacity: {persona}, {tier}
 - User intent: {user_query}
 - Candidate solution: {p_name} [Cost: {p_price}]
 - Item attributes: {specs_context}
@@ -5413,7 +5405,7 @@ Structure:
             return str(response).strip().replace('"', "")
         except Exception as exc:
             StructuredLog.error("genius_generation_failed", user_id=user_id, error=str(exc))
-            return f"Check out {p_name}, it matches your needs well. Current price: {p_price}."
+            return f"Item: {p_name}. Listed price: {p_price}. I could not assess how well it fits your needs."
 
     async def _perform_devilish_recovery(self, user_id: int, removed_pid: int) -> None:
         try:

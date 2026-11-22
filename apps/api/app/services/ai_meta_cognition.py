@@ -1,203 +1,95 @@
-# apps/api/app/services/ai_meta_cognition.py
+"""Evidence-bound context diagnostics, not a learned confidence estimator.
 
+The previous distance/weight formula was not calibrated on labeled outcomes.
+Keep its configuration and DTO vocabulary for compatibility, but never promote
+that formula, missing history or corrupted vectors into certainty or permission.
+A learned confidence estimator needs a versioned artifact and held-out evaluation.
+"""
 import logging
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-# Configured for structured logging ingestion (e.g., Datadog, ELK)
-logger = logging.getLogger("airdeliver.meta_cognition")
+logger = logging.getLogger('airdeliver.meta_cognition')
 
-
-# --- DOMAIN ENUMS ---
 
 class CognitiveStance(str, Enum):
-    """Represents the epistemic state of the AI system."""
-    AUTHORITATIVE = "AUTHORITATIVE"   # Confident, standard prediction mode
-    INQUISITIVE = "INQUISITIVE"       # Confused, requires exploration
-    ADAPTIVE_SHOCK = "ADAPTIVE_SHOCK" # Sudden context shift detected
-    SAFE_MODE = "SAFE_MODE"           # Hardware/Math fault, fail-open state
+    AUTHORITATIVE = 'AUTHORITATIVE'  # Legacy wire value, not emitted without a validated estimator.
+    INQUISITIVE = 'INQUISITIVE'
+    ADAPTIVE_SHOCK = 'ADAPTIVE_SHOCK'
+    SAFE_MODE = 'SAFE_MODE'
 
 
 class ActionDirective(str, Enum):
-    """Operational directives outputted to the orchestration layer."""
-    COLLAPSE_WAVEFUNCTION = "COLLAPSE_WAVEFUNCTION"   # Proceed with transaction
-    BROADEN_SEARCH_HORIZON = "BROADEN_SEARCH_HORIZON" # Ask qualifying questions
-    TRIGGER_CLARIFICATION = "TRIGGER_CLARIFICATION"   # Acknowledge shift and verify
-    FAIL_OPEN = "FAIL_OPEN"                           # Bypass meta-cognition safely
+    COLLAPSE_WAVEFUNCTION = 'COLLAPSE_WAVEFUNCTION'  # Never transaction authorization.
+    BROADEN_SEARCH_HORIZON = 'BROADEN_SEARCH_HORIZON'
+    TRIGGER_CLARIFICATION = 'TRIGGER_CLARIFICATION'
+    FAIL_OPEN = 'FAIL_OPEN'  # Legacy value retained, not emitted on missing evidence.
+    USE_VERIFIED_CONTEXT = 'USE_VERIFIED_CONTEXT'
 
-
-# --- DOMAIN MODELS (BOUNDARY VALIDATION) ---
 
 class MetaCognitionConfig(BaseModel):
-    """Hyperparameters for the Epistemic Engine, easily injectable and environment-driven."""
-    uncertainty_threshold: float = Field(default=0.65, ge=0.0, le=1.0)
-    drift_tolerance: float = Field(default=0.8, ge=0.0)
-    drift_weight: float = Field(default=0.7, ge=0.0, le=1.0)
-    confidence_weight: float = Field(default=0.3, ge=0.0, le=1.0)
+    """Legacy diagnostic knobs. None is a calibrated decision threshold."""
+    model_config = ConfigDict(allow_inf_nan=False, extra='forbid', frozen=True)
+    uncertainty_threshold: float = Field(default=.65, ge=0, le=1)
+    drift_tolerance: float = Field(default=.8, ge=0)
+    drift_weight: float = Field(default=.7, ge=0, le=1)
+    confidence_weight: float = Field(default=.3, ge=0, le=1)
 
-    @model_validator(mode="after")
-    def validate_weights(self) -> "MetaCognitionConfig":
-        """Ensure the epistemic equation weights sum to exactly 1.0 for normalized scoring."""
-        total = self.drift_weight + self.confidence_weight
-        if not np.isclose(total, 1.0, atol=1e-5):
-            raise ValueError(f"Weights must sum to 1.0, got {total}")
+    @model_validator(mode='after')
+    def validate_weights(self):
+        if not np.isclose(self.drift_weight+self.confidence_weight,1.,atol=1e-5):
+            raise ValueError('Diagnostic weights must sum to one')
         return self
 
 
 class UserGhostProfile(BaseModel):
-    """The predictive historical profile of the user."""
-    pos_vector: List[float] = Field(default_factory=list)
-    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
+    model_config = ConfigDict(allow_inf_nan=False, extra='ignore')
+    pos_vector: List[float] = Field(default_factory=list, max_length=4096)
+    # No invented historical confidence when the producer supplies none.
+    confidence: Optional[float] = Field(default=None, ge=0, le=1)
 
-    @field_validator("pos_vector")
-    def validate_finite_vector(cls, v: List[float]) -> List[float]:
-        if not np.isfinite(v).all():
-            raise ValueError("Ghost vector contains non-finite values (NaN/Inf).")
-        return v
+    @field_validator('pos_vector')
+    @classmethod
+    def validate_finite_vector(cls,value):
+        if not np.isfinite(value).all():
+            raise ValueError('Historical vector must be finite')
+        return value
 
 
 class CognitiveAssessment(BaseModel):
-    """The deterministic output payload representing the system's state of mind."""
-    uncertainty: float = Field(ge=0.0)
-    drift: float = Field(ge=0.0)
-    stance: CognitiveStance
-    action_directive: ActionDirective
+    model_config = ConfigDict(allow_inf_nan=False, frozen=True)
+    uncertainty: Optional[float] = Field(default=None, ge=0, le=1)
+    drift: Optional[float] = Field(default=None, ge=0)
+    stance: CognitiveStance = CognitiveStance.SAFE_MODE
+    action_directive: ActionDirective = ActionDirective.USE_VERIFIED_CONTEXT
     reason: str
-    meta_engine_version: str = "MetaCognition_v2.0"
-    historical_confidence: float
+    meta_engine_version: str = 'MetaCognition_v3.0'
+    historical_confidence: Optional[float] = Field(default=None, ge=0, le=1)
+    state: str = 'unavailable'
+    calibrated: bool = False
+    transaction_authorized: bool = False
+    estimator_version: Optional[str] = None
 
-
-# --- CORE SERVICE ---
 
 class MetaCognitionService:
-    """
-    🧘 THE CONSCIENCE OF THE SYSTEM (Layer 0 - Epistemic Engine).
+    def __init__(self,config: Optional[MetaCognitionConfig]=None):
+        self.config=config or MetaCognitionConfig()
 
-    Acts as a 'Circuit Breaker' for AI Hallucinations and Overconfidence.
-    Evaluates 'Epistemic Uncertainty' by measuring the Euclidean drift
-    between the user's historical embedding ('Ghost') and their current session vector.
-    """
+    def unavailable_assessment(self,reason: str='No validated confidence estimator') -> CognitiveAssessment:
+        return self._create_fallback_assessment(reason)
 
-    def __init__(self, config: Optional[MetaCognitionConfig] = None):
+    def evaluate_confidence(self,ghost_profile: Optional[Dict[str,Any]],current_session_vector: List[float]) -> CognitiveAssessment:
+        """Legacy entrypoint. No calibrated artifact exists, so certainty is unavailable.
+
+        Behavior ghost vectors are learned output-space projections. Their src_dim
+        does not prove they inhabit the text query's input embedding space, even
+        when array lengths happen to match. Raw distance here would be misleading.
+        Do not run an extra embedding solely to call this unavailable estimator.
         """
-        Initializes the layer via Dependency Injection.
-        Does NOT enforce singleton internally to preserve testability and lifecycle control.
-        """
-        self.config = config or MetaCognitionConfig()
+        return self._create_fallback_assessment('No validated confidence estimator or verified comparable embedding space')
 
-    def evaluate_confidence(
-        self,
-        ghost_profile: Optional[Dict[str, Any]],
-        current_session_vector: List[float]
-    ) -> CognitiveAssessment:
-        """
-        🚀 EPISTEMIC AUDIT: Calculates the state of mind of the AI agent.
-
-        Args:
-            ghost_profile: Raw dictionary representing historical predictive profile.
-            current_session_vector: The dense embedding of the current intent.
-
-        Returns:
-            CognitiveAssessment: Strictly typed output for downstream orchestrators.
-        """
-
-        # 🛡️ 1. COLD START GUARD
-        if not ghost_profile or not ghost_profile.get('pos') or not current_session_vector:
-            return CognitiveAssessment(
-                uncertainty=1.0,
-                drift=0.0,
-                stance=CognitiveStance.INQUISITIVE,
-                action_directive=ActionDirective.BROADEN_SEARCH_HORIZON,
-                reason="Cold Start / Insufficient historical data",
-                historical_confidence=0.0
-            )
-
-        try:
-            # 🛡️ 2. BOUNDARY VALIDATION
-            ghost = UserGhostProfile(
-                pos_vector=ghost_profile.get('pos', []),
-                confidence=ghost_profile.get('confidence', 0.8)
-            )
-
-            # 🧮 3. DIMENSIONALITY & MATH SAFETY
-            ghost_arr = np.array(ghost.pos_vector, dtype=np.float32)
-            current_arr = np.array(current_session_vector, dtype=np.float32)
-
-            if not np.isfinite(current_arr).all():
-                raise ValueError("Current session vector contains non-finite values.")
-
-            if ghost_arr.shape != current_arr.shape:
-                logger.warning(
-                    "Dimensionality mismatch in epistemic evaluation.",
-                    extra={
-                        "ghost_dim": ghost_arr.shape,
-                        "current_dim": current_arr.shape
-                    }
-                )
-                return self._create_fallback_assessment(reason="Dimension mismatch logic bypass")
-
-            # 🧮 4. THE MATH (Euclidean Drift & Uncertainty Scoring)
-            drift_distance = float(np.linalg.norm(ghost_arr - current_arr))
-
-            # Uncertainty = (Drift * W1) + ((1 - Historical_Confidence) * W2)
-            uncertainty_score = (drift_distance * self.config.drift_weight) + \
-                                ((1.0 - ghost.confidence) * self.config.confidence_weight)
-
-            # 🚦 5. DECISION MATRIX
-            stance = CognitiveStance.AUTHORITATIVE
-            directive = ActionDirective.COLLAPSE_WAVEFUNCTION
-            reason = "Stable Behavior Context"
-
-            if uncertainty_score > self.config.uncertainty_threshold:
-                stance = CognitiveStance.INQUISITIVE
-                directive = ActionDirective.BROADEN_SEARCH_HORIZON
-                reason = f"High Epistemic Uncertainty ({uncertainty_score:.3f})"
-
-            elif drift_distance > self.config.drift_tolerance:
-                stance = CognitiveStance.ADAPTIVE_SHOCK
-                directive = ActionDirective.TRIGGER_CLARIFICATION
-                reason = f"Acute Context Drift Detected ({drift_distance:.3f})"
-
-            # ✅ 6. DETERMINISTIC OUTPUT
-            result = CognitiveAssessment(
-                uncertainty=round(uncertainty_score, 4),
-                drift=round(drift_distance, 4),
-                stance=stance,
-                action_directive=directive,
-                reason=reason,
-                historical_confidence=ghost.confidence
-            )
-
-            # Log strategic shifts for observability
-            if stance != CognitiveStance.AUTHORITATIVE:
-                logger.info(
-                    "Cognitive stance shifted",
-                    extra={"assessment": result.model_dump(mode="json")}
-                )
-
-            return result
-
-        except Exception as e:
-            # 🛡️ 7. FAIL-OPEN PROTOCOL
-            # Guarantees the system never crashes the primary checkout/interaction loop
-            # due to a meta-cognition calculation error (e.g., corrupted memory, missing fields).
-            logger.error(
-                "Critical failure in Meta-Cognition Layer. Defaulting to Fail-Open.",
-                exc_info=True,
-                extra={"error": str(e)}
-            )
-            return self._create_fallback_assessment(reason=f"System Error Protection: {str(e)}")
-
-    def _create_fallback_assessment(self, reason: str) -> CognitiveAssessment:
-        """Helper to generate a safe, fail-open state deterministically."""
-        return CognitiveAssessment(
-            uncertainty=0.0,
-            drift=0.0,
-            stance=CognitiveStance.SAFE_MODE,
-            action_directive=ActionDirective.FAIL_OPEN,
-            reason=reason,
-            historical_confidence=0.0
-        )
+    def _create_fallback_assessment(self,reason: str) -> CognitiveAssessment:
+        return CognitiveAssessment(reason=reason)
