@@ -4,6 +4,7 @@
 // Enforces strict security boundaries, WebGL optimizations, and Edge standalone output.
 // ============================================================================
 
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -17,7 +18,12 @@ const API_BASE_URL = process.env.BACKEND_API_URL || 'http://api:8000';
 const nextConfig = {
   allowedDevOrigins: ["192.168.1.2"],
   turbopack: {
-    root: process.cwd(),
+    // In the pnpm workspace, `next` is hoisted to the repo-root node_modules,
+    // so the workspace root must be the repo root. In the standalone Docker
+    // build the app owns its node_modules and is its own root.
+    root: fs.existsSync(path.resolve(__dirname, '..', '..', 'pnpm-workspace.yaml'))
+      ? path.resolve(__dirname, '..', '..')
+      : __dirname,
   },
   typescript: {
     ignoreBuildErrors: true,
