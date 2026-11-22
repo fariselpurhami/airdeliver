@@ -159,12 +159,16 @@ class EngineLimits:
     max_category_length: int = 128
     cache_ttl_search_seconds: int = 3600
     cache_ttl_bundle_seconds: int = 86400
-    embedding_timeout_seconds: float = 200.0
-    vector_search_timeout_seconds: float = 200.0
-    bundle_timeout_seconds: float = 200.0
-    db_fetch_timeout_seconds: float = 200.0
+    # User-facing timeouts must stay well under the gunicorn worker timeout
+    # (120s) so slow dependencies surface a clean ExternalDependencyError
+    # instead of the worker being SIGKILLed mid-request. Models are warmed
+    # at bootstrap, so 25s is generous for warm inference.
+    embedding_timeout_seconds: float = 25.0
+    vector_search_timeout_seconds: float = 25.0
+    bundle_timeout_seconds: float = 25.0
+    db_fetch_timeout_seconds: float = 25.0
     bootstrap_timeout_seconds: float = 190.0
-    opensearch_timeout_seconds: float = 290.0
+    opensearch_timeout_seconds: float = 30.0
     memory_similarity_threshold: float = 0.70
 
 
