@@ -1,8 +1,8 @@
 // apps/web/__tests__/useAIOrderingStore.test.ts
 //
 // Pins the rewired assistant path: chat text and image uploads go to the
-// live ai_support HTTP endpoint; silent cart/checkout commands stay on the
-// websocket.
+// live ai_support HTTP endpoint; cart/checkout commands go to the HTTP
+// ai-ordering endpoints; the websocket is receive-only for AI responses.
 
 import type * as JestGlobals from '@jest/globals';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
@@ -50,7 +50,7 @@ describe('sendMessage routing', () => {
     expect(socketSpy).not.toHaveBeenCalled();
   });
 
-  it('keeps silent cart/checkout commands on the socket', () => {
+  it('routes silent cart/checkout commands through the internal command path', () => {
     const postSpy = jest.fn<(message: string, msgId: string | null, imageBase64?: string) => Promise<void>>().mockResolvedValue(undefined);
     const socketSpy = jest.fn();
     useAIOrderingStore.setState({
@@ -136,6 +136,62 @@ describe('sendImage', () => {
     expect(postSpy.mock.calls[0]?.[0]).toBe('what is this?');
     expect(postSpy.mock.calls[0]?.[2]).toBe('AAA');
     expect(socketSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('_dispatchCommand', () => {
+  const run = (payload: Record<string, unknown>) => {
+    const postSpy = jest.fn<(path: string, body?: Record<string, unknown>) => Promise<boolean>>().mockResolvedValue(true);
+    useAIOrderingStore.setState({ _postCartCommand: postSpy } as Partial<StoreSnapshot>);
+    return { postSpy, done: useAIOrderingStore.getState()._dispatchCommand(payload) };
+  };
+
+  it('maps add-by-id to POST /cart/add', async () => {
+    const { postSpy, done } = run({ message: '__INTERNAL_ADD_BY_ID__:42' });
+    await done;
+    expect(postSpy).toHaveBeenCalledWith('/cart/add', { product_id: 42 });
+  });
+
+  it('maps remove-by-id to POST /cart/remove', async () => {
+    const { postSpy, done } = run({ message: '__INTERNAL_REMOVE_BY_ID__:7' });
+    await done;
+    expect(postSpy).toHaveBeenCalledWith('/cart/remove', { product_id: 7 });
+  });
+
+  it('maps clear cart phrases to POST /cart/clear', async () => {
+    const { postSpy, done } = run({ message: 'clear cart' });
+    await done;
+    expect(postSpy).toHaveBeenCalledWith('/cart/clear', {});
+  });
+
+  it('maps confirm/checkout/pay phrases to POST /checkout/confirm', async () => {
+    for (const message of ['__INTERNAL_CONFIRM_ORDER__', 'checkout', 'pay now', 'retry payment']) {
+      const postSpy = jest.fn<(path: string, body?: Record<string, unknown>) => Promise<boolean>>().mockResolvedValue(true);
+      useAIOrderingStore.setState({ _postCartCommand: postSpy } as Partial<StoreSnapshot>);
+      await useAIOrderingStore.getState()._dispatchCommand({ message });
+      expect(postSpy).toHaveBeenCalledWith('/checkout/confirm', {});
+    }
+  });
+
+  it('maps cancel intent to POST /checkout/cancel with the order id', async () => {
+    const { postSpy, done } = run({ type: 'CANCEL_INTENT', message: { orderId: 9, reason: 'changed_mind' } });
+    await done;
+    expect(postSpy).toHaveBeenCalledWith('/checkout/cancel', { order_id: 9 });
+  });
+
+  it('drops commands with no live backend instead of faking an ACK', async () => {
+    const { postSpy, done } = run({ message: '__INTERNAL_GET_INITIAL_SUGGESTIONS__' });
+    await done;
+    expect(postSpy).not.toHaveBeenCalled();
+  });
+
+  it('surfaces an honest error when the command request fails', async () => {
+    const postSpy = jest.fn<(path: string, body?: Record<string, unknown>) => Promise<boolean>>().mockResolvedValue(false);
+    useAIOrderingStore.setState({ _postCartCommand: postSpy, isLoading: true } as Partial<StoreSnapshot>);
+    await useAIOrderingStore.getState()._dispatchCommand({ message: '__INTERNAL_CLEAR_CART__' });
+    const state = useAIOrderingStore.getState();
+    expect(state.isLoading).toBe(false);
+    expect(state.messages.some((m) => m.contentType === 'error')).toBe(true);
   });
 });
 

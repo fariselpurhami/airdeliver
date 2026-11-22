@@ -122,6 +122,8 @@ interface AIOrderingState {
   _sendInternalCommand: (command: string, payload?: Record<string, unknown>, silent?: boolean) => void;
   _getSupportSessionId: () => string;
   _postSupportChat: (message: string, msgId: string | null, imageBase64?: string) => Promise<void>;
+  _postCartCommand: (path: string, body?: Record<string, unknown>) => Promise<boolean>;
+  _dispatchCommand: (payload: Record<string, unknown>) => Promise<void>;
 
   // Actions - UI & Cart
   setOverlayVisible: (isVisible: boolean) => void;
@@ -440,9 +442,11 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   processOfflineQueue: () => {
     const { socket, messageQueue } = get();
     if (socket?.readyState === WebSocket.OPEN && messageQueue.length > 0) {
-      // Batch serialization could be done, but individual sends are standard for WS frames
-      messageQueue.forEach(msg => socket.send(JSON.stringify(msg)));
+      // Commands were queued while the socket (response channel) was down.
+      // Dispatch them over the HTTP command API now that responses can arrive.
+      const queued = [...messageQueue];
       set({ messageQueue: [] });
+      queued.forEach(msg => { void get()._dispatchCommand(msg); });
     }
   },
 
@@ -614,7 +618,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     }));
 
     if (isSilent) {
-      // Cart/checkout commands keep the socket channel.
+      // Cart/checkout commands go to the HTTP ai-ordering endpoints.
       get()._sendInternalCommand(text, { id: msgId }, true);
     } else {
       void get()._postSupportChat(text, msgId);
@@ -772,7 +776,97 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       set({ isLoading: true, isProcessing: true, suggestedProductIds: null });
     }
 
-    socket.send(JSON.stringify(fullPayload));
+    void get()._dispatchCommand(fullPayload);
+  },
+
+  // Single command path: every cart/checkout command maps to the HTTP
+  // ai-ordering endpoints (the RabbitMQ command queues have no consumer in
+  // this stack). AI responses still arrive over the websocket via the Redis
+  // relay, so callers gate on socket health before dispatching.
+  _dispatchCommand: async (payload) => {
+    const rawMessage = payload.message;
+    const message = typeof rawMessage === 'string' ? rawMessage : '';
+    const lower = message.toLowerCase();
+
+    let path: string | null = null;
+    let body: Record<string, unknown> = {};
+
+    const numericId = (prefix: string): number | null => {
+      const value = Number(message.slice(prefix.length));
+      return Number.isFinite(value) && value > 0 ? value : null;
+    };
+
+    if (message.startsWith('__INTERNAL_ADD_BY_ID__:')) {
+      const productId = numericId('__INTERNAL_ADD_BY_ID__:');
+      if (productId === null) return;
+      path = '/cart/add';
+      body = { product_id: productId };
+    } else if (message.startsWith('__INTERNAL_REMOVE_BY_ID__:')) {
+      const productId = numericId('__INTERNAL_REMOVE_BY_ID__:');
+      if (productId === null) return;
+      path = '/cart/remove';
+      body = { product_id: productId };
+    } else if (message === '__INTERNAL_SYNC_CART__') {
+      path = '/cart/sync';
+    } else if (message === '__INTERNAL_CLEAR_CART__' || lower.includes('clear cart')) {
+      path = '/cart/clear';
+    } else if (message === '__INTERNAL_SAVE_FOR_LATER__' || lower.includes('save for later')) {
+      path = '/cart/save';
+    } else if (message === '__INTERNAL_CONFIRM_ORDER__' || lower.includes('confirm order') || lower.includes('checkout') || lower.includes('pay now') || lower.includes('retry payment')) {
+      path = '/checkout/confirm';
+    } else if (message === '__CANCEL__' || payload.type === 'CANCEL_INTENT' || lower.includes('cancel order')) {
+      path = '/checkout/cancel';
+      if (rawMessage && typeof rawMessage === 'object') {
+        const orderId = (rawMessage as Record<string, unknown>).orderId;
+        if (typeof orderId === 'number') body = { order_id: orderId };
+      }
+    } else if (
+      message === '__INTERNAL_RESET_SESSION__' ||
+      message === '__INTERNAL_GET_INITIAL_SUGGESTIONS__' ||
+      message === '__INTERNAL_INITIATE_RECOVERY__'
+    ) {
+      // No live backend equivalent exists for these; they previously
+      // black-holed on an unconsumed queue. Dropped deliberately.
+      return;
+    } else {
+      // Unknown internal command: drop rather than fake an ACK.
+      return;
+    }
+
+    const ok = await get()._postCartCommand(path, body);
+    if (!ok) {
+      set({ isLoading: false, isProcessing: false });
+      get().appendSystemMessage({
+        type: 'error',
+        content: "I couldn't reach the ordering service. Please try again in a moment.",
+      });
+    }
+  },
+
+  _postCartCommand: async (path, body = {}) => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api/v1';
+    const token = typeof document !== 'undefined'
+      ? (document.cookie.split('; ').find(row => row.startsWith('next-auth.session-token='))?.split('=')[1] || '')
+      : '';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch(`${apiBase}/ai-ordering${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      return response.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   },
 
   setOverlayVisible: (isVisible) => set({ isOverlayVisible: isVisible }),

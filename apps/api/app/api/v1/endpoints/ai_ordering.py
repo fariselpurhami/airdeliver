@@ -2,13 +2,14 @@
 
 import uuid
 import json
-import time
 import logging
 import asyncio
-import random
 from typing import Optional
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, status
+from typing import AsyncGenerator, List
+import httpx
+from fastapi import APIRouter, Body, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, status
+from pydantic import BaseModel, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocketState
 from app.services.ai_voice_service import AIVoiceOrchestrator
@@ -18,7 +19,21 @@ from app import models
 from app.api import deps
 from app.services.rabbitmq_service import RabbitMQService, get_rabbitmq_service
 from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
-from app.core.config import settings
+from app.services.ai_cart_service import AICartService
+from app.services.ai_checkout_service import AICheckoutService
+from app.services.payment_orchestrator import (
+    IPaymentGateway,
+    MpesaGateway,
+    PaymentOrchestrator,
+    PayPalGateway,
+    StripeGateway,
+)
+from app.core.config import (
+    settings,
+    get_mpesa_settings,
+    get_paypal_settings,
+    get_stripe_settings,
+)
 
 logger = logging.getLogger("airdeliver.websocket")
 router = APIRouter()
@@ -66,6 +81,173 @@ async def check_rate_limit(user_id: int, cache: IAsyncCacheClient) -> bool:
         logger.warning(f"Rate limit check failed (Fail-Open Policy): {e}")
         return True
 
+# --- 🛒 SECTION 1B: HTTP CART & CHECKOUT COMMANDS ---
+# Single consumer path for cart/checkout commands. These endpoints call the
+# same AICartService / AICheckoutService handlers the RabbitMQ workers were
+# meant to run; no worker exists in this stack, so the socket queues were a
+# black hole. UI updates still reach the client over the /chat websocket via
+# the Redis `airdeliver:response:{user_id}` relay, unchanged.
+
+
+class AddToCartRequest(BaseModel):
+    product_id: int
+    quantity: int = Field(default=1, ge=1, le=99)
+
+
+class RemoveFromCartRequest(BaseModel):
+    product_id: int
+
+
+class ConfirmOrderRequest(BaseModel):
+    address: Optional[str] = Field(default=None, max_length=255)
+    country: str = Field(default="US", min_length=2, max_length=2)
+
+
+class CancelOrderRequest(BaseModel):
+    order_id: Optional[int] = None
+
+
+async def get_ai_cart_service(
+    db: AsyncSession = Depends(deps.get_async_session),
+    cache: IAsyncCacheClient = Depends(get_cache_from_request),
+    rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
+) -> AICartService:
+    # commerce_engine / llm_service stay None: they only power optional
+    # vector-bundling and recovery copy, and depending on OpenSearch/Milvus
+    # here would take the whole cart down when that infra is offline.
+    return AICartService(db=db, cache=cache, rabbitmq=rabbitmq)
+
+
+async def get_ai_checkout_service(
+    db: AsyncSession = Depends(deps.get_async_session),
+    cache: IAsyncCacheClient = Depends(get_cache_from_request),
+    rabbitmq: RabbitMQService = Depends(get_rabbitmq_service),
+) -> AsyncGenerator[AICheckoutService, None]:
+    gateways: List[IPaymentGateway] = []
+    http_clients: List[httpx.AsyncClient] = []
+
+    try:
+        gateways.append(StripeGateway(get_stripe_settings()))
+    except Exception as exc:
+        logger.warning("Stripe gateway unavailable for checkout: %s", exc)
+
+    for label, get_settings, gateway_cls in (
+        ("PayPal", get_paypal_settings, PayPalGateway),
+        ("Mpesa", get_mpesa_settings, MpesaGateway),
+    ):
+        try:
+            gateway_settings = get_settings()
+        except Exception as exc:
+            logger.warning("%s gateway unavailable for checkout: %s", label, exc)
+            continue
+        try:
+            client = httpx.AsyncClient(timeout=httpx.Timeout(5.0))
+            gateways.append(gateway_cls(gateway_settings, cache, client))
+            http_clients.append(client)
+        except Exception as exc:
+            logger.warning("%s gateway init failed: %s", label, exc)
+
+    if not gateways:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No payment gateway is configured.",
+        )
+
+    try:
+        yield AICheckoutService(
+            db=db,
+            cache=cache,
+            rabbitmq=rabbitmq,
+            orchestrator=PaymentOrchestrator(gateways),
+        )
+    finally:
+        for client in http_clients:
+            await client.aclose()
+
+
+@router.post("/cart/sync", status_code=status.HTTP_202_ACCEPTED)
+async def sync_cart(
+    current_user: models.User = Depends(deps.get_current_active_user),
+    cart_service: AICartService = Depends(get_ai_cart_service),
+):
+    """Push the authoritative cart state to the client (connection hydration)."""
+    await cart_service.handle_sync_cart({"user_id": current_user.id})
+    return {"status": "accepted"}
+
+
+@router.post("/cart/add", status_code=status.HTTP_202_ACCEPTED)
+async def add_to_cart(
+    payload: AddToCartRequest,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    cart_service: AICartService = Depends(get_ai_cart_service),
+):
+    await cart_service.handle_add_to_cart({
+        "user_id": current_user.id,
+        "product_id": payload.product_id,
+        "quantity": payload.quantity,
+    })
+    return {"status": "accepted"}
+
+
+@router.post("/cart/remove", status_code=status.HTTP_202_ACCEPTED)
+async def remove_from_cart(
+    payload: RemoveFromCartRequest,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    cart_service: AICartService = Depends(get_ai_cart_service),
+):
+    await cart_service.handle_remove_from_cart({
+        "user_id": current_user.id,
+        "product_id": payload.product_id,
+    })
+    return {"status": "accepted"}
+
+
+@router.post("/cart/clear", status_code=status.HTTP_202_ACCEPTED)
+async def clear_cart(
+    current_user: models.User = Depends(deps.get_current_active_user),
+    cart_service: AICartService = Depends(get_ai_cart_service),
+):
+    await cart_service.handle_clear_cart({"user_id": current_user.id})
+    return {"status": "accepted"}
+
+
+@router.post("/cart/save", status_code=status.HTTP_202_ACCEPTED)
+async def save_cart(
+    current_user: models.User = Depends(deps.get_current_active_user),
+    cart_service: AICartService = Depends(get_ai_cart_service),
+):
+    await cart_service.handle_save_cart({"user_id": current_user.id})
+    return {"status": "accepted"}
+
+
+@router.post("/checkout/confirm", status_code=status.HTTP_202_ACCEPTED)
+async def confirm_order(
+    payload: ConfirmOrderRequest = Body(default_factory=ConfirmOrderRequest),
+    current_user: models.User = Depends(deps.get_current_active_user),
+    checkout_service: AICheckoutService = Depends(get_ai_checkout_service),
+):
+    await checkout_service.handle_confirm_order({
+        "user_id": current_user.id,
+        "email": current_user.email,
+        "address": payload.address or getattr(current_user, "address", None),
+        "country": payload.country,
+    })
+    return {"status": "accepted"}
+
+
+@router.post("/checkout/cancel", status_code=status.HTTP_202_ACCEPTED)
+async def cancel_order(
+    payload: CancelOrderRequest = Body(default_factory=CancelOrderRequest),
+    current_user: models.User = Depends(deps.get_current_active_user),
+    checkout_service: AICheckoutService = Depends(get_ai_checkout_service),
+):
+    await checkout_service.handle_cancel_order({
+        "user_id": current_user.id,
+        "order_id": payload.order_id,
+    })
+    return {"status": "accepted"}
+
+
 # --- 🔌 SECTION 2: THE WEBSOCKET HANDLER ---
 
 @router.websocket("/chat")
@@ -108,69 +290,6 @@ async def handle_chat_websocket(
     await connection_manager.connect(current_user.id, websocket)
     logger.info(f"✅ User {current_user.id} connected via Socket {connection_id[:8]}...")
 
-
-    lifestyle_matrix = [
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Titanium Minimalist",
-            "description": "For the focus-obsessed. Pure efficiency.",
-            "theme": "titanium",
-            "icon": "focus_mode", 
-            "priority": 1
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Eco-Luxury",
-            "description": "Sustainable high-end tech logic.",
-            "theme": "eco",
-            "icon": "leaf_sparkle",
-            "priority": 2
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Cyberpunk Aesthetic",
-            "description": "Neon, performance, and speed.",
-            "theme": "cyberpunk", 
-            "icon": "lightning",
-            "priority": 3
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Silence & Audio",
-            "description": "The ultimate acoustic experience.",
-            "theme": "acoustic",
-            "icon": "sound_wave",
-            "priority": 4
-        }
-    ]
-
-    try:
-        # 2. بناء الـ Payload بهيكلية بيانات موحدة (Strict Schema)
-        welcome_payload = {
-            "user_id": current_user.id,
-            "connection_id": connection_id,
-            "email": current_user.email,
-            "type": "WELCOME_INTENT",
-            "data": {
-                "mode": "selection_required",
-                "header_text": "Select your lifestyle archetype:",
-                "matrix_cards": lifestyle_matrix
-            },
-            "message": "User Initiated Matrix Selection",
-            "client_msg_id": str(uuid.uuid4()),
-            "timestamp": time.time(),
-        }
-
-        # 3. الحقن المباشر في الـ Queue (Direct Injection)
-        await rabbitmq.publish(
-            body=welcome_payload,
-            routing_key="airdeliver.ai.chat.in",
-            max_retries=2
-        )
-        logger.info(f"✅ Lifestyle Matrix Injected for User {current_user.id} (Local Context)")
-
-    except Exception as e:
-        logger.warning(f"⚠️ Failed to Inject Matrix: {e}")
 
     # Redis Channel for AI Responses
     redis_channel_name = f"airdeliver:response:{current_user.id}"
@@ -226,68 +345,21 @@ async def handle_chat_websocket(
                 await websocket.send_json({"type": "ERROR", "content": "Invalid JSON format."})
                 continue
 
-            # C. Construct Robust Payload (The Universal Packet)
-            client_msg_id = message_data.get("id") or str(uuid.uuid4())
-
-            user_phone = current_user.phone_number or ""
-            user_address = current_user.address or ""
-            user_city = current_user.city or ""
-
-            message_payload = {
-                "user_id": current_user.id,
-                "connection_id": connection_id,
-                "email": current_user.email,
-                "country": getattr(current_user, 'country', 'US'),
-                "phone": user_phone,
-                "address": user_address,
-                "city": user_city,
-                "message": message_data.get("message"),
-                "type": message_data.get("type", "CHAT_MESSAGE"),
-                "image": message_data.get("image"),
-                "product_id": message_data.get("product_id"),
-                "quantity": message_data.get("quantity", 1),
-                "client_msg_id": client_msg_id,
-                "timestamp": message_data.get("timestamp") or time.time(),
-            }
-
-            # D. Smart Routing Logic
-            routing_key = "airdeliver.ai.chat.in"
-            msg_type = message_payload["type"]
-
-            if msg_type == "ADD_TO_CART":
-                 routing_key = "airdeliver.ai.cart.add"
-            elif msg_type == "REMOVE_FROM_CART":
-                 routing_key = "airdeliver.ai.cart.remove"
-            elif msg_type == "CLEAR_CART":
-                 routing_key = "airdeliver.ai.cart.clear"
-            elif msg_type == "CONFIRM_ORDER":
-                 routing_key = "airdeliver.ai.order.confirm"
-            elif msg_type == "CANCEL_INTENT":
-                 routing_key = "airdeliver.ai.intent.cancel_order"
-
-            # E. Publish to RabbitMQ (Black Hole Prevention)
-            try:
-                await rabbitmq.publish(
-                    body=message_payload,
-                    routing_key=routing_key,
-                    max_retries=2
-                )
-
-                # F. Instant Server ACK (UI Feedback)
-                await websocket.send_json({
-                    "type": "SERVER_ACK",
-                    "reply_to": client_msg_id,
-                    "status": "queued",
-                    "routing_key": routing_key
-                })
-
-            except Exception as e:
-                logger.error(f"🔥 RabbitMQ Publish Failed User {current_user.id}: {e}")
-                await websocket.send_json({
-                    "type": "ERROR",
-                    "code": "DELIVERY_FAILED",
-                    "content": "Service temporarily unavailable. Please try again."
-                })
+            # C. This socket is receive-only for AI/cart responses (Redis
+            # relay below). Chat text, images and cart/checkout commands are
+            # served by the HTTP endpoints (ai-support, ai-ordering). The old
+            # behavior published these frames to RabbitMQ queues that no
+            # worker in this stack consumes and then ACKed them as "queued",
+            # which silently dropped every command. Fail honestly instead.
+            logger.warning(
+                "Inbound command on receive-only socket rejected",
+                extra={"user_id": current_user.id, "type": message_data.get("type")},
+            )
+            await websocket.send_json({
+                "type": "ERROR",
+                "code": "UNSUPPORTED_CHANNEL",
+                "content": "This channel no longer accepts commands. Please use the chat interface, which calls the HTTP API directly.",
+            })
 
     # --- 🧹 CLEANUP ---
     except WebSocketDisconnect:
