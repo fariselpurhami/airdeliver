@@ -44,7 +44,7 @@ def register_routes(app: FastAPI, settings: CoreSettings) -> None:
 
     # --- NEW ROUTER REGISTRATION ---
     # Mounts at: /api/v1/ordering/voice-stream
-    app.include_router(voice_router, prefix=f"{settings.API_V1_STR}/ai-ordering", tags=["Voice AI"])
+    app.include_router(voice_router, prefix=f"{settings.API_V1_STR}/ordering")
 
     @app.get(HEALTH_ENDPOINT, tags=["health"])
     async def read_root() -> dict[str, str]:
