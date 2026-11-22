@@ -4021,7 +4021,7 @@ class AINLUService:
                 
                 joined_items = "\n".join(available_items)
                 inventory_context = (
-                    f"INVENTORY STATUS: The following relevant items are CONFIRMED IN-STOCK in our global network:\n"
+                    f"INVENTORY STATUS: The following relevant items are CONFIRMED IN-STOCK in partner store inventory:\n"
                     f"{joined_items}\n\n"
                     f"SYSTEM_INSTRUCTION: Compare the user's requested item with the IN-STOCK list above. "
                     f"If the requested item explicitly matches an item in the list, you MUST state that it IS available and verified in our inventory. "

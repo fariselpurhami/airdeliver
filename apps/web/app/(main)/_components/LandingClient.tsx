@@ -206,7 +206,7 @@ const HERO_CARDS: ReadonlyArray<HeroFloatingCardProps> = [
 ];
 
 const PRODUCTION_STEPS = [
-  { icon: Bot, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product in our global network without you scrolling through catalogs." },
+  { icon: Bot, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product across our partner stores' inventory without you scrolling through catalogs." },
   { icon: Cpu, step: "02", title: "Inventory Sync", description: "Within milliseconds, the system queries local hubs and databases to secure the best price and immediate availability, reserving your item autonomously." },
   { icon: Camera, step: "03", title: "Multimodal Visual Matching", description: "Upload a image or screenshot. Our computer vision models analyze texture, brand, and style to match real-world items in seconds." },
   { icon: ShieldCheck, step: "04", title: "Autonomous One-Tap Checkout", description: "Review your personalized bag preview and complete your purchase securely with one-tap encrypted payment flow directly within the overlay." },

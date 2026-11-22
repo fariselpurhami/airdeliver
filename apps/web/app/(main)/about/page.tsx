@@ -239,7 +239,7 @@ export default function AboutPage() {
                 index={0}
                 icon={Cpu}
                 title="AI Core Intelligence"
-                text="Our self-learning neural network optimizes millions of routes in real-time, managing the entire global logistics network autonomously. It predicts demand, reroutes instantly, and ensures efficiency beyond human capability."
+                text="Our self-learning neural network matches customer intent with partner store inventory in real time, securing the best price and immediate availability autonomously. It learns from every order to serve the next one better."
                 videoSrc="/videos/ai_core_visual.mp4"
             />
 

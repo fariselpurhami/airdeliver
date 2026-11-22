@@ -26,7 +26,7 @@ export const ProductFilters = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-cyan-400 transition-colors" size={18} />
           <input 
             type="text"
-            placeholder="Query Global Inventory..."
+            placeholder="Query Inventory..."
             className="w-full pl-12 pr-4 py-3 bg-white/5 border border-transparent rounded-full text-white placeholder-gray-500 focus:bg-black/40 focus:border-cyan-500/30 focus:outline-none transition-all text-sm font-medium"
           />
         </div>
