@@ -4,16 +4,7 @@
 // (app/(main)/page.tsx) is an async server component that reads headers(),
 // so the tests render the client tree it delegates to: LandingClient.
 
-// Types come from @jest/globals; the values stay as jest-injected globals so
-// the SWC jest transform keeps hoisting jest.mock() calls.
 import type * as JestGlobals from '@jest/globals';
-declare global {
-  const jest: typeof JestGlobals.jest;
-  const describe: typeof JestGlobals.describe;
-  const it: typeof JestGlobals.it;
-  const expect: typeof JestGlobals.expect;
-  const beforeEach: typeof JestGlobals.beforeEach;
-}
 import '@testing-library/jest-dom/jest-globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { LandingClient } from '../app/(main)/_components/LandingClient';

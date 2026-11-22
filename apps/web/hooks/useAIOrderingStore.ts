@@ -120,6 +120,8 @@ interface AIOrderingState {
   sendImage: (fullDataUrl: string, base64: string, caption?: string) => void;
   addSocketAIMessage: (message: Record<string, unknown>) => void;
   _sendInternalCommand: (command: string, payload?: Record<string, unknown>, silent?: boolean) => void;
+  _getSupportSessionId: () => string;
+  _postSupportChat: (message: string, msgId: string | null, imageBase64?: string) => Promise<void>;
 
   // Actions - UI & Cart
   setOverlayVisible: (isVisible: boolean) => void;
@@ -599,7 +601,12 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       state.ackTimeouts[msgId] = timeoutId;
     }));
 
-    get()._sendInternalCommand(text, { id: msgId }, true);
+    if (isSilent) {
+      // Cart/checkout commands keep the socket channel.
+      get()._sendInternalCommand(text, { id: msgId }, true);
+    } else {
+      void get()._postSupportChat(text, msgId);
+    }
   },
 
   sendImage: (fullDataUrl, base64Raw, caption) => {
@@ -631,14 +638,83 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       }, 60000); // 60s timeout on processing flag lock
     }
 
+    void get()._postSupportChat(caption || '', null, base64Raw);
+  },
+
+  _getSupportSessionId: () => {
+    // Session continuity for the NeuralCore memory layer. Session ids are
+    // bound by the endpoint to ^[a-zA-Z0-9_-]{8,128}$.
+    if (typeof window === 'undefined') return 'ssr-session';
+    let sessionId = window.localStorage.getItem('airdeliver-support-session');
+    if (!sessionId || !/^[a-zA-Z0-9_-]{8,128}$/.test(sessionId)) {
+      sessionId = crypto.randomUUID();
+      window.localStorage.setItem('airdeliver-support-session', sessionId);
+    }
+    return sessionId;
+  },
+
+  _postSupportChat: async (message, msgId, imageBase64) => {
+    // Live assistant path: the ai_support HTTP endpoint backed by
+    // NeuralCoreService. Chat text and image queries go here; cart and
+    // checkout commands stay on the websocket.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+
     try {
-      get()._sendInternalCommand(caption || "Visual Query", {
-        type: 'IMAGE_QUERY',
-        image: base64Raw
-      }, true);
-    } catch (e) {
-      console.error("Image Send Error:", e);
-      set({ isLoading: false, isProcessing: false });
+      const response = await fetch('/api/v1/ai-support/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          message,
+          session_id: get()._getSupportSessionId(),
+          ...(imageBase64 ? { image_base64: imageBase64 } : {}),
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`support chat returned ${response.status}`);
+      }
+      const data = await response.json() as { text?: string };
+
+      // Delivery confirmed: settle the optimistic user message.
+      if (msgId) {
+        const ackTimeout = get().ackTimeouts[msgId];
+        if (ackTimeout) clearTimeout(ackTimeout);
+        set(produce((state: AIOrderingState) => {
+          delete state.ackTimeouts[msgId];
+          for (let i = state.messages.length - 1; i >= 0; i--) {
+            const m = state.messages[i];
+            if (m && m.msgId === msgId && m.status === 'sending') {
+              m.status = 'sent';
+              break;
+            }
+          }
+        }));
+      }
+
+      get().addSocketAIMessage({ type: 'text', content: data.text ?? '' });
+    } catch (error) {
+      if (msgId) {
+        const ackTimeout = get().ackTimeouts[msgId];
+        if (ackTimeout) clearTimeout(ackTimeout);
+        set(produce((state: AIOrderingState) => {
+          delete state.ackTimeouts[msgId];
+          for (let i = state.messages.length - 1; i >= 0; i--) {
+            const m = state.messages[i];
+            if (m && m.msgId === msgId && m.status === 'sending') {
+              m.status = 'failed';
+              break;
+            }
+          }
+        }));
+      }
+      get().appendSystemMessage({
+        type: 'error',
+        content: "I couldn't reach the assistant service right now. Please try again in a moment.",
+      });
+    } finally {
+      clearTimeout(timeoutId);
     }
   },
 
