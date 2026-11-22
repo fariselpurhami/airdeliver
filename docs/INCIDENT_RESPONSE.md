@@ -8,14 +8,6 @@ The on-call engineer is alerted via PagerDuty for any P1 or P2 incident.
 
 ## Incident Types & Responses
 
-### P1: Drone Crash or Loss of Communication
--   **Detection:** Automated alert from the Drone Control service when a drone misses 3 consecutive heartbeats.
--   **Mitigation:**
-    1.  Immediately ground all drones in a 5km radius.
-    2.  Notify local aviation authorities via automated API call.
-    3.  Page the legal and PR teams.
--   **Post-mortem:** Full analysis of flight logs and hardware is required.
-
 ### P2: Payment Gateway Outage
 -   **Detection:** Prometheus alert fires when the rate of 5xx errors from the payment endpoint exceeds 50%.
 -   **Mitigation:**

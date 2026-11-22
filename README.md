@@ -1,8 +1,8 @@
 
 
 ```markdown
-# 🛸 airdeliverOS
-**The AI-Native Commerce Operating System for Autonomous eVTOL Delivery**
+# airdeliverOS
+**The AI-Native Commerce Platform**
 
 [![Monorepo](https://img.shields.io/badge/Architecture-Monorepo-black?style=flat-square&logo=pnpm)](https://pnpm.io/)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js_14-black?style=flat-square&logo=next.js)](https://nextjs.org/)
@@ -10,7 +10,7 @@
 [![AI Core](https://img.shields.io/badge/Neural_Engine-Qwen2_1.5B-blue?style=flat-square)](#)
 [![Infrastructure](https://img.shields.io/badge/Deploy-Kubernetes_|_Docker-326ce5?style=flat-square&logo=kubernetes)](#)
 
-> *Bridging the gap between digital intent and physical reality. We don't just process orders; we fly them to you.*
+> *Bridging the gap between digital intent and physical reality. From question to order, handled by AI.*
 
 **Author:** Faris Elpurhami
 
@@ -18,12 +18,11 @@
 
 ## 🌌 Vision & Architecture
 
-**airdeliver** is not just an application; it is a full-scale **Commerce Operating System (OS)**. It is built from the ground up to orchestrate the entire lifecycle of an autonomous transaction—from cognitive AI-driven user interactions to the physical routing of eVTOL (Electric Vertical Takeoff and Landing) fleets.
+**airdeliver** is built to orchestrate the entire lifecycle of an order—from cognitive AI-driven user interactions to payment and fulfillment with local partner stores.
 
-The system is decoupled into three primary pillars within a high-performance **pnpm Monorepo**:
-1. **The Neural Commerce Engine (`apps/api`):** A sophisticated AI brain featuring embedded Meta-Cognition, NLU (Natural Language Understanding), and Vector Search (Milvus/PgVector) to process hybrid multimodal inputs (Voice, Vision, Text).
-2. **The Command & Control Gateway (`apps/c2-gateway`):** An ultra-low latency, RabbitMQ/WebSocket-driven gateway that handles live fleet telemetry, no-fly zone compliance, and real-time eVTOL routing.
-3. **The Immersive Client (`apps/web`):** A Next.js 14 App Router frontend delivering a 60FPS fluid UI, physics-based animations (Framer Motion), holographic flight tracking, and cinematic checkout experiences.
+The system is decoupled into two primary pillars within a **pnpm Monorepo**:
+1. **The Neural Commerce Engine (`apps/api`):** The AI brain featuring NLU (Natural Language Understanding) and Vector Search (Milvus/PgVector) to process multimodal inputs (Voice, Vision, Text).
+2. **The Immersive Client (`apps/web`):** A Next.js 14 App Router frontend with physics-based animations (Framer Motion) and a cinematic checkout experience.
 
 ---
 
@@ -32,10 +31,6 @@ The system is decoupled into three primary pillars within a high-performance **p
 ### 🤖 AI Behavior & Meta-Cognition Engine
 * **Local SLM Integration:** Embedded `Alibaba-NLP/gte-Qwen2-1.5B-instruct` models for hyper-fast, privacy-preserving semantic routing and embedding generation.
 * **Proactive State Management:** The AI doesn't just answer questions; it actively manages user carts, predicts intent, and triggers autonomous checkout recovery via the `ai_behavior_engine`.
-
-### 🚁 eVTOL Fleet Command (C2)
-* **Real-time Telemetry:** Live WebSocket pipelines streaming Drone GPS, Altitude, Speed, and Gyroscopic Stability directly to the user's browser.
-* **Distributed Task Queueing:** Highly resilient message brokering via RabbitMQ to orchestrate fleet dispatches and mission state updates.
 
 ### 💳 Cryptographic Commerce & UI
 * **Floating Mobile-Optimized Overlays:** Context-aware, AI-driven UI modules that act as desktop applets (`max-w-[460px]`) to maintain laser-focused conversion funnels.
@@ -51,11 +46,10 @@ Our workspace is structured for enterprise scalability and strict separation of 
 /airdeliver
 ├── apps/
 │   ├── api/                 # The Neural Engine (FastAPI, SQLModel, Vector DB)
-│   │   ├── app/services/    # AI Cores (NLU, Meta-Cognition, Behavior Engine)
-│   │   └── app/websockets/  # Live Tracking & Telemetry Pipelines
-│   ├── c2-gateway/          # eVTOL Command & Control Router (RabbitMQ / WebSockets)
-│   └── web/                 # Customer-Facing Frontend (Next.js 14, Zustand, Tailwind)
-│       └── app/components/  # Cinematic UI, AI Voice Overlays, Holographic Dashboards
+│   │   ├── app/services/    # AI Cores (NLU, Behavior Engine, Cart/Checkout)
+│   │   └── app/websockets/  # Live AI Chat Channel
+│   └── web/                 # Customer-Facing Frontend (Next.js, Zustand, Tailwind)
+│       └── app/components/  # Cinematic UI, AI Voice Overlays
 ├── infra/                   # Infrastructure-as-Code
 │   ├── k8s/                 # Kubernetes Manifests (Deployments, Ingress, Services)
 │   └── grafana/             # Observability Dashboards

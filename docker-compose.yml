@@ -48,7 +48,7 @@ services:
       - "--api.dashboard=false"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=airdeliver-public"
+      - "--providers.docker.network=airdeliver-global-net"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
@@ -71,7 +71,7 @@ services:
     logging: *default-logging
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=airdeliver-public"
+      - "traefik.docker.network=airdeliver-global-net"
 
   loki:
     image: grafana/loki:2.9.2
@@ -132,7 +132,7 @@ services:
     deploy: *default-core-deploy
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=airdeliver-public"
+      - "traefik.docker.network=airdeliver-global-net"
       - "traefik.http.routers.grafana.rule=Host(`monitor.airdeliver.com`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
@@ -208,6 +208,7 @@ services:
       - |
         export RABBITMQ_DEFAULT_USER=$$(cat /run/secrets/rabbitmq_user)
         export RABBITMQ_DEFAULT_PASS=$$(cat /run/secrets/rabbitmq_pass)
+        rabbitmq-plugins enable --offline rabbitmq_prometheus
         docker-entrypoint.sh rabbitmq-server
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
@@ -385,6 +386,8 @@ services:
       - RABBITMQ_PASS_FILE=/run/secrets/rabbitmq_pass
       - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:?STRIPE_PUBLISHABLE_KEY is required}
       - WEB_CONCURRENCY=5
+      - HF_HOME=/data/storage/models_cache/huggingface
+      - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
     secrets:
       - postgres_user
       - postgres_password
@@ -393,6 +396,7 @@ services:
       - rabbitmq_pass
     volumes:
       - api-static-data:/app/static
+      - api-storage-data:/data/storage
     depends_on:
       api-migrator:
         condition: service_completed_successfully
@@ -419,13 +423,17 @@ services:
     deploy: *default-core-deploy
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=airdeliver-public"
+      - "traefik.docker.network=airdeliver-global-net"
       - "traefik.http.routers.api.rule=Host(`api.airdeliver.com`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
       - "traefik.http.middlewares.compress-api.compress=true"
       - "traefik.http.routers.api.middlewares=compress-api,security-headers"
+      - "traefik.http.middlewares.security-headers.headers.stsSeconds=63072000"
+      - "traefik.http.middlewares.security-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
 
   api-worker:
     container_name: airdeliver-api-worker
@@ -506,13 +514,17 @@ services:
     deploy: *default-app-deploy
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=airdeliver-public"
+      - "traefik.docker.network=airdeliver-global-net"
       - "traefik.http.routers.web.rule=Host(`airdeliver.com`, `www.airdeliver.com`)"
       - "traefik.http.routers.web.entrypoints=websecure"
       - "traefik.http.routers.web.tls.certresolver=letsencrypt"
       - "traefik.http.services.web.loadbalancer.server.port=3000"
       - "traefik.http.middlewares.compress-web.compress=true"
       - "traefik.http.routers.web.middlewares=compress-web,security-headers"
+      - "traefik.http.middlewares.security-headers.headers.stsSeconds=63072000"
+      - "traefik.http.middlewares.security-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.security-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
 
 volumes:
   postgres-data:
@@ -543,5 +555,3 @@ secrets:
     file: ./secrets/rabbitmq_user
   rabbitmq_pass:
     file: ./secrets/rabbitmq_pass
-  drone_auth_token:
-    file: ./secrets/drone_auth_token

@@ -15,8 +15,6 @@ WATCH_PATHS=(
     "./apps/web/entrypoint.sh"
     "./apps/api/pyproject.toml"
     "./apps/api/Dockerfile"
-    "./apps/c2-gateway/Dockerfile"
-    "./apps/drone_client/Dockerfile"
 )
 
 WATCH_STRING=$(IFS=','; echo "${WATCH_PATHS[*]}")

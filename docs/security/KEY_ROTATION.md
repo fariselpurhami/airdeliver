@@ -15,7 +15,7 @@ Committed secrets were found in the repository history (`.env`, `apps/api/.env`,
 | M-Pesa (Safaricom) | `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY` | developer.safaricom.et/.ke -> app credentials |
 | PayPal | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | developer.paypal.com -> Apps & Credentials |
 | Ngrok | `NGROK_AUTHTOKEN` | dashboard.ngrok.com -> Your Authtoken |
-| App JWT secrets | `SECRET_KEY`, `REFRESH_SECRET_KEY`, `DRONE_JWT_SECRET`, `INTERNAL_API_TOKEN`, `NEXTAUTH_SECRET`, `AUTH_SECRET` | generate new random 32+ char strings locally (invalidates all sessions - expected) |
+| App JWT secrets | `SECRET_KEY`, `REFRESH_SECRET_KEY`, `INTERNAL_API_TOKEN`, `NEXTAUTH_SECRET`, `AUTH_SECRET` | generate new random 32+ char strings locally (invalidates all sessions - expected) |
 | PostgreSQL | `POSTGRES_PASSWORD`, superuser `FIRST_SUPERUSER_PASSWORD` | change role password / redeploy with new secret |
 | RabbitMQ | `RABBITMQ_PASS`, `RABBITMQ_COOKIE` | change user password / redeploy |
 | OpenSearch | `OPENSEARCH_PASS`, `OPENSEARCH_ADMIN_PASSWORD` | security plugin / redeploy |

@@ -1,6 +1,6 @@
 # 🚀 airdeliver Developer Runbook
 
-Welcome to the **airdeliver** monorepo — the unified codebase powering an intelligent, drone-enabled eCommerce ecosystem.
+Welcome to the **airdeliver** monorepo — the unified codebase powering an intelligent eCommerce ecosystem.
 This guide is intended for developers, DevOps engineers, and operators managing, extending, or deploying the platform.
 
 ---
@@ -13,10 +13,8 @@ This guide is intended for developers, DevOps engineers, and operators managing,
 
 * **`apps/web`** – Next.js frontend for the user-facing eCommerce experience.
 * **`apps/api`** – Primary FastAPI backend managing users, orders, products, payments, and AI order flow.
-* **`apps/drone-control`** – Dedicated FastAPI microservice for real-time drone communication and task orchestration.
 * **`infra/`** – Infrastructure-as-code assets, including Kubernetes manifests, monitoring, and Grafana dashboards.
 * **`docs/`** – High-level operational and recovery documentation.
-* **`drone-simulator/`** – Virtual environment for testing drone logic without hardware dependencies.
 
 ---
 
@@ -53,7 +51,6 @@ cd ../..
 
 ```bash
 cd apps/api && poetry install && cd ../..
-cd apps/drone-control && poetry install && cd ../..
 ```
 
 #### 4. Configure Environment Variables
@@ -66,7 +63,7 @@ Create the necessary environment files for local development:
   NEXTAUTH_SECRET=your-secret
   NEXTAUTH_URL=http://localhost:3000
   ```
-* **Backend (`apps/api/.env`, `apps/drone-control/.env`)**
+* **Backend (`apps/api/.env`)**
   Preconfigured to work seamlessly with Docker Compose defaults.
 
 #### 5. Run the Full Stack
@@ -81,7 +78,6 @@ docker-compose up --build
 
 * 🌐 Frontend → [http://localhost:3000](http://localhost:3000)
 * 📦 Main API → [http://localhost:8000](http://localhost:8000)
-* 🚁 Drone Control API → [http://localhost:8001](http://localhost:8001)
 
 ---
 
@@ -89,15 +85,10 @@ docker-compose up --build
 
 ### Backend Testing
 
-Run tests for both the eCommerce API and drone-control services:
+Run the eCommerce API test suite:
 
 ```bash
 cd apps/api
-poetry run pytest
-```
-
-```bash
-cd apps/drone-control
 poetry run pytest
 ```
 
@@ -109,21 +100,6 @@ Execute unit and integration tests using Jest and React Testing Library:
 cd apps/web
 pnpm test
 ```
-
----
-
-### Virtual Drone Simulation
-
-To simulate drone operations locally without real hardware:
-
-1. Ensure the `drone-control` service is running.
-2. Launch the simulator:
-
-   ```bash
-   python3 drone-simulator/virtual_drone.py
-   ```
-
-The simulator communicates with the Drone Control API, validating delivery routes, flight logic, and order handling.
 
 ---
 
@@ -153,7 +129,6 @@ CI/CD is handled via **GitHub Actions**, including linting, security scans, and 
 * Alerts are configured for:
 
   * API downtime
-  * Drone mission errors
   * Payment service degradation
 
 ---

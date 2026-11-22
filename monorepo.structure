@@ -1,90 +1,40 @@
 airdeliver/
 ├── apps/
-│   ├── api/
-│   │   ├── alembic/
-│   │   │   └── versions/
+│   ├── api/                    # FastAPI backend (AI commerce engine)
+│   │   ├── alembic/versions/   # DB migrations
 │   │   ├── app/
-│   │   │   ├── api/
-│   │   │   │   └── v1/
-│   │   │   │       ├── endpoints/
-│   │   │   │       └── api.py
-│   │   │   ├── core/
+│   │   │   ├── api/v1/         # REST routers (endpoints/ + api.py)
+│   │   │   ├── core/           # config, security
 │   │   │   ├── crud/
 │   │   │   ├── db/
-│   │   │   ├── models/
-│   │   │   ├── schemas/
-│   │   │   ├── services/
-│   │   │   ├── websockets/
+│   │   │   ├── models/         # SQLModel tables
+│   │   │   ├── schemas/        # Pydantic DTOs
+│   │   │   ├── services/       # AI cores, cart/checkout, payments
+│   │   │   ├── websockets/     # AI chat channel
 │   │   │   └── main.py
-│   │   ├── static/
 │   │   ├── tests/
+│   │   ├── worker_entrypoint.py # RabbitMQ consumer (voice path + legacy queues)
 │   │   ├── Dockerfile
 │   │   └── pyproject.toml
 │   │
-│   ├── drone-control/
-│   │   ├── schemas/
-│   │   ├── services/
-│   │   ├── Dockerfile
-│   │   ├── main.py
-│   │   ├── locustfile.py
-│   │   └── pyproject.toml
-│   │
-│   └── web/
+│   └── web/                    # Next.js frontend
 │       ├── app/
-│       │   ├── (admin)/
-│       │   │   └── dashboard/
-│       │   │       └── page.tsx
-│       │   ├── (main)/
-│       │   │   ├── about/
-│       │   │   ├── cart/
-│       │   │   ├── products/
-│       │   │   ├── tracking/
-│       │   │   │   └── [orderId]/
-│       │   │   ├── layout.tsx
-│       │   │   └── page.tsx
-│       │   ├── api/
-│       │   │   └── auth/
-│       │   │       └── [...nextauth]/
-│       │   │           └── route.ts
-│       │   ├── legal/
-│       │   ├── layout.tsx
-│       │   └── globals.css
+│       │   ├── (admin)/dashboard/
+│       │   ├── (main)/         # about, cart, checkout, products, tracking/[orderId], ...
+│       │   ├── api/auth/[...nextauth]/
+│       │   ├── legal/          # privacy-policy, terms-of-service
+│       │   └── help/
 │       ├── components/
-│       │   ├── ai/
-│       │   ├── layout/
-│       │   ├── products/
-│       │   └── ui/
 │       ├── hooks/
-│       ├── lib/
-│       ├── public/
-│       ├── __tests__/
-│       ├── Dockerfile
-│       ├── next.config.mjs
-│       └── package.json
+│       └── Dockerfile
 │
-├── docs/
-│   ├── AI_ORDERING_AGENT.md
-│   ├── DISASTER_RECOVERY.md
-│   └── ...
-├── drone-simulator/
-│   ├── Dockerfile
-│   └── virtual_drone.py
-├── drone_client/
-│   ├── api_client.py
-│   └── drone_controller.py
 ├── infra/
-│   ├── grafana/
-│   └── k8s/
-│       ├── api-deployment.yml
-│       └── ...
-├── public/
-│   └── sw.js
-├── tests/
-│   └── integration/
-│       └── test_drone_simulation.py
-│
-├── docker-compose.yml
-├── docker-compose.drone.yml
-├── README.md
-├── RUNBOOK.md
-└── ...
+│   ├── k8s/                    # Kubernetes manifests (+ _legacy/)
+│   └── grafana/                # Dashboard JSON
+├── monitoring/                 # prometheus.yml, promtail.yaml
+├── docs/                       # ops docs (security/, INCIDENT_RESPONSE.md, ...)
+├── tests/                      # integration tests (require live stack)
+├── docker-compose.yml          # full stack
+├── docker-compose.dev.yml      # local dev stack
+├── schema.sql / clean_schema.sql
+└── README.md / RUNBOOK.md
