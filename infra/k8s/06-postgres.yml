@@ -44,6 +44,10 @@ spec:
       containers:
         - name: postgres
           image: pgvector/pgvector:pg16
+          # Raised from the default 100: the API HPA (max 6 pods x 5 gunicorn
+          # workers) plus the worker need headroom; see DB_POOL_* in
+          # 00-namespace-config.yml for the matching client-side math.
+          args: ["-c", "max_connections=500"]
           ports:
             - containerPort: 5432
           env:

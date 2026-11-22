@@ -24,6 +24,11 @@ data:
   # --- service discovery (matches the Service names in this directory) ---
   POSTGRES_SERVER: "postgres"
   POSTGRES_PORT: "5432"
+  # Client pool per gunicorn worker process. Worst case with the API HPA at
+  # max: 6 pods x 5 workers x (3 + 5) = 240 connections, + worker ~8, well
+  # under postgres max_connections=500.
+  DB_POOL_SIZE: "3"
+  DB_MAX_OVERFLOW: "5"
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"
   USE_REDIS: "true"
