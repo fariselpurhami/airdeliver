@@ -12,6 +12,7 @@ from app import models
 from app.api import deps
 from app.db.session import get_async_session
 from app.schemas.ai_actions import NeuralCoreResponse
+from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 from app.services.neural_core_service import NeuralCoreService, get_neural_core_service
 
 # -----------------------------------------------------------------------------
@@ -26,6 +27,32 @@ router = APIRouter()
 DBSessionDep = Annotated[AsyncSession, Depends(get_async_session)]
 CurrentUserOptionalDep = Annotated[Optional[models.User], Depends(deps.get_optional_current_user)]
 NeuralServiceDep = Annotated[NeuralCoreService, Depends(get_neural_core_service)]
+CacheDep = Annotated[IAsyncCacheClient, Depends(get_cache_from_request)]
+
+# -----------------------------------------------------------------------------
+# Abuse Control (CWE-770): fixed-window per-client rate limiting.
+# Mirrors the websocket chat policy (fail-open on cache failure).
+# -----------------------------------------------------------------------------
+RATE_LIMIT_WINDOW_SEC = 60
+RATE_LIMIT_MAX_MESSAGES = 30
+
+
+async def check_support_rate_limit(client_key: str, cache: IAsyncCacheClient) -> bool:
+    """Fixed-window counter. Returns True if allowed, False if the client
+    exceeded RATE_LIMIT_MAX_MESSAGES inside RATE_LIMIT_WINDOW_SEC.
+    Fails open when the cache is unavailable (same policy as the chat socket)."""
+    key = f"support_ratelimit:{client_key}"
+    try:
+        current_count = await cache.incr(key)
+        if current_count == 1:
+            await cache.expire(key, RATE_LIMIT_WINDOW_SEC)
+        if current_count > RATE_LIMIT_MAX_MESSAGES:
+            logger.warning("support_chat.rate_limited", extra={"client_key": client_key})
+            return False
+        return True
+    except Exception as exc:
+        logger.warning("support_chat.rate_limit_fail_open", extra={"error": str(exc)})
+        return True
 
 # -----------------------------------------------------------------------------
 # Data Transfer Objects (DTO) / Schemas
@@ -75,13 +102,22 @@ async def handle_support_chat(
     db: DBSessionDep,
     current_user: CurrentUserOptionalDep,
     neural_service: NeuralServiceDep,
+    cache: CacheDep,
 ) -> NeuralCoreResponse:
-    
+
     # 1. Context Extraction & Telemetry
     # Extract distributed tracing/correlation ID from middleware or generate a localized one.
     correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
     user_id = current_user.id if current_user else None
-    
+
+    # 1b. Abuse control: rate-limit per authenticated user, else per session.
+    client_key = f"user:{user_id}" if user_id is not None else f"session:{payload.session_id}"
+    if not await check_support_rate_limit(client_key, cache):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please slow down and try again shortly.",
+        )
+
     # Cleanse inputs at the boundary
     clean_message = payload.message.strip()
     
@@ -141,3 +177,4 @@ async def handle_support_chat(
                 "fault_domain": error_type,
             }
         )
+
