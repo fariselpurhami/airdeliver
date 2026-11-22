@@ -13,12 +13,12 @@ import random
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 _PRICE_CLEAN_RE = re.compile(r"[^\d.]+")
 from enum import Enum
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Protocol, Sequence, Set, Tuple, Union, Annotated
+from typing import Any, Dict, Final, Iterable, List, Mapping, Optional, Protocol, Sequence, Set, Tuple, Union, Annotated
 from sentence_transformers import util
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -820,6 +820,14 @@ def _safe_product_get(product: Any, field: str, default: Any = "") -> Any:
     if isinstance(product, Mapping):
         return product.get(field, default) or default
     return getattr(product, field, default) or default
+
+
+def _safe_product_dump(product: Any) -> Dict[str, Any]:
+    """Serialize a product-like object for UI payloads (carousel cards).
+
+    Called by the text-command add-to-cart flow; delegates to the shared
+    ProductAccess normalizer."""
+    return ProductAccess.dump(product)
 
 def _sanitize_free_text(value: str) -> str:
     text = str(value or "").strip().lower()
@@ -5503,3 +5511,4 @@ def build_ai_nlu_service(
         llm_service=llm_service,
         behavior_engine=behavior_engine,
     )
+
