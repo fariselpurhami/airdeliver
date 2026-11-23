@@ -1,9 +1,9 @@
 # apps/api/app/api/v1/endpoints/notifications.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query, Response
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, update
-from typing import Any, List
+from sqlmodel import select, update, func
+from typing import Any, List, Annotated
 from app.db.session import get_async_session
 from app.api import deps
 from app.models.user import User
@@ -71,6 +71,21 @@ async def get_notifications(
         response_notifications.append(notif_read)
 
     return response_notifications
+
+
+@router.get('/history')
+async def notification_history(
+    response: Response,
+    page: Annotated[int,Query(ge=1,le=1000000)]=1,
+    limit: Annotated[int,Query(ge=1,le=100)]=20,
+    session: AsyncSession=Depends(get_async_session),
+    current_user: User=Depends(deps.get_current_active_user),
+):
+    response.headers['Cache-Control']='no-store'
+    total=(await session.execute(select(func.count(Notification.id)).where(Notification.user_id==current_user.id))).scalar_one()
+    rows=(await session.execute(select(Notification).where(Notification.user_id==current_user.id)
+        .order_by(Notification.created_at.desc(),Notification.id.desc()).offset((page-1)*limit).limit(limit))).scalars().all()
+    return {'items':[serialize_notification(row) for row in rows],'total':total,'page':page,'limit':limit}
 
 
 @router.post("/{id}/read", response_model=NotificationRead)
