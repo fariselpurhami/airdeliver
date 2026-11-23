@@ -319,3 +319,12 @@ def test_cart_http_invalid_mutation_id_rejected_before_service(client,path):
     c,cart,_,_=client
     result=c.post('/api/v1/ai-ordering/cart/'+path,json={'product_id':7},headers={'Idempotency-Key':'invalid'})
     assert result.status_code==422 and cart.calls==[]
+
+@pytest.mark.parametrize('outcome,code',[('cancelled',200),('not_found',404),('order_required',400),('requires_review',409),('provider_reconciliation_required',409),('unconfirmed',503)])
+def test_cancel_explicit_service_outcome_not_generic_acceptance(client,outcome,code):
+    from unittest.mock import AsyncMock
+    c,_,checkout,_=client
+    checkout.handle_cancel_order=AsyncMock(return_value={'status':outcome})
+    response=c.post('/api/v1/ai-ordering/checkout/cancel',json={'order_id':42})
+    assert response.status_code==code and response.json()['status']==outcome
+    assert response.headers['cache-control']=='no-store'

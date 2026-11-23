@@ -1,6 +1,7 @@
 // ============================================================================
 // FILE: apps/web/app/(main)/page.tsx
 // ============================================================================
+import { randomId } from '@/lib/random-id';
 import React, { Suspense, experimental_taintUniqueValue } from 'react';
 import { headers } from 'next/headers';
 import { LandingClient } from './_components/LandingClient';
@@ -39,7 +40,7 @@ async function DynamicLandingBoundary() {
   // Next.js 15 headers() returns a Promise and MUST be awaited
   const reqHeaders = await headers();
   const cspNonce = reqHeaders.get('x-nonce') ?? '';
-  const traceId = reqHeaders.get('x-trace-id') ?? crypto.randomUUID();
+  const traceId = reqHeaders.get('x-trace-id') ?? randomId();
 
   // Data Access Layer (DAL) Taint Protection
   const internalServerToken = process.env.INTERNAL_ROUTING_TOKEN ?? 'sealed-vault-token';

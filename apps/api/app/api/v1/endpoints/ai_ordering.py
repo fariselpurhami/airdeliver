@@ -119,7 +119,7 @@ class ConfirmOrderRequest(BaseModel):
 
 
 class CancelOrderRequest(BaseModel):
-    order_id: Optional[int] = None
+    order_id: Optional[int] = Field(default=None,gt=0,le=2147483647,strict=True)
 
 
 async def get_ai_cart_service(
@@ -404,11 +404,17 @@ async def cancel_order(
     current_user: models.User = Depends(deps.get_current_active_user),
     checkout_service: AICheckoutService = Depends(get_ai_checkout_service),
 ):
-    await checkout_service.handle_cancel_order({
+    result = await checkout_service.handle_cancel_order({
         "user_id": current_user.id,
         "order_id": payload.order_id,
     })
-    return {"status": "accepted"}
+    # Preserve202 compatibility for older service adapters, never label a
+    # known refusal as accepted. All current service outcomes are explicit.
+    if result is None:
+        return {"status":"accepted"}
+    code={"cancelled":200,"not_found":404,"order_required":400,"invalid_request":422,
+          "requires_review":409,"provider_reconciliation_required":409,"unconfirmed":503}[result["status"]]
+    return Response(content=json.dumps(result),status_code=code,media_type="application/json",headers={"Cache-Control":"no-store"})
 
 
 # --- 🔌 SECTION 2: THE WEBSOCKET HANDLER ---

@@ -1,3 +1,4 @@
+import { randomId } from '@/lib/random-id';
 import { jwtDecode } from 'jwt-decode';
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -9,7 +10,8 @@ function canonical(value: unknown): unknown {
 
 const PREFIX = 'airdeliver.checkout.request.v1.';
 async function hash(value: string): Promise<string> {
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  if (!globalThis.crypto?.subtle?.digest) throw new Error('Checkout needs a secure browser connection. Open localhost on your computer or use HTTPS. No payment request was sent.');
+  const bytes = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -23,7 +25,7 @@ export async function getCheckoutRequestKey(token: string, details: Record<strin
   const acquire = () => {
     const current = storage.getItem(name);
     if (current && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(current)) return current;
-    const key = crypto.randomUUID();
+    const key = randomId();
     storage.setItem(name, key);
     return key;
   };

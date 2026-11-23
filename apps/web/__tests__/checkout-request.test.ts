@@ -36,3 +36,9 @@ it('retires only a server-confirmed paid checkout key',async()=>{
   expect(await getCheckoutRequestKey(token('another'),{},cart)).toBe(other);
   expect(await getCheckoutRequestKey(token('buyer'),{},cart)).not.toBe(paid);
 });
+it('fails closed with a useful message when secure digest is unavailable on HTTP LAN',async()=>{
+ Object.defineProperty(globalThis,'crypto',{value:{getRandomValues:webcrypto.getRandomValues.bind(webcrypto)},configurable:true});
+ await expect(getCheckoutRequestKey(token('buyer'),{},cart)).rejects.toThrow('Checkout needs a secure browser connection');
+ expect(localStorage.length).toBe(0);
+ Object.defineProperty(globalThis,'crypto',{value:webcrypto,configurable:true});
+});

@@ -292,3 +292,23 @@ describe('reviewed action safety',()=>{
   expect(useAIOrderingStore.getState().messages.at(-1)?.action).toEqual(action);
  });
 });
+
+describe('specific cancellation outcome',()=>{
+ it('keeps payment context and cart on unconfirmed cancellation',async()=>{
+  const details={orderId:7} as any;
+  useAIOrderingStore.setState({authToken:'fixture',paymentDetails:details,recoveryOrderDetails:details,recoveryMode:true});
+  global.fetch=jest.fn<typeof fetch>().mockResolvedValue({ok:false,json:async()=>({status:'provider_reconciliation_required'})} as Response);
+  await useAIOrderingStore.getState().hardCancelOrder('changed_mind');
+  expect(useAIOrderingStore.getState().paymentDetails).toEqual(details);
+  expect(useAIOrderingStore.getState().recoveryMode).toBe(true);
+  expect(useAIOrderingStore.getState().messages.at(-1)?.content).toContain('not confirmed');
+ });
+ it('clears payment context only after explicit cancellation response',async()=>{
+  const details={orderId:7} as any;
+  useAIOrderingStore.setState({authToken:'fixture',paymentDetails:details,recoveryOrderDetails:details,recoveryMode:true});
+  global.fetch=jest.fn<typeof fetch>().mockResolvedValue({ok:true,json:async()=>({status:'cancelled',order_id:7})} as Response);
+  await useAIOrderingStore.getState().hardCancelOrder('changed_mind');
+  expect(useAIOrderingStore.getState().paymentDetails).toBeNull();
+  expect(JSON.parse(String(jest.mocked(fetch).mock.calls[0]?.[1]?.body))).toEqual({order_id:7});
+ });
+});

@@ -3,6 +3,7 @@
 // ============================================================================
 'use client';
 
+import { randomId } from '@/lib/random-id';
 import Image from "next/image";
 import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
 import Link from 'next/link';
@@ -1012,13 +1013,13 @@ export function LandingClient({ nonce, initialTraceId }: LandingClientProps) {
   }
 
   const handleOrderClick = () => {
-    const actionTraceId = crypto.randomUUID();
+    const actionTraceId = randomId();
     dispatch({ type: 'OPEN_AI_CART', payload: { traceId: actionTraceId } });
     setOverlayVisible(true);
   };
 
   const handleExploreClick = () => {
-    const actionTraceId = crypto.randomUUID();
+    const actionTraceId = randomId();
     dispatch({ type: 'OPEN_PRODUCTS', payload: { traceId: actionTraceId } });
     showProductOverlay();
   };

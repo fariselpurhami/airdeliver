@@ -1,5 +1,6 @@
 // apps/web/app/layout.tsx
 
+import { randomId } from '@/lib/random-id';
 import type { Metadata, Viewport } from 'next';
 import { Inter, Orbitron, Montserrat } from 'next/font/google';
 import { headers } from 'next/headers';
@@ -102,7 +103,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   
   // Extract edge-injected security and telemetry identifiers
   const nonce = headersList.get('x-nonce') ?? undefined;
-  const traceId = headersList.get('x-trace-id') ?? crypto.randomUUID();
+  const traceId = headersList.get('x-trace-id') ?? randomId();
 
   return (
     <html
