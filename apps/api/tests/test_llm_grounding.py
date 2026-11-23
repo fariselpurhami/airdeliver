@@ -117,3 +117,13 @@ async def test_valid_selected_ids_do_not_allow_reasoning_for_unselected_or_inven
     result=await svc.filter_and_recommend('phone',_products())
     assert result.selected_ids==[1]
     assert result.reasoning=={'1':'Listed selection'}
+
+
+@pytest.mark.parametrize('value',['NaN','Infinity','-Infinity',float('inf')])
+def test_catalog_numeric_sanitization_never_emits_nonfinite_json_numbers(value):
+    from app.services.free_llm_service import _sanitize_product
+    import math
+    product=_sanitize_product({'id':float('inf'),'name':'Corrupt numeric row','price':value,'rating':value})
+    assert product['id']==0
+    assert math.isfinite(product['price']) and math.isfinite(product['rating'])
+    json.dumps(product,allow_nan=False)
