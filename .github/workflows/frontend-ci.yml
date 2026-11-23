@@ -54,3 +54,13 @@ jobs:
         env:
           AUTH_SECRET: ci-build-dummy-secret-not-used-at-runtime
         run: pnpm --filter airdeliver/apps/web build
+
+      - name: Verify standalone Docker-context lock and install
+        run: |
+          standalone=$(mktemp -d)
+          cp -a apps/web/. "$standalone/"
+          cd "$standalone"
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm exec tsc --noEmit
+          pnpm exec jest --coverage=false --runInBand
+          AUTH_SECRET=ci-build-dummy-secret-not-runtime pnpm build
