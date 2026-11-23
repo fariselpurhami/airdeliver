@@ -92,6 +92,7 @@ def make_bounded_service(ledger):
     original = service._chat_completion
     service.acceptance_raw = None
     service.acceptance_error = None
+    service.acceptance_error_metadata = None
 
     async def capped(**kwargs):
         if kwargs.get('model') != MODEL:
@@ -103,6 +104,8 @@ def make_bounded_service(ledger):
             service.acceptance_raw = result
             return result
         except Exception as exc:
+            from scripts.groq_error_metadata import safe_error_metadata
+            service.acceptance_error_metadata = safe_error_metadata(exc)
             service.acceptance_error = type(exc).__name__
             raise
     service._chat_completion = capped

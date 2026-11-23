@@ -57,6 +57,7 @@ async def completion_once(ledger,service,context):
     result=await service.filter_and_recommend(QUESTION,context)
     if service.acceptance_error:
         ledger.record({'leg':'completion5','stopped':True,'error_class':service.acceptance_error,
+                       'error_metadata':getattr(service,'acceptance_error_metadata',None),
                        'calls_reserved_total':ledger.state['calls_reserved_total'],'requests_remaining':3})
         return
     raw=service.acceptance_raw
