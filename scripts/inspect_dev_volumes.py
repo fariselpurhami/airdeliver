@@ -33,7 +33,8 @@ def inspect():
         print(json.dumps({'name':name,'driver':v.get('Driver'),'labels':v.get('Labels'),
                           'container_references':refs},ensure_ascii=False))
     print('\nDOCKER REPORTED PER-VOLUME SIZE/REFCOUNT TABLE')
-    print(read(['docker','system','df','-v']))
+    usage=read(['docker','system','df','-v'])
+    print(usage if usage.strip() else 'UNAVAILABLE: Docker returned no size table. Sizes remain unknown, not zero.')
 
 
 if __name__=='__main__':inspect()
