@@ -296,6 +296,8 @@ def register_routes(app: FastAPI, settings: CoreSettings) -> None:
 
 
 async def startup_resources(app: FastAPI, settings: CoreSettings) -> ApplicationResources:
+    from app.core.router_config import log_router_configuration
+    log_router_configuration()
     cache_client = await initialize_cache_client(settings)
     rabbitmq = await get_rabbitmq_service(settings)
 

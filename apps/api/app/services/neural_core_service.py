@@ -12,6 +12,7 @@ from uuid import uuid4
 from typing import Any, Dict, Final, List, Literal, Optional
 
 from fastapi import Depends
+from app.core.router_config import log_router_configuration
 from app.core.ai_profile import get_ai_profile
 from app.services.ai_adapters import GroqAdapter
 from groq import AsyncGroq
@@ -164,16 +165,19 @@ class NeuralCoreService:
         self.cache = cache
         
         api_key = os.getenv("GROQ_API_KEY")
-        self.is_healthy = bool(api_key)
+        router_config = log_router_configuration()
+        self.configuration_error = router_config is None
+        self.is_healthy = bool(api_key) and not self.configuration_error
         
-        self.profile = get_ai_profile()
+        self.profile = get_ai_profile() if router_config else None
         self.client: Optional[AsyncGroq] = GroqAdapter(self.profile, AsyncGroq).create_client(
             api_key=api_key,
-            timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC
+            timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,
+            base_url=router_config.base_url,
         ) if self.is_healthy else None
 
-        if not self.is_healthy:
-            logger.critical("neural_core.init.failed", extra={"reason": "Missing GROQ_API_KEY"})
+        if not api_key:
+            logger.critical("neural_core.init.failed reason=missing_api_key")
 
     # --- MEMORY MANAGEMENT ---------------------------------------------------
 
@@ -238,6 +242,8 @@ class NeuralCoreService:
         Derives intent deterministically. Falls back to SOCIAL_CHAT under catastrophic failure
         to maintain user engagement rather than dropping the connection.
         """
+        if getattr(self, "configuration_error", False):
+            return RouterDecision(intent="SOCIAL_CHAT", social_reply="Chat assistance has a configuration problem. Please use the catalog or support page while it is corrected.")
         if not self.is_healthy:
             return RouterDecision(intent="SOCIAL_CHAT", social_reply="Chat assistance is not configured right now. Please use the catalog or support page.")
 
@@ -272,7 +278,9 @@ class NeuralCoreService:
             _log_inference_failure("neural_core.router.schema_violation", exc)
         except Exception as exc:
             _log_inference_failure("neural_core.router.inference_failure", exc)
-            
+            if _safe_inference_failure(exc)["status_code"] == 404:
+                return RouterDecision(intent="SOCIAL_CHAT", social_reply="Chat assistance has a model or endpoint configuration problem. Please use the catalog or support page while it is corrected.")
+
         return RouterDecision(
             intent="SOCIAL_CHAT", 
             social_reply="Chat assistance is temporarily unavailable. Please try again or use the catalog or support page."

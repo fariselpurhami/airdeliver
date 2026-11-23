@@ -21,7 +21,7 @@ class AIProfile:
     text_provider: str = 'groq'
     brain_model: str = 'openai/gpt-oss-120b'
     reflex_model: str = 'openai/gpt-oss-20b'
-    support_model: str = 'llama-3.3-70b-versatile'
+    support_model: str = 'openai/gpt-oss-120b'
     vision_provider: str = 'groq'
     vision_model: str = 'qwen/qwen3.8-27b'
     text_retrieval_provider: str = 'local_sentence_transformer'
@@ -67,5 +67,5 @@ def get_ai_profile(environ: Mapping[str,str] | None = None) -> AIProfile:
     return AIProfile(name=name,
         brain_model=env.get('GROQ_BRAIN_MODEL','openai/gpt-oss-120b'),
         reflex_model=env.get('GROQ_MODEL','openai/gpt-oss-20b'),
-        support_model=env.get('GROQ_SUPPORT_MODEL','llama-3.3-70b-versatile'),
+        support_model=env.get('GROQ_SUPPORT_MODEL','openai/gpt-oss-120b'),
         vision_model=env.get('GROQ_VISION_MODEL','qwen/qwen3.8-27b'))
