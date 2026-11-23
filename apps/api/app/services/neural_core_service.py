@@ -624,15 +624,13 @@ class NeuralCoreService:
             response.enrich_telemetry(turn=turn_count)
             memory.append_turn(message or "[image upload]", response.text, max_turns=NeuralCoreConfig.MAX_CONTEXT_TURNS)
             await self._persist_session(session_id, memory)
-            logger.info("neural_core.request_completed", extra={"intent": "VISUAL_SEARCH"})
+            logger.info("neural_core.request_completed intent=VISUAL_SEARCH")
             return response
 
         decision = await self._analyze_intent(message, memory)
         
-        logger.info(
-            "neural_core.request_routed", 
-            extra={"intent": decision.intent}
-        )
+        logger.info("neural_core.request_routed intent=%s targets=%d task=%s",
+                    decision.intent,len(decision.targets),decision.shopping_task)
 
         customer_context="\n".join([m.content for m in memory.history if m.role=="user"]+[message])
         incoming=decision.brief.grounded(customer_context)
@@ -691,7 +689,7 @@ class NeuralCoreService:
         await self._persist_session(session_id, memory)
         
         elapsed_ms = round((time.monotonic() - start_time) * 1000, 2)
-        logger.info("neural_core.request_completed", extra={"intent": decision.intent, "latency_ms": elapsed_ms})
+        logger.info("neural_core.request_completed intent=%s latency_ms=%s",decision.intent,elapsed_ms)
         
         return response
 

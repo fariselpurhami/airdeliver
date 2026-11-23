@@ -9,6 +9,7 @@ import base64
 import hashlib
 import json
 import logging
+import sys
 import random
 import re
 import time
@@ -1131,7 +1132,28 @@ class ProductAccess:
 
 class StructuredLog:
     @staticmethod
-    def _emit(
+    def _emit(level: int, event: str, *, stacklevel: int = 3,
+              exc_info: bool = False, **fields: Any) -> None:
+        """Operational metadata only, never customer/model/catalog prose."""
+        safe={}
+        numeric={'user_id','ttl_seconds','elapsed_ms','latency_ms','product_count',
+                 'candidate_count','skipped_count','query_len','timeout','timeout_sec',
+                 'timeout_seconds','web_search_timeout_seconds','llm_timeout_seconds','removed_pid'}
+        booleans={'has_products','has_text','has_image'}
+        labels={'stage','error_type','intent_category','msg_type','response_type','row_type','origin'}
+        for key,value in fields.items():
+            if key in numeric and type(value) in (int,float) and math.isfinite(value):safe[key]=value
+            elif key in booleans and type(value) is bool:safe[key]=value
+            elif key in labels and isinstance(value,str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,79}',value):safe[key]=value
+            elif key=='correlation_id' and isinstance(value,str) and re.fullmatch(r'[A-Za-z0-9_-]{1,128}',value):safe[key]=value
+        if exc_info and sys.exc_info()[0] is not None:
+            safe['exception_type']=sys.exc_info()[0].__name__
+        if not event or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.]{0,127}',event):
+            event='commerce_diagnostic'
+        logger.log(level,'%s | %s',event,SafeJson.dumps(safe),stacklevel=stacklevel)
+
+    @staticmethod
+    def _legacy_emit(
         level: int,
         event: str,
         *,
