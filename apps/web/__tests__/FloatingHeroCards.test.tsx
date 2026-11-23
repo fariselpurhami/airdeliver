@@ -7,9 +7,16 @@ it('renders one shared six-card layout with a protected center',()=>{
  const {container}=render(<FloatingHeroCards/>);
  expect(container.querySelectorAll('[data-hero-card]')).toHaveLength(6);
  expect(HERO_STAGE_CLASSES).toContain('min-h-[1000px]');
- for(const file of ['app/(main)/products/page.tsx','app/(main)/_components/LandingClient.tsx','components/home/MobileLandingView.tsx']){
+ for(const file of ['app/(main)/products/page.tsx','app/(main)/_components/LandingClient.tsx']){
   const source=fs.readFileSync(file,'utf8');
   expect(source).toContain('<FloatingHeroCards />');
   expect(source).toContain('HERO_STAGE_CLASSES');
  }
+});
+
+it('preserves the original eight-card mobile home distribution',()=>{
+ const source=fs.readFileSync('app/(main)/_components/LandingClient.tsx','utf8');
+ expect(source).toContain('MobileHomeHeroSection');
+ expect(source).toContain('isMobile ? <MobileHomeHeroSection');
+ expect(source).toContain('HERO_CARDS.map');
 });
