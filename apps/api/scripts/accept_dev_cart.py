@@ -82,8 +82,10 @@ def make_bounded_service(ledger):
     async def approved_client():
         if service._client is None:
             from groq import AsyncGroq
+            import httpx
             service._client = AsyncGroq(api_key=service._groq_api_key, max_retries=0,
-                                       base_url=service.acceptance_endpoint)
+                                       base_url=service.acceptance_endpoint,
+                                       http_client=httpx.AsyncClient(trust_env=False))
         return service._client
     service._get_client = approved_client
     service.limits = replace(service.limits, retries=0, max_products_for_context=4)
@@ -147,6 +149,7 @@ async def run(ledger):
                 db.add(user); await db.commit(); await db.refresh(user)
                 user_id = user.id
                 ledger.state['test_user_id'] = user_id; ledger.save()
+                ledger.record({'test_user_created': True, 'scope': 'dedicated dev user; no usable password or printed token'})
                 # Ephemeral token is kept only in memory, never printed/saved.
                 token = create_access_token(data={'sub': user.email, 'role': 'user'},
                                             expires_delta=timedelta(minutes=10))
@@ -159,6 +162,7 @@ async def run(ledger):
             await pubsub.subscribe(f'airdeliver:response:{user_id}')
             try:
                 for action in ('add', 'remove'):
+                    ledger.record({'leg': 'real_cart', 'action': action, 'state': 'starting; awaiting worker carousel up to 45s'})
                     response = await client.post('/api/v1/ai-ordering/cart/' + action,
                         json={'product_id': anchor, **({'quantity': 1} if action == 'add' else {})},
                         headers={'Idempotency-Key': str(uuid4())})
@@ -201,6 +205,7 @@ async def run(ledger):
             ]
             for index, query in enumerate(queries, 1):
                 service.acceptance_raw = None; service.acceptance_error = None
+                ledger.record({'leg': 'groq', 'case': index, 'state': 'starting', 'max_output_tokens': MAX_OUTPUT_TOKENS})
                 result = await service.filter_and_recommend(query, context)
                 if service.acceptance_error:
                     ledger.record({'leg': 'groq', 'case': index, 'stopped_error': service.acceptance_error,
