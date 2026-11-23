@@ -46,6 +46,16 @@ class CoreSettings(BaseAppConfig):
     LOG_FORMAT: Literal["json", "text"] = "json"
     APP_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     CUSTOMER_MEMORY_ENABLED: bool = False
+    PASSWORD_RESET_ENABLED: bool = False
+    PASSWORD_RESET_WEB_ORIGIN: Optional[str] = None
+    PASSWORD_RESET_TTL_MINUTES: int = Field(20, ge=5, le=60)
+    RESET_SMTP_HOST: Optional[str] = None
+    RESET_SMTP_PORT: int = Field(465, ge=1, le=65535)
+    RESET_SMTP_STARTTLS: bool = False
+    RESET_SMTP_USERNAME: Optional[str] = None
+    RESET_SMTP_PASSWORD: Optional[SecretStr] = None
+    RESET_EMAIL_FROM: Optional[str] = None
+
     API_V1_STR: str = "/api/v1"
     API_BASE_URL: AnyHttpUrl = Field(..., alias="API_BASE_URL")
     

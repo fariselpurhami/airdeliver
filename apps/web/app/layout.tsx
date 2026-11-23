@@ -102,6 +102,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   
   // Extract edge-injected security and telemetry identifiers
   const nonce = headersList.get('x-nonce') ?? undefined;
+  const isRecoveryPage = headersList.get('x-airdeliver-recovery-page') === '1';
   const traceId = headersList.get('x-trace-id') ?? crypto.randomUUID();
 
   return (
@@ -134,8 +135,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
         </Providers>
 
         {/* @vercel/analytics does not accept a CSP nonce in this version */}
-        <Analytics />
-        <SpeedInsights />
+        {!isRecoveryPage && <><Analytics /><SpeedInsights /></>}
       </body>
     </html>
   );

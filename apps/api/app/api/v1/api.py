@@ -28,3 +28,6 @@ api_router.include_router(orders.router, prefix="/orders", tags=["Orders"])
 
 from .endpoints import customer_memory
 api_router.include_router(customer_memory.router, prefix="/users/me", tags=["Customer Memory"])
+
+from .endpoints import password_reset
+api_router.include_router(password_reset.router, prefix='/auth', tags=['Authentication'])

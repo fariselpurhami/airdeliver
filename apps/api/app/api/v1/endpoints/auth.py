@@ -67,13 +67,13 @@ async def login_for_access_token(
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     user_role = getattr(user, "role", "user")
     access_token = security.create_access_token(
-        data={"sub": user.email, "role": user_role},
+        data={"sub": user.email, "role": user_role, "ver": user.auth_version},
         expires_delta=access_token_expires,
     )
 
     refresh_token_expires = timedelta(minutes=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
     refresh_token = security.create_refresh_token(
-        data={"sub": user.email}, expires_delta=refresh_token_expires
+        data={"sub": user.email, "ver": user.auth_version}, expires_delta=refresh_token_expires
     )
 
     response.set_cookie(
@@ -118,8 +118,8 @@ async def refresh_access_token(
 
     user = (
         await db.execute(select(models.User).where(models.User.email == user_email))
-    ).first()
-    if not user:
+    ).scalars().first()
+    if not user or not user.is_active or payload.get("ver", 0) != user.auth_version:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive",
@@ -129,7 +129,7 @@ async def refresh_access_token(
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     user_role = getattr(user, "role", "user")
     new_access_token = security.create_access_token(
-        data={"sub": user.email, "role": user_role},
+        data={"sub": user.email, "role": user_role, "ver": user.auth_version},
         expires_delta=access_token_expires,
     )
 

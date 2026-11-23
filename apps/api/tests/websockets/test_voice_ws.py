@@ -10,6 +10,7 @@ Locks in the contract the frontend relies on:
 """
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -60,7 +61,7 @@ def harness(monkeypatch):
     captured = {}
 
     async def _fake_session():
-        yield object()
+        yield SimpleNamespace(get=AsyncMock(return_value=SimpleNamespace(id=42,is_active=True,auth_version=0)))
 
     class _StubOrchestrator:
         def __init__(self, **kwargs):

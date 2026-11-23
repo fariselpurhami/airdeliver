@@ -22,6 +22,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     full_name: Optional[str] = Field(default=None, index=True) # Indexed for admin search
     email: EmailStr = Field(unique=True, index=True)
+    auth_version: int = Field(default=0)
     hashed_password: str
     is_active: bool = Field(default=True)
     is_verified: bool = Field(default=False) # Security Standard

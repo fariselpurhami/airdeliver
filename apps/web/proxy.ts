@@ -7,6 +7,8 @@ import { auth } from '@/auth'; // استيراد الدالة القياسية �
 const PUBLIC_EXACT_ROUTES = new Set([
   '/',
   '/login',
+  '/forgot-password',
+  '/reset-password',
   '/register',
   '/about',
   '/help',
@@ -78,7 +80,16 @@ export async function proxy(req: NextRequest) {
   const isPublic = isPublicRoute(pathname);
 
   if (isPublic) {
-    return applySecurityHeaders(NextResponse.next());
+    const recovery = pathname === '/forgot-password' || pathname === '/reset-password';
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-airdeliver-recovery-page', recovery ? '1' : '0');
+    const response = applySecurityHeaders(NextResponse.next({request:{headers:requestHeaders}}));
+    if (recovery) {
+      response.headers.set('Referrer-Policy', 'no-referrer');
+      response.headers.set('Cache-Control', 'no-store');
+      response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    }
+    return response;
   }
 
   try {
@@ -86,7 +97,7 @@ export async function proxy(req: NextRequest) {
     const session = await auth();
 
     // إذا لم تكن هناك جلسة صالحة، قم بالتوجيه لصفحة الدخول
-    if (!session || !session.user) {
+    if (!session || !session.user || session.error || !session.accessToken) {
       console.log("🚨 MIDDLEWARE BLOCKED: Unauthorized or no session found!");
       return createLoginRedirect(req, pathname);
     }
