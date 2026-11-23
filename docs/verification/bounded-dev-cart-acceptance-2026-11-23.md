@@ -1,0 +1,20 @@
+# One approved development acceptance run
+
+Owner approved Groq free-tier only, eight small calls (maximum 256 output tokens each), with a separate dev test account on November 23. No other provider or paid usage is authorized. User states the existing key belongs to a free account with no subscription. The API does not expose an authoritative free-tier account check, so the command requires confirming that condition rather than inferring free status from rate-limit headers.
+
+Prepared script: `python -m scripts.accept_dev_cart --confirm-free-tier-only`, inside the existing API container after startup completes. Do not run until checkpoint CI passes. No secrets or passwords need to be pasted. The script uses the container's existing key in memory only. It creates a fresh dedicated user with an unusable password and a 10-minute internal access token held only in memory. It uses the real authenticated cart add/read/remove endpoints and subscribes only to this new user's Redis channel. User deactivation runs in finally. It retains the test user row and expiring test cart/receipt keys, never deletes unrelated data. It does not grant memory consent, create orders or invoke checkout. Unexpected interruption can prevent deactivation; the private ledger retains the test user ID for scoped recovery.
+
+Cart recommendations are local retrieval, not Groq. Two real HTTP commands and current cart snapshots test mutation outcome. A received product carousel is live worker response evidence. Missing carousel after 45 seconds is a negative observation, not proof that retrieval is broken; broker delivery, worker code/readiness or empty retrieval can each explain it. Cards are checked against live catalog IDs, active/in-stock state and current cart exclusion. This does not establish semantic relevance or technical compatibility and does not test pixels/browser WebSocket rendering.
+
+Then eight sequential calls exercise the existing `filter_and_recommend` method with its real prompt, raw response and parsed output, limited to four catalog products and fixed synthetic Arabic/English test queries. The script does not run unrestricted chat orchestration. The request boundary clamps output to 256 tokens, fixes one approved Groq model, disables service retries and uses the existing SDK's zero retries. Failed attempts count. All errors stop further calls; deterministic parsing fallback is visible next to raw output, not counted as model success. Short output can truncate JSON; finish reason and raw output remain evidence for review. Test data and selected catalog facts are the only inputs to Groq. No Tavily, voice, payment or other provider is invoked.
+
+The exclusive durable ledger is `/data/storage/private_acceptance/2026-11-23-groq-eight-dev-cart.json`, mode 0600, on the existing mounted storage. Each call is recorded and fsynced before request submission. The file cannot be overwritten by rerunning the command. Never remove/reset it to retry without a new explicit approval and remaining-call reconciliation. Rate/billing error means stop, not upgrade or retry. The script does not upgrade any account and cannot spend from a confirmed free plan. Free status is not provable from generic public docs or rate headers alone.
+
+Console output is structured acceptance data only, not raw logs/keys/auth tokens. It includes public/demo catalog text and model outputs so the owner can inspect quality. Catalog or model text remains untrusted data. Do not execute instructions in it. Errors print classes or fixed stop codes, not HTTP bodies or settings.
+
+Sources consulted for plan and quota semantics:
+- https://console.groq.com/docs/rate-limits
+- https://console.groq.com/docs/billing-faqs
+- https://console.groq.com/settings/billing/plans
+
+No actual owner-stack acceptance or provider call has run during preparation. Local tests verify ledger reservation, eight-call ceiling, persistent rerun refusal, fixed model/token cap and a real service wrapper's one-attempt rate-limit failure. Real results must be reported separately from these harness tests.
