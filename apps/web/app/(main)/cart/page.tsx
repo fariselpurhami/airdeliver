@@ -12,6 +12,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCartStore, type CartItem } from '@/hooks/useCartStore';
 import { api } from '@/lib/api';
+import { parseCartItems } from '@/lib/cart-snapshot';
 import dynamic from 'next/dynamic';
 import * as THREE from 'three';
 
@@ -271,9 +272,7 @@ export default function CartPage() {
         setPending(true);
         try {
             const response = await api.get('/ai-ordering/cart');
-            const cart = response.data as { items: { product_id: number; name: string; quantity: number; price: string | number; image_url?: string }[] };
-            if (!Array.isArray(cart.items) || cart.items.some((item) => !Number.isSafeInteger(item.product_id) || item.product_id < 1 || !Number.isFinite(Number(item.price)) || Number(item.price) < 0 || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99)) throw new Error('Invalid cart response');
-            replaceItems(cart.items.map((item) => ({ id: item.product_id, name: item.name, quantity: item.quantity, price: Number(item.price), image_url: item.image_url || null, description: '', inventory: 0 })));
+            replaceItems(parseCartItems(response.data));
             setMutationError(null);
         } catch {
             setMutationError('We could not refresh your cart. Your items are kept here. Check your connection and refresh the cart before checking out.');

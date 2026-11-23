@@ -17,3 +17,10 @@ it('preserves legacy flow until revisioned state is seen, then blocks unordered 
 it.each([-1,1.5,'2',null,Number.MAX_SAFE_INTEGER+1])('rejects malformed revision %s',revision=>{
  preview(revision);expect(useCartStore.getState().items).toEqual([]);
 });
+it('malformed high revision cannot poison the ordering floor or erase items',()=>{
+ preview(1,1);
+ useAIOrderingStore.getState().addSocketAIMessage({type:'cart_preview',content:{revision:999,items:[{product_id:7,name:'Shoes',quantity:1,price:null}]}});
+ expect(useAIOrderingStore.getState().cartRevision).toBe(1);
+ expect(useCartStore.getState().items[0]?.id).toBe(1);
+ preview(2,2);expect(useCartStore.getState().items[0]?.id).toBe(2);
+});

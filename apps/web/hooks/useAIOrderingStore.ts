@@ -2,6 +2,9 @@
 
 'use client';
 
+import { parseCartItems } from '@/lib/cart-snapshot';
+
+
 import { create } from 'zustand';
 import { produce } from 'immer';
 import { useCartStore } from './useCartStore';
@@ -547,7 +550,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       if (response.type === 'cart_preview') {
         const cartContent = response.content as Record<string, unknown>;
         const incomingRevision = cartContent?.revision;
-        if (!Array.isArray(cartContent?.items)) return;
+        let validatedItems;
+        try { validatedItems = parseCartItems(cartContent); } catch { return; }
         if (incomingRevision !== undefined) {
           if (typeof incomingRevision !== 'number' || !Number.isSafeInteger(incomingRevision) || incomingRevision < 0) return;
           if (state.cartRevision !== null && incomingRevision <= state.cartRevision) return;
@@ -565,15 +569,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         
         if (Array.isArray(contentAsRecord?.items)) {
           // تحويل البيانات لتطابق هيكل useCartStore
-          const syncedItems = contentAsRecord.items.map((item: any) => ({
-              ...item,
-              id: item.product_id || item.id,
-              // Backend يرسل السعر كنص String لضمان الدقة المالية، لذا نحوله هنا إلى رقم[cite: 7]
-              price: Number(item.price) 
-          }));
-          
-          // حقن المنتجات في سلة الموقع الرئيسية المخزنة في localStorage
-          useCartStore.setState({ items: syncedItems });
+          useCartStore.setState({ items: validatedItems });
         }
 
         if (Array.isArray(contentAsRecord?.items) && contentAsRecord.items.length === 0) {
