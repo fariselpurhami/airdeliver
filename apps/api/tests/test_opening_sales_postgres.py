@@ -1,4 +1,5 @@
 """Opening model copy, actual NLU/SQL/Redis publication, no provider calls."""
+import asyncio
 import json
 import os
 from types import SimpleNamespace
@@ -8,7 +9,7 @@ import pytest
 from sqlalchemy import delete, update, text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.models.product import Product
-from app.services.ai_nlu_service import AINLUService, MatrixConfig
+from app.services.ai_nlu_service import AINLUService, MatrixConfig, RedisKeys
 from app.services.opening_sales_service import write_opening
 from tests.test_cart_persistence_outcomes import real_cache
 
@@ -27,6 +28,9 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
             db.add_all(rows);await db.commit();ids=[p.id for p in rows]
             for row in rows:await db.refresh(row)
         calls=[];published=[]
+        subscriber=cache.client.pubsub()
+        await subscriber.subscribe(RedisKeys.ui_channel(3))
+        await subscriber.get_message(timeout=1)
         async def infer(messages):
             data=json.loads(messages[1]['content']);calls.append(data)
             if mode=='offline':raise ConnectionError('controlled transport failure')
@@ -38,8 +42,6 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
                 insight='Consider the listed material in the card before deciding. Merchant availability is unverified.'
                 return json.dumps({'text':intro+(' ' if mode=='one_paragraph' else '\n\n')+insight,'product_ids':[],'claims':[]})
             return json.dumps(dict(supported=mode!='rejected',all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
-        async def capture(channel,payload):published.append(json.loads(payload))
-        cache.publish=capture
         async with sessions() as db:
             from app.services.free_llm_service import FreeLLMService
             llm=object.__new__(FreeLLMService);llm.__init__();llm.infer_sales_json=infer
@@ -49,6 +51,10 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
             svc._fetch_personal=AsyncMock(return_value=[] if mode=='empty' else rows)
             svc._fetch_bestsellers=AsyncMock(return_value=[]);svc._fetch_trending=AsyncMock(return_value=[]);svc._fetch_deals=AsyncMock(return_value=[])
             await svc._handle_initial_suggestions(3)
+            await asyncio.gather(*tuple(svc.tasks._tasks))
+        event=await subscriber.get_message(ignore_subscribe_messages=True, timeout=1)
+        if event is not None:published.append(json.loads(event["data"]))
+        await subscriber.aclose()
         if mode=='ok':
             assert len(published)==1 and published[0]['type']=='proactive_suggestion'
             assert published[0]['content']=='Explore the current local catalog selection.'
@@ -56,11 +62,25 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
             assert published[0]['products'][0]['price']=='20.00'
             assert calls[0]['request_evidence']['sales_intent']=='OPENING_INSIGHT'
             assert len(calls)==2
+            svc.freshness_repo.mark_products_as_seen.assert_awaited_once()
+            assert svc.freshness_repo.mark_products_as_seen.await_args.kwargs["product_ids"]==set(ids)
         else:
             assert not any(p.get('products') for p in published)
             assert published and published[0]['type'] in {'info','error'}
+            svc.freshness_repo.mark_products_as_seen.assert_not_awaited()
             if mode in {'demo','empty'}:assert calls==[]
     finally:
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_opening_strict_publication_propagates_real_redis_outage(real_cache):
+    from app.services.ai_nlu_service import UiGateway
+    cache,process=real_cache
+    service=object.__new__(AINLUService)
+    service.ui=UiGateway(cache)
+    process.terminate();await asyncio.to_thread(process.wait,3)
+    with pytest.raises(Exception):
+        await service._send_to_ui(3,{"type":"info","content":"test"},strict=True)

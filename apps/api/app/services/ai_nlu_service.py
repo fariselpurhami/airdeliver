@@ -1586,7 +1586,13 @@ class UiGateway:
     def __init__(self, cache: IAsyncCacheClient) -> None:
         self._cache = cache
 
+    async def publish_required(self, user_id: int, payload: Dict[str, Any], correlation_id: str) -> None:
+        await self._publish(user_id, payload, correlation_id, required=True)
+
     async def publish(self, user_id: int, payload: Dict[str, Any], correlation_id: str) -> None:
+        await self._publish(user_id, payload, correlation_id, required=False)
+
+    async def _publish(self, user_id: int, payload: Dict[str, Any], correlation_id: str, *, required: bool) -> None:
         channel = RedisKeys.ui_channel(user_id)
         envelope = dict(payload)
         envelope["meta"] = {
@@ -1596,7 +1602,10 @@ class UiGateway:
             "correlation_id": correlation_id,
         }
         message = SafeJson.dumps(envelope)
-        await self._cache.publish(channel, message)
+        if required:
+            await self._cache.publish_required(channel, message)
+        else:
+            await self._cache.publish(channel, message)
 
 
 class UserDnaStore:
@@ -2589,7 +2598,8 @@ class AINLUService:
     async def _send_to_ui(self, user_id: int, payload: Dict[str, Any], ctx: Optional[RequestContext] = None, *, strict: bool = False) -> None:
         try:
             correlation_id = ctx.correlation_id if ctx else f"ui-send-{user_id}-{int(time.time())}"
-            await self.ui.publish(user_id, payload, correlation_id)
+            publisher = getattr(self.ui, "publish_required", self.ui.publish) if strict else self.ui.publish
+            await publisher(user_id, payload, correlation_id)
         except Exception as exc:
             StructuredLog.error(
                 "ui_publish_failed",
@@ -3081,7 +3091,7 @@ class AINLUService:
                     session_newly_seen_ids.add(int(p_id))
 
         # 5. Concurrent UI Copy Generation (This preserves our 75% latency reduction)
-        async def _safe_generate_copy(row_type: str, products: List[ProductLike], fallback: str, reason: str) -> Tuple[str, str]:
+        async def _safe_generate_copy(row_type: str, products: List[ProductLike], fallback: str, reason: str) -> Optional[Tuple[str, str, List[Any]]]:
             if not products:
                 return None
             try:

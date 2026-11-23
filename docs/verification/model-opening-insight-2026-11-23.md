@@ -16,6 +16,6 @@ Each nonempty row uses up to two model calls, writer and reviewer, within a 12-s
 
 ## Verification
 
-Actual NLU opening entrypoint, FreeLLMService adapter, disposable PostgreSQL19 current rows, real Redis and UI publication tested. Cases: two-paragraph success, material evidence, price changing during generation, demo-only/empty rows, offline provider, review rejection and malformed one-paragraph output. Existing deadline/transport tests retained. Former editorial/lifestyle tests explicitly characterize the preserved legacy methods rather than stand in for the new path.
+Actual NLU opening entrypoint, FreeLLMService adapter, disposable PostgreSQL19 current rows, real Redis subscription and UI publication tested. Strict UI sends now use the cache required-publish method instead of the old resilience wrapper that could return zero on failure. The old best-effort gateway remains available. A real Redis shutdown must raise at the strict publication boundary; no claim of browser receipt is made. Cases: two-paragraph success, material evidence, price changing during generation, demo-only/empty rows, offline provider, review rejection and malformed one-paragraph output. Existing deadline/transport tests retained. Former editorial/lifestyle tests explicitly characterize the preserved legacy methods rather than stand in for the new path.
 
 No dependency, schema or image changes. No migration rollout, owner-machine execution or provider calls.
