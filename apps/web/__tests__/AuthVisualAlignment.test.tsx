@@ -1,0 +1,30 @@
+import React from 'react';
+import fs from 'fs';
+import {render,screen,fireEvent,waitFor} from '@testing-library/react';
+import AuthPage from '@/app/(main)/login/page';
+import {signIn} from 'next-auth/react';
+const push=jest.fn(),refresh=jest.fn();
+jest.mock('next/navigation',()=>({useRouter:()=>({push,refresh}),useSearchParams:()=>new URLSearchParams('callbackUrl=%2Fcheckout')}));
+jest.mock('next-auth/react',()=>({signIn:jest.fn()}));
+jest.mock('three',()=>({}));
+jest.mock('@react-three/fiber',()=>({Canvas:()=>null,useFrame:jest.fn()}));
+jest.mock('@react-three/drei',()=>({Preload:()=>null}));
+jest.mock('@/components/hero/FloatingHeroCards',()=>({HERO_STAGE_CLASSES:'shared-products-stage',FloatingHeroCards:()=> <div data-testid="desktop-cards"/>}));
+jest.mock('@/components/hero/MobileHomeFloatingCards',()=>({MobileHomeFloatingCards:()=> <div data-testid="mobile-cards"/>}));
+it('uses the same stage and card frames as products without replacing auth handlers',async()=>{
+ const {container}=render(<AuthPage/>);
+ expect(container.querySelector('[data-hero-stage="auth"]')).toHaveClass('shared-products-stage');
+ expect(screen.getByTestId('desktop-cards')).toBeInTheDocument();
+ expect(screen.getByTestId('mobile-cards')).toBeInTheDocument();
+ jest.mocked(signIn).mockResolvedValue({ok:true,error:undefined,status:200,url:null});
+ fireEvent.change(screen.getByLabelText('Email Address'),{target:{value:'fixture@example.com'}});
+ fireEvent.change(screen.getByLabelText('Password'),{target:{value:'fixture-only-not-real'}});
+ fireEvent.click(screen.getByRole('button',{name:/^Sign In$/}));
+ await waitFor(()=>expect(push).toHaveBeenCalledWith('/checkout'));
+ expect(signIn).toHaveBeenCalledWith('credentials',{redirect:false,email:'fixture@example.com',password:'fixture-only-not-real'});
+});
+it('keeps matching mobile frame offsets and desktop center width',()=>{
+ const auth=fs.readFileSync('app/(main)/login/page.tsx','utf8');
+ const products=fs.readFileSync('app/(main)/products/page.tsx','utf8');
+ for(const source of [auth,products])for(const token of ['HERO_STAGE_CLASSES','inset-x-5 top-28 bottom-16 lg:hidden','lg:max-w-[48%]','<FloatingHeroCards />','<MobileHomeFloatingCards />'])expect(source).toContain(token);
+});
