@@ -88,7 +88,7 @@ const getAbsoluteImageUrl = (relativePath: string | undefined): string => {
         return DEFAULT_PLACEHOLDER;
     }
 
-    const apiBase = process.env.NEXT_PUBLIC_API_URL
+    const apiBase = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEV_LAN === 'true' ? '' : process.env.NEXT_PUBLIC_API_URL
         ? process.env.NEXT_PUBLIC_API_URL.replace('/api/v1', '')
         : 'http://localhost:8000';
 

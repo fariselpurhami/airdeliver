@@ -11,7 +11,7 @@ const isServer = typeof window === 'undefined';
 
 const baseURL = isServer
   ? process.env.API_URL || 'http://api:8000/api/v1'
-  : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+  : process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 let serverAuthModule: typeof import('@/auth') | null = null;
 let clientAuthModule: typeof import('next-auth/react') | null = null;
