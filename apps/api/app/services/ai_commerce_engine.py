@@ -176,6 +176,10 @@ class EngineLimits:
     max_bundle_size: int = 4
     max_search_limit: int = 100
     max_image_search_limit: int = 50
+    max_image_encoded_chars: int = 7_000_256
+    max_image_bytes: int = 5 * 1024 * 1024
+    max_image_pixels: int = 25_000_000
+    max_image_edge: int = 16_384
     max_homepage_candidates: int = 60
     max_memory_fact_length: int = 2048
     max_category_length: int = 128
@@ -1327,18 +1331,34 @@ class AICommerceEngine:
             logger.exception("visual search failed", extra={"limit": safe_limit})
             return []
 
-    async def _encode_image_to_vector(self, image_input: str) -> List[float]:
+    def _decode_image_bounded(self, image_input: str) -> Image.Image:
+        """Check compressed and expanded size before RGB allocation/model work."""
+        if not isinstance(image_input, str) or len(image_input) > self.limits.max_image_encoded_chars:
+            raise ValidationError("image input exceeds encoded size limit")
         encoded = image_input.split("base64,", 1)[1] if "base64," in image_input else image_input
-
+        if len(encoded) > 4 * ((self.limits.max_image_bytes + 2) // 3):
+            raise ValidationError("image input exceeds byte limit")
         try:
             image_bytes = base64.b64decode(encoded, validate=True)
-        except Exception as exc:
+        except (ValueError, TypeError) as exc:
             raise ValidationError("invalid base64 image input") from exc
-
+        if not image_bytes or len(image_bytes) > self.limits.max_image_bytes:
+            raise ValidationError("image input exceeds byte limit")
         try:
-            pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
-        except UnidentifiedImageError as exc:
-            raise ValidationError("invalid image payload") from exc
+            with Image.open(BytesIO(image_bytes)) as source:
+                width, height = source.size
+                if (width <= 0 or height <= 0 or max(width, height) > self.limits.max_image_edge
+                        or width * height > self.limits.max_image_pixels):
+                    raise ValidationError("image input exceeds pixel limit")
+                # Preserve existing first-frame RGB behavior, but fully load while
+                # the source is open and only after checking dimensions.
+                source.load()
+                return source.convert("RGB")
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            raise ValidationError("invalid or oversized image payload") from exc
+
+    async def _encode_image_to_vector(self, image_input: str) -> List[float]:
+        pil_image = self._decode_image_bounded(image_input)
 
         async with self._image_inference_semaphore:
             model, processor = model_registry.get_vision_stack()

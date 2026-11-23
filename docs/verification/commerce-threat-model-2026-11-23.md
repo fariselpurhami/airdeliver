@@ -38,3 +38,9 @@ Evidence: `test_commerce_safe_diagnostics.py` exercises the actual logger-to-for
 ### FreeLLM search-log follow-up
 
 Two additional message-text leak sites are now bounded: short search-term fallback logs only input length, and the older commerce orchestrator logs only route boolean, product count and query length. The original query/search terms still flow through search, fallback and the response unchanged. No search or orchestration capability was removed. `test_llm_search_log_privacy.py` drives both actual methods with controlled model completions and checks LogRecord plus final formatter output. Other service logs and legacy exception/alternate-handler behavior still need review.
+
+## Bounded visual decoding follow-up, November 24
+
+Engine image decoding now rejects excessive encoded input and decoded bytes before image parsing, then checks declared dimensions/pixel count before load/RGB conversion. Existing base64/data-URI and first-frame RGB behavior remains. Default limits: 7,000,256 encoded characters, 5 MiB decoded bytes, 25 million pixels, 16,384 pixels per edge. These limit compressed-image expansion without claiming all malformed codec paths or native work deadlines are solved. The existing decoder remains the model entrypoint, with invalid input rejected before model acquisition.
+
+`test_bounded_image_decode.py` uses actual Pillow PNGs, malformed/truncated bytes, oversized dimensions, byte/encoded limits and a model-registry sentinel. Full disposable SQL/Redis suite: 1192 passed, 4 skipped. No actual recognition quality or live model execution claimed. Decode offloading and vision inference admission/cancellation remain next runtime work.
