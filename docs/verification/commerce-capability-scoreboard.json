@@ -1,0 +1,871 @@
+{
+  "as_of": "2026-11-23T21:27:00+02:00",
+  "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
+  "capabilities": [
+    {
+      "id": "CAP-01",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "SearchFilter parsing, validation, cache serialization, input normalization",
+      "observed_wiring": "Used by engine search",
+      "gap": "Preserve explicit currency, hard constraints and exclusion semantics across every caller.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-02",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "ModelRegistry text and vision loading, device/dtype, startup rejection/readiness",
+      "observed_wiring": "Shared engine startup/model entrypoints",
+      "gap": "Exercise cold/warm startup, native cancellation, queue saturation and unavailable model boundaries. No claim of deployed model quality.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-03",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "Collection/index bootstrap and intent hydration",
+      "observed_wiring": "Engine factory/bootstrap",
+      "gap": "Verify schema/version compatibility and repeatability without unapproved production migrations or rebuilds.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-04",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "Query embedding, model readiness and inference admission",
+      "observed_wiring": "Hybrid search and memory",
+      "gap": "Keep bounded native work and truthful readiness; load-test failure paths.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-05",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "OpenSearch plus Milvus text retrieval, reciprocal-rank fusion, cache IDs, current SQL row hydration, SQL fallback",
+      "observed_wiring": "Normal HTTP support search, worker/NLU, voice tool",
+      "gap": "Shared current-product evidence policy for all callers; do not treat retrieval rank as stock or suitability.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-06",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "Complement bundles, explicit complement evidence, active/stock checks",
+      "observed_wiring": "Cart optional worker; legacy direct cart/NLU paths",
+      "gap": "Preserve real relationship evidence. Missing relationship data can legitimately yield no bundle. LLM copy must not invent compatibility.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        37
+      ],
+      "evidence": [
+        "apps/api/tests/test_recommendation_catalog_postgres.py; test_cart_sales_postgres.py"
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-07",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "Fresh homepage matrix, tier/freshness exclusions and fallback selection",
+      "observed_wiring": "HTTP opening suggestions through NLU",
+      "gap": "Harden eligibility, diversity, factual row labels and model-authored Insight without inventing popularity or personal knowledge.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-08",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "Genius alternatives with category and price window",
+      "observed_wiring": "HTTP support PR35 anchor expansion; optional removal worker; legacy cart",
+      "gap": "Recheck requested constraints, currency, positive current local inventory and non-demo eligibility at publication.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-09",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "Image vector encoding/search and OpenSearch materialization",
+      "observed_wiring": "Normal HTTP support visual search",
+      "gap": "Engine returns index-derived snapshots here. PR35 support boundary refreshes SQL rows; other callers need equivalent protection.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        35
+      ],
+      "evidence": [
+        "apps/api/tests/test_shopping_catalog_postgres.py; test_neural_core_visual.py"
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-10",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "Product ID fetching, common filters and SQL fallback",
+      "observed_wiring": "Search infrastructure",
+      "gap": "Generic _filter_products does not itself enforce positive inventory or demo exclusion. Do not describe that policy as globally solved by PR35.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-11",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "Semantic user-fact insert and similarity recall",
+      "observed_wiring": "Legacy writer exists only behind deliberately unwired inferred-memory hook; no production caller found for recall",
+      "gap": "Preserve implementation, add consent/provenance/delete/expiry semantics and tests before connecting it to traffic. Do not revive silent inferred memory.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-12",
+      "file": "1. ai_commerce_engine.py",
+      "capability": "Milvus connection retries/backoff and OpenSearch client lifecycle",
+      "observed_wiring": "Dependency factories/startup",
+      "gap": "Verify timeout, connection cleanup and bounded failure behavior.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-13",
+      "file": "2. ai_nlu_service.py",
+      "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
+      "observed_wiring": "Legacy NLU helpers",
+      "gap": "Preserve capacity parsing; remove behavior reliance on invented budget defaults through additive policy gates.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-14",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Typed product-target array, occasion, sentiment, intent, cart action and deduplication contracts",
+      "observed_wiring": "NLU intent engine",
+      "gap": "Restore multi-item identity and intent propagation to normal chat without losing ambiguity.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-15",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Persona, retention modes, four-phase response policies and sanitizer",
+      "observed_wiring": "Legacy synthesis paths",
+      "gap": "Preserve strategy logic but reconcile contradictory factual instructions. Several paths still promote unknown details to secrecy or allow prior model knowledge and supply-chain guesses.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-16",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Product serialization and JSON sanitation",
+      "observed_wiring": "NLU UI delivery and helpers",
+      "gap": "Reuse current product evidence/card schema; explicit provenance and demo status.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-17",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Correlation logs, bounded task supervision, distributed locks/idempotency",
+      "observed_wiring": "NLU process_message",
+      "gap": "Real Redis contention, cancellation and failure testing. Content lock excludes image bytes, so same text with different images needs regression coverage.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [
+        42,
+        43
+      ],
+      "evidence": [
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-18",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
+      "observed_wiring": "NLU opening/legacy chat",
+      "gap": "Normal HTTP support has a separate conversation flow. Join only approved context with source/revision and current-request precedence.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-19",
+      "file": "2. ai_nlu_service.py",
+      "capability": "UI Redis gateway, typing, payload types and strict row publication",
+      "observed_wiring": "Opening suggestions and worker NLU",
+      "gap": "Test request-to-Redis-to-WebSocket-to-render delivery, not just handler return.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [
+        39,
+        42,
+        43
+      ],
+      "evidence": [
+        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt.",
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-20",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Global model intent router with heuristic failure route",
+      "observed_wiring": "RabbitMQ chat consumer, not normal HTTP support chat",
+      "gap": "Share orchestration incrementally; preserve exact feature coverage without duplicating provider work or substituting fixed sales prose.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-21",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Welcome/internal/reset/cancel/sync command router",
+      "observed_wiring": "HTTP suggestions/reset plus worker commands",
+      "gap": "Keep operational confirmations fixed and truthful. Reset intentionally preserves saved preferences and can clear pending cart orders.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [
+        42,
+        43
+      ],
+      "evidence": [
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-22",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Smart cart actions and text commands",
+      "observed_wiring": "Legacy NLU chat only",
+      "gap": "Preserve submission-versus-confirmation distinction; resolve product identity and keep side effects separate from advisory copy.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [
+        42,
+        43
+      ],
+      "evidence": [
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-23",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Ecosystem planner, component searches and collection prose/cards",
+      "observed_wiring": "Legacy NLU chat only",
+      "gap": "Reconnect with real component/complement evidence; current prompts can assert harmony from names alone. Shared AsyncSession parallel searches need real-boundary testing.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-24",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Opening matrix: personal/bestseller/trending/deal pools, diversity, freshness, stages and streaming",
+      "observed_wiring": "Live HTTP /session/suggestions path",
+      "gap": "Model-copy method is currently deterministic opening_editorial. Some pool labels are heuristics, not measured sales/trend/discount evidence. Empty/failure publication must remain honest.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        31,
+        39
+      ],
+      "evidence": [
+        "apps/api/tests/test_welcome_deadline_logging.py",
+        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-25",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Vision identification and query optimizer with recent-context references",
+      "observed_wiring": "Legacy NLU chat",
+      "gap": "Preserve as complementary capability to image-vector retrieval, under bounded time/cost and current evidence.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-26",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
+      "observed_wiring": "Legacy NLU chat",
+      "gap": "Normal support bypasses this. Restore staged search and separate per-item comparison evidence.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [
+        44
+      ],
+      "evidence": [
+        "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-27",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Older _execute_search exclusion/price filtering and smart alternatives",
+      "observed_wiring": "No production caller found for _execute_search",
+      "gap": "Important missed distinction: logic exists but is not the active pipeline. Its price-relaxation route can exceed user budget, so do not reconnect verbatim.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-28",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Informational web/spec/comparison synthesis, targeted specs, main product prose, missing-product recovery",
+      "observed_wiring": "Legacy NLU chat",
+      "gap": "Restore valuable capabilities using shared reviewed prose and evidence, not conflicting prompts. Missing source facts remain unknown.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [
+        44
+      ],
+      "evidence": [
+        "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-29",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Multi-target extraction versus informational query concatenation",
+      "observed_wiring": "Legacy informational path uses one combined search query",
+      "gap": "Existing array extraction does not prove complete item-by-item comparison retrieval. Add missing-item and unequal-evidence tests.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [
+        44
+      ],
+      "evidence": [
+        "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-30",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Consent-aware memory collection and seen-product persistence",
+      "observed_wiring": "Legacy NLU completion",
+      "gap": "Normal support coverage is separate; reconcile without duplicating writes or using assistant claims as facts.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-31",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Legacy inferred memory, implicit behavior update, idle nudges, dynamic time/nudge templates",
+      "observed_wiring": "Legacy memory deliberately unwired; no callers found for implicit update, idle trigger or dynamic-copy helper",
+      "gap": "Preserve foundations. Add explicit trigger, consent, evidence and observability gates before activation. Never revive unsupported urgency/scarcity.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-32",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Removal recovery alternatives and optional confirmation prompt",
+      "observed_wiring": "Internal/smart removal routes",
+      "gap": "Current price window can reach four times removed price and fixed copy can mislabel range/superiority. Harden actual constraints and share model copy.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-33",
+      "file": "2. ai_nlu_service.py",
+      "capability": "Meta-cognition strategy hooks",
+      "observed_wiring": "Genius-response path uses unavailable_assessment",
+      "gap": "No calibrated confidence estimator is deployed. Preserve extensibility, do not advertise dormant authoritative branches as working learned confidence.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-34",
+      "file": "3. ai_cart_service.py",
+      "capability": "Validated cart/item/operation contracts and decimal totals",
+      "observed_wiring": "HTTP cart and RabbitMQ mutation workers",
+      "gap": "Preserve strict identifiers, quantities, currency and inventory checks.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "yes_scoped_group",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        35,
+        37
+      ],
+      "evidence": [
+        "apps/api/tests/test_ai_cart_service.py; test_recommendation_catalog_postgres.py; test_cart_persistence_outcomes.py"
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-35",
+      "file": "3. ai_cart_service.py",
+      "capability": "Authoritative Redis load/sync, compare-and-set updates and mutation receipts",
+      "observed_wiring": "Normal cart mutation paths",
+      "gap": "Keep non-AI correctness independent of model availability, test replay/race/failure at Redis boundary.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "yes_scoped_group",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        37
+      ],
+      "evidence": [
+        "apps/api/tests/test_cart_persistence_outcomes.py; test_cart_mutation_receipts.py"
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-36",
+      "file": "3. ai_cart_service.py",
+      "capability": "Add mutation, publication/stage timing and optional recommendation event",
+      "observed_wiring": "Normal HTTP add, worker add",
+      "gap": "Receipt/cart confirmation first; asynchronous sales advice must never replay mutation or delay correctness.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "yes_scoped_group",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        37
+      ],
+      "evidence": [
+        "apps/api/tests/test_cart_sales_transport.py; test_cart_recommendation_wiring.py; test_cart_recommendation_amqp.py"
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-37",
+      "file": "3. ai_cart_service.py",
+      "capability": "Direct intelligent bundle fetch and model sentence, bounded timeout and fallback",
+      "observed_wiring": "Original direct implementation retained behind default-off constructor switch. Shared optional consumer active after PR37; not yet owner-live-verified.",
+      "gap": "HTTP optional worker currently generates fixed prose. Restore shared model-copy adapter across both routes while retaining direct foundation and evidence gates.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-38",
+      "file": "3. ai_cart_service.py",
+      "capability": "Save cart as cancelled-order record/list",
+      "observed_wiring": "HTTP/worker save",
+      "gap": "Preserve exact semantics; saving is not checkout or a placed order.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        37
+      ],
+      "evidence": [
+        "apps/api/tests/test_cart_persistence_outcomes.py"
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-39",
+      "file": "3. ai_cart_service.py",
+      "capability": "Remove mutation, alternative retrieval, model analysis/copy and fallback reasons",
+      "observed_wiring": "Normal removal mutation; rich path conditional on injected commerce/LLM",
+      "gap": "HTTP constructs service without AI dependencies; optional event is its advisory route. Preserve full rich logic via shared async adapter rather than pretending HTTP invokes it today.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        37
+      ],
+      "evidence": [
+        "apps/api/tests/test_cart_sales_postgres.py; test_cart_sales_transport.py"
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-40",
+      "file": "3. ai_cart_service.py",
+      "capability": "Analytics and removal/conversion-adjacent events",
+      "observed_wiring": "Cart/worker integration",
+      "gap": "Minimize sensitive data, test broker failures separately from committed cart state.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-41",
+      "file": "3. ai_cart_service.py",
+      "capability": "Clear cart and pending-order cancellation",
+      "observed_wiring": "HTTP/worker clear",
+      "gap": "Preserve race/transaction safety and user-visible distinction between cart clear and payment refund/cancellation.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        37
+      ],
+      "evidence": [
+        "apps/api/tests/test_cart_persistence_outcomes.py"
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-42",
+      "file": "4. free_llm_service.py",
+      "capability": "SearchStrategy, RecommendationResponse and interaction response contracts; sanitizers and limits",
+      "observed_wiring": "Used by service APIs",
+      "gap": "Preserve strict structured schemas and grounded ID selection.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-43",
+      "file": "4. free_llm_service.py",
+      "capability": "Singleton/client lifecycle, configured models, admission, deadlines, retries and completion transport",
+      "observed_wiring": "Legacy NLU/cart and voice web tools",
+      "gap": "Share provider adapter with new orchestration, typed failures, one request deadline and bounded calls. The filename does not establish free cost.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "scoped_controls_tested_not_certified",
+      "live_verified": false,
+      "prs": [
+        37
+      ],
+      "evidence": [
+        "apps/api/tests/test_llm_execution_limits.py; test_cart_sales_transport.py"
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-44",
+      "file": "4. free_llm_service.py",
+      "capability": "generate_response plain/JSON/context adapter",
+      "observed_wiring": "NLU model calls and conditional direct cart copy",
+      "gap": "Returns empty string on provider failure. Callers often only catch exceptions, so empty-success behavior needs explicit tests and a typed unavailable result.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-45",
+      "file": "4. free_llm_service.py",
+      "capability": "Spontaneous scene/vibe and lifestyle matrix",
+      "observed_wiring": "Opening restoration commit c8ad510 local only, not merged. Legacy function retained.",
+      "gap": "Preserve capability, reconnect opening/editorial only with factual and consented context.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [
+        39
+      ],
+      "evidence": [
+        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-46",
+      "file": "4. free_llm_service.py",
+      "capability": "Strict shopping-preference extractor",
+      "observed_wiring": "CustomerMemoryService uses extraction hook",
+      "gap": "Keep explicit consent and current-message provenance.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "partial",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-47",
+      "file": "4. free_llm_service.py",
+      "capability": "Legacy memory-worthy fact extractor",
+      "observed_wiring": "Only deliberately unwired legacy NLU hook found",
+      "gap": "Retain but do not enable unconsented inference.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-48",
+      "file": "4. free_llm_service.py",
+      "capability": "Visual-context explanation",
+      "observed_wiring": "No caller found outside service",
+      "gap": "Can complement image retrieval; do not treat description as verified product identity.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-49",
+      "file": "4. free_llm_service.py",
+      "capability": "Product-image identification and optional Tavily title enrichment",
+      "observed_wiring": "Legacy NLU visual path",
+      "gap": "Test identity uncertainty, network failure, deadline and source provenance.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-50",
+      "file": "4. free_llm_service.py",
+      "capability": "Tavily web search",
+      "observed_wiring": "Legacy NLU and voice web tool",
+      "gap": "External sources need source-level evidence and prompt/data boundary checks.",
+      "reachable": "yes_source_path",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-51",
+      "file": "4. free_llm_service.py",
+      "capability": "Product consultation with web/context/history",
+      "observed_wiring": "Called by internal commerce orchestrator only",
+      "gap": "Preserve consultation logic and make an explicit shared path; no evidence normal HTTP chat calls it today.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-52",
+      "file": "4. free_llm_service.py",
+      "capability": "Model search strategy and deterministic failure strategy",
+      "observed_wiring": "Called by internal commerce orchestrator only",
+      "gap": "Preserve staged strategy and typed extraction; deterministic fallback is operational recovery, not replacement customer prose.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-53",
+      "file": "4. free_llm_service.py",
+      "capability": "Search-term extraction / English rewrite",
+      "observed_wiring": "Called by internal commerce orchestrator only",
+      "gap": "Preserve customer language in prose and original requested entities/constraints.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-54",
+      "file": "4. free_llm_service.py",
+      "capability": "Local relevance ranking, grounded-ID recommendation and factual intro/reason",
+      "observed_wiring": "Called by internal commerce orchestrator only",
+      "gap": "filter_and_recommend currently substitutes deterministic grounded intro/reasons after selection. Needs model-authored reviewed prose.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    },
+    {
+      "id": "CAP-55",
+      "file": "4. free_llm_service.py",
+      "capability": "Parallel strategy/term commerce orchestrator with consultation/carousel branches",
+      "observed_wiring": "No caller found outside service",
+      "gap": "Substantial preserved but unwired capability. Adapt its logic into shared orchestration with real catalog evidence instead of enabling a parallel competing pipeline.",
+      "reachable": "gated_or_unwired",
+      "real_boundary_tested": "not_reconciled",
+      "hardened": "not_certified",
+      "live_verified": false,
+      "prs": [],
+      "evidence": [],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+    }
+  ],
+  "summary": {
+    "inventory_groups": 55,
+    "source_reachable": 43,
+    "fully_reconciled_real_boundary_groups": 3,
+    "partial_boundary_groups": 26,
+    "live_verified_groups": 0,
+    "next": [
+      "PR38 gift budget/copy incident green merge and owner retest",
+      "model opening/Insight restoration",
+      "staged per-item search/comparison/consultation"
+    ]
+  },
+  "count_caveat": "Grouped inventory rows are broad. Only 3 groups are currently marked fully reconciled at real boundary; this is a conservative evidence-tracking baseline, not a claim the other code is untested. Prior tests need capability-by-capability reconciliation. PR references identify the current restoration boundary, not original authorship of every test.",
+  "canonical_note": "This repository file is the single canonical scoreboard. Earlier attached snapshots are superseded; edits should update this file in place."
+}
