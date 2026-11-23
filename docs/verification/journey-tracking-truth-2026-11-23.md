@@ -16,3 +16,5 @@ Frontend initial full121tests22suites, TypeScript and production build pass. Add
 ## Deliberately outside this PR
 
 No carrier/status-transition pipeline, ETA, refund/return implementation, cart runtime cutover, stock reservation, fees/tax policy, payment sandbox or reset rollout. These remain separate items. No full deployed browser→API acceptance claim. The original32connection Redis load test passed in this main-based full run; the separate reset-branch combined harness issue is not considered fixed by this result.
+
+Design review follow-up: tracking now follows platform cyan/violet atmosphere, subtle grid, pill eyebrow, gradient display heading, rounded glass cards, icon labels and compact back control. No behavioral changes. Re-inspected390px/1280px fixture renders after production build, no clipping/overlap. Full frontend122tests23suites and tsc pass including added history test.
