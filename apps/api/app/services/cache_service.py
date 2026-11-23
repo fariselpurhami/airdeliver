@@ -123,6 +123,10 @@ class IAsyncCacheClient(ABC):
     async def set_json_required(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
         raise NotImplementedError("This backend cannot persist required JSON state")
 
+    async def compare_json_required(self, key: str, expected: Any, value: Any, ttl: Optional[int] = None, delete: bool = False) -> bool:
+        """Atomic snapshot update. False means concurrent state changed."""
+        raise NotImplementedError("This backend cannot atomically update required state")
+
     async def delete_required(self, key: str) -> None:
         raise NotImplementedError("This backend cannot delete required state")
 
@@ -299,6 +303,31 @@ class RedisCacheClient(IAsyncCacheClient):
         confirmed = await self.client.set(key, payload, ex=ttl)
         if confirmed is not True:
             raise RuntimeError("Required JSON state write was not confirmed")
+
+    async def compare_json_required(self, key: str, expected: Any, value: Any, ttl: Optional[int] = None, delete: bool = False) -> bool:
+        from redis.exceptions import WatchError
+        if self._redis is None:
+            await self.connect()
+        async with self.client.pipeline(transaction=True) as pipe:
+            try:
+                await pipe.watch(key)
+                raw = await pipe.get(key)
+                current = None if raw is None else orjson.loads(raw)
+                if current != expected:
+                    await pipe.unwatch()
+                    return False
+                pipe.multi()
+                if delete:
+                    pipe.delete(key)
+                else:
+                    serialized = orjson.dumps(value)
+                    pipe.set(key, serialized, ex=ttl)
+                result = await pipe.execute()
+                if len(result) != 1 or (not delete and result[0] is not True):
+                    raise RuntimeError("Atomic cart update was not confirmed")
+                return True
+            except WatchError:
+                return False
 
     async def delete_required(self, key: str) -> None:
         if self._redis is None:

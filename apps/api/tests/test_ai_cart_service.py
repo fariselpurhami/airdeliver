@@ -29,6 +29,12 @@ class FakeCache:
     async def set_json_required(self,key,value,ttl=None):
         await self.set_json(key,value,ttl)
 
+    async def compare_json_required(self,key,expected,value,ttl=None,delete=False):
+        if self._cart != expected:return False
+        if delete:await self.delete_required(key)
+        else:await self.set_json_required(key,value,ttl)
+        return True
+
     async def delete_required(self,key):
         await self.delete(key)
 

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Optional, List, Dict, Any, Final, Sequence
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, PrivateAttr
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
@@ -39,6 +39,7 @@ class CartItemModel(BaseModel):
     category: str = ""
 
 class CartStateModel(BaseModel):
+    _snapshot: Any = PrivateAttr(default=None)
     items: List[CartItemModel] = Field(default_factory=list)
     total: Decimal = Field(default=Decimal("0.00"))
     updated_at: str = ""
@@ -166,7 +167,9 @@ class AICartService:
         """
         try:
             raw_cart = await self.cache.get_json_required(self._get_cart_key(user_id))
-            return CartStateModel() if raw_cart is None else CartStateModel.model_validate(raw_cart)
+            cart = CartStateModel() if raw_cart is None else CartStateModel.model_validate(raw_cart)
+            cart._snapshot = raw_cart
+            return cart
         except Exception as exc:
             logger.error("cart required read failed", extra={"error_type": type(exc).__name__})
             raise CartPersistenceError("Cart could not be read; current state was preserved") from exc
@@ -182,7 +185,10 @@ class AICartService:
             # Ensure safe JSON serialization of Decimals via Pydantic
             cart_dict = cart.model_dump(mode='json')
 
-            await self.cache.set_json_required(self._get_cart_key(user_id), cart_dict, ttl=self.CART_TTL_SECONDS)
+            confirmed = await self.cache.compare_json_required(self._get_cart_key(user_id), cart._snapshot, cart_dict, ttl=self.CART_TTL_SECONDS)
+            if not confirmed:
+                raise CartPersistenceError("Cart changed concurrently; refresh before retrying")
+            cart._snapshot = cart_dict
 
             await self._send_to_ui(user_id, {
                 "content": cart_dict,
@@ -473,7 +479,9 @@ class AICartService:
             await self.db.commit()
 
             try:
-                await self.cache.delete_required(self._get_cart_key(payload.user_id))
+                confirmed = await self.cache.compare_json_required(self._get_cart_key(payload.user_id), cart._snapshot, None, delete=True)
+                if not confirmed:
+                    raise CartPersistenceError("Active cart changed while saving")
             except Exception as exc:
                 logger.warning("saved cart committed but cache cleanup unconfirmed", extra={"error_type": type(exc).__name__})
                 await self._send_to_ui(payload.user_id, {

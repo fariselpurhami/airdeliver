@@ -126,3 +126,67 @@ async def test_saved_list_commit_then_cleanup_failure_never_claims_empty_cart_or
     assert not any(p['type'] in {'cart_preview','success_text'} for _,p in cache.published)
     assert any('saved list was recorded' in str(p.get('content','')) for _,p in cache.published)
     assert any('before saving again' in str(p.get('content','')) for _,p in cache.published)
+
+
+@pytest.mark.asyncio
+async def test_real_redis_two_cart_readers_cannot_lose_a_confirmed_write(real_cache):
+    from app.services.ai_cart_service import CartItemModel, CartPersistenceError
+    cache,_=real_cache
+    services=[AICartService(FakeDB(),cache,object()) for _ in range(2)]
+    previews=[[],[]]
+    for i,svc in enumerate(services):
+        async def capture(user_id,payload,index=i):previews[index].append(payload)
+        svc._send_to_ui=capture
+    carts=await asyncio.gather(*(svc._get_cart_from_redis(1) for svc in services))
+    for i,cart in enumerate(carts):
+        cart.items.append(CartItemModel(product_id=7+i,name=f'Item {i}',price='19.99',quantity=1))
+    outcomes=await asyncio.gather(*(svc._update_cart_in_redis(1,cart) for svc,cart in zip(services,carts)),return_exceptions=True)
+    assert sum(result is None for result in outcomes)==1
+    assert sum(isinstance(result,CartPersistenceError) for result in outcomes)==1
+    winner=next(i for i,result in enumerate(outcomes) if result is None)
+    stored=await cache.get_json_required('ai_cart:1')
+    assert stored['items'][0]['product_id']==7+winner
+    assert previews[1-winner]==[]
+    assert 0<await cache.client.ttl('ai_cart:1')<=services[0].CART_TTL_SECONDS
+    assert '_snapshot' not in stored
+
+
+@pytest.mark.asyncio
+async def test_real_redis_stale_cart_write_cannot_resurrect_cleared_items(real_cache):
+    from app.services.ai_cart_service import CartPersistenceError
+    cache,_=real_cache
+    original={'items':[{'product_id':7,'name':'Shoes','price':'19.99','quantity':1}],'total':'19.99'}
+    await cache.set_json_required('ai_cart:1',original)
+    svc=AICartService(FakeDB(),cache,object());svc._send_to_ui=AsyncMock()
+    cart=await svc._get_cart_from_redis(1)
+    await cache.delete_required('ai_cart:1')
+    cart.items[0].quantity=2
+    with pytest.raises(CartPersistenceError):await svc._update_cart_in_redis(1,cart)
+    assert await cache.get_json_required('ai_cart:1') is None
+    svc._send_to_ui.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_real_redis_save_cleanup_preserves_cart_changed_during_database_commit(real_cache):
+    cache,_=real_cache
+    original={'items':[{'product_id':7,'name':'Shoes','price':'19.99','quantity':1}],'total':'19.99'}
+    changed={**original,'total':'39.98','items':[{**original['items'][0],'quantity':2}]}
+    await cache.set_json_required('ai_cart:1',original)
+    db=FakeDB()
+    async def commit():
+        db.commits+=1
+        await cache.set_json_required('ai_cart:1',changed)
+    db.commit=commit
+    svc=AICartService(db,cache,object());svc._send_to_ui=AsyncMock()
+    await svc.handle_save_cart({'user_id':1})
+    assert db.commits==1 and db.rollbacks==0
+    assert await cache.get_json_required('ai_cart:1')==changed
+    packets=[call.args[1] for call in svc._send_to_ui.await_args_list]
+    assert not any(p['type'] in {'cart_preview','success_text'} for p in packets)
+    assert any('saved list was recorded' in p.get('content','') for p in packets)
+
+
+@pytest.mark.asyncio
+async def test_noop_backend_cannot_claim_atomic_updates():
+    with pytest.raises(NotImplementedError):
+        await NoOpCacheClient().compare_json_required('cart:x',None,{'items':[]})
