@@ -1,0 +1,12 @@
+# Exact reviewed false positives: fixed test IDs, schema examples, placeholder k8s data, vendored model docs.
+1a292489dda53805e6a1afbe743b449b74f2ea95:apps/api/tests/test_ai_ordering_http.py:generic-api-key:76
+1a292489dda53805e6a1afbe743b449b74f2ea95:apps/api/tests/test_checkout_idempotency.py:generic-api-key:26
+3b9e4a618fa1061981624a175d9461a8d08b5b75:apps/api/app/services/payment_orchestrator.py:generic-api-key:59
+3ceb1f04592c9f4bf3dbee89656c76cf0a010111:infra/k8s/00-namespace-config.yml:kubernetes-secret-yaml:27
+3ceb1f04592c9f4bf3dbee89656c76cf0a010111:infra/k8s/00-namespace-config.yml:kubernetes-secret-yaml:27
+7cb94b011479571974e0da850b816c187d391c53:apps/api/app/schemas/payment.py:generic-api-key:24
+9db93f9f4912f4ef184c82219410f6ff8a1709a7:apps/api/hf_cache/modules/transformers_modules/Alibaba_hyphen_NLP/gte_hyphen_Qwen2_hyphen_1_dot_5B_hyphen_instruct/a9af15a6372d7d6b25e9fb07c2ccb9e1fe645644/modeling_qwen.py:generic-api-key:1177
+dd47bc8b5d7c631bc3b226d44c8e6e1e610fdf8c:apps/api/tests/test_payment_orchestrator.py:generic-api-key:25
+df11e7b0ff13cf36c1d06fd473ab6194806dfb9c:apps/api/tests/conftest.py:generic-api-key:12
+df11e7b0ff13cf36c1d06fd473ab6194806dfb9c:apps/api/tests/conftest.py:generic-api-key:25
+f74e4cb9675d410baa769c5c0a59dc9e9b927579:apps/api/tests/test_paypal_gateway.py:generic-api-key:51
