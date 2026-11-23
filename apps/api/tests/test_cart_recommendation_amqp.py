@@ -60,3 +60,45 @@ async def test_real_amqp_readonly_followup_confirms_delivers_and_never_replays_c
         await queue.delete(if_unused=False,if_empty=False)
         await broker.close()
         await connection.close()
+
+
+from tests.test_cart_persistence_outcomes import real_cache
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(os.getenv('TEST_RABBITMQ_DISPOSABLE')!='1',reason='dedicated disposable RabbitMQ required')
+async def test_real_amqp_uncertain_committed_cart_rejects_without_mutation_replay(real_cache):
+    redis,_=real_cache
+    settings=CoreSettings(RABBITMQ_HOST='127.0.0.1',RABBITMQ_PORT=int(os.getenv('TEST_RABBITMQ_PORT','5672')),RABBITMQ_USER='airdeliver_ci',RABBITMQ_PASS='disposable-ci-only')
+    connection=await aio_pika.connect_robust(settings.RABBITMQ_URL)
+    channel=await connection.channel(publisher_confirms=True)
+    exchange=await channel.declare_exchange(EXCHANGE_NAME,aio_pika.ExchangeType.TOPIC,durable=True)
+    route='airdeliver.ci.cart.mutation.'+uuid4().hex
+    queue=await channel.declare_queue('airdeliver-ci-mutation-'+uuid4().hex,durable=True,arguments={'x-queue-type':'quorum'})
+    await queue.bind(exchange,routing_key=route)
+    original=redis.compare_json_required
+    async def reply_lost(*args,**kwargs):
+        assert await original(*args,**kwargs) is True
+        raise ConnectionError('write committed but reply lost')
+    redis.compare_json_required=reply_lost
+    runtime=WorkerRuntime()
+    runtime.services.cache=redis
+    runtime.republish_with_headers=AsyncMock()
+    service=AICartService(FakeDB(make_product()),redis,object())
+    handler=AsyncMock(side_effect=service.handle_add_to_cart)
+    try:
+        await exchange.publish(aio_pika.Message(body=json.dumps({'user_id':81,'product_id':7}).encode(),delivery_mode=aio_pika.DeliveryMode.PERSISTENT),routing_key=route,mandatory=True)
+        async with asyncio.timeout(5):
+            message=None
+            while message is None:
+                message=await queue.get(fail=False)
+                if message is None:await asyncio.sleep(.02)
+        await runtime.smart_retry_wrapper(message,handler)
+        assert message.processed
+        handler.assert_awaited_once()
+        runtime.republish_with_headers.assert_not_awaited()
+        assert (await redis.get_json_required('ai_cart:81'))['items'][0]['quantity']==1
+        assert await queue.get(fail=False) is None
+    finally:
+        await queue.delete(if_unused=False,if_empty=False)
+        await connection.close()
