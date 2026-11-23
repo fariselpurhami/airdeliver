@@ -249,6 +249,8 @@ class CatalogResult(SchemaBaseModel):
     price_status: Literal['listed','unknown']
     image: Optional[StrictStr] = None
     attributes: Dict[str,str] = Field(default_factory=dict)
+    catalog_specs: Dict[str,str] = Field(default_factory=dict)
+    relation: Literal['candidate','requested','alternative'] = 'candidate'
     evidence_kind: Literal['seeded_demo','local_catalog']
     stock_status: Literal['demo','local_in_stock','local_out_of_stock','unverified']
     availability_note: StrictStr

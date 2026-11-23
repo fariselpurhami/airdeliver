@@ -71,3 +71,44 @@ async def test_current_cards_survive_http_but_stale_inactive_deleted_candidates_
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_unavailable_requested_item_pivots_only_to_current_non_demo_positive_stock():
+    from app.services.neural_core_service import RouterDecision
+    engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
+    try:
+        async with sessions() as db:
+            rows=[Product(sku=uuid4().hex,name=name,description='',category='smartwatches',price=price,currency='USD',inventory=qty,attributes=attrs)
+                for name,price,qty,attrs in [('Apple Watch',200,0,{}),('Trail Smartwatch',80,7,{'battery':'48 hours'}),
+                    ('Demo Watch',50,80,{'_seed_dataset':'airdeliver-demo-v1'}),('Empty Watch',40,0,{}),('Too costly Watch',500,5,{})]]
+            db.add_all(rows);await db.commit();ids=[r.id for r in rows]
+        api=SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=[[rows[0]],rows[1:]]),
+            find_genius_alternatives=AsyncMock(return_value=rows[1:]))
+        svc=NeuralCoreService(api,object());svc.is_healthy=True
+        draft=dict(text='Apple Watch has no stock in the current catalog results. Trail Smartwatch is a lower-priced local catalog option, with battery listed as48 hours. Merchant stock is not verified.',
+            product_ids=[ids[1]],claims=[{'product_id':ids[1],'field':'name','value':'Trail Smartwatch'},
+                {'product_id':ids[1],'field':'spec.battery','value':'48 hours'}])
+        verdict=json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
+        svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(draft),verdict])
+        brief=ShoppingBrief(budget='under USD100',budget_max='100',budget_currency='USD')
+        async with sessions() as db:
+            result=await svc._handle_product_search(db,'Apple Watch',brief,'Apple Watch for my wife under USD100',
+                RouterDecision(intent='PRODUCT_SEARCH',query='Apple Watch',search_subject='Apple Watch',requested_name='Apple Watch',alternative_query='smartwatch'))
+        assert result.response_kind=='catalog_results'
+        assert [c.id for c in result.products]==[ids[1]]
+        assert result.products[0].relation=='alternative' and result.products[0].catalog_specs=={'battery':'48 hours'}
+        assert api.find_genius_alternatives.await_count==1
+        writer_payload=json.loads(svc._execute_llm_inference.call_args_list[0].args[0][1]['content'])
+        assert writer_payload['request_evidence']['unavailable_requested'][0]['stock_status']=='local_out_of_stock'
+        # A missing named item (no anchor) still gets bounded functional retrieval.
+        api.perform_hybrid_search_pure=AsyncMock(side_effect=[[],[rows[1],rows[2]]])
+        svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(draft),verdict])
+        async with sessions() as db:
+            result=await svc._handle_product_search(db,'Apple Watch',brief,'Apple Watch for my wife under USD100',
+                RouterDecision(intent='PRODUCT_SEARCH',requested_name='Apple Watch',alternative_query='smartwatch'))
+        assert [c.id for c in result.products]==[ids[1]]
+    finally:
+        async with sessions() as db:
+            await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()

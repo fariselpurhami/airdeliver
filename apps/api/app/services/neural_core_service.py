@@ -74,6 +74,8 @@ class RouterDecision(BaseModel):
     """Strict contract for the LLM output. Enforces type safety on hallucinations."""
     intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE", "GIFT_DISCOVERY"]
     brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
+    requested_name: Optional[str] = Field(default=None,max_length=255,description="Literal customer product/brand/model for availability or comparison")
+    alternative_query: Optional[str] = Field(default=None,max_length=128,description="Generic functional category query for genuine alternatives, never invented product/brand")
     search_subject: Optional[str] = Field(default=None,max_length=256,description="Literal customer category, interest or exact item; required to leave discovery")
     query: Optional[str] = Field(default=None, description="Search term for products")
     order_id: Optional[str] = Field(default=None, description="Extracted order ID digits")
@@ -93,6 +95,8 @@ You MUST output a valid JSON object strictly matching this schema:
 {
     "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE" | "GIFT_DISCOVERY",
     "brief": {"version": 1, "recipient": null, "occasion": null, "category": null, "budget": null, "budget_max": null, "budget_currency": null, "preference": null},
+    "requested_name": "Literal customer product/brand/model or null for broad browsing",
+    "alternative_query": "Generic functional category such as smartwatch for Apple Watch, or null",
     "search_subject": "Literal customer category, interest or exact item, or null for an unspecified gift",
     "quantity": 1,
     "query": "Extracted search term (only if intent is PRODUCT_SEARCH)",
@@ -102,6 +106,7 @@ You MUST output a valid JSON object strictly matching this schema:
 
 ROUTING RULES:
 - GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Ask about budget and interests/occasion before choosing. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
+- Alternatives: preserve the original sales intent. For a concrete unavailable item, retrieve genuine same-purpose alternatives and explain the honest tradeoff, never pretend the original is available. alternative_query is a short generic functional category, not an invented brand/model. For comparisons/specs retrieve the named products, and discuss only structured catalog specs.
 - Budget fields: budget is an exact customer source span; budget_max is its explicit maximum amount as a decimal string, budget_currency is an explicit ISO code or USD when the source uses $. Never convert currencies or infer a cap from vague cheap/affordable. If amount/currency is missing, clarify it.
 - PRODUCT_SEARCH: query must be a literal span of the current customer message. Never translate an unspecified gift request into a brand or item. Products, prices and availability are rendered only from current catalog records with evidence labels.
 - CART_ADD / CART_REMOVE: explicit request to add a named product or remove its whole line from cart. Extract product name into query and quantity1..99. Do not infer product IDs. Vague references need clarification, not an invented name. This produces a review button only, never execution.
@@ -285,6 +290,8 @@ class NeuralCoreService:
                     decision.query=None
             customer_context="\n".join([m.content for m in memory.history if m.role=="user"]+[message])
             decision.brief=decision.brief.grounded(customer_context)
+            if decision.requested_name and ' '.join(decision.requested_name.casefold().split()) not in ' '.join(customer_context.casefold().split()):
+                decision.requested_name=None
             if decision.intent=="PRODUCT_SEARCH":
                 subject=decision.search_subject
                 if not subject or ' '.join(subject.casefold().split()) not in ' '.join(customer_context.casefold().split()):
@@ -339,7 +346,7 @@ class NeuralCoreService:
         text=(f"Review adding {decision.quantity} × {product.name}." if operation=="add" else f"Review removing the entire {product.name} line from your cart.")
         return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
 
-    async def _handle_product_search(self, db: AsyncSession, query: str, brief: ShoppingBrief | None = None, customer_message: str | None = None) -> NeuralCoreResponse:
+    async def _handle_product_search(self, db: AsyncSession, query: str, brief: ShoppingBrief | None = None, customer_message: str | None = None, decision: RouterDecision | None = None) -> NeuralCoreResponse:
         try:
             products = await self.ai_engine.perform_hybrid_search_pure(db, query, limit=5)
         except Exception as exc:
@@ -353,32 +360,65 @@ class NeuralCoreService:
             )
 
         try:
-            return await self._catalog_response(db, products, "PRODUCT_SEARCH", query, brief, customer_message)
+            return await self._catalog_response(db, products, "PRODUCT_SEARCH", query, brief, customer_message, decision)
         except Exception as exc:
             logger.warning("neural_core.catalog.revalidation_failed",extra={"error_type":type(exc).__name__})
             return NeuralCoreResponse(text="System notice: current catalog evidence could not be checked. No product recommendation was published.",response_kind="system_notice",confidence=0.0,explain="Catalog revalidation unavailable",telemetry={"intent":"PRODUCT_SEARCH","entities":[],"turn":0})
 
-    async def _catalog_response(self, db, products, intent, query="", brief=None, customer_message=None):
+    async def _catalog_response(self, db, products, intent, query="", brief=None, customer_message=None, decision=None):
         brief=brief or ShoppingBrief()
         # Re-read every indexed/cached candidate before exposing a card or claim.
         # Preserve ranking, drop duplicates/inactive/deleted rows. No source proof
         # is manufactured from the existence of a local Product row.
-        ids=list(dict.fromkeys(getattr(p,"id",None) for p in products[:5] if type(getattr(p,"id",None)) is int and p.id>0))
-        rows=[]
-        if ids and db is not None:
+        async def current_cards(candidates):
+            ids=list(dict.fromkeys(getattr(p,"id",None) for p in candidates[:20] if type(getattr(p,"id",None)) is int and p.id>0))
+            if not ids or db is None:return []
             result=await db.execute(select(models.Product).where(models.Product.id.in_(ids)).execution_options(populate_existing=True))
-            rows=result.scalars().all()
-        by_id={row.id:row for row in rows}
-        cards=[]
-        for pid in ids:
-            card=catalog_result(by_id[pid]) if pid in by_id else None
-            if card and brief.permits(card):cards.append(card)
-        return await self._shopping_response(customer_message or query,cards,brief,"catalog_results",intent)
+            by_id={row.id:row for row in result.scalars().all()}
+            cards=[]
+            for pid in ids:
+                card=catalog_result(by_id[pid]) if pid in by_id else None
+                if card:cards.append(card)
+            return cards
+        cards=await current_cards(products)
+        evidence={"requested_name":decision.requested_name if decision else None,
+                  "availability_scope":"Current retrieved local catalog rows only; not exhaustive merchant inventory", "unavailable_requested":[]}
+        if decision and decision.requested_name:
+            normalize=lambda value:' '.join(value.casefold().split())
+            requested=normalize(decision.requested_name)
+            matches=[c for c in cards if requested in normalize(c.name)]
+            available=[c for c in matches if c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog" and brief.permits(c)]
+            for card in available:card.relation="requested"
+            # Demo rows are not in-stock substitutes. Preserve demo browsing but
+            # never turn synthetic inventory into an actionable sales pivot.
+            evidence["unavailable_requested"]=[c.model_dump(mode="json") for c in matches if c not in available]
+            evidence["requested_status"]=("locally_stocked" if available else "outside_budget" if any(c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog" for c in matches) else "demo_only" if any(c.evidence_kind=="seeded_demo" for c in matches) else "local_out_of_stock" if matches else "no_match_in_retrieved_results")
+            if not available:
+                candidates=[c for c in cards if c not in matches and c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog"]
+                # Reuse the project's existing bounded same-category alternative
+                # engine for a known unavailable anchor, never a copy of it.
+                if matches and hasattr(self.ai_engine,"find_genius_alternatives"):
+                    with anyio.fail_after(3.0):
+                        extra=await self.ai_engine.find_genius_alternatives(db,matches[0].id,limit=5)
+                    candidates+=await current_cards(extra)
+                # A missing brand/model has no DB anchor: use model-extracted
+                # functional-category retrieval, then the same current-row gate.
+                if decision.alternative_query and len(candidates)<3:
+                    with anyio.fail_after(3.0):
+                        extra=await self.ai_engine.perform_hybrid_search_pure(db,decision.alternative_query,limit=10)
+                    candidates+=await current_cards(extra)
+                unique={c.id:c for c in candidates if c.id not in {m.id for m in matches} and c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog" and brief.permits(c)}
+                cards=list(unique.values())[:5]
+                for card in cards:card.relation="alternative"
+            else:
+                cards=(available+[c for c in cards if c not in matches and c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog"])[:5]
+        cards=[c for c in cards if brief.permits(c) and c.stock_status in {"local_in_stock","demo"}]
+        return await self._shopping_response(customer_message or query,cards[:5],brief,"catalog_results",intent,evidence)
 
-    async def _shopping_response(self,message,cards,brief,mode,intent):
+    async def _shopping_response(self,message,cards,brief,mode,intent,evidence=None):
         try:
             if not self.is_healthy:raise RuntimeError("provider_unavailable")
-            text=await write_shopping_copy(self._execute_llm_inference,message,cards,brief.model_dump(),mode,NeuralCoreConfig.LLM_TIMEOUT_SEC)
+            text=await write_shopping_copy(self._execute_llm_inference,message,cards,brief.model_dump(),mode,NeuralCoreConfig.LLM_TIMEOUT_SEC,evidence)
             kind=mode
         except Exception as exc:
             logger.warning("neural_core.shopping.copy_withheld",extra={"error_type":type(exc).__name__})
@@ -501,7 +541,7 @@ class NeuralCoreService:
                 response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
             else:
                 query = decision.query or decision.search_subject or message
-                response = await self._handle_product_search(db, query, memory.shopping_brief, message)
+                response = await self._handle_product_search(db, query, memory.shopping_brief, message, decision)
         
         elif decision.intent == "TRACK_ORDER":
             response = self._handle_order_tracking(decision.order_id)

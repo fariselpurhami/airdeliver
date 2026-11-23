@@ -164,3 +164,14 @@ async def test_social_misroute_cannot_publish_undeclared_product_without_review(
     result=await svc._shopping_response('gift for my wife',[],ShoppingBrief(),'conversation','SOCIAL_CHAT')
     assert result.response_kind=='system_notice'
     assert 'Cartier' not in result.text
+
+
+def test_specs_are_claimable_only_with_exact_catalog_field_evidence():
+    card=catalog_result(row(attributes={'battery':'48 hours','_seed_random':'7'}))
+    assert card.catalog_specs=={'battery':'48 hours'}
+    draft=ShoppingDraft(text='Studio Headphones has battery listed as48 hours.',product_ids=[1],claims=[
+        {'product_id':1,'field':'name','value':'Studio Headphones'},
+        {'product_id':1,'field':'spec.battery','value':'48 hours'}])
+    validate_draft(draft,[card])
+    draft.claims[-1].value='72 hours'
+    with pytest.raises(ValueError,match='unsupported_field_claim'):validate_draft(draft,[card])

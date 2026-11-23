@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, StrictB
 class Claim(BaseModel):
     model_config=ConfigDict(extra='forbid')
     product_id: StrictInt
-    field: Literal['name','price','currency','evidence_kind','stock_status']
+    field: StrictStr = Field(min_length=1,max_length=80)
     value: StrictStr
 
 
@@ -40,7 +40,27 @@ commercial field stated must have a claim {product_id,field,value} exactly match
 evidence. Never invent brands, products, specifications, fit, prices, discounts,
 stock, policies or delivery. Local catalog stock is NOT verified merchant stock.
 Seeded demo data is synthetic, not an offer. Cards accompany any product mention.
-Do not say a candidate is an exact/perfect match or that it is reserved/available.
+Do not say a candidate is an exact/perfect match or reserved. You may explain
+positive LOCAL catalog stock, always explicitly local, not merchant-verified.
+Sales intent: be consultative, professional and persuasive using actual evidence.
+When requested_name has no matching positive non-demo local-stock row, say the
+requested item is not available in the current results, NOT globally unavailable.
+Use requested_status precisely: outside_budget means locally stocked but over the
+customer's cap, NOT out of stock. demo_only means synthetic, not an offer.
+Then offer the real locally stocked alternative card, explain its actual same-use
+fit, price/value or catalog spec tradeoff. Never claim a demo/out-of-stock row is
+available, never invent a selling point or imply a substitute meets unknown specs.
+Requested names from the customer's own message may be repeated to explain the
+absence without being a recommended product; no card is required for an absent
+item. Every recommended/compared stocked product needs its structured card.
+For specs/comparisons, cite only catalog_specs, with claim field spec.KEY and exact
+value. Missing specs are unknown, not model knowledge. Ask about critical missing
+compatibility/preferences. Never weaken the customer's budget to force a sale.
+Alternative relation does not prove fit: if the candidates do not serve the
+requested purpose, do not recommend them. Ask a focused question instead.
+If no genuine stocked alternative exists, say so honestly within current results.
+Do not generate a complement just because it shares a category: only existing
+catalog-backed complement logic may identify accessories.
 For conversation, respond naturally without product or commercial claims.
 For clarification, ask only missing questions about budget, interests/category,
 and occasion. If budget is supplied but currency/maximum is unresolved, clarify it.
@@ -63,7 +83,13 @@ unlisted prices/currency, fabricated specifications/urgency/delivery or an exact
 match assertion. Reject missing demo disclosure when a demo is mentioned. Reject
 missing references/claim records, including a product hidden in social prose.
 Clarification must ask relevant missing preferences without recommending a product.
-A search response may neutrally present catalog candidates, not guarantee relevance.
+A search response should explain genuine evidence-backed benefits and tradeoffs,
+not promise relevance. Requested absent names from customer_message may be repeated
+solely to explain absence from current results. Do not require a card for that
+unavailable requested name, but do require cards/references for actual alternatives.
+Reject irrelevant functional alternatives even if product IDs and stock are valid.
+Spec claims must match catalog_specs exactly. Local positive stock is not supplier
+verification. Require honest absence disclosure before a persuasive alternative.
 A recipient-only gift request MUST ask preferences, not present arbitrary candidates.
 Reject search candidates if the current task is a vague gift without a concrete
 customer-provided category/interest, even when its product_ids are valid.
@@ -75,7 +101,7 @@ def validate_draft(draft, cards):
     if len(set(draft.product_ids))!=len(draft.product_ids) or not set(draft.product_ids)<=by_id.keys():
         raise ValueError('unsupported_product_reference')
     for claim in draft.claims:
-        if claim.product_id not in draft.product_ids or str(by_id[claim.product_id].get(claim.field))!=claim.value:
+        if claim.product_id not in draft.product_ids or str(by_id[claim.product_id].get('catalog_specs',{}).get(claim.field[5:]) if claim.field.startswith('spec.') else by_id[claim.product_id].get(claim.field) if claim.field in {'name','price','currency','evidence_kind','stock_status'} else None)!=claim.value:
             raise ValueError('unsupported_field_claim')
     for pid,card in by_id.items():
         if card['name'].casefold() in draft.text.casefold() and pid not in draft.product_ids:
@@ -91,9 +117,9 @@ def validate_draft(draft, cards):
         raise ValueError('unsupported_numeric_or_link_claim')
 
 
-async def write_shopping_copy(infer, message, cards, brief, mode, timeout):
+async def write_shopping_copy(infer, message, cards, brief, mode, timeout, context=None):
     evidence=[c.model_dump(mode='json') for c in cards]
-    payload={'task':mode,'customer_message':message,'customer_brief':brief,'catalog_evidence':evidence}
+    payload={'task':mode,'customer_message':message,'customer_brief':brief,'catalog_evidence':evidence,'request_evidence':context or {}}
     # One total budget covers writer, review and all inference retry backoff.
     with anyio.fail_after(timeout):
         raw=await infer([{'role':'system','content':WRITER_RULES},
