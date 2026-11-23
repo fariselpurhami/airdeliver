@@ -465,6 +465,7 @@ async def handle_chat_websocket(
 
     # Unique Connection ID (Traceability)
     connection_id = str(uuid.uuid4())
+    connected_at = __import__("time").monotonic()
     connection_manager = deps.get_websocket_manager()
 
     # Register connection
@@ -543,8 +544,11 @@ async def handle_chat_websocket(
             })
 
     # --- 🧹 CLEANUP ---
-    except WebSocketDisconnect:
-        logger.info(f"User {current_user.id} disconnected (Socket {connection_id[:8]}).")
+    except WebSocketDisconnect as exc:
+        # No payload/ticket or arbitrary close reason in diagnostics.
+        logger.info("ordering.socket_closed user_id=%s connection=%s code=%s duration_ms=%s",
+                    current_user.id, connection_id[:8], exc.code,
+                    round((__import__("time").monotonic()-connected_at)*1000))
 
         if listener_task: listener_task.cancel()
         if pubsub: await pubsub.close()

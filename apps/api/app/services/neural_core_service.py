@@ -523,6 +523,16 @@ class NeuralCoreService:
         merged.update({k:v for k,v in incoming.model_dump().items() if v is not None})
         memory.shopping_brief=ShoppingBrief.model_validate(merged)
 
+        # A literal category is enough to browse. Optional material/style are
+        # not reasons to trap a completed brief in repeated gift clarification.
+        category=memory.shopping_brief.category
+        if decision.intent=='GIFT_DISCOVERY' and category and (
+            ' '.join(category.casefold().split()) in ' '.join(customer_context.casefold().split())
+        ) and (not memory.shopping_brief.budget or memory.shopping_brief.budget_max is not None):
+            decision.intent='PRODUCT_SEARCH'
+            decision.query=category
+            decision.search_subject=category
+
         # Dispatch
         if decision.intent in {"CART_ADD", "CART_REMOVE"}:
             response = await self._handle_cart_review(db,decision,user)
