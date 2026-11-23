@@ -35,7 +35,7 @@ async def test_honest_empty_results_model_response_is_success_not_notice():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('stage,values',[('writer_provider',[ConnectionError('PRIVATE secret')]),('writer_schema',['bad json']),('writer_evidence',[json.dumps({'text':'Price 999','product_ids':[],'claims':[]})]),('review_provider',[json.dumps({'text':'Compare the cards','product_ids':[],'claims':[]}),ConnectionError('PRIVATE secret')]),('review_verdict',[json.dumps({'text':'Compare the cards','product_ids':[],'claims':[]}),json.dumps(dict(supported=False,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))])])
+@pytest.mark.parametrize('stage,values',[('writer_provider',[ConnectionError('PRIVATE secret')]),('writer_schema',['bad json']),('writer_evidence',[json.dumps({'text':'Price 999','product_ids':[],'claims':[]})]*2),('review_provider',[json.dumps({'text':'Compare the cards','product_ids':[],'claims':[]}),ConnectionError('PRIVATE secret')]),('review_verdict',[json.dumps({'text':'Compare the cards','product_ids':[],'claims':[]}),json.dumps(dict(supported=False,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))])])
 async def test_failure_stage_is_safe_and_specific(stage,values,caplog):
     with caplog.at_level(logging.WARNING):
         result=await SalesResponseService(AsyncMock(side_effect=values),provider_ready=True,timeout=1).respond(SalesResponseRequest(message='jewelry',products=(),brief=ShoppingBrief(),mode='catalog_results',intent='PRODUCT_SEARCH'))
@@ -47,3 +47,22 @@ async def test_failure_stage_is_safe_and_specific(stage,values,caplog):
         rendered=JsonFormatter(text=text).format(record)
         assert stage in rendered and 'candidates=0' in rendered
     assert result.response_kind=='system_notice'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('repaired',[True,False])
+async def test_empty_evidence_numeric_violation_gets_one_bounded_model_repair(repaired):
+    bad=json.dumps(dict(text='No ring under 50 dollars in current results.',product_ids=[],claims=[]))
+    good=json.dumps(dict(text='No matching ring appeared in the current results within your stated budget. Would you like to broaden the style?',product_ids=[],claims=[]))
+    verdict=json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
+    infer=AsyncMock(side_effect=[bad,good if repaired else bad,verdict])
+    service=SalesResponseService(infer,provider_ready=True,timeout=1)
+    result=await service.respond(SalesResponseRequest(message='Do you have a diamond ring under 50 dollars?',products=(),brief=ShoppingBrief(budget='50 dollars',budget_max='50',budget_currency='USD'),mode='catalog_results',intent='PRODUCT_SEARCH'))
+    assert result.response_kind==('catalog_results' if repaired else 'system_notice')
+    assert infer.await_count==(3 if repaired else 2)
+    assert result.products==[]
+
+
+@pytest.mark.parametrize('text',['Within your $50 budget, these results are empty.','Your 50 dollar cap does not yield a match.'])
+def test_budget_echo_forms_are_scoped_to_customer_budget(text):
+    validate_draft(ShoppingDraft(text=text),[],brief={'budget_max':'50'})
