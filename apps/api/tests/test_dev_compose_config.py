@@ -294,3 +294,16 @@ def test_seeder_cache_overrides_stale_env_file_and_stays_on_shared_mount(prepare
         assert values['SENTENCE_TRANSFORMERS_HOME']=='/data/storage/models_cache/sentence_transformers'
         assert values['HF_HUB_CACHE']=='/data/storage/models_cache/huggingface/hub'
         assert any(v['type']=='bind' and v['target']=='/data/storage' for v in services[name]['volumes'])
+
+
+def test_acceptance_override_is_opt_in_and_preserves_dev_environment(prepared):
+    root,_ = prepared
+    base = config(root, ['docker-compose.yml', 'docker-compose.dev.yml'], root / '.env.dev')
+    stable = config(root, ['docker-compose.yml', 'docker-compose.dev.yml', 'docker-compose.acceptance.yml'], root / '.env.dev')
+    assert '--reload' in base['services']['api']['command']
+    assert '--reload' not in stable['services']['api']['command']
+    for field in ('environment', 'volumes', 'depends_on', 'healthcheck'):
+        assert stable['services']['api'][field] == base['services']['api'][field]
+    # Held migration dependency still exists, which is why applying remains --no-deps.
+    assert 'api-migrator' in stable['services']['api']['depends_on']
+    assert stable['services']['api-worker'] == base['services']['api-worker']
