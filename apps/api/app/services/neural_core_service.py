@@ -312,7 +312,7 @@ class NeuralCoreService:
                 subject=decision.search_subject
                 if not subject or ' '.join(subject.casefold().split()) not in ' '.join(customer_context.casefold().split()):
                     decision.intent="GIFT_DISCOVERY"
-            if decision.intent == "PRODUCT_SEARCH" and decision.query:
+            if decision.intent == "PRODUCT_SEARCH" and decision.query and not decision.targets:
                 if ' '.join(decision.query.casefold().split()) not in ' '.join(customer_context.casefold().split()):
                     return RouterDecision(intent="GIFT_DISCOVERY", brief=ShoppingBrief())
             return decision
@@ -369,7 +369,7 @@ class NeuralCoreService:
         try:
             # Sequential SQL work. One target timing out aborts publication so a
             # partial result cannot masquerade as a complete comparison.
-            async with asyncio.timeout(16):
+            async with asyncio.timeout(24):
                 for target in decision.targets:
                     result=await staged_search(self.ai_engine,db,target.product_name,
                         rank=CandidateRanker(self.ai_engine).rerank,broaden=_build_broad_query,timeout=5)
