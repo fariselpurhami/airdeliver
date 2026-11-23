@@ -284,3 +284,20 @@ async def test_save_cart_uses_line_total_not_stale_cached_aggregate():
     order=next(value for value in db.added if isinstance(value,Order))
     assert order.total_price==Decimal('39.98')
     assert cache._cart is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('operation',['add','remove','save','sync'])
+async def test_duplicate_cached_product_lines_fail_closed_before_quantity_bypass_or_silent_loss(operation):
+    from app.services.ai_cart_service import CartPersistenceError
+    line={'product_id':7,'name':'Shoes','quantity':60,'price':'19.99'}
+    raw={'items':[dict(line),dict(line)],'total':'2398.80'}
+    cache=FakeCache(raw);db=FakeDB(make_product())
+    service=AICartService(db,cache,object())
+    method=getattr(service,{'add':'handle_add_to_cart','remove':'handle_remove_from_cart',
+        'save':'handle_save_cart','sync':'handle_sync_cart'}[operation])
+    with pytest.raises(CartPersistenceError):
+        await method({'user_id':1,'product_id':7,'quantity':1})
+    assert cache._cart==raw and cache.sets==[] and cache.deleted==[]
+    assert db.added==[] and db.commits==0
+    assert not any(p['type'] in {'success_text','cart_preview'} for _,p in cache.published)

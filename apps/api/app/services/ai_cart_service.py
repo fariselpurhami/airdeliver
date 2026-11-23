@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Optional, List, Dict, Any, Final, Sequence
 
-from pydantic import BaseModel, Field, ValidationError, field_validator, PrivateAttr
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator, PrivateAttr
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 
@@ -43,6 +43,13 @@ class CartStateModel(BaseModel):
     items: List[CartItemModel] = Field(default_factory=list)
     total: Decimal = Field(default=Decimal("0.00"), ge=0, allow_inf_nan=False)
     updated_at: str = ""
+
+    @model_validator(mode="after")
+    def unique_product_lines(self):
+        ids = [item.product_id for item in self.items]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Cart must contain one line per product")
+        return self
 
 class CartOperationPayload(BaseModel):
     user_id: int = Field(ge=1, le=9223372036854775807)
