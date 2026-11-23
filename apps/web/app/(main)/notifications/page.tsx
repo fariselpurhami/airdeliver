@@ -220,12 +220,12 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
         <div className="relative p-1.5 rounded-2xl bg-white/[0.035] backdrop-blur-xl border border-white/10 flex items-center justify-between gap-2">
             
             {/* Filter Switch */}
-            <div className="flex items-center gap-1 flex-wrap">
+            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto no-scrollbar">
                 {filters.map((filter) => (
                     <button
                         key={filter}
                         onClick={() => onFilterChange(filter)}
-                        className={`relative px-3 sm:px-5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 whitespace-nowrap ${
+                        className={`relative shrink-0 px-2 sm:px-5 py-3 rounded-xl text-[11px] sm:text-sm font-bold transition-all duration-300 whitespace-nowrap ${
                             activeFilter === filter 
                             ? 'text-black shadow-[0_0_20px_rgba(34,211,238,0.4)]' 
                             : 'text-slate-400 hover:text-white hover:bg-white/5'
@@ -238,7 +238,7 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
                                 transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                             />
                         )}
-                        <span className="relative z-10 flex items-center gap-2">
+                        <span className="relative z-10 flex items-center gap-1 sm:gap-2">
                             {filter}
                             {filter === 'Unread' && unreadCount > 0 && (
                                 <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full shadow-sm">
