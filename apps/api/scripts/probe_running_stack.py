@@ -31,10 +31,16 @@ async def main(session_factory=AsyncSessionFactory, client_factory=None):
         await db.rollback()
     result['checks']['memory_feature_enabled']=get_core_settings().CUSTOMER_MEMORY_ENABLED
     client_factory = client_factory or httpx.AsyncClient
-    async with client_factory(timeout=15,trust_env=False) as client:
+    async with client_factory(timeout=httpx.Timeout(3.0,connect=2.0),trust_env=False) as client:
         for label,path in [('health','/api/v1/health'),('memory_unauthenticated','/api/v1/users/me/memory')]:
-            response=await client.get('http://127.0.0.1:8000'+path)
-            result['checks'][label+'_http_status']=response.status_code
+            step=time.perf_counter()
+            try:
+                async with asyncio.timeout(4.0):
+                    response=await client.get('http://127.0.0.1:8000'+path)
+                result['checks'][label+'_http_status']=response.status_code
+            except (httpx.HTTPError, TimeoutError) as exc:
+                result['checks'][label+'_error']=type(exc).__name__
+            result['checks'][label+'_seconds']=round(time.perf_counter()-step,3)
     result['seconds']=round(time.perf_counter()-started,3)
     print(json.dumps(result,sort_keys=True))
     return result

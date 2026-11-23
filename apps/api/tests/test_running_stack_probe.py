@@ -22,3 +22,16 @@ async def test_preflight_read_only_queries_and_no_auth_headers(memory_db,capsys)
     assert len(seen)==2 and result['checks']['product_count']>=0
     output=capsys.readouterr().out
     assert 'password' not in output.lower() and 'token' not in output.lower()
+
+@pytest.mark.asyncio
+async def test_timeout_retains_database_results_and_continues_next_path(memory_db,capsys):
+    sessions,_=memory_db
+    def respond(request):
+        if request.url.path.endswith('/health'):
+            raise httpx.ReadTimeout('sensitive diagnostic must not be printed',request=request)
+        return httpx.Response(401)
+    result=await main(sessions,lambda **kw:httpx.AsyncClient(transport=httpx.MockTransport(respond),**kw))
+    assert result['checks']['health_error']=='ReadTimeout'
+    assert result['checks']['memory_unauthenticated_http_status']==401
+    assert 'migration_revisions' in result['checks']
+    assert 'sensitive diagnostic' not in capsys.readouterr().out
