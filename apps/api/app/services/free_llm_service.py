@@ -1208,7 +1208,38 @@ Output ONE line of search keywords only.
         return "\n".join(parts)
 
     
-    async def consult_on_product(
+    async def consult_catalog(self, *, cards, question, brief=None, evidence=None,
+                              infer=None, timeout=8.0):
+        """Reviewed catalog consultation. No web lookup or implicit history.
+
+        Caller owns current SQL hydration and post-model publication check.
+        Typed cards keep evidence provenance visible across this adapter.
+        """
+        from app.schemas.ai_actions import CatalogResult
+        from app.services.sales_response_service import SalesResponseService, SalesResponseRequest
+        from app.services.shopping_discovery import ShoppingBrief
+        validated=tuple(CatalogResult.model_validate(c.model_dump() if isinstance(c,CatalogResult) else c) for c in cards)
+        context=dict(evidence or {})
+        context['sales_intent']='CATALOG_CONSULTATION'
+        context['external_web_evidence']=False
+        return await SalesResponseService(infer or self.infer_sales_json,provider_ready=True,timeout=timeout).respond(
+            SalesResponseRequest(message=question,products=validated,brief=brief or ShoppingBrief(),
+                mode='catalog_results',intent='CATALOG_CONSULTATION',evidence=context))
+
+    async def consult_on_product(self, product_data, question, chat_history=None):
+        """Preserved public contract, routed to reviewed current-card evidence.
+
+        Arbitrary old product dictionaries lacking active/current fields do not
+        become merchant offers. Recent history is not a factual or consent grant.
+        """
+        from types import SimpleNamespace
+        from app.services.shopping_discovery import catalog_result
+        card=catalog_result(SimpleNamespace(**product_data))
+        result=await self.consult_catalog(cards=[card] if card is not None else [],
+            question=question,evidence={'shopping_task':'consultation'})
+        return result.text
+
+    async def _legacy_consult_on_product(
         self,
         product_data: Dict[str, Any],
         question: str,

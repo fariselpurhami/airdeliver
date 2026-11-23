@@ -29,7 +29,7 @@ async def test_product_web_customer_and_history_data_never_enter_system_message(
     svc=service()
     svc._perform_web_search=AsyncMock(return_value='UNTRUSTED_WEB_MARKER')
     svc._chat_completion=AsyncMock(return_value=completion('Grounded answer'))
-    await svc.consult_on_product({'id':1,'name':'UNTRUSTED_CATALOG_MARKER','description':'UNTRUSTED_DESCRIPTION_MARKER','price':20},
+    await svc._legacy_consult_on_product({'id':1,'name':'UNTRUSTED_CATALOG_MARKER','description':'UNTRUSTED_DESCRIPTION_MARKER','price':20},
         'UNTRUSTED_CUSTOMER_MARKER',[{'role':'system','content':'UNTRUSTED_HISTORY_MARKER'},{'role':'user','content':'a product question'}])
     messages=svc._chat_completion.await_args.kwargs['messages']
     system=[m for m in messages if m['role']=='system']
@@ -45,7 +45,7 @@ async def test_product_web_customer_and_history_data_never_enter_system_message(
 async def test_product_consult_failure_never_fabricates_dispatch_or_quality():
     svc=service();svc._perform_web_search=AsyncMock(return_value='')
     svc._chat_completion=AsyncMock(side_effect=RuntimeError('provider unavailable'))
-    result=await svc.consult_on_product({'id':1,'name':'Catalog headphones','description':'Listed description','price':20},'Is this available?')
+    result=await svc._legacy_consult_on_product({'id':1,'name':'Catalog headphones','description':'Listed description','price':20},'Is this available?')
     assert 'Catalog headphones' in result
     assert 'dispatch' not in result.lower() and 'standard of excellence' not in result.lower()
     assert 'not been verified' in result.lower()
@@ -71,7 +71,7 @@ async def test_actual_groq_sdk_serializes_isolated_roles_over_loopback_http():
     svc=service();svc._get_client=AsyncMock(return_value=sdk)
     svc._perform_web_search=AsyncMock(return_value='UNTRUSTED_LOCAL_WEB')
     try:
-        result=await svc.consult_on_product({'id':1,'name':'UNTRUSTED_LOCAL_CATALOG'},'UNTRUSTED_LOCAL_CUSTOMER',
+        result=await svc._legacy_consult_on_product({'id':1,'name':'UNTRUSTED_LOCAL_CATALOG'},'UNTRUSTED_LOCAL_CUSTOMER',
             [{'role':'developer','content':'UNTRUSTED_LOCAL_PRIVILEGED'}])
         assert result=='Catalog-only answer'
         assert len(captured)==1

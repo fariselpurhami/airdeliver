@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-23T21:27:00+02:00",
+  "as_of": "2026-11-23T21:54:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -434,7 +434,8 @@
         44
       ],
       "evidence": [
-        "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
+        "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified.",
+        "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merge status tracked by the accompanying focused PR."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
@@ -790,11 +791,13 @@
       "observed_wiring": "Called by internal commerce orchestrator only",
       "gap": "Preserve consultation logic and make an explicit shared path; no evidence normal HTTP chat calls it today.",
       "reachable": "gated_or_unwired",
-      "real_boundary_tested": "not_reconciled",
+      "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
+      "evidence": [
+        "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merge status tracked by the accompanying focused PR."
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {

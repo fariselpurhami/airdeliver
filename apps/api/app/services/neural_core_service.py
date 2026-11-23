@@ -476,6 +476,13 @@ class NeuralCoreService:
     async def _shopping_response(self,message,cards,brief,mode,intent,evidence=None):
         # Preserve the support adapter; shared service is also usable by optional
         # event consumers without sharing request sessions or cart mutations.
+        if self.is_healthy and mode=='catalog_results' and (evidence or {}).get('shopping_task') in {'consultation','comparison','specifications'}:
+            from app.services.free_llm_service import FreeLLMService
+            # Same established transport and total model budget; no secondary
+            # provider client, raw web context or implicit customer history.
+            return await FreeLLMService().consult_catalog(cards=cards,question=message,
+                brief=brief,evidence=evidence,infer=self._execute_llm_inference,
+                timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC)
         service=SalesResponseService(self._execute_llm_inference,provider_ready=self.is_healthy,
             timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC)
         return await service.respond(SalesResponseRequest(message=message,products=tuple(cards),brief=brief,

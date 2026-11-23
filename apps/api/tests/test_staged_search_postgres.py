@@ -18,7 +18,8 @@ pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='migrate
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mode',['ok','changed','target_timeout','missing'])
-async def test_multi_target_http_actual_sql_history_and_fresh_publication(real_cache,mode):
+@pytest.mark.parametrize('task',['comparison','specifications','consultation'])
+async def test_multi_target_http_actual_sql_history_and_fresh_publication(real_cache,mode,task):
     cache,_=real_cache
     engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
@@ -36,7 +37,7 @@ async def test_multi_target_http_actual_sql_history_and_fresh_publication(real_c
         requests=[]
         async def infer(messages):
             if 'primary cognitive routing' in messages[0]['content']:
-                return json.dumps(dict(intent='PRODUCT_SEARCH',query='Alpha headphones',search_subject='Alpha headphones',shopping_task='comparison',targets=[{'product_name':n} for n in ['Alpha headphones','Beta headphones']]))
+                return json.dumps(dict(intent='PRODUCT_SEARCH',query='Alpha headphones',search_subject='Alpha headphones',shopping_task=task,targets=[{'product_name':n} for n in ['Alpha headphones','Beta headphones']]))
             payload=json.loads(messages[1]['content']);requests.append(payload)
             if 'catalog_evidence' in payload:
                 if mode=='changed':
@@ -64,7 +65,8 @@ async def test_multi_target_http_actual_sql_history_and_fresh_publication(real_c
             else:
                 assert [p['id'] for p in data['products']]==ids[:1 if mode=='missing' else 2]
                 evidence=requests[0]['request_evidence']
-                assert evidence['shopping_task']=='comparison'
+                assert evidence['shopping_task']==task
+                assert evidence['sales_intent']=='CATALOG_CONSULTATION'
                 assert [t['target'] for t in evidence['target_searches']]==['Alpha headphones','Beta headphones']
                 assert evidence['missing_target_evidence_is_unknown'] is True
                 if mode=='missing':assert evidence['target_searches'][1]['tier']=='no_match'
