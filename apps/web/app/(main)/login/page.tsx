@@ -12,6 +12,8 @@ import { Preload } from '@react-three/drei';
 import Image from 'next/image';
 import { Mail, Lock, User, ArrowRight, LucideIcon } from 'lucide-react';
 import * as THREE from 'three';
+import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
+import { MobileHomeFloatingCards } from '@/components/hero/MobileHomeFloatingCards';
 
 // ============================================================================
 // --- TYPES & TOKENS ---
@@ -168,7 +170,7 @@ const FormInput = memo(({ icon: Icon, label, error, id, ...props }: FormInputPro
 
     return (
         <div className="w-full space-y-1.5 transform-gpu">
-            <label htmlFor={inputId} className="block text-xs font-semibold text-zinc-300 ml-2">
+            <label htmlFor={inputId} className="block text-left text-xs font-semibold text-zinc-300 ml-2">
                 {label}
             </label>
             <div className="relative group">
@@ -264,7 +266,7 @@ const SignUpForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
     return (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.6, ease: TRANSITION_PREMIUM }} className="w-full space-y-8">
             <div className="text-center space-y-3">
-                <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-lg leading-tight">
+                <h1 className="text-4xl sm:text-6xl lg:text-[clamp(36px,4.4vw,76px)] font-black uppercase tracking-tighter text-white drop-shadow-2xl leading-[1.05] sm:leading-[0.95]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                     Create an <br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-zinc-400">
                         account
@@ -349,7 +351,7 @@ const SignInForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
     return (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.6, ease: TRANSITION_PREMIUM }} className="w-full space-y-8">
             <div className="text-center space-y-3">
-                <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-white drop-shadow-lg leading-tight">
+                <h1 className="text-4xl sm:text-6xl lg:text-[clamp(36px,4.4vw,76px)] font-black uppercase tracking-tighter text-white drop-shadow-2xl leading-[1.05] sm:leading-[0.95]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                     Welcome <br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-zinc-400">
                         back
@@ -437,10 +439,10 @@ export default function AuthPage() {
     if (!isMounted) return <div className="min-h-screen bg-[#050505]" aria-hidden="true" />;
 
     return (
-        <main className="relative min-h-[100svh] w-full bg-[#050505] overflow-hidden flex items-center justify-center font-sans">
+        <main className={`${HERO_STAGE_CLASSES} max-lg:min-h-[100svh] max-lg:pt-28 max-lg:pb-16 bg-[#050505] font-sans`} data-hero-stage="auth">
             
             {/* 3D Background */}
-            <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }}>
+            <div className="absolute inset-0 z-0 pointer-events-none transform-gpu opacity-25" style={{ contain: 'strict' }}>
                 <Suspense fallback={null}>
                     <Canvas 
                         camera={{ position: [0, 0, 15], fov: 75 }} 
@@ -453,28 +455,18 @@ export default function AuthPage() {
                 </Suspense>
             </div>
             
-            <div className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10 h-full flex flex-col items-center justify-center min-h-[100svh]">
+            <div className="contents">
                 
                 {/* Auth Form Container */}
-                <div className="w-full relative z-30 pointer-events-auto flex justify-center py-12">
+                <div className="relative z-30 w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 text-center pointer-events-auto before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_at_center,rgba(5,5,5,0.98)_0%,rgba(5,5,5,0.92)_55%,transparent_100%)] before:rounded-[40px] before:-z-10">
                     <Suspense fallback={<div className="h-[400px] flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" aria-label="Loading authentication forms..." /></div>}>
                         <AuthFormOrchestrator />
                     </Suspense>
                 </div>
 
-                {/* Floating Decor (Removed 'hidden sm:flex' to show on mobile portrait) */}
-                <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center perspective-1000">
-                    <motion.div
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
-                        transition={{ duration: 1.2, ease: TRANSITION_PREMIUM, delay: 0.2 }}
-                        className="relative w-full max-w-7xl h-full flex items-center justify-center"
-                    >
-                        {HERO_CARDS.map((card, idx) => (
-                            <AuthFloatingProduct key={idx} {...card} />
-                        ))}
-                    </motion.div>
-                </div>
+                {/* Same stage, card components and mobile frame as products. */}
+                <div className="hidden lg:contents"><FloatingHeroCards /></div>
+                <div className="absolute inset-x-5 top-28 bottom-16 lg:hidden pointer-events-none" data-mobile-auth-distribution style={{ opacity: 0.32 }}><MobileHomeFloatingCards /></div>
 
             </div>
         </main>
