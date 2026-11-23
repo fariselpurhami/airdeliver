@@ -14,7 +14,7 @@ it('requests recovery from real endpoint with generic response',async()=>{
 it('takes token from fragment, removes URL secret and signs out after successful reset',async()=>{
  window.history.replaceState(null,'','/reset-password#token=fixture-reset-token');
  jest.mocked(api.post).mockResolvedValue({data:{message:'Password updated. Sign in again.'}});
- render(<PasswordRecoveryForm reset/>);expect(window.location.hash).toBe('');
+ render(<React.StrictMode><PasswordRecoveryForm reset/></React.StrictMode>);expect(window.location.hash).toBe('');
  fireEvent.change(screen.getByLabelText('New password'),{target:{value:'new-fixture-password'}});fireEvent.change(screen.getByLabelText('Confirm new password'),{target:{value:'new-fixture-password'}});fireEvent.click(screen.getByRole('button',{name:'Update password'}));
  await waitFor(()=>expect(signOut).toHaveBeenCalledWith({redirect:false}));expect(api.post).toHaveBeenCalledWith('/auth/password-reset/confirm',{token:'fixture-reset-token',password:'new-fixture-password'});
 });

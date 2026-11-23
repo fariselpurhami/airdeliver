@@ -1,12 +1,13 @@
 'use client';
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useState,useRef} from 'react';
 import Link from 'next/link';
 import {signOut} from 'next-auth/react';
 import {api} from '@/lib/api';
 export default function PasswordRecoveryForm({reset=false}:{reset?:boolean}){
  const[email,setEmail]=useState(''),[password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[token,setToken]=useState('');
+ const tokenCaptured=useRef(false);
  const[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(''),[done,setDone]=useState(false);
- useEffect(()=>{if(reset){const params=new URLSearchParams(window.location.hash.slice(1));setToken(params.get('token')||'');window.history.replaceState(null,'',window.location.pathname);}},[reset]);
+ useEffect(()=>{if(reset&&!tokenCaptured.current){tokenCaptured.current=true;const params=new URLSearchParams(window.location.hash.slice(1));setToken(params.get('token')||'');window.history.replaceState(null,'',window.location.pathname);}},[reset]);
  async function submit(e:React.FormEvent){
   e.preventDefault();if(busy)return;setError('');
   if(reset&&(!token||password.length<8||password.length>128||password!==confirm)){setError(!token?'This reset link is missing its token. Request a new link.':'Use 8 to 128 characters and matching passwords.');return;}
