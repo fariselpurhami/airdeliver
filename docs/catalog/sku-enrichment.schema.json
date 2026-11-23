@@ -1,0 +1,449 @@
+{
+  "$defs": {
+    "Claim": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "value",
+        "evidence_ids"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "source_type": {
+          "enum": [
+            "manufacturer",
+            "merchant",
+            "lab_test",
+            "review_platform",
+            "synthetic"
+          ],
+          "title": "Source Type",
+          "type": "string"
+        },
+        "source_url": {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "title": "Source Url",
+          "type": "string"
+        },
+        "source_title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Source Title",
+          "type": "string"
+        },
+        "captured_at": {
+          "format": "date-time",
+          "title": "Captured At",
+          "type": "string"
+        },
+        "locator": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "supporting_excerpt": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Supporting Excerpt",
+          "type": "string"
+        },
+        "content_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Content Sha256",
+          "type": "string"
+        },
+        "license_or_permission": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "License Or Permission",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "source_type",
+        "source_url",
+        "source_title",
+        "captured_at",
+        "locator",
+        "supporting_excerpt",
+        "content_sha256",
+        "license_or_permission"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "ProductEnrichment": {
+      "additionalProperties": false,
+      "properties": {
+        "sku": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Sku",
+          "type": "string"
+        },
+        "synthetic": {
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "authoritative_description": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Claim"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "material": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Claim"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "style": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Claim"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "use": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Claim"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "size_fit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SizeFit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "compatibility": {
+          "items": {
+            "$ref": "#/$defs/Relation"
+          },
+          "maxItems": 100,
+          "title": "Compatibility",
+          "type": "array"
+        },
+        "rating": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rating"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "relations": {
+          "items": {
+            "$ref": "#/$defs/Relation"
+          },
+          "maxItems": 100,
+          "title": "Relations",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "review": {
+          "$ref": "#/$defs/Review"
+        }
+      },
+      "required": [
+        "sku",
+        "synthetic",
+        "authoritative_description",
+        "material",
+        "style",
+        "use",
+        "size_fit",
+        "compatibility",
+        "rating",
+        "relations",
+        "evidence",
+        "review"
+      ],
+      "title": "ProductEnrichment",
+      "type": "object"
+    },
+    "Rating": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "maximum": 5.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        },
+        "count": {
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "scale": {
+          "const": 5,
+          "title": "Scale",
+          "type": "integer"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "value",
+        "count",
+        "scale",
+        "evidence_ids"
+      ],
+      "title": "Rating",
+      "type": "object"
+    },
+    "Relation": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "complement",
+            "alternative",
+            "compatible",
+            "incompatible"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "target_sku": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Target Sku",
+          "type": "string"
+        },
+        "scope": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Scope",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "review": {
+          "$ref": "#/$defs/Review"
+        }
+      },
+      "required": [
+        "kind",
+        "target_sku",
+        "scope",
+        "evidence_ids",
+        "review"
+      ],
+      "title": "Relation",
+      "type": "object"
+    },
+    "Review": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "draft",
+            "rejected",
+            "approved"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reviewer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewer"
+        },
+        "reviewed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed At"
+        },
+        "notes": {
+          "maxLength": 1000,
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "notes"
+      ],
+      "title": "Review",
+      "type": "object"
+    },
+    "SizeFit": {
+      "additionalProperties": false,
+      "properties": {
+        "size_system": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Size System",
+          "type": "string"
+        },
+        "available_sizes": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Available Sizes",
+          "type": "array"
+        },
+        "fit_notes": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Fit Notes",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "size_system",
+        "available_sizes",
+        "fit_notes",
+        "evidence_ids"
+      ],
+      "title": "SizeFit",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "manifest_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Manifest Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "products": {
+      "items": {
+        "$ref": "#/$defs/ProductEnrichment"
+      },
+      "maxItems": 10000,
+      "minItems": 1,
+      "title": "Products",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "manifest_id",
+    "created_at",
+    "products"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

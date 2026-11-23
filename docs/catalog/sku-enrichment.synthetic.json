@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0",
+  "manifest_id": "synthetic-example-not-importable",
+  "created_at": "2026-11-23T11:00:00+02:00",
+  "products": [
+    {
+      "sku": "SYNTHETIC-SHOE-A",
+      "synthetic": true,
+      "authoritative_description": {
+        "value": "Synthetic canvas walking shoe, authoring example only.",
+        "evidence_ids": [
+          "synthetic-spec"
+        ]
+      },
+      "material": {
+        "value": "canvas",
+        "evidence_ids": [
+          "synthetic-spec"
+        ]
+      },
+      "style": {
+        "value": "casual",
+        "evidence_ids": [
+          "synthetic-spec"
+        ]
+      },
+      "use": {
+        "value": "walking",
+        "evidence_ids": [
+          "synthetic-spec"
+        ]
+      },
+      "size_fit": {
+        "size_system": "EU",
+        "available_sizes": [
+          "40",
+          "41",
+          "42"
+        ],
+        "fit_notes": "Synthetic sizes, not real fit advice.",
+        "evidence_ids": [
+          "synthetic-spec"
+        ]
+      },
+      "compatibility": [
+        {
+          "kind": "compatible",
+          "target_sku": "SYNTHETIC-INSERT-B",
+          "scope": "Synthetic directional example only, no real compatibility claim.",
+          "evidence_ids": [
+            "synthetic-spec"
+          ],
+          "review": {
+            "status": "draft",
+            "reviewer": null,
+            "reviewed_at": null,
+            "notes": "Synthetic example, never import."
+          }
+        }
+      ],
+      "rating": {
+        "value": "4.2",
+        "count": 12,
+        "scale": 5,
+        "evidence_ids": [
+          "synthetic-spec"
+        ]
+      },
+      "relations": [
+        {
+          "kind": "complement",
+          "target_sku": "SYNTHETIC-ANCHOR-C",
+          "scope": "Synthetic directional example only, no real compatibility claim.",
+          "evidence_ids": [
+            "synthetic-spec"
+          ],
+          "review": {
+            "status": "draft",
+            "reviewer": null,
+            "reviewed_at": null,
+            "notes": "Synthetic example, never import."
+          }
+        },
+        {
+          "kind": "alternative",
+          "target_sku": "SYNTHETIC-ALT-D",
+          "scope": "Synthetic directional example only, no real compatibility claim.",
+          "evidence_ids": [
+            "synthetic-spec"
+          ],
+          "review": {
+            "status": "draft",
+            "reviewer": null,
+            "reviewed_at": null,
+            "notes": "Synthetic example, never import."
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "evidence_id": "synthetic-spec",
+          "source_type": "synthetic",
+          "source_url": "https://example.invalid/synthetic-spec",
+          "source_title": "Synthetic specification, no real source",
+          "captured_at": "2026-11-23T11:00:00+02:00",
+          "locator": "Example section1",
+          "supporting_excerpt": "Synthetic canvas shoe for walking, EU40-42.",
+          "content_sha256": "28b2ee9fec5ac3068a3358f92a509bf83099528fb22ba9d88ffaa2e1cd8a8c67",
+          "license_or_permission": "Synthetic fixture, no merchant data"
+        }
+      ],
+      "review": {
+        "status": "draft",
+        "reviewer": null,
+        "reviewed_at": null,
+        "notes": "Synthetic example, never import."
+      }
+    }
+  ]
+}
