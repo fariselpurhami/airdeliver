@@ -189,6 +189,9 @@ class AICartService:
         Calculates financial totals deterministically and persists to distributed cache.
         """
         try:
+            # Assignment/list mutation bypasses Pydantic construction checks.
+            # Revalidate a fresh value before arithmetic or persistence.
+            CartStateModel.model_validate(cart.model_dump(mode="python"))
             cart.total = sum((item.price * Decimal(item.quantity) for item in cart.items), Decimal("0.00"))
             cart.updated_at = datetime.now(timezone.utc).isoformat()
 

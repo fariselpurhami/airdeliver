@@ -301,3 +301,26 @@ async def test_duplicate_cached_product_lines_fail_closed_before_quantity_bypass
     assert cache._cart==raw and cache.sets==[] and cache.deleted==[]
     assert db.added==[] and db.commits==0
     assert not any(p['type'] in {'success_text','cart_preview'} for _,p in cache.published)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('field,value',[('price','-1'),('price','NaN'),('quantity',100),('quantity',True),('product_id',0)])
+async def test_model_assignment_cannot_bypass_cart_prewrite_validation(field,value):
+    from decimal import Decimal
+    from app.services.ai_cart_service import CartPersistenceError
+    raw={'items':[{'product_id':7,'name':'Shoes','quantity':1,'price':'19.99'}],'total':'19.99'}
+    cache=FakeCache(raw);svc=AICartService(FakeDB(),cache,object())
+    cart=await svc._get_cart_from_redis(1)
+    setattr(cart.items[0],field,Decimal(value) if field=='price' else value)
+    with pytest.raises(CartPersistenceError):await svc._update_cart_in_redis(1,cart)
+    assert cache._cart==raw and cache.sets==[] and cache.published==[]
+
+
+@pytest.mark.asyncio
+async def test_invalid_catalog_price_refresh_on_existing_cart_line_cannot_be_persisted():
+    from app.services.ai_cart_service import CartPersistenceError
+    raw={'items':[{'product_id':7,'name':'Shoes','quantity':1,'price':'19.99'}],'total':'19.99'}
+    cache=FakeCache(raw)
+    with pytest.raises(CartPersistenceError):
+        await AICartService(FakeDB(make_product(price=-1)),cache,object()).handle_add_to_cart({'user_id':1,'product_id':7})
+    assert cache._cart==raw and cache.sets==[] and cache.published==[]
