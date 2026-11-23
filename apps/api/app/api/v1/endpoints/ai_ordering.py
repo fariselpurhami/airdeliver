@@ -294,7 +294,7 @@ async def reset_session(
     current_user: models.User = Depends(deps.get_current_active_user),
     nlu_service: AINLUService = Depends(get_ai_nlu_service),
 ):
-    """Clear assistant memory/context for this user and empty the cart."""
+    """Reset recent chat context and request cart clear; saved preferences remain."""
     await nlu_service.process_message({
         "user_id": current_user.id,
         "email": current_user.email,

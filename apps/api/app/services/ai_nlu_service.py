@@ -2943,7 +2943,7 @@ class AINLUService:
             await self._safe_send_ui(
                 user_id,
                 {
-                    "content": "Session and memory cleared. Starting fresh.",
+                    "content": "Recent conversation reset requested. Saved shopping preferences are unchanged and order records are not erased. Cart clearing may cancel pending orders. Check your cart state to confirm it is empty.",
                     "type": "system",
                 },
             )
