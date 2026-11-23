@@ -1,0 +1,13 @@
+# Journey item4, manual fulfillment foundation, no carrier integration
+
+User accepted preparing a manual admin flow, code only. Adds existing-admin protected workspace at /dashboard/fulfillment, linked from existing dashboard. Existing dashboard and endpoints retained. Backend listing scalar-row/count bug corrected so real orders load.
+
+Admin confirms reviewed paid-order transition with10..500character operator evidence. Fresh row lock, expected from-status and allowed progression: processing→assigned→in_transit→delivered. No status skips, paid flag changes, refund, payment or carrier call. Same exact actor/evidence/from/to replay returns current matching transition without duplicate audit/notification. Stale/different requests conflict. Single transaction saves status, actor audit and private customer in-app notification with local tracking link, clearly marked manual store record, not carrier scan. No outgoing email/push.
+
+Real HTTP+disposable migrated PostgreSQL test: nonadmin403, unpaid409, skip409, evidence422, concurrent same operation one new/one replay, stale evidence409, three allowed transitions, exactly3audits+3notifications to correct owner. Full backend1007passed4skipped20existing warnings. Frontend114tests22suites, tsc/build pass. UI tests require explicit review and confirm, denied users do not read orders, uncertain response does not claim physical delivery. Mobile390/desktop1280fixture pixels inspected. Model/provider-free fixtures, no shipped mock.
+
+Gates: this records an operator's attestation, it cannot certify physical delivery. Actual operator identity/process, evidence policy and carrier integration still need decisions. Full live admin browser→API journey not yet executed. PR21 tracking/history and item8 notification refinements remain separate, unmerged PRs. No owner DB writes/migration/deploy/provider/spend occurred. Hold for user review and per-PR merge approval.
+
+## Default-off activation gate
+
+MANUAL_FULFILLMENT_ENABLED defaults false. The mutation endpoint refuses before reading/updating an order. Admin-only no-store configuration exposes availability; UI does not fetch orders or show mutation controls while disabled or if availability cannot be checked. No startup activation. Owner must separately approve operator/evidence policy before enabling. Real PostgreSQL HTTP test confirms disabled mutation returns503 and leaves order unchanged, then explicitly enables only in the disposable fixture to test transitions. Frontend disabled state tested; full frontend115 tests, tsc/build pass. This does not approve enabling the flag on the owner's machine.

@@ -29,6 +29,7 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { CatalogPrice, listedCatalogPrice } from './CatalogPrice';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import AssistantAction from './AssistantAction';
 
 // --- ENTERPRISE CONTRACT DEFINITIONS ---
 export interface AIProduct {
@@ -53,6 +54,7 @@ export interface ExtendedMessage {
     sender: 'ai' | 'user' | 'system';
     contentType: 'text' | 'image_user_upload' | 'error' | 'info' | 'success_text' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'recovery_prompt' | 'cart_preview' | 'typing' | 'payment_intent' | 'ORDER_CANCELLED';
     content: string | { items: AIProduct[]; total: number };
+    action?: unknown;
     imageUrl?: string;
     options?: string[];
     products?: AIProduct[];
@@ -458,6 +460,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
                             >
                                 {typeof message.content === 'string' ? message.content : ''}
                             </ReactMarkdown>
+                            {isAI && <AssistantAction action={message.action}/>}
                         </div>
                     </div>
                 );
