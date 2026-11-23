@@ -73,7 +73,9 @@ async def wait_carousel(pubsub, seconds=45):
     return None
 
 
-def make_bounded_service(ledger):
+def make_bounded_service(ledger, *, max_output_tokens=MAX_OUTPUT_TOKENS, exact_output_tokens=None):
+    if exact_output_tokens not in (None, 2048):
+        raise AcceptanceStopped("unapproved_acceptance_token_cap")
     from app.services.free_llm_service import FreeLLMService
     # Separate process only: no change to API/worker service settings.
     service = FreeLLMService()
@@ -98,7 +100,7 @@ def make_bounded_service(ledger):
         if kwargs.get('model') != MODEL:
             raise AcceptanceStopped('unapproved_model')
         ledger.reserve_call()
-        kwargs['max_tokens'] = min(MAX_OUTPUT_TOKENS, kwargs.get('max_tokens', MAX_OUTPUT_TOKENS))
+        kwargs['max_tokens'] = exact_output_tokens if exact_output_tokens is not None else min(max_output_tokens, kwargs.get('max_tokens', max_output_tokens))
         try:
             result = await original(**kwargs)
             service.acceptance_raw = result
