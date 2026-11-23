@@ -906,7 +906,11 @@ class AICartService:
             return
 
         try:
-            await self.cache.delete_required(self._get_cart_key(payload.user_id))
+            cart = await self._get_cart_from_redis(payload.user_id)
+            cleared = await self.cache.compare_json_required(
+                self._get_cart_key(payload.user_id), cart._snapshot, None, delete=True)
+            if not cleared:
+                raise CartPersistenceError("Cart changed concurrently; refresh before clearing")
         except Exception as exc:
             raise CartPersistenceError("Cart clear could not be confirmed; refresh before retrying") from exc
 
@@ -927,8 +931,6 @@ class AICartService:
             await self.db.rollback()
             logger.error("Order database cleanup failure", extra={"user_id": payload.user_id, "error": str(e)})
 
-        await self._send_to_ui(payload.user_id, {
-            "content": CartStateModel().model_dump(mode='json'),
-            "type": "cart_preview",
-            "reason": "Clear Command"
-        })
+        # DB cleanup may take time; sync current cart instead of pushing an
+        # unconditional empty snapshot over an item added after the clear.
+        await self.handle_sync_cart({"user_id": payload.user_id})

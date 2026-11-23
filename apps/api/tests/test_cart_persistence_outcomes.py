@@ -324,3 +324,30 @@ async def test_invalid_catalog_price_refresh_on_existing_cart_line_cannot_be_per
     with pytest.raises(CartPersistenceError):
         await AICartService(FakeDB(make_product(price=-1)),cache,object()).handle_add_to_cart({'user_id':1,'product_id':7})
     assert cache._cart==raw and cache.sets==[] and cache.published==[]
+
+@pytest.mark.asyncio
+async def test_clear_does_not_delete_a_concurrently_added_cart(real_cache):
+    from app.services.ai_cart_service import CartPersistenceError
+    cache,_=real_cache
+    original=cache.compare_json_required
+    newer={'items':[{'product_id':7,'name':'Shoes','quantity':1,'price':'19.99'}],'total':'19.99'}
+    async def raced(*args,**kwargs):
+        await cache.set_json_required('ai_cart:1',newer)
+        return await original(*args,**kwargs)
+    cache.compare_json_required=raced
+    with pytest.raises(CartPersistenceError):
+        await AICartService(FakeDB(),cache,object()).handle_clear_cart({'user_id':1})
+    assert await cache.get_json_required('ai_cart:1')==newer
+
+@pytest.mark.asyncio
+async def test_clear_syncs_current_cart_after_slow_order_cleanup(real_cache):
+    cache,_=real_cache
+    newer={'items':[{'product_id':7,'name':'Shoes','quantity':1,'price':'19.99'}],'total':'19.99'}
+    db=FakeDB()
+    async def execute(_):
+        await cache.set_json_required('ai_cart:1',newer)
+        return SimpleNamespace(scalars=lambda:SimpleNamespace(all=lambda:[]))
+    db.execute=execute
+    svc=AICartService(db,cache,object());svc._send_to_ui=AsyncMock()
+    await svc.handle_clear_cart({'user_id':1})
+    assert svc._send_to_ui.call_args.args[1]['content']['items'][0]['product_id']==7
