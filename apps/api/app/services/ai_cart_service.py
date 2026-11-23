@@ -226,6 +226,15 @@ class AICartService:
                 await self._send_to_ui(payload.user_id, {"content": "Product unavailable or out of stock.", "type": "error"})
             return
 
+        currency = getattr(product, "currency", None)
+        if not isinstance(currency, str) or currency.upper() != "USD":
+            if payload.notify_user:
+                await self._send_to_ui(payload.user_id, {
+                    "content": "This product's currency is not supported by this USD cart. Your cart has not changed.",
+                    "type": "error",
+                })
+            return
+
         cart = await self._get_cart_from_redis(payload.user_id)
 
         existing_item = next((item for item in cart.items if item.product_id == payload.product_id), None)

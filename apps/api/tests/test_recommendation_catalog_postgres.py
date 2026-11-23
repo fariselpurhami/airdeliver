@@ -180,3 +180,18 @@ async def test_cart_existing_line_refreshes_current_price_and_name(catalog):
         await AICartService(db,cache,object()).handle_add_to_cart({'user_id':1,'product_id':anchor.id,'quantity':1})
     item=cache.sets[-1][1]['items'][0]
     assert item['name']==anchor.name and item['price']=='100.00' and item['quantity']==2
+
+
+@pytest.mark.asyncio
+async def test_cart_cannot_label_non_usd_catalog_price_as_dollars(catalog):
+    from app.services.ai_cart_service import AICartService
+    from tests.test_ai_cart_service import FakeCache
+    sessions,(anchor,*_)=catalog
+    async with sessions() as db:
+        await db.execute(update(Product).where(Product.id==anchor.id).values(currency='EUR'));await db.commit()
+    cache=FakeCache()
+    async with sessions() as db:
+        await AICartService(db,cache,object()).handle_add_to_cart({'user_id':1,'product_id':anchor.id})
+    assert cache.sets==[] and cache._cart is None
+    assert any('currency' in p.get('content','') for _,p in cache.published)
+    assert not any(p['type'] in {'success_text','cart_preview'} for _,p in cache.published)

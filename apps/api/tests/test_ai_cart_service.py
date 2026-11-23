@@ -77,7 +77,7 @@ class FakeRabbit:
 
 
 def make_product(pid=7, name="Shoes", price=19.99):
-    return SimpleNamespace(id=pid, name=name, price=price, image_url="img", category="footwear",is_active=True,inventory=100)
+    return SimpleNamespace(id=pid, name=name, price=price, image_url="img", category="footwear",is_active=True,inventory=100,currency="USD")
 
 
 def make_service(cart=None, product=None):
