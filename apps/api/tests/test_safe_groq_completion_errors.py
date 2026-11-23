@@ -34,7 +34,8 @@ def test_arbitrary_payload_is_not_echoed_or_stringified(body):
 
 
 @pytest.mark.asyncio
-async def test_production_recommendation_wire_and_safe_failure(tmp_path, monkeypatch):
+@pytest.mark.parametrize("cap",[None,2048])
+async def test_production_recommendation_wire_and_safe_failure(tmp_path, monkeypatch,cap):
     from app.services.free_llm_service import FreeLLMService
     monkeypatch.setattr(FreeLLMService, "_instance", None)
     service=FreeLLMService();sent=[]
@@ -46,13 +47,13 @@ async def test_production_recommendation_wire_and_safe_failure(tmp_path, monkeyp
     service._client=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
     ledger=Ledger(tmp_path/'one.json')
     try:
-        bounded=make_bounded_service(ledger)
+        bounded=make_bounded_service(ledger,exact_output_tokens=cap)
         await bounded.filter_and_recommend('Alternative to first product',[{'id':1,'name':'shoe','category':'shoes'},
                                                                          {'id':2,'name':'other shoe','category':'shoes'}])
         assert len(sent)==1 and ledger.state['calls_reserved']==1
         wire=sent[0]
         assert set(wire)=={'model','messages','temperature','max_tokens','top_p','response_format'}
-        assert wire['model']=='openai/gpt-oss-120b' and wire['max_tokens']==256
+        assert wire['model']=='openai/gpt-oss-120b' and wire['max_tokens']==(cap or 256)
         assert wire['temperature']==0.2 and wire['top_p']==0.9
         assert wire['response_format']=={'type':'json_object'}
         assert [m['role'] for m in wire['messages']]==['system','user']

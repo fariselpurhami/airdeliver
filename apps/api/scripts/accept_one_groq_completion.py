@@ -64,12 +64,15 @@ async def completion_once(ledger,service,context,*,leg="completion5",remaining=3
     if raw is None:raise AcceptanceStopped('no_provider_response')
     ledger.record({'leg':leg,'calls_reserved_total':ledger.state['calls_reserved_total'],
         'requests_remaining':remaining,'model':MODEL,'completion_tokens':getattr(raw.usage,'completion_tokens',None),
+        'prompt_tokens':getattr(raw.usage,'prompt_tokens',None),
+        'total_tokens':getattr(raw.usage,'total_tokens',None),
+        'reasoning_tokens':getattr(getattr(raw.usage,'completion_tokens_details',None),'reasoning_tokens',None),
         'finish_reason':raw.choices[0].finish_reason,'raw_text':(raw.choices[0].message.content or '')[:4000],
         'parsed':result.model_dump(mode='json') if result else None,
         'scope':'one production recommendation method; human review raw versus parsed for fallback/truncation, not full chat/UI quality'})
 
 
-async def run(ledger,*,leg="completion5",remaining=3):
+async def run(ledger,*,leg="completion5",remaining=3,exact_output_tokens=None):
     if os.getenv('APP_ENV')!='development':raise AcceptanceStopped('development_only')
     if not os.getenv('GROQ_API_KEY','').strip():raise AcceptanceStopped('missing_groq_key')
     from sqlalchemy import text
@@ -80,7 +83,7 @@ async def run(ledger,*,leg="completion5",remaining=3):
         context=[{**dict(row),'price':str(row['price']),'price_status':'listed'} for row in rows]
         await db.rollback()
     if len(context)<2:raise AcceptanceStopped('need_anchor_and_same_category_alternative')
-    service=make_bounded_service(ledger)
+    service=make_bounded_service(ledger,exact_output_tokens=exact_output_tokens)
     try:await completion_once(ledger,service,context,leg=leg,remaining=remaining)
     finally:
         if service._client is not None:await service._client.close()
