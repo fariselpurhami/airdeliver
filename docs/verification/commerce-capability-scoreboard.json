@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-23T20:39:00+02:00",
+  "as_of": "2026-11-23T21:17:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -244,8 +244,13 @@
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        42,
+        43
+      ],
+      "evidence": [
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {
@@ -273,10 +278,13 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
-        39
+        39,
+        42,
+        43
       ],
       "evidence": [
-        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
+        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt.",
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
@@ -304,8 +312,13 @@
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        42,
+        43
+      ],
+      "evidence": [
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {
@@ -318,8 +331,13 @@
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        42,
+        43
+      ],
+      "evidence": [
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {
