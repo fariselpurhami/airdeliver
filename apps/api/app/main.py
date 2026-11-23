@@ -25,7 +25,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.deps import get_websocket_manager
 from app.api.v1.api import api_router
 from app.core.config import CoreSettings, get_core_settings
-from app.core.limiter import limiter
+from app.core.limiter import limiter, install_rate_limiting
 from app.services.cache_service import IAsyncCacheClient, NoOpCacheClient, RedisCacheClient
 from app.services.rabbitmq_service import get_rabbitmq_service
 from app.services.ai_cart_service import CartPersistenceError
@@ -54,6 +54,7 @@ def register_routes(app: FastAPI, settings: CoreSettings) -> None:
     app.include_router(voice_router, prefix=f"{settings.API_V1_STR}/ordering")
 
     @app.get(HEALTH_ENDPOINT, tags=["health"])
+    @limiter.exempt
     async def read_root() -> dict[str, str]:
         return build_health_payload(settings)
 
@@ -75,10 +76,12 @@ class InvalidMessageError(ValueError):
 
 
 def configure_logging() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
+    from pydantic import SecretStr
+    from app.core.logging_config import setup_logging
+    settings = get_core_settings()
+    secrets = [value.get_secret_value() for name in type(settings).model_fields
+               if isinstance(value := getattr(settings, name), SecretStr)]
+    setup_logging(log_format=settings.LOG_FORMAT, level=settings.APP_LOG_LEVEL, secret_values=secrets)
 
 
 def get_app_resources(app: FastAPI) -> ApplicationResources:
@@ -287,6 +290,7 @@ def register_routes(app: FastAPI, settings: CoreSettings) -> None:
     app.include_router(api_router, prefix=settings.API_V1_STR)
 
     @app.get(HEALTH_ENDPOINT, tags=["health"])
+    @limiter.exempt
     async def read_root() -> dict[str, str]:
         return build_health_payload(settings)
 
@@ -368,6 +372,7 @@ def create_application() -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+    install_rate_limiting(app)
     register_middleware(app, settings)
     register_exception_handlers(app)
     configure_metrics(app)
