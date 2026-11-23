@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from app.core.dev_lifecycle import write_state as write_dev_lifecycle
+write_dev_lifecycle("starting")
+
 import asyncio
 import contextlib
 import json
@@ -341,8 +344,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         resources = await startup_resources(app, settings)
         await initialize_query_embeddings()
         logger.info("Application startup complete.")
+        write_dev_lifecycle("ready")
         yield
+    except BaseException:
+        write_dev_lifecycle("failed")
+        raise
     finally:
+        write_dev_lifecycle("stopping")
         if resources is not None:
             await shutdown_resources(resources)
         logger.info("Application shutdown complete.")

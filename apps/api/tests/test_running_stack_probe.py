@@ -35,3 +35,14 @@ async def test_timeout_retains_database_results_and_continues_next_path(memory_d
     assert result['checks']['memory_unauthenticated_http_status']==401
     assert 'migration_revisions' in result['checks']
     assert 'sensitive diagnostic' not in capsys.readouterr().out
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('lifecycle,expected', [('starting','still_starting'), ('ready','http_check_failed'), ('unavailable','http_check_failed')])
+async def test_timeout_labels_startup_only_with_live_marker(memory_db,monkeypatch,lifecycle,expected):
+    sessions,_=memory_db
+    monkeypatch.setattr('scripts.probe_running_stack.read_state',lambda:lifecycle)
+    def respond(request):
+        raise httpx.ReadTimeout('hidden detail',request=request)
+    result=await main(sessions,lambda **kw:httpx.AsyncClient(transport=httpx.MockTransport(respond),**kw))
+    assert result['api_status'].startswith(expected)
+    assert result['checks']['api_lifecycle_after']==lifecycle

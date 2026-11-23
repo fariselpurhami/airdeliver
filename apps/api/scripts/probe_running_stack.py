@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import text
 from app.core.config import get_core_settings
 from app.db.session import AsyncSessionFactory
+from app.core.dev_lifecycle import read_state
 
 
 async def main(session_factory=AsyncSessionFactory, client_factory=None):
@@ -29,6 +30,7 @@ async def main(session_factory=AsyncSessionFactory, client_factory=None):
         if 'products' in tables:
             result['checks']['product_count']=(await db.execute(text('SELECT count(*) FROM products'))).scalar_one()
         await db.rollback()
+    result['checks']['api_lifecycle_before'] = read_state()
     result['checks']['memory_feature_enabled']=get_core_settings().CUSTOMER_MEMORY_ENABLED
     client_factory = client_factory or httpx.AsyncClient
     async with client_factory(timeout=httpx.Timeout(3.0,connect=2.0),trust_env=False) as client:
@@ -41,6 +43,14 @@ async def main(session_factory=AsyncSessionFactory, client_factory=None):
             except (httpx.HTTPError, TimeoutError) as exc:
                 result['checks'][label+'_error']=type(exc).__name__
             result['checks'][label+'_seconds']=round(time.perf_counter()-step,3)
+    result['checks']['api_lifecycle_after'] = read_state()
+    if any(key.endswith('_error') for key in result['checks']):
+        if result['checks']['api_lifecycle_after'] == 'starting':
+            result['api_status'] = 'still_starting; lifecycle not complete; retry after startup completes'
+        else:
+            result['api_status'] = 'http_check_failed; cause not established'
+    else:
+        result['api_status'] = 'http_checks_completed'
     result['seconds']=round(time.perf_counter()-started,3)
     print(json.dumps(result,sort_keys=True))
     return result
