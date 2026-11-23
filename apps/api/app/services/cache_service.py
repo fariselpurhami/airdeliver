@@ -323,6 +323,12 @@ class RedisCacheClient(IAsyncCacheClient):
                     raw = await pipe.get(key)
                     current = None if raw is None else orjson.loads(raw)
                     if current != expected:
+                        # Winner may commit between our receipt GET and cart GET.
+                        # The cart mismatch alone does not prove a different operation.
+                        latest_receipt = await pipe.get(receipt_key)
+                        if latest_receipt is not None:
+                            saved = orjson.loads(latest_receipt)
+                            return "replayed" if saved.get("fingerprint") == fingerprint else "conflict"
                         return "stale"
                     pipe.multi()
                     pipe.set(key, orjson.dumps(value), ex=ttl)

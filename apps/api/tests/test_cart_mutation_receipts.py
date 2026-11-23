@@ -59,3 +59,34 @@ async def test_remove_replay_does_not_remove_a_later_readded_product(real_cache)
     await AICartService(FakeDB(make_product()),cache,object()).handle_add_to_cart(add)
     await AICartService(FakeDB(),cache,object()).handle_remove_from_cart(remove)
     assert (await cache.get_json_required('ai_cart:1'))['items'][0]['quantity']==1
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('winner_fingerprint,expected_result',[('same','replayed'),('different','conflict')])
+async def test_winner_commits_between_receipt_and_cart_reads(real_cache,winner_fingerprint,expected_result):
+    cache,_=real_cache
+    receipt='cart_mutation:3:'+str(uuid4());cart='ai_cart:3'
+    original_pipeline=cache.client.pipeline
+    # Independent client keeps winner outside the instrumented loser's pipeline.
+    from app.services.cache_service import RedisCacheClient
+    winner=RedisCacheClient('redis://unused-independent-wrapper')
+    winner._redis=cache.client
+    armed=True
+    class Interleaved:
+        def __init__(self):self.inner=original_pipeline(transaction=True)
+        async def __aenter__(self):await self.inner.__aenter__();return self
+        async def __aexit__(self,*args):return await self.inner.__aexit__(*args)
+        def __getattr__(self,name):return getattr(self.inner,name)
+        async def get(self,key):
+            nonlocal armed
+            result=await self.inner.get(key)
+            if key==receipt and armed:
+                armed=False
+                # Avoid recursively instrumenting winner.
+                cache.client.pipeline=original_pipeline
+                assert await winner.commit_cart_mutation(cart,None,{'items':[]},receipt,winner_fingerprint,60)=='committed'
+            return result
+    cache.client.pipeline=lambda **kwargs:Interleaved()
+    try:
+        assert await cache.commit_cart_mutation(cart,None,{'items':[]},receipt,'same',60)==expected_result
+    finally:
+        cache.client.pipeline=original_pipeline
