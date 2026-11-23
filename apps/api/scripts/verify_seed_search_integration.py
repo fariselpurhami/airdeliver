@@ -47,6 +47,14 @@ def main():
             SEED_RANDOM_SEED=int(identity,16),RETRY_ATTEMPTS=1)
         asyncio.run(verify(values,compose,backend))
     except BaseException:
+        # Preserve exit/restart/OOM evidence before disposable cleanup. A gRPC
+        # disconnect alone does not identify why a service disappeared.
+        subprocess.run([*compose,'ps','--all'],check=False)
+        containers=subprocess.run([*compose,'ps','--all','--quiet'],check=False,text=True,capture_output=True)
+        if containers.stdout.strip():
+            subprocess.run(['docker','inspect','--format',
+                '{{.Name}} state={{json .State}} restarts={{.RestartCount}}',
+                *containers.stdout.split()],check=False)
         subprocess.run([*compose,'logs','--tail','60'],check=False)
         raise
     finally:
