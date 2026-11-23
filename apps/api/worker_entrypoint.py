@@ -50,6 +50,7 @@ from app.core.config import (
     get_stripe_settings,
 )
 from app.schemas.cart_recommendation import (CartRecommendationEvent, CART_RECOMMENDATION_ROUTING_KEY, CART_RECOMMENDATION_QUEUE)
+from app.services.ai_cart_service import CartPersistenceError
 from app.services.ai_behavior_engine import BehaviorEngine
 from app.services.ai_commerce_engine import (
     AICommerceEngine,
@@ -978,6 +979,22 @@ class WorkerRuntime:
             try:
                 await handler_func(payload)
                 await message.ack()
+                return
+
+            except CartPersistenceError as exc:
+                # Required writes can have committed before their response was
+                # lost. Replaying an add could double the customer's quantity.
+                logger.warning("Cart result unconfirmed; automatic replay suppressed", extra={"error_type": type(exc).__name__})
+                user_id = payload.get("user_id")
+                if type(user_id) is int and user_id > 0:
+                    try:
+                        await self.services.cache.publish(f"airdeliver:response:{user_id}", json.dumps({
+                            "type": "error",
+                            "content": "Your cart change could not be confirmed. Refresh your cart before trying again.",
+                        }))
+                    except Exception as notify_exc:
+                        logger.warning("Cart uncertainty notification failed", extra={"error_type": type(notify_exc).__name__})
+                await message.reject(requeue=False)
                 return
 
             except PermanentProcessingError as exc:
