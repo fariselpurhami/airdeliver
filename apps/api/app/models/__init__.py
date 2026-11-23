@@ -38,3 +38,4 @@ __all__ = [
 
 from app.models.customer_memory import CustomerMemoryConsent, CustomerShoppingMemory
 from app.models.cart_journal import CustomerCartState, CartMutationRecord
+from app.models.inventory_source import InventorySource, ProductSourceBinding, OrderLineSourceSnapshot
