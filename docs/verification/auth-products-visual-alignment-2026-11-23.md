@@ -1,0 +1,7 @@
+# Login and signup products alignment
+
+Both auth variants now share the actual products HERO_STAGE_CLASSES and desktop FloatingHeroCards rather than a separate six-card geometry. Mobile reuses the same original eight-card MobileHomeFloatingCards in the same inset-x-5/top-28/bottom-16 frame. Center uses the same48% desktop width, Orbitron uppercase headline sizing/gradient and centered copy. Existing auth particle background retained but reduced opacity for readability, subtle center fade added; labels stay left aligned for input scanning.
+
+All former card component/config definitions retained. Registration, credentials sign-in, callback safety, loading guards, form fields and error behavior unchanged. Tests exercise the actual page with simulated auth result and verify existing credentials options and checkout callback. Production UI contains no auth mocks.
+
+After main PR16 integration:111tests/21suites, TypeScript and production build passed. Inspected actual390px and desktop production-preview signin/signup screenshots. Mobile keeps the intentional edge-card overlap from products behind foreground form, fields and submits remain readable/clickable. No account created, credentials submitted to a live provider, backend request, Groq request or owner-machine action. CI and owner approval before merge. Existing forgot-password button has no handler, preexisting and outside this visual PR, not made functional or represented as fixed.
