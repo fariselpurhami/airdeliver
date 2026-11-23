@@ -114,7 +114,7 @@ class PaymentRequest(BaseModel):
     Validates business invariants before execution logic.
     """
     order_id: str = Field(..., min_length=1, max_length=128)
-    amount: Decimal = Field(..., gt=0)
+    amount: Decimal = Field(..., gt=0, allow_inf_nan=False)
     currency: str = Field(..., min_length=3, max_length=3)
     region: str = Field(..., min_length=2, max_length=2)
     idempotency_key: str = Field(..., min_length=16, max_length=255)
@@ -129,7 +129,12 @@ class PaymentRequest(BaseModel):
     @model_validator(mode="after")
     def check_amount_precision(self) -> "PaymentRequest":
         # Force quantization to guarantee exact floating point semantics
-        quantized = self.amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        try:
+            quantized = self.amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        except InvalidOperation as exc:
+            raise ValueError("Payment amount cannot be represented in minor units") from exc
+        if quantized <= 0:
+            raise ValueError("Payment amount must be at least one minor unit")
         self.amount = quantized
         return self
 

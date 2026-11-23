@@ -166,3 +166,17 @@ async def test_explicit_payment_choice_does_not_initialize_another_provider():
 def test_unconfigured_browser_gateway_is_not_advertised():
     gateway = FakeGateway(GatewayProvider.STRIPE, ok_result(GatewayProvider.STRIPE))
     assert PaymentOrchestrator([gateway]).available_providers == ["stripe"]
+
+
+@pytest.mark.parametrize('amount',['NaN','Infinity','-Infinity','0.001','0.0049','1e9999'])
+def test_payment_request_rejects_nonfinite_unrepresentable_or_rounded_zero_amount(amount):
+    from pydantic import ValidationError
+    from app.services.payment_orchestrator import PaymentRequest
+    with pytest.raises(ValidationError):
+        PaymentRequest(order_id='1',amount=amount,currency='USD',region='US',idempotency_key='test-request-key-1234')
+
+
+def test_payment_request_preserves_existing_half_up_minor_unit_rounding():
+    from app.services.payment_orchestrator import PaymentRequest
+    request=PaymentRequest(order_id='1',amount='0.005',currency='USD',region='US',idempotency_key='test-request-key-1234')
+    assert str(request.amount)=='0.01'
