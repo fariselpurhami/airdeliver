@@ -38,7 +38,7 @@ async def test_actual_row_copy_method_safe_generation_and_fallback(mode):
         if mode=='failure':raise RuntimeError('offline')
         return json.dumps(valid() if mode=='valid' else {'content':'silk elegance','reason':'premium heels'})
     service=object.__new__(AINLUService);service.llm_service=SimpleNamespace(generate_response=generate)
-    content,reason=await service._generate_dynamic_row_copy('Personalized',PRODUCTS,'Good morning search','elite premium')
+    content,reason=await service._legacy_generate_dynamic_row_copy('Personalized',PRODUCTS,'Good morning search','elite premium')
     assert 'silk' not in content+reason and 'premium' not in content+reason and 'Good morning' not in content+reason
     assert 'search' not in content or 'No search preferences' in content
     assert content=='A curated selection of Accessories and Clothing, brought together in one considered edit.'

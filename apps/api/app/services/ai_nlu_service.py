@@ -407,6 +407,7 @@ class MatrixConfig:
     matrix_timeout_sec: float = 75.0
     matrix_stage_timeout_sec: float = 45.0
     default_spending_tier: str = "MEDIUM"
+    legacy_candidate_seen_marking: bool = False
 
     seen_cache_ttl_sec: int = 3600
     chat_history_ttl_sec: int = 86400
@@ -1585,7 +1586,13 @@ class UiGateway:
     def __init__(self, cache: IAsyncCacheClient) -> None:
         self._cache = cache
 
+    async def publish_required(self, user_id: int, payload: Dict[str, Any], correlation_id: str) -> None:
+        await self._publish(user_id, payload, correlation_id, required=True)
+
     async def publish(self, user_id: int, payload: Dict[str, Any], correlation_id: str) -> None:
+        await self._publish(user_id, payload, correlation_id, required=False)
+
+    async def _publish(self, user_id: int, payload: Dict[str, Any], correlation_id: str, *, required: bool) -> None:
         channel = RedisKeys.ui_channel(user_id)
         envelope = dict(payload)
         envelope["meta"] = {
@@ -1595,7 +1602,10 @@ class UiGateway:
             "correlation_id": correlation_id,
         }
         message = SafeJson.dumps(envelope)
-        await self._cache.publish(channel, message)
+        if required:
+            await self._cache.publish_required(channel, message)
+        else:
+            await self._cache.publish(channel, message)
 
 
 class UserDnaStore:
@@ -2588,7 +2598,8 @@ class AINLUService:
     async def _send_to_ui(self, user_id: int, payload: Dict[str, Any], ctx: Optional[RequestContext] = None, *, strict: bool = False) -> None:
         try:
             correlation_id = ctx.correlation_id if ctx else f"ui-send-{user_id}-{int(time.time())}"
-            await self.ui.publish(user_id, payload, correlation_id)
+            publisher = getattr(self.ui, "publish_required", self.ui.publish) if strict else self.ui.publish
+            await publisher(user_id, payload, correlation_id)
         except Exception as exc:
             StructuredLog.error(
                 "ui_publish_failed",
@@ -3056,9 +3067,13 @@ class AINLUService:
         def _process_pool(pool: Any, max_brand: int = 2) -> List[ProductLike]:
             if isinstance(pool, Exception) or not pool:
                 return []
+            from app.services.shopping_discovery import catalog_result
+            eligible = [p for p in pool if (card := catalog_result(p)) is not None
+                        and card.evidence_kind == 'local_catalog' and card.stock_status == 'local_in_stock'
+                        and card.price is not None]
             return self._enforce_diversity(
-                pool=pool, 
-                limit=self.config.max_items_per_row, 
+                pool=eligible,
+                limit=min(5, self.config.max_items_per_row),
                 max_per_brand=max_brand
             )
 
@@ -3076,13 +3091,17 @@ class AINLUService:
                     session_newly_seen_ids.add(int(p_id))
 
         # 5. Concurrent UI Copy Generation (This preserves our 75% latency reduction)
-        async def _safe_generate_copy(row_type: str, products: List[ProductLike], fallback: str, reason: str) -> Tuple[str, str]:
+        async def _safe_generate_copy(row_type: str, products: List[ProductLike], fallback: str, reason: str) -> Optional[Tuple[str, str, List[Any]]]:
             if not products:
-                return "No catalog items available.", reason
+                return None
             try:
-                return await self._generate_dynamic_row_copy(row_type, products, fallback, reason)
-            except Exception:
-                return "Explore these catalog-listed items.", reason
+                from app.services.shopping_discovery import catalog_result
+                snapshot = [catalog_result(p) for p in products]
+                content, insight = await self._generate_dynamic_row_copy(row_type, products, fallback, reason)
+                return content, insight, snapshot
+            except Exception as exc:
+                StructuredLog.warning('opening_model_copy_withheld', row_type=row_type, error_type=type(exc).__name__)
+                return None
 
         # 🛡️ [L9 DEFENSE]: Smart Contextual Fallback Generator
         # يستخرج البيانات من الكروت الحية ويبني تعليل تقني مقنع في حال فشل الـ LLM
@@ -3116,18 +3135,22 @@ class AINLUService:
         ]
 
         for products, row_type, copy_result, apply_delay in stream_plan:
-            if not products or isinstance(copy_result, Exception):
+            if not products or copy_result is None or isinstance(copy_result, Exception):
                 continue
             
-            content, reason = copy_result
-            await self._matrix_stage(user_id, "stream_"+row_type, lambda: self._stream_row(user_id, content, row_type, products, reason, apply_delay=apply_delay))
+            content, reason, snapshot = copy_result
+            await self._matrix_stage(user_id, "stream_"+row_type, lambda: self._stream_row(user_id, content, row_type, products, reason, apply_delay=apply_delay, expected_cards=snapshot))
             streamed_any = True
+            streamed_seen_ids = {p.id for p in products}
+            self.tasks.create_task(self.freshness_repo.mark_products_as_seen(user_id=user_id, product_ids=streamed_seen_ids, ttl_seconds=43200))
 
         if not streamed_any:
-            await self._send_to_ui(user_id, {"content": self.config.copy_fallback, "type": "text"}, strict=True)
+            await self._send_to_ui(user_id, {"content": 'System notice: the opening selection could not be generated. Please retry or browse the catalog.', "type": "info"}, strict=True)
 
         # 7. Asynchronous Fire-and-Forget State Persistence
-        if session_newly_seen_ids:
+        if self.config.legacy_candidate_seen_marking and session_newly_seen_ids:
+            # Preserved historical candidate marking. Only actually streamed
+            # rows are marked above; model failure must not hide unseen items.
             self.tasks.create_task(
                 self.freshness_repo.mark_products_as_seen(
                     user_id=user_id, 
@@ -3150,16 +3173,28 @@ class AINLUService:
         products: Sequence[Product],
         reason: str,
         apply_delay: bool = True,
+        expected_cards=None,
     ) -> None:
         """Send one streamed UI row with deterministic serialization and optional pacing delay."""
         safe_products = products or ()
         product_count = len(safe_products)
 
         try:
+            from app.services.shopping_discovery import catalog_result
+            before = expected_cards if expected_cards is not None else [catalog_result(p) for p in safe_products]
+            if safe_products:
+                ids = [p.id for p in safe_products]
+                result = await self.db.execute(select(Product).where(Product.id.in_(ids)).execution_options(populate_existing=True))
+                rows = {p.id:p for p in result.scalars().all()}
+                current = [catalog_result(rows[i]) if i in rows else None for i in ids]
+                if before != current:
+                    raise ValueError('Opening catalog changed during model generation')
+                if any(c is None or c.evidence_kind != 'local_catalog' or c.stock_status != 'local_in_stock' for c in current):
+                    raise ValueError('Opening catalog no longer eligible')
             payload = {
                 "content": content,
                 "type": ui_type,
-                "products": [ProductAccess.dump(p) for p in safe_products],
+                "products": [card.model_dump(mode='json') for card in before],
                 "reason": reason,
             }
 
@@ -3198,6 +3233,18 @@ class AINLUService:
             raise
 
     async def _generate_dynamic_row_copy(
+        self,
+        row_type: str,
+        products: Sequence[Product],
+        fallback_content: str,
+        fallback_reason: str,
+    ) -> Tuple[str, str]:
+        matrix = await self.llm_service.generate_lifestyle_matrix(list(products), row_type=row_type)
+        if len(matrix) != 1:
+            raise ValueError('Opening matrix response invalid')
+        return matrix[0]['text'], matrix[0]['insight']
+
+    async def _legacy_generate_dynamic_row_copy(
         self,
         row_type: str,
         products: Sequence[Product],

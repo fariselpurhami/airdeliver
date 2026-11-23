@@ -720,7 +720,15 @@ class FreeLLMService:
         rng = random.Random(_stable_seed("vibe", session_key))
         return rng.choice(vibes)
 
-    async def generate_lifestyle_matrix(self, all_products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def generate_lifestyle_matrix(self, all_products: List[Dict[str, Any]], *, row_type: str = 'Discovery') -> List[Dict[str, Any]]:
+        """Current opening selection, using shared reviewed model prose."""
+        from types import SimpleNamespace
+        from app.services.opening_sales_service import write_opening
+        rows = [SimpleNamespace(**p) if isinstance(p, dict) else p for p in all_products[:5]]
+        content, insight = await write_opening(self, rows, row_type)
+        return [{'text': content, 'insight': insight, 'products': all_products[:5], 'type': 'discovery'}]
+
+    async def _legacy_generate_lifestyle_matrix(self, all_products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         products = [ _sanitize_product(p) for p in all_products if p ]
         products = [ p for p in products if p.get("name") ]
         if not products:

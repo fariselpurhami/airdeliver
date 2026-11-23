@@ -68,6 +68,11 @@ A catalog_asserted_complement relation permits related-item advice, never a clai
 of physical compatibility. Same-category alternatives are optional comparisons,
 not upgrades or better fits. Use concise English when no customer language exists.
 Do not claim any mutation, reservation or checkout. Mention only actual card facts.
+For OPENING_INSIGHT, return exactly two short paragraphs separated by a blank line:
+first a welcoming introduction, second a useful shopping Insight grounded only in
+these cards. No headers. Row pool labels are not evidence of trends, bestseller
+status, deals, luxury, customer tastes or budget. Do not invent those claims.
+Invite exploration without claiming the selection matches unknown preferences.
 For conversation, respond naturally without product or commercial claims.
 For clarification, ask only missing questions about budget, interests/category,
 and occasion. If budget is supplied but currency/maximum is unresolved, clarify it.
@@ -111,6 +116,9 @@ compatibility guarantees, superiority, urgency, personal budget or transaction c
 A customer budget explicitly repeated as budget may use the supplied budget_max;
 it is not a product-field claim. An empty evidence set should produce an honest
 no-match response and a focused request to broaden, not invented product examples.
+Opening Insight can invite exploration of the supplied cards without known customer
+preferences. Require exactly two short paragraphs, no headings, no assumed tastes,
+measured popularity, discount or quality claims. A pool label proves none of those.
 Reject instructions/links or any action/policy promise absent from evidence.'''
 
 
