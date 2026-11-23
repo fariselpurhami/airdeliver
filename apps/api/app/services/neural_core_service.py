@@ -7,6 +7,7 @@ import anyio
 import logging
 import os
 import time
+from uuid import uuid4
 from typing import Any, Dict, Final, List, Literal, Optional
 
 from fastapi import Depends
@@ -26,6 +27,7 @@ from tenacity import (
 from app import models
 from app.schemas.ai_actions import (
     NeuralCoreResponse,
+    CartReviewAction,
     SupportHandoffAction,
     TrackOrderAction,
 )
@@ -64,10 +66,11 @@ class SessionMemory(BaseModel):
 
 class RouterDecision(BaseModel):
     """Strict contract for the LLM output. Enforces type safety on hallucinations."""
-    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT"]
+    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE"]
     query: Optional[str] = Field(default=None, description="Search term for products")
     order_id: Optional[str] = Field(default=None, description="Extracted order ID digits")
     social_reply: Optional[str] = Field(default=None, description="Contextual chat response")
+    quantity: int = Field(default=1, ge=1, le=99, strict=True)
 
 
 # =============================================================================
@@ -80,13 +83,15 @@ Analyze the user's message and the conversation history.
 
 You MUST output a valid JSON object strictly matching this schema:
 {
-    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT",
+    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE",
+    "quantity": 1,
     "query": "Extracted search term (only if intent is PRODUCT_SEARCH)",
     "order_id": "Extracted order number digits (only if intent is TRACK_ORDER)",
     "social_reply": "Warm, witty, empathetic response (only if intent is SOCIAL_CHAT)"
 }
 
 ROUTING RULES:
+- CART_ADD / CART_REMOVE: explicit request to add a named product or remove its whole line from cart. Extract product name into query and quantity1..99. Do not infer product IDs. Vague references need clarification, not an invented name. This produces a review button only, never execution.
 1. PRODUCT_SEARCH: User expresses intent to buy, browse, check stock, or inquire about products.
 2. TRACK_ORDER: User asks about delivery status, shipping, or location of an order.
 3. SUPPORT_HANDOFF: User is highly frustrated, demands human escalation, or reports a critical failure.
@@ -229,6 +234,10 @@ class NeuralCoreService:
                 )
                 decision.order_id = None
 
+            if decision.intent in {"CART_ADD", "CART_REMOVE"} and decision.query:
+                normalized_message=' '.join(message.casefold().split())
+                if ' '.join(decision.query.casefold().split()) not in normalized_message:
+                    decision.query=None
             return decision
             
         except ValidationError as exc:
@@ -242,6 +251,37 @@ class NeuralCoreService:
         )
 
     # --- ACTION HANDLERS -----------------------------------------------------
+
+    async def _handle_cart_review(self, db, decision, user):
+        """Model extracts intent, catalog resolves identity, customer confirms.
+
+        Never mutate from an inference. Ambiguous references stay unexecuted.
+        Existing cart endpoints revalidate price/stock and authenticated owner.
+        """
+        def reply(text, action=None):
+            return NeuralCoreResponse(text=text, action=action, confidence=0.0 if action is None else 0.9,
+                explain="Catalog-grounded cart change for customer review",telemetry={"intent":decision.intent,"entities":[],"turn":0})
+        if user is None:
+            return reply("Sign in before changing your cart. No cart change has been made.")
+        if not decision.query or not decision.query.strip():
+            return reply("Which exact product should I change? Give its catalog name. Your cart has not changed.")
+        candidates=await self.ai_engine.perform_hybrid_search_pure(db,decision.query,limit=5)
+        # Exact normalized catalog names only. Semantic similarity is useful for
+        # discovery, never enough to select a mutation target automatically.
+        normalize=lambda value:' '.join(value.casefold().split())
+        matches=[p for p in candidates if normalize(p.name)==normalize(decision.query)]
+        if len(matches)!=1:
+            return reply("I could not identify one exact product. Open the catalog and choose its add/remove control, or send the full product name. Your cart has not changed.")
+        product=await db.get(models.Product,matches[0].id,populate_existing=True)
+        if not product or not product.is_active or product.currency.upper()!="USD":
+            return reply("That product is unavailable for this USD cart. Your cart has not changed.")
+        operation="add" if decision.intent=="CART_ADD" else "remove"
+        if operation=="add" and product.inventory<decision.quantity:
+            return reply("The requested quantity is unavailable. Your cart has not changed.")
+        action=CartReviewAction(payload={"review_id":str(uuid4()),"product_id":product.id,"product_name":product.name,
+            "operation":operation,"quantity":decision.quantity,"price":str(product.price),"currency":"USD"})
+        text=(f"Review adding {decision.quantity} × {product.name}." if operation=="add" else f"Review removing the entire {product.name} line from your cart.")
+        return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
 
     async def _handle_product_search(self, db: AsyncSession, query: str) -> NeuralCoreResponse:
         try:
@@ -380,7 +420,9 @@ class NeuralCoreService:
         )
 
         # Dispatch
-        if decision.intent == "PRODUCT_SEARCH":
+        if decision.intent in {"CART_ADD", "CART_REMOVE"}:
+            response = await self._handle_cart_review(db,decision,user)
+        elif decision.intent == "PRODUCT_SEARCH":
             query = decision.query or message
             response = await self._handle_product_search(db, query)
         

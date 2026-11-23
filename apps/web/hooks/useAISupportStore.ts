@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { api } from '@/lib/api';
 
 export interface NeuralCoreResponse {
   text: string;
@@ -60,18 +61,7 @@ export const useAISupportStore = create<AISupportState>()(
         let aiMessage: ChatMessage;
 
         try {
-          const response = await fetch('/api/v1/ai-support/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            
-            body: JSON.stringify({ message: "__INITIAL_GREETING__", session_id: sessionId }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Network response was not ok: ${response.statusText}`);
-          }
-
-          const aiResponseData: NeuralCoreResponse = await response.json();
+          const {data:aiResponseData} = await api.post<NeuralCoreResponse>('/ai-support/chat', {message:"__INITIAL_GREETING__",session_id:sessionId});
           aiMessage = { id: uuidv4(), sender: 'ai', data: aiResponseData };
 
         } catch (error) {
@@ -109,17 +99,7 @@ export const useAISupportStore = create<AISupportState>()(
         let aiMessage: ChatMessage;
 
         try {
-          const response = await fetch('/api/v1/ai-support/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, session_id: sessionId }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Network response was not ok: ${response.statusText}`);
-          }
-
-          const aiResponseData: NeuralCoreResponse = await response.json();
+          const {data:aiResponseData} = await api.post<NeuralCoreResponse>('/ai-support/chat', {message:text,session_id:sessionId});
           aiMessage = { id: uuidv4(), sender: 'ai', data: aiResponseData };
 
         } catch (error) {

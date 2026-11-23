@@ -16,6 +16,7 @@ import {
   BrainCircuit,
   ShieldCheck,
 } from 'lucide-react';
+import AssistantAction from './AssistantAction';
 import { useAISupportStore, type ChatMessage } from '@/hooks/useAISupportStore';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 interface ActionOption {
@@ -73,6 +74,7 @@ const MessageBubble = memo(({ message, onSend }: MessageBubbleProps) => {
           {message.data.text}
         </p>
 
+        {!isUser && <AssistantAction action={action}/> }
         {!isUser && action && action.action === 'present_options' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4">
             {(action.payload.options as ActionOption[]).map((option, idx) => (

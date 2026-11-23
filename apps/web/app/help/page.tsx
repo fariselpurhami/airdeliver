@@ -24,11 +24,11 @@ const faqCategories = [
         items: [
             {
                 q: "How fast is delivery?",
-                a: "Delivery timing depends on the partner store fulfilling your order and your location. The AI assistant can check the current status of any order for you."
+                a: "Delivery timing depends on the partner store fulfilling your order and your location. Open your order record for its latest saved status. Live carrier location and delivery estimates are not connected yet."
             },
             {
                 q: "What does the AI assistant do?",
-                a: "It answers product questions, compares options, and manages your cart and checkout, strictly from live partner-store inventory. If something is not in stock, it says so."
+                a: "It helps search the store catalog and offers reviewed cart changes. Current catalog price and stock are checked again at checkout; an inventory record is not a delivery promise."
             }
         ]
     },
@@ -52,22 +52,22 @@ const contactModules = [
     {
         icon: Bot,
         title: "AI Neural Assistant",
-        desc: "Instant resolution via our core AI.",
+        desc: "Product questions and reviewed store actions.",
         action: "Initiate Chat",
         color: "cyan"
     },
     {
         icon: Phone,
         title: "Human Override",
-        desc: "Direct line to mission control.",
-        action: "Request Callback",
+        desc: "Human callback is not connected yet.",
+        action: "Callback unavailable",
         color: "purple"
     },
     {
         icon: Mail,
         title: "Secure CommLink",
-        desc: "Detailed inquiries & logs.",
-        action: "Send Transmission",
+        desc: "An email support destination is not configured yet.",
+        action: "Email unavailable",
         color: "green"
     }
 ];
