@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-23T20:26:00+02:00",
+  "as_of": "2026-11-23T20:39:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -272,15 +272,13 @@
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
-      "pending_prs": [
+      "prs": [
         39
       ],
-      "pending_evidence": [
-        "Opening/Insight exact head3d5876f: 1139 pass4skip disposable full suite; actual SQL plus real Redis pub/sub and outage tests. Not merged or deployed."
-      ]
+      "evidence": [
+        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {
       "id": "CAP-20",
@@ -349,18 +347,14 @@
       "hardened": "scoped_controls_tested_not_certified",
       "live_verified": false,
       "prs": [
-        31
-      ],
-      "evidence": [
-        "apps/api/tests/test_welcome_deadline_logging.py"
-      ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
-      "pending_prs": [
+        31,
         39
       ],
-      "pending_evidence": [
-        "Opening/Insight exact head3d5876f: 1139 pass4skip disposable full suite; actual SQL plus real Redis pub/sub and outage tests. Not merged or deployed."
-      ]
+      "evidence": [
+        "apps/api/tests/test_welcome_deadline_logging.py",
+        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {
       "id": "CAP-25",
@@ -681,15 +675,13 @@
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
-      "pending_prs": [
+      "prs": [
         39
       ],
-      "pending_evidence": [
-        "Opening/Insight exact head3d5876f: 1139 pass4skip disposable full suite; actual SQL plus real Redis pub/sub and outage tests. Not merged or deployed."
-      ]
+      "evidence": [
+        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {
       "id": "CAP-46",
