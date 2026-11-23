@@ -77,6 +77,7 @@ export interface Message {
   contentType: MessageContentType;
   imageUrl?: string;
   content: unknown;
+  action?: unknown;
   options?: string[];
   products?: Record<string, unknown>[];
   secondary_suggestions?: Record<string, unknown>[];
@@ -528,7 +529,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         options: response.options as string[],
         reason: response.reason as string,
         ai_notes: response.ai_notes as string,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        action: response.action
       };
 
       // Flow specific states
@@ -593,16 +595,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     const msgId = generateUUID();
     const lowerText = text.toLowerCase();
     
-    // Auto-detect silent commands
-    let isSilent = isButtonCommand;
-    if (!isSilent) {
-        for (const trigger of SILENT_COMMAND_TRIGGERS) {
-            if (lowerText.includes(trigger)) {
-                isSilent = true;
-                break;
-            }
-        }
-    }
+    // Only explicit UI commands use the mutation dispatcher. Ordinary text,
+    // including negated requests, must never trigger a substring side effect.
+    const isSilent = isButtonCommand;
 
     set(produce((state: AIOrderingState) => {
       state.messages = state.messages.filter(m => m.contentType !== 'typing');
@@ -726,7 +721,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       if (!response.ok) {
         throw new Error(`support chat returned ${response.status}`);
       }
-      const data = await response.json() as { text?: string };
+      const data = await response.json() as { text?: string; action?: unknown };
 
       // Delivery confirmed: settle the optimistic user message.
       if (msgId) {
@@ -744,7 +739,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         }));
       }
 
-      get().addSocketAIMessage({ type: 'text', content: data.text ?? '' });
+      get().addSocketAIMessage({ type: 'text', content: data.text ?? '', action: data.action });
     } catch (error) {
       if (msgId) {
         const ackTimeout = get().ackTimeouts[msgId];

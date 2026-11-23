@@ -278,6 +278,21 @@ it('ignores a delayed payment handoff from a different checkout request',()=>{
   expect(useAIOrderingStore.getState().paymentDetails).toBeNull();
 });
 
+describe('reviewed action safety',()=>{
+ it('does not execute clear-cart text inside a negated customer sentence',()=>{
+  const chat=jest.fn<(message:string,msgId:string|null,imageBase64?:string)=>Promise<void>>().mockResolvedValue(undefined),command=jest.fn();
+  useAIOrderingStore.setState({_postSupportChat:chat,_sendInternalCommand:command});
+  useAIOrderingStore.getState().sendMessage('do not clear cart, just show me my items');
+  expect(chat).toHaveBeenCalled();expect(command).not.toHaveBeenCalled();
+ });
+ it('preserves structured response action for the ordering UI instead of dropping it',async()=>{
+  const action={action:'track_order',payload:{order_id:'7'}};
+  global.fetch=jest.fn<typeof fetch>().mockResolvedValue({ok:true,json:async()=>({text:'Review order',action})} as Response);
+  await useAIOrderingStore.getState()._postSupportChat('track7',null);
+  expect(useAIOrderingStore.getState().messages.at(-1)?.action).toEqual(action);
+ });
+});
+
 describe('specific cancellation outcome',()=>{
  it('keeps payment context and cart on unconfirmed cancellation',async()=>{
   const details={orderId:7} as any;

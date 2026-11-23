@@ -180,9 +180,27 @@ class PresentOptionsAction(SchemaBaseModel):
     requires_mfa: StrictBool = False
 
 
+class CartReviewPayload(SchemaBaseModel):
+    review_id: StrictStr = Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+    product_id: StrictInt = Field(gt=0, le=2147483647)
+    product_name: StrictStr = Field(min_length=1, max_length=512)
+    operation: Literal["add", "remove"]
+    quantity: StrictInt = Field(ge=1, le=99)
+    price: StrictStr = Field(min_length=1, max_length=32)
+    currency: Literal["USD"] = "USD"
+
+
+class CartReviewAction(SchemaBaseModel):
+    action: Literal["review_cart_change"] = "review_cart_change"
+    payload: CartReviewPayload
+    rollback: None = None
+    requires_mfa: StrictBool = False
+
+
 AnyAction = Annotated[
     Union[
         AddToCartAction,
+        CartReviewAction,
         TrackOrderAction,
         ProductSearchAction,
         SupportHandoffAction,
