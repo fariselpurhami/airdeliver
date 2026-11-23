@@ -42,3 +42,40 @@ def factual_editorial_fallback(products):
     clauses=[factual_reasons(p,products)[-1] for p in products[:3]]
     return ('Explore these catalog-listed items. No search preferences have been assumed.',
             ' '.join(clauses)[:600] if clauses else 'No catalog facts available for this row.')
+
+
+def opening_editorial(products):
+    """Restore the original row-template presentation, bound to this row only.
+
+    Editorial framing is not a quality, personalization or popularity claim.
+    Names and money come from the same sanitized records as the shown cards.
+    """
+    from app.services.recommendation_copy import price, amount
+    import re
+    def label(value,limit=120):
+        if not isinstance(value,str):return None
+        value=' '.join(value.split())
+        if not value or len(value)>limit or re.search(r'[<>\x00-\x1f]',value):return None
+        return value
+    def join(values):
+        if len(values)==1:return values[0]
+        return ', '.join(values[:-1])+' and '+values[-1]
+    items=[p for p in products[:8] if isinstance(p,dict)]
+    if not items:return ('Explore the collection.','No items are available in this selection yet.')
+    categories=list(dict.fromkeys(v for p in items if (v:=label(p.get('category'),64))))
+    brands=list(dict.fromkeys(v for p in items if (v:=label(p.get('brand'),64))))
+    names=[v for p in items if (v:=label(p.get('name')))]
+    focus=join(categories[:4]) if 0<len(categories)<=4 else 'the pieces shown here'
+    content=f'A curated selection of {focus}, brought together in one considered edit.'
+    # Original rhythm retained, unsupported lifestyle effects intentionally absent.
+    reason=f'This edit brings together {join(names[:8])}.' if names else 'Explore the individual pieces in the cards above.'
+    prices=[price(p) for p in items]
+    if all(prices) and len({entry[1] for entry in prices})==1:
+        currency=prices[0][1];values=[entry[0] for entry in prices]
+        cost=f'{currency} {amount(min(values))}'
+        if min(values)!=max(values):cost+=f' to {currency} {amount(max(values))}'
+        reason+=f' The displayed selection is priced at {cost}.'
+    if brands and len(brands)<=4:
+        content=f'A curated selection from {join(brands)}, brought together in one considered edit.'
+        if categories and len(categories)<=4:content+=f' Explore {join(categories)}.'
+    return content,reason

@@ -326,7 +326,7 @@ const ProductCarousel = React.memo(({ products, onViewDetails, onSelect }: {
 });
 ProductCarousel.displayName = 'ProductCarousel';
 
-const AIReasoning = React.memo(({ text }: { text: string }) => (
+export const AIReasoning = React.memo(({ text }: { text: string }) => (
     <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}

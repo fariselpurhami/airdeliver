@@ -41,11 +41,24 @@ async def test_actual_row_copy_method_safe_generation_and_fallback(mode):
     content,reason=await service._generate_dynamic_row_copy('Personalized',PRODUCTS,'Good morning search','elite premium')
     assert 'silk' not in content+reason and 'premium' not in content+reason and 'Good morning' not in content+reason
     assert 'search' not in content or 'No search preferences' in content
-    if mode=='valid':assert content=='Catalog item: "Belt".'
-    else:assert 'Catalog category' in reason
+    assert content=='A curated selection of Accessories and Clothing, brought together in one considered edit.'
+    assert reason=='This edit brings together Belt and Sweater. The displayed selection is priced at USD 100.00 to USD 150.00.'
 
 
 def test_greeting_does_not_infer_search_time_or_personalization():
     service=object.__new__(AINLUService)
     text=service._get_time_aware_greeting('HIGH')
     assert 'morning' not in text and 'premium' not in text and 'current search' not in text
+
+
+def test_opening_editorial_uses_only_exact_row_identity_and_known_prices():
+    from app.services.grounded_editorial import opening_editorial
+    products=[{**PRODUCTS[0],'brand':'Gucci'},{**PRODUCTS[1],'brand':'Patagonia'}]
+    content,reason=opening_editorial(products)
+    assert 'Gucci and Patagonia' in content and 'Belt and Sweater' in reason
+    for unsupported in ('Flagship','precision-calibrated','skin','silk','heel','your standards','trending','bestseller'):
+        assert unsupported not in content+reason
+    changed=opening_editorial([products[1]])
+    assert 'Gucci' not in str(changed) and 'Belt' not in str(changed)
+    unknown=opening_editorial([{**PRODUCTS[0],'price_status':'unknown'}])
+    assert 'USD' not in str(unknown)
