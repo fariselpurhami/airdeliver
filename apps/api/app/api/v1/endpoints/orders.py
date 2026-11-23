@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Response, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 from sqlmodel import func, select
@@ -25,6 +25,7 @@ router = APIRouter()
 )
 async def read_my_orders(
     *,
+    response: Response,
     session: AsyncSession = Depends(deps.get_async_session),
     current_user: models.User = Depends(deps.get_current_active_user),
     page: int = Query(1, ge=1, description="Page number, 1-indexed"),
@@ -35,6 +36,7 @@ async def read_my_orders(
     Enforces strict access boundaries, protects against unoptimized queries,
     and isolates database errors from client-facing responses.
     """
+    response.headers["Cache-Control"] = "no-store"
     offset = (page - 1) * limit
 
     try:
@@ -110,3 +112,31 @@ async def read_my_orders(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected system error occurred.",
         ) from None
+
+
+@router.get("/me/{order_id}", response_model=schemas.OrderRead)
+async def read_my_order(
+    response: Response,
+    order_id: int = Path(gt=0, le=2147483647),
+    session: AsyncSession = Depends(deps.get_async_session),
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> schemas.OrderRead:
+    """Lookup an owned order directly, never infer absence from a history page.
+
+    Missing and other customers' orders share a404 response. No address,
+    payment identifier or internal checkout payload is exposed by OrderRead.
+    """
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        result = await session.execute(
+            select(models.Order)
+            .where(models.Order.id == order_id, models.Order.user_id == current_user.id)
+            .options(selectinload(models.Order.items).selectinload(models.OrderItem.product))
+        )
+        order = result.scalars().one_or_none()
+    except SQLAlchemyError as exc:
+        logger.error("Order detail read failed", extra={"user_id":current_user.id,"error_type":type(exc).__name__})
+        raise HTTPException(status_code=503, detail="Order details are temporarily unavailable. Please try again.") from None
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found in your account.")
+    return order

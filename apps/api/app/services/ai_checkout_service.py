@@ -91,7 +91,7 @@ class PaymentSuccessPayload(BaseModel):
 
 class CancelOrderPayload(BaseModel):
     user_id: int
-    order_id: Optional[int] = None
+    order_id: Optional[int] = Field(default=None,gt=0,le=2147483647,strict=True)
 
 
 class AICheckoutService:
@@ -565,56 +565,48 @@ class AICheckoutService:
             await self.db.rollback()
             logger.error("Failed handling failed payment fallback", extra={"order_id": order.id, "error": str(e)})
 
-    async def handle_cancel_order(self, raw_payload: Dict[str, Any]) -> None:
-        """
-        Processes user-initiated order cancellation.
-        Validates authorization boundaries and state machine constraints.
+    async def handle_cancel_order(self, raw_payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Cancel a specific local unpaid draft, never erase an unrelated cart.
+
+        Provider-initialized orders need verified provider cancellation first.
+        We cannot infer that closing a local page voided an external payment.
+        Paid/processing orders require the separately approved refund workflow.
         """
         try:
             payload = CancelOrderPayload(**raw_payload)
-        except ValidationError as e:
-            logger.warning("Invalid cancel payload", extra={"error": str(e)})
-            return
-             
-        order_cancelled = False
-        
-        if payload.order_id:
-            try:
-                order = await self.db.get(Order, payload.order_id)
-                if order and order.user_id == payload.user_id:
-                    if order.status == OrderStatus.PENDING:
-                        order.status = OrderStatus.CANCELLED
-                        self.db.add(order)
-                        await self.db.commit()
-                        order_cancelled = True
-                        logger.info("Order discarded by user", extra={"order_id": payload.order_id, "user_id": payload.user_id})
-
-                    elif order.status in {OrderStatus.PROCESSING, OrderStatus.ASSIGNED, OrderStatus.IN_TRANSIT}:
-                         await self._send_error(
-                             payload.user_id, 
-                             "Cannot discard: Your order is already in progress. Please contact support."
-                         )
-                         return
-            except Exception as e:
-                await self.db.rollback()
-                logger.error("Order cancellation transaction failed", extra={"order_id": payload.order_id, "error": str(e)})
-             
+        except ValidationError:
+            return {"status":"invalid_request"}
+        if payload.order_id is None:
+            await self._send_error(payload.user_id,"Choose the exact order to cancel. No order or cart was changed.")
+            return {"status":"order_required"}
         try:
-            await self.cache.delete(self._get_cart_key(payload.user_id))
-        except Exception as e:
-            logger.warning("Failed to evict cart cache during cancellation", extra={"user_id": payload.user_id, "error": str(e)})
-
-        await self._send_to_ui(payload.user_id, {
-            "content": {"items": [], "total": "0.00"},
-            "type": "cart_preview",
-            "reason": "Discard Command"
-        })
-        
-        msg = f"Order #{payload.order_id} discarded." if order_cancelled else "Your operation was canceled."
-        await self._send_to_ui(payload.user_id, {
-            "content": f"{msg} Cart has been cleared.",
-            "type": "info" 
-        })
+            order = await self.db.get(Order,payload.order_id,with_for_update=True,populate_existing=True)
+            if not order or order.user_id!=payload.user_id:
+                await self.db.rollback()
+                return {"status":"not_found"}
+            order_id=order.id
+            if order.status==OrderStatus.CANCELLED:
+                await self.db.commit()
+                return {"status":"cancelled","order_id":order_id,"cart_preserved":True}
+            if order.is_paid or order.status!=OrderStatus.PENDING:
+                await self.db.rollback()
+                await self._send_error(payload.user_id,"This order cannot be canceled here. No refund was made and your cart is unchanged.")
+                return {"status":"requires_review","order_id":order_id}
+            if order.payment_transaction_id or order.stripe_payment_id or order.payment_setup_lease_until:
+                await self.db.rollback()
+                await self._send_error(payload.user_id,"Payment setup may still be active. Cancellation cannot be confirmed here. Check this order before paying again; your cart is unchanged.")
+                return {"status":"provider_reconciliation_required","order_id":order_id}
+            from app.models.audit_trail import AuditTrail
+            order.status=OrderStatus.CANCELLED
+            self.db.add(order)
+            self.db.add(AuditTrail(order_id=order.id,changed_by=payload.user_id,event_description="Customer canceled unpaid local draft; cart preserved; no refund or provider cancellation."))
+            await self.db.commit()
+        except Exception as exc:
+            await self.db.rollback()
+            logger.error("Cancellation state unconfirmed",extra={"error_type":type(exc).__name__})
+            return {"status":"unconfirmed"}
+        await self._send_to_ui(payload.user_id,{"type":"info","content":f"Order #{order_id} canceled. Your cart is preserved. No refund was needed for this unpaid local draft."})
+        return {"status":"cancelled","order_id":order_id,"cart_preserved":True}
 
     # --- 🛠️ UTILITIES ---
 

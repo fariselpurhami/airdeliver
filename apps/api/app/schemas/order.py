@@ -35,6 +35,7 @@ class OrderRead(OrderBase):
     user_id: int
     status: OrderStatus
     total_price: float
+    currency: str
     created_at: datetime
     updated_at: datetime
     items: List[OrderItemRead] = []

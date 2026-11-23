@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import useSWR from 'swr';
+import Link from 'next/link';
+import { api } from '@/lib/api';
+import { orderMoney, orderStatus } from '@/lib/order-display';
 
 // -----------------------------------------------------------------------------
 // TYPES & INTERFACES
@@ -28,6 +31,7 @@ export interface Order {
   user_id: number;
   status: 'Delivered' | 'Shipped' | 'Processing' | 'Cancelled' | string;
   total_price: number;
+  currency: string;
   created_at: string;
 }
 
@@ -46,7 +50,7 @@ export interface UserProfileData {
 
 // Ensure you provide this fetcher in your project context
 // import { fetcher } from '@/lib/fetcher';
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = (url: string) => api.get(url).then(response => response.data);
 
 // -----------------------------------------------------------------------------
 // SHARED UI PRIMITIVES (Memoized for 8x Performance)
@@ -204,31 +208,24 @@ SciFiButton.displayName = 'SciFiButton';
 // -----------------------------------------------------------------------------
 
 const OrderRow = memo(({ order }: { order: Order }) => {
-  const statusColor = useMemo(() => {
-    switch (order.status) {
-      case 'Delivered': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-      case 'Shipped': return 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20';
-      case 'Processing': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-      case 'Cancelled': return 'text-red-400 bg-red-400/10 border-red-400/20';
-      default: return 'text-white/60 bg-white/5 border-white/10';
-    }
-  }, [order.status]);
+  const displayStatus = orderStatus(order.status);
+  const statusColor = displayStatus.className;
 
   return (
     <tr className="border-b border-white/5 transition-colors hover:bg-white/[0.02]">
       <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-cyan-300">
-        #{order.id.toString().padStart(6, '0')}
+        <Link href={`/tracking/${order.id}`} className="underline py-2 inline-block" aria-label={`View order ${order.id}`}>#{order.id.toString().padStart(6, '0')}</Link>
       </td>
       <td className="whitespace-nowrap px-6 py-4 text-sm text-white/70">
         {new Date(order.created_at).toLocaleDateString()}
       </td>
       <td className="whitespace-nowrap px-6 py-4 text-sm">
         <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusColor}`}>
-          {order.status}
+          {displayStatus.label}
         </span>
       </td>
       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-mono font-medium text-white">
-        ${order.total_price.toFixed(2)}
+        {orderMoney(order.total_price, order.currency)}
       </td>
     </tr>
   );
@@ -241,7 +238,7 @@ export const ViewOrdersModal = memo(
     const limit = 10;
 
     const { data, error, isLoading } = useSWR<PaginatedOrdersResponse>(
-      isOpen ? `/api/v1/orders/me?page=${page}&limit=${limit}` : null,
+      isOpen ? `/orders/me?page=${page}&limit=${limit}` : null,
       fetcher,
       { revalidateOnFocus: false, keepPreviousData: true }
     );
@@ -261,7 +258,7 @@ export const ViewOrdersModal = memo(
             <div className="flex min-h-[300px] flex-1 flex-col items-center justify-center text-center">
               <AlertCircle className="mb-4 h-12 w-12 text-red-400" />
               <p className="text-sm font-semibold tracking-widest text-red-300">DATA RETRIEVAL FAILED</p>
-              <p className="mt-2 text-xs text-red-400/70">{error.message}</p>
+              <p className="mt-2 text-xs text-red-400/70">Order history could not be loaded. Please try again.</p>
             </div>
           )}
 
