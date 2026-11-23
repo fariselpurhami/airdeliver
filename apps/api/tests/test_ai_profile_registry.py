@@ -11,7 +11,7 @@ from app.services.ai_adapters import GroqAdapter, LocalRetrievalAdapter, ElevenL
 def test_current_profile_preserves_defaults_and_role_overrides():
     p=get_ai_profile({})
     assert (p.brain_model,p.reflex_model,p.support_model,p.vision_model)==(
-        'openai/gpt-oss-120b','openai/gpt-oss-20b','llama-3.3-70b-versatile','qwen/qwen3.8-27b')
+        'openai/gpt-oss-120b','openai/gpt-oss-20b','openai/gpt-oss-120b','qwen/qwen3.8-27b')
     p=get_ai_profile({'GROQ_BRAIN_MODEL':'brain','GROQ_MODEL':'reflex','GROQ_SUPPORT_MODEL':'support','GROQ_VISION_MODEL':'vision'})
     assert (p.brain_model,p.reflex_model,p.support_model,p.vision_model)==('brain','reflex','support','vision')
 
