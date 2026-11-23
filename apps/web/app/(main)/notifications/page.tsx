@@ -27,12 +27,13 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { Notification } from '@/types';
+import Link from 'next/link';
 
 // ============================================================================
 // --- 1. ARCHITECTURAL CONFIGURATION ---
 // ============================================================================
 
-const API_KEY = '/notifications';
+// Keep the legacy list route available to other consumers.
 
 const fetcher = async (url: string) => {
     try {
@@ -153,7 +154,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
           : 'bg-black/40 backdrop-blur-xl border-cyan-500/30 shadow-[0_0_30px_rgba(6,182,212,0.05)] hover:border-cyan-400/50 hover:shadow-[0_0_40px_rgba(6,182,212,0.1)]'
       }`}
     >
-      <div className="flex items-start gap-6">
+      <div className="flex items-start gap-3 sm:gap-6">
         {/* Status Indicator */}
         <div className="flex-shrink-0 relative">
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${config.bg} ${config.border} ${config.color} transition-transform group-hover:scale-110 duration-500`}>
@@ -165,12 +166,12 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
         </div>
 
         {/* Content Core */}
-        <div className="flex-grow pt-1">
-            <div className="flex justify-between items-start">
+        <div className="flex-grow min-w-0 pt-1">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                 <h4 className={`text-lg font-bold mb-1 transition-colors ${read ? 'text-gray-500' : 'text-white'}`} style={{ fontFamily: "'Orbitron', sans-serif" }}>
                     {title}
                 </h4>
-                <span className="text-xs text-gray-600 font-mono flex items-center gap-1.5 whitespace-nowrap ml-4">
+                <span className="text-xs text-gray-400 font-mono flex items-center gap-1.5 sm:whitespace-nowrap sm:ml-4">
                     <Clock size={12} /> {timestamp}
                 </span>
             </div>
@@ -179,20 +180,20 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
                 {body}
             </p>
 
-            {cta && (
-                <button className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-all flex items-center gap-2">
-                    {cta} <Activity size={14} />
-                </button>
+            {cta && /^\/tracking\/[1-9]\d{0,9}$/.test(cta) && Number(cta.split('/').at(-1))<=2147483647 && (
+                <Link href={cta} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-all flex items-center gap-2">
+                    Open order <Activity size={14} />
+                </Link>
             )}
         </div>
 
         {/* Actions Dock */}
-        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-x-4 group-hover:translate-x-0">
+        <div className="flex shrink-0 flex-col gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300">
             {!read && (
                 <button
                     onClick={() => onMarkAsRead(id)}
                     title="Mark Read"
-                    className="p-2 rounded-xl bg-white/5 hover:bg-green-500/20 text-gray-400 hover:text-green-400 transition-colors"
+                    className="min-w-10 min-h-10 p-2 rounded-xl bg-white/5 hover:bg-green-500/20 text-gray-400 hover:text-green-400 transition-colors"
                 >
                     <Check size={18} />
                 </button>
@@ -200,7 +201,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
             <button
                 onClick={() => onDismiss(id)}
                 title="Dismiss"
-                className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
+                className="min-w-10 min-h-10 p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"
             >
                 <X size={18} />
             </button>
@@ -252,7 +253,7 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
             {/* Actions Pod */}
             <div className="relative pl-2 border-l border-white/10">
                 <button 
-                    onClick={() => setMenuOpen(!menuOpen)}
+                    aria-label="Notification settings" onClick={() => setMenuOpen(!menuOpen)}
                     className="p-3 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
                 >
                     <Settings size={20} />
@@ -273,8 +274,8 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
                                 <CheckCheck size={16} className="text-cyan-400" /> Mark all read
                             </button>
                             <button 
-                                onClick={() => setMenuOpen(false)}
-                                className="w-full text-left px-4 py-3 rounded-xl text-sm text-gray-300 hover:bg-white/10 hover:text-white flex items-center gap-3 transition-colors"
+                                disabled title="Alert preferences are not available yet"
+                                className="w-full text-left px-4 py-3 rounded-xl text-sm text-gray-500 flex items-center gap-3 opacity-60"
                             >
                                 <BellOff size={16} className="text-red-400" /> Mute alerts
                             </button>
@@ -300,10 +301,10 @@ const CinematicEmptyState = () => (
             </div>
         </div>
         <h3 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-            All Systems Nominal
+            No notices in this view
         </h3>
         <p className="text-gray-500 max-w-xs font-light">
-            Communication channels are clear. No active notifications pending.
+            No saved notifications match this page and filter.
         </p>
     </motion.div>
 );
@@ -313,56 +314,65 @@ const CinematicEmptyState = () => (
 // ============================================================================
 
 export default function NotificationsPage() {
-    const { data: initialNotifications, error, isLoading, mutate } = useSWR<Notification[]>(
-        API_KEY, fetcher, { revalidateOnFocus: false, shouldRetryOnError: true }
+    const [page,setPage]=useState(1);
+    const [mutationError,setMutationError]=useState('');
+    const {data:history,error,isLoading,mutate:mutateHistory}=useSWR<{items:Notification[],total:number}>(
+        `/notifications/history?page=${page}&limit=20`,fetcher,{revalidateOnFocus:true,shouldRetryOnError:false,refreshInterval:60000,refreshWhenHidden:false,refreshWhenOffline:false}
     );
+    const initialNotifications=history?.items;
+    const mutate=async(updater?: (items:Notification[])=>Notification[],revalidate?:boolean)=>{
+        if(typeof updater==='function')return mutateHistory(current=>current?{...current,items:updater(current.items)}:current,revalidate);
+        return mutateHistory();
+    };
 
     const [filter, setFilter] = useState('All');
     const [liveNotifications, setLiveNotifications] = useState<Notification[]>([]);
-    const [undoItem, setUndoItem] = useState<any>(null);
+    const [isDeleting,setIsDeleting]=useState(false);
+    const [undoItem, setUndoItem] = useState<(Notification & {source: 'initial' | 'live'}) | null>(null);
     const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // No live notification socket exists in the backend; the list is REST-fed.
 
     const handleMarkAsRead = async (id: number) => {
-        mutate((d = []) => d.map(n => n.id === id ? { ...n, read: true } : n), false);
-        setLiveNotifications(p => p.map(n => n.id === id ? { ...n, read: true } : n));
-        try { await api.post(`/notifications/${id}/read`); } catch { mutate(); }
+        try { await api.post(`/notifications/${id}/read`);setMutationError('');await mutate(); } catch { setMutationError('Read status could not be saved. Refresh to check the current state.');void mutate(); }
     };
 
     const handleDismiss = async (id: number, source: 'initial' | 'live') => {
-        // Logic same as original, simplified for brevity
+        if(undoTimerRef.current)return;
         const all = [...liveNotifications, ...(initialNotifications || [])];
         const item = all.find(n => n.id === id);
         if (!item) return;
 
         if (source === 'live') setLiveNotifications(p => p.filter(n => n.id !== id));
-        else mutate((d = []) => d.filter(n => n.id !== id), false);
+        else mutate((d:Notification[] = []) => d.filter(n => n.id !== id), false);
 
         setUndoItem({ ...item, source });
         undoTimerRef.current = setTimeout(() => {
-            api.delete(`/notifications/${id}`).then(() => setUndoItem(null));
+            setIsDeleting(true);
+            api.delete(`/notifications/${id}`).then(() => {undoTimerRef.current=null;setUndoItem(null);setMutationError('');void mutate();}).catch(()=>{undoTimerRef.current=null;setUndoItem(null);setMutationError('Dismissal could not be confirmed. Refresh to check your notifications.');void mutate();}).finally(()=>setIsDeleting(false));
         }, 4000);
     };
 
     const handleMarkAllAsRead = async () => {
-        mutate((d = []) => d.map(n => ({ ...n, read: true })), false);
-        setLiveNotifications(p => p.map(n => ({ ...n, read: true })));
-        try { await api.post('/notifications/read-all'); } catch { mutate(); }
+        try { await api.post('/notifications/read-all');setMutationError('');await mutate(); } catch { setMutationError('Read status could not be saved. Refresh to check the current state.');void mutate(); }
     };
 
     const handleUndo = () => {
-        if (!undoItem) return;
+        if (!undoItem || isDeleting) return;
         clearTimeout(undoTimerRef.current!);
         if (undoItem.source === 'live') setLiveNotifications(p => [undoItem, ...p]);
-        else mutate((d = []) => [undoItem, ...(d || [])], false);
+        else mutate((d:Notification[] = []) => [undoItem, ...(d || []).filter(n=>n.id!==undoItem.id)], false);
+        undoTimerRef.current=null;
         setUndoItem(null);
     };
 
     const allNotifications = useMemo(() => {
         const initial = Array.isArray(initialNotifications) ? initialNotifications : [];
-        return [...liveNotifications, ...initial.filter(i => !liveNotifications.some(l => l.id === i.id))];
-    }, [liveNotifications, initialNotifications]);
+        return [...liveNotifications, ...initial.filter(i => !liveNotifications.some(l => l.id === i.id))].filter(n=>n.id!==undoItem?.id);
+    }, [liveNotifications, initialNotifications,undoItem]);
+
+    useEffect(()=>{setLiveNotifications([]);},[page]);
+    useEffect(()=>()=>{if(undoTimerRef.current)clearTimeout(undoTimerRef.current);},[]);
 
     const grouped = useMemo(() => {
         const f = allNotifications.filter(n => {
@@ -395,14 +405,25 @@ export default function NotificationsPage() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
             </div>
 
+            <div className="relative z-20 max-w-6xl mx-auto px-4 pt-24 space-y-4">
+                {error&&<p role="alert" className="rounded-xl border border-amber-300/30 p-4 text-sm text-amber-200">Notifications could not be refreshed. Any notices below are the last saved view.</p>}
+                {mutationError&&<p role="alert" className="rounded-xl border border-amber-300/30 p-4 text-sm text-amber-200">{mutationError}</p>}
+                <div className="flex flex-wrap gap-3 items-center text-xs text-slate-300">
+                    <button type="button" onClick={()=>void mutate()} className="rounded-xl border border-white/15 px-4 py-3">Refresh notifications</button>
+                    <span>Page {page} · {history?.total??0} saved notifications. Checks every minute while visible and online.</span>
+                    <button disabled={page===1 || !!undoItem} onClick={()=>setPage(p=>p-1)} className="px-3 py-3 disabled:opacity-40">Previous</button>
+                    <button disabled={!history || page*20>=history.total || !!undoItem} onClick={()=>setPage(p=>p+1)} className="px-3 py-3 disabled:opacity-40">Next</button>
+                </div>
+                <p className="text-xs text-slate-500">Filters apply to this page. These are saved in-app notices, not proof an email or push was delivered.</p>
+            </div>
             {/* Header */}
-            <section className="relative z-10 pt-40 pb-10 px-4 text-center">
+            <section className="relative z-10 pt-12 pb-10 px-4 text-center">
                 <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-cyan-500/20 bg-cyan-900/10 backdrop-blur-md mb-8">
                         <Signal size={14} className="text-cyan-400" />
                         <span className="text-xs font-bold uppercase tracking-widest text-cyan-200/80">Neural Uplink V4.0</span>
                     </div>
-                    <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                    <h1 className="text-3xl sm:text-5xl md:text-7xl font-black text-white mb-6 tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                         COMMUNICATION <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">LOGS</span>
                     </h1>
                 </motion.div>
@@ -421,6 +442,8 @@ export default function NotificationsPage() {
                 <motion.div layout className="space-y-12">
                     {isLoading && !initialNotifications ? (
                         <div className="flex justify-center py-20"><Loader className="animate-spin text-cyan-400 w-12 h-12" /></div>
+                    ) : error && !history ? (
+                        <p className="text-center text-slate-400 py-16">The saved history is unavailable. Use Refresh notifications to try again.</p>
                     ) : !hasData ? (
                         <CinematicEmptyState />
                     ) : (
@@ -440,7 +463,7 @@ export default function NotificationsPage() {
                                             key={n.id} 
                                             notification={n} 
                                             onMarkAsRead={handleMarkAsRead} 
-                                            onDismiss={() => handleDismiss(n.id, liveNotifications.some(l => l.id === n.id) ? 'live' : 'initial')}
+                                            onDismiss={() => {if(!undoItem)void handleDismiss(n.id, liveNotifications.some(l => l.id === n.id) ? 'live' : 'initial');}}
                                             index={i} 
                                         />
                                     ))}
@@ -460,7 +483,7 @@ export default function NotificationsPage() {
                         className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-xl border border-white/10 px-6 py-4 rounded-full flex items-center gap-6 z-50 shadow-2xl"
                     >
                         <span className="text-sm text-gray-300">Archive updated</span>
-                        <button onClick={handleUndo} className="text-sm font-bold text-cyan-400 hover:text-cyan-300 uppercase tracking-wider">Undo</button>
+                        <button onClick={handleUndo} disabled={isDeleting} className="text-sm font-bold text-cyan-400 hover:text-cyan-300 uppercase tracking-wider">Undo</button>
                     </motion.div>
                 )}
             </AnimatePresence>
