@@ -759,6 +759,9 @@ class WorkerRuntime:
 
     async def initialize_ai(self, cache_client: RedisCacheClient) -> None:
         settings = get_core_settings()
+        # Warmup retries must not acquire another search connection on every
+        # still-cold attempt. Native single-flight is owned by the registry.
+        embedding_model = await initialize_query_embeddings()
         if self.services.opensearch_client is None:
             self.services.opensearch_gen = get_opensearch_client(settings)
             self.services.opensearch_client = await anext(self.services.opensearch_gen)
@@ -767,7 +770,6 @@ class WorkerRuntime:
         self.ensure_milvus_schema(milvus_client)
 
         loop = asyncio.get_running_loop()
-        embedding_model = await initialize_query_embeddings()
 
         vision_loader = getattr(get_ai_commerce_engine, "get_vision_stack", None)
         if callable(vision_loader):
