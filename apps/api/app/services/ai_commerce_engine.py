@@ -393,15 +393,20 @@ class ModelRegistry:
             logger.info("loading text embedding model", extra={"model": PRODUCT_TEXT_MODEL.name, "device": self._device})
             logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
 
-            rejected = self._text_startup_rejected
-            if rejected.is_set():
-                raise TextEmbeddingWarmupError("Text model startup previously exceeded its budget; restart required")
+            # The model lock proves the prior native attempt has drained. A
+            # new attempt gets its own rejection event; never revive old work.
+            rejected = threading.Event()
+            self._text_startup_rejected = rejected
+            settings = get_core_settings()
+            policy = WarmupPolicy(budget_seconds=settings.TEXT_WARMUP_BUDGET_SECONDS,
+                                  sample_max_seconds=settings.TEXT_WARMUP_SAMPLE_MAX_SECONDS,
+                                  max_attempts=max(8, int(settings.TEXT_WARMUP_BUDGET_SECONDS)))
             self._text_warmup_status = {"state": "warming_up"}
             def expire():
                 rejected.set()
                 self._text_warmup_status = {"state": "failed", "error": "startup_budget_exhausted"}
                 logger.error("text embedding startup budget exhausted; readiness rejected")
-            timer = threading.Timer(STARTUP_MODEL_BUDGET_SECONDS, expire)
+            timer = threading.Timer(settings.TEXT_STARTUP_BUDGET_SECONDS, expire)
             timer.daemon = True
             timer.start()
             warmup_timer = None
@@ -421,11 +426,11 @@ class ModelRegistry:
                 model.max_seq_length = 8192
                 model.to(self._device)
                 model.eval()
-                warmup_timer = threading.Timer(WarmupPolicy().budget_seconds, expire)
+                warmup_timer = threading.Timer(policy.budget_seconds, expire)
                 warmup_timer.daemon = True
                 warmup_timer.start()
                 with torch.no_grad():
-                    report = warm_text_encoder(model, PRODUCT_TEXT_MODEL.dimension, rejected=rejected)
+                    report = warm_text_encoder(model, PRODUCT_TEXT_MODEL.dimension, policy=policy, rejected=rejected)
                 if rejected.is_set():
                     raise TextEmbeddingWarmupError("Text model startup budget exhausted")
                 self._text_warmup_status = report
@@ -1652,12 +1657,24 @@ def get_embedding_model() -> SentenceTransformer:
     return model_registry.get_text_model()
 
 
+_TEXT_STARTUP_FUTURES = weakref.WeakKeyDictionary()
+
+
 async def initialize_query_embeddings() -> SentenceTransformer:
-    # Shield avoids pretending that cancellation stopped native inference.
-    future = asyncio.get_running_loop().run_in_executor(None, get_embedding_model)
-    future.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+    # Reuse a still-running native attempt instead of queueing more loader
+    # threads after caller deadlines. A completed failed attempt can retry.
+    loop = asyncio.get_running_loop()
+    future = _TEXT_STARTUP_FUTURES.get(loop)
+    if future is None or future.done():
+        future = loop.run_in_executor(None, get_embedding_model)
+        future.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+        _TEXT_STARTUP_FUTURES[loop] = future
+    budget = get_core_settings().TEXT_STARTUP_BUDGET_SECONDS
+    # Retain compatibility with explicit test/operational deadline overrides.
+    if STARTUP_MODEL_BUDGET_SECONDS != 360.0:
+        budget = STARTUP_MODEL_BUDGET_SECONDS
     try:
-        return await asyncio.wait_for(asyncio.shield(future), timeout=STARTUP_MODEL_BUDGET_SECONDS)
+        return await asyncio.wait_for(asyncio.shield(future), timeout=budget)
     except asyncio.TimeoutError as exc:
         model_registry.reject_text_startup()
         logger.error("text model startup deadline exceeded; readiness rejected")

@@ -1,0 +1,109 @@
+import asyncio
+import json
+import threading
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+import numpy as np
+import pytest
+import worker_entrypoint as worker
+from app.services import ai_commerce_engine as commerce
+from app.services.embedding_warmup import WarmupPolicy,warm_text_encoder,TextEmbeddingWarmupError
+from tests.test_embedding_startup_readiness import TimedEncoder
+from tests.test_cart_worker_retry_boundary import message
+
+
+def test_slow_cold_hardware_can_warm_with_larger_budget_without_relaxing_fast_sample_gate():
+    clock=[0.]
+    model=TimedEncoder([37.59]*7+[.7,.8],clock)
+    with pytest.raises(TextEmbeddingWarmupError):
+        warm_text_encoder(model,1536,clock=lambda:clock[0])
+    clock=[0.];model=TimedEncoder([37.59]*7+[.7,.8],clock)
+    report=warm_text_encoder(model,1536,policy=WarmupPolicy(budget_seconds=1200,max_attempts=32),clock=lambda:clock[0])
+    assert report['state']=='ready' and len(model.calls)==9
+    slow_clock=[0.]
+    with pytest.raises(TextEmbeddingWarmupError):
+        warm_text_encoder(TimedEncoder([37.59]*32,slow_clock),1536,
+            policy=WarmupPolicy(budget_seconds=1200,max_attempts=32),clock=lambda:slow_clock[0])
+
+
+@pytest.mark.asyncio
+async def test_worker_recovers_failed_ai_and_health_becomes_ready(monkeypatch):
+    runtime=worker.WorkerRuntime();s=runtime.services
+    s.rabbitmq=SimpleNamespace(is_closed=False);s.db_engine=object()
+    s.infrastructure_ready=s.consumer_ready=s.payment_ready=True;s.ai_degraded=True;s.startup_error='AI_INIT_DEGRADED'
+    monkeypatch.setattr(worker,'get_core_settings',lambda:SimpleNamespace(AI_RECOVERY_INTERVAL_SECONDS=.01))
+    attempts=[]
+    async def initialize(cache):
+        attempts.append(cache)
+        if len(attempts)==1:raise TextEmbeddingWarmupError('controlled cold attempt')
+        s.ai_ready=True;s.ai_degraded=False;s.refresh_readiness()
+    runtime.initialize_ai=initialize
+    assert (await runtime.health_check_handler(None)).status==503
+    await asyncio.wait_for(runtime.recover_ai('cache'),1)
+    assert attempts==['cache','cache'] and s.startup_error is None
+    assert (await runtime.health_check_handler(None)).status==200
+
+
+@pytest.mark.asyncio
+async def test_not_ready_message_is_requeued_even_after_old_retry_limit(monkeypatch):
+    runtime=worker.WorkerRuntime();incoming=message();incoming.headers={'x-startup-retry-count':999}
+    runtime.republish_with_headers=AsyncMock()
+    monkeypatch.setattr(worker.asyncio,'sleep',AsyncMock())
+    handler=AsyncMock(side_effect=worker.StartupDependencyError('WORKER_NOT_READY'))
+    await runtime.smart_retry_wrapper(incoming,handler)
+    incoming.reject.assert_awaited_once_with(requeue=True)
+    incoming.ack.assert_not_awaited();runtime.republish_with_headers.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_repeated_startup_waits_share_one_native_loader_after_timeout(monkeypatch):
+    started=threading.Event();release=threading.Event();calls=[]
+    def load():
+        calls.append(1);started.set();release.wait(2);return 'model'
+    monkeypatch.setattr(commerce,'get_embedding_model',load)
+    monkeypatch.setattr(commerce,'STARTUP_MODEL_BUDGET_SECONDS',.02)
+    monkeypatch.setattr(commerce,'model_registry',SimpleNamespace(reject_text_startup=lambda:None))
+    try:
+        for _ in range(2):
+            with pytest.raises(TextEmbeddingWarmupError):await commerce.initialize_query_embeddings()
+        assert started.is_set() and len(calls)==1
+    finally:release.set();await asyncio.sleep(.05)
+
+
+@pytest.mark.asyncio
+async def test_loopback_health_transitions_503_to_200_after_background_recovery(monkeypatch):
+    from aiohttp import web,ClientSession
+    runtime=worker.WorkerRuntime();s=runtime.services
+    s.rabbitmq=SimpleNamespace(is_closed=False);s.db_engine=object()
+    s.infrastructure_ready=s.consumer_ready=s.payment_ready=True;s.ai_degraded=True
+    monkeypatch.setattr(worker,'get_core_settings',lambda:SimpleNamespace(AI_RECOVERY_INTERVAL_SECONDS=.01))
+    release=asyncio.Event()
+    async def initialize(cache):
+        await release.wait();s.ai_ready=True;s.ai_degraded=False;s.refresh_readiness()
+    runtime.initialize_ai=initialize
+    app=web.Application();app.router.add_get('/health',runtime.health_check_handler)
+    runner=web.AppRunner(app);await runner.setup()
+    site=web.TCPSite(runner,'127.0.0.1',0);await site.start()
+    port=site._server.sockets[0].getsockname()[1]
+    task=asyncio.create_task(runtime.recover_ai(None))
+    try:
+        async with ClientSession() as client:
+            async with client.get(f'http://127.0.0.1:{port}/health') as response:assert response.status==503
+            release.set();await asyncio.wait_for(task,1)
+            async with client.get(f'http://127.0.0.1:{port}/health') as response:
+                assert response.status==200 and (await response.json())['details']['readiness'] is True
+    finally:
+        release.set();task.cancel();await asyncio.gather(task,return_exceptions=True);await runner.cleanup()
+
+
+def test_registry_retry_replaces_old_rejection_event_only_under_model_lock(monkeypatch):
+    registry=object.__new__(commerce.ModelRegistry)
+    registry._text_model=None;registry._model_lock=threading.RLock()
+    old=threading.Event();old.set();registry._text_startup_rejected=old
+    registry._device='cpu';registry._dtype='float32';registry._text_warmup_status={'state':'failed'}
+    model=SimpleNamespace(to=lambda *_:None,eval=lambda:None)
+    monkeypatch.setattr(commerce,'SentenceTransformer',lambda *a,**kw:model)
+    monkeypatch.setattr(commerce,'warm_text_encoder',lambda *a,**kw:{'state':'ready'})
+    assert registry.get_text_model() is model
+    assert registry._text_startup_rejected is not old and old.is_set()
+    assert not registry._text_startup_rejected.is_set()

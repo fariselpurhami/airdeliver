@@ -759,8 +759,9 @@ class WorkerRuntime:
 
     async def initialize_ai(self, cache_client: RedisCacheClient) -> None:
         settings = get_core_settings()
-        self.services.opensearch_gen = get_opensearch_client(settings)
-        self.services.opensearch_client = await anext(self.services.opensearch_gen)
+        if self.services.opensearch_client is None:
+            self.services.opensearch_gen = get_opensearch_client(settings)
+            self.services.opensearch_client = await anext(self.services.opensearch_gen)
 
         milvus_client = get_milvus_client(settings)
         self.ensure_milvus_schema(milvus_client)
@@ -788,6 +789,55 @@ class WorkerRuntime:
         self.services.ai_ready = True
         self.services.ai_degraded = False
         self.services.refresh_readiness()
+
+    async def _legacy_startup_retry_disposition(self, message, payload, headers,
+                                                routing_key, startup_retry_count, exc):
+        """Preserved original capped startup retry policy, not current dispatch."""
+        if self.is_message_startup_dependent(payload) and startup_retry_count < STARTUP_RETRY_MAX_ATTEMPTS:
+            backoff_time = min(2 ** startup_retry_count, 10.0)
+            logger.warning(
+                "Startup dependency unavailable: %s. retry=%s/%s backoff=%.2fs",
+                exc,
+                startup_retry_count + 1,
+                STARTUP_RETRY_MAX_ATTEMPTS,
+                backoff_time,
+            )
+            await asyncio.sleep(backoff_time)
+            headers["x-startup-retry-count"] = startup_retry_count + 1
+            await self.republish_with_headers(
+                original_message=message,
+                payload=payload,
+                routing_key=routing_key,
+                headers=headers,
+            )
+            await message.ack()
+            return
+
+        logger.error("Startup dependency unavailable; message rejected without requeue: %s", exc)
+        await message.reject(requeue=False)
+        return
+
+    async def recover_ai(self, cache_client) -> None:
+        """Retry degraded startup without marking cold services ready."""
+        while not self.shutdown_event.is_set() and not self.services.ai_ready:
+            try:
+                await asyncio.wait_for(self.shutdown_event.wait(),
+                    timeout=get_core_settings().AI_RECOVERY_INTERVAL_SECONDS)
+                return
+            except asyncio.TimeoutError:
+                pass
+            try:
+                await self.initialize_ai(cache_client)
+                if self.services.startup_error == "AI_INIT_DEGRADED":
+                    self.services.startup_error = None
+                logger.info("worker.ai_recovered")
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self.services.ai_ready = False
+                self.services.ai_degraded = True
+                self.services.refresh_readiness()
+                logger.warning("worker.ai_recovery_failed error_type=%s",type(exc).__name__)
 
     def initialize_payment(self, cache_client: RedisCacheClient) -> None:
         if self.services.http_client is None:
@@ -1088,28 +1138,12 @@ class WorkerRuntime:
                 return
 
             except StartupDependencyError as exc:
-                if self.is_message_startup_dependent(payload) and startup_retry_count < STARTUP_RETRY_MAX_ATTEMPTS:
-                    backoff_time = min(2 ** startup_retry_count, 10.0)
-                    logger.warning(
-                        "Startup dependency unavailable: %s. retry=%s/%s backoff=%.2fs",
-                        exc,
-                        startup_retry_count + 1,
-                        STARTUP_RETRY_MAX_ATTEMPTS,
-                        backoff_time,
-                    )
-                    await asyncio.sleep(backoff_time)
-                    headers["x-startup-retry-count"] = startup_retry_count + 1
-                    await self.republish_with_headers(
-                        original_message=message,
-                        payload=payload,
-                        routing_key=routing_key,
-                        headers=headers,
-                    )
-                    await message.ack()
-                    return
-
-                logger.error("Startup dependency unavailable; message rejected without requeue: %s", exc)
-                await message.reject(requeue=False)
+                # Readiness failure happens before handler side effects. Keep
+                # the original broker delivery, never drop after a startup cap.
+                # Delay avoids a tight requeue loop while recovery warms up.
+                logger.warning("worker.startup_not_ready requeue=true error_type=%s",type(exc).__name__)
+                await asyncio.sleep(min(get_core_settings().AI_RECOVERY_INTERVAL_SECONDS,30))
+                await message.reject(requeue=True)
                 return
 
             except Exception as exc:
@@ -1179,6 +1213,8 @@ class WorkerRuntime:
             logger.critical("RabbitMQ consumer initialization failed", exc_info=exc)
             raise
 
+        if not self.services.ai_ready:
+            self.create_background_task(self.recover_ai(cache_client), "ai-startup-recovery")
         self.create_background_task(self.run_payment_outbox(), "payment-outbox")
         self.create_background_task(self.run_customer_memory_retention(), "customer-memory-retention")
         self.create_background_task(self.lazy_load_voice_brain(), "lazy-load-voice-brain")
