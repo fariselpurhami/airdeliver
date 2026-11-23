@@ -7,6 +7,8 @@ from httpx import AsyncClient,ASGITransport
 from sqlalchemy import text,func
 from sqlalchemy.ext.asyncio import create_async_engine,async_sessionmaker
 from sqlmodel import select
+from types import SimpleNamespace
+from app.core.config import get_core_settings
 from app.api import deps
 from app.api.v1.endpoints.admin import router
 from app.models.user import User
@@ -27,6 +29,7 @@ async def test_manual_fulfillment_permissions_transitions_audit_notification_and
   paid=Order(user_id=owner.id,status=OrderStatus.PROCESSING,is_paid=True);unpaid=Order(user_id=owner.id)
   db.add_all([paid,unpaid]);await db.commit();oid,unpaid_id=paid.id,unpaid.id
  app=FastAPI();app.include_router(router)
+ app.dependency_overrides[get_core_settings]=lambda:SimpleNamespace(MANUAL_FULFILLMENT_ENABLED=True)
  async def dbdep():
   async with sessions() as db:yield db
  actor=[owner];app.dependency_overrides[deps.get_async_session]=dbdep
@@ -36,6 +39,12 @@ async def test_manual_fulfillment_permissions_transitions_audit_notification_and
   async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
    assert (await client.post(f'/orders/{oid}/fulfillment',json=payload)).status_code==403
    actor[0]=admin
+   app.dependency_overrides[get_core_settings]=lambda:SimpleNamespace(MANUAL_FULFILLMENT_ENABLED=False)
+   assert (await client.get('/fulfillment/config')).json()=={'enabled':False}
+   assert (await client.post(f'/orders/{oid}/fulfillment',json=payload)).status_code==503
+   async with sessions() as check:
+    assert (await check.get(Order,oid)).status==OrderStatus.PROCESSING
+   app.dependency_overrides[get_core_settings]=lambda:SimpleNamespace(MANUAL_FULFILLMENT_ENABLED=True)
    listed=await client.get('/orders');assert listed.status_code==200 and listed.json()['total_orders']>=2
    assert (await client.post(f'/orders/{unpaid_id}/fulfillment',json=payload)).status_code==409
    assert (await client.post(f'/orders/{oid}/fulfillment',json={**payload,'to_status':'delivered'})).status_code==409

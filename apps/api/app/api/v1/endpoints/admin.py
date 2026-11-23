@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, ConfigDict, field_validator
 import random
 from app.api import deps
+from app.core.config import get_core_settings
 from app import models
 from app.models.enums import OrderStatus
 
@@ -131,11 +132,18 @@ class FulfillmentTransition(BaseModel):
         return value
 
 
+@router.get('/fulfillment/config')
+async def manual_fulfillment_config(response: Response, admin: models.User=Depends(get_current_admin_user), settings=Depends(get_core_settings)):
+    response.headers['Cache-Control']='no-store'
+    return {'enabled':settings.MANUAL_FULFILLMENT_ENABLED}
+
+
 @router.post('/orders/{order_id}/fulfillment')
 async def update_manual_fulfillment(
     order_id: int,
     payload: FulfillmentTransition,
     response: Response,
+    settings=Depends(get_core_settings),
     db: AsyncSession = Depends(deps.get_async_session),
     admin: models.User = Depends(get_current_admin_user),
 ):
@@ -150,6 +158,8 @@ async def update_manual_fulfillment(
     from sqlalchemy.exc import SQLAlchemyError
     if order_id<1 or order_id>2147483647:
         raise HTTPException(status_code=422,detail='Invalid order identifier')
+    if not settings.MANUAL_FULFILLMENT_ENABLED:
+        raise HTTPException(status_code=503,detail='Manual fulfillment is not enabled. No order update was made.')
     transitions={OrderStatus.PROCESSING:OrderStatus.ASSIGNED,OrderStatus.ASSIGNED:OrderStatus.IN_TRANSIT,OrderStatus.IN_TRANSIT:OrderStatus.DELIVERED}
     response.headers['Cache-Control']='no-store'
     try:

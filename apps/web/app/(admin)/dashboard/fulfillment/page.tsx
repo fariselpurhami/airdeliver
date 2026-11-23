@@ -34,13 +34,15 @@ function OrderControl({order,onChanged}:{order:Order,onChanged:()=>void}){
 export default function FulfillmentPage(){
  const {data:session,status}=useSession();const [page,setPage]=useState(1);
  const admin=status==='authenticated' && session?.user?.role==='admin';
- const {data,error,isLoading,mutate}=useSWR<{orders:Order[],total_orders:number}>(admin?`/admin/orders?page=${page}&limit=10`:null,url=>api.get(url).then(r=>r.data),{shouldRetryOnError:false});
+ const {data:configuration,error:configurationError}=useSWR<{enabled:boolean}>(admin?'/admin/fulfillment/config':null,url=>api.get(url).then(r=>r.data),{shouldRetryOnError:false});
+ const enabled=configuration?.enabled===true;
+ const {data,error,isLoading,mutate}=useSWR<{orders:Order[],total_orders:number}>(admin && enabled?`/admin/orders?page=${page}&limit=10`:null,url=>api.get(url).then(r=>r.data),{shouldRetryOnError:false});
  return <main className="min-h-screen bg-black text-white px-4 pt-24 pb-16 relative isolate">
   <div aria-hidden="true" className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(6,182,212,0.09),transparent_65%)]"/>
   <div className="max-w-3xl mx-auto space-y-6">
    <Link href="/dashboard" className="inline-flex gap-2 items-center py-3 text-xs text-slate-400"><ArrowLeft size={14}/>Back to dashboard</Link>
    <header className="py-5 space-y-4"><p className="flex items-center gap-2 uppercase tracking-[.2em] text-[10px] text-cyan-300"><ShieldCheck size={14}/>Authorized operator workspace</p><h1 className="text-3xl sm:text-4xl font-black tracking-tight">MANUAL <span className="text-cyan-300">FULFILLMENT</span></h1><p className="text-sm text-slate-400">Record real operational events. No carrier, ETA, payment or refund is inferred or called here.</p></header>
-   {status==='loading'?<p role="status">Checking account...</p>:!admin?<p role="alert">An administrator account is required. Server permissions are checked on every request.</p>:<>
+   {status==='loading'?<p role="status">Checking account...</p>:!admin?<p role="alert">An administrator account is required. Server permissions are checked on every request.</p>:!enabled?<p role="status" className="rounded-xl border border-amber-300/20 p-5 text-sm text-amber-100">{configurationError?'Fulfillment availability could not be checked. No order controls are enabled.':configuration?'Manual fulfillment is not enabled. An approved operator and evidence policy must be configured before order controls are available.':'Checking fulfillment availability...'}</p>:<>
     <button type="button" onClick={()=>void mutate()} className="rounded-xl border border-white/15 px-4 py-3 text-xs">Refresh order list</button>
     {error&&<p role="alert" className="text-amber-200">Order list could not be refreshed. Refresh before recording another event.</p>}
     {isLoading?<p role="status">Loading orders...</p>:data?.orders.map(order=><OrderControl key={`${order.id}-${order.status}`} order={order} onChanged={()=>void mutate()}/>)}

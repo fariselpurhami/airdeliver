@@ -9,7 +9,7 @@ jest.mock('next-auth/react',()=>({useSession:jest.fn()}));
 jest.mock('@/lib/api',()=>({api:{get:jest.fn(),post:jest.fn()}}));
 const order={id:7,status:'processing',is_paid:true,total_price:25,currency:'USD'};
 function page(){return render(<SWRConfig value={{provider:()=>new Map()}}><Page/></SWRConfig>);}
-beforeEach(()=>{jest.clearAllMocks();jest.mocked(useSession).mockReturnValue({data:{user:{role:'admin'}},status:'authenticated'} as any);jest.mocked(api.get).mockResolvedValue({data:{orders:[order],total_orders:1}});});
+beforeEach(()=>{jest.clearAllMocks();jest.mocked(useSession).mockReturnValue({data:{user:{role:'admin'}},status:'authenticated'} as any);jest.mocked(api.get).mockImplementation(async(url)=>({data:String(url).includes('/config')?{enabled:true}:{orders:[order],total_orders:1}}) as any);});
 it('requires operator evidence and explicit review, never advances from page render',async()=>{
  page();await screen.findByText('Order #7');expect(api.post).not.toHaveBeenCalled();
  const review=screen.getByRole('button',{name:'Review: Assign to fulfillment'});expect(review).toBeDisabled();
@@ -29,4 +29,9 @@ it('failure does not claim physical delivery or a successful update',async()=>{
  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Assigned to warehouse operator fixture'}});
  fireEvent.click(screen.getByRole('button',{name:'Review: Assign to fulfillment'}));fireEvent.click(screen.getByRole('button',{name:'Confirm operator attestation'}));
  expect(await screen.findByRole('status')).toHaveTextContent('could not be confirmed');
+});
+
+it('default-off configuration exposes no order read or mutation controls',async()=>{
+ jest.mocked(api.get).mockResolvedValue({data:{enabled:false}});page();
+ expect(await screen.findByText(/Manual fulfillment is not enabled/)).toBeInTheDocument();expect(api.get).toHaveBeenCalledTimes(1);expect(api.post).not.toHaveBeenCalled();expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
 });
