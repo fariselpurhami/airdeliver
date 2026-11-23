@@ -87,3 +87,22 @@ async def test_capture_order_id_cannot_inject_url_path():
                                         expected_amount=Decimal("99.50"), expected_currency="USD")
     assert result.status == PaymentStatus.FAILURE
     assert calls == []
+
+
+def test_completed_funds_cannot_double_count_duplicate_capture_identifiers():
+    details=order_body('COMPLETED')
+    capture=details['purchase_units'][0]['payments']['captures'][0]
+    capture['amount']['value']='49.75'
+    import copy
+    details['purchase_units'][0]['payments']['captures'].append(copy.deepcopy(capture))
+    with pytest.raises(ValueError,match='unique'):
+        PayPalGateway.validate_order_details(details,'PP123',expected_order_id=7,expected_user_id=42,expected_amount=Decimal('99.50'),expected_currency='USD',require_completed=True)
+
+
+def test_distinct_completed_captures_with_exact_total_remain_supported():
+    details=order_body('COMPLETED')
+    details['purchase_units'][0]['payments']['captures']=[
+        {'id':'CAP1','status':'COMPLETED','amount':{'currency_code':'USD','value':'49.75'}},
+        {'id':'CAP2','status':'COMPLETED','amount':{'currency_code':'USD','value':'49.75'}},
+    ]
+    PayPalGateway.validate_order_details(details,'PP123',expected_order_id=7,expected_user_id=42,expected_amount=Decimal('99.50'),expected_currency='USD',require_completed=True)

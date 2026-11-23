@@ -468,7 +468,12 @@ class PayPalGateway(IPaymentGateway):
             if body.get("status") != "COMPLETED" or not captures:
                 raise ValueError("PayPal payment is not completed")
             total = Decimal("0")
+            seen_capture_ids = set()
             for capture in captures:
+                capture_id = capture.get("id")
+                if not isinstance(capture_id, str) or not capture_id or capture_id in seen_capture_ids:
+                    raise ValueError("PayPal capture identifiers must be unique")
+                seen_capture_ids.add(capture_id)
                 capture_amount = capture.get("amount", {})
                 value = Decimal(str(capture_amount.get("value", "NaN")))
                 if (capture.get("status") != "COMPLETED" or not capture.get("id")
