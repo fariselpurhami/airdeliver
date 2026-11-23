@@ -2,6 +2,7 @@
 
 'use client';
 
+import { randomId } from '@/lib/random-id';
 import { parseCartItems } from '@/lib/cart-snapshot';
 
 
@@ -170,7 +171,7 @@ interface AIOrderingState {
 let messageIdCounter = 1;
 const generateMessageId = () => Date.now() + messageIdCounter++;
 // Faster UUID generation for UI tasks
-const generateUUID = () => crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+const generateUUID = randomId;
 
 // Initial assistant greeting shown when the overlay opens. Must be a fully
 // populated Message: the render path requires id/sender/contentType/content.
@@ -697,7 +698,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     if (typeof window === 'undefined') return 'ssr-session';
     let sessionId = window.localStorage.getItem('airdeliver-support-session');
     if (!sessionId || !/^[a-zA-Z0-9_-]{8,128}$/.test(sessionId)) {
-      sessionId = crypto.randomUUID();
+      sessionId = randomId();
       window.localStorage.setItem('airdeliver-support-session', sessionId);
     }
     return sessionId;
