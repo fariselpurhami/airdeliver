@@ -180,3 +180,26 @@ def test_payment_request_preserves_existing_half_up_minor_unit_rounding():
     from app.services.payment_orchestrator import PaymentRequest
     request=PaymentRequest(order_id='1',amount='0.005',currency='USD',region='US',idempotency_key='test-request-key-1234')
     assert str(request.amount)=='0.01'
+
+
+@pytest.mark.asyncio
+async def test_parent_cancellation_cancels_and_drains_started_gateway_tasks():
+    entered=[asyncio.Event(),asyncio.Event()]
+    stopped=[asyncio.Event(),asyncio.Event()]
+    class BlockingGateway(FakeGateway):
+        def __init__(self,provider,index):
+            super().__init__(provider);self.index=index
+        async def create_payment_intent(self,request):
+            entered[self.index].set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                await asyncio.sleep(0)
+                stopped[self.index].set()
+    orchestrator=PaymentOrchestrator([BlockingGateway(GatewayProvider.STRIPE,0),BlockingGateway(GatewayProvider.PAYPAL,1)])
+    task=asyncio.create_task(orchestrator.process_payment(make_request(region='US'),corr_id='test-cancel'))
+    await asyncio.wait_for(asyncio.gather(*(event.wait() for event in entered)),timeout=2)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):await task
+    assert all(event.is_set() for event in stopped)
+    assert not any(task.get_name().startswith('gw_task_') and not task.done() for task in asyncio.all_tasks())

@@ -677,11 +677,19 @@ class PaymentOrchestrator:
             for gw in active_gateways
         ]
         
-        done, pending = await asyncio.wait(
-            tasks, 
-            timeout=self.GLOBAL_TIMEOUT_SECONDS, 
-            return_when=asyncio.ALL_COMPLETED
-        )
+        try:
+            done, pending = await asyncio.wait(
+                tasks,
+                timeout=self.GLOBAL_TIMEOUT_SECONDS,
+                return_when=asyncio.ALL_COMPLETED
+            )
+        except asyncio.CancelledError:
+            # Parent timeouts/disconnects do not implicitly cancel tasks made
+            # with create_task. Own and drain every gateway task we started.
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
 
         # Ensure aggressive memory-safe cancellation of lingering network I/O
         if pending:
