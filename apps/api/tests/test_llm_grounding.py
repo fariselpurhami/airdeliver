@@ -108,3 +108,12 @@ async def test_empty_selection_uses_fallback():
 async def test_no_products_returns_none():
     svc = _service_returning({})
     assert await svc.filter_and_recommend("phone", []) is None
+
+
+@pytest.mark.anyio
+async def test_valid_selected_ids_do_not_allow_reasoning_for_unselected_or_invented_products():
+    svc=_service_returning({'selected_ids':[1], 'reasoning':{'1':'Listed selection','2':'Not selected','999':'Not in catalog'},
+        'intro_message':'Listed option','confidence_score':0.5})
+    result=await svc.filter_and_recommend('phone',_products())
+    assert result.selected_ids==[1]
+    assert result.reasoning=={'1':'Listed selection'}

@@ -1915,16 +1915,17 @@ Output ONE line of search keywords only.
                         "candidate_count": len(valid_candidate_ids),
                     },
                 )
-                parsed = CognitiveResponse(
-                    selected_ids=grounded_ids,
-                    reasoning={
-                        key: value
-                        for key, value in parsed.reasoning.items()
-                        if key in {str(pid) for pid in grounded_ids}
-                    },
-                    intro_message=parsed.intro_message,
-                    confidence_score=parsed.confidence_score,
-                )
+            # Enforce reasoning scope even when every selected ID was valid.
+            # Extra model keys must not attach copy to an unselected product.
+            parsed = CognitiveResponse(
+                selected_ids=grounded_ids,
+                reasoning={
+                    key: value for key, value in parsed.reasoning.items()
+                    if key in {str(pid) for pid in grounded_ids}
+                },
+                intro_message=parsed.intro_message,
+                confidence_score=parsed.confidence_score,
+            )
             if not parsed.selected_ids:
                 parsed = CognitiveResponse(
                     selected_ids=fallback_ids,
