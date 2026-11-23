@@ -7,6 +7,10 @@ consent mutations, real LLM answers, or embedding latency.
 import asyncio
 import json
 import time
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import text
 from app.core.config import get_core_settings
 from app.db.session import AsyncSessionFactory
