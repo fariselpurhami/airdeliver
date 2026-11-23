@@ -1,5 +1,5 @@
 """Authenticated, self-only shopping-memory controls."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, ConfigDict, StrictBool
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.api import deps
@@ -17,7 +17,8 @@ class MemoryConsentRequest(BaseModel):
 
 
 @router.get('/memory')
-async def export_memory(current_user: User=Depends(deps.get_current_active_user), session: AsyncSession=Depends(get_async_session)):
+async def export_memory(response: Response,current_user: User=Depends(deps.get_current_active_user), session: AsyncSession=Depends(get_async_session)):
+    response.headers["Cache-Control"] = "no-store"
     return await CustomerMemoryService(session).export(current_user.id)
 
 

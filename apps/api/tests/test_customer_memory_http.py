@@ -23,7 +23,9 @@ def client(monkeypatch):
 
 def test_export_has_no_customer_id_selector(client):
     client,service=client
-    assert client.get('/api/v1/users/me/memory?user_id=99').status_code==200
+    result=client.get('/api/v1/users/me/memory?user_id=99')
+    assert result.status_code==200
+    assert result.headers['cache-control']=='no-store'
     service.export.assert_awaited_once_with(17)
 
 
