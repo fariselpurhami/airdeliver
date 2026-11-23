@@ -60,7 +60,7 @@ jobs:
           standalone=$(mktemp -d)
           cp -a apps/web/. "$standalone/"
           cd "$standalone"
-          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm install --frozen-lockfile
           pnpm exec tsc --noEmit
           pnpm exec jest --coverage=false --runInBand
           AUTH_SECRET=ci-build-dummy-secret-not-runtime pnpm build
