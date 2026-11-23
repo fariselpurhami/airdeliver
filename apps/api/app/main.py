@@ -25,7 +25,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.deps import get_websocket_manager
 from app.api.v1.api import api_router
 from app.core.config import CoreSettings, get_core_settings
-from app.core.limiter import limiter
+from app.core.limiter import limiter, install_rate_limiting
 from app.services.cache_service import IAsyncCacheClient, NoOpCacheClient, RedisCacheClient
 from app.services.rabbitmq_service import get_rabbitmq_service
 from app.services.ai_cart_service import CartPersistenceError
@@ -54,6 +54,7 @@ def register_routes(app: FastAPI, settings: CoreSettings) -> None:
     app.include_router(voice_router, prefix=f"{settings.API_V1_STR}/ordering")
 
     @app.get(HEALTH_ENDPOINT, tags=["health"])
+    @limiter.exempt
     async def read_root() -> dict[str, str]:
         return build_health_payload(settings)
 
@@ -287,6 +288,7 @@ def register_routes(app: FastAPI, settings: CoreSettings) -> None:
     app.include_router(api_router, prefix=settings.API_V1_STR)
 
     @app.get(HEALTH_ENDPOINT, tags=["health"])
+    @limiter.exempt
     async def read_root() -> dict[str, str]:
         return build_health_payload(settings)
 
@@ -368,6 +370,7 @@ def create_application() -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+    install_rate_limiting(app)
     register_middleware(app, settings)
     register_exception_handlers(app)
     configure_metrics(app)

@@ -67,6 +67,8 @@ class CoreSettings(BaseAppConfig):
     DB_POOL_SIZE: int = Field(default=10, alias="DB_POOL_SIZE", ge=1)
     DB_MAX_OVERFLOW: int = Field(default=20, alias="DB_MAX_OVERFLOW", ge=0)
 
+    RATE_LIMIT_DEFAULT: str = "100/minute"
+
     USE_REDIS: bool = Field(default=False, alias="USE_REDIS")
     REDIS_HOST: str = Field(default="redis", alias="REDIS_HOST")
     REDIS_PORT: int = Field(default=6379, alias="REDIS_PORT", ge=1, le=65535)
