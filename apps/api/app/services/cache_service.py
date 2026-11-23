@@ -123,6 +123,9 @@ class IAsyncCacheClient(ABC):
     async def set_json_required(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
         raise NotImplementedError("This backend cannot persist required JSON state")
 
+    async def commit_cart_mutation(self, key: str, expected: Any, value: Any, receipt_key: str, fingerprint: str, ttl: int) -> str:
+        raise NotImplementedError("Backend cannot atomically persist cart mutation receipts")
+
     async def compare_json_required(self, key: str, expected: Any, value: Any, ttl: Optional[int] = None, delete: bool = False) -> bool:
         """Atomic snapshot update. False means concurrent state changed."""
         raise NotImplementedError("This backend cannot atomically update required state")
@@ -303,6 +306,36 @@ class RedisCacheClient(IAsyncCacheClient):
         confirmed = await self.client.set(key, payload, ex=ttl)
         if confirmed is not True:
             raise RuntimeError("Required JSON state write was not confirmed")
+
+    async def commit_cart_mutation(self, key: str, expected: Any, value: Any, receipt_key: str, fingerprint: str, ttl: int) -> str:
+        """Cart and replay receipt share one Redis transaction, never two writes."""
+        from redis.exceptions import WatchError
+        if self._redis is None:
+            await self.connect()
+        for _ in range(3):
+            async with self.client.pipeline(transaction=True) as pipe:
+                try:
+                    await pipe.watch(key, receipt_key)
+                    receipt = await pipe.get(receipt_key)
+                    if receipt is not None:
+                        saved = orjson.loads(receipt)
+                        return "replayed" if saved.get("fingerprint") == fingerprint else "conflict"
+                    raw = await pipe.get(key)
+                    current = None if raw is None else orjson.loads(raw)
+                    if current != expected:
+                        return "stale"
+                    pipe.multi()
+                    pipe.set(key, orjson.dumps(value), ex=ttl)
+                    pipe.set(receipt_key, orjson.dumps({"fingerprint": fingerprint}), ex=604800)
+                    results = await pipe.execute()
+                    if results != [True, True]:
+                        raise RuntimeError("Cart mutation transaction unconfirmed")
+                    return "committed"
+                except WatchError:
+                    # Re-read the receipt before deciding a competing same-ID
+                    # operation needs refresh. Never replay its business logic.
+                    continue
+        return "stale"
 
     async def compare_json_required(self, key: str, expected: Any, value: Any, ttl: Optional[int] = None, delete: bool = False) -> bool:
         from redis.exceptions import WatchError

@@ -74,3 +74,16 @@ async def test_real_redis_write_commits_but_response_lost_never_replays_add(real
     handler.assert_awaited_once()
     runtime.republish_with_headers.assert_not_awaited()
     incoming.reject.assert_awaited_once_with(requeue=False)
+
+
+@pytest.mark.asyncio
+async def test_broker_message_id_becomes_stable_mutation_id_across_delivery():
+    runtime=WorkerRuntime()
+    received=[]
+    async def handler(payload):received.append(payload)
+    for _ in range(2):
+        incoming=message();incoming.message_id='publisher-stable-message'
+        await runtime.smart_retry_wrapper(incoming,handler)
+    assert received[0]['mutation_id']==received[1]['mutation_id']
+    from uuid import UUID
+    UUID(received[0]['mutation_id'])

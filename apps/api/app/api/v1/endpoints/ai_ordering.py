@@ -210,6 +210,7 @@ async def sync_cart(
 @router.post("/cart/add", status_code=status.HTTP_202_ACCEPTED)
 async def add_to_cart(
     payload: AddToCartRequest,
+    mutation_id: Optional[uuid.UUID] = Header(None, alias="Idempotency-Key"),
     current_user: models.User = Depends(deps.get_current_active_user),
     cart_service: AICartService = Depends(get_ai_cart_service),
 ):
@@ -217,6 +218,7 @@ async def add_to_cart(
         "user_id": current_user.id,
         "product_id": payload.product_id,
         "quantity": payload.quantity,
+        **({"mutation_id": str(mutation_id)} if mutation_id else {}),
     })
     return {"status": "accepted"}
 
@@ -224,12 +226,14 @@ async def add_to_cart(
 @router.post("/cart/remove", status_code=status.HTTP_202_ACCEPTED)
 async def remove_from_cart(
     payload: RemoveFromCartRequest,
+    mutation_id: Optional[uuid.UUID] = Header(None, alias="Idempotency-Key"),
     current_user: models.User = Depends(deps.get_current_active_user),
     cart_service: AICartService = Depends(get_ai_cart_service),
 ):
     await cart_service.handle_remove_from_cart({
         "user_id": current_user.id,
         "product_id": payload.product_id,
+        **({"mutation_id": str(mutation_id)} if mutation_id else {}),
     })
     return {"status": "accepted"}
 

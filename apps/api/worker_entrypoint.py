@@ -9,6 +9,7 @@ import random
 import signal
 import sys
 import warnings
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -971,6 +972,11 @@ class WorkerRuntime:
             logger.error("Malformed message rejected: %s", exc)
             await message.reject(requeue=False)
             return
+
+        if routing_key in {"airdeliver.ai.cart.add", "airdeliver.ai.cart.remove"} and getattr(message, "message_id", None):
+            # Publisher message identity survives broker redelivery/republication.
+            payload.setdefault("mutation_id", str(uuid.uuid5(uuid.NAMESPACE_URL,
+                f"{routing_key}:{message.message_id}")))
 
         startup_retry_count = int(headers.get("x-startup-retry-count", 0))
         transient_retry_count = int(headers.get("x-transient-retry-count", 0))

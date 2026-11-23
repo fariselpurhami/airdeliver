@@ -82,7 +82,7 @@ class TestCartEndpoints:
         c, cart, _, _nlu = client
         resp = c.post("/api/v1/ai-ordering/cart/add", json={"product_id": 5, "quantity": 2})
         assert resp.status_code == 202
-        assert cart.calls == [("add", {"user_id": 1, "product_id": 5, "quantity": 2})]
+        assert cart.calls == [("add", {"user_id": 1, "product_id": 5, "quantity": 2, "mutation_id": "a02cf0a7-67a1-4dcc-96d6-45b7be67d306"})]
 
     def test_add_to_cart_rejects_zero_quantity(self, client):
         c, cart, _, _nlu = client
@@ -94,7 +94,7 @@ class TestCartEndpoints:
         c, cart, _, _nlu = client
         resp = c.post("/api/v1/ai-ordering/cart/remove", json={"product_id": 7})
         assert resp.status_code == 202
-        assert cart.calls == [("remove", {"user_id": 1, "product_id": 7})]
+        assert cart.calls == [("remove", {"user_id": 1, "product_id": 7, "mutation_id": "a02cf0a7-67a1-4dcc-96d6-45b7be67d306"})]
 
     def test_clear_cart(self, client):
         c, cart, _, _nlu = client
@@ -312,3 +312,10 @@ def test_save_cart_http_does_not_accept_uncertain_cleanup_as_success(client,stat
     assert result.status_code==expected and result.json()['status']==state
     assert result.headers['cache-control']=='no-store'
     cart.handle_save_cart.assert_awaited_once_with({'user_id':1})
+
+
+@pytest.mark.parametrize('path',['add','remove'])
+def test_cart_http_invalid_mutation_id_rejected_before_service(client,path):
+    c,cart,_,_=client
+    result=c.post('/api/v1/ai-ordering/cart/'+path,json={'product_id':7},headers={'Idempotency-Key':'invalid'})
+    assert result.status_code==422 and cart.calls==[]

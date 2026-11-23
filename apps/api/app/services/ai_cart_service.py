@@ -4,6 +4,8 @@ import os
 import json
 import logging
 import asyncio
+import uuid
+from hashlib import sha256
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Optional, List, Dict, Any, Final, Sequence
@@ -40,6 +42,7 @@ class CartItemModel(BaseModel):
 
 class CartStateModel(BaseModel):
     _snapshot: Any = PrivateAttr(default=None)
+    _mutation: Any = PrivateAttr(default=None)
     items: List[CartItemModel] = Field(default_factory=list)
     total: Decimal = Field(default=Decimal("0.00"), ge=0, allow_inf_nan=False)
     updated_at: str = ""
@@ -62,6 +65,7 @@ class CartOperationPayload(BaseModel):
         if isinstance(value, bool):
             raise ValueError("Boolean is not an identifier or quantity")
         return value
+    mutation_id: Optional[uuid.UUID] = None
     action: str = "default"
     notify_user: bool = True
 
@@ -184,7 +188,28 @@ class AICartService:
             logger.error("cart required read failed", extra={"error_type": type(exc).__name__})
             raise CartPersistenceError("Cart could not be read; current state was preserved") from exc
 
-    async def _update_cart_in_redis(self, user_id: int, cart: CartStateModel) -> None:
+    def _mutation_identity(self, payload: CartOperationPayload, operation: str):
+        if payload.mutation_id is None:
+            return None
+        body = {"operation": operation, "product_id": payload.product_id,
+                "quantity": payload.quantity if operation == "add" else None}
+        fingerprint = sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+        return f"cart_mutation:{payload.user_id}:{payload.mutation_id}", fingerprint
+
+    async def _mutation_replayed(self, payload: CartOperationPayload, operation: str) -> bool:
+        identity = self._mutation_identity(payload, operation)
+        if identity is None:
+            return False
+        receipt = await self.cache.get_json_required(identity[0])
+        if receipt is None:
+            return False
+        if receipt.get("fingerprint") != identity[1]:
+            raise CartPersistenceError("Mutation ID belongs to a different cart operation")
+        # Hydrate current state, never re-send an old snapshot over newer UI.
+        await self.handle_sync_cart({"user_id": payload.user_id})
+        return True
+
+    async def _update_cart_in_redis(self, user_id: int, cart: CartStateModel) -> Optional[bool]:
         """
         Calculates financial totals deterministically and persists to distributed cache.
         """
@@ -198,9 +223,20 @@ class AICartService:
             # Ensure safe JSON serialization of Decimals via Pydantic
             cart_dict = cart.model_dump(mode='json')
 
-            confirmed = await self.cache.compare_json_required(self._get_cart_key(user_id), cart._snapshot, cart_dict, ttl=self.CART_TTL_SECONDS)
-            if not confirmed:
-                raise CartPersistenceError("Cart changed concurrently; refresh before retrying")
+            if cart._mutation is not None:
+                receipt_key, fingerprint = cart._mutation
+                result = await self.cache.commit_cart_mutation(
+                    self._get_cart_key(user_id), cart._snapshot, cart_dict,
+                    receipt_key, fingerprint, self.CART_TTL_SECONDS)
+                if result == "replayed":
+                    await self.handle_sync_cart({"user_id": user_id})
+                    return False
+                if result != "committed":
+                    raise CartPersistenceError("Mutation conflicted or cart changed; refresh before retrying")
+            else:
+                confirmed = await self.cache.compare_json_required(self._get_cart_key(user_id), cart._snapshot, cart_dict, ttl=self.CART_TTL_SECONDS)
+                if not confirmed:
+                    raise CartPersistenceError("Cart changed concurrently; refresh before retrying")
             cart._snapshot = cart_dict
 
             await self._send_to_ui(user_id, {
@@ -208,6 +244,7 @@ class AICartService:
                 "type": "cart_preview",
                 "reason": "State Sync"
             })
+            return None
         except Exception as e:
             logger.error("cart required write failed", extra={"error_type": type(e).__name__})
             raise CartPersistenceError("Cart update could not be confirmed; refresh before retrying") from e
@@ -221,6 +258,9 @@ class AICartService:
             return
 
         if not payload.product_id:
+            return
+
+        if await self._mutation_replayed(payload, "add"):
             return
 
         product = await self.db.get(Product, payload.product_id, populate_existing=True)
@@ -240,6 +280,7 @@ class AICartService:
 
         cart = await self._get_cart_from_redis(payload.user_id)
 
+        cart._mutation = self._mutation_identity(payload, "add")
         existing_item = next((item for item in cart.items if item.product_id == payload.product_id), None)
 
         total_quantity = payload.quantity + (existing_item.quantity if existing_item else 0)
@@ -268,7 +309,8 @@ class AICartService:
                 category=getattr(product, 'category', '')
             ))
 
-        await self._update_cart_in_redis(payload.user_id, cart)
+        if await self._update_cart_in_redis(payload.user_id, cart) is False:
+            return
 
         if payload.notify_user:
             await self._send_to_ui(payload.user_id, {
@@ -733,7 +775,10 @@ class AICartService:
                 },
             )
 
+            if await self._mutation_replayed(payload, "remove"):
+                return
             cart = await self._get_cart_from_redis(payload.user_id)
+            cart._mutation = self._mutation_identity(payload, "remove")
 
             item_to_remove = next(
                 (item for item in cart.items if item.product_id == payload.product_id),
@@ -755,7 +800,8 @@ class AICartService:
                 item for item in cart.items
                 if item.product_id != item_to_remove.product_id
             ]
-            await self._update_cart_in_redis(payload.user_id, cart)
+            if await self._update_cart_in_redis(payload.user_id, cart) is False:
+                return
 
             if not payload.notify_user:
                 logger.info(
