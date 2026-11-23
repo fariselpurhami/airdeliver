@@ -22,3 +22,8 @@ it('does not call reset without its credential',()=>{
  render(<PasswordRecoveryForm reset/>);fireEvent.change(screen.getByLabelText('New password'),{target:{value:'new-fixture-password'}});fireEvent.change(screen.getByLabelText('Confirm new password'),{target:{value:'new-fixture-password'}});fireEvent.click(screen.getByRole('button',{name:'Update password'}));
  expect(screen.getByRole('alert')).toHaveTextContent('missing its token');expect(api.post).not.toHaveBeenCalled();
 });
+it('keeps recovery pages out of analytics and gives no-referrer response policy',()=>{
+ const fs=require('fs');
+ expect(fs.readFileSync('app/layout.tsx','utf8')).toContain('!isRecoveryPage && <><Analytics /><SpeedInsights /></>');
+ expect(fs.readFileSync('proxy.ts','utf8')).toContain("response.headers.set('Referrer-Policy', 'no-referrer')");
+});

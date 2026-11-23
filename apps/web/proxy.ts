@@ -80,7 +80,16 @@ export async function proxy(req: NextRequest) {
   const isPublic = isPublicRoute(pathname);
 
   if (isPublic) {
-    return applySecurityHeaders(NextResponse.next());
+    const recovery = pathname === '/forgot-password' || pathname === '/reset-password';
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set('x-airdeliver-recovery-page', recovery ? '1' : '0');
+    const response = applySecurityHeaders(NextResponse.next({request:{headers:requestHeaders}}));
+    if (recovery) {
+      response.headers.set('Referrer-Policy', 'no-referrer');
+      response.headers.set('Cache-Control', 'no-store');
+      response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    }
+    return response;
   }
 
   try {
