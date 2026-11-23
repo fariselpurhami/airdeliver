@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-23T23:10:00+02:00",
+  "as_of": "2026-11-24T01:12:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -14,7 +14,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_commerce_constraints.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve explicit currency, hard constraints and exclusion semantics across every caller.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-02",
@@ -28,7 +44,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_embedding_startup_readiness.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Exercise cold/warm startup, native cancellation, queue saturation and unavailable model boundaries. No claim of deployed model quality.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-03",
@@ -42,7 +74,24 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_milvus_schema_diagnostics.py",
+          "apps/api/tests/test_empty_milvus_repair.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Verify schema/version compatibility and repeatability without unapproved production migrations or rebuilds.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-04",
@@ -56,7 +105,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_embedding_admission.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Keep bounded native work and truthful readiness; load-test failure paths.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-05",
@@ -69,8 +134,27 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "evidence": [
+        "PR52 pending merge/CI at ledger preparation. test_vector_native_admission.py. Do not count as deployed or complete feature verification."
+      ],
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_staged_search_postgres.py",
+          "apps/api/tests/test_commerce_constraints.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Shared current-product evidence policy for all callers; do not treat retrieval rank as stock or suitability.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-06",
@@ -88,7 +172,23 @@
       "evidence": [
         "apps/api/tests/test_recommendation_catalog_postgres.py; test_cart_sales_postgres.py"
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_recommendation_catalog_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve real relationship evidence. Missing relationship data can legitimately yield no bundle. LLM copy must not invent compatibility.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-07",
@@ -102,7 +202,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_opening_sales_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Harden eligibility, diversity, factual row labels and model-authored Insight without inventing popularity or personal knowledge.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-08",
@@ -116,7 +232,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_recommendation_catalog_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Recheck requested constraints, currency, positive current local inventory and non-demo eligibility at publication.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-09",
@@ -132,9 +264,30 @@
         35
       ],
       "evidence": [
-        "apps/api/tests/test_shopping_catalog_postgres.py; test_neural_core_visual.py"
+        "apps/api/tests/test_shopping_catalog_postgres.py; test_neural_core_visual.py",
+        "PR50 pending merge/CI at ledger preparation. test_bounded_image_decode.py. Do not count as deployed or complete feature verification.",
+        "PR51 pending merge/CI at ledger preparation. test_vision_native_admission.py. Do not count as deployed or complete feature verification."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_bounded_image_decode.py",
+          "apps/api/tests/test_vision_native_admission.py",
+          "apps/api/tests/test_vector_native_admission.py",
+          "apps/api/tests/test_shopping_catalog_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Engine returns index-derived snapshots here. PR35 support boundary refreshes SQL rows; other callers need equivalent protection.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-10",
@@ -148,7 +301,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_recommendation_catalog_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Generic _filter_products does not itself enforce positive inventory or demo exclusion. Do not describe that policy as globally solved by PR35.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-11",
@@ -162,7 +331,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_customer_memory_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve implementation, add consent/provenance/delete/expiry semantics and tests before connecting it to traffic. Do not revive silent inferred memory.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-12",
@@ -176,7 +361,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_worker_lifecycle.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Verify timeout, connection cleanup and bounded failure behavior.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-13",
@@ -190,7 +391,24 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_ai_nlu_pure.py",
+          "apps/api/tests/test_nlu_characterization.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve capacity parsing; remove behavior reliance on invented budget defaults through additive policy gates.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-14",
@@ -204,7 +422,24 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_ai_nlu_pure.py",
+          "apps/api/tests/test_staged_search_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Restore multi-item identity and intent propagation to normal chat without losing ambiguity.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-15",
@@ -218,7 +453,24 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_nlu_characterization.py",
+          "apps/api/tests/test_sales_response_service.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve strategy logic but reconcile contradictory factual instructions. Several paths still promote unknown details to secrecy or allow prior model knowledge and supply-chain guesses.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-16",
@@ -232,7 +484,24 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_shopping_catalog_postgres.py",
+          "apps/api/tests/test_llm_grounding.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Reuse current product evidence/card schema; explicit provenance and demo status.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-17",
@@ -253,7 +522,23 @@
         "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending.",
         "PR47 merged 8cb9603: 1180 passed, 4 skipped with disposable SQL/Redis. test_commerce_safe_diagnostics.py checks actual current logger-to-formatter JSON/text paths and exception bodies. Raw query/prose omitted before LogRecord; broader lock/image-key review remains open."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_commerce_safe_diagnostics.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Real Redis contention, cancellation and failure testing. Content lock excludes image bytes, so same text with different images needs regression coverage.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-18",
@@ -272,7 +557,24 @@
         "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46.",
         "PR46 merged 5774dfa: test_consented_http_context.py uses mounted HTTP and actual SQL/Redis; five consent scenarios. Opt-in feature flag remains off by default. No live owner verification."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_customer_memory_postgres.py",
+          "apps/api/tests/test_consented_http_context.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Flag off by default. Saved hints limited to color/material/style and rechecked after model work. Other memory/behavior paths and retrospective deletion remain separate work.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-19",
@@ -293,7 +595,24 @@
         "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt.",
         "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_opening_sales_postgres.py",
+          "apps/api/tests/test_response_consumer_integration.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Test request-to-Redis-to-WebSocket-to-render delivery, not just handler return.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-20",
@@ -307,7 +626,24 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_router_config.py",
+          "apps/api/tests/test_worker_behavior_seam.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Share orchestration incrementally; preserve exact feature coverage without duplicating provider work or substituting fixed sales prose.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-21",
@@ -326,7 +662,24 @@
       "evidence": [
         "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_session_reset_scope.py",
+          "apps/api/tests/test_nlu_cart_execution_truth.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Keep operational confirmations fixed and truthful. Reset intentionally preserves saved preferences and can clear pending cart orders.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-22",
@@ -345,7 +698,24 @@
       "evidence": [
         "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_nlu_cart_execution_truth.py",
+          "apps/api/tests/test_cart_sales_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve submission-versus-confirmation distinction; resolve product identity and keep side effects separate from advisory copy.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-23",
@@ -359,7 +729,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_staged_search_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Reconnect with real component/complement evidence; current prompts can assert harmony from names alone. Shared AsyncSession parallel searches need real-boundary testing.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-24",
@@ -379,7 +765,23 @@
         "apps/api/tests/test_welcome_deadline_logging.py",
         "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_opening_sales_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Model-copy method is currently deterministic opening_editorial. Some pool labels are heuristics, not measured sales/trend/discount evidence. Empty/failure publication must remain honest.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-25",
@@ -393,7 +795,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_neural_core_visual.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve as complementary capability to image-vector retrieval, under bounded time/cost and current evidence.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-26",
@@ -411,7 +829,24 @@
       "evidence": [
         "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_staged_search_contract.py",
+          "apps/api/tests/test_staged_search_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Normal support bypasses this. Restore staged search and separate per-item comparison evidence.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-27",
@@ -425,7 +860,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_recommendation_catalog_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Important missed distinction: logic exists but is not the active pipeline. Its price-relaxation route can exceed user budget, so do not reconnect verbatim.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-28",
@@ -446,7 +897,23 @@
         "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
         "PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_reviewed_consultation.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Restore valuable capabilities using shared reviewed prose and evidence, not conflicting prompts. Missing source facts remain unknown.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-29",
@@ -464,7 +931,23 @@
       "evidence": [
         "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_staged_search_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Existing array extraction does not prove complete item-by-item comparison retrieval. Add missing-item and unequal-evidence tests.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-30",
@@ -480,7 +963,23 @@
       "evidence": [
         "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_customer_memory_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Normal support coverage is separate; reconcile without duplicating writes or using assistant claims as facts.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-31",
@@ -494,7 +993,24 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_nlu_behavior_contracts.py",
+          "apps/api/tests/test_behavior_engine.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve foundations. Add explicit trigger, consent, evidence and observability gates before activation. Never revive unsupported urgency/scarcity.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-32",
@@ -508,7 +1024,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_cart_sales_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Current price window can reach four times removed price and fixed copy can mislabel range/superiority. Harden actual constraints and share model copy.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-33",
@@ -522,7 +1054,24 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_nlu_behavior_contracts.py",
+          "apps/api/tests/test_meta_cognition_boundaries.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "No calibrated confidence estimator is deployed. Preserve extensibility, do not advertise dormant authoritative branches as working learned confidence.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-34",
@@ -541,7 +1090,24 @@
       "evidence": [
         "apps/api/tests/test_ai_cart_service.py; test_recommendation_catalog_postgres.py; test_cart_persistence_outcomes.py"
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "scoped_group_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_ai_cart_service.py",
+          "apps/api/tests/test_recommendation_catalog_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve strict identifiers, quantities, currency and inventory checks.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-35",
@@ -559,7 +1125,24 @@
       "evidence": [
         "apps/api/tests/test_cart_persistence_outcomes.py; test_cart_mutation_receipts.py"
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "scoped_group_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_cart_mutation_receipts.py",
+          "apps/api/tests/test_cart_cache_reconciliation.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Keep non-AI correctness independent of model availability, test replay/race/failure at Redis boundary.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-36",
@@ -577,7 +1160,24 @@
       "evidence": [
         "apps/api/tests/test_cart_sales_transport.py; test_cart_recommendation_wiring.py; test_cart_recommendation_amqp.py"
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "scoped_group_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_cart_sales_postgres.py",
+          "apps/api/tests/test_cart_sales_transport.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Receipt/cart confirmation first; asynchronous sales advice must never replay mutation or delay correctness.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-37",
@@ -591,7 +1191,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_cart_sales_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "HTTP optional worker currently generates fixed prose. Restore shared model-copy adapter across both routes while retaining direct foundation and evidence gates.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-38",
@@ -609,7 +1225,23 @@
       "evidence": [
         "apps/api/tests/test_cart_persistence_outcomes.py"
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_saved_list_journal_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve exact semantics; saving is not checkout or a placed order.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-39",
@@ -627,7 +1259,23 @@
       "evidence": [
         "apps/api/tests/test_cart_sales_postgres.py; test_cart_sales_transport.py"
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_cart_sales_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "HTTP constructs service without AI dependencies; optional event is its advisory route. Preserve full rich logic via shared async adapter rather than pretending HTTP invokes it today.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-40",
@@ -641,7 +1289,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_worker_behavior_seam.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Minimize sensitive data, test broker failures separately from committed cart state.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-41",
@@ -659,7 +1323,23 @@
       "evidence": [
         "apps/api/tests/test_cart_persistence_outcomes.py"
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_cart_journal_clear_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve race/transaction safety and user-visible distinction between cart clear and payment refund/cancellation.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-42",
@@ -673,7 +1353,24 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_llm_grounding.py",
+          "apps/api/tests/test_llm_execution_limits.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve strict structured schemas and grounded ID selection.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-43",
@@ -691,7 +1388,23 @@
       "evidence": [
         "apps/api/tests/test_llm_execution_limits.py; test_cart_sales_transport.py"
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_llm_execution_limits.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Share provider adapter with new orchestration, typed failures, one request deadline and bounded calls. The filename does not establish free cost.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-44",
@@ -705,7 +1418,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_llm_execution_limits.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Returns empty string on provider failure. Callers often only catch exceptions, so empty-success behavior needs explicit tests and a typed unavailable result.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-45",
@@ -723,7 +1452,24 @@
       "evidence": [
         "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_opening_sales_postgres.py",
+          "apps/api/tests/test_llm_grounding.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve capability, reconnect opening/editorial only with factual and consented context.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-46",
@@ -737,7 +1483,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_customer_memory_postgres.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Keep explicit consent and current-message provenance.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-47",
@@ -751,7 +1513,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_nlu_behavior_contracts.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Retain but do not enable unconsented inference.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-48",
@@ -765,7 +1543,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_neural_core_visual.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Can complement image retrieval; do not treat description as verified product identity.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-49",
@@ -779,7 +1573,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_bounded_image_decode.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Test identity uncertainty, network failure, deadline and source provenance.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-50",
@@ -793,7 +1603,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_ai_log_data_minimization.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "External sources need source-level evidence and prompt/data boundary checks.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-51",
@@ -812,7 +1638,23 @@
         "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
         "PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_reviewed_consultation.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Catalog-only shared adapter is connected. Attributable fresh external web claims and implicit history are not re-enabled; model quality and legacy web behavior remain unverified.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-52",
@@ -826,7 +1668,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_llm_search_log_privacy.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve staged strategy and typed extraction; deterministic fallback is operational recovery, not replacement customer prose.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-53",
@@ -844,7 +1702,23 @@
       "evidence": [
         "PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_llm_search_log_privacy.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Preserve customer language in prose and original requested entities/constraints.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-54",
@@ -858,7 +1732,23 @@
       "live_verified": false,
       "prs": [],
       "evidence": [],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_llm_grounding.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "filter_and_recommend currently substitutes deterministic grounded intro/reasons after selection. Needs model-authored reviewed prose.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     },
     {
       "id": "CAP-55",
@@ -876,7 +1766,23 @@
       "evidence": [
         "PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
       ],
-      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
+      "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
+      "verification_plan": {
+        "coverage": "partial_or_adjacent_only",
+        "candidate_test_files": [
+          "apps/api/tests/test_llm_search_log_privacy.py"
+        ],
+        "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
+        "required_scenarios": [
+          "Successful result through the actual caller and its storage/transport boundary",
+          "Malformed/untrusted input and cross-owner or evidence rejection where applicable",
+          "Dependency outage, timeout and cancellation with state/resource cleanup",
+          "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
+        ],
+        "remaining_boundary_gap": "Substantial preserved but unwired capability. Adapt its logic into shared orchestration with real catalog evidence instead of enabling a parallel competing pipeline.",
+        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+      }
     }
   ],
   "summary": {
@@ -893,5 +1799,6 @@
     ]
   },
   "count_caveat": "Grouped inventory rows are broad. Only 3 groups are currently marked fully reconciled at real boundary; this is a conservative evidence-tracking baseline, not a claim the other code is untested. Prior tests need capability-by-capability reconciliation. PR references identify the current restoration boundary, not original authorship of every test.",
-  "canonical_note": "This repository file is the single canonical scoreboard. Earlier attached snapshots are superseded; edits should update this file in place."
+  "canonical_note": "This repository file is the single canonical scoreboard. Earlier attached snapshots are superseded; edits should update this file in place.",
+  "coverage_policy": "Every grouped capability has an explicit verification plan. Candidate test mappings are not a coverage certification; real-boundary flags remain conservative until scenario-level assertions are reconciled."
 }
