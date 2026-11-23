@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-23T22:23:00+02:00",
+  "as_of": "2026-11-23T23:10:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -246,10 +246,12 @@
       "live_verified": false,
       "prs": [
         42,
-        43
+        43,
+        47
       ],
       "evidence": [
-        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending.",
+        "PR47 merged 8cb9603: 1180 passed, 4 skipped with disposable SQL/Redis. test_commerce_safe_diagnostics.py checks actual current logger-to-formatter JSON/text paths and exception bodies. Raw query/prose omitted before LogRecord; broader lock/image-key review remains open."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
@@ -257,15 +259,18 @@
       "id": "CAP-18",
       "file": "2. ai_nlu_service.py",
       "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
-      "observed_wiring": "NLU opening/legacy chat",
-      "gap": "Normal HTTP support has a separate conversation flow. Join only approved context with source/revision and current-request precedence.",
+      "observed_wiring": "Normal authenticated HTTP support conditionally recalls canonical saved shopping hints; legacy NLU opening/history paths retained.",
+      "gap": "Flag off by default. Saved hints limited to color/material/style and rechecked after model work. Other memory/behavior paths and retrospective deletion remain separate work.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
+      "prs": [
+        46
+      ],
       "evidence": [
-        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merge tracked by accompanyingPR."
+        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46.",
+        "PR46 merged 5774dfa: test_consented_http_context.py uses mounted HTTP and actual SQL/Redis; five consent scenarios. Opt-in feature flag remains off by default. No live owner verification."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
@@ -433,11 +438,13 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
-        44
+        44,
+        45
       ],
       "evidence": [
         "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified.",
-        "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merge status tracked by the accompanying focused PR."
+        "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
+        "PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
@@ -471,7 +478,7 @@
       "live_verified": false,
       "prs": [],
       "evidence": [
-        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merge tracked by accompanyingPR."
+        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
@@ -792,15 +799,18 @@
       "id": "CAP-51",
       "file": "4. free_llm_service.py",
       "capability": "Product consultation with web/context/history",
-      "observed_wiring": "Called by internal commerce orchestrator only",
-      "gap": "Preserve consultation logic and make an explicit shared path; no evidence normal HTTP chat calls it today.",
-      "reachable": "gated_or_unwired",
+      "observed_wiring": "Normal HTTP compare/specification/consultation tasks call FreeLLM consult_catalog shared writer/reviewer. consult_on_product delegates to reviewed catalog adapter; original web method retained as explicit legacy.",
+      "gap": "Catalog-only shared adapter is connected. Attributable fresh external web claims and implicit history are not re-enabled; model quality and legacy web behavior remain unverified.",
+      "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
+      "prs": [
+        45
+      ],
       "evidence": [
-        "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merge status tracked by the accompanying focused PR."
+        "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
+        "PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
@@ -825,11 +835,15 @@
       "observed_wiring": "Called by internal commerce orchestrator only",
       "gap": "Preserve customer language in prose and original requested entities/constraints.",
       "reachable": "gated_or_unwired",
-      "real_boundary_tested": "not_reconciled",
+      "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        48
+      ],
+      "evidence": [
+        "PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {
@@ -853,24 +867,29 @@
       "observed_wiring": "No caller found outside service",
       "gap": "Substantial preserved but unwired capability. Adapt its logic into shared orchestration with real catalog evidence instead of enabling a parallel competing pipeline.",
       "reachable": "gated_or_unwired",
-      "real_boundary_tested": "not_reconciled",
+      "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        48
+      ],
+      "evidence": [
+        "PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     }
   ],
   "summary": {
     "inventory_groups": 55,
-    "source_reachable": 43,
+    "source_reachable": 44,
     "fully_reconciled_real_boundary_groups": 3,
-    "partial_boundary_groups": 26,
+    "partial_boundary_groups": 33,
     "live_verified_groups": 0,
     "next": [
-      "PR38 gift budget/copy incident green merge and owner retest",
-      "model opening/Insight restoration",
-      "staged per-item search/comparison/consultation"
+      "Owner combined refresh and live gift/no-match/cart reconnect retest, deployed revision not yet verified",
+      "Attributable web consultation evidence boundary, no raw web restoration claim",
+      "Actual model-quality evaluation and real image/audio assets; current starter evaluation remains narrow contract evidence",
+      "Remaining per-capability runtime/auth/input/privacy and distributed-failure audits"
     ]
   },
   "count_caveat": "Grouped inventory rows are broad. Only 3 groups are currently marked fully reconciled at real boundary; this is a conservative evidence-tracking baseline, not a claim the other code is untested. Prior tests need capability-by-capability reconciliation. PR references identify the current restoration boundary, not original authorship of every test.",
