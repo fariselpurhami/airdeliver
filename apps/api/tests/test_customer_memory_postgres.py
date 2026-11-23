@@ -134,3 +134,18 @@ async def test_revocation_while_extraction_waits_cannot_reinsert_memory(memory_d
     async with sessions() as db:
         assert await CustomerMemoryService(db).recall(uid)==[]
         assert (await CustomerMemoryService(db).export(uid))['preferences']==[]
+
+@pytest.mark.asyncio
+async def test_optional_recall_failure_rolls_back_real_postgres_session(memory_db,monkeypatch):
+    from sqlalchemy import text
+    from app.services.ai_nlu_service import AINLUService
+    sessions,(uid,_)=memory_db
+    async with sessions() as db:
+        async def fail_recall(self,user_id):
+            await self.db.execute(text('SELECT * FROM missing_optional_memory_table_for_test'))
+        monkeypatch.setattr(CustomerMemoryService,'recall',fail_recall)
+        service=SimpleNamespace(db=db,memory=SimpleNamespace(get_context=AsyncMock(return_value='recent context')),
+            config=SimpleNamespace(context_window_size=5))
+        result=await AINLUService._get_conversation_context(service,uid)
+        assert result=='recent context'
+        assert (await db.execute(text('SELECT 1'))).scalar_one()==1
