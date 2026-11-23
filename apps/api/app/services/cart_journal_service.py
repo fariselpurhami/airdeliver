@@ -72,6 +72,48 @@ class CartJournalService:
         await self.db.flush()
         return {'replayed':False,'outcome':outcome,'revision':revision,'cart':deepcopy(snapshot)}
 
+    async def mutate_product(self, user_id, mutation_id, operation, product_id, quantity, expected_revision):
+        """Prepared add/remove using fresh catalog data; no inventory reservation."""
+        from decimal import Decimal
+        from app.models.product import Product
+        from app.services.ai_cart_service import CartStateModel, CartItemModel
+        if operation not in {'add','remove'}:
+            raise ValueError('Unsupported cart operation')
+        if type(product_id) is not int or not 0 < product_id <= 9223372036854775807:
+            raise ValueError('Invalid product identifier')
+        if type(quantity) is not int or not 1 <= quantity <= 99:
+            raise ValueError('Invalid cart quantity')
+        identity=str(UUID(str(mutation_id)))
+        body={'operation':operation,'product_id':product_id,'quantity':quantity if operation=='add' else None,
+            'expected_revision':expected_revision}
+        fingerprint=self.fingerprint(body)
+        row=await self.locked_state(user_id)
+        receipt=(await self.db.execute(select(CartMutationRecord).where(
+            CartMutationRecord.user_id==user_id,CartMutationRecord.mutation_id==identity))).scalars().one_or_none()
+        if receipt:
+            if receipt.fingerprint!=fingerprint:
+                raise CartJournalConflict('Mutation key belongs to different operation data')
+            return {'replayed':True,'outcome':deepcopy(receipt.outcome),'revision':row.revision,'cart':deepcopy(row.state)}
+        if type(expected_revision) is not int or expected_revision!=row.revision:
+            raise CartJournalStale('Refresh canonical cart revision before retrying')
+        cart=CartStateModel.model_validate(row.state)
+        if operation=='remove':
+            cart.items=[line for line in cart.items if line.product_id!=product_id]
+        else:
+            product=await self.db.get(Product,product_id,populate_existing=True)
+            if product is None or not product.is_active or product.inventory<=0:
+                raise ValueError('Product unavailable or out of stock')
+            if not isinstance(product.currency,str) or product.currency.upper()!='USD':
+                raise ValueError('Product currency is unsupported by this USD cart')
+            existing=next((line for line in cart.items if line.product_id==product_id),None)
+            total_quantity=quantity+(existing.quantity if existing else 0)
+            if total_quantity>99 or total_quantity>product.inventory:
+                raise ValueError('Requested quantity unavailable')
+            line=CartItemModel(product_id=product_id,name=product.name,quantity=total_quantity,
+                price=Decimal(str(product.price)),image_url=getattr(product,'image_url','') or '',category=product.category or '')
+            cart.items=[item for item in cart.items if item.product_id!=product_id]+[line]
+        return await self.apply_snapshot(user_id,identity,body,expected_revision,cart.model_dump(mode='json'))
+
     async def clear_cart(self, user_id, mutation_id, expected_revision):
         """Prepared clear + existing pending-order cancellation in one SQL tx."""
         from app.models.order import Order
