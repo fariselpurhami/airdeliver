@@ -352,6 +352,7 @@ _TEXT_MODEL_GATES = weakref.WeakKeyDictionary()
 _TEXT_MODEL_GATES_LOCK = threading.Lock()
 # Process-wide: request-scoped engines share the same vision model.
 _VISION_NATIVE_GATE = threading.BoundedSemaphore(2)
+_VECTOR_NATIVE_GATE = threading.BoundedSemaphore(8)
 
 
 def _text_model_gate(model):
@@ -1267,20 +1268,43 @@ class AICommerceEngine:
             async with self._vector_search_semaphore:
                 return await self._search_milvus_text_acquired(vector, limit, filter_str)
 
+    async def _run_vector_native(self, function, **kwargs):
+        """Bound shared native search, including work surviving caller cancellation."""
+        deadline = time.monotonic() + self.limits.vector_search_timeout_seconds
+        acquired = submitted = False
+        try:
+            while not acquired:
+                acquired = _VECTOR_NATIVE_GATE.acquire(blocking=False)
+                if acquired:
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError()
+                await asyncio.sleep(min(.01, remaining))
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise asyncio.TimeoutError()
+            def call_and_release():
+                try:
+                    return function(timeout=remaining, **kwargs)
+                finally:
+                    _VECTOR_NATIVE_GATE.release()
+            future = asyncio.get_running_loop().run_in_executor(None, call_and_release)
+            submitted = True
+            future.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+            return await asyncio.wait_for(asyncio.shield(future), timeout=remaining)
+        finally:
+            if acquired and not submitted:
+                _VECTOR_NATIVE_GATE.release()
+
     async def _search_milvus_text_acquired(self, vector, limit, filter_str):
         try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    self.milvus_client.search,
-                    collection_name=self.milvus_product_text_col,
-                    timeout=self.limits.vector_search_timeout_seconds,
-                    data=[list(vector)],
-                    limit=limit,
-                    filter=filter_str,
-                    output_fields=["id"],
-                    search_params={"metric_type": "COSINE", "params": {"ef": 64}},
-                ),
-                timeout=self.limits.vector_search_timeout_seconds,
+            response = await self._run_vector_native(
+                self.milvus_client.search,
+                collection_name=self.milvus_product_text_col,
+                data=[list(vector)], limit=limit, filter=filter_str,
+                output_fields=["id"],
+                search_params={"metric_type": "COSINE", "params": {"ef": 64}},
             )
         except Exception:
             logger.warning("milvus text search failed", extra={"limit": limit, "filter": filter_str}, exc_info=True)
@@ -1316,16 +1340,11 @@ class AICommerceEngine:
                 )
 
             async with self._vector_search_semaphore:
-                results = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        self.milvus_client.search,
-                        collection_name=self.milvus_product_visual_col,
-                        data=[vector],
-                        limit=safe_limit * 2,
-                        output_fields=["id"],
-                        search_params={"metric_type": "COSINE", "params": {"ef": 100}},
-                    ),
-                    timeout=self.limits.vector_search_timeout_seconds,
+                results = await self._run_vector_native(
+                    self.milvus_client.search,
+                    collection_name=self.milvus_product_visual_col,
+                    data=[vector], limit=safe_limit * 2, output_fields=["id"],
+                    search_params={"metric_type": "COSINE", "params": {"ef": 100}},
                 )
 
             if not results or not results[0]:
