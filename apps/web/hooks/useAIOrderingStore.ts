@@ -127,7 +127,8 @@ interface AIOrderingState {
   disconnectSocket: () => void;
   handleSocketMessage: (payload: Record<string, unknown>) => void;
   appendSystemMessage: (message: { type: string; content: string }) => void;
-  processOfflineQueue: () => void;
+  processOfflineQueue: () => Promise<void>;
+  _scheduleReconnect: () => void;
 
   // Actions - Messaging
   sendMessage: (text: string, isButtonCommand?: boolean) => void;
@@ -227,6 +228,19 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   socketError: null,
 
   // --- Socket Logic ---
+  _scheduleReconnect: () => {
+    const state=get();
+    if (!state.authToken || state.reconnectTimeoutId || state.reconnectAttempts>=5) return;
+    const attempt=state.reconnectAttempts+1;
+    const timer=setTimeout(() => {
+      set({reconnectTimeoutId:null});
+      const latest=get();
+      if (latest.authToken && latest.socketStatus!=='connected' && latest.socketStatus!=='connecting') {
+        void latest.connectSocket(latest.authToken);
+      }
+    }, Math.min(1000 * 2 ** (attempt-1), 15000));
+    set({reconnectAttempts:attempt,reconnectTimeoutId:timer});
+  },
   connectSocket: async (token: string) => {
     set(state => ({ authToken: token, cartRevision: state.authToken === token ? state.cartRevision : null }));
     const {
@@ -234,7 +248,6 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       socketStatus,
       abortController,
       socketConnectionAttemptId,
-      disconnectSocket,
     } = get();
 
     const hasLiveSocket =
@@ -268,14 +281,16 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_URL?.trim() || '/api/v1';
 
-      const ticketResponse = await fetch(`${apiBase}/ai-ordering/ticket`, {
+      const ticketTimeout=setTimeout(() => controller.abort(),10000);
+      let ticketResponse: Response;
+      try { ticketResponse = await fetch(`${apiBase}/ai-ordering/ticket`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         signal: controller.signal,
-      });
+      }); } finally { clearTimeout(ticketTimeout); }
 
       if (!ticketResponse.ok) {
         if (get().socketConnectionAttemptId !== nextAttemptId) return;
@@ -284,6 +299,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
           socketError: `Ticket request failed with status ${ticketResponse.status}`,
           abortController: null,
         });
+        if (![401,403].includes(ticketResponse.status)) get()._scheduleReconnect();
         return;
       }
 
@@ -315,8 +331,19 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       }
 
       const nextSocket = new WebSocket(socketUrl);
+      set({socket:nextSocket});
+      const handshakeTimeout=setTimeout(()=>{
+        if (get().socketConnectionAttemptId===nextAttemptId && nextSocket.readyState===WebSocket.CONNECTING) {
+          nextSocket.close();
+        }
+      },10000);
+      controller.signal.addEventListener('abort',()=>{
+        clearTimeout(handshakeTimeout);
+        nextSocket.close();
+      },{once:true});
 
       nextSocket.onopen = () => {
+        clearTimeout(handshakeTimeout);
         if (get().socketConnectionAttemptId !== nextAttemptId) {
           nextSocket.close();
           return;
@@ -325,6 +352,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         set({
           socket: nextSocket,
           socketStatus: 'connected',
+          reconnectAttempts: 0,
           socketError: null,
           abortController: null,
         });
@@ -382,7 +410,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         });
       };
 
-      nextSocket.onclose = () => {
+      nextSocket.onclose = (event: CloseEvent) => {
+        clearTimeout(handshakeTimeout);
         const state = get();
         if (state.socket === nextSocket) {
           set({ socket: null });
@@ -390,14 +419,17 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         if (state.socketConnectionAttemptId !== nextAttemptId) return;
         set({
           socketStatus: 'disconnected',
+          socketError: `Ordering socket closed (code ${event.code}).`,
           abortController: null,
         });
+        get()._scheduleReconnect();
       };
 
     } catch (error) {
       if ((error as DOMException)?.name === 'AbortError') {
         if (get().socketConnectionAttemptId === nextAttemptId) {
           set({ socketStatus: 'disconnected', abortController: null });
+          get()._scheduleReconnect();
         }
         return;
       }
@@ -410,7 +442,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         abortController: null,
       });
 
-      disconnectSocket();
+      get()._scheduleReconnect();
     }
   },
 
@@ -433,7 +465,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       authToken: null,
       reconnectAttempts: 0,
       reconnectTimeoutId: null,
-      abortController: null
+      abortController: null,
+      socketConnectionAttemptId: get().socketConnectionAttemptId+1
     });
   },
 
@@ -471,14 +504,24 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     }));
   },
 
-  processOfflineQueue: () => {
+  processOfflineQueue: async () => {
     const { socket, messageQueue } = get();
     if (socket?.readyState === WebSocket.OPEN && messageQueue.length > 0) {
       // Commands were queued while the socket (response channel) was down.
       // Dispatch them over the HTTP command API now that responses can arrive.
       const queued = [...messageQueue];
       set({ messageQueue: [] });
-      queued.forEach(msg => { void get()._dispatchCommand(msg); });
+      for (let i=0;i<queued.length;i++) {
+        if (get().socket?.readyState!==WebSocket.OPEN) {
+          set(state=>({messageQueue:[...queued.slice(i),...state.messageQueue]}));
+          get()._scheduleReconnect();
+          break;
+        }
+        // Never replay an uncertain submitted mutation. Only unsent commands
+        // remain queued; authoritative cart events determine actual outcome.
+        const command=queued[i];
+        if (command) await get()._dispatchCommand(command);
+      }
     }
   },
 
@@ -786,10 +829,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
       // Attempt opportunistic reconnect if not already trying
       if (socketStatus !== 'connecting') {
-          const token = typeof document !== 'undefined' 
-            ? (document.cookie.split('; ').find(row => row.startsWith('next-auth.session-token='))?.split('=')[1] || '') 
-            : '';
-          if (token) get().connectSocket(token);
+          const token = get().authToken;
+          if (token) void get().connectSocket(token);
       }
 
       // Safety unlock if socket doesn't recover
