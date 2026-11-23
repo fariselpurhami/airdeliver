@@ -123,7 +123,7 @@ class TestAnalyzeIntent:
         service = make_service()
 
         async def fake_infer(messages):
-            return '{"intent": "PRODUCT_SEARCH", "query": "headphones"}'
+            return '{"intent": "PRODUCT_SEARCH", "query": "headphones", "search_subject": "headphones"}'
 
         monkeypatch.setattr(service, "_execute_llm_inference", fake_infer)
         decision = await service._analyze_intent("I want headphones", SessionMemory(user_name="F"))
@@ -231,7 +231,7 @@ class TestProductSearchHandler:
         service = make_service(engine=RaisingEngine())
         resp = await service._handle_product_search(db=None, query="headphones")
         assert resp.confidence == 0.0
-        assert "databanks" in resp.text
+        assert resp.text.startswith("System notice:")
 
     async def test_empty_product_list_text(self):
         """Zero search results yields the broaden-search text."""
@@ -242,8 +242,8 @@ class TestProductSearchHandler:
 
         service = make_service(engine=EmptyEngine())
         resp = await service._handle_product_search(db=None, query="headphones")
-        assert "couldn't find a perfect match" in resp.text
-        assert "headphones" in resp.text
+        assert resp.response_kind == "system_notice"
+        assert resp.products == []
 
     async def test_product_result_text_uses_real_fields(self):
         """In-stock product: name, price and stock status come from the
@@ -255,10 +255,10 @@ class TestProductSearchHandler:
 
         service = make_service(engine=OneProductEngine())
         resp = await service._handle_product_search(db=None, query="headphones")
-        assert "Aurora Headphones" in resp.text
-        assert "$499.0" in resp.text
-        assert "listed as in stock" in resp.text
-        assert "not been verified" in resp.text
+        # A candidate object without a current DB read cannot support a card.
+        assert resp.products == []
+        assert "Aurora Headphones" not in resp.text
+        assert resp.response_kind == "system_notice"
 
     async def test_out_of_stock_product_reports_stock_only(self):
         class OosEngine(FakeEngine):
@@ -267,7 +267,8 @@ class TestProductSearchHandler:
 
         service = make_service(engine=OosEngine())
         resp = await service._handle_product_search(db=None, query="headphones")
-        assert "listed as out of stock" in resp.text
+        assert resp.products == []
+        assert resp.response_kind == "system_notice"
 
 
 # --- handle_message orchestration -------------------------------------------------
@@ -282,9 +283,12 @@ class TestHandleMessage:
             return RouterDecision(intent="SOCIAL_CHAT", social_reply="Ahoy, VIP!")
 
         monkeypatch.setattr(service, "_analyze_intent", fake_analyze)
+        from unittest.mock import AsyncMock
+        import json
+        service._execute_llm_inference=AsyncMock(side_effect=[json.dumps({"text":"Ahoy, VIP!","product_ids":[],"claims":[]}),json.dumps({"supported":True,"all_product_mentions_declared":True,"no_unsupported_commercial_claims":True,"fulfills_discovery_task":True})])
         resp = await service.handle_message(db=None, message="yo", user=None, session_id="s1")
         assert resp.text == "Ahoy, VIP!"
-        assert resp.explain == "Empathetic Persona Generation"
+        assert "Model-authored" in resp.explain
         # Memory persisted under the versioned session key
         stored = cache.store.get("ai_session_v9:s1")
         assert stored is not None
@@ -299,7 +303,7 @@ class TestHandleMessage:
         monkeypatch.setattr(service, "_analyze_intent", fake_analyze)
         resp = await service.handle_message(db=None, message="yo", user=None, session_id="s2")
         assert resp.text  # non-empty default
-        assert "here for you" in resp.text
+        assert resp.response_kind == "system_notice"
 
     async def test_product_route_uses_query_or_message(self, monkeypatch):
         service = make_service(engine=FakeEngine())  # FakeEngine raises -> degradation branch
@@ -312,7 +316,7 @@ class TestHandleMessage:
         resp = await service.handle_message(db=None, message="show me headphones", user=None, session_id="s3")
         # query falls back to the raw message; engine failure -> degradation text
         assert resp.telemetry.intent == "PRODUCT_SEARCH"
-        assert "databanks" in resp.text
+        assert resp.text.startswith("System notice:")
 
     async def test_handoff_route(self, monkeypatch):
         service = make_service()
@@ -344,6 +348,7 @@ class TestHandleMessage:
             return RouterDecision(intent="SOCIAL_CHAT", social_reply="hi")
 
         monkeypatch.setattr(service, "_analyze_intent", fake_analyze)
+        service.is_healthy=False
         await service.handle_message(db=None, message="one", user=None, session_id="s6")
         resp = await service.handle_message(db=None, message="two", user=None, session_id="s6")
         # Second call sees 1 completed prior turn

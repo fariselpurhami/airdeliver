@@ -239,9 +239,26 @@ class Telemetry(SchemaBaseModel):
         return normalized_values
 
 
+class CatalogResult(SchemaBaseModel):
+    id: StrictInt = Field(gt=0,le=2147483647)
+    name: StrictStr = Field(min_length=1,max_length=255)
+    sku: StrictStr = Field(default='',max_length=128)
+    category: StrictStr = Field(default='uncategorized',max_length=128)
+    price: Optional[StrictStr] = None
+    currency: Optional[StrictStr] = None
+    price_status: Literal['listed','unknown']
+    image: Optional[StrictStr] = None
+    attributes: Dict[str,str] = Field(default_factory=dict)
+    evidence_kind: Literal['seeded_demo','local_catalog']
+    stock_status: Literal['demo','local_in_stock','local_out_of_stock','unverified']
+    availability_note: StrictStr
+
+
 class NeuralCoreResponse(SchemaBaseModel):
     text: StrictStr = Field(..., min_length=1, max_length=10_000)
     action: Optional[AnyAction] = None
+    products: List[CatalogResult] = Field(default_factory=list,max_length=5)
+    response_kind: Literal["text","catalog_results","clarification","system_notice","conversation"] = "text"
     explain: StrictStr = Field(..., min_length=1, max_length=10_000)
     confidence: float = Field(..., ge=0.0, le=1.0)
     telemetry: Optional[Telemetry] = None

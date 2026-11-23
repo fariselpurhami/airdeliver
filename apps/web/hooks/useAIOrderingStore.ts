@@ -6,6 +6,7 @@ import { randomId } from '@/lib/random-id';
 import { parseCartItems } from '@/lib/cart-snapshot';
 
 
+import { parseSupportReply } from '@/lib/support-catalog-reply';
 import { create } from 'zustand';
 import { produce } from 'immer';
 import { useCartStore } from './useCartStore';
@@ -721,7 +722,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       if (!response.ok) {
         throw new Error(`support chat returned ${response.status}`);
       }
-      const data = await response.json() as { text?: string; action?: unknown };
+      const data = parseSupportReply(await response.json());
 
       // Delivery confirmed: settle the optimistic user message.
       if (msgId) {
@@ -739,7 +740,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         }));
       }
 
-      get().addSocketAIMessage({ type: 'text', content: data.text ?? '', action: data.action });
+      get().addSocketAIMessage({ type: data.products.length ? 'product_carousel' : data.response_kind === 'system_notice' ? 'info' : 'text', content: data.text, action: data.action, products: data.products });
     } catch (error) {
       if (msgId) {
         const ackTimeout = get().ackTimeouts[msgId];

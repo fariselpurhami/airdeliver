@@ -26,6 +26,7 @@ async def test_inventory_record_does_not_prove_dispatch_or_restock(visual):
             return await self.perform_hybrid_search_pure()
     service = NeuralCoreService(Engine(), object())
     response = await service._handle_visual_search('image') if visual else await service._handle_product_search(None, 'headphones')
-    assert 'in stock' in response.text
-    assert 'not been verified' in response.text
+    assert response.products==[]
+    assert response.response_kind=='system_notice'
+    assert 'no merchant availability has been verified' in response.text.lower()
     assert 'immediate dispatch' not in response.text

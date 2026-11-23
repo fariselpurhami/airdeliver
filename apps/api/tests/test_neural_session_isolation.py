@@ -17,7 +17,9 @@ async def test_authenticated_users_cannot_share_history_by_reusing_client_sessio
     await service.handle_message(None,'another person',SimpleNamespace(id=2,full_name='Two'),'same-client-session')
     assert seen[1]==[]
     await service.handle_message(None,'followup',SimpleNamespace(id=1,full_name='One'),'same-client-session')
-    assert seen[2]==['private first','ok']
+    assert seen[2][0]=='private first'
+    assert len(seen[2])==2
+    assert 'another person' not in seen[2]
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('history', [

@@ -78,7 +78,8 @@ class TestVisualRouting:
 
         assert len(engine.calls) == 1
         assert engine.calls[0]["image_input"] == VALID_IMAGE
-        assert "Aurora Headphones" in response.text
+        assert response.products == []
+        assert response.response_kind == "system_notice"
         assert response.telemetry.intent == "VISUAL_SEARCH"
 
     async def test_image_search_does_not_call_llm_router(self, monkeypatch):
@@ -96,7 +97,7 @@ class TestVisualRouting:
             session_id="session-visual-2",
             image_base64=VALID_IMAGE,
         )
-        assert response.confidence > 0
+        assert response.response_kind == "system_notice"
 
     async def test_caption_is_not_required(self):
         engine = FakeVisualEngine()
@@ -116,8 +117,9 @@ class TestVisualGrounding:
             db=None, message="", user=None,
             session_id="session-visual-4", image_base64=VALID_IMAGE,
         )
-        assert "Volt Charger" in response.text
-        assert "59.5" in response.text
+        # An index result without a current DB row is not product evidence.
+        assert response.products == []
+        assert "Volt Charger" not in response.text
 
     async def test_out_of_stock_product_is_reported_without_restock_promise(self):
         engine = FakeVisualEngine(results=[FakeProduct(inventory=0)])
@@ -126,7 +128,8 @@ class TestVisualGrounding:
             db=None, message="", user=None,
             session_id="session-visual-5", image_base64=VALID_IMAGE,
         )
-        assert "out of stock" in response.text.lower()
+        assert response.products == []
+        assert response.response_kind == "system_notice"
 
     async def test_no_matches_is_honest_no_invention(self):
         engine = FakeVisualEngine(results=[])

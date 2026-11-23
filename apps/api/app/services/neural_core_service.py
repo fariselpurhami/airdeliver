@@ -19,6 +19,7 @@ from groq import AsyncGroq
 from groq import APIStatusError, APIConnectionError
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy import select
 from tenacity import (
     retry,
     retry_if_exception,
@@ -26,6 +27,8 @@ from tenacity import (
     wait_exponential,
 )
 
+from app.services.shopping_discovery import ShoppingBrief, catalog_result
+from app.services.shopping_copy import write_shopping_copy
 from app import models
 from app.schemas.ai_actions import (
     NeuralCoreResponse,
@@ -49,6 +52,7 @@ class ChatMessage(BaseModel):
 
 class SessionMemory(BaseModel):
     user_name: str = Field(max_length=256)
+    shopping_brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
     history: List[ChatMessage] = Field(default_factory=list, max_length=10)
     
     def append_turn(self, user_msg: str, ai_msg: str, max_turns: int = 5) -> None:
@@ -68,7 +72,9 @@ class SessionMemory(BaseModel):
 
 class RouterDecision(BaseModel):
     """Strict contract for the LLM output. Enforces type safety on hallucinations."""
-    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE"]
+    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE", "GIFT_DISCOVERY"]
+    brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
+    search_subject: Optional[str] = Field(default=None,max_length=256,description="Literal customer category, interest or exact item; required to leave discovery")
     query: Optional[str] = Field(default=None, description="Search term for products")
     order_id: Optional[str] = Field(default=None, description="Extracted order ID digits")
     social_reply: Optional[str] = Field(default=None, description="Contextual chat response")
@@ -85,7 +91,9 @@ Analyze the user's message and the conversation history.
 
 You MUST output a valid JSON object strictly matching this schema:
 {
-    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE",
+    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE" | "GIFT_DISCOVERY",
+    "brief": {"version": 1, "recipient": null, "occasion": null, "category": null, "budget": null, "budget_max": null, "budget_currency": null, "preference": null},
+    "search_subject": "Literal customer category, interest or exact item, or null for an unspecified gift",
     "quantity": 1,
     "query": "Extracted search term (only if intent is PRODUCT_SEARCH)",
     "order_id": "Extracted order number digits (only if intent is TRACK_ORDER)",
@@ -93,8 +101,11 @@ You MUST output a valid JSON object strictly matching this schema:
 }
 
 ROUTING RULES:
+- GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Ask about budget and interests/occasion before choosing. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
+- Budget fields: budget is an exact customer source span; budget_max is its explicit maximum amount as a decimal string, budget_currency is an explicit ISO code or USD when the source uses $. Never convert currencies or infer a cap from vague cheap/affordable. If amount/currency is missing, clarify it.
+- PRODUCT_SEARCH: query must be a literal span of the current customer message. Never translate an unspecified gift request into a brand or item. Products, prices and availability are rendered only from current catalog records with evidence labels.
 - CART_ADD / CART_REMOVE: explicit request to add a named product or remove its whole line from cart. Extract product name into query and quantity1..99. Do not infer product IDs. Vague references need clarification, not an invented name. This produces a review button only, never execution.
-1. PRODUCT_SEARCH: User expresses intent to buy, browse, check stock, or inquire about products.
+1. PRODUCT_SEARCH: User supplies a concrete category, interest or exact item to browse. A recipient alone is insufficient. Set search_subject to the literal customer span, not gift/buy/shop. For follow-up turns use only a concrete subject explicitly provided by the customer in prior history. GIFT_DISCOVERY takes precedence for an unspecified gift.
 2. TRACK_ORDER: User asks about delivery status, shipping, or location of an order.
 3. SUPPORT_HANDOFF: User is highly frustrated, demands human escalation, or reports a critical failure.
 4. SOCIAL_CHAT: Greetings, casual conversation, jokes, or vague statements without commerce intent. Treat them as a VIP client.
@@ -272,8 +283,17 @@ class NeuralCoreService:
                     decision.query=None
                 if decision.quantity!=1 and not re.search(r"(?<![\w.])"+str(decision.quantity)+r"(?![\w.])",message):
                     decision.query=None
+            customer_context="\n".join([m.content for m in memory.history if m.role=="user"]+[message])
+            decision.brief=decision.brief.grounded(customer_context)
+            if decision.intent=="PRODUCT_SEARCH":
+                subject=decision.search_subject
+                if not subject or ' '.join(subject.casefold().split()) not in ' '.join(customer_context.casefold().split()):
+                    decision.intent="GIFT_DISCOVERY"
+            if decision.intent == "PRODUCT_SEARCH" and decision.query:
+                if ' '.join(decision.query.casefold().split()) not in ' '.join(customer_context.casefold().split()):
+                    return RouterDecision(intent="GIFT_DISCOVERY", brief=ShoppingBrief())
             return decision
-            
+
         except ValidationError as exc:
             _log_inference_failure("neural_core.router.schema_violation", exc)
         except Exception as exc:
@@ -319,70 +339,78 @@ class NeuralCoreService:
         text=(f"Review adding {decision.quantity} × {product.name}." if operation=="add" else f"Review removing the entire {product.name} line from your cart.")
         return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
 
-    async def _handle_product_search(self, db: AsyncSession, query: str) -> NeuralCoreResponse:
+    async def _handle_product_search(self, db: AsyncSession, query: str, brief: ShoppingBrief | None = None, customer_message: str | None = None) -> NeuralCoreResponse:
         try:
             products = await self.ai_engine.perform_hybrid_search_pure(db, query, limit=5)
         except Exception as exc:
             logger.error("neural_core.engine.search_failed", extra={"error_type": type(exc).__name__})
             return NeuralCoreResponse(
-                text="Our global databanks are temporarily syncing. Let's try that search again in a moment.",
+                text="System notice: catalog search is temporarily unavailable. Please try again.",
+                response_kind="system_notice",
                 confidence=0.0,
                 explain="Search Engine Unavailable",
                 telemetry={"intent": "PRODUCT_SEARCH", "entities": [query], "turn": 0}
             )
 
-        if not products:
-            text = f"I searched our catalog for '{query}', but couldn't find a perfect match. Want to broaden the search?"
-        else:
-            top_product = products[0]
-            inventory_qty = getattr(top_product, "inventory", 0)
-            status = "listed as in stock" if inventory_qty > 0 else "listed as out of stock"
-            text = f"Found it! The **{top_product.name}** is available at **${top_product.price}** and is {status}. Shipping and delivery timing have not been verified."
+        try:
+            return await self._catalog_response(db, products, "PRODUCT_SEARCH", query, brief, customer_message)
+        except Exception as exc:
+            logger.warning("neural_core.catalog.revalidation_failed",extra={"error_type":type(exc).__name__})
+            return NeuralCoreResponse(text="System notice: current catalog evidence could not be checked. No product recommendation was published.",response_kind="system_notice",confidence=0.0,explain="Catalog revalidation unavailable",telemetry={"intent":"PRODUCT_SEARCH","entities":[],"turn":0})
 
-        return NeuralCoreResponse(
-            text=text,
-            confidence=0.95,
-            explain="Vector Semantic Search",
-            telemetry={"intent": "PRODUCT_SEARCH", "entities": [query], "turn": 0}
-        )
+    async def _catalog_response(self, db, products, intent, query="", brief=None, customer_message=None):
+        brief=brief or ShoppingBrief()
+        # Re-read every indexed/cached candidate before exposing a card or claim.
+        # Preserve ranking, drop duplicates/inactive/deleted rows. No source proof
+        # is manufactured from the existence of a local Product row.
+        ids=list(dict.fromkeys(getattr(p,"id",None) for p in products[:5] if type(getattr(p,"id",None)) is int and p.id>0))
+        rows=[]
+        if ids and db is not None:
+            result=await db.execute(select(models.Product).where(models.Product.id.in_(ids)).execution_options(populate_existing=True))
+            rows=result.scalars().all()
+        by_id={row.id:row for row in rows}
+        cards=[]
+        for pid in ids:
+            card=catalog_result(by_id[pid]) if pid in by_id else None
+            if card and brief.permits(card):cards.append(card)
+        return await self._shopping_response(customer_message or query,cards,brief,"catalog_results",intent)
 
-    async def _handle_visual_search(self, image_base64: str, caption: str = "") -> NeuralCoreResponse:
-        """Grounded visual product search: the answer is templated strictly
-        from the inventory records the engine returns."""
+    async def _shopping_response(self,message,cards,brief,mode,intent):
+        try:
+            if not self.is_healthy:raise RuntimeError("provider_unavailable")
+            text=await write_shopping_copy(self._execute_llm_inference,message,cards,brief.model_dump(),mode,NeuralCoreConfig.LLM_TIMEOUT_SEC)
+            kind=mode
+        except Exception as exc:
+            logger.warning("neural_core.shopping.copy_withheld",extra={"error_type":type(exc).__name__})
+            text="System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog."
+            kind="system_notice"
+            # Rejected prose and its candidate choices are not a recommendation.
+            # A failed discovery review must not leak luxury/random candidates.
+            cards=[]
+        return NeuralCoreResponse(text=text,products=cards,response_kind=kind,
+            confidence=0.5 if kind!="system_notice" else 0.0,explain="Model-authored copy with structured evidence and independent grounding review",
+            telemetry={"intent":intent,"entities":[],"turn":0})
+
+    async def _handle_visual_search(self, image_base64: str, caption: str = "", db=None) -> NeuralCoreResponse:
+        """Visual candidates are revalidated against current DB rows, then
+        supplied as bounded evidence to the model writer and review boundary."""
         try:
             products = await self.ai_engine.search_by_image_vector(image_base64, limit=5)
         except Exception as exc:
             logger.error("neural_core.engine.visual_search_failed", extra={"error_type": type(exc).__name__})
             return NeuralCoreResponse(
-                text="Our visual search is temporarily syncing. Let's try that image again in a moment.",
+                text="System notice: visual search is temporarily unavailable. Please try again.",
+                response_kind="system_notice",
                 confidence=0.0,
                 explain="Visual Search Engine Unavailable",
                 telemetry={"intent": "VISUAL_SEARCH", "entities": [], "turn": 0}
             )
 
-        if not products:
-            text = (
-                "I analyzed the image, but couldn't find a close match in our partner inventory. "
-                "Try a clearer shot of the item, or describe it and I'll search by text."
-            )
-            confidence = 0.3
-        else:
-            top_product = products[0]
-            inventory_qty = getattr(top_product, "inventory", 0)
-            status = "listed as in stock" if inventory_qty > 0 else "listed as out of stock"
-            extra = f" for '{caption.strip()}'" if caption.strip() else ""
-            text = (
-                f"Visual match{extra}: the **{top_product.name}** is available at "
-                f"**${top_product.price}** and is {status}. Shipping and delivery timing have not been verified."
-            )
-            confidence = 0.9
-
-        return NeuralCoreResponse(
-            text=text,
-            confidence=confidence,
-            explain="Visual Similarity Search",
-            telemetry={"intent": "VISUAL_SEARCH", "entities": [], "turn": 0}
-        )
+        try:
+            return await self._catalog_response(db, products, "VISUAL_SEARCH",caption)
+        except Exception as exc:
+            logger.warning("neural_core.catalog.revalidation_failed",extra={"error_type":type(exc).__name__})
+            return NeuralCoreResponse(text="System notice: current catalog evidence could not be checked. No product recommendation was published.",response_kind="system_notice",confidence=0.0,explain="Catalog revalidation unavailable",telemetry={"intent":"VISUAL_SEARCH","entities":[],"turn":0})
 
     def _handle_order_tracking(self, order_id: Optional[str]) -> NeuralCoreResponse:
         if order_id:
@@ -437,10 +465,10 @@ class NeuralCoreService:
         memory = await self._hydrate_session(session_id, user_name)
 
         # Visual queries skip the LLM intent router entirely: an image upload
-        # is unambiguous visual-search intent, and skipping the LLM keeps the
-        # path available during LLM outages.
+        # is unambiguous visual-search intent. Copy still uses the model writer
+        # and independent evidence review, never a fixed product-sales template.
         if image_base64:
-            response = await self._handle_visual_search(image_base64, caption=message)
+            response = await self._handle_visual_search(image_base64, caption=message, db=db)
             turn_count = len(memory.history) // 2
             response.enrich_telemetry(turn=turn_count)
             memory.append_turn(message or "[image upload]", response.text, max_turns=NeuralCoreConfig.MAX_CONTEXT_TURNS)
@@ -455,12 +483,25 @@ class NeuralCoreService:
             extra={"intent": decision.intent}
         )
 
+        customer_context="\n".join([m.content for m in memory.history if m.role=="user"]+[message])
+        incoming=decision.brief.grounded(customer_context)
+        merged=memory.shopping_brief.model_dump()
+        if incoming.budget is not None and incoming.budget!=memory.shopping_brief.budget:
+            merged.update(budget_max=None,budget_currency=None)
+        merged.update({k:v for k,v in incoming.model_dump().items() if v is not None})
+        memory.shopping_brief=ShoppingBrief.model_validate(merged)
+
         # Dispatch
         if decision.intent in {"CART_ADD", "CART_REMOVE"}:
             response = await self._handle_cart_review(db,decision,user)
+        elif decision.intent == "GIFT_DISCOVERY":
+            response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
         elif decision.intent == "PRODUCT_SEARCH":
-            query = decision.query or message
-            response = await self._handle_product_search(db, query)
+            if memory.shopping_brief.budget and memory.shopping_brief.budget_max is None:
+                response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
+            else:
+                query = decision.query or decision.search_subject or message
+                response = await self._handle_product_search(db, query, memory.shopping_brief, message)
         
         elif decision.intent == "TRACK_ORDER":
             response = self._handle_order_tracking(decision.order_id)
@@ -469,13 +510,11 @@ class NeuralCoreService:
             response = self._handle_support_handoff()
             
         else:  # SOCIAL_CHAT
-            safe_reply = decision.social_reply or "I'm here for you! Let me know if you need to find anything specific."
-            response = NeuralCoreResponse(
-                text=safe_reply,
-                confidence=0.85,
-                explain="Empathetic Persona Generation",
-                telemetry={"intent": "SOCIAL_CHAT", "entities": [], "turn": 0}
-            )
+            if not decision.social_reply or decision.social_reply.startswith("Chat assistance"):
+                response=NeuralCoreResponse(text="System notice: "+(decision.social_reply or "Chat assistance is temporarily unavailable."),
+                    response_kind="system_notice",confidence=0.0,explain="Router unavailable",telemetry={"intent":"SOCIAL_CHAT","entities":[],"turn":0})
+            else:
+                response=await self._shopping_response(message,[],memory.shopping_brief,"conversation","SOCIAL_CHAT")
 
         # Memory Commit
         turn_count = len(memory.history) // 2

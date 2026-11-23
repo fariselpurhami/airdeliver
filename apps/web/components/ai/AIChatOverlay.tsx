@@ -32,9 +32,14 @@ import { CatalogPrice, listedCatalogPrice } from './CatalogPrice';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AssistantAction from './AssistantAction';
+import { CatalogEvidence } from './CatalogEvidence';
 
 // --- ENTERPRISE CONTRACT DEFINITIONS ---
 export interface AIProduct {
+    currency?: string;
+    evidence_kind?: string;
+    availability_note?: string;
+    stock_status?: string;
   sku?: string;
   attributes?: Record<string, unknown>;
     id: number | string;
@@ -241,6 +246,7 @@ export const CarouselProductCard = React.memo(({ product, onSelect, onViewDetail
                         {title}
                     </h4>
 
+                    <CatalogEvidence product={product} />
                     <div className="mt-auto flex items-center justify-between">
                         <div className="flex flex-col">
                             <span className="text-[10px] text-white/40 font-medium">PRICE</span>
@@ -254,8 +260,8 @@ export const CarouselProductCard = React.memo(({ product, onSelect, onViewDetail
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={handleSelect}
-                            disabled={listedCatalogPrice(product) === null}
-                            title={listedCatalogPrice(product) === null ? 'Inspect product details to verify price before adding' : 'Add to cart'}
+                            disabled={listedCatalogPrice(product) === null || product.evidence_kind === 'seeded_demo' || product.stock_status === 'local_out_of_stock'}
+                            title={product.evidence_kind === 'seeded_demo' ? 'Synthetic demo, not a merchant offer' : product.stock_status === 'local_out_of_stock' ? 'No local stock listed' : listedCatalogPrice(product) === null ? 'Inspect product details to verify price before adding' : 'Add to cart, subject to price and stock checks'}
                             className="disabled:opacity-40 disabled:cursor-not-allowed h-9 px-4 rounded-full bg-white text-black flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(255,255,255,0.15)] hover:shadow-[0_4px_16px_rgba(255,255,255,0.25)] transition-shadow"
                         >
                             <ShoppingBag size={14} strokeWidth={2.5} />
