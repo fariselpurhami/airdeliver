@@ -6,6 +6,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { Bot, ScanLine, ShoppingBag, Check } from 'lucide-react';
 import Image from 'next/image';
+import { isDemoImageEligible } from '@/lib/catalog/demoImages';
+import { DemoImageAttribution } from '@/components/products/DemoImageAttribution';
 import { CatalogImage } from '@/components/products/CatalogImage';
 import { CatalogPrice, listedCatalogPrice } from '../ai/CatalogPrice';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; 
@@ -95,8 +97,8 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
 
             {/* تصغير أقصى ارتفاع للصورة في الموبايل لـ 140px عشان متتفعصش على النصوص */}
             <div className="relative w-full h-full max-h-[140px] md:max-h-[220px] md:[transform:translateZ(60px)]">
-                {product.image_url ? (
-                    <CatalogImage
+                {product.image_url || isDemoImageEligible(product) ? (
+                    <CatalogImage product={product}
                         src={product.image_url}
                         alt={product.name}
                         fill
@@ -112,6 +114,7 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
             </div>
         </div>
 
+        <DemoImageAttribution product={product} />
         {/* تعديل مقاسات النصوص والمسافات السفلية لضمان عدم خروجها عن الكارت */}
         <div className="relative w-full bg-[#080808]/95 backdrop-blur-md md:backdrop-blur-xl border-t border-white/5 p-3 md:p-5 flex flex-col justify-between transition-colors duration-500 md:group-hover:bg-[#0a0a0a] md:[transform:translateZ(20px)]">
             <div className="mb-2 md:mb-3">

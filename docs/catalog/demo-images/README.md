@@ -1,16 +1,16 @@
 # Demo image provenance pilot
 
-The runtime override is deliberately OFF. No storefront route imports the review component yet. This branch is a review pilot, not a claim to have fixed every catalog image.
+Runtime override is enabled on this review branch, pending owner approval before merge. Catalog grid, featured recommendation, AI carousel cards and product details carry visible labels and attribution. This is a bounded demo pilot, not a claim to have verified every catalog image.
 
 ## Recommendation
 
 Use merchant/owner-authorized exact SKU and variant photos for commercial listings. For this demo, a small, reviewed Commons-photo manifest is a legitimate way to show real product-family references with visible limits. Unknown items use neutral demo illustration. Never substitute a different model under an exact-product claim.
 
 1. Require BOTH SKU pattern ADL-DEMO-v1-... and attributes._seed_dataset=airdeliver-demo-v1. Require known template identity too. No prefix-only, name-only or description-only matching.
-2. Verify owner rows contain these markers before enabling. Current seed source writes them; the owner's current database has not been inspected.
+2. Verify owner rows contain these markers before enabling. Current seed source writes them. Owner-reported read-only results on 2026-11-23 found both markers on 2/2 Samba and 3/3 Jordan rows. Other template rows have not been checked in the owner database; overrides still require all identity checks at runtime.
 3. Check source description, creator and license for each image. Download locally, pin SHA256, retain original source and license links and retrieval time. No runtime external fetch or hotlink.
 4. Label family references next to image, not only in alt text. Include creator/source/license/change notice. Current pilot never calls anything an exact SKU photo.
-5. Keep the review status candidate until owner review. Runtime enablement needs frontend integration on catalog, featured, overlay and product-details surfaces, metadata propagation and regression checks. Do not enable on one surface while another silently drops attribution.
+5. Keep the review status candidate until owner review. Frontend integration covers catalog, featured, overlay carousel and product-details surfaces, including API identity propagation and regression checks. Local screenshots use intercepted synthetic API fixtures, not the owner database. Cart previews outside these surfaces retain their existing image handling.
 6. Add explicit copyright exceptions for these assets in any distribution: photos retain CC-BY-SA-4.0, not the repository's proprietary license. Resized/adapted photo derivatives retain the same license. This license does not apply to the surrounding application merely because it displays a photo collection.
 
 ## Pilot assessment

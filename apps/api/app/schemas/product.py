@@ -58,6 +58,7 @@ class ProductUpdate(SQLModel):
 
 
 class ProductRead(ProductBase):
+    attributes: dict[str, str] = Field(default_factory=dict)
     id: int
     sku: str
 

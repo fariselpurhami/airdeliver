@@ -1063,6 +1063,7 @@ class ProductAccess:
                 "inventory": getattr(obj, "inventory", None),
                 "rating": getattr(obj, "rating", None),
                 "image": getattr(obj, "image", None),
+                "attributes": getattr(obj, "attributes", {}),
                 "category": getattr(obj, "category", None),
                 "tags": getattr(obj, "tags", None),
             }
@@ -1117,6 +1118,7 @@ class ProductAccess:
             "inventory": inventory_out,
             "rating": json_safe(rating_out),
             "image": json_safe(source.get("image")),
+            "attributes": dict(source.get("attributes")) if isinstance(source.get("attributes"), Mapping) else {},
             "category": source.get("category") if source.get("category") not in (None, "") else "uncategorized",
             "tags": tags_out,
         }
