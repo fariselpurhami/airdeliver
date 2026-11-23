@@ -47,3 +47,13 @@ async def test_extracted_customer_fact_and_provider_error_are_not_log_fields(cap
     svc.search_engine.remember_user_fact=AsyncMock(side_effect=RuntimeError('PRIVATE_MARKER_PROVIDER'))
     await svc._bg_memorize(7,'PRIVATE_MARKER_CUSTOMER preference')
     assert_private_absent(caplog)
+
+
+@pytest.mark.asyncio
+async def test_new_memory_collection_error_does_not_log_private_content(caplog,monkeypatch):
+    from app.services.customer_memory_service import CustomerMemoryService
+    caplog.set_level(logging.INFO)
+    monkeypatch.setattr(CustomerMemoryService,'collect',AsyncMock(side_effect=RuntimeError('PRIVATE_MARKER_PROVIDER')))
+    svc=nlu_service()
+    await svc._bg_memorize(7,'PRIVATE_MARKER_CUSTOMER preference')
+    assert_private_absent(caplog)

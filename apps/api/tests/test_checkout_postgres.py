@@ -130,9 +130,9 @@ async def test_populated_legacy_timestamps_require_a_verified_zone_and_preserve_
         await db.commit()
     await asyncio.to_thread(command.stamp,Config('alembic.ini'),'d74fe213c654')
     with pytest.raises(Exception,match='explicit LEGACY_TIMESTAMP_TIMEZONE'):
-        await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'head')
+        await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'f96bc435e876')
     monkeypatch.setenv('LEGACY_TIMESTAMP_TIMEZONE','UTC')
-    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'head')
+    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'f96bc435e876')
     async with sessions() as db:
         restored=(await db.execute(text('SELECT created_at FROM users WHERE id=:id'),{'id':uid})).scalar_one()
         assert restored==original
@@ -148,7 +148,7 @@ async def test_already_aware_columns_are_not_reinterpreted_on_migration_replay(p
         original=(await db.execute(text('SELECT created_at FROM users WHERE id=:id'),{'id':uid})).scalar_one()
     monkeypatch.setenv('LEGACY_TIMESTAMP_TIMEZONE','America/Los_Angeles')
     await asyncio.to_thread(command.stamp,Config('alembic.ini'),'d74fe213c654')
-    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'head')
+    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'f96bc435e876')
     async with sessions() as db:
         restored=(await db.execute(text('SELECT created_at FROM users WHERE id=:id'),{'id':uid})).scalar_one()
         assert restored==original
@@ -168,14 +168,14 @@ async def test_catalog_timestamp_migration_requires_explicit_legacy_zone(pg_chec
         await db.commit()
     await asyncio.to_thread(command.stamp,Config('alembic.ini'),'e85af324d765')
     with pytest.raises(Exception,match='explicit LEGACY_TIMESTAMP_TIMEZONE'):
-        await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'head')
+        await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'f96bc435e876')
     monkeypatch.setenv('LEGACY_TIMESTAMP_TIMEZONE','UTC')
-    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'head')
+    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'f96bc435e876')
     async with sessions() as db:
         restored=(await db.execute(text('SELECT created_at,updated_at FROM products WHERE id=:id'),{'id':pid})).one()
         assert restored==original and all(value.tzinfo is not None for value in restored)
     monkeypatch.setenv('LEGACY_TIMESTAMP_TIMEZONE','America/Los_Angeles')
     await asyncio.to_thread(command.stamp,Config('alembic.ini'),'e85af324d765')
-    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'head')
+    await asyncio.to_thread(command.upgrade,Config('alembic.ini'),'f96bc435e876')
     async with sessions() as db:
         assert (await db.execute(text('SELECT created_at,updated_at FROM products WHERE id=:id'),{'id':pid})).one()==original

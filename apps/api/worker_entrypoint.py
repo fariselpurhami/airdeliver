@@ -827,6 +827,22 @@ class WorkerRuntime:
         self.services.consumer_ready = True
         self.services.refresh_readiness()
 
+    async def run_customer_memory_retention(self) -> None:
+        from app.services.customer_memory_service import CustomerMemoryService
+        while not self.shutdown_event.is_set():
+            try:
+                if self.services.session_maker is not None:
+                    async with self.services.session_maker() as db:
+                        await CustomerMemoryService(db).purge_expired()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning("customer memory purge unavailable", extra={"error_type": type(exc).__name__})
+            try:
+                await asyncio.wait_for(self.shutdown_event.wait(), timeout=3600)
+            except asyncio.TimeoutError:
+                pass
+
     async def run_payment_outbox(self) -> None:
         while not self.shutdown_event.is_set():
             try:
@@ -1067,6 +1083,7 @@ class WorkerRuntime:
             raise
 
         self.create_background_task(self.run_payment_outbox(), "payment-outbox")
+        self.create_background_task(self.run_customer_memory_retention(), "customer-memory-retention")
         self.create_background_task(self.lazy_load_voice_brain(), "lazy-load-voice-brain")
 
         logger.info(

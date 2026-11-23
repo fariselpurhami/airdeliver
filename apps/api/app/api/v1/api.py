@@ -25,3 +25,6 @@ api_router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"]
 api_router.include_router(ai_ordering.router, prefix="/ai-ordering", tags=["AI Ordering"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"]) 
 api_router.include_router(orders.router, prefix="/orders", tags=["Orders"])
+
+from .endpoints import customer_memory
+api_router.include_router(customer_memory.router, prefix="/users/me", tags=["Customer Memory"])

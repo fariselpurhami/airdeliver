@@ -21,3 +21,5 @@ AIMemory.model_rebuild()
 UserActivity.model_rebuild()
 Badge.model_rebuild()
 UserBadge.model_rebuild()
+
+from app.models.customer_memory import CustomerMemoryConsent, CustomerShoppingMemory

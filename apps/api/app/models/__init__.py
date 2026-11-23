@@ -35,3 +35,5 @@ __all__ = [
     "AIMemory",
     "PaymentOutbox",
 ]
+
+from app.models.customer_memory import CustomerMemoryConsent, CustomerShoppingMemory

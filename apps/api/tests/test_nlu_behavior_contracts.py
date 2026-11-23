@@ -27,7 +27,7 @@ async def test_public_embedding_contract_delegates():
 
 
 @pytest.mark.asyncio
-async def test_background_memory_uses_engine_fact_parameter():
+async def test_background_memory_never_uses_legacy_unconsented_fact_hook():
     svc = service()
     captured = []
     async def remember_user_fact(user_id, fact_text):
@@ -35,7 +35,8 @@ async def test_background_memory_uses_engine_fact_parameter():
     svc.llm_service.extract_memory_worthy_facts = AsyncMock(return_value="prefers red shoes")
     svc.search_engine.remember_user_fact = remember_user_fact
     await svc._bg_memorize(7, "I prefer red shoes")
-    assert captured == [(7, "prefers red shoes")]
+    assert captured == []
+    svc.llm_service.extract_memory_worthy_facts.assert_not_awaited()
 
 
 @pytest.mark.asyncio

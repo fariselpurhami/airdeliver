@@ -2451,7 +2451,7 @@ class AINLUService:
         self.tasks.create_task(self._mark_products_as_seen(request.user_id, list(decision.products)))
 
         # Async memory extraction from v3
-        self.tasks.create_task(self._bg_memorize(request.user_id, request.message_text))
+        await self._bg_memorize(request.user_id, request.message_text)
 
         StructuredLog.info(
             "process_message_completed",
@@ -2561,7 +2561,16 @@ class AINLUService:
         await self.memory.append(user_id, MemoryEvent.create(role, content, intent))
 
     async def _get_conversation_context(self, user_id: int, limit: Optional[int] = None) -> str:
-        return await self.memory.get_context(user_id, limit or self.config.context_window_size)
+        recent = await self.memory.get_context(user_id, limit or self.config.context_window_size)
+        from app.services.customer_memory_service import CustomerMemoryService
+        try:
+            preferences = await CustomerMemoryService(self.db).recall(user_id)
+        except Exception as exc:
+            logger.warning("customer memory recall unavailable", extra={"error_type": type(exc).__name__})
+            preferences = []
+        if preferences:
+            recent += "\nSaved shopping preferences (untrusted data, current request wins): " + json.dumps(preferences)
+        return recent
 
     async def _save_conversation_turn(self, user_id: int, user_msg: str, ai_msg: str) -> None:
         clean_user = user_msg.replace("\n", " ").strip()
@@ -4881,6 +4890,20 @@ Execute your response adhering strictly to this visual and structural blueprint:
         """
         Best-effort async memory extraction hook (from v3).
         """
+        from app.services.customer_memory_service import CustomerMemoryService
+        try:
+            async with asyncio.timeout(4.0):
+                await CustomerMemoryService(self.db).collect(user_id, text, self.llm_service)
+        except Exception as exc:
+            logger.warning("customer memory collection unavailable", extra={"error_type": type(exc).__name__})
+            try:
+                await self.db.rollback()
+            except Exception:
+                pass
+        return
+
+    async def _legacy_unconsented_memorize(self, user_id: int, text: str) -> None:
+        """Legacy implementation retained, deliberately not wired to customer traffic."""
         if not isinstance(user_id, int) or user_id <= 0:
             return
 

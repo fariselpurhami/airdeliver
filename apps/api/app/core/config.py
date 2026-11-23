@@ -43,6 +43,7 @@ class BaseAppConfig(BaseSettings):
 
 class CoreSettings(BaseAppConfig):
     APP_ENV: Literal["development", "staging", "production"] = Field("production", alias="APP_ENV")
+    CUSTOMER_MEMORY_ENABLED: bool = False
     API_V1_STR: str = "/api/v1"
     API_BASE_URL: AnyHttpUrl = Field(..., alias="API_BASE_URL")
     
