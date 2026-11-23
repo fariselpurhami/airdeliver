@@ -4,7 +4,7 @@ name: Backend CI
 
 on:
   push:
-    branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api", "hardening/dev-proxy-routes", "hardening/meta-confidence-boundaries", "hardening/feature-assignment-contracts", "hardening/bounded-text-inference", "hardening/notification-results", "hardening/notification-endpoints", "hardening/support-session-isolation", "hardening/support-action-truth", "hardening/support-inference-deadline", "hardening/behavior-offline-training", "hardening/push-subscription-contract", "hardening/ci-search-disk-budget", "hardening/cache-failure-privacy", "hardening/voice-real-transport", "hardening/remove-orphan-drone-compliance", "hardening/voice-command-truth", "hardening/root-entrypoints", "hardening/remove-root-editor-artifacts", "hardening/remove-stale-schema-dumps", "hardening/milvus-schema-diagnostics", "hardening/empty-milvus-rating-repair", "hardening/seeder-explicit-cache", "hardening/embedding-startup-readiness", "hardening/recommendation-live-facts", "hardening/cart-command-invariants", "hardening/cart-persistence-outcomes", "hardening/conversation-role-boundary", "hardening/ai-log-data-minimization", "hardening/http-cart-recommendation-wiring", "hardening/conversation-followup-context", "hardening/customer-memory-consent", "hardening/cart-ui-mutation-outcomes", "hardening/special-answer-history"]
+    branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api", "hardening/dev-proxy-routes", "hardening/meta-confidence-boundaries", "hardening/feature-assignment-contracts", "hardening/bounded-text-inference", "hardening/notification-results", "hardening/notification-endpoints", "hardening/support-session-isolation", "hardening/support-action-truth", "hardening/support-inference-deadline", "hardening/behavior-offline-training", "hardening/push-subscription-contract", "hardening/ci-search-disk-budget", "hardening/cache-failure-privacy", "hardening/voice-real-transport", "hardening/remove-orphan-drone-compliance", "hardening/voice-command-truth", "hardening/root-entrypoints", "hardening/remove-root-editor-artifacts", "hardening/remove-stale-schema-dumps", "hardening/milvus-schema-diagnostics", "hardening/empty-milvus-rating-repair", "hardening/seeder-explicit-cache", "hardening/embedding-startup-readiness", "hardening/recommendation-live-facts", "hardening/cart-command-invariants", "hardening/cart-persistence-outcomes", "hardening/conversation-role-boundary", "hardening/ai-log-data-minimization", "hardening/http-cart-recommendation-wiring", "hardening/conversation-followup-context", "hardening/customer-memory-consent", "hardening/cart-ui-mutation-outcomes", "hardening/special-answer-history", "hardening/cart-recommendation-broker-acceptance"]
     paths:
       - 'apps/api/**'
       - 'Makefile'
@@ -61,7 +61,20 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
+      rabbitmq:
+        image: rabbitmq:3.13.7-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
+        env:
+          RABBITMQ_DEFAULT_USER: airdeliver_ci
+          RABBITMQ_DEFAULT_PASS: disposable-ci-only
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     env:
+      TEST_RABBITMQ_DISPOSABLE: "1"
       TEST_POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@localhost:5432/airdeliver_test_ci
       TEST_DOCKER_ENGINE: "1"
       TEST_OBJECT_STORAGE_BACKEND: ${{ matrix.storage }}
