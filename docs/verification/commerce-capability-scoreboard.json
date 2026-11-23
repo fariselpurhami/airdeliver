@@ -42,13 +42,18 @@
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        56
+      ],
+      "evidence": [
+        "PR56 merged9b53953:1205passed5skipped locally, dedicated real-AMQP delivery test passed in CI. Actual loopback health recovery, native-loader single-flight, registry retry, configured budgets and shutdown requeue tested. Owner hardware/deployed readiness unverified."
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
         "candidate_test_files": [
-          "apps/api/tests/test_embedding_startup_readiness.py"
+          "apps/api/tests/test_embedding_startup_readiness.py",
+          "apps/api/tests/test_worker_warmup_recovery.py"
         ],
         "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
         "required_scenarios": [
@@ -135,7 +140,7 @@
       "live_verified": false,
       "prs": [],
       "evidence": [
-        "PR52 pending merge/CI at ledger preparation. test_vector_native_admission.py. Do not count as deployed or complete feature verification."
+        "PR57 main-target continuation of PR52 pending latest CI. test_vector_native_admission.py. Do not count as deployed or complete feature verification."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -265,8 +270,8 @@
       ],
       "evidence": [
         "apps/api/tests/test_shopping_catalog_postgres.py; test_neural_core_visual.py",
-        "PR50 pending merge/CI at ledger preparation. test_bounded_image_decode.py. Do not count as deployed or complete feature verification.",
-        "PR51 pending merge/CI at ledger preparation. test_vision_native_admission.py. Do not count as deployed or complete feature verification."
+        "PR50 merged. test_bounded_image_decode.py. Do not count as deployed or complete feature verification.",
+        "PR53 main-target continuation of PR51 merged. test_vision_native_admission.py. Do not count as deployed or complete feature verification."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
