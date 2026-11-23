@@ -8,6 +8,8 @@ from app import models, schemas
 from app.db.session import get_async_session
 from app.api import deps
 
+from app.services.product_serialization import serialize_product
+
 router = APIRouter()
 
 
@@ -35,10 +37,8 @@ async def read_products(
 
     enriched_products = []
     for p in products_from_db:
-        data = p.model_dump()
+        data = serialize_product(p)
 
-        if not data.get("image_url"):
-            data["image_url"] = "/images/default.jpeg"
 
         data["stock_level"] = (
             f"Low stock – {p.inventory} left." if p.inventory < 20 else None
@@ -111,10 +111,8 @@ async def get_product_suggestions(
 
     formatted_suggestions = []
     for p in suggestions:
-        data = p.model_dump()
+        data = serialize_product(p)
 
-        if not data.get("image_url"):
-            data["image_url"] = "/images/default.jpeg"
 
         data["stock_status"] = "In Stock" if p.inventory > 0 else "Out of Stock"
         formatted_suggestions.append(data)
@@ -137,10 +135,8 @@ async def get_featured_recommendation(
             status_code=404, detail="No products available to feature"
         )
 
-    data = featured_product.model_dump()
+    data = serialize_product(featured_product)
 
-    if not data.get("image_url"):
-        data["image_url"] = "/images/default.jpeg"
 
     data["stock_level"] = f"Low stock – {featured_product.inventory} left."
 

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
 import Image from 'next/image';
+import { CatalogImage } from '@/components/products/CatalogImage';
 import useEmblaCarousel from 'embla-carousel-react';
 import { loadStripe, StripeElementsOptions, Stripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
@@ -207,7 +208,7 @@ export const CarouselProductCard = React.memo(({ product, onSelect, onViewDetail
                     >
                         <BookmarkStarIcon />
                     </button>
-                    <Image
+                    <CatalogImage
                         id={elementId}
                         src={imageUrl}
                         alt={product.name}
