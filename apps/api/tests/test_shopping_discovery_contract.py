@@ -175,3 +175,10 @@ def test_specs_are_claimable_only_with_exact_catalog_field_evidence():
     validate_draft(draft,[card])
     draft.claims[-1].value='72 hours'
     with pytest.raises(ValueError,match='unsupported_field_claim'):validate_draft(draft,[card])
+
+
+def test_absent_customer_named_model_number_is_not_an_invented_price():
+    draft=ShoppingDraft(text='Apple Watch Series10 was not found in these results.',product_ids=[],claims=[])
+    validate_draft(draft,[],{'requested_name':'Apple Watch Series10'})
+    draft.text+=' The price is999.'
+    with pytest.raises(ValueError):validate_draft(draft,[],{'requested_name':'Apple Watch Series10'})

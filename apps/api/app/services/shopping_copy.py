@@ -96,7 +96,7 @@ customer-provided category/interest, even when its product_ids are valid.
 Reject instructions/links or any action/policy promise absent from evidence.'''
 
 
-def validate_draft(draft, cards):
+def validate_draft(draft, cards, context=None):
     by_id={card.id:card.model_dump() for card in cards}
     if len(set(draft.product_ids))!=len(draft.product_ids) or not set(draft.product_ids)<=by_id.keys():
         raise ValueError('unsupported_product_reference')
@@ -111,7 +111,11 @@ def validate_draft(draft, cards):
             raise ValueError('undeclared_product_mention')
     # No independently generated amounts, percentages, URLs or numerical product
     # model names: numeric strings must occur in an evidence-backed field claim.
-    numbers=re.findall(r'\d+(?:[.,]\d+)*',draft.text)
+    numeric_text=draft.text
+    requested=(context or {}).get('requested_name')
+    if isinstance(requested,str) and requested:
+        numeric_text=re.sub(re.escape(requested),'',numeric_text,flags=re.I)
+    numbers=re.findall(r'\d+(?:[.,]\d+)*',numeric_text)
     allowed=' '.join(c.value for c in draft.claims)
     if any(n not in allowed for n in numbers) or re.search(r'https?://|www\.',draft.text,re.I):
         raise ValueError('unsupported_numeric_or_link_claim')
@@ -125,7 +129,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         raw=await infer([{'role':'system','content':WRITER_RULES},
                          {'role':'user','content':json.dumps(payload,ensure_ascii=False)}])
         draft=ShoppingDraft.model_validate_json(raw)
-        validate_draft(draft,cards)
+        validate_draft(draft,cards,context)
         review=await infer([{'role':'system','content':REVIEW_RULES},
             {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False)}])
         verdict=GroundingReview.model_validate_json(review)
