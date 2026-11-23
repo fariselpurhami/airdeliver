@@ -529,7 +529,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
   }, [cartItemsCount, capsuleControls, prefersReducedMotion]);
 
   return (
-    <section ref={containerRef} className={`${HERO_STAGE_CLASSES} bg-[#04060A]`} data-hero-stage="home" style={{ contain: 'layout paint' }} aria-labelledby={titleId}>
+    <section ref={containerRef} className={`${HERO_STAGE_CLASSES} bg-[#04060A] home-viewport-hero`} data-hero-stage="home" style={{ contain: 'layout paint' }} aria-labelledby={titleId}>
       
       {/* High-Performance Cosmic Teal & Purple Starfield Background */}
       <CosmicDustCanvas />
@@ -829,7 +829,7 @@ const HowItWorksSection = memo(() => {
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <section ref={containerRef} className="relative w-full overflow-hidden bg-transparent py-32 lg:py-48 border-t border-white/5 isolate" style={{ contain: 'layout paint' }} aria-labelledby="how-it-works-heading">
+    <section ref={containerRef} className="relative w-full overflow-hidden bg-transparent pt-12 pb-32 lg:pt-16 lg:pb-48 border-t border-white/5 isolate" style={{ contain: 'layout paint' }} aria-labelledby="how-it-works-heading">
       <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
         <motion.div style={{ y: prefersReducedMotion ? 0 : yParallax }} className="absolute inset-0 transform-gpu">
           {/* Restored Ambient Glows */}
@@ -1032,7 +1032,7 @@ export function LandingClient({ nonce, initialTraceId }: LandingClientProps) {
   return (
     <RUMErrorBoundary traceId={initialTraceId} fallback={<div className="p-8 text-center text-white w-full">System telemetry interruption. Please refresh.</div>}>
       <div className="flex flex-col w-full text-gray-100 bg-[#050505] isolate" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-        <main className="relative z-10 flex flex-col w-full transform-gpu">
+        <main className="relative z-10 flex flex-col w-full transform-gpu home-continuous-background">
           {isMobile ? <MobileHomeHeroSection onOrderClick={handleOrderClick} onExploreClick={handleExploreClick} /> : <HeroSection onOrderClick={handleOrderClick} onExploreClick={handleExploreClick} />}
           <HowItWorksSection />
           <FinalCTA />
