@@ -27,6 +27,8 @@ async def catalog():
         assert (await db.execute(text('SELECT current_database()'))).scalar_one().startswith('airdeliver_test_')
         rows=[Product(sku=uuid4().hex,name=name,description='',category='Electronics',price=price,inventory=10)
               for name,price in [('Anchor Phone',100),('Phone case',20),('Phone cable',15),('Phone stand',30)]]
+        for row in rows[1:]:
+            row.attributes={'complement_for_skus': __import__('json').dumps([rows[0].sku])}
         db.add_all(rows);await db.commit()
     yield sessions,rows
     async with sessions() as db:
@@ -195,3 +197,43 @@ async def test_cart_cannot_label_non_usd_catalog_price_as_dollars(catalog):
     assert cache.sets==[] and cache._cart is None
     assert any('currency' in p.get('content','') for _,p in cache.published)
     assert not any(p['type'] in {'success_text','cart_preview'} for _,p in cache.published)
+
+
+@pytest.mark.asyncio
+async def test_bundle_unrelated_primary_and_padding_fallback_abstain(catalog):
+    sessions,(anchor,*others)=catalog
+    engine=make_engine()
+    engine.perform_hybrid_search_pure=AsyncMock(return_value=others)
+    async with sessions() as db:
+        await db.execute(update(Product).where(Product.id.in_([p.id for p in others])).values(
+            attributes={},name='Unrelated skincare makeup or second phone'))
+        await db.commit()
+    async with sessions() as db:
+        assert await engine.generate_perfect_bundle(db,anchor)==[]
+    assert engine.perform_hybrid_search_pure.call_count>=3
+
+
+@pytest.mark.asyncio
+async def test_bundle_cache_cannot_replay_revoked_relation(catalog):
+    sessions,(anchor,kept,*_)=catalog
+    cache=SimpleNamespace(get_json=AsyncMock(return_value=[kept.id]),set_json=AsyncMock())
+    engine=make_engine(cache)
+    engine.perform_hybrid_search_pure=AsyncMock(return_value=[kept])
+    async with sessions() as db:
+        await db.execute(update(Product).where(Product.id==kept.id).values(attributes={}))
+        await db.commit()
+    async with sessions() as db:
+        assert await engine.generate_perfect_bundle(db,anchor)==[]
+
+
+@pytest.mark.asyncio
+async def test_bundle_timeout_fallback_requires_current_catalog_relation(catalog):
+    sessions,(anchor,kept,unrelated,*_)=catalog
+    engine=make_engine()
+    engine.perform_hybrid_search_pure=AsyncMock(side_effect=TimeoutError())
+    engine._get_emergency_fallback=AsyncMock(return_value=[kept,unrelated])
+    async with sessions() as db:
+        await db.execute(update(Product).where(Product.id==unrelated.id).values(attributes={}))
+        await db.commit()
+    async with sessions() as db:
+        assert [p.id for p in await engine.generate_perfect_bundle(db,anchor)]==[kept.id]

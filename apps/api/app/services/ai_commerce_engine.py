@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.services.complement_evidence import catalog_asserts_complement
 from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION
 
 import asyncio
@@ -795,7 +796,7 @@ class AICommerceEngine:
         max_accessory_ratio = 2.0 if anchor_price < 50 else 0.6
         max_price = anchor_price * max_accessory_ratio if anchor_price > 0 else 1000.0
         search_filter = SearchFilter(price_max=max_price, excluded_ids=[int(anchor.id)])
-        cache_key = _cache_key("bundle", {"anchor_id": str(anchor.id), "version": 8})
+        cache_key = _cache_key("bundle", {"anchor_id": str(anchor.id), "version": 9})
 
         if self.cache_client:
             try:
@@ -809,7 +810,8 @@ class AICommerceEngine:
                         if type(raw) is int and 0 < raw <= 9223372036854775807:
                             ids.append(raw)
                     rows = await self._fetch_products_from_db_by_ids(db, ids)
-                    current_cached = self._filter_products(rows, search_filter)[:self.limits.max_bundle_size]
+                    current_cached = [p for p in self._filter_products(rows, search_filter)
+                                      if catalog_asserts_complement(anchor, p)][:self.limits.max_bundle_size]
                     if current_cached:
                         return current_cached
             except Exception:
@@ -838,7 +840,9 @@ class AICommerceEngine:
             except asyncio.TimeoutError:
                 logger.warning("bundle generation timed out", extra={"anchor_id": str(anchor.id)})
                 fallback = await self._get_emergency_fallback(db, anchor_category or clean_name_root, search_filter)
-                return self._filter_products(fallback, search_filter)[:self.limits.max_bundle_size]
+                current_fallback = await self._fetch_products_from_db_by_ids(db, [int(p.id) for p in fallback])
+                return [p for p in self._filter_products(current_fallback, search_filter)
+                        if catalog_asserts_complement(anchor, p)][:self.limits.max_bundle_size]
 
             approved: List[Product] = []
             seen_ids: set[Any] = {anchor.id}
@@ -847,7 +851,7 @@ class AICommerceEngine:
             for group in grouped_results:
                 selected: Optional[Product] = None
                 for item in group:
-                    if item.id in seen_ids:
+                    if item.id in seen_ids or not catalog_asserts_complement(anchor, item):
                         continue
 
                     item_price = _safe_product_price(item)
@@ -881,7 +885,7 @@ class AICommerceEngine:
             if len(approved) < 2:
                 fallback_items = await self._get_emergency_fallback(db, clean_name_root, search_filter)
                 for item in fallback_items:
-                    if item.id in seen_ids:
+                    if item.id in seen_ids or not catalog_asserts_complement(anchor, item):
                         continue
                     approved.append(item)
                     seen_ids.add(item.id)
@@ -889,7 +893,8 @@ class AICommerceEngine:
                         break
 
             current = await self._fetch_products_from_db_by_ids(db, [int(p.id) for p in approved])
-            final_result = self._filter_products(current, search_filter)[:self.limits.max_bundle_size]
+            final_result = [p for p in self._filter_products(current, search_filter)
+                            if catalog_asserts_complement(anchor, p)][:self.limits.max_bundle_size]
 
             if self.cache_client and final_result:
                 try:
