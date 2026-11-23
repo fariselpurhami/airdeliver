@@ -82,3 +82,17 @@ async def test_actual_groq_sdk_serializes_isolated_roles_over_loopback_http():
         assert 'UNTRUSTED_LOCAL_WEB' in messages[1]['content']
     finally:
         await sdk.close();await asyncio.to_thread(server.shutdown);server.server_close();thread.join(timeout=2)
+
+
+@pytest.mark.asyncio
+async def test_recommendation_query_and_catalog_remain_user_data_not_system_policy():
+    svc=service()
+    svc._chat_completion=AsyncMock(return_value=completion(json.dumps({'selected_ids':[7], 'reasoning':{'7':'Listed item'}, 'intro_message':'One listed match','confidence_score':0.5})))
+    result=await svc.filter_and_recommend('CUSTOMER_QUERY_MARKER', [{'id':7,'name':'CATALOG_MARKER','price':10,'rating':4,'category':'shoes'}])
+    assert result.selected_ids==[7]
+    messages=svc._chat_completion.await_args.kwargs['messages']
+    assert 'CUSTOMER_QUERY_MARKER' not in messages[0]['content']
+    assert 'CATALOG_MARKER' not in messages[0]['content']
+    data=json.loads(messages[1]['content'])
+    assert data['customer_query']=='CUSTOMER_QUERY_MARKER'
+    assert data['products'][0]['name']=='CATALOG_MARKER'
