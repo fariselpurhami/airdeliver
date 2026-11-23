@@ -7,7 +7,8 @@ import { useSession, signOut } from "next-auth/react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from 'next/image';
 import useSWR from 'swr';
-import { api } from '@/lib/api'; 
+import { api } from '@/lib/api';
+import CustomerMemoryControls from '@/components/profile/CustomerMemoryControls';
 import { redirect } from 'next/navigation';
 import { toast } from 'sonner'; 
 import { Canvas, useFrame } from '@react-three/fiber';
@@ -390,6 +391,7 @@ export default function ProfilePage() {
                                 colorClass="bg-red-500"
                             />
                         </div>
+                        <CustomerMemoryControls />
                     </motion.div>
                 </div>
 
