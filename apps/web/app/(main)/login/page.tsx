@@ -458,7 +458,7 @@ export default function AuthPage() {
             <div className="contents">
                 
                 {/* Auth Form Container */}
-                <div className="relative z-30 w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 text-center pointer-events-auto before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_at_center,rgba(5,5,5,0.8),transparent_75%)] before:-z-10">
+                <div className="relative z-30 w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 text-center pointer-events-auto before:absolute before:inset-0 before:bg-[radial-gradient(ellipse_at_center,rgba(5,5,5,0.98)_0%,rgba(5,5,5,0.92)_55%,transparent_100%)] before:rounded-[40px] before:-z-10">
                     <Suspense fallback={<div className="h-[400px] flex items-center justify-center"><div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" aria-label="Loading authentication forms..." /></div>}>
                         <AuthFormOrchestrator />
                     </Suspense>
@@ -466,7 +466,7 @@ export default function AuthPage() {
 
                 {/* Same stage, card components and mobile frame as products. */}
                 <div className="hidden lg:contents"><FloatingHeroCards /></div>
-                <div className="absolute inset-x-5 top-28 bottom-16 lg:hidden pointer-events-none" data-mobile-auth-distribution><MobileHomeFloatingCards /></div>
+                <div className="absolute inset-x-5 top-28 bottom-16 lg:hidden pointer-events-none" data-mobile-auth-distribution style={{ opacity: 0.32 }}><MobileHomeFloatingCards /></div>
 
             </div>
         </main>
