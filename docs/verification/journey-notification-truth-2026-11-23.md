@@ -15,3 +15,9 @@ Verification:
 - 390px and 1280px rendered page-content fixtures inspected. Width remains viewport width. These are deterministic rendered content fixtures, not authenticated live-session proof; shell/auth/provider end-to-end remains unproven.
 
 Not closed: provider dispatch/delivery receipts, customer preferences/consent, queue retries and retention policy require separate decisions and proof. This draft does not claim full item-8 closure or production readiness. No merge without per-PR approval.
+
+## Design revision after owner review
+
+Replaced the decorative communications-log heading with clear notifications/account wording and lowercase airdeliver. Added persistent cyan/violet atmosphere and a subtle grid behind the retained background foundation, a glass saved-updates panel, balanced desktop information rail, grouped cards, contained refresh/filter controls and explicit pagination. Mobile actions remain visible with touch targets. Empty/loading states now explain their state without claiming channel health. In-app-only caveat remains visible.
+
+Latest frontend proof: 118 tests/22 suites, tsc and production build pass. Inspected 390px populated/empty/loading content fixtures plus 1280px populated fixture, no horizontal overflow. This revision remains rendered-content proof, not authenticated full-shell proof.

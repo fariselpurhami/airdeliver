@@ -35,3 +35,14 @@ it('undo prevents the delete and restores the saved notice',async()=>{
  fireEvent.click(screen.getByRole('button',{name:'Undo'}));await act(async()=>{jest.advanceTimersByTime(4100);});jest.useRealTimers();
  expect(api.delete).not.toHaveBeenCalled();expect(screen.getByText(fixture.title)).toBeInTheDocument();
 });
+
+it('shows a useful empty state without claiming channel health',async()=>{
+ jest.mocked(api.get).mockResolvedValue({data:{items:[],total:0}});page();await screen.findByText('No notices in this view');
+ expect(screen.queryByText(/All Systems Nominal/)).not.toBeInTheDocument();
+ if(process.env.NOTIFICATION_PREVIEW_HTML)fs.writeFileSync('/tmp/notification-empty.html','<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/notification-preview.css"></head><body style="margin:0">'+document.body.innerHTML+'</body></html>');
+});
+it('shows named loading skeletons and no false empty result',()=>{
+ jest.mocked(api.get).mockImplementation(()=>new Promise(()=>{}));page();expect(screen.getByRole('status',{name:'Loading notifications'})).toBeInTheDocument();
+ expect(screen.queryByText('No notices in this view')).not.toBeInTheDocument();
+ if(process.env.NOTIFICATION_PREVIEW_HTML)fs.writeFileSync('/tmp/notification-loading.html','<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/notification-preview.css"></head><body style="margin:0">'+document.body.innerHTML+'</body></html>');
+});

@@ -18,7 +18,7 @@ import {
     X,
     Clock,
     Activity,
-    Signal
+    Signal, RefreshCw, ChevronLeft, ChevronRight, ArrowUpRight, Inbox
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -55,7 +55,7 @@ const getGroupTitle = (dateStr: string) => {
     yesterday.setDate(yesterday.getDate() - 1);
     if (date.toDateString() === today.toDateString()) { return 'Today'; }
     if (date.toDateString() === yesterday.toDateString()) { return 'Yesterday'; }
-    return 'System Logs';
+    return 'Earlier';
 };
 
 // ============================================================================
@@ -148,16 +148,16 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, x: -50, scale: 0.9 }}
       transition={{ delay: index * 0.05, type: 'spring', stiffness: 200, damping: 25 }}
-      className={`group relative p-6 rounded-[30px] border transition-all duration-500 ${
+      className={`group relative p-5 sm:p-6 rounded-[26px] border transition-all duration-500 ${
         read
-          ? 'bg-white/5 border-white/5 hover:border-white/10'
-          : 'bg-black/40 backdrop-blur-xl border-cyan-500/30 shadow-[0_0_30px_rgba(6,182,212,0.05)] hover:border-cyan-400/50 hover:shadow-[0_0_40px_rgba(6,182,212,0.1)]'
+          ? 'bg-slate-950/50 border-white/10 hover:border-white/20'
+          : 'bg-gradient-to-br from-cyan-950/40 via-slate-950/80 to-violet-950/30 backdrop-blur-xl border-cyan-400/25 shadow-[0_12px_50px_rgba(0,0,0,0.25)] hover:border-cyan-300/50'
       }`}
     >
       <div className="flex items-start gap-3 sm:gap-6">
         {/* Status Indicator */}
         <div className="flex-shrink-0 relative">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${config.bg} ${config.border} ${config.color} transition-transform group-hover:scale-110 duration-500`}>
+            <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center border ${config.bg} ${config.border} ${config.color} transition-transform group-hover:scale-110 duration-500`}>
                 <Icon size={24} />
             </div>
             {!read && (
@@ -168,7 +168,7 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
         {/* Content Core */}
         <div className="flex-grow min-w-0 pt-1">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-                <h4 className={`text-lg font-bold mb-1 transition-colors ${read ? 'text-gray-500' : 'text-white'}`} style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                <h4 className={`text-base sm:text-lg font-semibold mb-1 leading-snug transition-colors ${read ? 'text-slate-300' : 'text-white'}`}>
                     {title}
                 </h4>
                 <span className="text-xs text-gray-400 font-mono flex items-center gap-1.5 sm:whitespace-nowrap sm:ml-4">
@@ -176,13 +176,13 @@ const NotificationItem = ({ notification, onMarkAsRead, onDismiss, index }: {
                 </span>
             </div>
             
-            <p className={`text-sm leading-relaxed mb-4 ${read ? 'text-gray-600' : 'text-gray-300'}`}>
+            <p className={`text-sm leading-relaxed mb-4 ${read ? 'text-slate-400' : 'text-slate-300'}`}>
                 {body}
             </p>
 
             {cta && /^\/tracking\/[1-9]\d{0,9}$/.test(cta) && Number(cta.split('/').at(-1))<=2147483647 && (
-                <Link href={cta} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-all flex items-center gap-2">
-                    Open order <Activity size={14} />
+                <Link href={cta} className="inline-flex min-h-11 px-4 py-2 rounded-xl bg-cyan-400/10 border border-cyan-300/20 text-sm font-semibold text-cyan-200 hover:bg-cyan-400/20 hover:border-cyan-300/40 transition-all items-center gap-2">
+                    Open order <ArrowUpRight size={16} />
                 </Link>
             )}
         </div>
@@ -216,25 +216,25 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
   const filters = ['All', 'Unread', 'Orders', 'Security'];
 
   return (
-    <div className="sticky top-24 z-30 w-full max-w-4xl mx-auto mb-12">
-        <div className="relative p-2 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl flex items-center justify-between">
+    <div className="relative z-30 w-full mb-7">
+        <div className="relative p-1.5 rounded-2xl bg-white/[0.035] backdrop-blur-xl border border-white/10 flex items-center justify-between gap-2">
             
             {/* Filter Switch */}
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar px-2">
+            <div className="flex items-center gap-1 flex-wrap">
                 {filters.map((filter) => (
                     <button
                         key={filter}
                         onClick={() => onFilterChange(filter)}
-                        className={`relative px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 whitespace-nowrap ${
+                        className={`relative px-3 sm:px-5 py-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 whitespace-nowrap ${
                             activeFilter === filter 
                             ? 'text-black shadow-[0_0_20px_rgba(34,211,238,0.4)]' 
-                            : 'text-gray-500 hover:text-white hover:bg-white/5'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
                         }`}
                     >
                         {activeFilter === filter && (
                             <motion.div 
                                 layoutId="filter-pill" 
-                                className="absolute inset-0 bg-cyan-400 rounded-full"
+                                className="absolute inset-0 bg-cyan-400 rounded-xl"
                                 transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                             />
                         )}
@@ -251,7 +251,7 @@ const ControlBar = ({ unreadCount, activeFilter, onFilterChange, onMarkAllAsRead
             </div>
 
             {/* Actions Pod */}
-            <div className="relative pl-2 border-l border-white/10">
+            <div className="relative shrink-0 border-l border-white/10 pl-1">
                 <button 
                     aria-label="Notification settings" onClick={() => setMenuOpen(!menuOpen)}
                     className="p-3 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
@@ -292,18 +292,18 @@ const CinematicEmptyState = () => (
     <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center justify-center text-center py-32"
+        className="flex flex-col items-center justify-center text-center py-14 px-5 rounded-3xl bg-white/[0.025] border border-white/10"
     >
-        <div className="relative mb-8">
+        <div className="relative mb-6">
             <div className="absolute inset-0 bg-cyan-500/20 blur-3xl rounded-full animate-pulse" />
-            <div className="relative p-8 rounded-[40px] bg-black/40 border border-white/10 backdrop-blur-xl">
-                <Signal size={48} className="text-cyan-400/50" />
+            <div className="relative p-5 rounded-3xl bg-black/40 border border-white/10 backdrop-blur-xl">
+                <Inbox size={36} className="text-cyan-300" />
             </div>
         </div>
-        <h3 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+        <h3 className="text-2xl font-bold text-white mb-2">
             No notices in this view
         </h3>
-        <p className="text-gray-500 max-w-xs font-light">
+        <p className="text-slate-400 max-w-sm text-sm leading-relaxed">
             No saved notifications match this page and filter.
         </p>
     </motion.div>
@@ -389,7 +389,7 @@ export default function NotificationsPage() {
         }, {} as Record<string, Notification[]>);
     }, [allNotifications, filter]);
 
-    const groups = ['Today', 'Yesterday', 'System Logs'];
+    const groups = ['Today', 'Yesterday', 'Earlier'];
     const hasData = Object.values(grouped).some(g => g.length > 0);
 
     return (
@@ -405,43 +405,29 @@ export default function NotificationsPage() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
             </div>
 
-            <div className="relative z-20 max-w-6xl mx-auto px-4 pt-24 space-y-4">
-                {error&&<p role="alert" className="rounded-xl border border-amber-300/30 p-4 text-sm text-amber-200">Notifications could not be refreshed. Any notices below are the last saved view.</p>}
-                {mutationError&&<p role="alert" className="rounded-xl border border-amber-300/30 p-4 text-sm text-amber-200">{mutationError}</p>}
-                <div className="flex flex-wrap gap-3 items-center text-xs text-slate-300">
-                    <button type="button" onClick={()=>void mutate()} className="rounded-xl border border-white/15 px-4 py-3">Refresh notifications</button>
-                    <span>Page {page} · {history?.total??0} saved notifications. Checks every minute while visible and online.</span>
-                    <button disabled={page===1 || !!undoItem} onClick={()=>setPage(p=>p-1)} className="px-3 py-3 disabled:opacity-40">Previous</button>
-                    <button disabled={!history || page*20>=history.total || !!undoItem} onClick={()=>setPage(p=>p+1)} className="px-3 py-3 disabled:opacity-40">Next</button>
-                </div>
-                <p className="text-xs text-slate-500">Filters apply to this page. These are saved in-app notices, not proof an email or push was delivered.</p>
-            </div>
-            {/* Header */}
-            <section className="relative z-10 pt-12 pb-10 px-4 text-center">
-                <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-cyan-500/20 bg-cyan-900/10 backdrop-blur-md mb-8">
-                        <Signal size={14} className="text-cyan-400" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-cyan-200/80">Neural Uplink V4.0</span>
+            <div aria-hidden="true" className="fixed inset-0 pointer-events-none z-0" style={{background:'radial-gradient(ellipse at 15% 15%,rgba(6,182,212,.14),transparent 48%),radial-gradient(ellipse at 90% 45%,rgba(124,58,237,.13),transparent 52%)'}} />
+            <div aria-hidden="true" className="fixed inset-0 pointer-events-none z-0 opacity-20" style={{backgroundImage:'linear-gradient(rgba(148,163,184,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.12) 1px,transparent 1px)',backgroundSize:'64px 64px',maskImage:'linear-gradient(to bottom,black,transparent)'}} />
+            <main className="relative z-10 mx-auto max-w-6xl px-5 sm:px-8 pt-28 sm:pt-36 pb-24">
+                <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-slate-400 mb-8">
+                    <Link href="/profile" className="hover:text-white transition-colors">Your account</Link><ChevronRight size={14}/><span className="text-cyan-200">Notifications</span>
+                </nav>
+                <section className="mb-9 sm:mb-12 max-w-3xl">
+                    <p className="text-xs font-semibold tracking-[.16em] text-cyan-300 mb-4">airdeliver / your updates</p>
+                    <h1 className="text-4xl sm:text-6xl font-semibold tracking-tight text-white mb-4">Your notifications<span className="text-cyan-300">.</span></h1>
+                    <p className="text-base sm:text-lg leading-relaxed text-slate-300 max-w-2xl">Order updates, account activity and saved notices. Everything you need to catch up, in one place.</p>
+                </section>
+                <div className="grid lg:grid-cols-[minmax(0,1fr)_280px] gap-6 lg:gap-8 items-start">
+                <section aria-label="Saved notifications" className="min-w-0 rounded-[30px] border border-white/10 bg-slate-950/60 backdrop-blur-2xl p-4 sm:p-7 shadow-[0_24px_100px_rgba(0,0,0,.3)]">
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                        <div><h2 className="text-lg font-semibold text-white">Saved updates</h2><p className="text-sm text-slate-400 mt-1">{history?`${history.total} saved ${history.total===1?'notification':'notifications'}`:'Checking your saved history'}</p></div>
+                        <button type="button" onClick={()=>void mutate()} className="inline-flex items-center gap-2 min-h-11 rounded-xl border border-white/15 bg-white/5 px-4 text-sm font-medium text-slate-200 hover:bg-white/10 transition-colors"><RefreshCw size={15}/>Refresh notifications</button>
                     </div>
-                    <h1 className="text-3xl sm:text-5xl md:text-7xl font-black text-white mb-6 tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        COMMUNICATION <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600">LOGS</span>
-                    </h1>
-                </motion.div>
-            </section>
-
-            {/* Main Interface */}
-            <div className="relative z-10 container mx-auto px-4 max-w-4xl pb-32">
-                
-                <ControlBar 
-                    unreadCount={allNotifications.filter(n => !n.read).length} 
-                    activeFilter={filter} 
-                    onFilterChange={setFilter} 
-                    onMarkAllAsRead={handleMarkAllAsRead} 
-                />
-
-                <motion.div layout className="space-y-12">
+                    {error&&<p role="alert" className="rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 mb-5 text-sm text-amber-200">Notifications could not be refreshed. Any notices below are the last saved view.</p>}
+                    {mutationError&&<p role="alert" className="rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 mb-5 text-sm text-amber-200">{mutationError}</p>}
+                    <ControlBar unreadCount={allNotifications.filter(n=>!n.read).length} activeFilter={filter} onFilterChange={setFilter} onMarkAllAsRead={handleMarkAllAsRead}/>
+                <motion.div layout className="space-y-7">
                     {isLoading && !initialNotifications ? (
-                        <div className="flex justify-center py-20"><Loader className="animate-spin text-cyan-400 w-12 h-12" /></div>
+                        <div role="status" aria-label="Loading notifications" className="space-y-4"><p className="flex items-center gap-2 text-sm text-slate-400"><Loader size={16} className="animate-spin"/>Loading your saved updates</p>{[1,2,3].map(i=><div key={i} className="h-32 rounded-3xl border border-white/5 bg-white/[0.03] animate-pulse"/>)}</div>
                     ) : error && !history ? (
                         <p className="text-center text-slate-400 py-16">The saved history is unavailable. Use Refresh notifications to try again.</p>
                     ) : !hasData ? (
@@ -454,7 +440,7 @@ export default function NotificationsPage() {
                             <motion.div key={group} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                 <div className="flex items-center gap-4 mb-6">
                                     <div className="h-px bg-white/10 flex-grow" />
-                                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500">{group}</span>
+                                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">{group}</span>
                                     <div className="h-px bg-white/10 flex-grow" />
                                 </div>
                                 <div className="space-y-4">
@@ -473,7 +459,30 @@ export default function NotificationsPage() {
                         })
                     )}
                 </motion.div>
-            </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 mt-7 pt-6 border-t border-white/10">
+                        <p className="text-sm text-slate-400">Page <span className="text-white">{page}</span>{history?` of ${Math.max(1,Math.ceil(history.total/20))}`:''}</p>
+                        <div className="flex gap-2">
+                            <button disabled={page===1 || !!undoItem} onClick={()=>setPage(p=>p-1)} className="inline-flex items-center gap-1 min-h-11 px-3 rounded-xl border border-white/10 bg-white/5 text-sm text-slate-200 hover:bg-white/10 disabled:opacity-30"><ChevronLeft size={16}/>Previous</button>
+                            <button disabled={!history || page*20>=history.total || !!undoItem} onClick={()=>setPage(p=>p+1)} className="inline-flex items-center gap-1 min-h-11 px-4 rounded-xl border border-cyan-300/20 bg-cyan-400/10 text-sm text-cyan-200 hover:bg-cyan-400/20 disabled:opacity-30">Next<ChevronRight size={16}/></button>
+                        </div>
+                        <p className="text-xs text-slate-500 w-full">Filters apply to the current page. New notices may move older updates to the next page.</p>
+                    </div>
+                </section>
+                <aside className="space-y-4">
+                    <div className="rounded-[26px] border border-cyan-300/15 bg-gradient-to-br from-cyan-950/40 to-slate-950/80 backdrop-blur-xl p-6">
+                        <div className="w-11 h-11 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 flex items-center justify-center text-cyan-300 mb-5"><Bell size={21}/></div>
+                        <h2 className="text-base font-semibold text-white mb-3">Saved here, for you</h2>
+                        <p className="text-sm leading-relaxed text-slate-300">These are saved in-app notices, not proof an email or push was delivered.</p>
+                        <p className="text-sm leading-relaxed text-slate-400 mt-4">Checks every minute while visible and online. You can refresh at any time.</p>
+                    </div>
+                    <div className="rounded-[26px] border border-white/10 bg-white/[0.025] backdrop-blur-xl p-6">
+                        <h2 className="text-base font-semibold text-white mb-3">Looking for an order?</h2>
+                        <p className="text-sm text-slate-400 leading-relaxed mb-5">Open an order update to see its latest saved status and details.</p>
+                        <Link href="/profile" className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-200 hover:text-white">View order history<ArrowUpRight size={16}/></Link>
+                    </div>
+                </aside>
+                </div>
+            </main>
 
             {/* Undo Toast */}
             <AnimatePresence>
@@ -482,7 +491,7 @@ export default function NotificationsPage() {
                         initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
                         className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-xl border border-white/10 px-6 py-4 rounded-full flex items-center gap-6 z-50 shadow-2xl"
                     >
-                        <span className="text-sm text-gray-300">Archive updated</span>
+                        <span className="text-sm text-gray-300">Dismissal pending</span>
                         <button onClick={handleUndo} disabled={isDeleting} className="text-sm font-bold text-cyan-400 hover:text-cyan-300 uppercase tracking-wider">Undo</button>
                     </motion.div>
                 )}
