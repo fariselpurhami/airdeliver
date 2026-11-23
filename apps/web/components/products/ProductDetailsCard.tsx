@@ -197,7 +197,7 @@ const ProductDetailsCardComponent = ({
           </div>
         </section>
 
-        <DemoImageAttribution product={product} />
+        <DemoImageAttribution product={product} expanded />
         <section className="min-w-0">
           <div className="flex max-h-[calc(100dvh-12rem)] flex-col overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[calc(92dvh-2rem)] sm:px-6 sm:py-6">
             <div className="min-w-0">

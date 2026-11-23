@@ -1,0 +1,5 @@
+# Compact demo image credit
+
+Cards use a small navy/cyan information affordance with a44px touch target. Native details/summary supports touch, mouse and keyboard Enter/Space without fragile hover-only UI. Expanded inline panel stays inside card bounds, no clipping or popup behind adjacent cards. Full source, creator, CC-BY-SA link, reference-only/no-endorsement caveat and fallback notice retained. Product details shows full credit by default. Merchant images unchanged.
+
+Local108 tests/19 suites, TypeScript and production build pass. Actual production route with synthetic intercepted API data inspected at390px and desktop: collapsed featured/grid, expanded featured and full detail credit. Keyboard Enter toggle checked in browser. No live database/provider calls. Shared component covers featured, ProductCard, catalog and AI carousel surfaces; original card behavior protected by stopping disclosure event propagation. Existing demo photo scope unchanged. No licensing removal, deployment or machine action. CI must pass before merge review.
