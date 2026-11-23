@@ -16,6 +16,8 @@ from hashlib import sha256
 from typing import Any, Awaitable, Callable, Dict, Iterable, List, Literal, Mapping, Optional, Protocol, Sequence, Tuple, Type, TypeVar, Union
 
 from groq import AsyncGroq, APIConnectionError, APIStatusError
+from app.core.ai_profile import get_ai_profile
+from app.services.ai_adapters import GroqAdapter
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from tavily import TavilyClient
 
@@ -139,9 +141,9 @@ class ServiceModels:
     # Defaults verified against the live Groq model catalog (2026-11):
     # qwen/qwen3.6-27b was removed; qwen/qwen3.8-27b is its vision-capable successor.
     # Env overrides: GROQ_BRAIN_MODEL / GROQ_MODEL / GROQ_VISION_MODEL.
-    brain_model: str = field(default_factory=lambda: os.getenv("GROQ_BRAIN_MODEL", "openai/gpt-oss-120b"))
-    reflex_model: str = field(default_factory=lambda: os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"))
-    vision_model: str = field(default_factory=lambda: os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.8-27b"))
+    brain_model: str = field(default_factory=lambda: get_ai_profile().brain_model)
+    reflex_model: str = field(default_factory=lambda: get_ai_profile().reflex_model)
+    vision_model: str = field(default_factory=lambda: get_ai_profile().vision_model)
 
 
 @dataclass(frozen=True)
@@ -419,7 +421,7 @@ class FreeLLMService:
         async with self._client_lock:
             if self._client is None:
                 try:
-                    self._client = AsyncGroq(api_key=self._groq_api_key, max_retries=0)
+                    self._client = GroqAdapter(get_ai_profile(), AsyncGroq).create_client(api_key=self._groq_api_key)
                 except Exception as exc:
                     raise ProviderUnavailableError("failed to initialize Groq client") from exc
 

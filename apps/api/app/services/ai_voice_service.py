@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, Final, List, Optional, Set
 
+from app.core.ai_profile import get_ai_profile
+from app.services.ai_adapters import ElevenLabsConversationAdapter
 import websockets
 from fastapi import WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ValidationError
@@ -33,7 +35,7 @@ from app.services.ai_nlu_service import ProductAccess, RedisKeys, UserDnaStore, 
 class VoiceConfig:
     ELEVENLABS_API_KEY: Final[str | None] = os.getenv("ELEVENLABS_API_KEY")
     ELEVENLABS_AGENT_ID: Final[str | None] = os.getenv("ELEVENLABS_AGENT_ID")
-    ELEVENLABS_WS_URL_TEMPLATE: Final[str] = "wss://api.elevenlabs.io/v1/convai/conversation?agent_id={agent_id}"
+    ELEVENLABS_WS_URL_TEMPLATE: Final[str] = get_ai_profile().voice_ws_template
     
     MAX_AUDIO_QUEUE_SIZE: Final[int] = 60 
     MAX_TEXT_BUFFER_SIZE: Final[int] = 512
@@ -244,9 +246,9 @@ class AIVoiceOrchestrator:
         try:
             # 1. Establish Upstream Connection
             try:
-                eleven_ws = await websockets.connect(
-                    VoiceConfig.get_ws_url(),
-                    additional_headers=VoiceConfig.get_auth_headers(),
+                eleven_ws = await ElevenLabsConversationAdapter(get_ai_profile()).connect(
+                    websockets.connect, VoiceConfig.get_ws_url(),
+                    headers=VoiceConfig.get_auth_headers(),
                     ping_interval=VoiceConfig.WS_PING_INTERVAL,
                     ping_timeout=VoiceConfig.WS_PING_TIMEOUT
                 )
