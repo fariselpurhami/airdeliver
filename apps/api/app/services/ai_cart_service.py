@@ -472,10 +472,18 @@ class AICartService:
 
             await self.db.commit()
 
-            await self.cache.delete(self._get_cart_key(payload.user_id))
+            try:
+                await self.cache.delete_required(self._get_cart_key(payload.user_id))
+            except Exception as exc:
+                logger.warning("saved cart committed but cache cleanup unconfirmed", extra={"error_type": type(exc).__name__})
+                await self._send_to_ui(payload.user_id, {
+                    "content": "Your saved list was recorded, but clearing the active cart could not be confirmed. Refresh your cart before saving again.",
+                    "type": "error",
+                })
+                return
 
             await self._send_to_ui(payload.user_id, {
-                "content": "Done! You can restore it from your profile.",
+                "content": "Your list was saved to your profile and the active cart was cleared.",
                 "type": "success_text"
             })
 
