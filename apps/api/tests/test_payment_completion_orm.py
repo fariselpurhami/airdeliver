@@ -16,7 +16,7 @@ def payment_service(monkeypatch):
     from app.models.payment_outbox import PaymentOutbox
     PaymentOutbox.__table__.create(engine)
     with Session(engine, expire_on_commit=False) as session:
-        order = Order(id=7, user_id=99, total_price=42.5)
+        order = Order(id=7, user_id=99, total_price=42.5, checkout_data={"cart_snapshot":{"items":[],"total":"42.50"}})
         session.add(order)
         session.commit()
         db = MagicMock()
@@ -43,7 +43,7 @@ async def test_real_model_finalization_records_paid_state(payment_service):
     assert order.paid_at is not None
     assert order.payment_transaction_id == "pi_verified"
     assert order.stripe_payment_id == "pi_verified"
-    cache.delete.assert_awaited_once_with("ai_cart:99")
+    cache.compare_json_required.assert_awaited_once_with("ai_cart:99", order.checkout_data["cart_snapshot"], None, delete=True)
     assert len(broker.publish.await_args_list) == 3
 
 

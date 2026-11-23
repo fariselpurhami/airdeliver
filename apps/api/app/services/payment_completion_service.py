@@ -69,7 +69,16 @@ class PaymentCompletionService:
         # outbox. Transactional, idempotent reward handling is separate work.
         if self.cache is not None:
             try:
-                await self.cache.delete(f"{self.CART_KEY_PREFIX}{user_id}")
+                snapshot = (order.checkout_data or {}).get("cart_snapshot")
+                if isinstance(snapshot, dict) and isinstance(snapshot.get("items"), list):
+                    removed = await self.cache.compare_json_required(
+                        f"{self.CART_KEY_PREFIX}{user_id}", snapshot, None, delete=True)
+                    if removed is not True:
+                        logger.info("Post-payment cart differs from checkout; preserved", extra={"order_id": order_id})
+                else:
+                    # Old orders have no reliable cart snapshot. Never guess
+                    # that the customer's current cart belongs to this payment.
+                    logger.info("Post-payment cart preserved without checkout snapshot", extra={"order_id": order_id})
             except Exception:
                 logger.warning("Cart cleanup after payment failed", extra={"user_id": user_id})
         try:

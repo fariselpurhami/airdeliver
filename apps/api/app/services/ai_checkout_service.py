@@ -317,6 +317,7 @@ class AICheckoutService:
                           "source": "ai_chat_checkout"},
             )
             new_order.checkout_data = {
+                "cart_snapshot": original_cart,
                 "payment_request": payment_request.model_dump(mode="json"),
                 "ui_items": [{"id": item["product_id"], "name": item["name"],
                               "quantity": item["quantity"], "price": float(item["price"])}
