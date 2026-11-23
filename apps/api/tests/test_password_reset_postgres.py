@@ -130,3 +130,80 @@ async def test_refresh_token_version_revoked_after_reset(reset_db):
   with pytest.raises(HTTPException) as error:
    await refresh_access_token.__wrapped__(request=Request({'type':'http','method':'POST','headers':[],'path':'/','client':('192.0.2.1',1)}),refresh_token=old,db=db)
   assert error.value.status_code==401
+
+
+def configured_delivery():
+ from pydantic import SecretStr
+ return settings.model_copy(update={'PASSWORD_RESET_ENABLED':True,'PASSWORD_RESET_WEB_ORIGIN':'https://shop.example.test','RESET_SMTP_HOST':'mail.example.test','RESET_SMTP_USERNAME':'fixture','RESET_SMTP_PASSWORD':SecretStr('fixture-not-real'),'RESET_EMAIL_FROM':'security@example.test'})
+
+@pytest.mark.asyncio
+async def test_concurrent_workers_and_reset_have_consistent_lock_order(reset_db):
+ import threading
+ from app.services.password_reset_service import dispatch_pending
+ from app.models.password_reset import PasswordResetDelivery
+ sessions,uid,email=reset_db;cfg=configured_delivery()
+ async with sessions() as db:
+  await db.execute(update(PasswordResetDelivery).values(expires_at=datetime.now(timezone.utc)-timedelta(seconds=1)));await db.commit()
+  _,link=await issue_reset(db,email,'worker-lock-'+uuid4().hex,cfg)
+ entered=threading.Event();release=threading.Event();received=[]
+ def sender(*args):
+  received.append(args)
+  entered.set()
+  assert release.wait(5)
+ async def worker():
+  async with sessions() as db:return await dispatch_pending(db,cfg,sender)
+ async def reset():
+  async with sessions() as db:return await consume_reset(db,link.split('#token=')[1],'new-worker-test-password')
+ first=asyncio.create_task(worker())
+ try:
+  assert await asyncio.to_thread(entered.wait,5)
+  second=asyncio.create_task(worker())
+  assert await asyncio.wait_for(second,2)==0
+  reset_task=asyncio.create_task(reset())
+  await asyncio.sleep(.05)
+  assert not reset_task.done()
+ finally:release.set()
+ assert await asyncio.wait_for(first,5)==1
+ assert await asyncio.wait_for(reset_task,5)
+ assert len(received)==1
+ async with sessions() as db:
+  assert await dispatch_pending(db,cfg,sender)==0
+  user=await db.get(User,uid);assert user.auth_version==1
+
+@pytest.mark.asyncio
+async def test_final_delivery_failure_scrubs_retry_secret(reset_db):
+ from app.services.password_reset_service import dispatch_pending
+ from app.models.password_reset import PasswordResetDelivery
+ sessions,uid,email=reset_db;cfg=configured_delivery()
+ async with sessions() as db:
+  await db.execute(update(PasswordResetDelivery).values(expires_at=datetime.now(timezone.utc)-timedelta(seconds=1)));await db.commit()
+  await issue_reset(db,email,'final-failure-'+uuid4().hex,cfg)
+  await db.execute(update(PasswordResetDelivery).where(PasswordResetDelivery.user_id==uid).values(attempts=4));await db.commit()
+  def fail(*args):raise OSError('fixture failure')
+  assert await dispatch_pending(db,cfg,fail)==0
+  row=(await db.execute(select(PasswordResetDelivery).where(PasswordResetDelivery.user_id==uid))).scalars().one()
+  assert row.attempts==5 and not row.encrypted_payload
+  events=(await db.execute(select(PasswordResetAudit).where(PasswordResetAudit.user_id==uid))).scalars().all()
+  assert 'delivery_exhausted' in {event.event for event in events}
+  assert await dispatch_pending(db,cfg,fail)==0
+
+
+@pytest.mark.asyncio
+async def test_password_change_rechecks_fresh_password_after_concurrent_reset(reset_db):
+ from app.api.v1.endpoints.users import change_user_password,ChangePasswordRequest
+ sessions,uid,email=reset_db
+ async with sessions() as stale:
+  before_reset=await stale.get(User,uid)
+  async with sessions() as db:
+   _,link=await issue_reset(db,email,'change-race-'+uuid4().hex,settings)
+   assert await consume_reset(db,link.split('#token=')[1],'reset-won-password')
+  with pytest.raises(HTTPException) as error:
+   await change_user_password(session=stale,current_user=before_reset,password_data=ChangePasswordRequest(current_password='old-test-password',new_password='must-not-overwrite'))
+  assert error.value.status_code==401
+  await stale.rollback()
+ async with sessions() as db:
+  user=await db.get(User,uid)
+  assert user.auth_version==1 and verify_password('reset-won-password',user.hashed_password)
+  assert await change_user_password(session=db,current_user=user,password_data=ChangePasswordRequest(current_password='reset-won-password',new_password='legitimate-new-password'))
+  await db.refresh(user)
+  assert user.auth_version==2 and verify_password('legitimate-new-password',user.hashed_password)

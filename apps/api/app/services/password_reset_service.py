@@ -96,24 +96,48 @@ def send_reset_email(recipient, link, settings):
 
 
 async def dispatch_pending(db, settings, sender=send_reset_email):
-    """Bounded durable outbox batch, exclusive worker locks, at-least-once delivery."""
+    """Bounded outbox. All paths lock user before delivery to avoid lock inversion.
+
+    SMTP is at-least-once. A process crash after acceptance can repeat the
+    message; the credential itself remains single-use. One row commits at a
+    time so a slow destination never holds an entire batch of user locks.
+    """
     if not delivery_ready(settings):return 0
     now=datetime.now(timezone.utc)
     await db.execute(update(PasswordResetDelivery).where(PasswordResetDelivery.expires_at<=now,PasswordResetDelivery.encrypted_payload!='').values(encrypted_payload=''))
-    rows=(await db.execute(select(PasswordResetDelivery).where(PasswordResetDelivery.sent_at.is_(None),PasswordResetDelivery.expires_at>now,PasswordResetDelivery.attempts<5).order_by(PasswordResetDelivery.id).limit(10).with_for_update(skip_locked=True))).scalars().all()
+    await db.commit()
+    candidates=(await db.execute(select(PasswordResetDelivery.id,PasswordResetDelivery.user_id).where(PasswordResetDelivery.sent_at.is_(None),PasswordResetDelivery.expires_at>now,PasswordResetDelivery.attempts<5).order_by(PasswordResetDelivery.id).limit(10))).all()
+    await db.commit()
     sent=0
     key=base64.urlsafe_b64encode(hmac.new(settings.SECRET_KEY.get_secret_value().encode(),b'airdeliver-reset-delivery-v1',hashlib.sha256).digest())
-    for row in rows:
+    for delivery_id,user_id in candidates:
+        user=(await db.execute(select(User).where(User.id==user_id).with_for_update(skip_locked=True))).scalars().first()
+        if user is None:
+            await db.rollback()
+            continue
+        row=(await db.execute(select(PasswordResetDelivery).where(PasswordResetDelivery.id==delivery_id,PasswordResetDelivery.sent_at.is_(None),PasswordResetDelivery.expires_at>datetime.now(timezone.utc),PasswordResetDelivery.attempts<5).with_for_update(skip_locked=True).execution_options(populate_existing=True))).scalars().first()
+        if row is None:
+            await db.rollback()
+            continue
+        if not user.is_active:
+            row.encrypted_payload=''
+            row.sent_at=datetime.now(timezone.utc)
+            db.add(row)
+            await db.commit()
+            continue
         row.attempts+=1
         try:
             payload=json.loads(Fernet(key).decrypt(row.encrypted_payload.encode()))
             await asyncio.to_thread(sender,payload['recipient'],payload['link'],settings)
         except Exception:
             db.add(PasswordResetAudit(user_id=row.user_id,event='delivery_failed'))
+            if row.attempts>=5:
+                row.encrypted_payload=''
+                db.add(PasswordResetAudit(user_id=row.user_id,event='delivery_exhausted'))
         else:
             row.sent_at=datetime.now(timezone.utc)
             row.encrypted_payload=''
             db.add(PasswordResetAudit(user_id=row.user_id,event='delivery_sent'));sent+=1
         db.add(row)
-    await db.commit()
+        await db.commit()
     return sent

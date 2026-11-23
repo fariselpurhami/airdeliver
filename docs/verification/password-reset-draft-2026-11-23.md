@@ -16,6 +16,16 @@ SMTP TLS adapter and encrypted durable outbox. Worker is explicit opt-in command
 
 ## Evidence so far
 
-Disposable migrated PostgreSQL reset boundary tests9passed before later SMTP/refresh cases; full backend latest1016passed4skipped, one Redis load test failed (100success18rate-limited instead of50, admission timeouts). Exact isolated retry2passed. Earlier full checkpoint1011passed4skipped. Do not present failing full run as green.114frontend tests22suites, TypeScript and production build pass. Production-preview390px/desktop reset/request pages inspected, screenshot fixtures only. No live provider/payment/Groq/email call. Existing voice tests extended with user lookup because ticket validation now checks real user version.
+Disposable migrated PostgreSQL reset boundary tests9passed before later SMTP/refresh cases; full backend latest1016passed4skipped, one Redis load test failed (100success18rate-limited instead of50, admission timeouts). Exact isolated retry2passed. Earlier full checkpoint1011passed4skipped. Do not present failing full run as green.115frontend tests22suites, TypeScript and production build pass. Production-preview390px/desktop reset/request pages inspected, screenshot fixtures only. No live provider/payment/Groq/email call. Existing voice tests extended with user lookup because ticket validation now checks real user version.
 
 This PR is implementation progress, not production-ready delivery. Preserve all gates and finish tests/review before requesting merge.
+
+## Follow-up review
+
+Privacy: request/confirm routes use no-store/no-referrer/noindex; proxy overwrites the internal recovery marker and root layout omits analytics on recovery pages. Actual production-preview headers and absence of analytics scripts checked. Fragment capture uses one-time ref to survive React StrictMode. Focused reset+auth checks23passed before worker refinement below.
+
+Outbox concurrency refinement: worker now locks user before delivery, matching request/reset lock order; worker2 skips a user being delivered, reset waits then invalidates. Individual delivery transactions, not one SMTP batch-wide transaction. Test uses independent real PostgreSQL sessions, blocked fixture sender and concurrent reset; verifies one sender, second worker skip, successful reset with no deadlock. Final fifth failure scrubs encrypted retry payload and records delivery_exhausted. Focused reset HTTP/DB/session14passed after this refinement. SMTP remains a test double; no provider request.
+
+PR19 Motion14 merged separately424741db1a23ef2a3ce3e2bafb3fbc4abc0e2337, post-main frontend+guard green. Reset draftdb08468 frontend+guard green, backend matrix pending at review; this additional worker change needs fresh CI.
+
+Password-change stale-auth race closed: reload the user under user-first row lock, recheck current password, then increment version. A stale already-authenticated request cannot overwrite a password that reset just changed. Hashing/verifying moved off event loop for this endpoint. Real PostgreSQL test proves stale request401 and legitimate subsequent change version2. Current focused reset HTTP/DB/session15passed.

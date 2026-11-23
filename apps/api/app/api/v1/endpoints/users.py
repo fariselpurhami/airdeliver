@@ -70,14 +70,22 @@ async def change_user_password(
     password_data: ChangePasswordRequest,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
-    if not current_user.hashed_password or not security.verify_password(
-        password_data.current_password, current_user.hashed_password
+    # Authentication may precede a concurrent reset. Re-read under the same
+    # user-first lock order as reset issuance, consumption and mail delivery.
+    import asyncio
+    from sqlmodel import select
+    current_user = (await session.execute(
+        select(models.User).where(models.User.id == current_user.id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalars().first()
+    if not current_user or not current_user.is_active or not current_user.hashed_password or not await asyncio.to_thread(
+        security.verify_password, password_data.current_password, current_user.hashed_password
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect current password",
         )
-    new_hashed_password = security.get_password_hash(password_data.new_password)
+    new_hashed_password = await asyncio.to_thread(security.get_password_hash, password_data.new_password)
     current_user.hashed_password = new_hashed_password
     current_user.auth_version += 1
     from datetime import datetime, timezone
