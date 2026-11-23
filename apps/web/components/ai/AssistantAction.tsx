@@ -38,6 +38,6 @@ export default function AssistantAction({action}:{action:unknown}) {
   {state==='pending' && <p role="status">Submitting and checking your cart...</p>}
   {state==='checked' && <p role="status">Request processed. Review your refreshed cart for the current quantities and price. Unavailable items may not have been added.</p>}
   {state==='uncertain' && <p role="alert">The change could not be confirmed. Do not submit it again blindly. Open your cart and refresh before deciding what to do next.</p>}
-  <Link href="/cart" className="inline-block underline text-cyan-200">Review cart</Link>
+  <Link href="/cart" className="inline-flex min-h-11 items-center ml-3 underline text-cyan-200">Review cart</Link>
  </section>;
 }

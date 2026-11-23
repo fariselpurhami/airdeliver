@@ -34,3 +34,15 @@ async def test_router_cannot_invent_mutation_target_not_named_by_customer(monkey
  service._execute_llm_inference=AsyncMock(return_value='{"intent":"CART_ADD","query":"Atlas headphones","quantity":2}')
  response=await service._analyze_intent('add something',SessionMemory(user_name='Fixture'))
  assert response.query is None
+
+
+@pytest.mark.asyncio
+async def test_router_cannot_invent_nondefault_quantity(monkeypatch):
+ service=NeuralCoreService(object(),object());service.is_healthy=True
+ service._execute_llm_inference=AsyncMock(return_value='{"intent":"CART_ADD","query":"Atlas headphones","quantity":99}')
+ response=await service._analyze_intent('add Atlas headphones',SessionMemory(user_name='Fixture'))
+ assert response.query is None
+ response=await service._analyze_intent('add99 Atlas headphones',SessionMemory(user_name='Fixture'))
+ assert response.query is None
+ response=await service._analyze_intent('add 99 Atlas headphones',SessionMemory(user_name='Fixture'))
+ assert response.query=='Atlas headphones'

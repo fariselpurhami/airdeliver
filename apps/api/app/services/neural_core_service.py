@@ -6,6 +6,7 @@ import hashlib
 import anyio
 import logging
 import os
+import re
 import time
 from uuid import uuid4
 from typing import Any, Dict, Final, List, Literal, Optional
@@ -237,6 +238,8 @@ class NeuralCoreService:
             if decision.intent in {"CART_ADD", "CART_REMOVE"} and decision.query:
                 normalized_message=' '.join(message.casefold().split())
                 if ' '.join(decision.query.casefold().split()) not in normalized_message:
+                    decision.query=None
+                if decision.quantity!=1 and not re.search(r"(?<![\w.])"+str(decision.quantity)+r"(?![\w.])",message):
                     decision.query=None
             return decision
             
