@@ -1144,7 +1144,11 @@ class WorkerRuntime:
                 # the original broker delivery, never drop after a startup cap.
                 # Delay avoids a tight requeue loop while recovery warms up.
                 logger.warning("worker.startup_not_ready requeue=true error_type=%s",type(exc).__name__)
-                await asyncio.sleep(min(get_core_settings().AI_RECOVERY_INTERVAL_SECONDS,30))
+                try:
+                    await asyncio.sleep(min(get_core_settings().AI_RECOVERY_INTERVAL_SECONDS,30))
+                except asyncio.CancelledError:
+                    await message.reject(requeue=True)
+                    raise
                 await message.reject(requeue=True)
                 return
 

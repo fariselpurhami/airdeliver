@@ -141,3 +141,18 @@ async def test_real_broker_retains_not_ready_delivery_then_processes_once(monkey
     finally:
         await queue.delete(if_unused=False,if_empty=False)
         await connection.close()
+
+
+@pytest.mark.asyncio
+async def test_shutdown_during_readiness_backoff_retains_original_delivery(monkeypatch):
+    runtime=worker.WorkerRuntime();incoming=message();entered=asyncio.Event()
+    real_sleep=asyncio.sleep
+    async def sleep(delay):
+        entered.set();await asyncio.Event().wait()
+    monkeypatch.setattr(worker.asyncio,'sleep',sleep)
+    task=asyncio.create_task(runtime.smart_retry_wrapper(incoming,
+        AsyncMock(side_effect=worker.StartupDependencyError('WORKER_NOT_READY'))))
+    await asyncio.wait_for(entered.wait(),1);task.cancel()
+    with pytest.raises(asyncio.CancelledError):await task
+    incoming.reject.assert_awaited_once_with(requeue=True)
+    incoming.ack.assert_not_awaited()
