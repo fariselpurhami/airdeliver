@@ -88,3 +88,23 @@ def test_orders_db_error_returns_generic_500(client):
     # no infrastructure detail leaks to the client
     assert "connection reset" not in resp.text
     assert "sqlalchemy" not in resp.text.lower()
+
+
+def test_detail_database_outage_is_generic503(client):
+    _override_session(FakeSession(exc=SQLAlchemyError('private-database-connection')))
+    response=client.get('/api/v1/orders/me/1')
+    assert response.status_code==503 and 'private-database-connection' not in response.text
+
+
+def test_detail_requires_authentication():
+    from fastapi import FastAPI
+    from app.api.v1.endpoints.orders import router
+    isolated=FastAPI();isolated.include_router(router)
+    async def unauthorized():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401,detail='Authentication required')
+    isolated.dependency_overrides[deps.get_current_active_user]=unauthorized
+    async def no_database():yield None
+    isolated.dependency_overrides[deps.get_async_session]=no_database
+    response=TestClient(isolated).get('/me/1')
+    assert response.status_code==401
