@@ -504,6 +504,10 @@ class AICheckoutService:
                 logger.warning("Payment success signal for phantom order", extra={"order_id": payload.order_id})
                 return
 
+            if order.user_id != payload.user_id:
+                logger.warning("Payment success owner mismatch", extra={"order_id": payload.order_id})
+                return
+
             # Idempotency Check: Only process if PENDING
             if order.status != OrderStatus.PENDING:
                 logger.info("Ignoring duplicate payment success event", extra={"order_id": order.id, "current_status": order.status.name})
@@ -530,7 +534,10 @@ class AICheckoutService:
         except Exception as e:
             await self.db.rollback()
             logger.critical("Critical failure in payment success handler", extra={"order_id": payload.order_id, "error": str(e)})
-            await self._send_to_ui(payload.user_id, {"content": "Order confirmed! Check your email for details.", "type": "success_text"})
+            await self._send_to_ui(payload.user_id, {
+                "content": "Payment status could not be confirmed here. Check your existing order before paying again.",
+                "type": "error",
+            })
 
     # --- ❌ RECOVERY & CANCELLATION WORKFLOWS ---
 

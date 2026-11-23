@@ -323,3 +323,23 @@ async def test_missing_shipping_cannot_create_order_or_start_payment():
     await svc.handle_confirm_order({"user_id": 1, "email": "u@example.com"})
     assert not db.added
     orch.process_payment.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_legacy_payment_success_cannot_change_another_owners_order():
+    order=Order(id=9,user_id=2,status=OrderStatus.PENDING,total_price=21.0)
+    svc,cache,db,rabbit,_=make_service(order=order)
+    await svc.handle_payment_success({'user_id':1,'order_id':9})
+    assert order.status==OrderStatus.PENDING and not order.is_paid
+    assert db.commits==0 and cache.deleted==[] and cache.published==[] and rabbit.events==[]
+
+
+@pytest.mark.asyncio
+async def test_legacy_payment_commit_failure_never_claims_order_confirmed():
+    order=Order(id=9,user_id=1,status=OrderStatus.PENDING,total_price=21.0)
+    svc,cache,db,rabbit,_=make_service(order=order)
+    db.commit=AsyncMock(side_effect=ConnectionError('unconfirmed database commit'))
+    await svc.handle_payment_success({'user_id':1,'order_id':9})
+    assert db.rollbacks==1 and cache.deleted==[] and rabbit.events==[]
+    assert not any(p['type']=='success_text' for _,p in cache.published)
+    assert any('before paying again' in p.get('content','') for _,p in cache.published)
