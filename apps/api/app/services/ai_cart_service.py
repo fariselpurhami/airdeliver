@@ -92,13 +92,15 @@ class AICartService:
         cache: IAsyncCacheClient,
         rabbitmq: RabbitMQService,
         commerce_engine: Optional[AICommerceEngine] = None,
-        llm_service: Optional[FreeLLMService] = None
+        llm_service: Optional[FreeLLMService] = None,
+        shared_sales_followups: bool = True,
     ):
         self.db = db
         self.cache = cache
         self.rabbitmq = rabbitmq
         self.commerce_engine = commerce_engine
         self.llm_service = llm_service
+        self.shared_sales_followups = shared_sales_followups
 
     # --- 🔌 UI RESPONSE ROUTER ---
 
@@ -335,7 +337,7 @@ class AICartService:
             })
 
             # Vector Bundle Engine Injection
-            if self.commerce_engine:
+            if self.commerce_engine and not self.shared_sales_followups:
                 await self._trigger_intelligent_bundling(payload.user_id, product)
             else:
                 await self._request_optional_recommendations(payload.user_id, int(product.id), "added")
@@ -830,10 +832,10 @@ class AICartService:
                 )
                 return
 
-            if not self.commerce_engine and payload.action != "clear_all":
+            if payload.action != "clear_all" and (self.shared_sales_followups or not self.commerce_engine):
                 await self._request_optional_recommendations(payload.user_id, int(payload.product_id), "removed")
 
-            alternatives = await _find_alternatives(payload)
+            alternatives = [] if self.shared_sales_followups else await _find_alternatives(payload)
 
             if alternatives:
                 best_alternative = alternatives[0]

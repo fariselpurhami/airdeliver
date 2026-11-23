@@ -548,6 +548,18 @@ class FreeLLMService:
             )
             raise
 
+    async def infer_sales_json(self, messages: List[Dict[str, str]]) -> str:
+        """Strict sales transport adapter. Provider failures remain failures."""
+        completion = await self._chat_completion(
+            messages=messages, model=self.models.brain_model, temperature=0.2,
+            max_tokens=1200, response_format={"type": "json_object"},
+        )
+        message = completion.choices[0].message if completion and completion.choices else None
+        content = getattr(message, "content", None)
+        if not isinstance(content, str) or not content.strip():
+            raise StructuredOutputError("Empty sales completion")
+        return content.strip()
+
     async def generate_response(
         self,
         prompt: str,

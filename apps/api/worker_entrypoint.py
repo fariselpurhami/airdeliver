@@ -554,6 +554,45 @@ class WorkerRuntime:
         logger.info("cart_recommendation_completed elapsed_ms=%s", round((time.monotonic()-started)*1000))
 
     async def _cart_recommendation_observed(self, payload: dict) -> None:
+        from app.services.cart_sales_service import CartSalesService
+        event = CartRecommendationEvent.model_validate(payload)
+        await self.wait_for_readiness(required_ai=True)
+        async with self.services.session_maker() as db:
+            from app.services.ai_cart_service import AICartService
+            from app.models.product import Product
+            async with asyncio.timeout(30.0):
+                service = AICartService(db, self.services.cache, self.services.rabbitmq)
+                async def current_ids():
+                    cart = await service._get_cart_from_redis(event.user_id)
+                    return {line.product_id for line in cart.items}
+                ids = await current_ids()
+                if (event.product_id in ids) != (event.operation == 'added'):
+                    return
+                anchor = await db.get(Product, event.product_id, populate_existing=True)
+                if anchor is None:
+                    return
+                if event.operation == 'added':
+                    candidates = await self.services.commerce.generate_perfect_bundle(db, anchor)
+                else:
+                    candidates = await self.services.commerce.find_genius_alternatives(db, event.product_id, limit=3)
+                ids = await current_ids()
+                if (event.product_id in ids) != (event.operation == 'added'):
+                    return
+                response = await CartSalesService(db, getattr(self.services, 'llm', None)).respond(
+                    anchor_id=event.product_id, candidates=candidates, operation=event.operation, excluded=ids)
+                if response is None:
+                    return
+                latest = await current_ids()
+                if latest != ids:
+                    return
+                await service._send_to_ui(event.user_id, {
+                    'content': response.text, 'type': 'product_carousel',
+                    'products': [p.model_dump(mode='json') for p in response.products],
+                    'secondary_suggestions': True, 'reason': 'Model-reviewed catalog suggestions',
+                })
+
+    async def _legacy_cart_recommendation_observed(self, payload: dict) -> None:
+        """Preserved pre-model optional adapter; deliberately not traffic-wired."""
         # Dedicated read-only event. Never replay add/remove mutations here.
         event = CartRecommendationEvent.model_validate(payload)
         logger.info("cart_recommendation_stage_started stage=readiness")

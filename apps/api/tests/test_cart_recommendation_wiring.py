@@ -1,4 +1,6 @@
-"""Optional producer/consumer seam; no model/provider traffic or cart replay."""
+"""Producer contracts and preserved legacy consumer characterization.
+New production consumer is covered by test_cart_sales_postgres.py.
+"""
 import asyncio
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
@@ -61,7 +63,7 @@ async def test_consumer_reads_catalog_emits_carousel_and_never_mutates(operation
     runtime = WorkerRuntime.__new__(WorkerRuntime)
     runtime.wait_for_readiness = AsyncMock()
     runtime.services = SimpleNamespace(session_maker=session, cache=cache, rabbitmq=object(), commerce=engine)
-    await runtime.cart_recommendation_handler_impl({'version':1,'user_id':1,'product_id':7,'operation':operation})
+    await runtime._legacy_cart_recommendation_observed({'version':1,'user_id':1,'product_id':7,'operation':operation})
     assert len(cache.published) == 1
     assert cache.published[0][1]['products'][0]['id'] == 8
     assert 'verified' in cache.published[0][1]['content'] or 'Compare' in cache.published[0][1]['content']
@@ -79,7 +81,7 @@ async def test_delayed_add_event_is_skipped_if_anchor_already_removed():
     runtime=WorkerRuntime.__new__(WorkerRuntime)
     runtime.wait_for_readiness=AsyncMock()
     runtime.services=SimpleNamespace(session_maker=session,cache=cache,rabbitmq=object(),commerce=engine)
-    await runtime.cart_recommendation_handler_impl({'user_id':1,'product_id':7,'operation':'added'})
+    await runtime._legacy_cart_recommendation_observed({'user_id':1,'product_id':7,'operation':'added'})
     engine.generate_perfect_bundle.assert_not_called()
     assert cache.published == []
 
@@ -102,7 +104,7 @@ async def test_membership_changed_during_search_suppresses_stale_advice(operatio
     async def session():yield FakeDB(make_product())
     runtime=WorkerRuntime.__new__(WorkerRuntime);runtime.wait_for_readiness=AsyncMock()
     runtime.services=SimpleNamespace(session_maker=session,cache=cache,rabbitmq=object(),commerce=engine)
-    await runtime.cart_recommendation_handler_impl({'user_id':1,'product_id':7,'operation':operation})
+    await runtime._legacy_cart_recommendation_observed({'user_id':1,'product_id':7,'operation':operation})
     assert cache.published==[]
 
 @pytest.mark.asyncio
@@ -115,5 +117,5 @@ async def test_suggestions_exclude_anchor_current_cart_and_duplicate_products():
     async def session():yield FakeDB(make_product())
     runtime=WorkerRuntime.__new__(WorkerRuntime);runtime.wait_for_readiness=AsyncMock()
     runtime.services=SimpleNamespace(session_maker=session,cache=cache,rabbitmq=object(),commerce=engine)
-    await runtime.cart_recommendation_handler_impl({'user_id':1,'product_id':7,'operation':'added'})
+    await runtime._legacy_cart_recommendation_observed({'user_id':1,'product_id':7,'operation':'added'})
     assert [p['id'] for p in cache.published[-1][1]['products']]==[9,10]

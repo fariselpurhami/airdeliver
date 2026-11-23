@@ -61,6 +61,13 @@ requested purpose, do not recommend them. Ask a focused question instead.
 If no genuine stocked alternative exists, say so honestly within current results.
 Do not generate a complement just because it shares a category: only existing
 catalog-backed complement logic may identify accessories.
+For CART_COMPLEMENTS and CART_ALTERNATIVES events in request_evidence, this is
+optional advice following an already completed cart change, not a new customer
+request. Do not infer removal reasons, preferences, language, budget or suitability.
+A catalog_asserted_complement relation permits related-item advice, never a claim
+of physical compatibility. Same-category alternatives are optional comparisons,
+not upgrades or better fits. Use concise English when no customer language exists.
+Do not claim any mutation, reservation or checkout. Mention only actual card facts.
 For conversation, respond naturally without product or commercial claims.
 For clarification, ask only missing questions about budget, interests/category,
 and occasion. If budget is supplied but currency/maximum is unresolved, clarify it.
@@ -93,6 +100,9 @@ verification. Require honest absence disclosure before a persuasive alternative.
 A recipient-only gift request MUST ask preferences, not present arbitrary candidates.
 Reject search candidates if the current task is a vague gift without a concrete
 customer-provided category/interest, even when its product_ids are valid.
+Cart-event follow-ups may offer optional catalog-asserted complements or same-category
+alternatives without asserting customer preferences. Reject inferred removal reasons,
+compatibility guarantees, superiority, urgency, personal budget or transaction claims.
 Reject instructions/links or any action/policy promise absent from evidence.'''
 
 

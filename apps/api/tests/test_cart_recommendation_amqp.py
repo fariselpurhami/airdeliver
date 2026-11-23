@@ -22,7 +22,7 @@ from tests.test_ai_cart_service import FakeDB,FakeCache,make_product
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(os.getenv('TEST_RABBITMQ_DISPOSABLE')!='1',reason='dedicated disposable RabbitMQ required')
-async def test_real_amqp_readonly_followup_confirms_delivers_and_never_replays_cart():
+async def test_real_amqp_preserved_legacy_followup_confirms_delivers_and_never_replays_cart():
     settings=CoreSettings(RABBITMQ_HOST='127.0.0.1',RABBITMQ_PORT=int(os.getenv('TEST_RABBITMQ_PORT','5672')),RABBITMQ_USER='airdeliver_ci',RABBITMQ_PASS='disposable-ci-only')
     connection=await aio_pika.connect_robust(settings.RABBITMQ_URL)
     broker=RabbitMQService(settings)
@@ -51,7 +51,7 @@ async def test_real_amqp_readonly_followup_confirms_delivers_and_never_replays_c
         assert payload=={'version':1,'user_id':17,'product_id':7,'operation':'added'}
         assert message.delivery_mode==aio_pika.DeliveryMode.PERSISTENT
         sets_before=len(cache.sets)
-        async with message.process():await runtime.cart_recommendation_handler_impl(payload)
+        async with message.process():await runtime._legacy_cart_recommendation_observed(payload)
         assert len(cache.sets)==sets_before and cache.deleted==[]
         carousels=[p for _,p in cache.published if p.get('type')=='product_carousel']
         assert carousels[-1]['products'][0]['id']==8
