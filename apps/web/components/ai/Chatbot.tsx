@@ -57,15 +57,16 @@ const MessageBubble = memo(({ message, onSend }: MessageBubbleProps) => {
       initial={{ opacity: 0, y: 20, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       style={{ willChange: 'transform, opacity' }}
-      className={`flex items-end gap-2 w-full mb-4 transform-gpu ${
+      className={`flex items-end gap-2.5 w-full mb-4 transform-gpu ${
         isUser ? 'justify-end' : 'justify-start'
       }`}
     >
+      {!isUser && <span className="w-7 h-7 mb-1 flex-shrink-0 rounded-full flex items-center justify-center bg-white/90 text-[#24205d] shadow-lg" aria-hidden="true"><Bot size={16}/></span>}
       <div
-        className={`w-fit max-w-[95%] py-3.5 ${
+        className={`w-fit max-w-[84%] px-4 py-3.5 ${
           isUser
-            ? 'px-4 rounded-[24px] rounded-br-sm bg-white/[0.09] text-white/95 backdrop-blur-2xl shadow-lg transform-gpu'
-            : 'rounded-none bg-transparent text-white/90 transform-gpu'
+            ? 'rounded-[22px] rounded-br-[6px] bg-gradient-to-br from-indigo-500/80 to-violet-500/70 text-white/95 backdrop-blur-2xl shadow-lg transform-gpu'
+            : 'rounded-[22px] rounded-bl-[6px] bg-white/[0.10] border border-white/[0.07] backdrop-blur-xl text-white/90 shadow-lg transform-gpu'
         }`}
       >
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal">
@@ -73,14 +74,14 @@ const MessageBubble = memo(({ message, onSend }: MessageBubbleProps) => {
         </p>
 
         {!isUser && action && action.action === 'present_options' && (
-          <div className="flex flex-wrap gap-3 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-4">
             {(action.payload.options as ActionOption[]).map((option, idx) => (
               <motion.button
                 key={idx}
                 onClick={() => onSend(option.payload)}
                 whileHover={{ scale: 1.05, backgroundColor: 'rgba(6, 182, 212, 0.1)' }}
                 whileTap={{ scale: 0.95 }}
-                className="text-[12px] font-medium px-5 py-2.5 rounded-full text-white/85 bg-white/[0.08] backdrop-blur-2xl hover:bg-white/[0.15] transition-all duration-300 shadow-[0_8px_24px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                className="text-[12px] font-medium text-left px-4 py-3.5 rounded-[18px] text-white/90 bg-gradient-to-br from-indigo-400/20 to-violet-400/10 border border-white/10 backdrop-blur-2xl hover:bg-white/[0.15] transition-all duration-300 shadow-[0_8px_24px_rgba(0,0,0,0.20),inset_0_1px_1px_rgba(255,255,255,0.12)]"
               >
                 {option.title}
               </motion.button>
@@ -88,6 +89,7 @@ const MessageBubble = memo(({ message, onSend }: MessageBubbleProps) => {
           </div>
         )}
       </div>
+      {isUser && <span className="w-7 h-7 mb-1 flex-shrink-0 rounded-full flex items-center justify-center bg-indigo-300/20 border border-white/20 text-indigo-100" aria-hidden="true"><User size={15}/></span>}
     </motion.div>
   );
 });
@@ -156,8 +158,8 @@ const ChatInput = memo(({ onSend, isTyping }: ChatInputProps) => {
 
   return (
     <div className="px-6 pt-4 pb-[max(28px,env(safe-area-inset-bottom))] flex-shrink-0 bg-transparent relative z-20">
-      <div className="relative group w-full max-w-[340px] mx-auto flex items-center gap-2 rounded-full p-[1.5px] bg-gradient-to-r from-[#38BDF8]/45 via-white/25 to-[#818CF8]/45 shadow-[0_0_32px_rgba(56,189,248,0.22),0_12px_32px_rgba(0,0,0,0.65)]">
-        <div className="relative flex-grow rounded-full bg-[#0E131F]/95 backdrop-blur-2xl">
+      <div className="relative group w-full max-w-[380px] mx-auto flex items-center gap-2 rounded-full p-[1.5px] bg-gradient-to-r from-indigo-300/30 via-white/20 to-violet-300/40 shadow-[0_0_32px_rgba(56,189,248,0.22),0_12px_32px_rgba(0,0,0,0.65)]">
+        <div className="relative flex-grow rounded-full bg-[#17172b]/95 backdrop-blur-2xl">
           <textarea
             ref={textareaRef}
             value={value}
@@ -177,7 +179,7 @@ const ChatInput = memo(({ onSend, isTyping }: ChatInputProps) => {
             aria-label="Send message"
             disabled={isTyping || !value.trim()}
             onClick={handleTriggerSend}
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-full text-[#38BDF8] hover:text-[#7DD3FC] disabled:text-[#38BDF8]/35 transition-all drop-shadow-[0_0_8px_rgba(56,189,248,0.45)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-9 w-9 flex items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 text-white hover:brightness-110 disabled:opacity-40 transition-all drop-shadow-[0_0_8px_rgba(56,189,248,0.45)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
           >
             {isTyping ? (
               <Loader2 size={18} className="animate-spin" />
@@ -257,10 +259,10 @@ export default function Chatbot() {
               role="dialog" aria-label="Air Assistant" aria-modal="true"
               onClick={(e) => e.stopPropagation()}
               style={{ willChange: 'transform, opacity' }}
-              className="w-full h-[100dvh] sm:h-[92dvh] max-w-[460px] flex flex-col bg-transparent overflow-hidden relative transform-gpu"
+              className="w-full h-[100dvh] sm:h-[92dvh] max-w-[520px] flex flex-col bg-transparent overflow-hidden relative transform-gpu"
             >
-              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[380px] h-[260px] bg-[#38BDF8]/15 blur-[95px] pointer-events-none rounded-full" />
-              <div className="absolute top-16 end-0 w-[260px] h-[260px] bg-indigo-500/12 blur-[100px] pointer-events-none rounded-full" />
+              <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[380px] h-[260px] bg-violet-500/15 blur-[95px] pointer-events-none rounded-full" />
+              <div className="absolute top-16 end-0 w-[260px] h-[260px] bg-indigo-500/15 blur-[100px] pointer-events-none rounded-full" />
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[360px] h-[180px] bg-[#38BDF8]/10 blur-[90px] pointer-events-none rounded-full" />
               <header className="px-6 pt-6 pb-3 flex items-center justify-between flex-shrink-0 relative z-10">
                 <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.08] backdrop-blur-2xl shadow-[0_8px_30px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.16)]">
@@ -273,9 +275,11 @@ export default function Chatbot() {
               </header>
 
               <div className="flex-grow min-h-0 px-6 pt-4 pb-6 space-y-5 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/10 scrollbar-track-transparent relative z-10">
-                <div className="pt-1 pb-2">
-                  <h3 className="text-[23px] sm:text-[25px] font-semibold text-white tracking-[-0.02em] leading-snug">A little help. A lot of clarity.</h3>
-                  <p className="text-[15px] sm:text-[20px] font-normal text-white/45 tracking-[-0.01em] leading-snug mt-0.5">Your Air Assistant, here to help.</p>
+                <div className="relative pt-2 pb-4 mb-2">
+                  <p className="text-[10px] tracking-[0.18em] uppercase text-indigo-200/65 mb-2">Your everyday co-pilot</p>
+                  <h3 className="text-[28px] sm:text-[32px] font-semibold text-white tracking-[-0.035em] leading-tight">How can I help<br/>you today?</h3>
+                  <p className="text-[13px] font-normal text-white/50 leading-relaxed mt-3 max-w-[260px]">A little guidance, a clearer next step. This is Air Assistant.</p>
+                  <div className="absolute right-1 top-12 w-16 h-16 sm:w-20 sm:h-20 rounded-[22px] rotate-[10deg] flex items-center justify-center bg-gradient-to-br from-indigo-400/40 via-violet-400/25 to-sky-300/10 border border-white/20 shadow-[0_16px_32px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.25)]" aria-hidden="true"><Bot className="text-indigo-50 -rotate-[10deg]" size={32} strokeWidth={1.3}/></div>
                 </div>
                 <AnimatePresence initial={false}>
                   {messages.map((msg, idx) => (

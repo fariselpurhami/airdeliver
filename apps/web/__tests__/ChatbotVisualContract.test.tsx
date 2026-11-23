@@ -10,7 +10,7 @@ jest.mock('@/hooks/useBodyScrollLock',()=>({useBodyScrollLock:jest.fn()}));
 beforeAll(()=>{Element.prototype.scrollIntoView=jest.fn();});
 it('keeps assistant identity, responsive dialog and existing send/close wiring',()=>{
  render(<Chatbot/>);
- expect(screen.getByRole('dialog',{name:'Air Assistant'})).toHaveClass('max-w-[460px]');
+ expect(screen.getByRole('dialog',{name:'Air Assistant'})).toHaveClass('max-w-[520px]');
  const input=screen.getByRole('textbox',{name:'Message Air Assistant'});
  fireEvent.change(input,{target:{value:'Where is my order?'}});
  fireEvent.keyDown(input,{key:'Enter'});
