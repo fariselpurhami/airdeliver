@@ -75,9 +75,22 @@ def error_metadata(exc):
                'rate_limit_exceeded', 'insufficient_quota', 'permission_denied',
                'organization_restricted', 'not_found'}
     status = getattr(exc, 'status_code', None)
+    response = getattr(exc, 'response', None)
+    headers = getattr(response, 'headers', {})
+    content_type = headers.get('content-type', '').split(';', 1)[0].strip().lower()
+    known_types = {'application/json', 'text/html', 'text/plain', 'application/problem+json'}
+    request_id = None
+    for header in ('x-request-id', 'x-groq-request-id'):
+        value = headers.get(header, '')
+        if isinstance(value, str) and re.fullmatch(r'(?:req_|greq_)[A-Za-z0-9_-]{8,120}', value):
+            request_id = value
+            break
     return {'error_class': type(exc).__name__,
             'http_status': status if type(status) is int else None,
-            'provider_code': code if isinstance(code, str) and code in allowed else 'not_in_allowlist'}
+            'provider_code': code if isinstance(code, str) and code in allowed else 'not_in_allowlist',
+            'response_content_type': content_type if content_type in known_types else 'unknown_or_missing',
+            'request_id': request_id,
+            'scope': 'sanitized response metadata only; not_in_allowlist is a local redaction label, not account policy'}
 
 
 async def list_once(ledger, client):

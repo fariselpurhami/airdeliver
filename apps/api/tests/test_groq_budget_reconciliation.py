@@ -60,3 +60,27 @@ async def test_failure_counts_and_prints_no_raw_body(tmp_path,capsys):
 def test_error_code_is_allowlisted_not_echoed():
     assert error_metadata(SimpleNamespace(code='secret value',status_code=404))['provider_code']=='not_in_allowlist'
     assert error_metadata(SimpleNamespace(code='model_not_found',status_code=404))['provider_code']=='model_not_found'
+
+
+@pytest.mark.parametrize('header,expected',[
+    ('req_12345678_abcd','req_12345678_abcd'),
+    ('greq_abcdefgh-1234','greq_abcdefgh-1234'),
+    ('Bearer secret credential',None),
+    ('gsk_sensitive_secret',None),
+    ('req_short',None),
+])
+def test_sanitized_request_identity_and_content_type(header,expected):
+    response=SimpleNamespace(headers={'x-request-id':header,'content-type':'application/json; charset=utf-8'})
+    result=error_metadata(SimpleNamespace(response=response,code='not_found',status_code=404))
+    assert result['request_id']==expected
+    assert result['response_content_type']=='application/json'
+    assert 'Bearer secret' not in str(result)
+
+
+def test_arbitrary_header_content_cannot_escape_sanitizer():
+    response=SimpleNamespace(headers={'x-request-id':'secret@example.com','content-type':'secret/auth-token'})
+    result=error_metadata(SimpleNamespace(response=response,code='private message',status_code=404))
+    assert result['request_id'] is None
+    assert result['response_content_type']=='unknown_or_missing'
+    assert result['provider_code']=='not_in_allowlist'
+    assert 'secret@' not in str(result)
