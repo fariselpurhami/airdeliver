@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-23T21:54:00+02:00",
+  "as_of": "2026-11-23T22:23:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -264,7 +264,9 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
+      "evidence": [
+        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merge tracked by accompanyingPR."
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {
@@ -468,7 +470,9 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
+      "evidence": [
+        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merge tracked by accompanyingPR."
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability."
     },
     {

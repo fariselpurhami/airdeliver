@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextvars import ContextVar
 import hashlib
 import anyio
 import logging
@@ -40,6 +41,8 @@ from app.services.ai_commerce_engine import AICommerceEngine, get_ai_commerce_en
 
 from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 logger = logging.getLogger("airdeliver.neural_core")
+_deferred_memory: ContextVar[list | None] = ContextVar("support_deferred_memory",default=None)
+_request_preferences: ContextVar[tuple[str,...]] = ContextVar("support_preferences",default=())
 
 # =============================================================================
 # DOMAIN CONTRACTS & SCHEMAS
@@ -225,6 +228,10 @@ class NeuralCoreService:
 
     async def _persist_session(self, session_id: str, memory: SessionMemory) -> None:
         """Persists validated session state atomically."""
+        deferred=_deferred_memory.get()
+        if deferred is not None:
+            deferred.append((session_id,memory.model_copy(deep=True)))
+            return
         key = self._get_session_key(session_id)
         try:
             await self.cache.set_json(
@@ -476,6 +483,11 @@ class NeuralCoreService:
     async def _shopping_response(self,message,cards,brief,mode,intent,evidence=None):
         # Preserve the support adapter; shared service is also usable by optional
         # event consumers without sharing request sessions or cart mutations.
+        preferences=_request_preferences.get()
+        if preferences:
+            evidence=dict(evidence or {})
+            evidence['consented_saved_preferences']=list(preferences)
+            evidence['saved_preferences_scope']='Optional shopping hints only. Current customer turns override. No product, budget, recipient or compatibility evidence.'
         if self.is_healthy and mode=='catalog_results' and (evidence or {}).get('shopping_task') in {'consultation','comparison','specifications'}:
             from app.services.free_llm_service import FreeLLMService
             # Same established transport and total model budget; no secondary
@@ -536,7 +548,49 @@ class NeuralCoreService:
 
     # --- PUBLIC ORCHESTRATOR -------------------------------------------------
 
-    async def handle_message(
+    async def handle_message(self,db,message,user,session_id,image_base64=None):
+        """Request-local consented recall, never cached into chat history.
+
+        Existing feature flag remains off by default. This reads only canonical
+        saved shopping preferences, never inferred/vector personality memory.
+        """
+        from app.core.config import get_core_settings
+        from app.services.customer_memory_service import CustomerMemoryService
+        preferences=()
+        eligible=(db is not None and user is not None and type(getattr(user,'id',None)) is int
+                  and user.id>0 and get_core_settings().CUSTOMER_MEMORY_ENABLED)
+        if eligible:
+            try:
+                preferences=tuple(await CustomerMemoryService(db).recall(user.id))
+            except Exception as exc:
+                _log_inference_failure('neural_core.saved_context_unavailable',exc)
+                await db.rollback()
+        token=_request_preferences.set(preferences)
+        deferred=[]
+        memory_token=_deferred_memory.set(deferred)
+        try:
+            response=await self._handle_message_with_context(db,message,user,session_id,image_base64)
+            if preferences:
+                try:
+                    current=tuple(await CustomerMemoryService(db).recall(user.id))
+                except Exception as exc:
+                    _log_inference_failure('neural_core.saved_context_recheck_failed',exc)
+                    current=()
+                    await db.rollback()
+                if current!=preferences:
+                    return NeuralCoreResponse(text='System notice: saved shopping preferences changed during this reply. Please retry with your current preferences.',
+                        response_kind='system_notice',confidence=0,explain='Saved context changed',
+                        telemetry={'intent':'CONTEXT_REVALIDATION','entities':[],'turn':0})
+            _deferred_memory.reset(memory_token)
+            memory_token=None
+            for key,memory in deferred:
+                await self._persist_session(key,memory)
+            return response
+        finally:
+            if memory_token is not None:_deferred_memory.reset(memory_token)
+            _request_preferences.reset(token)
+
+    async def _handle_message_with_context(
         self,
         db: AsyncSession,
         message: str,
