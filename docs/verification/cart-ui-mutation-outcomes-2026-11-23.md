@@ -1,0 +1,7 @@
+# Cart-page failure outcomes, 2026-11-23
+
+Remove and clear used to erase local items first and swallow HTTP failures. They now keep items until backend acknowledgement, serialize mutations, disable checkout while pending or uncertain, and show a persistent accessible error. Recovery reads a new authenticated self-only no-store GET /ai-ordering/cart endpoint, validates its shape and replaces the local cart only after success. Mount also reconciles against the authoritative cart, so browser refresh cannot silently restore an uncertain stale cart. No mutation retry is automatic.
+
+Executed: frontend 54 tests across7 suites, TypeScript check, production Next build, full migrated PostgreSQL19 backend714passed2skipped20existing warnings. Four new component tests cover pending acknowledgement, uncertain failure, clear failure and malformed-refresh preservation. Backend route test verifies authenticated id wins over query input. Existing real Redis persistence tests continue passing.
+
+Visual inspection: actual Chrome raster screenshots of component failure state at1440 desktop and390 mobile, generated from tested component DOM and Tailwind CSS. Alert, refresh button, preserved item and disabled checkout are readable without overlap. Three/canvas and animation mocked, not a deployed authenticated browser test. Actual backend network transport is controlled in frontend tests. No full frontend-to-Redis deployment claim. No existing files/features deleted. Backend ruff/mypy not run.

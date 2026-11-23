@@ -66,15 +66,7 @@ const LoadingSpinner = () => (
     </div>
 );
 
-const CartItemCapsule = ({ item, index }: { item: CartItem, index: number }) => {
-    const { removeFromCart } = useCartStore();
-
-    const handleRemove = (productId: number) => {
-        removeFromCart(productId);
-        // Keep the backend AI cart (checkout source of truth) in sync.
-        api.post('/ai-ordering/cart/remove', { product_id: productId }).catch(() => {});
-    };
-    
+const CartItemCapsule = ({ item, index, pending, onRemove }: { item: CartItem, index: number, pending: boolean, onRemove: (id: number) => void }) => {
     return (
         <motion.div
             layout
@@ -133,7 +125,10 @@ const CartItemCapsule = ({ item, index }: { item: CartItem, index: number }) => 
 
             {/* Action Module */}
             <button 
-                onClick={() => handleRemove(item.id)} 
+                onClick={() => onRemove(item.id)}
+                disabled={pending}
+                aria-label={`Remove ${item.name}`}
+                aria-busy={pending}
                 className="absolute top-4 right-4 sm:relative sm:top-0 sm:right-0 p-3 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
                 title="Eject Item"
             >
@@ -187,7 +182,7 @@ const VoidState = () => (
     </motion.div>
 );
 
-const LogisticsPanel = ({ total, itemCount, clearCart }: { total: number, itemCount: number, clearCart: () => void }) => (
+const LogisticsPanel = ({ total, itemCount, clearCart, pending, uncertain }: { total: number, itemCount: number, clearCart: () => void, pending: boolean, uncertain: boolean }) => (
     <motion.div 
         layout
         initial={{ opacity: 0, x: 20 }}
@@ -212,9 +207,9 @@ const LogisticsPanel = ({ total, itemCount, clearCart }: { total: number, itemCo
         </div>
         
         <div className="mt-auto space-y-4">
-            <Link href="/checkout" passHref className={itemCount === 0 ? 'pointer-events-none' : ''}>
+            <Link href="/checkout" passHref className={itemCount === 0 || pending || uncertain ? 'pointer-events-none' : ''} aria-disabled={itemCount === 0 || pending || uncertain} tabIndex={itemCount === 0 || pending || uncertain ? -1 : undefined} onClick={(event) => { if (itemCount === 0 || pending || uncertain) event.preventDefault(); }}>
                 <motion.button
-                    disabled={itemCount === 0}
+                    disabled={itemCount === 0 || pending || uncertain}
                     whileHover={{ scale: itemCount > 0 ? 1.02 : 1 }}
                     whileTap={{ scale: itemCount > 0 ? 0.98 : 1 }}
                     className="w-full group relative inline-flex items-center justify-center px-8 py-4 text-base font-bold text-black bg-white rounded-2xl shadow-lg transition-all overflow-hidden disabled:opacity-50 disabled:grayscale"
@@ -232,7 +227,7 @@ const LogisticsPanel = ({ total, itemCount, clearCart }: { total: number, itemCo
                 </div>
                 <button 
                     onClick={clearCart} 
-                    disabled={itemCount === 0}
+                    disabled={itemCount === 0 || pending || uncertain}
                     className="text-[10px] uppercase tracking-wider text-red-500/70 hover:text-red-500 disabled:opacity-30 transition-colors hover:underline decoration-red-500/30 underline-offset-4"
                 >
                     Clear Cart
@@ -247,16 +242,53 @@ const LogisticsPanel = ({ total, itemCount, clearCart }: { total: number, itemCo
 // ============================================================================
 
 export default function CartPage() {
-    const { items, clearCart } = useCartStore();
-    const handleClearCart = () => {
-        clearCart();
-        api.post('/ai-ordering/cart/clear').catch(() => {});
+    const { items, clearCart, removeFromCart, replaceItems } = useCartStore();
+    const [pending, setPending] = useState(false);
+    const [mutationError, setMutationError] = useState<string | null>(null);
+    const inFlight = useRef(false);
+    const mutateCart = async (productId?: number) => {
+        if (inFlight.current || mutationError) return;
+        inFlight.current = true;
+        setPending(true);
+        try {
+            if (productId !== undefined) {
+                await api.post('/ai-ordering/cart/remove', { product_id: productId });
+                removeFromCart(productId);
+            } else {
+                await api.post('/ai-ordering/cart/clear');
+                clearCart();
+            }
+        } catch {
+            setMutationError('We could not confirm the cart update. Your items are kept here. Refresh and check your cart before trying again or checking out.');
+        } finally {
+            inFlight.current = false;
+            setPending(false);
+        }
     };
+    const refreshCart = async () => {
+        if (inFlight.current) return;
+        inFlight.current = true;
+        setPending(true);
+        try {
+            const response = await api.get('/ai-ordering/cart');
+            const cart = response.data as { items: { product_id: number; name: string; quantity: number; price: string | number; image_url?: string }[] };
+            if (!Array.isArray(cart.items) || cart.items.some((item) => !Number.isSafeInteger(item.product_id) || item.product_id < 1 || !Number.isFinite(Number(item.price)) || Number(item.price) < 0 || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99)) throw new Error('Invalid cart response');
+            replaceItems(cart.items.map((item) => ({ id: item.product_id, name: item.name, quantity: item.quantity, price: Number(item.price), image_url: item.image_url || null, description: '', inventory: 0 })));
+            setMutationError(null);
+        } catch {
+            setMutationError('We could not refresh your cart. Your items are kept here. Check your connection and refresh the cart before checking out.');
+        } finally {
+            inFlight.current = false;
+            setPending(false);
+        }
+    };
+    const handleClearCart = () => { void mutateCart(); };
     const total = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
     
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => {
         setIsMounted(true);
+        void refreshCart();
     }, []);
 
     if (!isMounted) {
@@ -308,6 +340,13 @@ export default function CartPage() {
                     </p>
                 </motion.section>
 
+                {mutationError && (
+                    <div role="alert" className="mb-8 rounded-2xl border border-red-400/50 bg-red-950/80 p-5 text-red-100">
+                        <p>{mutationError}</p>
+                        <button className="mt-3 underline font-semibold" disabled={pending} onClick={() => { void refreshCart(); }}>Refresh cart</button>
+                    </div>
+                )}
+                {pending && <p role="status" className="mb-6 text-cyan-200">Updating your cart...</p>}
                 {items.length === 0 ? (
                     <motion.div layout className="max-w-2xl mx-auto">
                         <Suspense fallback={<LoadingSpinner />}>
@@ -322,14 +361,14 @@ export default function CartPage() {
                         <div className="lg:col-span-8 space-y-6">
                             <Suspense fallback={<LoadingSpinner />}>
                                 <AnimatePresence>
-                                    {items.map((item, i) => <CartItemCapsule key={item.id} item={item} index={i} />)}
+                                    {items.map((item, i) => <CartItemCapsule key={item.id} item={item} index={i} pending={pending || !!mutationError} onRemove={(id) => { void mutateCart(id); }} />)}
                                 </AnimatePresence>
                             </Suspense>
                         </div>
 
                         {/* Right: Flight Panel */}
                         <div className="lg:col-span-4">
-                            <LogisticsPanel total={total} itemCount={items.length} clearCart={handleClearCart} />
+                            <LogisticsPanel total={total} itemCount={items.length} clearCart={handleClearCart} pending={pending} uncertain={!!mutationError} />
                         </div>
                     </div>
                 )}

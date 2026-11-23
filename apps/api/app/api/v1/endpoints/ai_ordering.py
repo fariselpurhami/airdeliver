@@ -186,6 +186,17 @@ async def get_ai_checkout_service(
             await client.aclose()
 
 
+@router.get("/cart")
+async def read_current_cart(
+    response: Response,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    cart_service: AICartService = Depends(get_ai_cart_service),
+):
+    response.headers["Cache-Control"] = "no-store"
+    cart = await cart_service._get_cart_from_redis(current_user.id)
+    return cart.model_dump(mode="json")
+
+
 @router.post("/cart/sync", status_code=status.HTTP_202_ACCEPTED)
 async def sync_cart(
     current_user: models.User = Depends(deps.get_current_active_user),

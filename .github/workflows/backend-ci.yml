@@ -21,7 +21,7 @@ on:
       - 'infra/k8s/10-milvus.yml'
       - '.github/workflows/backend-ci.yml'
   pull_request:
-    branches: ["main"]
+    branches: ["main", "hardening/cart-ui-mutation-outcomes"]
     paths:
       - 'apps/api/**'
       - 'Makefile'

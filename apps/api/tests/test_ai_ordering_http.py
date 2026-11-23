@@ -287,3 +287,17 @@ def test_cart_backend_failure_is_retryable_not_accepted_success(client):
     assert response.headers['cache-control']=='no-store'
     assert response.headers['retry-after']=='2'
     assert 'backend offline' not in response.text
+
+
+async def test_self_cart_read_returns_authoritative_state_and_uses_authenticated_id(monkeypatch):
+    from unittest.mock import AsyncMock
+    from app.services.ai_cart_service import CartStateModel
+    service=SimpleNamespace(_get_cart_from_redis=AsyncMock(return_value=CartStateModel(items=[])))
+    app.dependency_overrides[deps.get_current_active_user]=lambda:FAKE_USER
+    app.dependency_overrides[ai_ordering.get_ai_cart_service]=lambda:service
+    try:
+        result=TestClient(app).get('/api/v1/ai-ordering/cart?user_id=99')
+        assert result.status_code==200 and result.json()['items']==[]
+        service._get_cart_from_redis.assert_awaited_once_with(1)
+    finally:
+        app.dependency_overrides.clear()
