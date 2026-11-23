@@ -198,14 +198,14 @@ export const MobileLandingView = memo(() => {
   return (
     <div 
       id="mobile-landing-root" 
-      className="min-h-[100svh] w-full text-gray-100 overflow-hidden bg-black flex flex-col" 
+      className="min-h-[100dvh] w-full text-gray-100 overflow-hidden bg-black flex flex-col" 
       style={{ fontFamily: THEME.fonts.sans }}
     >
       <GlobalStyleOverride />
       <MobileHeader headerRef={headerRef} />
 
       <main className="relative z-10 w-full flex-1 flex flex-col justify-center pt-24 pb-10">
-        <section className="relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
+        <section className="relative w-full min-h-[100dvh] py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
           <HeroBackground />
           <HeroContent onDownload={triggerInstall} />
         </section>
