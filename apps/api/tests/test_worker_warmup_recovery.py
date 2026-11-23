@@ -107,3 +107,37 @@ def test_registry_retry_replaces_old_rejection_event_only_under_model_lock(monke
     assert registry.get_text_model() is model
     assert registry._text_startup_rejected is not old and old.is_set()
     assert not registry._text_startup_rejected.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(__import__('os').getenv('TEST_RABBITMQ_DISPOSABLE')!='1',reason='dedicated disposable RabbitMQ required')
+async def test_real_broker_retains_not_ready_delivery_then_processes_once(monkeypatch):
+    import os
+    from uuid import uuid4
+    import aio_pika
+    from app.core.config import CoreSettings
+    settings=CoreSettings(RABBITMQ_HOST='127.0.0.1',RABBITMQ_PORT=int(os.getenv('TEST_RABBITMQ_PORT','5672')),
+        RABBITMQ_USER='airdeliver_ci',RABBITMQ_PASS='disposable-ci-only')
+    connection=await aio_pika.connect_robust(settings.RABBITMQ_URL)
+    channel=await connection.channel()
+    queue=await channel.declare_queue('airdeliver-ci-readiness-'+uuid4().hex,auto_delete=True)
+    runtime=worker.WorkerRuntime();ready=False;processed=[]
+    monkeypatch.setattr(worker,'get_core_settings',lambda:SimpleNamespace(AI_RECOVERY_INTERVAL_SECONDS=.01))
+    async def handler(payload):
+        if not ready:raise worker.StartupDependencyError('WORKER_NOT_READY')
+        processed.append(payload['user_id'])
+    try:
+        await channel.default_exchange.publish(aio_pika.Message(body=json.dumps({'user_id':9}).encode(),
+            message_id='readiness-recovery-test'),routing_key=queue.name)
+        first=await queue.get(timeout=2)
+        await runtime.smart_retry_wrapper(first,handler)
+        assert processed==[]
+        second=await queue.get(timeout=2)
+        assert second.redelivered and second.message_id=='readiness-recovery-test'
+        ready=True
+        await runtime.smart_retry_wrapper(second,handler)
+        assert processed==[9]
+        assert await queue.get(fail=False,timeout=1) is None
+    finally:
+        await queue.delete(if_unused=False,if_empty=False)
+        await connection.close()
