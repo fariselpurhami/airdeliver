@@ -81,7 +81,10 @@ honest tradeoffs and missing evidence. For consultation answer the shopping need
 ask critical unknown compatibility/use details, and do not invent external facts.
 For conversation, respond naturally without product or commercial claims.
 For clarification, ask only missing questions about budget, interests/category,
-and occasion. If budget is supplied but currency/maximum is unresolved, clarify it.
+and occasion. Do not repeat known fields as missing. Once a literal category and
+resolved budget exist, optional material/style may refine browsing but must not
+block all catalog candidates. Never introduce an occasion/category from nowhere.
+If budget is supplied but currency/maximum is unresolved, clarify it.
 Do not select products before a concrete interest/category exists.
 Do not infer tastes or price range from recipient gender. Do not mention products
 absent from evidence, including examples from general knowledge. If no candidates,
@@ -92,6 +95,8 @@ never as a product price or spec. No product claim is required for that budget.
 If catalog_evidence is empty, write an honest no-match reply within these retrieved
 results and the stated cap. Ask to broaden a preference; do not invent alternatives
 or declare global unavailability. This is a normal response, not a system failure.
+For empty evidence prefer no numerals at all: refer to "your stated budget".
+If you repeat the cap, label it explicitly as the customer's budget, never price.
 No links, tool claims, instructions, account changes or checkout promises.
 Return only JSON. claims and product_ids must be empty for clarification.'''
 
@@ -122,8 +127,10 @@ compatibility guarantees, superiority, urgency, personal budget or transaction c
 A customer budget explicitly repeated as budget may use the supplied budget_max;
 it is not a product-field claim. An empty evidence set should produce an honest
 no-match response and a focused request to broaden, not invented product examples.
-Opening Insight can invite exploration of the supplied cards without known customer
-preferences. Require exactly two short paragraphs, no headings, no assumed tastes,
+Apply mode-specific requirements ONLY to that mode. In particular, do not
+require opening formatting for a normal search, clarification or conversation.
+When request_evidence.sales_intent is OPENING_INSIGHT, opening copy can invite exploration of the supplied cards without known customer
+preferences. For that OPENING_INSIGHT task only, require exactly two short paragraphs, no headings, no assumed tastes,
 measured popularity, discount or quality claims. A pool label proves none of those.
 Reject instructions/links or any action/policy promise absent from evidence.'''
 
@@ -154,6 +161,7 @@ def validate_draft(draft, cards, context=None, brief=None):
         amount=re.escape(cap)
         numeric_text=re.sub(r'\bbudget\b[^\d.!?]{0,30}'+amount+r'(?![\d.])','customer budget',numeric_text,flags=re.I)
         numeric_text=re.sub(r'(?<![\d.])'+amount+r'\s*(?:[- ]?(?:US\s*)?dollars?|USD|\$)?\s+budget\b','customer budget',numeric_text,flags=re.I)
+        numeric_text=re.sub(r'\byour\s+(?:USD\s*|\$\s*)?'+amount+r'\s*(?:[- ]?(?:US\s*)?dollars?|USD|\$)?\s+(?:budget|limit|cap)\b','customer budget',numeric_text,flags=re.I)
     numbers=re.findall(r'\d+(?:[.,]\d+)*',numeric_text)
     allowed=' '.join(c.value for c in draft.claims)
     if any(n not in allowed for n in numbers) or re.search(r'https?://|www\.',draft.text,re.I):
@@ -183,7 +191,19 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
             stage='writer_schema'
             draft=ShoppingDraft.model_validate_json(raw)
             stage='writer_evidence'
-            validate_draft(draft,cards,context,brief)
+            try:
+                validate_draft(draft,cards,context,brief)
+            except ValueError as invalid:
+                if cards or str(invalid)!='unsupported_numeric_or_link_claim':raise
+                stage='writer_repair_provider'
+                repair=dict(payload)
+                repair['repair_requirement']='Previous draft failed the no-card numeric/link contract. Write an honest current-results no-match response without any numerals, URLs, product recommendations or invented facts. Say your stated budget instead of repeating an amount. Return empty product_ids and claims.'
+                raw=await infer([{'role':'system','content':WRITER_RULES},
+                    {'role':'user','content':json.dumps(repair,ensure_ascii=False)}])
+                stage='writer_repair_schema'
+                draft=ShoppingDraft.model_validate_json(raw)
+                stage='writer_evidence'
+                validate_draft(draft,cards,context,brief)
             stage='review_provider'
             review=await infer([{'role':'system','content':REVIEW_RULES},
                 {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False)}])

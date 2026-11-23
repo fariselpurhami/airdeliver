@@ -115,7 +115,8 @@ async def test_unavailable_requested_item_pivots_only_to_current_non_demo_positi
 
 
 @pytest.mark.asyncio
-async def test_owner_jewelry_dollar_followup_keeps_budget_and_eligible_card():
+@pytest.mark.parametrize('route_intent',['PRODUCT_SEARCH','GIFT_DISCOVERY'])
+async def test_owner_jewelry_dollar_followup_keeps_budget_and_eligible_card(route_intent):
     from app.services.neural_core_service import SessionMemory
     from tests.test_neural_session_isolation import Cache
     engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
@@ -128,7 +129,7 @@ async def test_owner_jewelry_dollar_followup_keeps_budget_and_eligible_card():
         svc.is_healthy=True;svc.configuration_error=False
         initial=SessionMemory(user_name='Client',history=[{'role':'user','content':'I want a gift for my wife'},{'role':'assistant','content':'What occasion, interests and budget?'}])
         await cache.set_json(svc._get_session_key('owner-gift-regression'),initial.model_dump(mode='json'))
-        router={'intent':'PRODUCT_SEARCH','query':'jewelry','search_subject':'jewelry','brief':{'category':'jewelry','occasion':'birthday','budget':'1000 dollar','budget_max':'1000','budget_currency':'USD'}}
+        router={'intent':route_intent,'query':'jewelry','search_subject':'jewelry','brief':{'category':'jewelry','occasion':'birthday','budget':'1000 dollar','budget_max':'1000','budget_currency':'USD'}}
         draft={'text':'Within your 1000 dollar budget, compare Silver pendant in the card. Local catalog stock is listed, merchant availability is unverified.', 'product_ids':[ids[0]],'claims':[{'product_id':ids[0],'field':'name','value':'Silver pendant'}]}
         verdict=dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True)
         svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(router),json.dumps(draft),json.dumps(verdict)])
