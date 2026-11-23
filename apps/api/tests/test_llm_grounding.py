@@ -125,5 +125,43 @@ def test_catalog_numeric_sanitization_never_emits_nonfinite_json_numbers(value):
     import math
     product=_sanitize_product({'id':float('inf'),'name':'Corrupt numeric row','price':value,'rating':value})
     assert product['id']==0
-    assert math.isfinite(product['price']) and math.isfinite(product['rating'])
+    assert product['price'] is None and product['price_status']=='unknown'
+    assert math.isfinite(product['rating'])
     json.dumps(product,allow_nan=False)
+
+
+@pytest.mark.parametrize('price',[None,'',True,-1,'not-a-price'])
+def test_unknown_catalog_price_stays_unknown_across_repeated_sanitization(price):
+    from app.services.free_llm_service import _sanitize_product
+    product=_sanitize_product({'id':7,'name':'Unpriced item','price':price})
+    assert product['price'] is None and product['price_status']=='unknown'
+    assert _sanitize_product(product)['price'] is None
+
+
+def test_actual_listed_zero_is_distinct_from_unknown():
+    from app.services.free_llm_service import _sanitize_product
+    product=_sanitize_product({'id':7,'name':'Listed zero','price':'0.00'})
+    assert product['price']==0.0 and product['price_status']=='listed'
+
+
+@pytest.mark.anyio
+async def test_model_receives_unknown_price_not_zero_fallback():
+    svc=_service_returning({'selected_ids':[7],'reasoning':{'7':'Listed item'}})
+    captured=[]
+    async def completion(**kwargs):
+        captured.append(kwargs)
+        return _completion_with({'selected_ids':[7],'reasoning':{'7':'Listed item'}})
+    svc._chat_completion=completion
+    await svc.filter_and_recommend('shoes',[{'id':7,'name':'Shoes'}])
+    data=json.loads(captured[0]['messages'][1]['content'])
+    assert data['products'][0]['price'] is None
+    assert data['products'][0]['price_status']=='unknown'
+
+
+@pytest.mark.anyio
+async def test_mixed_unknown_prices_keep_lifestyle_selection_operational():
+    svc=_service_returning({})
+    result=await svc.generate_lifestyle_matrix([{'id':7,'name':'Unpriced shoes'}, {'id':8,'name':'Listed socks','price':'5.00'}])
+    assert len(result)==4
+    assert any(row['product']['price'] is None for row in result)
+    assert not any('Great price' in row['text'] for row in result)
