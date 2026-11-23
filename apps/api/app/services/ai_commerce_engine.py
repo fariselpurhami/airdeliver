@@ -350,6 +350,8 @@ def _tokenize_lower_words(value: str) -> set[str]:
 # owns release so timed-out/cancelled callers cannot admit overlapping work.
 _TEXT_MODEL_GATES = weakref.WeakKeyDictionary()
 _TEXT_MODEL_GATES_LOCK = threading.Lock()
+# Process-wide: request-scoped engines share the same vision model.
+_VISION_NATIVE_GATE = threading.BoundedSemaphore(2)
 
 
 def _text_model_gate(model):
@@ -1358,6 +1360,49 @@ class AICommerceEngine:
             raise ValidationError("invalid or oversized image payload") from exc
 
     async def _encode_image_to_vector(self, image_input: str) -> List[float]:
+        """Native decode/inference owns admission until the worker really ends."""
+        deadline = time.monotonic() + self.limits.vector_search_timeout_seconds
+        acquired = submitted = False
+        try:
+            while not acquired:
+                acquired = _VISION_NATIVE_GATE.acquire(blocking=False)
+                if acquired:
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError()
+                await asyncio.sleep(min(.01, remaining))
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise asyncio.TimeoutError()
+
+            def decode_infer_release():
+                try:
+                    with self._decode_image_bounded(image_input) as image:
+                        model, processor = model_registry.get_vision_stack()
+                        device = next(model.parameters()).device
+                        inputs = processor(images=image, return_tensors="pt")
+                        inputs = {key: value.to(device) for key, value in inputs.items()}
+                        if device.type == "cuda":
+                            inputs = {key: tensor.to(dtype=torch.float16) if torch.is_floating_point(tensor)
+                                      else tensor for key, tensor in inputs.items()}
+                        with torch.no_grad():
+                            features = F.normalize(model.get_image_features(**inputs), p=2, dim=-1)
+                        return cast(List[float], features[0].detach().cpu().tolist())
+                finally:
+                    _VISION_NATIVE_GATE.release()
+
+            future = asyncio.get_running_loop().run_in_executor(None, decode_infer_release)
+            submitted = True
+            future.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+            return await asyncio.wait_for(asyncio.shield(future), timeout=remaining)
+        except asyncio.TimeoutError as exc:
+            raise ExternalDependencyError("image embedding timed out") from exc
+        finally:
+            if acquired and not submitted:
+                _VISION_NATIVE_GATE.release()
+
+    async def _legacy_encode_image_to_vector(self, image_input: str) -> List[float]:
         pil_image = self._decode_image_bounded(image_input)
 
         async with self._image_inference_semaphore:
