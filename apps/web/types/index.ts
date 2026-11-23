@@ -1,6 +1,7 @@
 //** apps/web/types/index.ts **//
 
 export interface Product {
+    price_status?: 'listed' | 'unknown';
   id: number;
   name: string;
   description: string;

@@ -9,20 +9,20 @@ import ProductList from './ProductList';
 import { type Product } from '@/types'; 
 import useSWR from 'swr';
 import { api } from '@/lib/api';
+import { listedCatalogPrice } from '../ai/CatalogPrice';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; 
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 // --- ARCHITECTURAL UTILS: DATA ADAPTER LAYER ---
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
-// Safe Data Normalizer: Ensures 'price' is ALWAYS a number before it hits the UI
-// This prevents the "toFixed is not a function" crash globally for this overlay
-const normalizeProductData = (rawProduct: any): Product => ({
-    ...rawProduct,
-    // Force conversion to Number. If fail, fallback to 0.
-    price: Number(rawProduct.price) || 0, 
-    // Ensure inventory is a number if needed
-    inventory: Number(rawProduct.inventory) || 0,
-});
+// Keep the existing numeric Product contract while carrying unknown explicitly.
+// A numeric compatibility value is never displayed or addable without its status.
+export const normalizeProductData = (rawProduct: any): Product => {
+    const price = listedCatalogPrice(rawProduct);
+    return { ...rawProduct, price: price ?? 0,
+        price_status: price === null ? 'unknown' : 'listed',
+        inventory: Number(rawProduct.inventory) || 0 };
+};
 
 const LoadingSpinner = () => (
     <div className="flex justify-center items-center h-full">
@@ -39,7 +39,7 @@ const AddToManifestButton = ({ products }: { products: Product[] }) => {
         
         const productToAdd = products[0];
         
-        if (productToAdd) {
+        if (productToAdd && listedCatalogPrice(productToAdd) !== null) {
             addProductById(productToAdd, 'quick-manifest-btn');
             setIsFlying(true);
             setTimeout(() => setIsFlying(false), 1000);
@@ -52,6 +52,7 @@ const AddToManifestButton = ({ products }: { products: Product[] }) => {
                 id="quick-manifest-btn"
                 ref={btnRef}
                 onClick={handleQuickAdd}
+                disabled={!products[0] || listedCatalogPrice(products[0]) === null}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="relative overflow-hidden flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 border border-cyan-400/30 text-white font-bold tracking-wider text-xs shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] transition-all duration-300"

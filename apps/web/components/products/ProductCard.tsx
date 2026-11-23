@@ -6,13 +6,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { Bot, ScanLine, ShoppingBag, Check } from 'lucide-react';
 import Image from 'next/image';
+import { CatalogPrice, listedCatalogPrice } from '../ai/CatalogPrice';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; 
-
-const formatPrice = (value: number | string | undefined | null): string => {
-    if (value === undefined || value === null) return '0.00';
-    const num = Number(value);
-    return isNaN(num) ? '0.00' : num.toFixed(2);
-};
 
 // 🛡️ L8 FIX: إيقاف الـ Parallax تماماً على شاشات اللمس (الموبايل) لمنع تسريب الذاكرة
 const useParallax = (ref: React.RefObject<HTMLDivElement | null>) => {
@@ -61,10 +56,11 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
   
   const [isAdded, setIsAdded] = useState(false);
   const uniqueBtnId = `card-add-btn-${product.id}`; 
-  const safePrice = formatPrice(product.price); 
+  const priceKnown = listedCatalogPrice(product) !== null; 
 
   const handleAddToCart = (e: React.MouseEvent) => {
       e.stopPropagation(); 
+      if (!priceKnown) return;
       addProductById(product as any, uniqueBtnId);
       setIsAdded(true);
       setTimeout(() => setIsAdded(false), 2000);
@@ -132,7 +128,7 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
                 <div className="flex items-center justify-between w-full mb-2 md:mb-3">
                    <span className="text-[10px] md:text-[10px] text-gray-600 uppercase font-bold">Price</span>
                    <span className="text-base md:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                       ${safePrice}
+                       <CatalogPrice product={product} />
                    </span>
                </div>
 
@@ -148,8 +144,8 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
                     ) : (
                         <div className="flex gap-2 h-8 md:h-10">
                             <motion.button 
-                                id={uniqueBtnId} key="add" onClick={handleAddToCart} whileTap={{ scale: 0.95 }}
-                                className="flex-1 rounded-lg md:rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 md:hover:bg-cyan-500 md:hover:text-black font-bold text-[8px] md:text-[10px] tracking-widest flex items-center justify-center gap-1.5 md:gap-2 transition-all duration-300"
+                                disabled={!priceKnown} title={priceKnown ? 'Add to cart' : 'Price must be verified before adding'} id={uniqueBtnId} key="add" onClick={handleAddToCart} whileTap={{ scale: 0.95 }}
+                                className="disabled:opacity-40 disabled:cursor-not-allowed flex-1 rounded-lg md:rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 md:hover:bg-cyan-500 md:hover:text-black font-bold text-[8px] md:text-[10px] tracking-widest flex items-center justify-center gap-1.5 md:gap-2 transition-all duration-300"
                             >
                                 <ShoppingBag size={12} className="md:w-[14px] md:h-[14px]" /> 
                                 <span>order with air</span>
