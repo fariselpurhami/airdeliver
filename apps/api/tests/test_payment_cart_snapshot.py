@@ -1,5 +1,6 @@
 """Combined migrated PostgreSQL checkout and real Redis payment cleanup."""
 import copy
+import os
 from unittest.mock import AsyncMock
 
 import pytest
@@ -10,6 +11,8 @@ from app.services.payment_completion_service import PaymentCompletionService
 from app.services.rabbitmq_service import PublishOutcome, PublishResult
 from tests.test_checkout_postgres import pg_checkout
 from tests.test_cart_persistence_outcomes import real_cache
+
+pytestmark = pytest.mark.skipif(not os.getenv("TEST_POSTGRES_DSN"), reason="requires disposable migrated PostgreSQL")
 
 
 @pytest.mark.asyncio
