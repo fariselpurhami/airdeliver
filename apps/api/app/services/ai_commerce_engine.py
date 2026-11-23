@@ -352,6 +352,7 @@ _TEXT_MODEL_GATES = weakref.WeakKeyDictionary()
 _TEXT_MODEL_GATES_LOCK = threading.Lock()
 # Process-wide: request-scoped engines share the same vision model.
 _VISION_NATIVE_GATE = threading.BoundedSemaphore(2)
+_VECTOR_NATIVE_GATE = threading.BoundedSemaphore(8)
 
 
 def _text_model_gate(model):
@@ -393,15 +394,20 @@ class ModelRegistry:
             logger.info("loading text embedding model", extra={"model": PRODUCT_TEXT_MODEL.name, "device": self._device})
             logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
 
-            rejected = self._text_startup_rejected
-            if rejected.is_set():
-                raise TextEmbeddingWarmupError("Text model startup previously exceeded its budget; restart required")
+            # The model lock proves the prior native attempt has drained. A
+            # new attempt gets its own rejection event; never revive old work.
+            rejected = threading.Event()
+            self._text_startup_rejected = rejected
+            settings = get_core_settings()
+            policy = WarmupPolicy(budget_seconds=settings.TEXT_WARMUP_BUDGET_SECONDS,
+                                  sample_max_seconds=settings.TEXT_WARMUP_SAMPLE_MAX_SECONDS,
+                                  max_attempts=max(8, int(settings.TEXT_WARMUP_BUDGET_SECONDS)))
             self._text_warmup_status = {"state": "warming_up"}
             def expire():
                 rejected.set()
                 self._text_warmup_status = {"state": "failed", "error": "startup_budget_exhausted"}
                 logger.error("text embedding startup budget exhausted; readiness rejected")
-            timer = threading.Timer(STARTUP_MODEL_BUDGET_SECONDS, expire)
+            timer = threading.Timer(settings.TEXT_STARTUP_BUDGET_SECONDS, expire)
             timer.daemon = True
             timer.start()
             warmup_timer = None
@@ -421,11 +427,11 @@ class ModelRegistry:
                 model.max_seq_length = 8192
                 model.to(self._device)
                 model.eval()
-                warmup_timer = threading.Timer(WarmupPolicy().budget_seconds, expire)
+                warmup_timer = threading.Timer(policy.budget_seconds, expire)
                 warmup_timer.daemon = True
                 warmup_timer.start()
                 with torch.no_grad():
-                    report = warm_text_encoder(model, PRODUCT_TEXT_MODEL.dimension, rejected=rejected)
+                    report = warm_text_encoder(model, PRODUCT_TEXT_MODEL.dimension, policy=policy, rejected=rejected)
                 if rejected.is_set():
                     raise TextEmbeddingWarmupError("Text model startup budget exhausted")
                 self._text_warmup_status = report
@@ -1262,20 +1268,43 @@ class AICommerceEngine:
             async with self._vector_search_semaphore:
                 return await self._search_milvus_text_acquired(vector, limit, filter_str)
 
+    async def _run_vector_native(self, function, **kwargs):
+        """Bound shared native search, including work surviving caller cancellation."""
+        deadline = time.monotonic() + self.limits.vector_search_timeout_seconds
+        acquired = submitted = False
+        try:
+            while not acquired:
+                acquired = _VECTOR_NATIVE_GATE.acquire(blocking=False)
+                if acquired:
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise asyncio.TimeoutError()
+                await asyncio.sleep(min(.01, remaining))
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise asyncio.TimeoutError()
+            def call_and_release():
+                try:
+                    return function(timeout=remaining, **kwargs)
+                finally:
+                    _VECTOR_NATIVE_GATE.release()
+            future = asyncio.get_running_loop().run_in_executor(None, call_and_release)
+            submitted = True
+            future.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+            return await asyncio.wait_for(asyncio.shield(future), timeout=remaining)
+        finally:
+            if acquired and not submitted:
+                _VECTOR_NATIVE_GATE.release()
+
     async def _search_milvus_text_acquired(self, vector, limit, filter_str):
         try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    self.milvus_client.search,
-                    collection_name=self.milvus_product_text_col,
-                    timeout=self.limits.vector_search_timeout_seconds,
-                    data=[list(vector)],
-                    limit=limit,
-                    filter=filter_str,
-                    output_fields=["id"],
-                    search_params={"metric_type": "COSINE", "params": {"ef": 64}},
-                ),
-                timeout=self.limits.vector_search_timeout_seconds,
+            response = await self._run_vector_native(
+                self.milvus_client.search,
+                collection_name=self.milvus_product_text_col,
+                data=[list(vector)], limit=limit, filter=filter_str,
+                output_fields=["id"],
+                search_params={"metric_type": "COSINE", "params": {"ef": 64}},
             )
         except Exception:
             logger.warning("milvus text search failed", extra={"limit": limit, "filter": filter_str}, exc_info=True)
@@ -1311,16 +1340,11 @@ class AICommerceEngine:
                 )
 
             async with self._vector_search_semaphore:
-                results = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        self.milvus_client.search,
-                        collection_name=self.milvus_product_visual_col,
-                        data=[vector],
-                        limit=safe_limit * 2,
-                        output_fields=["id"],
-                        search_params={"metric_type": "COSINE", "params": {"ef": 100}},
-                    ),
-                    timeout=self.limits.vector_search_timeout_seconds,
+                results = await self._run_vector_native(
+                    self.milvus_client.search,
+                    collection_name=self.milvus_product_visual_col,
+                    data=[vector], limit=safe_limit * 2, output_fields=["id"],
+                    search_params={"metric_type": "COSINE", "params": {"ef": 100}},
                 )
 
             if not results or not results[0]:
@@ -1652,12 +1676,24 @@ def get_embedding_model() -> SentenceTransformer:
     return model_registry.get_text_model()
 
 
+_TEXT_STARTUP_FUTURES = weakref.WeakKeyDictionary()
+
+
 async def initialize_query_embeddings() -> SentenceTransformer:
-    # Shield avoids pretending that cancellation stopped native inference.
-    future = asyncio.get_running_loop().run_in_executor(None, get_embedding_model)
-    future.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+    # Reuse a still-running native attempt instead of queueing more loader
+    # threads after caller deadlines. A completed failed attempt can retry.
+    loop = asyncio.get_running_loop()
+    future = _TEXT_STARTUP_FUTURES.get(loop)
+    if future is None or future.done():
+        future = loop.run_in_executor(None, get_embedding_model)
+        future.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
+        _TEXT_STARTUP_FUTURES[loop] = future
+    budget = get_core_settings().TEXT_STARTUP_BUDGET_SECONDS
+    # Retain compatibility with explicit test/operational deadline overrides.
+    if STARTUP_MODEL_BUDGET_SECONDS != 360.0:
+        budget = STARTUP_MODEL_BUDGET_SECONDS
     try:
-        return await asyncio.wait_for(asyncio.shield(future), timeout=STARTUP_MODEL_BUDGET_SECONDS)
+        return await asyncio.wait_for(asyncio.shield(future), timeout=budget)
     except asyncio.TimeoutError as exc:
         model_registry.reject_text_startup()
         logger.error("text model startup deadline exceeded; readiness rejected")
