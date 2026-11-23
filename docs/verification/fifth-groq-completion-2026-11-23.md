@@ -1,0 +1,7 @@
+# One fifth request, first corrected completion
+
+Owner approved exactly one gpt-oss-120b completion after successful corrected GET /models, max256 output tokens, no retries, Free only. Request5 inherits four immutable ledgers, validates hash chain and120b visibility on successful request4, reserves total5 before network and leaves3. Exclusive v5 file prevents rerun. Earlier three404 attempts still count. No original file is deleted/rewritten.
+
+The command reads up to four active/in-stock USD catalog products from the first eligible product's category, as context for one fixed removal-alternative question. No actual new cart/account mutation or order/payment occurs. The existing production filter_and_recommend prompt/parser/grounding runs through the corrected bounded client. One request only, no unrestricted chat orchestration. Raw output, finish reason, usage and parsed result remain separate so truncated JSON/deterministic fallback cannot masquerade as model success. A selected removed anchor, unsupported claim or poor relevance must fail human evaluation even if IDs exist.
+
+The current catalog is synthetic demo data, not real merchant offers. This is one case, not multilingual/model quality certification. No real provider request ran during development. Tests use fake responses and ledger files, including a truncated raw response with distinct parsed fallback, source immutability, budget ceiling and missing-model visibility rejection. Do not run before CI/merge and the owner's go. Never delete/reset the v5 ledger to retry.
