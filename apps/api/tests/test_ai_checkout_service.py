@@ -244,12 +244,12 @@ async def test_payment_success_phantom_order_is_ignored():
 
 
 @pytest.mark.asyncio
-async def test_cancel_order_cancels_pending_and_clears_cart():
+async def test_cancel_order_cancels_pending_and_preserves_cart():
     order = Order(id=5, user_id=1, status=OrderStatus.PENDING, total_price=10.0)
     svc, cache, db, rabbit, _ = make_service(order=order)
     await svc.handle_cancel_order({"user_id": 1, "order_id": 5})
     assert order.status == OrderStatus.CANCELLED
-    assert cache.deleted
+    assert not cache.deleted
 
 
 @pytest.mark.asyncio
