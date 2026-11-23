@@ -116,7 +116,7 @@ class CognitiveResponse(BaseModel):
     @field_validator("reasoning")
     @classmethod
     def validate_reasoning(cls, value: Dict[str, str]) -> Dict[str, str]:
-        return {str(k): _normalize_whitespace(str(v))[:160] for k, v in value.items() if str(v).strip()}
+        return {str(k): _normalize_whitespace(str(v))[:600] for k, v in value.items() if str(v).strip()}
 
     @field_validator("confidence_score")
     @classmethod
@@ -313,6 +313,12 @@ def _sanitize_product(product: Mapping[str, Any]) -> Dict[str, Any]:
         "price": _known_price(product),
         "price_status": "listed" if _known_price(product) is not None else "unknown",
         "rating": _safe_float(product.get("rating")),
+        "catalog_rating": (float(v) if (v := product.get("catalog_rating", product.get("rating"))) is not None
+                           and not isinstance(v, bool) and isinstance(v, (int, float))
+                           and math.isfinite(v) and 0 <= v <= 5 else None),
+        "attributes": {k: _normalize_whitespace(v)[:64] for k, v in product.get("attributes", {}).items()
+                       if k in {"material", "style", "use"} and isinstance(v, str) and len(v) <= 64}
+                      if isinstance(product.get("attributes"), dict) else {},
         "category": _truncate(_normalize_whitespace(str(product.get("category", ""))), 120),
         "brand": _truncate(_normalize_whitespace(str(product.get("brand", ""))), 120),
         "currency": _truncate(_normalize_whitespace(str(product.get("currency", ""))), 16),
@@ -1776,6 +1782,7 @@ Output ONE line of search keywords only.
         user_query: str,
         products: List[Dict[str, Any]],
         tone_instruction: str = "Professional",
+        *, compare_to_id: Optional[int] = None,
     ) -> Optional[CognitiveResponse]:
         if not products:
             return None
@@ -1798,7 +1805,8 @@ Output ONE line of search keywords only.
         ]
 
         fallback_ids = [p["id"] for p in products_slice[:3] if p.get("id")]
-        fallback_reasoning = {str(p["id"]): "Strong relevance match" for p in products_slice[:3] if p.get("id")}
+        from app.services.recommendation_copy import ground_recommendation_copy
+        fallback_reasoning, fallback_intro = ground_recommendation_copy(fallback_ids, {}, products_slice, compare_to_id=compare_to_id)
 
         # 💎 CHIEF MERCHANDISING OFFICER PROMPT WITH PYDANTIC SCHEMA
         system_core = f"""
@@ -1937,22 +1945,20 @@ Output ONE line of search keywords only.
                         "candidate_count": len(valid_candidate_ids),
                     },
                 )
+            safe_reasoning, safe_intro = ground_recommendation_copy(grounded_ids, parsed.reasoning, products_slice, compare_to_id=compare_to_id)
             # Enforce reasoning scope even when every selected ID was valid.
             # Extra model keys must not attach copy to an unselected product.
             parsed = CognitiveResponse(
                 selected_ids=grounded_ids,
-                reasoning={
-                    key: value for key, value in parsed.reasoning.items()
-                    if key in {str(pid) for pid in grounded_ids}
-                },
-                intro_message=parsed.intro_message,
+                reasoning=safe_reasoning,
+                intro_message=safe_intro,
                 confidence_score=parsed.confidence_score,
             )
             if not parsed.selected_ids:
                 parsed = CognitiveResponse(
                     selected_ids=fallback_ids,
                     reasoning=fallback_reasoning,
-                    intro_message="I found a strong mix of relevant options for you.",
+                    intro_message=fallback_intro,
                     confidence_score=0.62,
                 )
             return parsed
@@ -1963,7 +1969,7 @@ Output ONE line of search keywords only.
             return CognitiveResponse(
                 selected_ids=fallback_ids,
                 reasoning=fallback_reasoning,
-                intro_message="I found a strong mix of relevant options for you.",
+                intro_message=fallback_intro,
                 confidence_score=0.62,
             )
 

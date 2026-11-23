@@ -59,7 +59,8 @@ async def test_valid_selection_passes_through():
     })
     result = await svc.filter_and_recommend("phone", _products())
     assert result.selected_ids == [1, 2]
-    assert result.reasoning == {"1": "great phone", "2": "light laptop"}
+    assert set(result.reasoning)=={"1","2"}
+    assert 'Catalog category: "phones".' in result.reasoning["1"]
 
 
 @pytest.mark.anyio
@@ -74,7 +75,8 @@ async def test_hallucinated_ids_are_dropped():
     # 999/1000 were never in the candidate set: dropped before reaching the user
     assert result.selected_ids == [1]
     # reasoning contract preserved: keys match surviving selections
-    assert result.reasoning == {"1": "great phone"}
+    assert 'Catalog category: "phones".' in result.reasoning["1"]
+    assert set(result.reasoning)=={"1"}
 
 
 @pytest.mark.anyio
@@ -116,7 +118,9 @@ async def test_valid_selected_ids_do_not_allow_reasoning_for_unselected_or_inven
         'intro_message':'Listed option','confidence_score':0.5})
     result=await svc.filter_and_recommend('phone',_products())
     assert result.selected_ids==[1]
-    assert result.reasoning=={'1':'Listed selection'}
+    assert set(result.reasoning)=={'1'}
+    assert 'Not selected' not in str(result.reasoning)
+    assert 'Listed selection' not in str(result.reasoning)
 
 
 @pytest.mark.parametrize('value',['NaN','Infinity','-Infinity',float('inf')])
