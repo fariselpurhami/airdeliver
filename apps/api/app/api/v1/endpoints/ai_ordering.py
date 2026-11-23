@@ -470,8 +470,12 @@ async def handle_chat_websocket(
                 try:
                     async for message in pubsub.listen():
                         if message["type"] == "message":
-                            await session.refresh(current_user)
-                            if current_user.auth_version!=socket_auth_version or not current_user.is_active:
+                            # Never share the receive handler's session with a
+                            # concurrent relay task, or retain its old snapshot.
+                            from app.db.session import AsyncSessionFactory
+                            async with AsyncSessionFactory() as auth_db:
+                                active=await auth_db.get(models.User,current_user.id)
+                            if not active or active.auth_version!=socket_auth_version or not active.is_active:
                                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                                 return
                             raw_data = message["data"]
@@ -480,7 +484,9 @@ async def handle_chat_websocket(
                 except asyncio.CancelledError:
                     pass # Task cancelled gracefully
                 except Exception as e:
-                    logger.error(f"Redis Listener Error for User {current_user.id}: {e}")
+                    logger.error("Redis listener stopped", extra={"user_id":current_user.id,"error_type":type(e).__name__})
+                    if websocket.client_state != WebSocketState.DISCONNECTED:
+                        await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
 
             # Start Listener
             listener_task = asyncio.create_task(listen_for_ai_responses())
@@ -618,11 +624,20 @@ async def handle_voice_stream(
             from app.db.session import AsyncSessionFactory
             while True:
                 await asyncio.sleep(5)
-                async with AsyncSessionFactory() as auth_db:
-                    active=await auth_db.get(models.User,user_id)
-                    if not active or not active.is_active or active.auth_version!=ticket_version:
-                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-                        return
+                try:
+                    async with asyncio.timeout(5):
+                        async with AsyncSessionFactory() as auth_db:
+                            active=await auth_db.get(models.User,user_id)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    # A failed watcher must not silently leave an authenticated
+                    # media connection running forever after credential reset.
+                    await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+                    return
+                if not active or not active.is_active or active.auth_version!=ticket_version:
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    return
         auth_watch=asyncio.create_task(watch_credential_version())
         try:
             await orchestrator.process_voice_session(websocket, str(user_id))
