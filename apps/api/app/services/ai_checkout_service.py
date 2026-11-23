@@ -64,8 +64,8 @@ class NotificationServiceProtocol(Protocol):
 # Enforcing boundary validation and type safety
 
 class ValidatedCheckoutItem(BaseModel):
-    product_id: int = Field(gt=0, validation_alias=AliasChoices("product_id", "id"))
-    quantity: int = Field(gt=0, le=99)
+    product_id: int = Field(ge=1, le=9223372036854775807, strict=True, validation_alias=AliasChoices("product_id", "id"))
+    quantity: int = Field(gt=0, le=99, strict=True)
     price: Decimal = Field(ge=0, allow_inf_nan=False, max_digits=10, decimal_places=2)
 
     @field_validator("product_id", "quantity", mode="before")

@@ -343,3 +343,19 @@ async def test_legacy_payment_commit_failure_never_claims_order_confirmed():
     assert db.rollbacks==1 and cache.deleted==[] and rabbit.events==[]
     assert not any(p['type']=='success_text' for _,p in cache.published)
     assert any('before paying again' in p.get('content','') for _,p in cache.published)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('field,value',[
+    ('product_id','7'),('product_id',7.0),('product_id',2**63),
+    ('product_id',True),('quantity','2'),('quantity',2.0),('quantity',True),
+])
+async def test_checkout_rejects_coerced_or_database_overflow_cart_values_before_catalog_lookup(field,value):
+    import copy
+    cart=copy.deepcopy(CART);cart['items'][0][field]=value
+    svc,_,db,_,orch=make_service(cart=cart)
+    db.get=AsyncMock(side_effect=AssertionError('invalid item must not reach catalog/database lookup'))
+    await svc.handle_confirm_order(dict(CONFIRM))
+    db.get.assert_not_awaited()
+    orch.process_payment.assert_not_awaited()
+    assert db.added==[]
