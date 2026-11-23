@@ -91,6 +91,7 @@ interface AIOrderingState {
   messages: Message[];
   paymentDetails: PaymentDetails | null;
   activeCheckoutRequestId: string | null;
+  cartRevision: number | null;
   recoveryOrderDetails: PaymentDetails | null;
   suggestedProductIds: number[] | null;
   flyQueue: FlyItem[];
@@ -198,6 +199,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   shippingAddress: null,
   paymentDetails: null,
   activeCheckoutRequestId: null,
+  cartRevision: null,
   recoveryOrderDetails: null,
   suggestedProductIds: null,
   isLoading: false,
@@ -220,7 +222,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
   // --- Socket Logic ---
   connectSocket: async (token: string) => {
-    set({ authToken: token });
+    set(state => ({ authToken: token, cartRevision: state.authToken === token ? state.cartRevision : null }));
     const {
       socket,
       socketStatus,
@@ -543,6 +545,17 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       }
 
       if (response.type === 'cart_preview') {
+        const cartContent = response.content as Record<string, unknown>;
+        const incomingRevision = cartContent?.revision;
+        if (!Array.isArray(cartContent?.items)) return;
+        if (incomingRevision !== undefined) {
+          if (typeof incomingRevision !== 'number' || !Number.isSafeInteger(incomingRevision) || incomingRevision < 0) return;
+          if (state.cartRevision !== null && incomingRevision <= state.cartRevision) return;
+          state.cartRevision = incomingRevision;
+        } else if (state.cartRevision !== null) {
+          // Once canonical snapshots arrive, legacy unordered frames cannot rewind them.
+          return;
+        }
         const isDuplicate = lastMsg?.contentType === 'cart_preview' &&
                             JSON.stringify(lastMsg.content) === JSON.stringify(response.content);
 

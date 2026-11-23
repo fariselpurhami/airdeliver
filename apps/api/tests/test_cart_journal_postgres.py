@@ -78,3 +78,18 @@ async def test_rollback_loses_neither_state_nor_receipt_separately(journal_db):
         with pytest.raises(CartJournalStale):
             await CartJournalService(db).apply_snapshot(uid,str(uuid4()),{'op':'clear'},0,{'items':[]})
         await db.rollback()
+
+@pytest.mark.asyncio
+async def test_read_snapshot_envelope_is_read_only_revisioned_and_detached(journal_db):
+    sessions,(uid,_)=journal_db
+    async with sessions() as db:
+        service=CartJournalService(db)
+        assert await service.read_snapshot(uid) is None
+        await service.apply_snapshot(uid,str(uuid4()),{'op':'seed'},0,STATE)
+        await db.commit()
+    async with sessions() as db:
+        service=CartJournalService(db)
+        result=await service.read_snapshot(uid)
+        assert result['revision']==1 and result['total']=='39.98'
+        result['items'].clear()
+        assert (await service.read_snapshot(uid))['items'][0]['product_id']==7

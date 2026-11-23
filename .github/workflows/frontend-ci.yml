@@ -4,7 +4,7 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui"]
+    branches: ["main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui"]
     paths:
       - 'apps/web/**'
       - 'pnpm-lock.yaml'

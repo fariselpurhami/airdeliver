@@ -37,6 +37,14 @@ class CartJournalService:
         return (await self.db.execute(select(CustomerCartState).where(CustomerCartState.user_id==user_id)
             .with_for_update().execution_options(populate_existing=True))).scalars().one()
 
+    async def read_snapshot(self, user_id):
+        """Read-only canonical envelope. Never imports or clears legacy Redis."""
+        row=(await self.db.execute(select(CustomerCartState).where(
+            CustomerCartState.user_id==user_id).execution_options(populate_existing=True))).scalars().one_or_none()
+        if row is None:
+            return None
+        return {**deepcopy(row.state), 'revision':row.revision}
+
     async def apply_snapshot(self, user_id, mutation_id, operation, expected_revision, state):
         from app.services.ai_cart_service import CartStateModel
         identity=str(UUID(str(mutation_id)))
