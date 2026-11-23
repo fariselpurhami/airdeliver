@@ -243,8 +243,10 @@ const CosmicDustCanvas = memo(() => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prefersReducedMotion = useReducedMotion();
+  const orderingOpen = useAIOrderingStore(state => state.isOverlayVisible);
 
   useEffect(() => {
+    if (orderingOpen) return;
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
@@ -408,7 +410,7 @@ const CosmicDustCanvas = memo(() => {
       intersectionObserver.disconnect();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [prefersReducedMotion]);
+  }, [prefersReducedMotion, orderingOpen]);
 
   return (
     <div
@@ -834,8 +836,8 @@ const HowItWorksSection = memo(() => {
       <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
         <motion.div style={{ y: prefersReducedMotion ? 0 : yParallax }} className="absolute inset-0 transform-gpu">
           {/* Restored Ambient Glows */}
-          <div className="absolute top-[10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-cyan-600/10 blur-[150px] mix-blend-screen transform-gpu" />
-          <div className="absolute bottom-[10%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-600/10 blur-[150px] mix-blend-screen transform-gpu" />
+          <div className="absolute top-[10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-cyan-600/[0.04] blur-[80px] mix-blend-screen transform-gpu" />
+          <div className="absolute bottom-[10%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-600/[0.04] blur-[80px] mix-blend-screen transform-gpu" />
           
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_10%,transparent_100%)] opacity-30" />
         </motion.div>
@@ -976,7 +978,7 @@ export function LandingClient({ nonce, initialTraceId }: LandingClientProps) {
   const { isMobile, isStandalone, mounted } = useDeviceDetection();
   
   // Stores synchronization
-  const { setOverlayVisible } = useAIOrderingStore();
+  const setOverlayVisible = useAIOrderingStore(state => state.setOverlayVisible);
   const { showProductOverlay, hideProductOverlay } = useUIStore();
 
   useEffect(() => {

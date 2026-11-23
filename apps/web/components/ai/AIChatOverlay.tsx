@@ -2,6 +2,8 @@
 
 'use client';
 
+import { OrderingOverlayHostContext } from './OrderingOverlayHostContext';
+
 import { useRouter } from 'next/navigation';
 import { ProductDetailsCard } from '../products/ProductDetailsCard';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -1066,7 +1068,13 @@ PaymentFatalError.displayName = 'PaymentFatalError';
 // --- MAIN COMPONENT ---
 // ============================================================================
 
-export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export default function AIChatOverlay({ isOpen, onClose, shellOwned = false }: { isOpen: boolean; onClose: () => void; shellOwned?: boolean }) {
+    const hosted = React.useContext(OrderingOverlayHostContext);
+    if (hosted && !shellOwned) return null;
+    return <OrderingOverlaySession isOpen={isOpen} onClose={onClose} />;
+}
+
+function OrderingOverlaySession({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     const router = useRouter();
     const [detailProduct, setDetailProduct] = useState<AIProduct | null>(null);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -1365,7 +1373,7 @@ export default function AIChatOverlay({ isOpen, onClose }: { isOpen: boolean; on
                         willChange: 'opacity',
                         fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Plus Jakarta Sans', 'Inter', sans-serif"
                     }}
-                    className="fixed inset-0 z-50 bg-[#04070F]/95 backdrop-blur-3xl flex justify-center items-center p-0 sm:p-4 overflow-hidden transform-gpu"
+                    className="fixed inset-0 z-[1000] bg-[#04070F] sm:bg-[#04070F]/95 sm:backdrop-blur-3xl flex justify-center items-center p-0 sm:p-4 overflow-hidden transform-gpu"
                 >
                     <FlyToCartAnimator />
 

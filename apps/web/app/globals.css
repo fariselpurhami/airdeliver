@@ -298,6 +298,11 @@
 /* Continue lightweight atmosphere through existing section padding. No empty spacer. */
 .home-continuous-background {
  background-color: #04060a;
- background-image: radial-gradient(ellipse at 20% 20%, rgba(6,182,212,.10), transparent 60%), radial-gradient(ellipse at 80% 60%, rgba(124,58,237,.12), transparent 65%), radial-gradient(circle,rgba(170,205,230,.24) .6px,transparent .9px);
- background-size: 100% 1600px,100% 1600px,37px 43px;
+ background-image: radial-gradient(ellipse at 20% 20%, rgba(6,182,212,.035), transparent 60%), radial-gradient(ellipse at 80% 60%, rgba(124,58,237,.04), transparent 65%), radial-gradient(circle,rgba(170,205,230,.24) .6px,transparent .9px);
+ background-size: 100% 100%,100% 100%,37px 43px;
+ background-repeat: no-repeat,no-repeat,repeat;
 }
+
+/* A single shell-owned ordering layer occludes the page without repainting it. */
+.app-shell[data-ordering-open] > main { visibility: hidden; pointer-events: none; }
+.app-shell[data-ordering-open] > main * { animation-play-state: paused !important; }

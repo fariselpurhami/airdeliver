@@ -3,6 +3,7 @@
 "use client";
 
 import React from "react";
+import { OrderingOverlayHostContext } from "@/components/ai/OrderingOverlayHostContext";
 import dynamic from "next/dynamic";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -18,20 +19,24 @@ type AppShellProps = {
 };
 
 export default function AppShell({ children }: AppShellProps) {
-  const { isOverlayVisible, setOverlayVisible } = useAIOrderingStore();
+  const isOverlayVisible = useAIOrderingStore(state => state.isOverlayVisible);
+  const setOverlayVisible = useAIOrderingStore(state => state.setOverlayVisible);
 
   return (
-    <div className="relative flex min-h-dvh w-full max-w-full flex-col overflow-x-clip bg-background">
-      <Header />
-      <main className="relative flex-1 w-full max-w-full overflow-x-clip">
+    <OrderingOverlayHostContext.Provider value={true}>
+    <div data-ordering-open={isOverlayVisible || undefined} className="app-shell relative flex min-h-dvh w-full max-w-full flex-col overflow-x-clip bg-background">
+      <div hidden={isOverlayVisible} inert={isOverlayVisible} aria-hidden={isOverlayVisible || undefined}><Header /></div>
+      <main inert={isOverlayVisible} aria-hidden={isOverlayVisible || undefined} className="relative flex-1 w-full max-w-full overflow-x-clip">
         {children}
       </main>
-      <Footer />
+      <div hidden={isOverlayVisible} inert={isOverlayVisible}><Footer /></div>
       <AIChatOverlay
+        shellOwned
         isOpen={isOverlayVisible}
         onClose={() => setOverlayVisible(false)}
       />
-      <Chatbot />
+      <div hidden={isOverlayVisible} inert={isOverlayVisible}><Chatbot /></div>
     </div>
+    </OrderingOverlayHostContext.Provider>
   );
 }
