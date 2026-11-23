@@ -16,7 +16,7 @@ const API_BASE_URL = process.env.BACKEND_API_URL || 'http://api:8000';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  allowedDevOrigins: ["192.168.1.2"],
+  allowedDevOrigins: isDevelopment ? ["127.0.0.1"] : [],
   turbopack: {
     // In the pnpm workspace, `next` is hoisted to the repo-root node_modules,
     // so the workspace root must be the repo root. In the standalone Docker

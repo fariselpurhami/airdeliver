@@ -513,7 +513,7 @@ services:
     environment:
      - AUTH_URL=${AUTH_URL:-http://127.0.0.1:3000}
      - NEXTAUTH_URL=${AUTH_URL:-http://127.0.0.1:3000}
-     - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://127.0.0.1/api/v1}
+     - NEXT_PUBLIC_API_URL=/api/v1
      - API_URL=http://api:8000/api/v1
      - AUTH_SECRET=${AUTH_SECRET}
      - AUTH_TRUST_HOST=true
@@ -542,7 +542,7 @@ services:
         - "3000:3000"
     networks:
         - global-net
-    command: pnpm exec next dev --hostname 0.0.0.0 --port 3000
+    command: node scripts/dev-lan.mjs
     healthcheck:
       test:
         [

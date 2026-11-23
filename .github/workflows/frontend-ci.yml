@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Private LAN development policy
+        run: node --test apps/web/scripts/dev-lan-policy.test.mjs
+
       - name: Typecheck
         run: pnpm --filter airdeliver/apps/web exec tsc --noEmit
 
