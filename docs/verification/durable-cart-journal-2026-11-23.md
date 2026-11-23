@@ -1,0 +1,7 @@
+# Prepared canonical PostgreSQL cart and mutation journal
+
+Prepared additive migration1b8de657a098 creates per-customer canonical cart revision/state plus immutable operation fingerprints/outcomes. Service locks customer state and writes canonical cart plus operation record in one caller-owned SQL transaction. Replaying an old ID returns original outcome plus current cart/revision, never rewinds newer state. Same ID/different operation conflicts; stale revision cannot commit. Cart line validation and Decimal total derivation run before write.
+
+Real migrated PostgreSQL19 tests use independent sessions for commit/replay, customer isolation, same-key race, rollback and stale revision. Full local819passed4skipped20existing warnings including current Redis receipt tests. No Redis side effect in journal transaction. No customer runtime wiring or backfill yet. No provider calls.
+
+Morning decision: review/apply this new migration and canonical-cart rollout plan before enabling any customer traffic. SQL revision migration/model registration is prepared here, not applied to the user's stack. Existing cart remains Redis until full cutover/import/cache-reconciliation work is completed and approved. Do not call existing traffic durable merely because this service exists. Mutation-record retention/deletion policy and storage growth require rollout review. Redis cache is future derived state, never a second canonical write.
