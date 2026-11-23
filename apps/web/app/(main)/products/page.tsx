@@ -11,6 +11,7 @@ import useSWR from 'swr';
 import { api } from '@/lib/api';
 import { AlertTriangle, Bot, ShoppingBag, Zap, Layers, ChevronLeft, ChevronRight, Activity, BadgeCheck } from 'lucide-react';
 import Image from 'next/image';
+import { CatalogImage } from '@/components/products/CatalogImage';
 import dynamic from 'next/dynamic';
 import { ProductDetailsCard } from '@/components/products/ProductDetailsCard';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
@@ -233,7 +234,7 @@ const AlgorithmicPick = React.memo(({ onOpen }: { onOpen: (product: Product) => 
                 <div className="w-[45%] md:w-1/2 relative flex items-center justify-center p-4 md:p-10 bg-white/[0.02]">
                     <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
                     <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} className="relative z-10 w-full h-full max-w-sm">
-                        <Image src={recommendationsData.image_url || '/images/default.jpeg'} alt={recommendationsData.name} fill className="object-contain drop-shadow-2xl" priority />
+                        <CatalogImage src={recommendationsData.image_url || '/images/default.jpeg'} alt={recommendationsData.name} fill className="object-contain drop-shadow-2xl" priority />
                     </motion.div>
                 </div>
 
@@ -336,7 +337,7 @@ const ProductCard = React.memo(({ product, onOpen }: { product: Product, onOpen:
 
             <div className="relative w-full aspect-[4/3] p-3 md:p-6 bg-white/[0.02] flex items-center justify-center">
                 <motion.div className="relative w-full h-full" whileHover={{ scale: 1.05 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
-                    <Image id={`product-img-${product.id}`} src={product.image_url || '/images/default.jpeg'} alt={product.name} fill className="object-contain drop-shadow-xl" sizes="(max-width: 768px) 50vw, 25vw" loading="lazy" />
+                    <CatalogImage id={`product-img-${product.id}`} src={product.image_url || '/images/default.jpeg'} alt={product.name} fill className="object-contain drop-shadow-xl" sizes="(max-width: 768px) 50vw, 25vw" loading="lazy" />
                 </motion.div>
             </div>
             

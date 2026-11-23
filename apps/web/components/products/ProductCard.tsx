@@ -6,6 +6,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { Bot, ScanLine, ShoppingBag, Check } from 'lucide-react';
 import Image from 'next/image';
+import { CatalogImage } from '@/components/products/CatalogImage';
 import { CatalogPrice, listedCatalogPrice } from '../ai/CatalogPrice';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore'; 
 
@@ -95,7 +96,7 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
             {/* تصغير أقصى ارتفاع للصورة في الموبايل لـ 140px عشان متتفعصش على النصوص */}
             <div className="relative w-full h-full max-h-[140px] md:max-h-[220px] md:[transform:translateZ(60px)]">
                 {product.image_url ? (
-                    <Image
+                    <CatalogImage
                         src={product.image_url}
                         alt={product.name}
                         fill
