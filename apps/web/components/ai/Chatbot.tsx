@@ -62,10 +62,10 @@ const MessageBubble = memo(({ message, onSend }: MessageBubbleProps) => {
       }`}
     >
       <div
-        className={`w-fit max-w-[99%] px-4 py-3 ${
+        className={`w-fit max-w-[92%] px-4 py-3.5 ${
           isUser
-            ? 'rounded-[32px] rounded-br-none bg-white/5 border border-white/10 text-white backdrop-blur-sm transform-gpu'
-            : 'rounded-[32px] rounded-bl-none bg-[#050B14]/80 backdrop-blur-xl border border-white/5 text-gray-100 shadow-xl shadow-black/20 transform-gpu'
+            ? 'rounded-[24px] rounded-br-[8px] bg-cyan-100/[0.09] border border-cyan-100/10 text-white backdrop-blur-xl transform-gpu'
+            : 'rounded-[24px] rounded-bl-[8px] bg-white/[0.045] backdrop-blur-xl border border-white/[0.07] text-gray-100 shadow-lg shadow-black/10 transform-gpu'
         }`}
       >
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/90 font-normal">
@@ -155,7 +155,7 @@ const ChatInput = memo(({ onSend, isTyping }: ChatInputProps) => {
   };
 
   return (
-    <div className="p-6 border-t border-white/5 flex-shrink-0 bg-[#020617]/50 backdrop-blur-md relative z-20">
+    <div className="px-4 pt-3 pb-[max(16px,env(safe-area-inset-bottom))] sm:px-6 border-t border-white/[0.06] flex-shrink-0 bg-[#080e1b]/90 backdrop-blur-xl relative z-20">
       <div className="relative group max-w-4xl mx-auto flex items-center gap-2">
         <div className="relative flex-grow">
           <textarea
@@ -164,18 +164,20 @@ const ChatInput = memo(({ onSend, isTyping }: ChatInputProps) => {
             onChange={handleAutoResize}
             rows={1}
             onKeyDown={handleKeyDown}
-            placeholder={isTyping ? 'Thinking...' : 'Ask air assistance...'}
+            aria-label="Message Air Assistant"
+            placeholder={isTyping ? 'Thinking...' : 'Ask Air Assistant...'}
             disabled={isTyping}
-            className="w-full bg-gray-800 border border-gray-800 rounded-[28px] py-[14px] pr-16 pl-6 text-gray-100 placeholder-gray-400 focus:bg-gray-800 focus:border-none focus:outline-none transition-all duration-300 font-medium shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
+            className="w-full bg-white/[0.045] border border-white/10 rounded-[28px] py-[14px] pr-16 pl-5 text-sm text-gray-100 placeholder-slate-500 focus:border-cyan-200/40 focus:outline-none focus:ring-2 focus:ring-cyan-200/10 transition-all duration-300 font-normal shadow-lg resize-none overflow-hidden no-scrollbar min-h-[52px] leading-relaxed"
             style={{
               overflowY:
                 textareaRef.current && textareaRef.current.scrollHeight > 150 ? 'auto' : 'hidden',
             }}
           />
           <button
+            aria-label="Send message"
             disabled={isTyping || !value.trim()}
             onClick={handleTriggerSend}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-cyan-600 hover:bg-cyan-500 disabled:bg-transparent disabled:text-gray-600 text-white transition-all"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-full bg-white hover:bg-cyan-100 disabled:bg-white/5 disabled:text-slate-600 text-[#07101f] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
           >
             {isTyping ? (
               <Loader2 size={18} className="animate-spin" />
@@ -216,9 +218,10 @@ export default function Chatbot() {
   return (
     <>
       <motion.button
+        aria-label={isOpen ? "Close Air Assistant" : "Open Air Assistant"}
         onClick={() => setIsOpen(!isOpen)}
         className={`fixed bottom-3 right-6 z-[60] p-0 rounded-full shadow-[0_0_72px_rgba(6,182,212,0.7)] focus:outline-none group transition-all duration-300 ${
-          shouldHideOnMobile ? 'hidden md:block' : 'block'
+          isOpen ? 'hidden' : shouldHideOnMobile ? 'hidden md:block' : 'block'
         }`}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -241,7 +244,7 @@ export default function Chatbot() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsOpen(false)}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 overflow-hidden transform-gpu"
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xl flex justify-center items-center p-2 sm:p-6 overflow-hidden transform-gpu"
             style={{ colorScheme: 'dark', willChange: 'opacity', fontFamily: 'Montserrat, sans-serif' }}
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50" />
@@ -251,24 +254,26 @@ export default function Chatbot() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 30 }}
               transition={{ duration: 0.35 }}
+              role="dialog" aria-label="Air Assistant" aria-modal="true"
               onClick={(e) => e.stopPropagation()}
               style={{ willChange: 'transform, opacity' }}
-              className="w-full h-full max-w-[460px] max-h-[1050px] md:max-h-[90vh] flex flex-col bg-[#020617]/55 backdrop-blur-3xl border border-white/10 rounded-[73px] shadow-[0_0_100px_rgba(6,182,212,0.1)] overflow-hidden relative transform-gpu"
+              className="w-full h-[min(880px,calc(100dvh-16px))] sm:h-[min(820px,calc(100dvh-48px))] max-w-[540px] flex flex-col bg-[#060b17]/95 backdrop-blur-3xl border border-white/[0.12] rounded-[32px] sm:rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,0.65),0_0_50px_rgba(34,211,238,0.06)] overflow-hidden relative transform-gpu"
             >
               <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] pointer-events-none rounded-full" />
               <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/5 blur-[120px] pointer-events-none rounded-full" />
 
-              <header className="px-8 py-6 flex items-center flex-shrink-0 relative z-10">
+              <header className="px-5 sm:px-7 py-5 flex items-center flex-shrink-0 relative z-10 border-b border-white/[0.06] bg-white/[0.02]">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-300">
                     <Bot size={18} />
                   </div>
                   <div>
-                    <h2 className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
+                    <h2 className="text-base font-semibold tracking-tight text-white">Air Assistant</h2>
+                    <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400 flex items-center gap-1.5 mt-1">
                       <Cpu size={12} className="text-cyan-500" />
-                      Real-time assistance
-                    </h2>
-                    <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1">
+                      Here to help
+                    </p>
+                    <p className="text-[9px] text-slate-500 flex items-center gap-1 mt-1">
                       <ShieldCheck size={12} className="text-cyan-500" />
                       Secured
                     </p>
@@ -276,6 +281,7 @@ export default function Chatbot() {
                 </div>
 
                 <button
+                  aria-label="Close assistant panel"
                   onClick={() => setIsOpen(false)}
                   className="ml-auto p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
                 >
@@ -283,7 +289,7 @@ export default function Chatbot() {
                 </button>
               </header>
 
-              <div className="flex-grow px-5 lg:px-12 py-8 space-y-8 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/10 scrollbar-track-transparent relative z-10">
+              <div className="flex-grow min-h-0 px-4 sm:px-6 py-6 space-y-5 overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/10 scrollbar-track-transparent relative z-10">
                 <AnimatePresence initial={false}>
                   {messages.map((msg, idx) => (
                     <React.Fragment key={idx}>
