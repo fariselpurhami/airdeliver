@@ -1090,22 +1090,37 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     }));
   },
 
-  hardCancelOrder: (reason) => {
-    const { recoveryOrderDetails } = get();
-    const sanitizedReason = (typeof reason === 'string' && reason) ? reason : 'changed_mind';
-
-    get()._sendInternalCommand('__CANCEL__', {
-      type: 'CANCEL_INTENT',
-      message: { orderId: recoveryOrderDetails?.orderId, reason: sanitizedReason }
-    }, true);
-
-    set(produce((state: AIOrderingState) => {
-      state.messages = state.messages.filter(m => m.contentType !== 'recovery_prompt');
-      state.recoveryMode = false;
-      state.recoveryOrderDetails = null;
-      state.paymentDetails = null;
-      state.isProcessing = false;
-    }));
+  hardCancelOrder: async (reason) => {
+    const state=get();
+    if(state.isProcessing)return;
+    const rawId=state.recoveryOrderDetails?.orderId ?? state.paymentDetails?.orderId;
+    const orderId=Number(rawId);
+    if(!Number.isInteger(orderId) || orderId<1 || orderId>2147483647){
+      get().appendSystemMessage({type:'error',content:'Choose the exact order to cancel. Your cart and order were not changed.'});
+      return;
+    }
+    if(!state.authToken)return;
+    set({isProcessing:true});
+    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);
+    try{
+      const base=process.env.NEXT_PUBLIC_API_URL?.trim() || '/api/v1';
+      const response=await fetch(`${base}/ai-ordering/checkout/cancel`,{
+        method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${state.authToken}`},
+        credentials:'include',body:JSON.stringify({order_id:orderId}),signal:controller.signal
+      });
+      const result=await response.json();
+      if(!response.ok || result.status!=='cancelled'){
+        get().appendSystemMessage({type:'error',content:'Cancellation was not confirmed. Your cart is preserved. Review this order before paying again. No refund was made here.'});
+        return;
+      }
+      set(produce((draft:AIOrderingState)=>{
+        draft.messages=draft.messages.filter(m=>m.contentType!=='recovery_prompt');
+        draft.recoveryMode=false;draft.recoveryOrderDetails=null;draft.paymentDetails=null;
+      }));
+      get().appendSystemMessage({type:'info',content:`Order #${orderId} canceled. Your cart is preserved.`});
+    }catch{
+      get().appendSystemMessage({type:'error',content:'Cancellation could not be confirmed. Your cart is preserved. Check the existing order before trying again.'});
+    }finally{clearTimeout(timeout);set({isProcessing:false});}
   },
 
   cancelPaymentIntent: async () => {
