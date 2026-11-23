@@ -28,7 +28,7 @@ from tenacity import (
 )
 
 from app.services.shopping_discovery import ShoppingBrief, catalog_result
-from app.services.shopping_copy import write_shopping_copy
+from app.services.sales_response_service import SalesResponseRequest, SalesResponseService
 from app import models
 from app.schemas.ai_actions import (
     NeuralCoreResponse,
@@ -416,20 +416,12 @@ class NeuralCoreService:
         return await self._shopping_response(customer_message or query,cards[:5],brief,"catalog_results",intent,evidence)
 
     async def _shopping_response(self,message,cards,brief,mode,intent,evidence=None):
-        try:
-            if not self.is_healthy:raise RuntimeError("provider_unavailable")
-            text=await write_shopping_copy(self._execute_llm_inference,message,cards,brief.model_dump(),mode,NeuralCoreConfig.LLM_TIMEOUT_SEC,evidence)
-            kind=mode
-        except Exception as exc:
-            logger.warning("neural_core.shopping.copy_withheld",extra={"error_type":type(exc).__name__})
-            text="System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog."
-            kind="system_notice"
-            # Rejected prose and its candidate choices are not a recommendation.
-            # A failed discovery review must not leak luxury/random candidates.
-            cards=[]
-        return NeuralCoreResponse(text=text,products=cards,response_kind=kind,
-            confidence=0.5 if kind!="system_notice" else 0.0,explain="Model-authored copy with structured evidence and independent grounding review",
-            telemetry={"intent":intent,"entities":[],"turn":0})
+        # Preserve the support adapter; shared service is also usable by optional
+        # event consumers without sharing request sessions or cart mutations.
+        service=SalesResponseService(self._execute_llm_inference,provider_ready=self.is_healthy,
+            timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC)
+        return await service.respond(SalesResponseRequest(message=message,products=tuple(cards),brief=brief,
+            mode=mode,intent=intent,evidence=evidence or {}))
 
     async def _handle_visual_search(self, image_base64: str, caption: str = "", db=None) -> NeuralCoreResponse:
         """Visual candidates are revalidated against current DB rows, then
