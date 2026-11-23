@@ -110,7 +110,7 @@ const MobileHeader = memo(({ headerRef }: { headerRef: React.RefObject<HTMLEleme
           <div className="relative flex items-center mb-1">
             <Image
               src="/logo.png"
-              alt="AirDeliver logo"
+              alt="airdeliver logo"
               width={120}
               height={22}
               priority

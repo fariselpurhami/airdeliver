@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Badge catalog: name -> (description, icon_url, points threshold on lifetime total)
 BADGE_CATALOG = {
-    "First Purchase": ("Completed your first AirDeliver order.", "/images/badges/first_purchase.svg", 1),
+    "First Purchase": ("Completed your first airdeliver order.", "/images/badges/first_purchase.svg", 1),
     "Rising Collector": ("Earned 500 lifetime points.", "/images/badges/rising_collector.svg", 500),
     "Elite Curator": ("Earned 2,000 lifetime points.", "/images/badges/elite_curator.svg", 2000),
     "Titanium Patron": ("Earned 10,000 lifetime points.", "/images/badges/titanium_patron.svg", 10000),

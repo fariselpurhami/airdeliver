@@ -122,7 +122,7 @@ const extractBrandAndTitle = (product: AIProduct): { brand: string; title: strin
         };
     }
     return {
-        brand: (product.stock_level || 'AIRDELIVER SELECT').toUpperCase(),
+        brand: product.stock_level ? product.stock_level.toUpperCase() : 'airdeliver SELECT',
         title: product.name
     };
 };
@@ -222,7 +222,7 @@ export const CarouselProductCard = React.memo(({ product, onSelect, onViewDetail
 
                     {/* Bottom Dark Obsidian Details Surface */}
                  <div className="flex flex-col flex-grow px-1">
-                    <span className="text-[11px] font-semibold text-white/50 tracking-wider uppercase mb-1 truncate">
+                    <span className={`text-[11px] font-semibold text-white/50 tracking-wider mb-1 truncate ${brand === 'airdeliver SELECT' ? 'normal-case' : 'uppercase'}`}>
                         {brand}
                     </span>
                     

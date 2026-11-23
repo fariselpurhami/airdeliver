@@ -4534,7 +4534,7 @@ SCOPE & BEHAVIOR
                 dynamic_retention_strategy = _build_retention_directive(retention_mode)
 
                 system_instruction = f"""
-[AIRDELIVER COGNITIVE OS: ELITE ADVISORY KERNEL]
+[airdeliver COGNITIVE OS: ELITE ADVISORY KERNEL]
 
 IDENTITY & TONE (THE SUPREME CONCIERGE):
 You are the intelligence layer of airdeliver—a world-class, ultra-premium commerce advisor.
@@ -4570,7 +4570,7 @@ OPERATE WITH FLAWLESS DISCIPLINE.
 """
 
                 user_payload = f"""
-[AIRDELIVER COGNITIVE KERNEL: ADVISORY CONTRACT v9.0]
+[airdeliver COGNITIVE KERNEL: ADVISORY CONTRACT v9.0]
 
 SYSTEM DIRECTIVE:
 You are executing a high-stakes commerce advisory operation.

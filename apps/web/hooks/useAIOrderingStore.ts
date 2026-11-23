@@ -178,7 +178,7 @@ const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
-  content: "Welcome to AirDeliver. Tell me what you're looking for and I'll find it, build your cart, and check you out.",
+  content: "Welcome to airdeliver. Tell me what you're looking for and I'll find it, build your cart, and check you out.",
   timestamp: Date.now(),
 };
 
