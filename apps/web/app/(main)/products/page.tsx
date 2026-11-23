@@ -11,6 +11,7 @@ import useSWR from 'swr';
 import { api } from '@/lib/api';
 import { AlertTriangle, Bot, ShoppingBag, Zap, Layers, ChevronLeft, ChevronRight, Activity, BadgeCheck } from 'lucide-react';
 import Image from 'next/image';
+import { MobileHomeFloatingCards } from '@/components/hero/MobileHomeFloatingCards';
 import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
 import { CatalogImage } from '@/components/products/CatalogImage';
 import dynamic from 'next/dynamic';
@@ -73,15 +74,16 @@ const AICatalogHero = React.memo(() => {
     }, [messages]);
 
     return (
-        <section className={HERO_STAGE_CLASSES} data-hero-stage="products">
+        <section className={`${HERO_STAGE_CLASSES} max-lg:min-h-[100svh] max-lg:pt-28 max-lg:pb-16`} data-hero-stage="products">
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
                 <div className="w-[80vw] lg:w-[40vw] h-[80vw] lg:h-[40vw] bg-cyan-600/15 lg:bg-cyan-600/10 blur-[100px] lg:blur-[150px] rounded-full mix-blend-screen" />
                 <div className="absolute w-[60vw] lg:w-[30vw] h-[60vw] lg:h-[30vw] bg-purple-600/15 lg:bg-purple-600/10 blur-[80px] lg:blur-[120px] rounded-full mix-blend-screen translate-x-1/4 -translate-y-1/4" />
             </div>
 
-            <FloatingHeroCards />
+            <div className="hidden lg:contents"><FloatingHeroCards /></div>
+            <div className="absolute inset-x-5 top-28 bottom-16 lg:hidden" data-mobile-catalog-distribution><MobileHomeFloatingCards /></div>
 
-            <div className="relative z-20 w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 text-center">
+            <div className="relative z-30 w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 text-center">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(13,13,12,0.95)_0%,rgba(13,13,12,0.7)_40%,transparent_80%)] lg:hidden pointer-events-none -z-10" />
 
                 <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#0D0D0C]/80 border border-white/10 backdrop-blur-xl mb-6 sm:mb-8 shadow-2xl relative z-10">
