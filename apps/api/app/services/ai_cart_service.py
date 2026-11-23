@@ -31,17 +31,17 @@ class CartPersistenceError(RuntimeError):
 # --- DOMAIN STATE MODELS ---
 
 class CartItemModel(BaseModel):
-    product_id: int
+    product_id: int = Field(ge=1, le=9223372036854775807, strict=True)
     name: str
-    quantity: int = Field(gt=0)
-    price: Decimal
+    quantity: int = Field(ge=1, le=99, strict=True)
+    price: Decimal = Field(ge=0, allow_inf_nan=False)
     image_url: str = ""
     category: str = ""
 
 class CartStateModel(BaseModel):
     _snapshot: Any = PrivateAttr(default=None)
     items: List[CartItemModel] = Field(default_factory=list)
-    total: Decimal = Field(default=Decimal("0.00"))
+    total: Decimal = Field(default=Decimal("0.00"), ge=0, allow_inf_nan=False)
     updated_at: str = ""
 
 class CartOperationPayload(BaseModel):

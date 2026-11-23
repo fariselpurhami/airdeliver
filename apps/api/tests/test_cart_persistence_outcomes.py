@@ -228,3 +228,30 @@ async def test_checkout_cart_read_outage_not_misreported_as_empty():
     messages=[p.get('content','') for _,p in cache.published]
     assert any('could not be loaded' in m for m in messages)
     assert not any('empty' in m for m in messages)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('field,value',[
+    ('price','NaN'),('price','Infinity'),('price','-1'),
+    ('quantity',True),('quantity',1.5),('quantity',100),('quantity','2'),
+    ('product_id',True),('product_id',-1),('product_id',2**63),
+])
+async def test_corrupt_cached_line_never_overwritten_or_reported_as_cart_success(field,value):
+    from app.services.ai_cart_service import CartPersistenceError
+    item={'product_id':7,'name':'Shoes','quantity':1,'price':'19.99'}
+    item[field]=value
+    cache=FakeCache({'items':[item],'total':'19.99'})
+    svc=AICartService(FakeDB(make_product()),cache,object())
+    with pytest.raises(CartPersistenceError):
+        await svc.handle_add_to_cart({'user_id':1,'product_id':7})
+    assert cache.sets==[] and cache.published==[]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('total',['NaN','Infinity','-1'])
+async def test_corrupt_cached_total_is_not_hydrated_as_authoritative_cart(total):
+    from app.services.ai_cart_service import CartPersistenceError
+    cache=FakeCache({'items':[],'total':total})
+    with pytest.raises(CartPersistenceError):
+        await AICartService(FakeDB(),cache,object())._get_cart_from_redis(1)
+    assert cache.sets==[]
