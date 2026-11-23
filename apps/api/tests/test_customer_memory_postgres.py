@@ -112,3 +112,25 @@ async def test_real_pg_preference_reaches_new_nlu_instance_answer_context(memory
         call=llm.generate_response.call_args.kwargs
         assert 'color: blue' in call['prompt']
         assert 'color: blue' not in call['system_role']
+
+
+@pytest.mark.asyncio
+async def test_revocation_while_extraction_waits_cannot_reinsert_memory(memory_db):
+    import asyncio
+    sessions,(uid,_)=memory_db
+    started=asyncio.Event();resume=asyncio.Event()
+    async def extractor(text):
+        started.set();await resume.wait()
+        return {'category':'color','value':'blue','evidence':'I prefer blue'}
+    async with sessions() as db:
+        await CustomerMemoryService(db).set_consent(uid,True)
+    async with sessions() as collection_db:
+        task=asyncio.create_task(CustomerMemoryService(collection_db).collect(uid,'I prefer blue',SimpleNamespace(extract_shopping_preferences=extractor)))
+        await started.wait()
+        async with sessions() as revoke_db:
+            await CustomerMemoryService(revoke_db).set_consent(uid,False)
+        resume.set()
+        assert not await task
+    async with sessions() as db:
+        assert await CustomerMemoryService(db).recall(uid)==[]
+        assert (await CustomerMemoryService(db).export(uid))['preferences']==[]

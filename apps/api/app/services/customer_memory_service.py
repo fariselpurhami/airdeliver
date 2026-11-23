@@ -79,7 +79,7 @@ class CustomerMemoryService:
         fingerprint=hashlib.sha256(f'{category}:{value}'.encode()).hexdigest()
         now=datetime.now(timezone.utc)
         # Lock consent row so revocation cannot race with a late memory commit.
-        consent=(await self.db.execute(select(CustomerMemoryConsent).where(CustomerMemoryConsent.user_id==user_id).with_for_update())).scalar_one_or_none()
+        consent=(await self.db.execute(select(CustomerMemoryConsent).where(CustomerMemoryConsent.user_id==user_id).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
         if not consent or not consent.enabled or consent.policy_version!=POLICY_VERSION:return False
         await self.db.execute(delete(CustomerShoppingMemory).where(CustomerShoppingMemory.user_id==user_id,CustomerShoppingMemory.expires_at<=now))
         statement=insert(CustomerShoppingMemory).values(user_id=user_id,category=category,value=value,fingerprint=fingerprint,created_at=now,expires_at=now+timedelta(days=RETENTION_DAYS))

@@ -20,9 +20,9 @@ The finite v1 preference set does not require semantic retrieval. Canonical Post
 
 ## Executed
 
-711 passed, 2 skipped, 20 existing warnings on the full migrated disposable PostgreSQL19 suite. Includes real Redis conversation follow-up tests from the preceding checkpoint.
+712 passed, 2 skipped, 20 existing warnings on the full migrated disposable PostgreSQL19 suite. Includes real Redis conversation follow-up tests from the preceding checkpoint.
 
-New real-PG checks: no consent means no extractor call; opt-in collection, normalized dedupe, independent-session recall, cross-customer isolation, export, expiry exclusion and physical purge, opt-out erasure, feature-off behavior, and a newly constructed NLU instance receiving saved preferences in its answer prompt. Controlled HTTP tests verify authenticated id routing, strict bool/extra-field rejection, feature gating and missing-auth rejection. Privacy regression checks error logs carry no customer/provider text.
+New real-PG checks: no consent means no extractor call; opt-in collection, normalized dedupe, independent-session recall, cross-customer isolation, export, expiry exclusion and physical purge, opt-out erasure, feature-off behavior, a newly constructed NLU instance receiving saved preferences in its answer prompt, and concurrent revocation while extraction is paused (no late reinsertion). Controlled HTTP tests verify authenticated id routing, strict bool/extra-field rejection, feature gating and missing-auth rejection. Privacy regression checks error logs carry no customer/provider text.
 
 Migration tests for timestamp replay now target their own terminal timestamp revision instead of replaying later unrelated create-table migrations. They still execute the original zone-required and instant-preservation assertions.
 
