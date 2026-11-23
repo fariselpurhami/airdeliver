@@ -72,6 +72,22 @@ class CartJournalService:
         await self.db.flush()
         return {'replayed':False,'outcome':outcome,'revision':revision,'cart':deepcopy(snapshot)}
 
+    async def clear_cart(self, user_id, mutation_id, expected_revision):
+        """Prepared clear + existing pending-order cancellation in one SQL tx."""
+        from app.models.order import Order
+        from app.models.enums import OrderStatus
+        operation={'operation':'clear_cart','expected_revision':expected_revision}
+        result=await self.apply_snapshot(user_id,mutation_id,operation,expected_revision,{'items':[]})
+        if result['replayed']:
+            return result
+        orders=(await self.db.execute(select(Order).where(
+            Order.user_id==user_id,Order.status==OrderStatus.PENDING).with_for_update())).scalars().all()
+        for order in orders:
+            order.status=OrderStatus.CANCELLED
+            self.db.add(order)
+        await self.db.flush()
+        return result
+
     async def save_list(self, user_id, mutation_id, expected_revision):
         """Create saved Order, empty canonical cart and receipt in ONE SQL tx.
 
