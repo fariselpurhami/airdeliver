@@ -10,6 +10,8 @@ import time
 from typing import Any, Dict, Final, List, Literal, Optional
 
 from fastapi import Depends
+from app.core.ai_profile import get_ai_profile
+from app.services.ai_adapters import GroqAdapter
 from groq import AsyncGroq
 from groq import APIStatusError, APIConnectionError
 from pydantic import BaseModel, Field, ValidationError
@@ -98,7 +100,7 @@ SCOPE LOCK (mandatory):
 """
 
 class NeuralCoreConfig:
-    MODEL_NAME: Final[str] = "llama-3.3-70b-versatile"
+    MODEL_NAME: Final[str] = get_ai_profile().support_model
     LLM_TIMEOUT_SEC: Final[float] = 8.0
     SESSION_TTL_SEC: Final[int] = 3600
     MAX_CONTEXT_TURNS: Final[int] = 5
@@ -133,9 +135,9 @@ class NeuralCoreService:
         api_key = os.getenv("GROQ_API_KEY")
         self.is_healthy = bool(api_key)
         
-        self.client: Optional[AsyncGroq] = AsyncGroq(
+        self.profile = get_ai_profile()
+        self.client: Optional[AsyncGroq] = GroqAdapter(self.profile, AsyncGroq).create_client(
             api_key=api_key,
-            max_retries=0, # Handled by custom Tenacity decorator for better observability
             timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC
         ) if self.is_healthy else None
 
@@ -188,7 +190,7 @@ class NeuralCoreService:
             raise RuntimeError("LLM Client uninitialized")
 
         completion = await self.client.chat.completions.create(
-            model=NeuralCoreConfig.MODEL_NAME,
+            model=self.profile.support_model,
             messages=messages,
             temperature=0.0, # Zero variance for deterministic routing
             response_format={"type": "json_object"}

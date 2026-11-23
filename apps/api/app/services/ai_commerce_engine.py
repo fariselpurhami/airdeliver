@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.core.ai_profile import get_ai_profile
+from app.services.ai_adapters import LocalRetrievalAdapter
 from app.services.complement_evidence import catalog_asserts_complement
 from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION
 
@@ -234,8 +236,9 @@ ACCESSORY_SAFE_KEYWORDS: frozenset[str] = frozenset(
     }
 )
 
-PRODUCT_TEXT_MODEL = ModelSpec(name=PRODUCT_TEXT_MODEL_NAME, dimension=PRODUCT_TEXT_MODEL_DIMENSION)
-PRODUCT_VISION_MODEL = ModelSpec(name="google/siglip2-so400m-patch14-384", dimension=1152)
+_profile = get_ai_profile()
+PRODUCT_TEXT_MODEL = ModelSpec(name=_profile.text_retrieval_model, dimension=_profile.text_retrieval_dimension)
+PRODUCT_VISION_MODEL = ModelSpec(name=_profile.image_retrieval_model, dimension=_profile.image_retrieval_dimension)
 
 
 def _safe_str(value: Any, default: str = "") -> str:
@@ -397,8 +400,8 @@ class ModelRegistry:
             timer.start()
             warmup_timer = None
             try:
-                model = SentenceTransformer(
-                    PRODUCT_TEXT_MODEL.name,
+                model = LocalRetrievalAdapter(get_ai_profile()).create_text_encoder(
+                    SentenceTransformer,
                     revision=get_core_settings().PRODUCT_TEXT_MODEL_REVISION or DEFAULT_PRODUCT_TEXT_MODEL_REVISION,
                     trust_remote_code=False,
                     device=self._device,
@@ -450,9 +453,9 @@ class ModelRegistry:
             logger.info("loading vision model", extra={"model": PRODUCT_VISION_MODEL.name, "device": self._device})
 
             revision = get_core_settings().PRODUCT_VISION_MODEL_REVISION
-            processor = AutoProcessor.from_pretrained(PRODUCT_VISION_MODEL.name, revision=revision)
-            model = AutoModel.from_pretrained(
-                PRODUCT_VISION_MODEL.name,
+            processor = LocalRetrievalAdapter(get_ai_profile()).create_image_component(AutoProcessor.from_pretrained, revision=revision)
+            model = LocalRetrievalAdapter(get_ai_profile()).create_image_component(
+                AutoModel.from_pretrained,
                 revision=revision,
                 trust_remote_code=True,
                 torch_dtype=self._dtype if self._device == "cuda" else None,
