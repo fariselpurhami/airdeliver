@@ -4,6 +4,7 @@
 'use client';
 
 import Image from "next/image";
+import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
 import Link from 'next/link';
 import React, { 
   useRef, useMemo, useEffect, useReducer, memo, useId, Component, ErrorInfo, ReactNode 
@@ -528,6 +529,129 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
   }, [cartItemsCount, capsuleControls, prefersReducedMotion]);
 
   return (
+    <section ref={containerRef} className={`${HERO_STAGE_CLASSES} bg-[#04060A]`} data-hero-stage="home" style={{ contain: 'layout paint' }} aria-labelledby={titleId}>
+      
+      {/* High-Performance Cosmic Teal & Purple Starfield Background */}
+      <CosmicDustCanvas />
+      <FloatingHeroCards />
+
+      <motion.div
+        style={{ opacity: opacityFade }}
+        className="w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 relative z-10"
+      >
+        <div className="w-full flex flex-col items-center justify-center relative">
+          
+          <div className="flex flex-col items-center text-center max-w-3xl w-full relative z-30 pointer-events-auto">
+            <motion.h1
+              id={titleId}
+              initial="hidden" animate="visible" variants={fadeUpVariant}
+              className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter text-white leading-[1.05] mb-6 font-sans drop-shadow-2xl"
+            >
+              Shopping at the <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-100 to-purple-200 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+                speed of thought.
+              </span>
+            </motion.h1>
+
+            <motion.p
+              initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.1 }}
+              className="text-sm sm:text-lg md:text-xl text-zinc-300 mb-10 leading-relaxed font-light max-w-lg mx-auto"
+            >
+              Your needs, instantly fulfilled. Our AI secures the best deal and tracks your delivery in real time.
+            </motion.p>
+
+            <motion.div
+              initial="hidden" animate="visible" variants={fadeUpVariant} transition={{ delay: 0.2 }}
+              className="w-full max-w-xl mx-auto"
+            >
+              <motion.button
+                onClick={onOrderClick}
+                aria-label={cartItemsCount > 0 ? `Review order with ${cartItemsCount} items` : "Start AI order"}
+                animate={
+                  cartItemsCount > 0 && !prefersReducedMotion
+                    ? { y: [0, -6, 0], boxShadow: ["0px 0px 40px rgba(0,0,0,0.8)", "0px 10px 40px rgba(6,182,212,0.3)", "0px 0px 40px rgba(0,0,0,0.8)"] }
+                    : { y: 0, boxShadow: "0px 0px 40px rgba(0,0,0,0.8)" }
+                }
+                transition={cartItemsCount > 0 && !prefersReducedMotion ? { duration: 3, repeat: Infinity, ease: "easeInOut" } : {}}
+                className="group w-full relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-zinc-900/90 border border-white/10 backdrop-blur-2xl transition-all duration-500 hover:border-cyan-500/50 hover:bg-zinc-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 focus-visible:outline-offset-4 cursor-pointer"
+              >
+                {/* Colorful Glow restored for the button */}
+                <div className={`absolute -inset-[1px] rounded-[73px] blur-md transition-all duration-1000 -z-10 ${cartItemsCount > 0 ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-100' : 'bg-gradient-to-r from-cyan-500/40 to-purple-500/40 opacity-80 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl'}`} aria-hidden="true" />
+
+                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 transform-gpu relative">
+                  <Bot size={18} strokeWidth={1.5} className="sm:w-6 sm:h-6" aria-hidden="true" />
+                  {cartItemsCount > 0 && (
+                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-black text-[#050505] shadow-[0_0_10px_rgba(6,182,212,0.8)]" aria-hidden="true">
+                      {cartItemsCount}
+                    </motion.span>
+                  )}
+                </div>
+
+                <div className="flex-1 px-3 sm:px-4 min-w-0 text-left" aria-live="polite">
+                  <p className={`text-[11px] sm:text-sm md:text-base font-light truncate transition-colors ${cartItemsCount > 0 ? 'text-cyan-200 font-medium' : 'text-zinc-300'}`}>
+                    {cartItemsCount > 0 ? "Your order is ready. Tap to review." : "I need noise-canceling headphones..."}
+                  </p>
+                </div>
+
+                <span className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3 rounded-full bg-white text-black font-bold text-[10px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu pointer-events-none">
+                  {cartItemsCount > 0 ? "Confirm Order!" : "Order with Air"}
+                </span>
+              </motion.button>
+
+              <div className="mt-6 flex items-center justify-center gap-6">
+                <button 
+                  onClick={onExploreClick} 
+                  className="text-xs sm:text-sm font-medium text-zinc-300 hover:text-cyan-300 transition-colors flex items-center gap-1 group transform-gpu rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 focus-visible:outline-offset-4"
+                >
+                  Explore trending products <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+                </button>
+              </div>
+            </motion.div>
+          </div>
+
+
+        </div>
+      </motion.div>
+    </section>
+  );
+});
+HeroSection.displayName = 'HeroSection';
+
+const MobileHomeHeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
+  const yParallax = useTransform(scrollYProgress, [0, 1], ['0%', '25%']);
+  const opacityFade = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  const messages = useAIOrderingStore((state) => state.messages);
+  const prefersReducedMotion = useReducedMotion();
+  const capsuleControls = useAnimation();
+  const titleId = useId();
+  
+  const cartItemsCount = useMemo(() => {
+    const lastCartMessage = [...messages].reverse().find(m => m.contentType === 'cart_preview');
+    const cartContent = lastCartMessage?.content as { items?: unknown[] } | undefined;
+    return cartContent?.items?.length || 0;
+  }, [messages]);
+
+  const prevCountRef = useRef(cartItemsCount);
+
+  useEffect(() => {
+    if (cartItemsCount > prevCountRef.current && !prefersReducedMotion) {
+      capsuleControls.start({
+        scale: [1, 1.04, 0.97, 1.02, 1],
+        x: [0, -4, 4, -2, 2, 0],
+        filter: [
+          "drop-shadow(0 0 0px rgba(6,182,212,0))",
+          "drop-shadow(0 0 25px rgba(6,182,212,0.8))",
+          "drop-shadow(0 0 0px rgba(6,182,212,0))"
+        ],
+        transition: { duration: 0.5, ease: "easeInOut" }
+      });
+    }
+    prevCountRef.current = cartItemsCount;
+  }, [cartItemsCount, capsuleControls, prefersReducedMotion]);
+
+  return (
     <section ref={containerRef} className="relative w-full bg-[#04060A] overflow-hidden flex items-center min-h-[100svh] pt-28 pb-16 lg:pt-32 lg:pb-32 isolate" style={{ contain: 'layout paint' }} aria-labelledby={titleId}>
       
       {/* High-Performance Cosmic Teal & Purple Starfield Background */}
@@ -622,7 +746,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
     </section>
   );
 });
-HeroSection.displayName = 'HeroSection';
+MobileHomeHeroSection.displayName = 'MobileHomeHeroSection';
 
 // ============================================================================
 // --- [8] HOW IT WORKS SECTION (Restored Vibrant Colors) ---
@@ -909,7 +1033,7 @@ export function LandingClient({ nonce, initialTraceId }: LandingClientProps) {
     <RUMErrorBoundary traceId={initialTraceId} fallback={<div className="p-8 text-center text-white w-full">System telemetry interruption. Please refresh.</div>}>
       <div className="flex flex-col w-full text-gray-100 bg-[#050505] isolate" style={{ fontFamily: "'Montserrat', sans-serif" }}>
         <main className="relative z-10 flex flex-col w-full transform-gpu">
-          <HeroSection onOrderClick={handleOrderClick} onExploreClick={handleExploreClick} />
+          {isMobile ? <MobileHomeHeroSection onOrderClick={handleOrderClick} onExploreClick={handleExploreClick} /> : <HeroSection onOrderClick={handleOrderClick} onExploreClick={handleExploreClick} />}
           <HowItWorksSection />
           <FinalCTA />
           <TrustedBySection nonce={nonce} />
