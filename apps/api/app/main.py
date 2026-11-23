@@ -75,10 +75,12 @@ class InvalidMessageError(ValueError):
 
 
 def configure_logging() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
+    from pydantic import SecretStr
+    from app.core.logging_config import setup_logging
+    settings = get_core_settings()
+    secrets = [value.get_secret_value() for name in type(settings).model_fields
+               if isinstance(value := getattr(settings, name), SecretStr)]
+    setup_logging(log_format=settings.LOG_FORMAT, level=settings.APP_LOG_LEVEL, secret_values=secrets)
 
 
 def get_app_resources(app: FastAPI) -> ApplicationResources:
