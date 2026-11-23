@@ -245,11 +245,17 @@ async def clear_cart(
 
 @router.post("/cart/save", status_code=status.HTTP_202_ACCEPTED)
 async def save_cart(
+    response: Response,
     current_user: models.User = Depends(deps.get_current_active_user),
     cart_service: AICartService = Depends(get_ai_cart_service),
 ):
-    await cart_service.handle_save_cart({"user_id": current_user.id})
-    return {"status": "accepted"}
+    result = await cart_service.handle_save_cart({"user_id": current_user.id})
+    result = result or {"status": "accepted"}  # Preserve older service adapters.
+    response.headers["Cache-Control"] = "no-store"
+    response.status_code = {"saved": 200, "accepted": 202, "empty": 409,
+                            "rejected": 400, "cleanup_unconfirmed": 409,
+                            "save_unconfirmed": 503}.get(result["status"], 503)
+    return result
 
 
 async def get_ai_nlu_service(
@@ -334,7 +340,8 @@ async def confirm_order(
     response.headers["Cache-Control"] = "no-store"
     result = result or {"status": "rejected"}
     response.status_code = {"ready": 200, "paid": 200, "pending": 202,
-                            "conflict": 409, "review_required": 409, "reconciliation_required": 409}.get(result["status"], 400)
+                            "conflict": 409, "review_required": 409, "reconciliation_required": 409,
+                            "refresh_required": 409, "unconfirmed": 503}.get(result["status"], 400)
     return result
 
 

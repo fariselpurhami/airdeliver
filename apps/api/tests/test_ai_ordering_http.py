@@ -235,7 +235,7 @@ def test_checkout_options_only_exposes_server_configured_providers(client):
     assert response.status_code == 200
     assert response.json() == {"providers":["stripe"], "currencies":["USD"], "countries":["US"], "locale":"en-US"}
 
-@pytest.mark.parametrize('state,expected', [('ready',200),('paid',200),('pending',202),('conflict',409),('review_required',409),('reconciliation_required',409),('rejected',400)])
+@pytest.mark.parametrize('state,expected', [('ready',200),('paid',200),('pending',202),('conflict',409),('review_required',409),('reconciliation_required',409),('rejected',400),('refresh_required',409),('unconfirmed',503)])
 def test_checkout_http_status_and_no_store(client, monkeypatch, state, expected):
     c, _, checkout, _ = client
     monkeypatch.setattr(ai_ordering.limiter, 'enabled', False)
@@ -301,3 +301,14 @@ async def test_self_cart_read_returns_authoritative_state_and_uses_authenticated
         service._get_cart_from_redis.assert_awaited_once_with(1)
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.parametrize('state,expected',[('saved',200),('empty',409),('cleanup_unconfirmed',409),('save_unconfirmed',503),('rejected',400)])
+def test_save_cart_http_does_not_accept_uncertain_cleanup_as_success(client,state,expected):
+    from unittest.mock import AsyncMock
+    c,cart,_,_=client
+    cart.handle_save_cart=AsyncMock(return_value={'status':state})
+    result=c.post('/api/v1/ai-ordering/cart/save')
+    assert result.status_code==expected and result.json()['status']==state
+    assert result.headers['cache-control']=='no-store'
+    cart.handle_save_cart.assert_awaited_once_with({'user_id':1})

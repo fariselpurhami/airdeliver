@@ -445,16 +445,16 @@ class AICartService:
             )
 
     # --- 💾 COMMAND: SAVE CART ---
-    async def handle_save_cart(self, raw_payload: dict) -> None:
+    async def handle_save_cart(self, raw_payload: dict) -> dict:
         try:
             payload = CartOperationPayload(**raw_payload)
         except ValidationError:
-            return
+            return {"status": "rejected"}
 
         cart = await self._get_cart_from_redis(payload.user_id)
         if not cart.items:
             await self._send_to_ui(payload.user_id, {"content": "Nothing to save.", "type": "error"})
-            return
+            return {"status": "empty"}
 
         try:
             saved_order = Order(
@@ -488,7 +488,7 @@ class AICartService:
                     "content": "Your saved list was recorded, but clearing the active cart could not be confirmed. Refresh your cart before saving again.",
                     "type": "error",
                 })
-                return
+                return {"status": "cleanup_unconfirmed", "saved_order_id": saved_order.id}
 
             await self._send_to_ui(payload.user_id, {
                 "content": "Your list was saved to your profile and the active cart was cleared.",
@@ -499,11 +499,13 @@ class AICartService:
                 "content": CartStateModel().model_dump(mode='json'),
                 "type": "cart_preview"
             })
+            return {"status": "saved", "saved_order_id": saved_order.id}
 
         except Exception as e:
             await self.db.rollback()
             logger.error("Database transaction failed during cart save", extra={"user_id": payload.user_id, "error": str(e)})
-            await self._send_to_ui(payload.user_id, {"content": "Failed to save cart.", "type": "error"})
+            await self._send_to_ui(payload.user_id, {"content": "Saving your list could not be confirmed. Check your saved lists before saving again.", "type": "error"})
+            return {"status": "save_unconfirmed"}
 
     # --- ➖ COMMAND: REMOVE FROM CART ---
     # --- ➖ COMMAND: REMOVE FROM CART ---

@@ -1,0 +1,5 @@
+# Carry saved-list outcome through HTTP
+
+Existing saved-list service now returns an additive status object. HTTP no longer returns accepted after the database saved a list but active-cart cleanup was unconfirmed. It returns409/cleanup_unconfirmed with saved order ID; uncertain save returns503 and tells the customer to inspect saved lists before trying again. Confirmed saved returns200, empty409, malformed400. Legacy adapters returning no result retain202 compatibility. No-store on outcomes.
+
+Also maps the existing new checkout refresh_required/unconfirmed states to409/503 instead of generic400. Seven HTTP cases plus saved-cleanup outcome assertion. Local migrated PostgreSQL19/Redis suite755 passed,4 skipped,20 existing warnings. Actual AMQP uncertainty acceptance added in preceding branch remains awaiting CI. No provider calls. This is outcome propagation, not saved-list idempotency or proof of database/cache atomicity. An uncertain database commit still needs inspection, not automatic replay.

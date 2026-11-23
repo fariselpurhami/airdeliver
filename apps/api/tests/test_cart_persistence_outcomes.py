@@ -120,7 +120,8 @@ async def test_saved_list_commit_then_cleanup_failure_never_claims_empty_cart_or
     cart={'items':[{'product_id':7,'name':'Shoes','quantity':1,'price':'19.99'}],'total':'19.99'}
     cache=FakeCache(cart);cache.delete_required=AsyncMock(side_effect=ConnectionError('offline'))
     db=FakeDB(make_product())
-    await AICartService(db,cache,object()).handle_save_cart({'user_id':1})
+    result=await AICartService(db,cache,object()).handle_save_cart({'user_id':1})
+    assert result['status']=='cleanup_unconfirmed'
     assert db.commits==1 and db.rollbacks==0
     assert cache._cart==cart
     assert not any(p['type'] in {'cart_preview','success_text'} for _,p in cache.published)
