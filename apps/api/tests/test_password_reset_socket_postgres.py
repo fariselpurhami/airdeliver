@@ -51,7 +51,11 @@ async def test_real_voice_socket_closes_after_independent_database_reset(monkeyp
  app.dependency_overrides[ai_ordering.get_rabbitmq_service]=lambda:object()
  app.dependency_overrides[get_cache_from_request]=lambda:cache
  monkeypatch.setattr(ai_ordering,'AIVoiceOrchestrator',Orchestrator)
- monkeypatch.setattr(dbmodule,'AsyncSessionFactory',sessions)
+ outage=[False]
+ def watcher_sessions():
+  if outage[0]:raise OSError('fixture database outage')
+  return sessions()
+ monkeypatch.setattr(dbmodule,'AsyncSessionFactory',watcher_sessions)
  sock=socket.socket();sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
  server=uvicorn.Server(uvicorn.Config(app,log_level='error',lifespan='off'))
  task=asyncio.create_task(server.serve(sockets=[sock]))
@@ -60,8 +64,7 @@ async def test_real_voice_socket_closes_after_independent_database_reset(monkeyp
    while not server.started:await asyncio.sleep(.01)
    async with websockets.connect(f'ws://127.0.0.1:{port}/voice-stream?ticket=socket-test') as ws:
     if watcher_outage:
-     def unavailable():raise OSError('fixture database outage')
-     monkeypatch.setattr(dbmodule,'AsyncSessionFactory',unavailable)
+     outage[0]=True
     else:
      async with sessions() as db:assert await consume_reset(db,link.split('#token=')[1],'new-socket-password')
     with pytest.raises(websockets.exceptions.ConnectionClosed) as exc:
