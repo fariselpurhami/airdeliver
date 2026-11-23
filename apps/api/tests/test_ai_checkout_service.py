@@ -29,6 +29,19 @@ class FakeCache:
     async def get_json(self, key):
         return self._cart
 
+    async def get_json_required(self, key):
+        return await self.get_json(key)
+
+    async def compare_json_required(self,key,expected,value,ttl=None,delete=False):
+        if self._cart != expected:return False
+        if delete:await self.delete(key)
+        else:
+            await self.set_json(key,value,ttl)
+        return True
+
+    async def set_json(self,key,value,ttl=None):
+        self._cart=value
+
     async def publish(self, channel, message):
         self.published.append((channel, json.loads(message)))
 

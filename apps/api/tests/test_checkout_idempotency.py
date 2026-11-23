@@ -45,6 +45,7 @@ def checkout():
         session.add(Product(id=7,sku='test',name='Shoes',description='',price='10.50',inventory=99))
         session.commit()
         cache=SimpleNamespace(get_json=AsyncMock(return_value=json.loads(json.dumps(CART))),publish=AsyncMock(),set_json=AsyncMock())
+        cache.get_json_required=cache.get_json
         gateway=SimpleNamespace(provider='stripe',transaction_id='pi_existing',client_secret='secret_for_test',action_url=None)
         orchestrator=SimpleNamespace(available_providers=['stripe'],process_payment=AsyncMock(return_value=SimpleNamespace(status=PaymentStatus.SUCCESS,primary_gateway=gateway)))
         service=AICheckoutService(Adapter(session),cache,AsyncMock(),orchestrator)

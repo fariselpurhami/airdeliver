@@ -180,7 +180,14 @@ class AICheckoutService:
         if payload.payment_provider and payload.payment_provider not in self.orchestrator.available_providers:
             await self._send_error(payload.user_id, "The selected payment method is unavailable. Please choose another method.")
             return
-        cart = await self.cache.get_json(self._get_cart_key(payload.user_id))
+        try:
+            cart = await self.cache.get_json_required(self._get_cart_key(payload.user_id))
+        except Exception as exc:
+            logger.warning("Required checkout cart read failed", extra={"error_type": type(exc).__name__})
+            await self._send_error(payload.user_id, "Your cart could not be loaded. Refresh before starting checkout again.")
+            return {"status": "unconfirmed"}
+        # Preserve the exact pre-validation snapshot for atomic price refresh.
+        original_cart = json.loads(json.dumps(cart))
         
         if not isinstance(cart, dict) or not isinstance(cart.get("items"), list) or not cart["items"]:
             await self._send_error(payload.user_id, "Your cart is empty or has expired.")
@@ -264,7 +271,15 @@ class AICheckoutService:
                 # needs a fresh user review, never an automatic higher charge.
                 await self.db.rollback()
                 cart["updated_at"] = datetime.now(timezone.utc).isoformat()
-                await self.cache.set_json(self._get_cart_key(payload.user_id), cart, ttl=86400)
+                try:
+                    confirmed = await self.cache.compare_json_required(
+                        self._get_cart_key(payload.user_id), original_cart, cart, ttl=86400)
+                except Exception as exc:
+                    logger.warning("Checkout price refresh unconfirmed", extra={"error_type": type(exc).__name__})
+                    confirmed = False
+                if not confirmed:
+                    await self._send_error(payload.user_id, "Your cart changed or its refresh could not be confirmed. Refresh your cart before confirming payment.")
+                    return {"status": "refresh_required"}
                 await self._send_to_ui(payload.user_id, {"type": "cart_preview", "content": cart, "reason": "Catalog Price Update"})
                 await self._send_error(payload.user_id, "Prices changed. Please review your refreshed cart before confirming payment.")
                 return {"status": "review_required", "cart": cart,

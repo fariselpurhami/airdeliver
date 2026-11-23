@@ -39,6 +39,7 @@ async def pg_checkout():
         db.add_all([user,product]);await db.commit()
         uid,pid=user.id,product.id
     cache=SimpleNamespace(get_json=AsyncMock(return_value={'items':[{'product_id':pid,'name':'Shoes','price':'10.50','quantity':2}]}),publish=AsyncMock(),set_json=AsyncMock())
+    cache.get_json_required=cache.get_json
     gateway=SimpleNamespace(provider='stripe',transaction_id='pi_'+uuid4().hex,client_secret='test-only-secret',action_url=None)
     result=SimpleNamespace(status=PaymentStatus.SUCCESS,primary_gateway=gateway)
     async def initialize(**kwargs):

@@ -190,3 +190,40 @@ async def test_real_redis_save_cleanup_preserves_cart_changed_during_database_co
 async def test_noop_backend_cannot_claim_atomic_updates():
     with pytest.raises(NotImplementedError):
         await NoOpCacheClient().compare_json_required('cart:x',None,{'items':[]})
+
+
+@pytest.mark.asyncio
+async def test_real_redis_checkout_price_refresh_cannot_overwrite_new_cart(real_cache):
+    from app.models.product import Product
+    from tests.test_ai_checkout_service import make_service, CART, CONFIRM
+    import copy
+    cache,_=real_cache
+    original=copy.deepcopy(CART)
+    await cache.set_json_required('ai_cart:1',original)
+    svc,_,db,_,orch=make_service(cart=original)
+    svc.cache=cache;svc._send_to_ui=AsyncMock()
+    newer=copy.deepcopy(original);newer['items'][0]['quantity']=3
+    async def product_lookup(model,pk,**kwargs):
+        await cache.set_json_required('ai_cart:1',newer)
+        return Product(id=7,sku='shoe',name='Shoes',price='12.00',inventory=99)
+    db.get=product_lookup
+    result=await svc.handle_confirm_order(dict(CONFIRM))
+    assert result['status']=='refresh_required'
+    assert await cache.get_json_required('ai_cart:1')==newer
+    orch.process_payment.assert_not_awaited()
+    assert db.added==[]
+    assert not any(call.args[1]['type']=='cart_preview' for call in svc._send_to_ui.await_args_list)
+
+
+@pytest.mark.asyncio
+async def test_checkout_cart_read_outage_not_misreported_as_empty():
+    from tests.test_ai_checkout_service import make_service, CART, CONFIRM
+    svc,cache,db,_,orch=make_service(cart=CART)
+    cache.get_json_required=AsyncMock(side_effect=ConnectionError('offline'))
+    result=await svc.handle_confirm_order(dict(CONFIRM))
+    assert result['status']=='unconfirmed'
+    assert db.added==[]
+    orch.process_payment.assert_not_awaited()
+    messages=[p.get('content','') for _,p in cache.published]
+    assert any('could not be loaded' in m for m in messages)
+    assert not any('empty' in m for m in messages)
