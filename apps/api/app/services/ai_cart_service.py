@@ -4,6 +4,7 @@ import os
 import json
 import logging
 import asyncio
+import time
 import uuid
 from hashlib import sha256
 from datetime import datetime, timezone
@@ -250,7 +251,22 @@ class AICartService:
             raise CartPersistenceError("Cart update could not be confirmed; refresh before retrying") from e
 
     # --- ➕ COMMAND: ADD TO CART ---
+    async def _cart_add_stage(self, stage, operation):
+        started = time.monotonic()
+        logger.info("cart_add_stage_started stage=%s", stage)
+        try:
+            result = await operation()
+        except BaseException as exc:
+            logger.warning("cart_add_stage_failed stage=%s error_type=%s elapsed_ms=%s", stage,
+                           type(exc).__name__, round((time.monotonic()-started)*1000))
+            raise
+        logger.info("cart_add_stage_completed stage=%s elapsed_ms=%s", stage, round((time.monotonic()-started)*1000))
+        return result
+
     async def handle_add_to_cart(self, raw_payload: dict) -> None:
+        await self._cart_add_stage("operation", lambda: self._handle_add_to_cart_observed(raw_payload))
+
+    async def _handle_add_to_cart_observed(self, raw_payload: dict) -> None:
         try:
             payload = CartOperationPayload(**raw_payload)
         except ValidationError as e:
@@ -263,7 +279,7 @@ class AICartService:
         if await self._mutation_replayed(payload, "add"):
             return
 
-        product = await self.db.get(Product, payload.product_id, populate_existing=True)
+        product = await self._cart_add_stage("catalog_read", lambda: self.db.get(Product, payload.product_id, populate_existing=True))
         if not product or not product.is_active or product.inventory <= 0:
             if payload.notify_user:
                 await self._send_to_ui(payload.user_id, {"content": "Product unavailable or out of stock.", "type": "error"})
@@ -278,7 +294,7 @@ class AICartService:
                 })
             return
 
-        cart = await self._get_cart_from_redis(payload.user_id)
+        cart = await self._cart_add_stage("cart_read", lambda: self._get_cart_from_redis(payload.user_id))
 
         cart._mutation = self._mutation_identity(payload, "add")
         existing_item = next((item for item in cart.items if item.product_id == payload.product_id), None)
@@ -309,7 +325,7 @@ class AICartService:
                 category=getattr(product, 'category', '')
             ))
 
-        if await self._update_cart_in_redis(payload.user_id, cart) is False:
+        if await self._cart_add_stage("cart_persist", lambda: self._update_cart_in_redis(payload.user_id, cart)) is False:
             return
 
         if payload.notify_user:

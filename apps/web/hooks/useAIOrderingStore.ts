@@ -796,6 +796,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
           const currentState = get();
           if (currentState.isLoading && (!currentState.socket || currentState.socket.readyState !== WebSocket.OPEN)) {
              set({ isLoading: false, isProcessing: false });
+             get().appendSystemMessage({ type: 'error', content: 'The ordering connection has not recovered. Your request is still queued, not confirmed. Reconnect and check your cart before trying again.' });
           }
       }, 3000);
 
@@ -968,6 +969,10 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
       state.flyQueue.push(newFlyItem);
     }));
 
+    get().appendSystemMessage({
+      type: 'info',
+      content: 'Adding your selection. Waiting for cart confirmation, please do not tap ADD again.',
+    });
     get()._sendInternalCommand(`__INTERNAL_ADD_BY_ID__:${product.id}`);
   },
 

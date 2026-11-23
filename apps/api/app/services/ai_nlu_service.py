@@ -404,6 +404,8 @@ class MatrixConfig:
     trending_pool_limit: int = 100
     deals_min_rating: float = 40.0
     stream_delay_sec: float = 0.8
+    matrix_timeout_sec: float = 75.0
+    matrix_stage_timeout_sec: float = 45.0
     default_spending_tier: str = "MEDIUM"
 
     seen_cache_ttl_sec: int = 3600
@@ -2583,7 +2585,7 @@ class AINLUService:
         await self._append_to_memory(user_id, "u", clean_user, "general")
         await self._append_to_memory(user_id, "a", clean_ai, "general")
 
-    async def _send_to_ui(self, user_id: int, payload: Dict[str, Any], ctx: Optional[RequestContext] = None) -> None:
+    async def _send_to_ui(self, user_id: int, payload: Dict[str, Any], ctx: Optional[RequestContext] = None, *, strict: bool = False) -> None:
         try:
             correlation_id = ctx.correlation_id if ctx else f"ui-send-{user_id}-{int(time.time())}"
             await self.ui.publish(user_id, payload, correlation_id)
@@ -2594,6 +2596,8 @@ class AINLUService:
                 user_id=user_id,
                 error=str(exc),
             )
+            if strict:
+                raise
 
     async def _get_user_dna(self, user_id: int) -> UserDNA:
         return await self.user_dna_store.get(user_id)
@@ -2980,7 +2984,40 @@ class AINLUService:
                 )
             return
 
+    async def _matrix_stage(self, user_id: int, stage: str, operation):
+        started = time.monotonic()
+        StructuredLog.info("matrix_stage_started", user_id=user_id, stage=stage)
+        try:
+            async with asyncio.timeout(self.config.matrix_stage_timeout_sec):
+                result = await operation()
+        except BaseException as exc:
+            StructuredLog.error("matrix_stage_failed", user_id=user_id, stage=stage,
+                                error_type=type(exc).__name__, elapsed_ms=round((time.monotonic()-started)*1000))
+            raise
+        StructuredLog.info("matrix_stage_completed", user_id=user_id, stage=stage,
+                           elapsed_ms=round((time.monotonic()-started)*1000))
+        return result
+
     async def _handle_initial_suggestions(self, user_id: int) -> None:
+        try:
+            async with asyncio.timeout(self.config.matrix_timeout_sec):
+                await self._handle_initial_suggestions_bounded(user_id)
+            StructuredLog.info("matrix_generation_completed", user_id=user_id)
+        except asyncio.CancelledError:
+            StructuredLog.warning("matrix_generation_cancelled", user_id=user_id)
+            raise
+        except Exception as exc:
+            StructuredLog.error("matrix_generation_failed", user_id=user_id, error_type=type(exc).__name__)
+            try:
+                async with asyncio.timeout(3.0):
+                    # Direct publish: do not hide a failed error delivery in _send_to_ui.
+                    await self.ui.publish(user_id, {
+                        "type": "error", "content": "The opening selection could not be loaded. Please retry or browse the catalog."
+                    }, f"matrix-error-{user_id}-{time.time_ns()}")
+            except Exception as notify_exc:
+                StructuredLog.error("matrix_error_delivery_failed", user_id=user_id, error_type=type(notify_exc).__name__)
+
+    async def _handle_initial_suggestions_bounded(self, user_id: int) -> None:
         """
         L8 Architecture: Hybrid concurrency model.
         Sequential Data Access (protecting AsyncSession invariant) + Concurrent Heavy I/O (LLM generation).
@@ -2991,14 +3028,14 @@ class AINLUService:
         # 1. State Hydration
         global_seen_ids: Set[int] = set()
         try:
-            historical_seen = await self.freshness_repo.get_seen_product_ids(user_id)
+            historical_seen = await self._matrix_stage(user_id, "freshness", lambda: self.freshness_repo.get_seen_product_ids(user_id))
             global_seen_ids.update(historical_seen)
         except Exception as exc:
             StructuredLog.warning("freshness_hydration_failed", user_id=user_id, error=str(exc))
 
         if self.behavior_engine and hasattr(self.behavior_engine, "analyze_financial_dna"):
             try:
-                analyzed_tier = await self.behavior_engine.analyze_financial_dna(user_id)
+                analyzed_tier = await self._matrix_stage(user_id, "behavior", lambda: self.behavior_engine.analyze_financial_dna(user_id))
                 if analyzed_tier is not None:
                     spending_tier = analyzed_tier
             except Exception as exc:
@@ -3007,13 +3044,13 @@ class AINLUService:
         # 2. Sequential Data Fetching (Safeguarding the AsyncSession state machine)
         # We must serialize DB access because a single injected AsyncSession cannot be shared across asyncio tasks.
         try:
-            personal_pool = await self._fetch_personal(user_id, global_seen_ids, spending_tier)
-            bestsellers_pool = await self._fetch_bestsellers(global_seen_ids)
-            trending_pool = await self._fetch_trending(global_seen_ids)
-            deals_pool = await self._fetch_deals(global_seen_ids)
+            personal_pool = await self._matrix_stage(user_id, "fetch_personal", lambda: self._fetch_personal(user_id, global_seen_ids, spending_tier))
+            bestsellers_pool = await self._matrix_stage(user_id, "fetch_bestsellers", lambda: self._fetch_bestsellers(global_seen_ids))
+            trending_pool = await self._matrix_stage(user_id, "fetch_trending", lambda: self._fetch_trending(global_seen_ids))
+            deals_pool = await self._matrix_stage(user_id, "fetch_deals", lambda: self._fetch_deals(global_seen_ids))
         except Exception as exc:
-            StructuredLog.error("dal_fetch_critical_failure", error=str(exc))
-            return
+            StructuredLog.error("dal_fetch_critical_failure", error_type=type(exc).__name__)
+            raise
 
         # 3. Defensive Processing & Diversity Enforcement
         def _process_pool(pool: Any, max_brand: int = 2) -> List[ProductLike]:
@@ -3083,11 +3120,11 @@ class AINLUService:
                 continue
             
             content, reason = copy_result
-            await self._stream_row(user_id, content, row_type, products, reason, apply_delay=apply_delay)
+            await self._matrix_stage(user_id, "stream_"+row_type, lambda: self._stream_row(user_id, content, row_type, products, reason, apply_delay=apply_delay))
             streamed_any = True
 
         if not streamed_any:
-            await self._send_to_ui(user_id, {"content": self.config.copy_fallback, "type": "text"})
+            await self._send_to_ui(user_id, {"content": self.config.copy_fallback, "type": "text"}, strict=True)
 
         # 7. Asynchronous Fire-and-Forget State Persistence
         if session_newly_seen_ids:
@@ -3126,7 +3163,7 @@ class AINLUService:
                 "reason": reason,
             }
 
-            await self._send_to_ui(user_id, payload)
+            await self._send_to_ui(user_id, payload, strict=True)
 
             if apply_delay:
                 delay = max(0.0, float(self.config.stream_delay_sec))
@@ -3158,6 +3195,7 @@ class AINLUService:
                     "apply_delay": apply_delay,
                 },
             )
+            raise
 
     async def _generate_dynamic_row_copy(
         self,

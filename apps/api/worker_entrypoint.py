@@ -2,6 +2,7 @@
 
 import httpx 
 import asyncio
+import time
 import json
 import logging
 import os
@@ -542,9 +543,22 @@ class WorkerRuntime:
             await service.process_message(payload)
 
     async def cart_recommendation_handler_impl(self, payload: dict) -> None:
+        started = time.monotonic()
+        logger.info("cart_recommendation_started")
+        try:
+            await self._cart_recommendation_observed(payload)
+        except BaseException as exc:
+            logger.warning("cart_recommendation_failed error_type=%s elapsed_ms=%s", type(exc).__name__,
+                           round((time.monotonic()-started)*1000))
+            raise
+        logger.info("cart_recommendation_completed elapsed_ms=%s", round((time.monotonic()-started)*1000))
+
+    async def _cart_recommendation_observed(self, payload: dict) -> None:
         # Dedicated read-only event. Never replay add/remove mutations here.
         event = CartRecommendationEvent.model_validate(payload)
+        logger.info("cart_recommendation_stage_started stage=readiness")
         await self.wait_for_readiness(required_ai=True)
+        logger.info("cart_recommendation_stage_completed stage=readiness")
         async with self.services.session_maker() as db:
             from app.services.ai_cart_service import AICartService
             from app.models.product import Product
@@ -554,6 +568,7 @@ class WorkerRuntime:
                 still_in_cart = any(item.product_id == event.product_id for item in cart.items)
                 if still_in_cart != (event.operation == "added"):
                     return
+                logger.info("cart_recommendation_stage_started stage=search")
                 if event.operation == "added":
                     anchor = await db.get(Product, event.product_id)
                     if anchor is None or not anchor.is_active:
@@ -563,7 +578,9 @@ class WorkerRuntime:
                 else:
                     products = await self.services.commerce.find_genius_alternatives(db, event.product_id, limit=3)
                     text = "Other catalog options after your removal. Compare the listed details before choosing."
+                logger.info("cart_recommendation_stage_completed stage=search")
                 if not products:
+                    logger.info("cart_recommendation_no_candidates")
                     return
                 # Search may take seconds. Recheck membership and omit items
                 # already in the current cart before publishing delayed advice.

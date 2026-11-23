@@ -4,6 +4,7 @@ import uuid
 import json
 import logging
 import asyncio
+import time
 from decimal import Decimal
 from typing import Optional, Literal
 
@@ -210,16 +211,27 @@ async def sync_cart(
 @router.post("/cart/add", status_code=status.HTTP_202_ACCEPTED)
 async def add_to_cart(
     payload: AddToCartRequest,
+    request: Request,
     mutation_id: Optional[uuid.UUID] = Header(None, alias="Idempotency-Key"),
     current_user: models.User = Depends(deps.get_current_active_user),
     cart_service: AICartService = Depends(get_ai_cart_service),
 ):
-    await cart_service.handle_add_to_cart({
-        "user_id": current_user.id,
-        "product_id": payload.product_id,
-        "quantity": payload.quantity,
-        **({"mutation_id": str(mutation_id)} if mutation_id else {}),
-    })
+    correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
+    started = time.monotonic()
+    logger.info("cart_add_request_started", extra={"correlation_id": correlation_id})
+    try:
+        await cart_service.handle_add_to_cart({
+            "user_id": current_user.id,
+            "product_id": payload.product_id,
+            "quantity": payload.quantity,
+            **({"mutation_id": str(mutation_id)} if mutation_id else {}),
+        })
+    except BaseException as exc:
+        logger.warning("cart_add_request_failed error_type=%s elapsed_ms=%s", type(exc).__name__,
+                       round((time.monotonic()-started)*1000), extra={"correlation_id": correlation_id})
+        raise
+    logger.info("cart_add_request_completed elapsed_ms=%s", round((time.monotonic()-started)*1000),
+                extra={"correlation_id": correlation_id})
     return {"status": "accepted"}
 
 

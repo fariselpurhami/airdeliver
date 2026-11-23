@@ -123,6 +123,31 @@ def _retryable_llm_failure(exc: BaseException) -> bool:
     )
 
 
+def _safe_inference_failure(exc: Exception) -> dict:
+    """Allowlisted diagnostics only. Never serialize exception text or response."""
+    status = getattr(exc, "status_code", None)
+    status = status if type(status) is int and 100 <= status <= 599 else None
+    category = ("authentication" if status in (401,403) else
+                "rate_limit" if status == 429 else
+                "provider_server" if status and status >= 500 else
+                "provider_request" if status and status >= 400 else
+                "timeout" if isinstance(exc, TimeoutError) else
+                "connection" if isinstance(exc, APIConnectionError) else
+                "schema" if isinstance(exc, ValidationError) else "inference")
+    safe_type = type(exc).__name__
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,79}", safe_type):
+        safe_type = "Exception"
+    return {"error_type": safe_type, "status_code": status, "failure_category": category}
+
+
+def _log_inference_failure(event: str, exc: Exception) -> None:
+    fields = _safe_inference_failure(exc)
+    # Existing formatter deliberately drops arbitrary extras. Include only these
+    # allowlisted scalar diagnostics in message text, for json AND text logs.
+    logger.error("%s error_type=%s status_code=%s failure_category=%s", event,
+                 fields["error_type"], fields["status_code"], fields["failure_category"])
+
+
 class NeuralCoreService:
     """
     Enterprise-Grade Neural Core Service (Llama 3.x via Native Groq).
@@ -244,9 +269,9 @@ class NeuralCoreService:
             return decision
             
         except ValidationError as exc:
-            logger.error("neural_core.router.schema_violation", extra={"error_type": type(exc).__name__})
+            _log_inference_failure("neural_core.router.schema_violation", exc)
         except Exception as exc:
-            logger.error("neural_core.router.inference_failure", extra={"error_type": type(exc).__name__})
+            _log_inference_failure("neural_core.router.inference_failure", exc)
             
         return RouterDecision(
             intent="SOCIAL_CHAT", 

@@ -1130,9 +1130,20 @@ class AICommerceEngine:
         opensearch_task = self._search_opensearch(sanitized_query, safe_limit, filter_obj)
         milvus_task = self._search_milvus_text(query_vector, safe_limit, filter_obj)
 
+        async def observed(stage, operation):
+            started = time.monotonic()
+            logger.info("hybrid_stage_started stage=%s", stage)
+            try:
+                result = await operation
+            except BaseException as exc:
+                logger.warning("hybrid_stage_failed stage=%s error_type=%s", stage, type(exc).__name__)
+                raise
+            logger.info("hybrid_stage_completed stage=%s elapsed_ms=%s", stage, round((time.monotonic()-started)*1000))
+            return result
+
         opensearch_results, milvus_results = await asyncio.gather(
-            opensearch_task,
-            milvus_task,
+            observed("opensearch", opensearch_task),
+            observed("milvus", milvus_task),
             return_exceptions=True,
         )
 
@@ -1144,6 +1155,7 @@ class AICommerceEngine:
             [(result.document_id, result.score) for result in cast(Sequence[SearchResult], mil_res)],
         )
 
+        logger.info("hybrid_reranking_completed", extra={"candidate_count": len(reranked_scores)})
         sorted_ids = sorted(reranked_scores.keys(), key=lambda document_id: reranked_scores[document_id], reverse=True)[:safe_limit]
 
         if not sorted_ids:
@@ -1240,23 +1252,28 @@ class AICommerceEngine:
 
         filter_str = _build_milvus_filter(filters)
 
-        async with self._vector_search_semaphore:
-            try:
-                response = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        self.milvus_client.search,
-                        collection_name=self.milvus_product_text_col,
-                        data=[list(vector)],
-                        limit=limit,
-                        filter=filter_str,
-                        output_fields=["id"],
-                        search_params={"metric_type": "COSINE", "params": {"ef": 64}},
-                    ),
+        async with asyncio.timeout(self.limits.vector_search_timeout_seconds):
+            async with self._vector_search_semaphore:
+                return await self._search_milvus_text_acquired(vector, limit, filter_str)
+
+    async def _search_milvus_text_acquired(self, vector, limit, filter_str):
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.milvus_client.search,
+                    collection_name=self.milvus_product_text_col,
                     timeout=self.limits.vector_search_timeout_seconds,
-                )
-            except Exception:
-                logger.warning("milvus text search failed", extra={"limit": limit, "filter": filter_str}, exc_info=True)
-                return []
+                    data=[list(vector)],
+                    limit=limit,
+                    filter=filter_str,
+                    output_fields=["id"],
+                    search_params={"metric_type": "COSINE", "params": {"ef": 64}},
+                ),
+                timeout=self.limits.vector_search_timeout_seconds,
+            )
+        except Exception:
+            logger.warning("milvus text search failed", extra={"limit": limit, "filter": filter_str}, exc_info=True)
+            return []
 
         if not response or not response[0]:
             return []

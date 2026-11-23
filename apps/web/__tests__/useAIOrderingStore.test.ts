@@ -312,3 +312,12 @@ describe('specific cancellation outcome',()=>{
   expect(JSON.parse(String(jest.mocked(fetch).mock.calls[0]?.[1]?.body))).toEqual({order_id:7});
  });
 });
+
+it('shows an honest pending cart message without claiming the item was added',()=>{
+  const send=jest.fn();
+  useAIOrderingStore.setState({_sendInternalCommand:send} as Partial<StoreSnapshot>);
+  useAIOrderingStore.getState().addProductById({id:7},'product-7');
+  expect(send).toHaveBeenCalledWith('__INTERNAL_ADD_BY_ID__:7');
+  expect(useAIOrderingStore.getState().messages.some(m=>typeof m.content==='string'&&m.content.includes('Waiting for cart confirmation'))).toBe(true);
+  expect(useAIOrderingStore.getState().messages.some(m=>typeof m.content==='string'&&m.content.includes('added to your cart'))).toBe(false);
+});
