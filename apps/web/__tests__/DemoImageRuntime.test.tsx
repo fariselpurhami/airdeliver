@@ -10,7 +10,7 @@ it('activates only marker-bound known demo rows, with credit and failure fallbac
  const {rerender}=render(<><CatalogImage product={p} src="https://merchant.example/wrong.jpg" alt={p.name} width={240} height={180}/><DemoImageAttribution product={p}/></>);
  expect(screen.getByRole('img')).toHaveAttribute('src','/images/demo-v1/samba-reference.jpg');
  expect(screen.getByText(/Not an exact SKU/)).toBeInTheDocument();
- expect(screen.getByRole('link',{name:'CC-BY-SA-4.0'})).toBeInTheDocument();
+ expect(screen.getByRole('link',{name:'CC-BY-SA-4.0',hidden:true})).toBeInTheDocument();
  fireEvent.error(screen.getByRole('img'));
  expect(screen.getByRole('img')).toHaveAttribute('src','/images/demo-v1/neutral.svg');
  rerender(<><CatalogImage product={{...p,sku:'real-merchant'}} src="https://merchant.example/real.jpg" alt="Merchant product" width={240} height={180}/><DemoImageAttribution product={{...p,sku:'real-merchant'}}/></>);
@@ -26,4 +26,15 @@ it('all required catalog surfaces carry image identity and visible attribution',
  for(const path of ['app/(main)/products/page.tsx','components/products/ProductCard.tsx','components/products/ProductDetailsCard.tsx','components/ai/AIChatOverlay.tsx']){
   const source=fs.readFileSync(path,'utf8');expect(source).toContain('product={product}');expect(source).toContain('DemoImageAttribution');
  }
+});
+
+it('keeps compact native keyboard/touch disclosure on cards and expanded details credit',()=>{
+ const {container,rerender}=render(<DemoImageAttribution product={p}/>);
+ const summary=screen.getByLabelText('Image information and license');
+ expect(summary.tagName).toBe('SUMMARY');
+ expect(container.querySelector('details')).not.toHaveAttribute('open');
+ expect(container.querySelector('a[href*="creativecommons"]')).toBeInTheDocument();
+ rerender(<DemoImageAttribution product={p} expanded/>);
+ expect(container.querySelector('details')).toBe(null);
+ expect(screen.getByRole('link',{name:'CC-BY-SA-4.0'})).toBeVisible();
 });

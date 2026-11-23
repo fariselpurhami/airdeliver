@@ -41,6 +41,9 @@ jobs:
       - name: Private LAN development policy
         run: node --test apps/web/scripts/check-dev-lan-policy.mjs
 
+      - name: Scoped security dependency contracts
+        run: pnpm --filter airdeliver/apps/web exec node scripts/check-security-dependency-contracts.cjs
+
       - name: Typecheck
         run: pnpm --filter airdeliver/apps/web exec tsc --noEmit
 
@@ -62,6 +65,7 @@ jobs:
           tar -C apps/web --exclude=node_modules --exclude=.next --exclude=tsconfig.tsbuildinfo -cf - . | tar -C "$standalone" -xf -
           cd "$standalone"
           pnpm install --frozen-lockfile
+          node scripts/check-security-dependency-contracts.cjs
           pnpm exec tsc --noEmit
           pnpm exec jest --coverage=false --runInBand
           AUTH_SECRET=ci-build-dummy-secret-not-runtime pnpm build
