@@ -4,12 +4,14 @@ import {render,screen,fireEvent,waitFor,act} from '@testing-library/react';
 import {SWRConfig} from 'swr';
 import Page from '@/app/(main)/notifications/page';
 import {api} from '@/lib/api';
+import {useSession} from 'next-auth/react';
+jest.mock('next-auth/react',()=>({useSession:jest.fn()}));
 jest.mock('@/lib/api',()=>({api:{get:jest.fn(),post:jest.fn(),delete:jest.fn()}}));
 jest.mock('@react-three/fiber',()=>({Canvas:()=>null,useFrame:jest.fn()}));
 jest.mock('@react-three/drei',()=>({Stars:()=>null}));
 jest.mock('framer-motion',()=>{const React=require('react');const tags=new Map();return {AnimatePresence:({children}:any)=>children,motion:new Proxy({},{get:(_,tag)=>{if(!tags.has(tag))tags.set(tag,React.forwardRef(({children,initial,animate,exit,transition,layout,whileHover,whileTap,...props}:any,ref:any)=>React.createElement(tag,{...props,ref},children)));return tags.get(tag);}})};});
 const fixture={id:1,title:'Order marked in transit',body:'An operator updated the order, not a carrier scan.',type:'order_update',read:false,cta:'/tracking/7',timestamp:'1 min ago',created_at:'2026-11-23T12:00:00Z'};
-beforeEach(()=>{jest.clearAllMocks();jest.mocked(api.get).mockResolvedValue({data:{items:[fixture],total:25}});});
+beforeEach(()=>{jest.clearAllMocks();jest.mocked(useSession).mockReturnValue({data:{user:{email:'fixture@example.test'},expires:'2099-01-01'},status:'authenticated',update:jest.fn()} as any);jest.mocked(api.get).mockResolvedValue({data:{items:[fixture],total:25}});});
 function page(){return render(<SWRConfig value={{provider:()=>new Map(),dedupingInterval:0}}><Page/></SWRConfig>);}
 it('opens safe order link, paginates and states delivery-channel limits',async()=>{
  page();expect(await screen.findByRole('link',{name:'Open order'})).toHaveAttribute('href','/tracking/7');
@@ -45,4 +47,9 @@ it('shows named loading skeletons and no false empty result',()=>{
  jest.mocked(api.get).mockImplementation(()=>new Promise(()=>{}));page();expect(screen.getByRole('status',{name:'Loading notifications'})).toBeInTheDocument();
  expect(screen.queryByText('No notices in this view')).not.toBeInTheDocument();
  if(process.env.NOTIFICATION_PREVIEW_HTML)fs.writeFileSync('/tmp/notification-loading.html','<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/notification-preview.css"></head><body style="margin:0">'+document.body.innerHTML+'</body></html>');
+});
+
+it('does not fetch private notices before sign-in',async()=>{
+ jest.mocked(useSession).mockReturnValue({data:null,status:'unauthenticated',update:jest.fn()} as any);page();
+ expect(screen.getByText('Your updates are private')).toBeInTheDocument();expect(api.get).not.toHaveBeenCalled();
 });

@@ -28,6 +28,7 @@ import { Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { Notification } from '@/types';
 import Link from 'next/link';
+import {useSession} from 'next-auth/react';
 
 // ============================================================================
 // --- 1. ARCHITECTURAL CONFIGURATION ---
@@ -314,10 +315,12 @@ const CinematicEmptyState = () => (
 // ============================================================================
 
 export default function NotificationsPage() {
+    const {data:session,status}=useSession();
+    const accountKey=session?.user?.email;
     const [page,setPage]=useState(1);
     const [mutationError,setMutationError]=useState('');
     const {data:history,error,isLoading,mutate:mutateHistory}=useSWR<{items:Notification[],total:number}>(
-        `/notifications/history?page=${page}&limit=20`,fetcher,{revalidateOnFocus:true,shouldRetryOnError:false,refreshInterval:60000,refreshWhenHidden:false,refreshWhenOffline:false}
+        status==='authenticated' && accountKey?[`/notifications/history?page=${page}&limit=20`,accountKey]:null,([url]:[string,string])=>fetcher(url),{revalidateOnFocus:true,shouldRetryOnError:false,refreshInterval:60000,refreshWhenHidden:false,refreshWhenOffline:false}
     );
     const initialNotifications=history?.items;
     const mutate=async(updater?: (items:Notification[])=>Notification[],revalidate?:boolean)=>{
@@ -372,6 +375,7 @@ export default function NotificationsPage() {
     }, [liveNotifications, initialNotifications,undoItem]);
 
     useEffect(()=>{setLiveNotifications([]);},[page]);
+    useEffect(()=>{setPage(1);setMutationError('');setLiveNotifications([]);setUndoItem(null);setIsDeleting(false);if(undoTimerRef.current){clearTimeout(undoTimerRef.current);undoTimerRef.current=null;}},[accountKey]);
     useEffect(()=>()=>{if(undoTimerRef.current)clearTimeout(undoTimerRef.current);},[]);
 
     const grouped = useMemo(() => {
@@ -426,7 +430,9 @@ export default function NotificationsPage() {
                     {mutationError&&<p role="alert" className="rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 mb-5 text-sm text-amber-200">{mutationError}</p>}
                     <ControlBar unreadCount={allNotifications.filter(n=>!n.read).length} activeFilter={filter} onFilterChange={setFilter} onMarkAllAsRead={handleMarkAllAsRead}/>
                 <motion.div layout className="space-y-7">
-                    {isLoading && !initialNotifications ? (
+                    {status==='unauthenticated' ? (
+                        <div className="text-center rounded-3xl border border-white/10 bg-white/[0.025] p-8"><Shield className="mx-auto text-cyan-300 mb-4"/><h3 className="text-xl font-semibold text-white mb-3">Your updates are private</h3><p className="text-sm text-slate-400 mb-5">Sign in to see your saved notifications.</p><Link href="/login?callbackUrl=%2Fnotifications" className="inline-flex min-h-11 items-center rounded-xl border border-cyan-300/25 bg-cyan-400/10 px-5 text-cyan-200">Sign in</Link></div>
+                    ) : (isLoading || status==='loading') && !initialNotifications ? (
                         <div role="status" aria-label="Loading notifications" className="space-y-4"><p className="flex items-center gap-2 text-sm text-slate-400"><Loader size={16} className="animate-spin"/>Loading your saved updates</p>{[1,2,3].map(i=><div key={i} className="h-32 rounded-3xl border border-white/5 bg-white/[0.03] animate-pulse"/>)}</div>
                     ) : error && !history ? (
                         <p className="text-center text-slate-400 py-16">The saved history is unavailable. Use Refresh notifications to try again.</p>
