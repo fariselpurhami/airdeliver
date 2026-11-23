@@ -4,6 +4,7 @@
 'use client';
 
 import Image from "next/image";
+import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
 import Link from 'next/link';
 import React, { 
   useRef, useMemo, useEffect, useReducer, memo, useId, Component, ErrorInfo, ReactNode 
@@ -528,16 +529,17 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
   }, [cartItemsCount, capsuleControls, prefersReducedMotion]);
 
   return (
-    <section ref={containerRef} className="relative w-full bg-[#04060A] overflow-hidden flex items-center min-h-[100svh] pt-28 pb-16 lg:pt-32 lg:pb-32 isolate" style={{ contain: 'layout paint' }} aria-labelledby={titleId}>
+    <section ref={containerRef} className={`${HERO_STAGE_CLASSES} bg-[#04060A]`} data-hero-stage="home" style={{ contain: 'layout paint' }} aria-labelledby={titleId}>
       
       {/* High-Performance Cosmic Teal & Purple Starfield Background */}
       <CosmicDustCanvas />
+      <FloatingHeroCards />
 
       <motion.div
-        style={{ y: prefersReducedMotion ? 0 : yParallax, opacity: opacityFade }}
-        className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10 h-full transform-gpu"
+        style={{ opacity: opacityFade }}
+        className="w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 relative z-10"
       >
-        <div className="w-full flex flex-col items-center justify-center relative h-full min-h-[600px]">
+        <div className="w-full flex flex-col items-center justify-center relative">
           
           <div className="flex flex-col items-center text-center max-w-3xl w-full relative z-30 pointer-events-auto">
             <motion.h1
@@ -607,16 +609,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
             </motion.div>
           </div>
 
-          <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center perspective-1000">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, rotateY: 10 }} animate={{ opacity: 1, scale: 1, rotateY: 0 }} transition={{ duration: 1.2, ease: TRANSITION_PREMIUM, delay: 0.2 }}
-              className="relative w-full h-full flex items-center justify-center transform-gpu"
-            >
-              {HERO_CARDS.map((card) => (
-                <HeroFloatingCard key={card.title} {...card} />
-              ))}
-            </motion.div>
-          </div>
+
         </div>
       </motion.div>
     </section>

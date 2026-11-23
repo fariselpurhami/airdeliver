@@ -1,5 +1,6 @@
 'use client';
 
+import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
 import React, { memo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -75,7 +76,7 @@ const GlobalStyleOverride = memo(() => {
       div[class*="fixed"][class*="bottom-"]:not(#ios-install-prompt):not(#ios-install-prompt *),
       button[class*="fixed"][class*="bottom-"],
       div[class*="chat" i], button[class*="chat" i],
-      div[class*="bot" i], button[class*="bot" i] {
+      div[class*="bot" i]:not([data-floating-hero-cards]):not([data-floating-hero-cards] *), button[class*="bot" i] {
         display: none !important;
         opacity: 0 !important;
         visibility: hidden !important;
@@ -144,7 +145,7 @@ const HeroBackground = memo(() => (
 HeroBackground.displayName = 'HeroBackground';
 
 const HeroContent = memo(({ onDownload }: { onDownload: () => void }) => (
-  <div className="container mx-auto px-6 relative z-10 text-center">
+  <div className="w-full max-w-3xl lg:max-w-[48%] mx-auto px-6 relative z-10 text-center">
     <motion.div
       initial={{ opacity: 0, scale: 0.95, y: 30 }}
       whileInView={{ opacity: 1, scale: 1, y: 0 }}
@@ -158,21 +159,21 @@ const HeroContent = memo(({ onDownload }: { onDownload: () => void }) => (
         <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Next-Gen Shopping Experience</span>
       </div>
 
-      <h2 className="text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: THEME.fonts.display }}>
+      <h2 className="text-4xl md:text-7xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: THEME.fonts.display }}>
         YOUR ORDER.<br />
         <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-white to-purple-400 drop-shadow-[0_0_40px_rgba(192,132,252,0.5)]">
           IN THE SKY.
         </span>
       </h2>
 
-      <p className="text-xl md:text-2xl text-gray-400 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
+      <p className="text-sm md:text-xl text-gray-400 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
         Don&apos;t wait for traffic. Shop thousands of products and watch them arrive from the clouds in minutes.
       </p>
 
       <div className="flex flex-col gap-6 justify-center items-center">
         <button 
           onClick={onDownload}
-          className="group px-12 py-7 text-white font-bold text-xl rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-3 transform-gpu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+          className="group px-10 py-5 text-white font-bold text-lg rounded-full border border-white/10 hover:bg-white/5 hover:border-cyan-400/50 transition-all duration-300 flex items-center gap-3 transform-gpu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         >
           <span>DOWNLOAD APP</span>
           <ArrowDown className="w-6 h-6 group-hover:translate-y-1 transition-transform" aria-hidden="true" />
@@ -204,9 +205,10 @@ export const MobileLandingView = memo(() => {
       <GlobalStyleOverride />
       <MobileHeader headerRef={headerRef} />
 
-      <main className="relative z-10 w-full flex-1 flex flex-col justify-center pt-24 pb-10">
-        <section className="relative w-full py-32 overflow-hidden bg-black flex items-center justify-center border-t border-white/5">
+      <main className="relative z-10 w-full flex-1 flex flex-col justify-center">
+        <section className={`${HERO_STAGE_CLASSES} bg-black border-t border-white/5`} data-hero-stage="home-mobile">
           <HeroBackground />
+          <FloatingHeroCards />
           <HeroContent onDownload={triggerInstall} />
         </section>
       </main>
