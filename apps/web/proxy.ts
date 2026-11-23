@@ -7,6 +7,8 @@ import { auth } from '@/auth'; // استيراد الدالة القياسية �
 const PUBLIC_EXACT_ROUTES = new Set([
   '/',
   '/login',
+  '/forgot-password',
+  '/reset-password',
   '/register',
   '/about',
   '/help',
@@ -86,7 +88,7 @@ export async function proxy(req: NextRequest) {
     const session = await auth();
 
     // إذا لم تكن هناك جلسة صالحة، قم بالتوجيه لصفحة الدخول
-    if (!session || !session.user) {
+    if (!session || !session.user || session.error || !session.accessToken) {
       console.log("🚨 MIDDLEWARE BLOCKED: Unauthorized or no session found!");
       return createLoginRedirect(req, pathname);
     }

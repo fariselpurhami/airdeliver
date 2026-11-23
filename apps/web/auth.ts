@@ -194,6 +194,14 @@ export const authConfig: NextAuthConfig = {
         return token;
       }
 
+      if (token.accessToken && !isTokenExpired(token.accessTokenExpiresAt)) {
+        try {
+          const response = await fetch(`${API_URL.replace(/\/+$/, '')}/users/me`, {
+            headers: {Authorization: `Bearer ${token.accessToken}`}, cache: 'no-store', signal: AbortSignal.timeout(5000)
+          });
+          if (!response.ok) { token.error = 'AccessTokenExpired'; token.accessToken = undefined; }
+        } catch { token.error = 'AccessTokenExpired'; token.accessToken = undefined; }
+      }
       if (isTokenExpired(token.accessTokenExpiresAt)) {
         token.error = "AccessTokenExpired";
         token.accessToken = undefined;
@@ -219,7 +227,7 @@ export const authConfig: NextAuthConfig = {
     },
 
     authorized({ auth, request }) {
-      const isAuthenticated = Boolean(auth?.user);
+      const isAuthenticated = Boolean(auth?.user && auth.accessToken && !auth.error);
       const pathname = request.nextUrl.pathname;
 
       const isAuthRoute = pathname === "/login";

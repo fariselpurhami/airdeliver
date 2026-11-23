@@ -72,7 +72,7 @@ async def generate_websocket_ticket(
     """
     ticket = str(uuid.uuid4())
     # Ticket valid for only 30 seconds (Strict Window)
-    await cache.set(f"ws_ticket:{ticket}", str(current_user.id), ttl=30)
+    await cache.set(f"ws_ticket:{ticket}", json.dumps({"user_id":current_user.id,"ver":current_user.auth_version}), ttl=30)
     return {"ticket": ticket}
 
 
@@ -443,6 +443,7 @@ async def handle_chat_websocket(
         return
 
     # 2. CONNECTION ESTABLISHMENT
+    socket_auth_version=current_user.auth_version
     await websocket.accept()
 
     # Unique Connection ID (Traceability)
@@ -469,6 +470,10 @@ async def handle_chat_websocket(
                 try:
                     async for message in pubsub.listen():
                         if message["type"] == "message":
+                            await session.refresh(current_user)
+                            if current_user.auth_version!=socket_auth_version or not current_user.is_active:
+                                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                                return
                             raw_data = message["data"]
                             # Push directly to frontend
                             await websocket.send_text(raw_data)
@@ -568,7 +573,17 @@ async def handle_voice_stream(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    user_id = int(user_id_str)
+    try:
+        ticket_data=json.loads(user_id_str)
+        user_id=int(ticket_data['user_id']) if isinstance(ticket_data,dict) else int(ticket_data)
+        ticket_version=ticket_data.get('ver',0) if isinstance(ticket_data,dict) else 0
+        ticket_user=await session.get(models.User,user_id)
+        if not ticket_user or not ticket_user.is_active or ticket_user.auth_version!=ticket_version:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+    except (ValueError,TypeError,KeyError):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
 
     # 2. 🔒 CONCURRENCY GUARD (The Titanium Shield)
     lock_key = f"voice_session_lock:{user_id}"
@@ -596,8 +611,24 @@ async def handle_voice_stream(
         # Set Lock (Expire in 5 mins to prevent deadlocks if server crashes)
         await cache.set(lock_key, "active", ttl=300)
 
-        # Handover control to the Brain
-        await orchestrator.process_voice_session(websocket, str(user_id))
+        # Revoke long-lived voice sessions after a credential reset, including
+        # sockets attached to another process. Separate DB session avoids sharing
+        # concurrent transaction operations with the orchestrator.
+        async def watch_credential_version():
+            from app.db.session import AsyncSessionFactory
+            while True:
+                await asyncio.sleep(5)
+                async with AsyncSessionFactory() as auth_db:
+                    active=await auth_db.get(models.User,user_id)
+                    if not active or not active.is_active or active.auth_version!=ticket_version:
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                        return
+        auth_watch=asyncio.create_task(watch_credential_version())
+        try:
+            await orchestrator.process_voice_session(websocket, str(user_id))
+        finally:
+            auth_watch.cancel()
+            await asyncio.gather(auth_watch,return_exceptions=True)
 
     except Exception as e:
         logger.error(f"🔥 Critical Voice Crash User {user_id}: {e}", exc_info=True)

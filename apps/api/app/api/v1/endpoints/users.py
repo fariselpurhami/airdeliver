@@ -79,6 +79,7 @@ async def change_user_password(
         )
     new_hashed_password = security.get_password_hash(password_data.new_password)
     current_user.hashed_password = new_hashed_password
+    current_user.auth_version += 1
     session.add(current_user)
     await session.commit()
     return {"msg": "Password updated successfully"}

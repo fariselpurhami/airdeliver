@@ -91,6 +91,12 @@ async def _get_user_from_token(
             detail="User not found",
         )
 
+    try:
+        payload = jwt.decode(token, _get_secret_key_value(settings), algorithms=[security.ALGORITHM])
+        if payload.get('ver', 0) != getattr(user, 'auth_version', 0):
+            raise _forbidden_credentials_exception()
+    except JWTError as exc:
+        raise _forbidden_credentials_exception() from exc
     return user
 
 
@@ -218,7 +224,10 @@ class WebSocketManager:
 
     async def disconnect_all(self, user_id: int) -> None:
         async with self._lock:
-            self._active_connections.pop(user_id, None)
+            connections=tuple(self._active_connections.pop(user_id, set()))
+        for connection in connections:
+            try:await connection.close(code=status.WS_1008_POLICY_VIOLATION,reason='Session expired')
+            except Exception:logger.warning('Could not close expired local socket')
 
 
 _websocket_manager = WebSocketManager()
@@ -287,8 +296,11 @@ async def get_current_active_user_ws_ticket(
     await cache.delete(ticket_key)
 
     try:
-        user_id = int(user_id_raw)
-    except (TypeError, ValueError) as exc:
+        import json
+        ticket_data=json.loads(user_id_raw)
+        user_id=int(ticket_data['user_id']) if isinstance(ticket_data,dict) else int(ticket_data)
+        ticket_version=ticket_data.get('ver',0) if isinstance(ticket_data,dict) else 0
+    except (TypeError, ValueError, KeyError) as exc:
         await websocket.close(
             code=status.WS_1008_POLICY_VIOLATION,
             reason="Invalid ticket payload",
@@ -310,6 +322,9 @@ async def get_current_active_user_ws_ticket(
             detail="User not found",
         )
 
+    if getattr(user,'auth_version',0)!=ticket_version:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION,reason='Session expired')
+        raise _forbidden_credentials_exception()
     return _ensure_active_user(user)
 
 

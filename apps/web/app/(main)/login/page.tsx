@@ -10,6 +10,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Preload } from '@react-three/drei';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Mail, Lock, User, ArrowRight, LucideIcon } from 'lucide-react';
 import * as THREE from 'three';
 import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
@@ -367,9 +368,9 @@ const SignInForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
                 <div className="space-y-2">
                     <FormInput icon={Lock} label="Password" name="password" type="password" placeholder="••••••••" required disabled={isLoading} value={formData.password} onChange={handleChange} />
                     <div className="flex justify-end px-1">
-                        <button type="button" className="text-xs text-zinc-400 hover:text-white transition-colors focus-visible:outline-cyan-400 rounded-sm">
+                        <Link href="/forgot-password" className="text-xs text-zinc-400 hover:text-white transition-colors focus-visible:outline-cyan-400 rounded-sm">
                             Forgot password?
-                        </button>
+                        </Link>
                     </div>
                 </div>
                 
