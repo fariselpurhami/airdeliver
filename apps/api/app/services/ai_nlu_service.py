@@ -3673,6 +3673,16 @@ class AINLUService:
         return list(candidates), fallback_trigger, ai_response_prefix
 
     async def _execute_strategic_search(self, strategy: Any, user_id: int, original_query: str) -> List[Any]:
+        from app.services.staged_search_service import staged_search
+        if type(user_id) is not int or user_id<=0:
+            raise ValueError('user_id must be a positive integer')
+        queries=getattr(strategy,'search_queries',None) or [original_query]
+        result=await staged_search(self.search_engine,self.db,queries[0],
+            category=getattr(strategy,'category_filter',None),rank=self.ranker.rerank,
+            broaden=_build_broad_query,timeout=min(15.0,self.config.search_timeout_sec))
+        return list(result.candidates)
+
+    async def _legacy_execute_strategic_search(self, strategy: Any, user_id: int, original_query: str) -> List[Any]:
         """
         Executes a bounded multi-tier search strategy (from v3).
         """

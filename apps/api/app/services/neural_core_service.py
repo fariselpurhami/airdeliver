@@ -70,6 +70,10 @@ class SessionMemory(BaseModel):
             self.history = self.history[-max_messages:]
 
 
+class SearchTarget(BaseModel):
+    product_name: str = Field(min_length=1,max_length=256)
+
+
 class RouterDecision(BaseModel):
     """Strict contract for the LLM output. Enforces type safety on hallucinations."""
     intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE", "GIFT_DISCOVERY"]
@@ -81,6 +85,8 @@ class RouterDecision(BaseModel):
     order_id: Optional[str] = Field(default=None, description="Extracted order ID digits")
     social_reply: Optional[str] = Field(default=None, description="Contextual chat response")
     quantity: int = Field(default=1, ge=1, le=99, strict=True)
+    targets: List[SearchTarget] = Field(default_factory=list,max_length=3)
+    shopping_task: Literal['search','comparison','specifications','consultation'] = 'search' 
 
 
 # =============================================================================
@@ -99,12 +105,15 @@ You MUST output a valid JSON object strictly matching this schema:
     "alternative_query": "Generic functional category such as smartwatch for Apple Watch, or null",
     "search_subject": "Literal customer category, interest or exact item, or null for an unspecified gift",
     "quantity": 1,
+    "targets": [{"product_name":"Exact literal customer span for one concrete product or category"}],
+    "shopping_task": "search" | "comparison" | "specifications" | "consultation",
     "query": "Extracted search term (only if intent is PRODUCT_SEARCH)",
     "order_id": "Extracted order number digits (only if intent is TRACK_ORDER)",
     "social_reply": "Warm, witty, empathetic response (only if intent is SOCIAL_CHAT)"
 }
 
 ROUTING RULES:
+- Concrete product questions: set PRODUCT_SEARCH and provide1..3 targets, one separate literal customer product/category span per target. Never concatenate two products into one retrieval query. Preserve comparison/specification/consultation task. Do not invent a target from assistant text or recipient gender. If more than3 targets are essential, ask to split the request. No web/general model knowledge is product evidence.
 - GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Ask about budget and interests/occasion before choosing. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
 - Alternatives: preserve the original sales intent. For a concrete unavailable item, retrieve genuine same-purpose alternatives and explain the honest tradeoff, never pretend the original is available. alternative_query is a short generic functional category, not an invented brand/model. For comparisons/specs retrieve the named products, and discuss only structured catalog specs.
 - Budget fields: budget is an exact customer source span; budget_max is its explicit maximum amount as a decimal string, budget_currency is an explicit ISO code or USD when the source uses $, dollar, dollars or US dollars. Never convert currencies or infer a cap from vague cheap/affordable. If amount/currency is missing, clarify it.
@@ -292,6 +301,13 @@ class NeuralCoreService:
             decision.brief=decision.brief.grounded(customer_context)
             if decision.requested_name and ' '.join(decision.requested_name.casefold().split()) not in ' '.join(customer_context.casefold().split()):
                 decision.requested_name=None
+            normalized_context=' '.join(customer_context.casefold().split())
+            target_names=list(dict.fromkeys(' '.join(t.product_name.split()) for t in decision.targets))
+            if any(name.casefold() not in normalized_context for name in target_names):
+                decision.targets=[]
+                decision.intent='GIFT_DISCOVERY'
+            else:
+                decision.targets=[SearchTarget(product_name=name) for name in target_names]
             if decision.intent=="PRODUCT_SEARCH":
                 subject=decision.search_subject
                 if not subject or ' '.join(subject.casefold().split()) not in ' '.join(customer_context.casefold().split()):
@@ -346,6 +362,47 @@ class NeuralCoreService:
         text=(f"Review adding {decision.quantity} × {product.name}." if operation=="add" else f"Review removing the entire {product.name} line from your cart.")
         return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
 
+    async def _handle_staged_product_search(self,db,decision,brief,message):
+        from app.services.ai_nlu_service import CandidateRanker, _build_broad_query
+        from app.services.staged_search_service import staged_search
+        groups=[];trace=[]
+        try:
+            # Sequential SQL work. One target timing out aborts publication so a
+            # partial result cannot masquerade as a complete comparison.
+            async with asyncio.timeout(16):
+                for target in decision.targets:
+                    result=await staged_search(self.ai_engine,db,target.product_name,
+                        rank=CandidateRanker(self.ai_engine).rerank,broaden=_build_broad_query,timeout=5)
+                    groups.append(result.candidates)
+                    trace.append({'target':target.product_name,'tier':result.tier,
+                        'retrieved_ids':[p.id for p in result.candidates]})
+                # Round robin keeps every target represented under5-card cap.
+                candidates=[];seen=set()
+                for pos in range(5):
+                    for group in groups:
+                        if pos<len(group) and group[pos].id not in seen:
+                            candidates.append(group[pos]);seen.add(group[pos].id)
+                candidates=candidates[:5]
+                response=await self._catalog_response(db,candidates,'PRODUCT_SEARCH',
+                    brief=brief,customer_message=message,
+                    decision=decision if len(decision.targets)==1 else None,
+                    search_evidence={'shopping_task':decision.shopping_task,'target_searches':trace,
+                        'missing_target_evidence_is_unknown':True,'external_web_evidence':False})
+                if response.products:
+                    ids=[c.id for c in response.products]
+                    rows=await db.execute(select(models.Product).where(models.Product.id.in_(ids)).execution_options(populate_existing=True))
+                    current={p.id:catalog_result(p) for p in rows.scalars().all()}
+                    for card in response.products:
+                        now=current.get(card.id)
+                        if now is None or now.model_dump(exclude={'relation'})!=card.model_dump(exclude={'relation'}):
+                            raise ValueError('Catalog changed during staged copy')
+                return response
+        except Exception as exc:
+            _log_inference_failure('neural_core.staged_search.withheld',exc)
+            return NeuralCoreResponse(text='System notice: the complete current product evidence could not be checked. Please retry.',
+                response_kind='system_notice',confidence=0,explain='Staged search unavailable',
+                telemetry={'intent':'PRODUCT_SEARCH','entities':[],'turn':0})
+
     async def _handle_product_search(self, db: AsyncSession, query: str, brief: ShoppingBrief | None = None, customer_message: str | None = None, decision: RouterDecision | None = None) -> NeuralCoreResponse:
         try:
             products = await self.ai_engine.perform_hybrid_search_pure(db, query, limit=5)
@@ -365,7 +422,7 @@ class NeuralCoreService:
             logger.warning("neural_core.catalog.revalidation_failed",extra={"error_type":type(exc).__name__})
             return NeuralCoreResponse(text="System notice: current catalog evidence could not be checked. No product recommendation was published.",response_kind="system_notice",confidence=0.0,explain="Catalog revalidation unavailable",telemetry={"intent":"PRODUCT_SEARCH","entities":[],"turn":0})
 
-    async def _catalog_response(self, db, products, intent, query="", brief=None, customer_message=None, decision=None):
+    async def _catalog_response(self, db, products, intent, query="", brief=None, customer_message=None, decision=None, search_evidence=None):
         brief=brief or ShoppingBrief()
         # Re-read every indexed/cached candidate before exposing a card or claim.
         # Preserve ranking, drop duplicates/inactive/deleted rows. No source proof
@@ -383,6 +440,7 @@ class NeuralCoreService:
         cards=await current_cards(products)
         evidence={"requested_name":decision.requested_name if decision else None,
                   "availability_scope":"Current retrieved local catalog rows only; not exhaustive merchant inventory", "unavailable_requested":[]}
+        if search_evidence:evidence.update(search_evidence)
         if decision and decision.requested_name:
             normalize=lambda value:' '.join(value.casefold().split())
             requested=normalize(decision.requested_name)
@@ -533,7 +591,10 @@ class NeuralCoreService:
                 response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
             else:
                 query = decision.query or decision.search_subject or message
-                response = await self._handle_product_search(db, query, memory.shopping_brief, message, decision)
+                if decision.targets:
+                    response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message)
+                else:
+                    response = await self._handle_product_search(db, query, memory.shopping_brief, message, decision)
         
         elif decision.intent == "TRACK_ORDER":
             response = self._handle_order_tracking(decision.order_id)
