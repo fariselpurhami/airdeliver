@@ -10,7 +10,7 @@ from typing import Awaitable,Callable,Literal
 import logging
 from copy import deepcopy
 from app.schemas.ai_actions import CatalogResult,NeuralCoreResponse
-from app.services.shopping_copy import write_shopping_copy
+from app.services.shopping_copy import write_shopping_copy, ShoppingCopyError
 from app.services.shopping_discovery import ShoppingBrief
 
 logger=logging.getLogger('airdeliver.sales_response')
@@ -52,7 +52,12 @@ class SalesResponseService:
                 request.mode,self.timeout,deepcopy(request.evidence))
             kind=request.mode
         except Exception as exc:
-            logger.warning('sales_response.copy_withheld',extra={'error_type':type(exc).__name__,'intent':request.intent})
+            stage=exc.stage if isinstance(exc,ShoppingCopyError) else 'availability'
+            reason=exc.reason if isinstance(exc,ShoppingCopyError) else type(exc).__name__
+            logger.warning('sales_response.copy_withheld stage=%s reason=%s candidates=%d mode=%s intent=%s',
+                stage,reason,len(cards),request.mode,request.intent,
+                extra={'error_type':type(exc).__name__,'intent':request.intent,'copy_stage':stage,
+                       'copy_reason':reason,'candidate_count':len(cards),'mode':request.mode})
             text='System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.'
             kind='system_notice';cards=[]
         return NeuralCoreResponse(text=text,products=cards,response_kind=kind,

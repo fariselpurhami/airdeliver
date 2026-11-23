@@ -112,3 +112,34 @@ async def test_unavailable_requested_item_pivots_only_to_current_non_demo_positi
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_owner_jewelry_dollar_followup_keeps_budget_and_eligible_card():
+    from app.services.neural_core_service import SessionMemory
+    from tests.test_neural_session_isolation import Cache
+    engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
+    try:
+        async with sessions() as db:
+            rows=[Product(sku=uuid4().hex,name=name,description='',category='jewelry',price=price,currency='USD',inventory=qty)
+                  for name,price,qty in [('Silver pendant',100,4),('Over cap necklace',1500,3),('Empty pendant',50,0)]]
+            db.add_all(rows);await db.commit();ids=[p.id for p in rows]
+        cache=Cache();svc=NeuralCoreService(SimpleNamespace(perform_hybrid_search_pure=AsyncMock(return_value=rows)),cache)
+        svc.is_healthy=True;svc.configuration_error=False
+        initial=SessionMemory(user_name='Client',history=[{'role':'user','content':'I want a gift for my wife'},{'role':'assistant','content':'What occasion, interests and budget?'}])
+        await cache.set_json(svc._get_session_key('owner-gift-regression'),initial.model_dump(mode='json'))
+        router={'intent':'PRODUCT_SEARCH','query':'jewelry','search_subject':'jewelry','brief':{'category':'jewelry','occasion':'birthday','budget':'1000 dollar','budget_max':'1000','budget_currency':'USD'}}
+        draft={'text':'Within your 1000 dollar budget, compare Silver pendant in the card. Local catalog stock is listed, merchant availability is unverified.', 'product_ids':[ids[0]],'claims':[{'product_id':ids[0],'field':'name','value':'Silver pendant'}]}
+        verdict=dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True)
+        svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(router),json.dumps(draft),json.dumps(verdict)])
+        async with sessions() as db:
+            result=await svc.handle_message(db,'Her birthday, and I want jewelry and the budget at range 1000 dollar',None,'owner-gift-regression')
+        assert result.response_kind=='catalog_results' and result.text==draft['text']
+        assert [p.id for p in result.products]==[ids[0]]
+        stored=cache.data[svc._get_session_key('owner-gift-regression')]
+        assert stored['shopping_brief']['budget_max']=='1000'
+        assert stored['shopping_brief']['budget_currency']=='USD'
+    finally:
+        async with sessions() as db:
+            await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()

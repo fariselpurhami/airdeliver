@@ -76,6 +76,11 @@ Do not infer tastes or price range from recipient gender. Do not mention product
 absent from evidence, including examples from general knowledge. If no candidates,
 say the catalog search found no current candidates and ask to broaden it.
 Cards show prices/evidence. Prefer referring to cards rather than restating amounts.
+You may repeat customer_brief.budget_max only explicitly as the customer's budget,
+never as a product price or spec. No product claim is required for that budget.
+If catalog_evidence is empty, write an honest no-match reply within these retrieved
+results and the stated cap. Ask to broaden a preference; do not invent alternatives
+or declare global unavailability. This is a normal response, not a system failure.
 No links, tool claims, instructions, account changes or checkout promises.
 Return only JSON. claims and product_ids must be empty for clarification.'''
 
@@ -103,10 +108,13 @@ customer-provided category/interest, even when its product_ids are valid.
 Cart-event follow-ups may offer optional catalog-asserted complements or same-category
 alternatives without asserting customer preferences. Reject inferred removal reasons,
 compatibility guarantees, superiority, urgency, personal budget or transaction claims.
+A customer budget explicitly repeated as budget may use the supplied budget_max;
+it is not a product-field claim. An empty evidence set should produce an honest
+no-match response and a focused request to broaden, not invented product examples.
 Reject instructions/links or any action/policy promise absent from evidence.'''
 
 
-def validate_draft(draft, cards, context=None):
+def validate_draft(draft, cards, context=None, brief=None):
     by_id={card.id:card.model_dump() for card in cards}
     if len(set(draft.product_ids))!=len(draft.product_ids) or not set(draft.product_ids)<=by_id.keys():
         raise ValueError('unsupported_product_reference')
@@ -125,23 +133,53 @@ def validate_draft(draft, cards, context=None):
     requested=(context or {}).get('requested_name')
     if isinstance(requested,str) and requested:
         numeric_text=re.sub(re.escape(requested),'',numeric_text,flags=re.I)
+    # Customer budget is not a product price. Permit only an explicitly grounded
+    # cap in a budget-labelled phrase, never arbitrary customer numerals/specs.
+    cap=(brief or {}).get('budget_max')
+    if isinstance(cap,str) and re.fullmatch(r'\d+(?:\.\d+)?',cap):
+        amount=re.escape(cap)
+        numeric_text=re.sub(r'\bbudget\b[^\d.!?]{0,30}'+amount+r'(?![\d.])','customer budget',numeric_text,flags=re.I)
+        numeric_text=re.sub(r'(?<![\d.])'+amount+r'\s*(?:[- ]?(?:US\s*)?dollars?|USD|\$)?\s+budget\b','customer budget',numeric_text,flags=re.I)
     numbers=re.findall(r'\d+(?:[.,]\d+)*',numeric_text)
     allowed=' '.join(c.value for c in draft.claims)
     if any(n not in allowed for n in numbers) or re.search(r'https?://|www\.',draft.text,re.I):
         raise ValueError('unsupported_numeric_or_link_claim')
 
 
+class ShoppingCopyError(ValueError):
+    def __init__(self, stage, reason):
+        self.stage=stage
+        self.reason=reason
+        super().__init__('shopping_copy_'+stage+'_'+reason)
+
+
+class ShoppingCopyTimeout(ShoppingCopyError, TimeoutError):
+    """Preserves the public timeout contract while adding safe stage metadata."""
+
+
 async def write_shopping_copy(infer, message, cards, brief, mode, timeout, context=None):
     evidence=[c.model_dump(mode='json') for c in cards]
     payload={'task':mode,'customer_message':message,'customer_brief':brief,'catalog_evidence':evidence,'request_evidence':context or {}}
     # One total budget covers writer, review and all inference retry backoff.
-    with anyio.fail_after(timeout):
-        raw=await infer([{'role':'system','content':WRITER_RULES},
-                         {'role':'user','content':json.dumps(payload,ensure_ascii=False)}])
-        draft=ShoppingDraft.model_validate_json(raw)
-        validate_draft(draft,cards,context)
-        review=await infer([{'role':'system','content':REVIEW_RULES},
-            {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False)}])
-        verdict=GroundingReview.model_validate_json(review)
-        if not all(verdict.model_dump().values()):raise ValueError('grounding_review_rejected')
+    stage='writer_provider'
+    try:
+        with anyio.fail_after(timeout):
+            raw=await infer([{'role':'system','content':WRITER_RULES},
+                             {'role':'user','content':json.dumps(payload,ensure_ascii=False)}])
+            stage='writer_schema'
+            draft=ShoppingDraft.model_validate_json(raw)
+            stage='writer_evidence'
+            validate_draft(draft,cards,context,brief)
+            stage='review_provider'
+            review=await infer([{'role':'system','content':REVIEW_RULES},
+                {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False)}])
+            stage='review_schema'
+            verdict=GroundingReview.model_validate_json(review)
+            stage='review_verdict'
+            if not all(verdict.model_dump().values()):raise ValueError('grounding_review_rejected')
+    except Exception as exc:
+        allowed={'unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
+        reason=str(exc) if type(exc) is ValueError and str(exc) in allowed else type(exc).__name__
+        error_class=ShoppingCopyTimeout if isinstance(exc,TimeoutError) else ShoppingCopyError
+        raise error_class(stage,reason) from exc
     return draft.text
