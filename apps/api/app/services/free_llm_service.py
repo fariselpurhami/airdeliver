@@ -239,6 +239,41 @@ def _sanitize_user_query(user_query: str, max_chars: int) -> str:
     return _truncate(normalized, max_chars)
 
 
+def _sanitize_structured_prompt(prompt: str, max_chars: int) -> str:
+    """Bound JSON without slicing off trailing history or creating invalid JSON."""
+    data = json.loads(prompt)
+    def bound(value: Any, depth: int = 0) -> Any:
+        if depth > 8:
+            return None
+        if isinstance(value, str):
+            return _normalize_whitespace(value)[:6000]
+        if isinstance(value, dict):
+            return {str(k)[:120]: bound(v, depth + 1) for k, v in list(value.items())[:40]}
+        if isinstance(value, list):
+            return [bound(v, depth + 1) for v in value[:20]]
+        return value
+    data = bound(data)
+    while True:
+        encoded = json.dumps(data, ensure_ascii=False, default=str, separators=(",", ":"))
+        if len(encoded) <= max_chars:
+            return encoded
+        strings = []
+        def scan(value: Any) -> None:
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    if isinstance(v, str): strings.append((len(v), value, k))
+                    else: scan(v)
+            elif isinstance(value, list):
+                for k, v in enumerate(value):
+                    if isinstance(v, str): strings.append((len(v), value, k))
+                    else: scan(v)
+        scan(data)
+        if not strings or max(n for n, _, _ in strings) < 16:
+            raise ValueError("structured prompt exceeds safe context budget")
+        size, parent, key = max(strings, key=lambda item: item[0])
+        parent[key] = parent[key][:max(8, size // 2)]
+
+
 def _sanitize_chat_history(chat_history: Optional[List[Dict[str, str]]], max_messages: int) -> List[Dict[str, str]]:
     if not chat_history:
         return []
@@ -522,7 +557,14 @@ class FreeLLMService:
         correlation_id: Optional[str] = kwargs.pop("correlation_id", None)
 
         # 2. Sanitize user prompt according to input limits
-        sanitized_prompt = _sanitize_user_query(prompt, self.limits.max_input_chars)
+        try:
+            parsed_prompt = json.loads(prompt)
+        except (ValueError, TypeError):
+            parsed_prompt = None
+        if isinstance(parsed_prompt, dict) and ("conversation_context" in parsed_prompt or "conversation_history" in parsed_prompt):
+            sanitized_prompt = _sanitize_structured_prompt(prompt, self.limits.max_context_json_chars)
+        else:
+            sanitized_prompt = _sanitize_user_query(prompt, self.limits.max_input_chars)
 
         # 3. Prepare context string (JSON if structured, truncated otherwise)
         context_str = ""
