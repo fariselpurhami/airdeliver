@@ -19,11 +19,16 @@ import {
   Star,
 } from 'lucide-react';
 import Image from 'next/image';
+import { isDemoImageEligible } from '@/lib/catalog/demoImages';
+import { CatalogImage } from './CatalogImage';
+import { DemoImageAttribution } from './DemoImageAttribution';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
 import { CatalogPrice } from '../ai/CatalogPrice';
 import { type Product } from './ProductCard';
 
 type ProductDetailsCardProduct = {
+  sku?: string;
+  attributes?: Record<string, unknown>;
   // Structural contract of only the fields this card renders. Accepts both
   // the full Product and the lighter AIProduct shape from the chat carousel.
   id: number | string;
@@ -160,15 +165,15 @@ const ProductDetailsCardComponent = ({
       </button>
       <div className="relative flex flex-col flex-1 overflow-hidden">
         <section className="min-w-0 border-b border-white/10 shrink-0">
-          <div className="relative aspect-[4/3] w-full overflow-hidden bg-white/[0.03] sm:aspect-[16/11]">
-            {product.image_url ? (
-              <Image
+          <div className="relative h-[32dvh] max-h-[340px] min-h-[160px] w-full overflow-hidden bg-white/[0.03]">
+            {product.image_url || isDemoImageEligible(product) ? (
+              <CatalogImage product={product}
                 src={product.image_url}
                 alt={imageAlt}
                 fill
                 priority={false}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 42vw"
-                className="object-cover"
+                className="object-contain"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-white/[0.03]">
@@ -192,6 +197,7 @@ const ProductDetailsCardComponent = ({
           </div>
         </section>
 
+        <DemoImageAttribution product={product} />
         <section className="min-w-0">
           <div className="flex max-h-[calc(100dvh-12rem)] flex-col overflow-y-auto overscroll-contain px-4 py-4 sm:max-h-[calc(92dvh-2rem)] sm:px-6 sm:py-6">
             <div className="min-w-0">

@@ -1,6 +1,8 @@
 //** apps/web/types/index.ts **//
 
 export interface Product {
+  sku?: string;
+  attributes?: Record<string, unknown>;
     price_status?: 'listed' | 'unknown';
   id: number;
   name: string;

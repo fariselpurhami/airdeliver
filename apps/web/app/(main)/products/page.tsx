@@ -11,7 +11,9 @@ import useSWR from 'swr';
 import { api } from '@/lib/api';
 import { AlertTriangle, Bot, ShoppingBag, Zap, Layers, ChevronLeft, ChevronRight, Activity, BadgeCheck } from 'lucide-react';
 import Image from 'next/image';
+import { MobileHomeFloatingCards } from '@/components/hero/MobileHomeFloatingCards';
 import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
+import { DemoImageAttribution } from '@/components/products/DemoImageAttribution';
 import { CatalogImage } from '@/components/products/CatalogImage';
 import dynamic from 'next/dynamic';
 import { ProductDetailsCard } from '@/components/products/ProductDetailsCard';
@@ -73,15 +75,16 @@ const AICatalogHero = React.memo(() => {
     }, [messages]);
 
     return (
-        <section className={HERO_STAGE_CLASSES} data-hero-stage="products">
+        <section className={`${HERO_STAGE_CLASSES} max-lg:min-h-[100svh] max-lg:pt-28 max-lg:pb-16`} data-hero-stage="products">
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
                 <div className="w-[80vw] lg:w-[40vw] h-[80vw] lg:h-[40vw] bg-cyan-600/15 lg:bg-cyan-600/10 blur-[100px] lg:blur-[150px] rounded-full mix-blend-screen" />
                 <div className="absolute w-[60vw] lg:w-[30vw] h-[60vw] lg:h-[30vw] bg-purple-600/15 lg:bg-purple-600/10 blur-[80px] lg:blur-[120px] rounded-full mix-blend-screen translate-x-1/4 -translate-y-1/4" />
             </div>
 
-            <FloatingHeroCards />
+            <div className="hidden lg:contents"><FloatingHeroCards /></div>
+            <div className="absolute inset-x-5 top-28 bottom-16 lg:hidden" data-mobile-catalog-distribution><MobileHomeFloatingCards /></div>
 
-            <div className="relative z-20 w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 text-center">
+            <div className="relative z-30 w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 text-center">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(13,13,12,0.95)_0%,rgba(13,13,12,0.7)_40%,transparent_80%)] lg:hidden pointer-events-none -z-10" />
 
                 <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#0D0D0C]/80 border border-white/10 backdrop-blur-xl mb-6 sm:mb-8 shadow-2xl relative z-10">
@@ -181,7 +184,7 @@ const AlgorithmicPick = React.memo(({ onOpen }: { onOpen: (product: Product) => 
                 <div className="w-[45%] md:w-1/2 relative flex items-center justify-center p-4 md:p-10 bg-white/[0.02]">
                     <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
                     <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} className="relative z-10 w-full h-full max-w-sm">
-                        <CatalogImage src={recommendationsData.image_url || '/images/default.jpeg'} alt={recommendationsData.name} fill className="object-contain drop-shadow-2xl" priority />
+                        <CatalogImage product={recommendationsData} src={recommendationsData.image_url || '/images/default.jpeg'} alt={recommendationsData.name} fill className="object-contain drop-shadow-2xl" priority />
                     </motion.div>
                 </div>
 
@@ -193,6 +196,7 @@ const AlgorithmicPick = React.memo(({ onOpen }: { onOpen: (product: Product) => 
                         </div>
                     </div>
                     
+                    <DemoImageAttribution product={recommendationsData} />
                     <h2 className="text-sm md:text-4xl font-bold text-white mb-1.5 md:mb-4 leading-tight line-clamp-2">{recommendationsData.name}</h2>
                     <p className="text-[9px] md:text-sm text-gray-400 mb-3 md:mb-8 leading-relaxed max-w-md line-clamp-2 md:line-clamp-none">{recommendationsData.description}</p>
                     
@@ -284,11 +288,12 @@ const ProductCard = React.memo(({ product, onOpen }: { product: Product, onOpen:
 
             <div className="relative w-full aspect-[4/3] p-3 md:p-6 bg-white/[0.02] flex items-center justify-center">
                 <motion.div className="relative w-full h-full" whileHover={{ scale: 1.05 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
-                    <CatalogImage id={`product-img-${product.id}`} src={product.image_url || '/images/default.jpeg'} alt={product.name} fill className="object-contain drop-shadow-xl" sizes="(max-width: 768px) 50vw, 25vw" loading="lazy" />
+                    <CatalogImage product={product} id={`product-img-${product.id}`} src={product.image_url || '/images/default.jpeg'} alt={product.name} fill className="object-contain drop-shadow-xl" sizes="(max-width: 768px) 50vw, 25vw" loading="lazy" />
                 </motion.div>
             </div>
             
             <div className="relative p-3 md:p-5 flex flex-col flex-grow border-t border-white/5 bg-[#0D0D0C]">
+                <DemoImageAttribution product={product} />
                 <h3 className="text-[11px] md:text-sm font-bold text-gray-100 mb-0.5 md:mb-1 group-hover:text-cyan-400 transition-colors line-clamp-2">{product.name}</h3>
                 <p className="text-[9px] md:text-xs text-gray-500 line-clamp-3 mb-2 md:mb-4">{product.description}</p>
                 

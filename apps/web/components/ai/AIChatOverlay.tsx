@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
 import Image from 'next/image';
+import { DemoImageAttribution } from '@/components/products/DemoImageAttribution';
 import { CatalogImage } from '@/components/products/CatalogImage';
 import useEmblaCarousel from 'embla-carousel-react';
 import { loadStripe, StripeElementsOptions, Stripe } from '@stripe/stripe-js';
@@ -31,6 +32,8 @@ import remarkGfm from 'remark-gfm';
 
 // --- ENTERPRISE CONTRACT DEFINITIONS ---
 export interface AIProduct {
+  sku?: string;
+  attributes?: Record<string, unknown>;
     id: number | string;
     name: string;
     price?: number | string | null;
@@ -208,7 +211,7 @@ export const CarouselProductCard = React.memo(({ product, onSelect, onViewDetail
                     >
                         <BookmarkStarIcon />
                     </button>
-                    <CatalogImage
+                    <CatalogImage product={product}
                         id={elementId}
                         src={imageUrl}
                         alt={product.name}
@@ -220,6 +223,7 @@ export const CarouselProductCard = React.memo(({ product, onSelect, onViewDetail
                     />
                  </div>
 
+                    <DemoImageAttribution product={product} />
                     {/* Bottom Dark Obsidian Details Surface */}
                  <div className="flex flex-col flex-grow px-1">
                     <span className={`text-[11px] font-semibold text-white/50 tracking-wider mb-1 truncate ${brand === 'airdeliver SELECT' ? 'normal-case' : 'uppercase'}`}>
