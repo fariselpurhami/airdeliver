@@ -1758,7 +1758,7 @@ Output ONE line of search keywords only.
             optimized = _normalize_whitespace(completion.choices[0].message.content or "")
             optimized = optimized.replace('"', "").replace("Search Query:", "").replace("'", "").strip()
             if len(optimized) < 2:
-                logger.warning(f"🤖ིྀ LLM returned empty/short query for '{user_query}'. Using fallback.")
+                logger.warning("search_terms.short_result input_chars=%d",len(sanitized_query))
                 return sanitized_query
             tokens = optimized.split()
             return " ".join(tokens[: self.limits.max_search_terms_words])
@@ -2058,12 +2058,8 @@ Output ONE line of search keywords only.
             clean_terms = sanitized_query
 
         logger.info(
-            f"🧠 Orchestrator: Intent={not strategy.is_direct_product_request} | SEO='{clean_terms}'",
-            extra={
-                "direct_request": strategy.is_direct_product_request,
-                "search_terms": clean_terms,
-                "product_count": len(sanitized_products),
-            },
+            "commerce.orchestrator direct_request=%s product_count=%d query_chars=%d",
+            strategy.is_direct_product_request,len(sanitized_products),len(clean_terms),
         )
 
         relevant_products = self._rank_products_by_relevance(clean_terms, sanitized_products)
