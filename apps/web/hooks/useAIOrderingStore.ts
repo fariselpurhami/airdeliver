@@ -13,6 +13,11 @@ import { useCartStore } from './useCartStore';
 import type { ShippingAddress } from '@/lib/commerce';
 import { getCheckoutRequestKey, retireCheckoutRequestKey } from '@/lib/checkout-request';
 
+// UI messages are memory-only, so HTTP conversation identity must share that
+// lifetime. Retain the historical localStorage key only for legacy migration;
+// never load unseen prior conversations into a visually new page.
+let visibleSupportSessionId: string | null = null;
+
 // --- Domain Types ---
 
 export type PaymentGateway = {
@@ -735,12 +740,8 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     // Session continuity for the NeuralCore memory layer. Session ids are
     // bound by the endpoint to ^[a-zA-Z0-9_-]{8,128}$.
     if (typeof window === 'undefined') return 'ssr-session';
-    let sessionId = window.localStorage.getItem('airdeliver-support-session');
-    if (!sessionId || !/^[a-zA-Z0-9_-]{8,128}$/.test(sessionId)) {
-      sessionId = randomId();
-      window.localStorage.setItem('airdeliver-support-session', sessionId);
-    }
-    return sessionId;
+    if (!visibleSupportSessionId) visibleSupportSessionId = randomId();
+    return visibleSupportSessionId;
   },
 
   _postSupportChat: async (message, msgId, imageBase64) => {
@@ -1067,6 +1068,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   },
 
   resetChat: () => {
+    visibleSupportSessionId = null;
     get().clearCart();
     set({
       messages: [initialWelcomeMessage],
