@@ -65,3 +65,17 @@ async def test_competing_different_add_ids_with_same_revision_cannot_lose_update
     async with sessions() as db:
         snapshot=await CartJournalService(db).read_snapshot(uid)
         assert snapshot['revision']==2 and snapshot['items'][0]['quantity']==3
+
+@pytest.mark.asyncio
+async def test_refresh_existing_line_preserves_original_cart_order(saved_db):
+    sessions,uid,pid=saved_db
+    async with sessions() as db:
+        svc=CartJournalService(db)
+        await svc.apply_snapshot(uid,str(uuid4()),{'op':'seed-second-line'},1,
+            {'items':[{'product_id':pid,'name':'Shoes','quantity':2,'price':'10.50'},
+                      {'product_id':pid+1000000,'name':'Other item','quantity':1,'price':'5.00'}]})
+        await db.commit()
+        result=await svc.mutate_product(uid,str(uuid4()),'add',pid,1,2)
+        assert [line['product_id'] for line in result['cart']['items']]==[pid,pid+1000000]
+        assert result['cart']['items'][0]['quantity']==3
+        await db.commit()

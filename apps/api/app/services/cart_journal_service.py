@@ -111,7 +111,10 @@ class CartJournalService:
                 raise ValueError('Requested quantity unavailable')
             line=CartItemModel(product_id=product_id,name=product.name,quantity=total_quantity,
                 price=Decimal(str(product.price)),image_url=getattr(product,'image_url','') or '',category=product.category or '')
-            cart.items=[item for item in cart.items if item.product_id!=product_id]+[line]
+            if existing:
+                cart.items=[line if item.product_id==product_id else item for item in cart.items]
+            else:
+                cart.items.append(line)
         return await self.apply_snapshot(user_id,identity,body,expected_revision,cart.model_dump(mode='json'))
 
     async def clear_cart(self, user_id, mutation_id, expected_revision):
