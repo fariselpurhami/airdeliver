@@ -88,3 +88,32 @@ async def test_delayed_add_event_is_skipped_if_anchor_already_removed():
 def test_versioned_event_rejects_invalid_contract(change):
     with pytest.raises(ValidationError):
         CartRecommendationEvent.model_validate(dict({'user_id':1,'product_id':7,'operation':'added'},**change))
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('operation',['added','removed'])
+async def test_membership_changed_during_search_suppresses_stale_advice(operation):
+    anchor={'product_id':7,'name':'Shoes','quantity':1,'price':'19.99'}
+    cache=FakeCache({'items':[anchor]} if operation=='added' else None)
+    async def search(*args,**kwargs):
+        cache._cart=None if operation=='added' else {'items':[anchor]}
+        return [SimpleNamespace(id=8,model_dump=lambda **kw:{'id':8,'name':'Candidate','price':'12'})]
+    engine=SimpleNamespace(generate_perfect_bundle=search,find_genius_alternatives=search)
+    @asynccontextmanager
+    async def session():yield FakeDB(make_product())
+    runtime=WorkerRuntime.__new__(WorkerRuntime);runtime.wait_for_readiness=AsyncMock()
+    runtime.services=SimpleNamespace(session_maker=session,cache=cache,rabbitmq=object(),commerce=engine)
+    await runtime.cart_recommendation_handler_impl({'user_id':1,'product_id':7,'operation':operation})
+    assert cache.published==[]
+
+@pytest.mark.asyncio
+async def test_suggestions_exclude_anchor_current_cart_and_duplicate_products():
+    cache=FakeCache({'items':[{'product_id':7,'name':'Shoes','quantity':1,'price':'19.99'},
+                             {'product_id':8,'name':'Already owned cart','quantity':1,'price':'5'}]})
+    def product(id):return SimpleNamespace(id=id,model_dump=lambda **kw:{'id':id,'name':'Candidate','price':'12'})
+    engine=SimpleNamespace(generate_perfect_bundle=AsyncMock(return_value=[product(i) for i in [7,8,9,9,10]]))
+    @asynccontextmanager
+    async def session():yield FakeDB(make_product())
+    runtime=WorkerRuntime.__new__(WorkerRuntime);runtime.wait_for_readiness=AsyncMock()
+    runtime.services=SimpleNamespace(session_maker=session,cache=cache,rabbitmq=object(),commerce=engine)
+    await runtime.cart_recommendation_handler_impl({'user_id':1,'product_id':7,'operation':'added'})
+    assert [p['id'] for p in cache.published[-1][1]['products']]==[9,10]

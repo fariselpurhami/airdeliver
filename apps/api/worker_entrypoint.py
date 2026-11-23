@@ -565,9 +565,27 @@ class WorkerRuntime:
                     text = "Other catalog options after your removal. Compare the listed details before choosing."
                 if not products:
                     return
+                # Search may take seconds. Recheck membership and omit items
+                # already in the current cart before publishing delayed advice.
+                current = await service._get_cart_from_redis(event.user_id)
+                current_ids = {line.product_id for line in current.items}
+                if (event.product_id in current_ids) != (event.operation == "added"):
+                    return
+                seen = current_ids | {event.product_id}
+                fresh = []
+                for product in products:
+                    identity = getattr(product, "id", None)
+                    if identity is None:
+                        identity = product.model_dump(mode="json").get("id")
+                    if type(identity) is not int or identity <= 0 or identity in seen:
+                        continue
+                    seen.add(identity)
+                    fresh.append(product)
+                if not fresh:
+                    return
                 await service._send_to_ui(event.user_id, {
                     "content": text, "type": "product_carousel",
-                    "products": [p.model_dump(mode="json") for p in products[:4]],
+                    "products": [p.model_dump(mode="json") for p in fresh[:4]],
                     "secondary_suggestions": True, "reason": "Related Catalog Items",
                 })
 
