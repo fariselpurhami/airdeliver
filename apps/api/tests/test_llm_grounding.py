@@ -165,7 +165,7 @@ async def test_model_receives_unknown_price_not_zero_fallback():
 @pytest.mark.anyio
 async def test_mixed_unknown_prices_keep_lifestyle_selection_operational():
     svc=_service_returning({})
-    result=await svc.generate_lifestyle_matrix([{'id':7,'name':'Unpriced shoes'}, {'id':8,'name':'Listed socks','price':'5.00'}])
+    result=await svc._legacy_generate_lifestyle_matrix([{'id':7,'name':'Unpriced shoes'}, {'id':8,'name':'Listed socks','price':'5.00'}])
     assert len(result)==4
     assert any(row['product']['price'] is None for row in result)
     assert not any('Great price' in row['text'] for row in result)
