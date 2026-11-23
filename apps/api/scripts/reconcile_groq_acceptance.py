@@ -118,7 +118,7 @@ async def run(ledger):
     import httpx
     from groq import AsyncGroq
     async with AsyncGroq(api_key=key, max_retries=0,
-                         base_url='https://api.groq.com/openai/v1', timeout=20,
+                         base_url='https://api.groq.com', timeout=20,
                          http_client=httpx.AsyncClient(trust_env=False)) as client:
         await list_once(ledger, client)
 

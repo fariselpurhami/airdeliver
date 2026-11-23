@@ -77,7 +77,7 @@ def make_bounded_service(ledger):
     from app.services.free_llm_service import FreeLLMService
     # Separate process only: no change to API/worker service settings.
     service = FreeLLMService()
-    service.acceptance_endpoint = 'https://api.groq.com/openai/v1'
+    service.acceptance_endpoint = 'https://api.groq.com'
     # Ignore any environment override that could redirect key/catalog data.
     async def approved_client():
         if service._client is None:

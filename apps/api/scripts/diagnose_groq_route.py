@@ -78,7 +78,7 @@ async def run(ledger):
     import httpx
     from groq import AsyncGroq
     async with AsyncGroq(api_key=key, max_retries=0, timeout=20,
-                         base_url='https://api.groq.com/openai/v1',
+                         base_url='https://api.groq.com',
                          http_client=httpx.AsyncClient(trust_env=False)) as client:
         await diagnose_once(ledger, client)
 
