@@ -56,9 +56,10 @@ jobs:
         run: pnpm --filter airdeliver/apps/web build
 
       - name: Verify standalone Docker-context lock and install
+        timeout-minutes: 12
         run: |
           standalone=$(mktemp -d)
-          cp -a apps/web/. "$standalone/"
+          tar -C apps/web --exclude=node_modules --exclude=.next --exclude=tsconfig.tsbuildinfo -cf - . | tar -C "$standalone" -xf -
           cd "$standalone"
           pnpm install --frozen-lockfile
           pnpm exec tsc --noEmit
