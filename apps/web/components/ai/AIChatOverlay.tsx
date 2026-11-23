@@ -24,6 +24,7 @@ import { useSession } from "next-auth/react";
 import { useShallow } from 'zustand/react/shallow';
 import { AIVoiceOverlay } from './AIVoiceOverlay';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import { CatalogPrice, listedCatalogPrice } from './CatalogPrice';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -31,7 +32,8 @@ import remarkGfm from 'remark-gfm';
 export interface AIProduct {
     id: number | string;
     name: string;
-    price: number | string;
+    price?: number | string | null;
+    price_status?: string;
     image?: string;
     image_url?: string;
     rating?: number;
@@ -161,7 +163,7 @@ SendPlaneIcon.displayName = 'SendPlaneIcon';
 
 
 
-const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails }: {
+export const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails }: {
     product: AIProduct;
     onSelect: (product: AIProduct, elementId: string) => void;
     onViewDetails: (product: AIProduct) => void;
@@ -234,7 +236,7 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails }: {
                         <div className="flex flex-col">
                             <span className="text-[10px] text-white/40 font-medium">PRICE</span>
                             <span className="text-[17px] font-bold text-white tracking-tight leading-none">
-                                ${(Number(product.price) || 0).toFixed(2)}
+                                <CatalogPrice product={product} />
                             </span>
                         </div>
 
@@ -243,7 +245,9 @@ const CarouselProductCard = React.memo(({ product, onSelect, onViewDetails }: {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={handleSelect}
-                            className="h-9 px-4 rounded-full bg-white text-black flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(255,255,255,0.15)] hover:shadow-[0_4px_16px_rgba(255,255,255,0.25)] transition-shadow"
+                            disabled={listedCatalogPrice(product) === null}
+                            title={listedCatalogPrice(product) === null ? 'Inspect product details to verify price before adding' : 'Add to cart'}
+                            className="disabled:opacity-40 disabled:cursor-not-allowed h-9 px-4 rounded-full bg-white text-black flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(255,255,255,0.15)] hover:shadow-[0_4px_16px_rgba(255,255,255,0.25)] transition-shadow"
                         >
                             <ShoppingBag size={14} strokeWidth={2.5} />
                             <span className="text-[12px] font-bold tracking-wide">ADD</span>

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useAIOrderingStore } from '../../hooks/useAIOrderingStore';
+import { CatalogPrice } from '../ai/CatalogPrice';
 import { type Product } from './ProductCard';
 
 type ProductDetailsCardProduct = {
@@ -27,7 +28,8 @@ type ProductDetailsCardProduct = {
   // the full Product and the lighter AIProduct shape from the chat carousel.
   id: number | string;
   name: string;
-  price: number | string;
+  price?: number | string | null;
+  price_status?: string;
   image_url?: string | null;
   description?: string;
   predicted_delivery?: string;
@@ -46,12 +48,6 @@ const ADDED_STATE_DURATION_MS = 2000;
 const DEFAULT_DESCRIPTION =
   'Specifications classified. High-performance unit ready for deployment.';
 
-const formatPrice = (value: number | string | undefined | null): string => {
-  if (value === undefined || value === null) return '0.00';
-  const num = Number(value);
-  return Number.isNaN(num) ? '0.00' : num.toFixed(2);
-};
-
 const ProductDetailsCardComponent = ({
   product,
   onClose,
@@ -66,7 +62,6 @@ const ProductDetailsCardComponent = ({
     [product.id]
   );
 
-  const displayPrice = useMemo(() => formatPrice(product.price), [product.price]);
 
   const sku = useMemo(() => {
     const raw = typeof product.id === 'number' || typeof product.id === 'string'
@@ -218,7 +213,7 @@ const ProductDetailsCardComponent = ({
 
               <div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-2">
                 <div className="text-3xl font-bold leading-none text-white sm:text-4xl">
-                  ${displayPrice}
+                  <CatalogPrice product={product} />
                 </div>
 
                 {stockLevel ? (
