@@ -446,6 +446,12 @@ class AICheckoutService:
             logger.warning("Payment setup outcome uncertain", extra={"order_id": order.id})
             return await self._setup_uncertain(order.id, generation)
 
+        returned_provider = getattr(gateway.provider, "value", gateway.provider)
+        expected_provider = getattr(payment_request.preferred_provider, "value", payment_request.preferred_provider)
+        if returned_provider not in {"stripe", "paypal"} or returned_provider != expected_provider:
+            logger.warning("Payment setup returned a different provider", extra={"order_id": order.id})
+            return await self._setup_uncertain(order.id, generation)
+
         order = await self.db.get(Order, order.id, with_for_update=True, populate_existing=True)
         if order.payment_setup_generation != generation:
             await self.db.commit()

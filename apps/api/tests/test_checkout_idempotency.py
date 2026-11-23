@@ -191,3 +191,15 @@ def test_unique_checkout_constraint_is_enforced_by_the_database(checkout):
     session.rollback()
     # Legacy rows with no checkout key remain valid, without invented identities.
     session.add_all([Order(user_id=1),Order(user_id=1)]);session.commit()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('returned_provider',['paypal','mpesa','unknown'])
+async def test_provider_result_must_match_frozen_selected_provider(checkout,returned_provider):
+    service,session,cache,orchestrator=checkout
+    orchestrator.process_payment.return_value.primary_gateway.provider=returned_provider
+    result=await service.handle_confirm_order(PAYLOAD)
+    assert result['status']=='pending' and 'payment' not in result
+    order=session.execute(select(Order)).scalars().one()
+    assert order.payment_transaction_id is None and 'handoff' not in order.checkout_data
+    assert not any(json.loads(call.args[1]).get('type')=='payment_intent' for call in cache.publish.await_args_list)
