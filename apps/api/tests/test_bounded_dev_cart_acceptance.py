@@ -26,7 +26,7 @@ async def test_real_service_wrapper_caps_tokens_retries_and_model(tmp_path, monk
     service._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
     ledger = Ledger(tmp_path / 'cap.json')
     # Restore singleton modifications so other production-service tests stay independent.
-    old_chat, old_limits = service._chat_completion, service.limits
+    old_chat, old_limits, old_get_client = service._chat_completion, service.limits, service._get_client
     monkeypatch.setattr(service, '_chat_completion', old_chat)
     monkeypatch.setattr(service, 'limits', old_limits)
     try:
@@ -38,7 +38,7 @@ async def test_real_service_wrapper_caps_tokens_retries_and_model(tmp_path, monk
             await bounded._chat_completion(messages=[], model='other')
         assert ledger.state['calls_reserved'] == 1
     finally:
-        service._chat_completion = old_chat; service.limits = old_limits; service._client = None
+        service._chat_completion = old_chat; service.limits = old_limits; service._client = None; service._get_client = old_get_client
         ledger.close()
 
 
@@ -52,7 +52,7 @@ async def test_provider_failure_is_not_retried_and_stops_after_reservation(tmp_p
     async def create(**kwargs):
         calls.append(kwargs)
         raise RateLimitError('quota', response=httpx.Response(429, request=httpx.Request('POST','https://api.groq.com')), body={})
-    old_chat, old_limits, old_client = service._chat_completion, service.limits, service._client
+    old_chat, old_limits, old_client, old_get_client = service._chat_completion, service.limits, service._client, service._get_client
     service._client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
     ledger = Ledger(tmp_path / 'error.json')
     try:
@@ -62,5 +62,5 @@ async def test_provider_failure_is_not_retried_and_stops_after_reservation(tmp_p
         assert len(calls) == 1 and ledger.state['calls_reserved'] == 1
         assert bounded.acceptance_error == 'RateLimitError'
     finally:
-        service._chat_completion = old_chat; service.limits = old_limits; service._client = old_client
+        service._chat_completion = old_chat; service.limits = old_limits; service._client = old_client; service._get_client = old_get_client
         ledger.close()

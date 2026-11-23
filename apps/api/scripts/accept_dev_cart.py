@@ -77,6 +77,15 @@ def make_bounded_service(ledger):
     from app.services.free_llm_service import FreeLLMService
     # Separate process only: no change to API/worker service settings.
     service = FreeLLMService()
+    service.acceptance_endpoint = 'https://api.groq.com/openai/v1'
+    # Ignore any environment override that could redirect key/catalog data.
+    async def approved_client():
+        if service._client is None:
+            from groq import AsyncGroq
+            service._client = AsyncGroq(api_key=service._groq_api_key, max_retries=0,
+                                       base_url=service.acceptance_endpoint)
+        return service._client
+    service._get_client = approved_client
     service.limits = replace(service.limits, retries=0, max_products_for_context=4)
     original = service._chat_completion
     service.acceptance_raw = None
@@ -177,6 +186,8 @@ async def run(ledger):
             finally:
                 await pubsub.unsubscribe(); await pubsub.aclose()
 
+            ledger.record({'leg': 'groq_catalog_context', 'products': context,
+                           'scope': 'only these listed catalog fields and fixed synthetic queries go to Groq'})
             service = make_bounded_service(ledger)
             queries = [
                 'عايز اختيار من المنتجات المعروضة في حدود ميزانيتي، من غير اختراع سعر',
@@ -207,7 +218,7 @@ async def run(ledger):
                                'parsed': result.model_dump(mode='json') if result else None,
                                'scope': 'bounded production filter_and_recommend; raw versus parsed output retained to reveal fallback, human review still required'})
                 # Eight small requests need not be burst together on free quota.
-                if index < len(queries): await asyncio.sleep(8)
+                if index < len(queries): await asyncio.sleep(15)
         finally:
             if user_id is not None:
                 async with AsyncSessionFactory() as db:
