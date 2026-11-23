@@ -2294,7 +2294,7 @@ class AINLUService:
         if intent_payload.category == IntentCategory.CART_ACTION:
             cart_handled = await self._handle_smart_cart_action(request.user_id, intent_payload, ctx)
             if cart_handled:
-                self.tasks.create_task(self._save_conversation_turn(request.user_id, request.message_text, "Cart action executed."))
+                self.tasks.create_task(self._save_conversation_turn(request.user_id, request.message_text, "Cart action submitted; wait for cart state confirmation."))
                 return
 
         # =====================================================================
@@ -2604,7 +2604,9 @@ class AINLUService:
         return RedisKeys.seen_products(user_id)
 
     async def _safe_publish(self, payload: Dict[str, Any], routing_key: str) -> None:
-        await self.rabbitmq.publish(payload, routing_key)
+        outcome = await self.rabbitmq.publish(payload, routing_key)
+        if not getattr(outcome, "is_success", False):
+            raise RuntimeError("Command broker did not confirm publication")
 
     async def _safe_send_ui(self, user_id: int, payload: Dict[str, Any]) -> None:
         await self._send_to_ui(user_id, payload)
@@ -2676,7 +2678,7 @@ class AINLUService:
 
             if action_type == CartActionType.ADD:
                 await self._safe_publish(
-                    {"user_id": user_id, "product_id": target_id, "quantity": 1, "notify_user": False, "source": "ai_commerce_os"},
+                    {"user_id": user_id, "product_id": target_id, "quantity": 1, "notify_user": True, "source": "ai_commerce_os"},
                     "airdeliver.ai.cart.add",
                 )
 
@@ -2684,12 +2686,12 @@ class AINLUService:
                 bundle = await self._safe_bundle_generation(target)
                 bundle = _deduplicate_products(bundle)
 
-                ui_message = f"Done! I've added the **{target_full_name}** to your cart. 🛒"
-                reason = "Cart Action Executed"
+                ui_message = f"Your request to add **{target_full_name}** was submitted. Wait for the updated cart to confirm."
+                reason = "Cart Request Submitted"
                 products_payload = []
 
                 if bundle:
-                    ui_message += "\n\n*Smart OS Suggestion: Consider completing your setup with these perfectly matched items.*"
+                    ui_message += "\n\n*Smart OS Suggestion: Consider completing your setup with these related catalog items. Compatibility has not been verified.*"
                     reason = "Cart + Smart Bundle"
                     products_payload = [ProductAccess.dump(item) for item in bundle]
 
@@ -2703,12 +2705,12 @@ class AINLUService:
 
             elif action_type == CartActionType.REMOVE:
                 await self._safe_publish(
-                    {"user_id": user_id, "product_id": target_id, "action": "remove_by_id", "notify_user": False, "source": "ai_commerce_os"},
+                    {"user_id": user_id, "product_id": target_id, "action": "remove_by_id", "notify_user": True, "source": "ai_commerce_os"},
                     "airdeliver.ai.cart.remove",
                 )
 
                 await self._send_to_ui(user_id, {
-                    "content": f"Removed **{target_full_name}** from your cart as requested. 🗑️ Let me know if you need alternatives.",
+                    "content": f"Your request to remove **{target_full_name}** was submitted. Wait for the updated cart to confirm.",
                     "type": UiPayloadType.TEXT.value
                 }, ctx)
 
@@ -2717,8 +2719,9 @@ class AINLUService:
                 return True
 
         except Exception as exc:
-            StructuredLog.error("smart_cart_action_failed", user_id=user_id, error=str(exc))
-            return False
+            StructuredLog.error("smart_cart_action_failed", user_id=user_id, error_type=type(exc).__name__)
+            await self._send_to_ui(user_id, {"content": "I could not confirm the cart request. Refresh your cart before trying again.", "type": UiPayloadType.TEXT.value}, ctx)
+            return True
 
         return False
 
@@ -4883,7 +4886,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
                     "user_id": user_id,
                     "product_id": target_id,
                     "quantity": 1,
-                    "notify_user": False,
+                    "notify_user": True,
                     "source": "nlu_text_command",
                 },
                 "airdeliver.ai.cart.add",
@@ -4892,7 +4895,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
             bundle = await self._safe_bundle_generation(target)
             bundle = _deduplicate_products(bundle)
 
-            ui_message = f"Added {target_name} to cart."
+            ui_message = f"Request to add {target_name} submitted. Wait for the updated cart to confirm."
             reason = "Cart Action"
             products_payload: List[Dict[str, Any]] = []
 

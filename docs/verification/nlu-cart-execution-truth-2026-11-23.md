@@ -1,0 +1,5 @@
+# NLU cart execution truth, 2026-11-23
+
+Natural-language cart handling previously ignored publisher outcomes, said added/removed immediately after queue submission, and disabled worker notification. It now requires a confirmed publish outcome, says request submitted until actual cart state arrives, and enables worker completion notification. Unconfirmed broker outcome emits an honest refresh-before-retry message and is treated as handled so the same request cannot fall into a second mutation route. Existing queues and cart worker handlers are preserved. Text-command add and conversation-state wording are likewise submission, not execution.
+
+731passed3skipped20existing warnings locally on full migrated PG19 suite. Four new controlled tests cover unconfirmed publisher rejection, add/remove pending wording and completion notifications, and no fallback replay on failure. Existing real broker acceptance harness awaits CI; no claim of local broker delivery or exact-once behavior. Cart state remains source of execution truth. No paid calls or deletion.
