@@ -169,6 +169,9 @@ class AICartService:
             raw_cart = await self.cache.get_json_required(self._get_cart_key(user_id))
             cart = CartStateModel() if raw_cart is None else CartStateModel.model_validate(raw_cart)
             cart._snapshot = raw_cart
+            # A cached aggregate is not authority for displayed/saved money.
+            # Keep the untouched snapshot for CAS, derive totals from lines.
+            cart.total = sum((item.price * Decimal(item.quantity) for item in cart.items), Decimal("0.00"))
             return cart
         except Exception as exc:
             logger.error("cart required read failed", extra={"error_type": type(exc).__name__})

@@ -255,3 +255,32 @@ async def test_corrupt_cached_total_is_not_hydrated_as_authoritative_cart(total)
     with pytest.raises(CartPersistenceError):
         await AICartService(FakeDB(),cache,object())._get_cart_from_redis(1)
     assert cache.sets==[]
+
+
+@pytest.mark.asyncio
+async def test_cart_read_derives_exact_total_without_rewriting_cas_snapshot():
+    from decimal import Decimal
+    raw={'items':[{'product_id':7,'name':'Shoes','quantity':3,'price':'19.99'},
+                  {'product_id':8,'name':'Socks','quantity':2,'price':'0.10'}],
+         'total':'0.01'}
+    cache=FakeCache(raw)
+    service=AICartService(FakeDB(),cache,object())
+    cart=await service._get_cart_from_redis(1)
+    assert cart.total==Decimal('60.17')
+    assert cart._snapshot==raw and cart._snapshot['total']=='0.01'
+    assert cache.sets==[] and cache._cart['total']=='0.01'
+    await service._update_cart_in_redis(1,cart)
+    assert cache._cart['total']=='60.17'
+
+
+@pytest.mark.asyncio
+async def test_save_cart_uses_line_total_not_stale_cached_aggregate():
+    from decimal import Decimal
+    from app.models.order import Order
+    raw={'items':[{'product_id':7,'name':'Shoes','quantity':2,'price':'19.99'}],'total':'0.01'}
+    cache=FakeCache(raw);db=FakeDB()
+    result=await AICartService(db,cache,object()).handle_save_cart({'user_id':1})
+    assert result['status']=='saved'
+    order=next(value for value in db.added if isinstance(value,Order))
+    assert order.total_price==Decimal('39.98')
+    assert cache._cart is None
