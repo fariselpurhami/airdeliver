@@ -16,7 +16,7 @@ it('uses the same stage and card frames as products without replacing auth handl
  expect(container.querySelector('[data-hero-stage="auth"]')).toHaveClass('shared-products-stage');
  expect(screen.getByTestId('desktop-cards')).toBeInTheDocument();
  expect(screen.getByTestId('mobile-cards')).toBeInTheDocument();
- jest.mocked(signIn).mockResolvedValue({ok:true,error:undefined,status:200,url:null});
+ jest.mocked(signIn).mockResolvedValue({ok:true,error:undefined,code:undefined,status:200,url:null});
  fireEvent.change(screen.getByLabelText('Email Address'),{target:{value:'fixture@example.com'}});
  fireEvent.change(screen.getByLabelText('Password'),{target:{value:'fixture-only-not-real'}});
  fireEvent.click(screen.getByRole('button',{name:/^Sign In$/}));
