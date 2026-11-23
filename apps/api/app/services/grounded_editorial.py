@@ -48,9 +48,8 @@ def opening_editorial(products):
     """Restore the original row-template presentation, bound to this row only.
 
     Editorial framing is not a quality, personalization or popularity claim.
-    Names and money come from the same sanitized records as the shown cards.
+    Categories and brands come from the same sanitized records as the shown cards.
     """
-    from app.services.recommendation_copy import price, amount
     import re
     def label(value,limit=120):
         if not isinstance(value,str):return None
@@ -64,17 +63,26 @@ def opening_editorial(products):
     if not items:return ('Explore the collection.','No items are available in this selection yet.')
     categories=list(dict.fromkeys(v for p in items if (v:=label(p.get('category'),64))))
     brands=list(dict.fromkeys(v for p in items if (v:=label(p.get('brand'),64))))
-    names=[v for p in items if (v:=label(p.get('name')))]
     focus=join(categories[:4]) if 0<len(categories)<=4 else 'the pieces shown here'
     content=f'A curated selection of {focus}, brought together in one considered edit.'
-    # Original rhythm retained, unsupported lifestyle effects intentionally absent.
-    reason=f'This edit brings together {join(names[:8])}.' if names else 'Explore the individual pieces in the cards above.'
-    prices=[price(p) for p in items]
-    if all(prices) and len({entry[1] for entry in prices})==1:
-        currency=prices[0][1];values=[entry[0] for entry in prices]
-        cost=f'{currency} {amount(min(values))}'
-        if min(values)!=max(values):cost+=f' to {currency} {amount(max(values))}'
-        reason+=f' The displayed selection is priced at {cost}.'
+    # Guidance is an invitation, never an assertion that the pieces match or
+    # have an unlisted quality. Prices remain on the product cards only.
+    category_keys={value.casefold() for value in categories}
+    if category_keys == {'clothing','accessories'}:
+        reason=('Begin with the clothing that sets your direction, then consider the accessories as finishing touches. '
+                'Build around a piece you love, rather than treating the edit as a prescribed look.')
+    elif category_keys == {'clothing'}:
+        reason=('Begin with the piece you would build a look around. '
+                'Consider how each choice could sit alongside what you already wear, rather than treating the edit as a complete outfit.')
+    elif category_keys == {'accessories'}:
+        reason=('Consider the detail you want to make your own. '
+                'Explore each accessory as a finishing touch to what you already wear, without needing to choose the whole edit.')
+    elif len(category_keys)>1:
+        reason=('Different categories leave room for different directions. '
+                'Consider each piece on its own merits, and choose what has a place in your everyday life. There is no need to make the whole edit yours.')
+    else:
+        reason=('Start with the piece that draws your attention. '
+                'Explore its details and consider how you would use it, choosing what has a place in your life rather than choosing the whole edit.')
     if brands and len(brands)<=4:
         content=f'A curated selection from {join(brands)}, brought together in one considered edit.'
         if categories and len(categories)<=4:content+=f' Explore {join(categories)}.'
