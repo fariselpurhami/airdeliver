@@ -78,4 +78,4 @@ def build():
     return cases
 
 if __name__=='__main__':
-    (ROOT/'commerce_cases_v1.json').write_text(json.dumps(build(),ensure_ascii=False,indent=2)+'\n')
+    (ROOT/'commerce_cases_v1.json').write_text('[\n'+',\n'.join(json.dumps(case,ensure_ascii=False) for case in build())+'\n]\n')
