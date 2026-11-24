@@ -1932,7 +1932,7 @@
   "shipped_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
   "historical_parity_audit": "original-current-parity-2026-11-24.json",
   "pending_prs": {
-    "104": "Literal current-customer removal context, head6353f22, awaiting required CI",
-    "105": "Separate consented hints in setup/research, head6632c2d, awaiting required CI"
+    "104": "Literal removal context, latest0004e9f includes absent-field AMQP compatibility fix, awaiting required CI",
+    "105": "Separate consented setup/research hints, latest0eca297 contains104 as ancestor, awaiting required CI"
   }
 }
