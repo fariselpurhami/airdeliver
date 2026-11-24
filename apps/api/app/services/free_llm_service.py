@@ -600,6 +600,9 @@ class FreeLLMService:
             code = error.get('code') if isinstance(error, dict) else None
             safe_code = code if isinstance(code, str) and code in {'json_validate_failed', 'model_decommissioned', 'model_not_found', 'rate_limit_exceeded', 'context_length_exceeded', 'invalid_request_error', 'invalid_api_key'} else 'unclassified'
             logger.warning('llm_provider_failure_code model=%s code=%s', safe_model, safe_code)
+            if safe_code=='json_validate_failed':
+                from app.services.provider_json_diagnostics import failed_json_diagnostics
+                logger.warning('llm_provider_json_diagnostics metadata=%s',failed_json_diagnostics(exc,response_format,max_tokens))
             logger.error(
                 "llm_chat_completion_failure model=%s error_type=%s status_code=%s",
                 safe_model, type(exc).__name__, getattr(exc, "status_code", None) if type(getattr(exc, "status_code", None)) is int else None,
