@@ -69,6 +69,9 @@ class CustomerMemoryService:
 
     async def collect(self,user_id,text,llm):
         if not await self.enabled(user_id):return False
+        initial=await self.db.get(CustomerMemoryConsent,user_id,populate_existing=True)
+        if not initial or not initial.enabled or initial.policy_version!=POLICY_VERSION:return False
+        consent_generation=initial.changed_at
         # Provider extraction happens only after consent and never during opt-out.
         if not re.search(r"\b(i prefer|i like|i always choose|my favorite|my favourite)\b",text,flags=re.IGNORECASE):
             return False
@@ -80,7 +83,7 @@ class CustomerMemoryService:
         now=datetime.now(timezone.utc)
         # Lock consent row so revocation cannot race with a late memory commit.
         consent=(await self.db.execute(select(CustomerMemoryConsent).where(CustomerMemoryConsent.user_id==user_id).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
-        if not consent or not consent.enabled or consent.policy_version!=POLICY_VERSION:return False
+        if not consent or not consent.enabled or consent.policy_version!=POLICY_VERSION or consent.changed_at!=consent_generation:return False
         await self.db.execute(delete(CustomerShoppingMemory).where(CustomerShoppingMemory.user_id==user_id,CustomerShoppingMemory.expires_at<=now))
         statement=insert(CustomerShoppingMemory).values(user_id=user_id,category=category,value=value,fingerprint=fingerprint,created_at=now,expires_at=now+timedelta(days=RETENTION_DAYS))
         await self.db.execute(statement.on_conflict_do_update(constraint='uq_customer_memory_fact',set_={'expires_at':now+timedelta(days=RETENTION_DAYS)}))
@@ -91,7 +94,7 @@ class CustomerMemoryService:
         if not await self.enabled(user_id):return []
         now=datetime.now(timezone.utc)
         # Expired rows are never eligible, even before physical purge.
-        rows=(await self.db.execute(select(CustomerShoppingMemory).where(CustomerShoppingMemory.user_id==user_id,CustomerShoppingMemory.expires_at>now).order_by(CustomerShoppingMemory.created_at.desc()).limit(min(max(limit,0),20)))).scalars().all()
+        rows=(await self.db.execute(select(CustomerShoppingMemory).join(CustomerMemoryConsent,CustomerMemoryConsent.user_id==CustomerShoppingMemory.user_id).where(CustomerShoppingMemory.user_id==user_id,CustomerShoppingMemory.expires_at>now,CustomerMemoryConsent.enabled.is_(True),CustomerMemoryConsent.policy_version==POLICY_VERSION).order_by(CustomerShoppingMemory.created_at.desc()).limit(min(max(limit,0),20)))).scalars().all()
         return [f'Customer explicitly prefers {row.category}: {row.value}' for row in rows if row.value in VALUES.get(row.category,set())]
 
     async def export(self,user_id):
