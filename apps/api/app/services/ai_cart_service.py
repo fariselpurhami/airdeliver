@@ -339,10 +339,9 @@ class AICartService:
             })
 
             # Vector Bundle Engine Injection
-            if self.commerce_engine and not self.shared_sales_followups:
-                await self._trigger_intelligent_bundling(payload.user_id, product)
-            else:
-                await self._request_optional_recommendations(payload.user_id, int(product.id), "added")
+            # All runtime configurations use the reviewed asynchronous worker.
+            # The legacy flag remains accepted, never an unsafe prose bypass.
+            await self._request_optional_recommendations(payload.user_id, int(product.id), "added")
 
             await self._send_to_ui(payload.user_id, {
                 "type": "confirmation_prompt",
@@ -360,7 +359,14 @@ class AICartService:
         except Exception as exc:
             logger.warning("cart optional recommendation unavailable", extra={"error_type": type(exc).__name__})
 
-    async def _trigger_intelligent_bundling(self, user_id: int, product: Product) -> None:
+    async def _trigger_intelligent_bundling(self,user_id:int,product:Product) -> None:
+        """Compatibility entrypoint: enqueue read-only reviewed optional advice."""
+        identity=getattr(product,'id',None)
+        if type(user_id) is not int or user_id<=0 or type(identity) is not int or identity<=0:
+            return
+        await self._request_optional_recommendations(user_id,identity,'added')
+
+    async def _trigger_intelligent_bundling_legacy_unreviewed(self, user_id: int, product: Product) -> None:
         BUNDLE_FETCH_TIMEOUT_SECONDS: Final[float] = 120.0
         COPY_GENERATION_TIMEOUT_SECONDS: Final[float] = 2.0
         MAX_BUNDLE_NAME_CONTEXT_ITEMS: Final[int] = 4
@@ -836,10 +842,10 @@ class AICartService:
                 )
                 return
 
-            if payload.action != "clear_all" and (self.shared_sales_followups or not self.commerce_engine):
+            if payload.action != "clear_all":
                 await self._request_optional_recommendations(payload.user_id, int(payload.product_id), "removed",payload.removal_reason)
 
-            alternatives = [] if self.shared_sales_followups else await _find_alternatives(payload)
+            alternatives = []  # Optional copy/cards only in the reviewed async worker.
 
             if alternatives:
                 best_alternative = alternatives[0]
