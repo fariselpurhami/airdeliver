@@ -221,7 +221,7 @@ async def test_extraction_exact_generated_schema_safe_fields_and_harmless_nulls(
         return json.dumps({'facts':[{'label':'private-label-sentinel','quote':None,'source':'private-source-sentinel'}]})
     with caplog.at_level(logging.WARNING):result=await answer_product_question(infer,'Alpha',lookup=lookup)
     assert result.text==SOURCE_NOTICES['extraction_schema']
-    assert 'facts.0.quote:string_type' in caplog.text and 'facts.0.source:int_parsing' in caplog.text
+    assert 'facts.0.quote:string_type' in caplog.text and 'facts.0.source:int_type' in caplog.text
     assert 'private-label-sentinel' not in caplog.text and 'private-source-sentinel' not in caplog.text
     calls=0
     async def valid(messages):
