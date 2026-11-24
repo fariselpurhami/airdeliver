@@ -440,9 +440,14 @@ class BehaviorEngine:
         (the OmniNet's native internal dimension, Identity adapter) and staged
         through the standard track_interaction path.
         """
-        signal = (signal or "").strip()
-        if not signal:
+        # Validate before native embedding work, not only in track_interaction.
+        if type(user_id) is not int or not 0<user_id<=2147483647:
             return
+        if not isinstance(signal,str) or not 1<=len(signal.strip())<=4000:
+            return
+        if isinstance(weight,bool) or not isinstance(weight,(int,float)) or not math.isfinite(weight) or weight<=0:
+            return
+        signal = signal.strip()
         try:
             from app.services.ai_commerce_engine import ModelRegistry
 
@@ -450,7 +455,7 @@ class BehaviorEngine:
             vector = await asyncio.to_thread(model.encode, signal, convert_to_numpy=True)
             vec_list = vector.tolist()
         except Exception as exc:
-            logger.warning("register_interaction embedding failed", extra={"user_id": user_id, "error": str(exc)})
+            logger.warning("register_interaction embedding failed", extra={"user_id": user_id, "error_type": type(exc).__name__})
             return
 
         interaction_type = ActionType.SEARCH_HIT.value if weight >= 2.0 else ActionType.VIEW.value
