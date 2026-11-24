@@ -146,8 +146,8 @@ async def verify(settings,compose,backend):
             # Rerun indexing also uses stable primary IDs, never duplicate offers.
             assert await sync_import(repeated,service._embedding,service._milvus,service._opensearch)==confirmed
             await asyncio.to_thread(client.flush,settings.milvus_collection)
-            actual=await asyncio.to_thread(client.query,collection_name=settings.milvus_collection,filter='id in '+json.dumps(fixture_ids),output_fields=['id','_seed_dataset'],consistency_level='Strong',limit=100)
-            assert {row['id'] for row in actual}==set(fixture_ids) and all(row['_seed_dataset']=='airdeliver-dev-fixtures-v1' for row in actual)
+            actual=await asyncio.to_thread(client.query,collection_name=settings.milvus_collection,filter='id in '+json.dumps(fixture_ids),output_fields=['id','attributes'],consistency_level='Strong',limit=100)
+            assert {row['id'] for row in actual}==set(fixture_ids) and all(row['attributes']['_seed_dataset']=='airdeliver-dev-fixtures-v1' for row in actual)
             await service._opensearch._client.indices.refresh(index=settings.opensearch_index)
             actual_search=await service._opensearch._client.search(index=settings.opensearch_index,body={'query':{'ids':{'values':[str(i) for i in fixture_ids]}},'size':100})
             assert {int(hit['_id']) for hit in actual_search['hits']['hits']}==set(fixture_ids)
