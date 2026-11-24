@@ -1,3 +1,7 @@
+# Current shipped checkpoint supersession
+
+As of10:00, see [restorationthrough120](restoration-through120-2026-11-24.md). PR118-120 and122-124 are shipped; earlier pendingnotes below are historical.121/125/126 remainpending. Every liveflagfalse. Semanticquality/provider/owner gates persist.
+
 # Remaining acceptance matrix, November24 08:29
 
 This is a bounded handoff after source-route restoration, not a final completion claim. Shipped through PR116, including durable positive/negative catalog target and setup scope.35preserved/20partial/0lost counts were source-route groups only. Some partial groups still contain real unbridged behavior. Grouping them as zero lost routes does not mean no work remains.

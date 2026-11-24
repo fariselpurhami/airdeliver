@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T08:29:00+02:00",
+  "as_of": "2026-11-24T10:00:00+02:00",
   "scope": "Current source-route snapshot, not live/model acceptance. Historical03:30audit remains separate.",
   "counts": {
     "preserved": 35,
@@ -19,7 +19,7 @@
         "apps/api/tests/test_search_filter_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "SearchFilter": [
           "apps/api/app/services/ai_commerce_engine.py:81"
@@ -43,7 +43,7 @@
         "apps/api/tests/test_worker_warmup_recovery.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "ModelRegistry": [
           "apps/api/app/services/ai_commerce_engine.py:317"
@@ -67,7 +67,7 @@
         "apps/api/tests/test_empty_milvus_repair.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_ensure_all_collections": [
           "apps/api/app/services/ai_commerce_engine.py:522"
@@ -96,7 +96,7 @@
         "apps/api/tests/test_embedding_admission.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_get_query_embedding": [
           "apps/api/app/services/ai_commerce_engine.py:639"
@@ -120,7 +120,7 @@
         "apps/api/tests/test_commerce_constraints.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "perform_hybrid_search_pure": [
           "apps/api/app/services/ai_commerce_engine.py:943"
@@ -149,7 +149,7 @@
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "generate_perfect_bundle": [
           "apps/api/app/services/ai_commerce_engine.py:660"
@@ -166,14 +166,14 @@
       "id": "CAP-07",
       "capability": "Fresh homepage matrix, tier/freshness exclusions and fallback selection",
       "parity": "degraded",
-      "finding": "Shipped real-only24hshownrecency and actualstream markers; largeSQLsort/providerfreshness quality unverified.",
+      "finding": "Shipped real-only24hshownrecency and actualstream markers; largeSQLsort/providerfreshness quality unverified. Openingempty reasons use actualSQL catalogcounts. Fouroriginalorderedroles and up10cards perrole restored throughsame reviewedcopyboundary. Allrolesrealempty stillreturnsnotice, no syntheticbackfill. Ownercatalog100demo rowsat09:16, no actualoffers. Newdevfixtureexception125pending, defaultreal-onlyunchanged.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_opening_sales_postgres.py",
         "apps/api/tests/test_opening_pool_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "get_fresh_homepage_matrix": [
           "apps/api/app/services/ai_commerce_engine.py:789"
@@ -196,7 +196,7 @@
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "find_genius_alternatives": [
           "apps/api/app/services/ai_commerce_engine.py:862"
@@ -222,7 +222,7 @@
         "apps/api/tests/test_shopping_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "search_by_image_vector": [
           "apps/api/app/services/ai_commerce_engine.py:1122"
@@ -245,7 +245,7 @@
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_fetch_products_from_db_by_ids": [
           "apps/api/app/services/ai_commerce_engine.py:1241"
@@ -268,7 +268,7 @@
         "apps/api/tests/test_customer_memory_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "remember_user_fact": [
           "apps/api/app/services/ai_commerce_engine.py:1321"
@@ -298,7 +298,7 @@
         "apps/api/tests/test_search_client_lifecycle.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "get_opensearch_client": [
           "apps/api/app/services/ai_commerce_engine.py:1510"
@@ -325,7 +325,7 @@
         "apps/api/tests/test_discovery_planner.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_extract_ram_candidates": [
           "apps/api/app/services/ai_nlu_service.py:131"
@@ -350,7 +350,7 @@
         "apps/api/tests/test_cart_lifecycle_review.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "d37191d",
       "original_anchors": {
         "CommerceIntentPayload": [
           "apps/api/app/services/ai_nlu_service.py:222"
@@ -374,7 +374,7 @@
         "apps/api/tests/test_sales_response_service.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
+      "current_revision": "d37191d",
       "original_anchors": {
         "TextSanitizer": [
           "apps/api/app/services/ai_nlu_service.py:922"
@@ -398,7 +398,7 @@
         "apps/api/tests/test_llm_grounding.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "ProductAccess": [
           "apps/api/app/services/ai_nlu_service.py:989"
@@ -427,7 +427,7 @@
         "apps/api/tests/test_commerce_safe_diagnostics.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "process_message": [
           "apps/api/app/services/ai_nlu_service.py:2116"
@@ -444,7 +444,7 @@
       "id": "CAP-18",
       "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
       "parity": "degraded",
-      "finding": "Owner-bound ordinary HTTP recalls and optionally collects consented narrow shopping preferences using SQL consent and request-local context. Special routes receive recent customer intent; image retains hard brief. Remaining: Feature off by default. PR105 setup/research separate saved-preference hints shipped. Legacy behavior unification and broader lifecycle remain separate.",
+      "finding": "Owner-bound ordinary HTTP recalls and optionally collects consented narrow shopping preferences using SQL consent and request-local context. Special routes receive recent customer intent; image retains hard brief. Remaining: Feature off by default. PR105 setup/research separate saved-preference hints shipped. Legacy behavior unification and broader lifecycle remain separate. Legacysetup/prose carries boundedcustomer-onlyrecentcontext; no assistantfacts/DNA/personality promoted. Sharedseen/behavior121pending.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_customer_memory_postgres.py",
@@ -453,7 +453,7 @@
         "PR46 merged 5774dfa: test_consented_http_context.py uses mounted HTTP and actual SQL/Redis; five consent scenarios. Opt-in feature flag remains off by default. No live owner verification."
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
+      "current_revision": "d37191d",
       "original_anchors": {
         "UserDnaStore": [
           "apps/api/app/services/ai_nlu_service.py:1586"
@@ -477,7 +477,7 @@
         "apps/api/tests/test_response_consumer_integration.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "UiGateway": [
           "apps/api/app/services/ai_nlu_service.py:1569"
@@ -494,7 +494,7 @@
       "id": "CAP-20",
       "capability": "Global model intent router with heuristic failure route",
       "parity": "degraded",
-      "finding": "Ordinary HTTP router dispatches literal setup and reviewed cart lifecycle requests without model mutations. Remaining: Full original taxonomy and real model interpretation not certified.",
+      "finding": "Ordinary HTTP router dispatches literal setup and reviewed cart lifecycle requests without model mutations. Remaining: Full original taxonomy and real model interpretation not certified. Routergeneratedactualschema appended, safeerrorlocations/errorcodesandcauseclasses. Noenum/type/actionrelaxation. Exactownerfailedfieldstillunknownwithoutretest. Semanticparaphrase/multilingualqualityunverified; product-onlytypedstop126pending.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_router_config.py",
@@ -503,7 +503,7 @@
         "apps/api/tests/test_cart_lifecycle_review.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "d37191d",
       "original_anchors": {},
       "current_implementation_anchors": {},
       "anchor_caveat": "Named current schema/helper was added after original revision; inspect surrounding original capability group, do not infer original active behavior.",
@@ -520,7 +520,7 @@
         "apps/api/tests/test_nlu_cart_execution_truth.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_process_internal_command": [
           "apps/api/app/services/ai_nlu_service.py:2798"
@@ -547,7 +547,7 @@
         "apps/api/tests/test_cart_lifecycle_review.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_handle_smart_cart_action": [
           "apps/api/app/services/ai_nlu_service.py:2610"
@@ -564,14 +564,14 @@
       "id": "CAP-23",
       "capability": "Ecosystem planner, component searches and collection prose/cards",
       "parity": "degraded",
-      "finding": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. PR109 persists previously reviewed setup scope across turns and withholds component identity changes. PR110 durable reviewed ordinary catalog target features and PR112 separate negative exclusions for catalog/setup are shipped. Remaining: Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
+      "finding": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. PR109 persists previously reviewed setup scope across turns and withholds component identity changes. PR110 durable reviewed ordinary catalog target features and PR112 separate negative exclusions for catalog/setup are shipped. Remaining: Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance. Originalecosystemplanner bridged read-only sharedsetup/evidence/review boundary; originallegacybodyretained. ActualSQL/Redis adaptertests, not physicalcompatibility/completeness orlivequality.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_postgres.py",
         "apps/api/tests/test_discovery_planner.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_handle_ecosystem_building": [
           "apps/api/app/services/ai_nlu_service.py:2704"
@@ -588,13 +588,13 @@
       "id": "CAP-24",
       "capability": "Opening matrix: personal/bestseller/trending/deal pools, diversity, freshness, stages and streaming",
       "parity": "degraded",
-      "finding": "Shipped serializedopeningchains+realonlydailyrecency; live429rate/copyquality and largesort unverified.",
+      "finding": "Shipped serializedopeningchains+realonlydailyrecency; live429rate/copyquality and largesort unverified. Originalfourstackedorderedcarousels, up10/role, evidenceclaimsandrecheckretained. ActualPGfourrole/order/emptyrole and10cardreviewtests. Emptyroles skip, nocrossrolebackfill, no guaranteefortycards. Allrecent/catalog/modelcopy causesseparated. OwnerUIpostrolloutunverified.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_opening_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_handle_initial_suggestions": [
           "apps/api/app/services/ai_nlu_service.py:2954"
@@ -617,7 +617,7 @@
         "apps/api/tests/test_neural_core_visual.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_resolve_vision_query": [
           "apps/api/app/services/ai_nlu_service.py:3333"
@@ -648,7 +648,7 @@
         "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_execute_universal_search": [
           "apps/api/app/services/ai_nlu_service.py:3434"
@@ -677,7 +677,7 @@
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_execute_search": [
           "apps/api/app/services/free_llm_service.py:1025",
@@ -696,13 +696,13 @@
       "id": "CAP-28",
       "capability": "Informational web/spec/comparison synthesis, targeted specs, main product prose, missing-product recovery",
       "parity": "degraded",
-      "finding": "HTTP informational source acquisition per literal target, coverage subset validation, exact source quote membership, reviewed prose and explicit missing target warning. Remaining: Model semantic entailment not guaranteed; no live provider/source quality certification.",
+      "finding": "HTTP informational source acquisition per literal target, coverage subset validation, exact source quote membership, reviewed prose and explicit missing target warning. Remaining: Model semantic entailment not guaranteed; no live provider/source quality certification. Successfuloriginalsynthesis/genius entrypoints bridged currentSQL/sharedwriterreview orper-targetattributablesourcepolicy. Originalunreviewedbodiespreservedbutnotselectedbybridge. ActualPG/Redis tests withcontrolledinference; liveentailmentnotproven.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_reviewed_consultation.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_synthesize_response": [
           "apps/api/app/services/ai_nlu_service.py:3949"
@@ -731,7 +731,7 @@
         "apps/api/tests/test_staged_search_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_execute_message_pipeline": [
           "apps/api/app/services/ai_nlu_service.py:2224"
@@ -756,7 +756,7 @@
         "apps/api/tests/test_consented_http_context.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_bg_memorize": [
           "apps/api/app/services/ai_nlu_service.py:4864"
@@ -786,7 +786,7 @@
         "apps/api/tests/test_behavior_engine.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "handle_idle_trigger": [
           "apps/api/app/services/ai_nlu_service.py:2453"
@@ -821,7 +821,7 @@
         "apps/api/tests/test_cart_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_perform_devilish_recovery": [
           "apps/api/app/services/ai_nlu_service.py:5405"
@@ -845,7 +845,7 @@
         "apps/api/tests/test_meta_cognition_boundaries.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_generate_genius_response": [
           "apps/api/app/services/ai_nlu_service.py:5067"
@@ -869,7 +869,7 @@
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "CartStateModel": [
           "apps/api/app/services/ai_cart_service.py:36"
@@ -899,7 +899,7 @@
         "apps/api/tests/test_cart_cache_reconciliation.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_get_cart_from_redis": [
           "apps/api/app/services/ai_cart_service.py:149"
@@ -929,7 +929,7 @@
         "apps/api/tests/test_cart_sales_transport.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "handle_add_to_cart": [
           "apps/api/app/services/ai_cart_service.py:186"
@@ -946,13 +946,13 @@
       "id": "CAP-37",
       "capability": "Direct intelligent bundle fetch and model sentence, bounded timeout and fallback",
       "parity": "preserved",
-      "finding": "Original direct implementation retained behind default-off constructor switch. Shared optional consumer active after PR37; not yet owner-live-verified. Remaining: HTTP optional worker currently generates fixed prose. Restore shared model-copy adapter across both routes while retaining direct foundation and evidence gates.",
+      "finding": "Original direct implementation retained behind default-off constructor switch. Shared optional consumer active after PR37; not yet owner-live-verified. Remaining: HTTP optional worker currently generates fixed prose. Restore shared model-copy adapter across both routes while retaining direct foundation and evidence gates. Bothoptionalcartflagvaluesandoriginalbundleentrypoint enqueueexistingreviewedasyncworker. No inlineLLM/search onmutationpath; originalunreviewedbodypreservednotselected. ActualPG/Redis/workertests, modelqualityunverified.",
       "original_file": "3. ai_cart_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_trigger_intelligent_bundling": [
           "apps/api/app/services/ai_cart_service.py:235"
@@ -975,7 +975,7 @@
         "apps/api/tests/test_saved_list_journal_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "handle_save_cart": [
           "apps/api/app/services/ai_cart_service.py:404"
@@ -998,7 +998,7 @@
         "apps/api/tests/test_cart_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "handle_remove_from_cart": [
           "apps/api/app/services/ai_cart_service.py:456"
@@ -1021,7 +1021,7 @@
         "apps/api/tests/test_worker_behavior_seam.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_emit_analytics_event": [
           "apps/api/app/services/ai_cart_service.py:754"
@@ -1044,7 +1044,7 @@
         "apps/api/tests/test_cart_journal_clear_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "handle_clear_cart": [
           "apps/api/app/services/ai_cart_service.py:773"
@@ -1068,7 +1068,7 @@
         "apps/api/tests/test_llm_execution_limits.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "SearchStrategy": [
           "apps/api/app/services/free_llm_service.py:46"
@@ -1093,7 +1093,7 @@
         "apps/api/tests/test_async_limiter_load.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_chat_completion": [
           "apps/api/app/services/free_llm_service.py:372"
@@ -1110,13 +1110,13 @@
       "id": "CAP-44",
       "capability": "generate_response plain/JSON/context adapter",
       "parity": "degraded",
-      "finding": "Additive strict adapter exposes configuration/empty/invalidJSON/provider failures; shared wrapper logs omit exception bodies/tracebacks. PR108 migrates legacy global intent and query optimization to strict adapter when available, preserving fallback and old injected adapters. Remaining: Other legacy empty-string callers remain unmigrated; existing voice/cart fallbacks remain unchanged. Not universal typed failure handling.",
+      "finding": "Additive strict adapter exposes configuration/empty/invalidJSON/provider failures; shared wrapper logs omit exception bodies/tracebacks. PR108 migrates legacy global intent and query optimization to strict adapter when available, preserving fallback and old injected adapters. Remaining: Other legacy empty-string callers remain unmigrated; existing voice/cart fallbacks remain unchanged. Not universal typed failure handling. Strictfailures andoriginalsuccesssetup/prose/cartbridges shippedwithinsharedcurrentevidenceboundary. No ordinaryusers rewired into unreviewedlegacyprose. Coveragepartial, not universalstrictmigration or modelsemanticcertification.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_llm_execution_limits.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
+      "current_revision": "d37191d",
       "original_anchors": {
         "generate_response": [
           "apps/api/app/services/free_llm_service.py:479"
@@ -1140,7 +1140,7 @@
         "apps/api/tests/test_llm_grounding.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_get_spontaneous_vibe": [
           "apps/api/app/services/free_llm_service.py:605"
@@ -1169,7 +1169,7 @@
         "apps/api/tests/test_customer_memory_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {},
       "current_implementation_anchors": {
         "extract_shopping_preferences": [
@@ -1189,7 +1189,7 @@
         "apps/api/tests/test_nlu_behavior_contracts.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "extract_memory_worthy_facts": [
           "apps/api/app/services/free_llm_service.py:756"
@@ -1212,7 +1212,7 @@
         "apps/api/tests/test_neural_core_visual.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "analyze_visual_context": [
           "apps/api/app/services/free_llm_service.py:839"
@@ -1235,7 +1235,7 @@
         "apps/api/tests/test_bounded_image_decode.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "analyze_product_image": [
           "apps/api/app/services/free_llm_service.py:872"
@@ -1264,7 +1264,7 @@
         "apps/api/tests/test_ai_log_data_minimization.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_perform_web_search": [
           "apps/api/app/services/free_llm_service.py:1019"
@@ -1287,7 +1287,7 @@
         "apps/api/tests/test_reviewed_consultation.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "consult_on_product": [
           "apps/api/app/services/free_llm_service.py:1094"
@@ -1310,7 +1310,7 @@
         "apps/api/tests/test_llm_search_log_privacy.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {},
       "current_implementation_anchors": {
         "strategize_search": [
@@ -1330,7 +1330,7 @@
         "apps/api/tests/test_llm_search_log_privacy.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "extract_search_terms": [
           "apps/api/app/services/free_llm_service.py:1475"
@@ -1353,7 +1353,7 @@
         "apps/api/tests/test_llm_grounding.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "_rank_products_by_relevance": [
           "apps/api/app/services/free_llm_service.py:1619"
@@ -1382,7 +1382,7 @@
         "apps/api/tests/test_llm_search_log_privacy.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "d37191d",
       "original_anchors": {
         "handle_commerce_interaction": [
           "apps/api/app/services/free_llm_service.py:1841"

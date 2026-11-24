@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T08:29:00+02:00",
+  "as_of": "2026-11-24T10:00:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -215,12 +215,15 @@
         61,
         62,
         70,
-        75
+        75,
+        122,
+        124
       ],
       "evidence": [
         "apps/api/tests/test_opening_pool_postgres.py",
         "apps/api/tests/test_opening_sales_postgres.py",
-        "apps/api/tests/test_opening_recency_redis.py"
+        "apps/api/tests/test_opening_recency_redis.py",
+        "docs/verification/restoration-through120-2026-11-24.md"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -237,9 +240,9 @@
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
         "remaining_boundary_gap": "Large catalog sort performance and owner/provider freshness quality unverified.",
-        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "next_action": "Owner/provider acceptance and mapped remaining boundary cases; pendingPRs not yetshipped.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
-        "verified_boundary_note": "Actual PostgreSQL pre-limit eligibility test with105 demo rows above a real item, seen exclusions and valid five-point deal rating. Actual Redis publication distinguishes empty pools and withheld model copy. Personalized hybrid all-seen fallback and pre-limit eligibility remain open; no live model quality or catalog-cause proof."
+        "verified_boundary_note": "Actual PostgreSQL pre-limit eligibility test with105 demo rows above a real item, seen exclusions and valid five-point deal rating. Actual Redis publication distinguishes empty pools and withheld model copy. Personalized hybrid all-seen fallback and pre-limit eligibility remain open; no live model quality or catalog-cause proof. Openingempty reasons use actualSQL catalogcounts. Fouroriginalorderedroles and up10cards perrole restored throughsame reviewedcopyboundary. Allrolesrealempty stillreturnsnotice, no syntheticbackfill. Ownercatalog100demo rowsat09:16, no actualoffers. Newdevfixtureexception125pending, defaultreal-onlyunchanged."
       }
     },
     {
@@ -608,12 +611,15 @@
       "prs": [
         46,
         95,
-        100
+        100,
+        118,
+        119
       ],
       "evidence": [
         "Historical checkpoint: ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46.",
         "Historical checkpoint: PR46 merged 5774dfa: test_consented_http_context.py uses mounted HTTP and actual SQL/Redis; five consent scenarios. Opt-in feature flag remains off by default. No live owner verification.",
-        "apps/api/tests/test_consented_http_context.py"
+        "apps/api/tests/test_consented_http_context.py",
+        "docs/verification/restoration-through120-2026-11-24.md"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -630,8 +636,9 @@
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
         "remaining_boundary_gap": "Feature off by default. PR105 setup/research separate saved-preference hints shipped. Legacy behavior unification and broader lifecycle remain separate.",
-        "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
-        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+        "next_action": "Owner/provider acceptance and mapped remaining boundary cases; pendingPRs not yetshipped.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
+        "verified_boundary_note": " Legacysetup/prose carries boundedcustomer-onlyrecentcontext; no assistantfacts/DNA/personality promoted. Sharedseen/behavior121pending."
       }
     },
     {
@@ -685,11 +692,13 @@
       "prs": [
         79,
         100,
-        102
+        102,
+        123
       ],
       "evidence": [
         "apps/api/tests/test_staged_search_postgres.py",
-        "apps/api/tests/test_cart_lifecycle_review.py"
+        "apps/api/tests/test_cart_lifecycle_review.py",
+        "docs/verification/restoration-through120-2026-11-24.md"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -708,8 +717,9 @@
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
         "remaining_boundary_gap": "Full original taxonomy and real model interpretation not certified.",
-        "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
-        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+        "next_action": "Owner/provider acceptance and mapped remaining boundary cases; pendingPRs not yetshipped.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
+        "verified_boundary_note": " Routergeneratedactualschema appended, safeerrorlocations/errorcodesandcauseclasses. Noenum/type/actionrelaxation. Exactownerfailedfieldstillunknownwithoutretest. Semanticparaphrase/multilingualqualityunverified; product-onlytypedstop126pending."
       }
     },
     {
@@ -804,11 +814,13 @@
         101,
         109,
         110,
-        112
+        112,
+        118
       ],
       "evidence": [
         "apps/api/tests/test_staged_search_postgres.py",
-        "apps/api/tests/test_discovery_planner.py"
+        "apps/api/tests/test_discovery_planner.py",
+        "docs/verification/restoration-through120-2026-11-24.md"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -825,8 +837,9 @@
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
         "remaining_boundary_gap": "Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
-        "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
-        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+        "next_action": "Owner/provider acceptance and mapped remaining boundary cases; pendingPRs not yetshipped.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
+        "verified_boundary_note": " Originalecosystemplanner bridged read-only sharedsetup/evidence/review boundary; originallegacybodyretained. ActualSQL/Redis adaptertests, not physicalcompatibility/completeness orlivequality."
       }
     },
     {
@@ -844,13 +857,16 @@
         39,
         70,
         74,
-        75
+        75,
+        122,
+        124
       ],
       "evidence": [
         "apps/api/tests/test_welcome_deadline_logging.py",
         "Historical checkpoint: PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt.",
         "apps/api/tests/test_opening_pool_postgres.py",
-        "apps/api/tests/test_opening_recency_redis.py"
+        "apps/api/tests/test_opening_recency_redis.py",
+        "docs/verification/restoration-through120-2026-11-24.md"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -866,8 +882,9 @@
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
         "remaining_boundary_gap": "Remote/provider429rate and quality not live-certified; all-recent catalog can be empty.",
-        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
-        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+        "next_action": "Owner/provider acceptance and mapped remaining boundary cases; pendingPRs not yetshipped.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
+        "verified_boundary_note": " Originalfourstackedorderedcarousels, up10/role, evidenceclaimsandrecheckretained. ActualPGfourrole/order/emptyrole and10cardreviewtests. Emptyroles skip, nocrossrolebackfill, no guaranteefortycards. Allrecent/catalog/modelcopy causesseparated. OwnerUIpostrolloutunverified."
       }
     },
     {
@@ -993,14 +1010,16 @@
         45,
         73,
         83,
-        87
+        87,
+        119
       ],
       "evidence": [
         "Historical checkpoint: PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified.",
         "Historical checkpoint: Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
         "Historical checkpoint: PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy.",
         "apps/api/tests/test_specification_service.py",
-        "apps/api/tests/test_staged_search_postgres.py"
+        "apps/api/tests/test_staged_search_postgres.py",
+        "docs/verification/restoration-through120-2026-11-24.md"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1016,8 +1035,9 @@
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
         "remaining_boundary_gap": "Model semantic entailment not guaranteed; no live provider/source quality certification.",
-        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
-        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+        "next_action": "Owner/provider acceptance and mapped remaining boundary cases; pendingPRs not yetshipped.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
+        "verified_boundary_note": " Successfuloriginalsynthesis/genius entrypoints bridged currentSQL/sharedwriterreview orper-targetattributablesourcepolicy. Originalunreviewedbodiespreservedbutnotselectedbybridge. ActualPG/Redis tests withcontrolledinference; liveentailmentnotproven."
       }
     },
     {
@@ -1305,8 +1325,12 @@
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        120
+      ],
+      "evidence": [
+        "docs/verification/restoration-through120-2026-11-24.md"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
@@ -1321,8 +1345,9 @@
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
         "remaining_boundary_gap": "HTTP optional worker currently generates fixed prose. Restore shared model-copy adapter across both routes while retaining direct foundation and evidence gates.",
-        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
-        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+        "next_action": "Owner/provider acceptance and mapped remaining boundary cases; pendingPRs not yetshipped.",
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
+        "verified_boundary_note": " Bothoptionalcartflagvaluesandoriginalbundleentrypoint enqueueexistingreviewedasyncworker. No inlineLLM/search onmutationpath; originalunreviewedbodypreservednotselected. ActualPG/Redis/workertests, modelqualityunverified."
       }
     },
     {
@@ -1546,12 +1571,16 @@
         88,
         108,
         115,
-        116
+        116,
+        118,
+        119,
+        120
       ],
       "evidence": [
         "apps/api/tests/test_legacy_recovery_strict.py",
         "apps/api/tests/test_legacy_synthesis_strict.py",
-        "PR115/116: original missing-item recovery, product response and three specialized informational/specification/recovery synthesis branches use strict adapter, preserving old injections and cancellation. Actual strict adapter controlled success/blank/outage/cancel tests; truthful failure copy and error-type logs. Successful legacy model prose, ecosystem planner and optional cart copy callers still unreviewed."
+        "PR115/116: original missing-item recovery, product response and three specialized informational/specification/recovery synthesis branches use strict adapter, preserving old injections and cancellation. Actual strict adapter controlled success/blank/outage/cancel tests; truthful failure copy and error-type logs. Successful legacy model prose, ecosystem planner and optional cart copy callers still unreviewed.",
+        "docs/verification/restoration-through120-2026-11-24.md"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1567,9 +1596,9 @@
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
         "remaining_boundary_gap": "Other legacy empty-string callers remain unmigrated; existing voice/cart fallbacks remain unchanged. Not universal typed failure handling.",
-        "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
+        "next_action": "Owner/provider acceptance and mapped remaining boundary cases; pendingPRs not yetshipped.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
-        "verified_boundary_note": " PR115/116: original missing-item recovery, product response and three specialized informational/specification/recovery synthesis branches use strict adapter, preserving old injections and cancellation. Actual strict adapter controlled success/blank/outage/cancel tests; truthful failure copy and error-type logs. Successful legacy model prose, ecosystem planner and optional cart copy callers still unreviewed."
+        "verified_boundary_note": " PR115/116: original missing-item recovery, product response and three specialized informational/specification/recovery synthesis branches use strict adapter, preserving old injections and cancellation. Actual strict adapter controlled success/blank/outage/cancel tests; truthful failure copy and error-type logs. Successful legacy model prose, ecosystem planner and optional cart copy callers still unreviewed. Strictfailures andoriginalsuccesssetup/prose/cartbridges shippedwithinsharedcurrentevidenceboundary. No ordinaryusers rewired into unreviewedlegacyprose. Coveragepartial, not universalstrictmigration or modelsemanticcertification."
       }
     },
     {
@@ -1950,7 +1979,11 @@
   "count_caveat": "Grouped inventory rows are broad. Only 3 groups are currently marked fully reconciled at real boundary; this is a conservative evidence-tracking baseline, not a claim the other code is untested. Prior tests need capability-by-capability reconciliation. PR references identify the current restoration boundary, not original authorship of every test.",
   "canonical_note": "This repository file is the single canonical scoreboard. Earlier attached snapshots are superseded; edits should update this file in place.",
   "coverage_policy": "Every grouped capability has an explicit verification plan. Candidate test mappings are not a coverage certification; real-boundary flags remain conservative until scenario-level assertions are reconciled.",
-  "shipped_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b",
+  "shipped_revision": "d37191d9569416486179a65ed2c7fe8c89e54b34",
   "historical_parity_audit": "original-current-parity-2026-11-24.json",
-  "pending_prs": {}
+  "pending_prs": [
+    121,
+    125,
+    126
+  ]
 }

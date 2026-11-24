@@ -104,3 +104,8 @@ Unreviewed legacy ecosystem planner, successfulprose/sourcepolicy and optional
 cartcopy still need scoped work. No original foundation or voice/cartmutation
 path removed, no ordinary user rerouting into unreviewed legacy handlers.
 No provider/owner actions or live flags promoted.
+
+
+## Restoration through120 plus122-124, November24 10:00
+
+Supersedes08:29unbridgedlegacyclaims: originalsetup/prose/optionalcartsuccesspathsnowusecurrentsharedreviewboundaries, originalbodiesretained. Independentmodelreviewremainssemanticrisk, exactquote/sourceidentitynotproofagainstmisinterpretation. Real-onlyopeningrestoresfourroles/up10cardswithoutbackfill; currentSQLemptydiagnosticavoidsimaginaryranking/providercauses. Routerdiagnosticsshowfixedschemafields/errorcodesandcauseclasses, no payloadvalues; exactownerValidationErrorfieldstillrequiresretest. Seen/behavior121andlocalfixture125/product-onlyscope126pending, neverpromotedasmerged. Alldefaultcustomer/checkoutsyntheticexclusionsremain. Narrowownerlocalfixturetestrequestisnotrealinventory, paymentauthorityorproductionexception. Allliveflagsfalse; noowner/provider/spending/DRactions.

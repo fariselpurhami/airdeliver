@@ -1,3 +1,7 @@
+# Current source checkpoint supersession
+
+November24 10:00: main d37191d throughPR120 plus122-124. See [boundedcurrentcheckpoint](restoration-through120-2026-11-24.md). Earlier08:29contentsbelowretainedhistorically, notcurrentpendingstatus. Counts35preserved/20partial/0lostremainconservative sourcegroupings,55liveflagsfalse.
+
 # Current restoration checkpoint, November24 08:29
 
 Shipped main0194e91 through PR116. Conservative source-route grouping remains
