@@ -13,6 +13,10 @@ STRICT_MODELS = frozenset({
 })
 
 
+class StructuredOutputError(ValueError):
+    """Transport succeeded but the returned JSON object was invalid."""
+
+
 def strict_schema(model):
     """Do not weaken required domain fields or invent nullable alternatives."""
     schema = copy.deepcopy(model.model_json_schema())
@@ -51,7 +55,17 @@ async def infer_schema(infer, messages, model):
     owner = getattr(infer, '__self__', None)
     scoped = getattr(owner, '_execute_schema_inference', None)
     if callable(scoped):
-        return await scoped(messages, model)
-    # Injected/legacy adapters are not silently advertised constrained.
-    logger.debug('structured_output.mode mode=injected_adapter schema=%s', model.__name__)
-    return await infer(messages)
+        raw = await scoped(messages, model)
+    else:
+        # Injected/legacy adapters are not silently advertised constrained.
+        logger.debug('structured_output.mode mode=injected_adapter schema=%s', model.__name__)
+        raw = await infer(messages)
+    # Even provider-constrained output is untrusted until runtime validation.
+    # Keep raw text for each stage's schema diagnostics, but reject duplicate
+    # keys/nonfinite values before any schema parser can silently pick one.
+    from app.services.strict_planner_json import planner_object
+    try:
+        planner_object(raw)
+    except ValueError as exc:
+        raise StructuredOutputError('Invalid structured JSON object') from exc
+    return raw

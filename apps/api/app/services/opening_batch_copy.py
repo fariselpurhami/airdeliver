@@ -60,6 +60,9 @@ async def write_batch(llm,groups,timeout=25.):
             stage='review_verdict'
             if not all(verdict.model_dump().values()):raise ValueError('grounding_review_rejected')
     except Exception as exc:
+        from app.services.structured_output import StructuredOutputError
+        if isinstance(exc,StructuredOutputError) and stage.endswith('_provider'):
+            stage=stage.removesuffix('_provider')+'_schema'
         allowed={'opening_identity_mismatch','opening_paragraph_contract','grounding_review_rejected','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim'}
         reason=str(exc) if type(exc) is ValueError and str(exc) in allowed else type(exc).__name__
         kind=ShoppingCopyTimeout if isinstance(exc,TimeoutError) else ShoppingCopyError
