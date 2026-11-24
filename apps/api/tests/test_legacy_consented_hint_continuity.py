@@ -13,9 +13,12 @@ from app.services.ai_nlu_service import AINLUService,CommerceIntentPayload,Inten
 from tests.test_customer_memory_postgres import memory_db
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('entry',['catalog','source'])
 @pytest.mark.parametrize('state',['enabled','other_owner','expired','revoked'])
-async def test_retained_product_answer_real_consent_and_current_sql(memory_db,state):
+async def test_retained_product_answer_real_consent_and_current_sql(memory_db,state,entry,monkeypatch):
     sessions,(uid,other)=memory_db;pid=None;seen=[]
+    async def source(question):return [{'url':'https://manufacturer.example/chair','text':'Atlas chair uses wood.'}]
+    monkeypatch.setattr('app.services.product_knowledge_service.lookup_product_sources',source)
     try:
         async with sessions() as db:
             memory=CustomerMemoryService(db);await memory.set_consent(uid,True)
@@ -31,6 +34,10 @@ async def test_retained_product_answer_real_consent_and_current_sql(memory_db,st
                 assert 'consented_saved_preferences' not in data
                 return '{}'
             if 'Review extracted setup' in policy:return '{"faithful":true}'
+            if 'Extract source-backed' in policy:
+                seen.append({'request_evidence':data,'customer_brief':{'required_features':[]}})
+                return json.dumps({'covered_targets':['Atlas chair'],'facts':[{'label':'Material','quote':'Atlas chair uses wood.','statement':'The source states wood.','source':0}]})
+            if 'Review source extraction' in policy:return json.dumps(dict(supported=True,exact_model=True,product_information_only=True))
             if 'catalog_evidence' in data:
                 seen.append(data)
                 return json.dumps({'text':'Current catalog details are shown. Preferences do not prove suitability.','product_ids':[],'claims':[]})
@@ -39,8 +46,8 @@ async def test_retained_product_answer_real_consent_and_current_sql(memory_db,st
             svc=AINLUService(db,SimpleNamespace(),SimpleNamespace(),SimpleNamespace(),SimpleNamespace(infer_sales_json=AsyncMock(side_effect=infer)))
             svc.memory.customer_context=AsyncMock(return_value=('Tell me about Atlas chair',))
             svc._get_user_dna=AsyncMock(side_effect=AssertionError('No inferred profile'))
-            text=await svc._generate_genius_response(other if state=='other_owner' else uid,'Atlas chair',{'id':pid},intent_payload=CommerceIntentPayload(category=IntentCategory.SPECIFIC_SEARCH,is_chitchat=False))
-            assert text.startswith('Current catalog')
+            text=await svc._generate_genius_response(other if state=='other_owner' else uid,'Atlas chair',{'id':pid},intent_payload=CommerceIntentPayload(category=IntentCategory.SPECIFIC_SEARCH if entry=='catalog' else IntentCategory.COMPARISON,is_chitchat=False,target_products=[{'product_name':'Atlas chair'}]))
+            assert text.startswith('Current catalog') if entry=='catalog' else 'https://manufacturer.example/chair' in text
             evidence=seen[0]['request_evidence']
             assert evidence.get('consented_saved_preferences',[])==(['Customer explicitly prefers color: blue'] if state=='enabled' else [])
             assert seen[0]['customer_brief']['required_features']==[]

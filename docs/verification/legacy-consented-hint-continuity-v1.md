@@ -9,9 +9,9 @@ also receives bounded customer-only recent context, matching other reviewed path
 No inferred DNA/financial tier/personality is read or collected by this bridge.
 No policy vocabulary, collection consent or retention expands.
 
-Four actual PostgreSQL product-answer tests cover active consent, other owner,
+Eight actual PostgreSQL catalog/source product-answer tests cover active consent, other owner,
 expired facts and revocation. They assert hints reach only the writer's separated
 request evidence, never the extracted hard brief, and no DNA call occurs. Existing
-setup/prose/task tests also pass:45focused. This does not make all behavior caches
+setup/prose/task tests also pass; expanded catalog/source consent coverage passes. This does not make all behavior caches
 consented preference stores or prove natural-language quality. Legacy unconsented
 extractor bodies remain preserved and deliberately not wired to customer traffic.
