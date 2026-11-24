@@ -1,6 +1,6 @@
 import json
 import pytest
-from app.services.product_knowledge_service import answer_product_question,allowed_url,NO_SOURCE
+from app.services.product_knowledge_service import answer_product_question,allowed_url,NO_SOURCE,SOURCE_NOTICES
 
 
 @pytest.mark.asyncio
@@ -27,7 +27,7 @@ async def test_no_source_or_bad_evidence_is_honest_not_generic_shopping_error(mo
         if len(calls)==1:return json.dumps({'facts':[{'label':'Display','quote':'invented' if mode=='forged_quote' else 'Exact source','source':0}]})
         return json.dumps({'supported':False,'exact_model':True,'product_information_only':True})
     result=await answer_product_question(infer,'phone specs',lookup=lookup)
-    assert result.text==NO_SOURCE and 'grounded shopping reply' not in result.text
+    assert result.text==SOURCE_NOTICES[{'no_source':'empty_results','forged_quote':'quote_rejected','review_rejected':'review_rejected','outage':'timeout'}[mode]] and 'grounded shopping reply' not in result.text
 
 
 def test_official_url_rejects_credentials_redirect_hosts_and_non_https():
@@ -57,7 +57,7 @@ async def test_untrusted_instruction_or_wrong_sibling_model_rejected():
         if count==1:return json.dumps({'facts':[{'label':'specs','quote':'Sibling phone 20 specs.','source':0}]})
         return json.dumps({'supported':True,'exact_model':False,'product_information_only':False})
     result=await answer_product_question(infer,'phone 17 specs',lookup=lookup)
-    assert result.text==NO_SOURCE
+    assert result.text==SOURCE_NOTICES['review_rejected']
 
 @pytest.mark.asyncio
 async def test_lookup_deadline_cancels_and_never_calls_model():
@@ -68,7 +68,7 @@ async def test_lookup_deadline_cancels_and_never_calls_model():
         finally:stopped.set()
     async def infer(messages):raise AssertionError('model must not execute')
     result=await answer_product_question(infer,'specs',lookup=lookup,timeout=.01)
-    assert result.text==NO_SOURCE and stopped.is_set()
+    assert result.text==SOURCE_NOTICES['timeout'] and stopped.is_set()
 
 @pytest.mark.asyncio
 async def test_tavily_source_transport_is_fixed_url_and_preserves_provenance(monkeypatch):
@@ -100,14 +100,14 @@ async def test_invented_target_coverage_cannot_publish():
     async def lookup(q):return [{'url':'https://maker.example/spec','text':'Alpha facts.'}]
     async def infer(messages):return json.dumps({'covered_targets':['Invented'],'facts':[{'label':'connection','quote':'Alpha facts.','source':0}]})
     result=await answer_product_question(infer,'Alpha',targets=('Alpha',),lookup=lookup)
-    assert result.text==NO_SOURCE
+    assert result.text==SOURCE_NOTICES['quote_rejected']
 
 @pytest.mark.asyncio
 async def test_source_transport_error_without_catalog_gives_honest_unknown():
     async def lookup(q):raise ConnectionError('controlled source outage')
     async def infer(messages):raise AssertionError('no evidence must not invoke writer')
     result=await answer_product_question(infer,'any product specs',lookup=lookup)
-    assert result.text==NO_SOURCE
+    assert result.text==SOURCE_NOTICES['research_failed']
 
 @pytest.mark.asyncio
 async def test_each_target_gets_own_bounded_source_lookup_and_third_source_index():
@@ -151,7 +151,7 @@ async def test_outer_deadline_cancels_all_target_lookups():
         finally:stopped.append(q)
     async def infer(messages):raise AssertionError('no evidence')
     result=await answer_product_question(infer,'compare',targets=('Alpha','Beta','Gamma'),lookup=lookup,timeout=.02)
-    assert result.text==NO_SOURCE and len(started)==3 and sorted(started)==sorted(stopped)
+    assert result.text==SOURCE_NOTICES['timeout'] and len(started)==3 and sorted(started)==sorted(stopped)
 
 @pytest.mark.asyncio
 async def test_research_context_is_customer_intent_data_not_source_quote_evidence():
@@ -165,3 +165,22 @@ async def test_research_context_is_customer_intent_data_not_source_quote_evidenc
         return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
     result=await answer_product_question(infer,'specs',lookup=lookup,customer_context=('prefer quiet use',))
     assert 'Alpha wired connection.' in result.text
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mode',['missing_key','authentication','rate_limit','provider_server','provider_request','timeout','connection','empty_results','source_policy'])
+async def test_actual_source_http_causes_safe_notices_and_counts(monkeypatch,caplog,mode):
+    import httpx,logging
+    from app.services import product_knowledge_service as module
+    real=httpx.AsyncClient
+    async def handler(request):
+        if mode=='timeout':raise httpx.ReadTimeout('private-sentinel',request=request)
+        if mode=='connection':raise httpx.ConnectError('private-sentinel',request=request)
+        code={'authentication':401,'rate_limit':429,'provider_server':503,'provider_request':400}.get(mode,200)
+        return httpx.Response(code,json={'results':[{'url':'http://127.0.0.1/private','content':'private-sentinel'}] if mode=='source_policy' else []},request=request)
+    monkeypatch.setenv('TAVILY_API_KEY','' if mode=='missing_key' else 'private-sentinel')
+    monkeypatch.setattr(module.httpx,'AsyncClient',lambda **kw:real(transport=httpx.MockTransport(handler),**kw))
+    async def infer(messages):raise AssertionError('No-source must notcall model')
+    with caplog.at_level(logging.INFO):result=await module.answer_product_question(infer,'private-question-sentinel')
+    assert result.text==SOURCE_NOTICES[mode]
+    assert 'cause='+mode in caplog.text
+    assert 'private-sentinel' not in result.text+caplog.text and 'private-question-sentinel' not in caplog.text
