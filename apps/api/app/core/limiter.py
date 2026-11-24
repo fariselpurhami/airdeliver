@@ -33,7 +33,7 @@ class AsyncLimiter:
     def _state(self):
         loop=asyncio.get_running_loop()
         if loop not in self._loops:
-            client=Redis.from_url(self.uri,socket_timeout=.5,socket_connect_timeout=.25,
+            client=Redis.from_url(self.uri,socket_timeout=.5,socket_connect_timeout=.5,
                 # Never retry a potentially applied quota increment.
                 max_connections=1,decode_responses=True,protocol=2,retry=Retry(NoBackoff(),0)) if self.uri else None
             self._loops[loop]=(client,asyncio.Semaphore(1),{})
