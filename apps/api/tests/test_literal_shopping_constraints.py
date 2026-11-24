@@ -20,3 +20,11 @@ def test_typographic_capacity_spacing_does_not_reject_same_explicit_feature():
     brief=ShoppingBrief(required_features=['16GB RAM'])
     assert brief.permits(card('Laptop',{'memory':'16 GB RAM'}))
     assert not brief.permits(card('Laptop',{'memory':'8 GB RAM'}))
+
+
+def test_literal_feature_boundaries_do_not_match_substrings_or_digit_prefixes():
+    assert ShoppingBrief(excluded_terms=['red']).permits(card('Infrared sensor',{}))
+    assert not ShoppingBrief(excluded_terms=['red']).permits(card('Sensor',{'color':'red'}))
+    assert not ShoppingBrief(required_features=['16GB RAM']).permits(card('Laptop',{'memory':'116GB RAM'}))
+    assert not ShoppingBrief(required_features=['wired']).permits(card('Adapter',{'connection':'unwired'}))
+    assert ShoppingBrief(required_features=['USB-C']).permits(card('Adapter',{'connection':'USB - C'}))

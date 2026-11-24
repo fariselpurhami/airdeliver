@@ -43,12 +43,15 @@ class ShoppingBrief(BaseModel):
 
     def permits(self,card: CatalogResult) -> bool:
         import re
-        normalize=lambda value:re.sub(r'\s+','',str(value).casefold())
-        evidence=normalize(' '.join([card.name,card.category or '',*card.catalog_specs.keys(),*card.catalog_specs.values()]))
-        if any(normalize(term) in evidence for term in self.excluded_terms):return False
-        # Ignore typographic spacing only. Do not infer missing features or
-        # normalize unit magnitudes without an explicit capacity contract.
-        if any(normalize(term) not in evidence for term in self.required_features):return False
+        # Allow typographic spaces between literal characters, but require
+        # lexical boundaries. 'red' is not 'infrared',16GB is not116GB.
+        evidence=' '.join([card.name,card.category or '',*card.catalog_specs.keys(),*card.catalog_specs.values()]).casefold()
+        def present(term):
+            chars=re.sub(r'\s+','',str(term).casefold())
+            return bool(chars and re.search(r'(?<!\w)'+r'\s*'.join(re.escape(c) for c in chars)+r'(?!\w)',evidence))
+        if any(present(term) for term in self.excluded_terms):return False
+        # No semantic unit/magnitude or attribute inference.
+        if any(not present(term) for term in self.required_features):return False
         if self.budget_max is None:return True
         return (card.currency==self.budget_currency and card.price is not None and
                 Decimal(card.price)<=Decimal(self.budget_max))
