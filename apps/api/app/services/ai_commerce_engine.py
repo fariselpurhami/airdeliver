@@ -6,7 +6,7 @@ from app.core.ai_profile import get_ai_profile
 from app.services.ai_adapters import LocalRetrievalAdapter
 from app.services.complement_evidence import catalog_asserts_complement
 from app.services.catalog_visibility import is_catalog_hidden,real_catalog_predicates
-from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION, PRODUCT_SEARCH_INDEX, PRODUCT_INTENT_COLLECTION, PRODUCT_MEMORY_COLLECTION, PRODUCT_QUERY_PROMPT
+from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION, PRODUCT_SEARCH_INDEX, PRODUCT_INTENT_COLLECTION, PRODUCT_MEMORY_COLLECTION, PRODUCT_QUERY_PROMPT, PRODUCT_TEXT_PROFILE
 
 import asyncio
 import base64
@@ -415,12 +415,12 @@ class ModelRegistry:
             timer.start()
             warmup_timer = None
             try:
-                if PRODUCT_QUERY_PROMPT and get_core_settings().PRODUCT_TEXT_MODEL_REVISION not in (None,DEFAULT_PRODUCT_TEXT_MODEL_REVISION):
+                if PRODUCT_TEXT_PROFILE!='gte-v1' and get_core_settings().PRODUCT_TEXT_MODEL_REVISION not in (None,DEFAULT_PRODUCT_TEXT_MODEL_REVISION):
                     raise ValueError('Revision override differs from Harrier versioned space')
                 factory=SentenceTransformer
-                if PRODUCT_QUERY_PROMPT:
+                if PRODUCT_TEXT_PROFILE!='gte-v1':
                     from scripts.owner_embedding_benchmark import resolve,validate_files,definitions
-                    path,_=resolve('harrier');validate_files(path,definitions()['harrier'])
+                    path,_=resolve(PRODUCT_TEXT_PROFILE.split('-')[0]);validate_files(path,definitions()[PRODUCT_TEXT_PROFILE.split('-')[0]])
                     def factory(_name,**kwargs):
                         return SentenceTransformer(str(path),local_files_only=True,**kwargs)
                 model = LocalRetrievalAdapter(get_ai_profile()).create_text_encoder(
@@ -435,7 +435,7 @@ class ModelRegistry:
                         model[0].auto_model.config.use_cache = False
                 except Exception:
                     logger.debug("unable to disable transformer use_cache on embedding model")
-                model.max_seq_length = 256 if PRODUCT_QUERY_PROMPT else 8192
+                model.max_seq_length = 256 if PRODUCT_TEXT_PROFILE!='gte-v1' else 8192
                 model.to(self._device)
                 model.eval()
                 warmup_timer = threading.Timer(policy.budget_seconds, expire)
@@ -730,7 +730,7 @@ class AICommerceEngine:
 
         rows: List[Dict[str, Any]] = []
         for label, phrases in intent_map.items():
-            vectors = self.embedding_model.encode(phrases, convert_to_numpy=True, **({"prompt":PRODUCT_QUERY_PROMPT,"normalize_embeddings":True} if PRODUCT_QUERY_PROMPT else {}))
+            vectors = self.embedding_model.encode(phrases, convert_to_numpy=True, **({"prompt":PRODUCT_QUERY_PROMPT,"normalize_embeddings":True} if PRODUCT_TEXT_PROFILE!='gte-v1' else {}))
             for vector in vectors:
                 rows.append({"vector": vector, "intent_label": label})
 
@@ -766,7 +766,7 @@ class AICommerceEngine:
 
             def encode_and_release():
                 try:
-                    return self.embedding_model.encode(sanitized, convert_to_numpy=True, **({"prompt":PRODUCT_QUERY_PROMPT,"normalize_embeddings":True} if PRODUCT_QUERY_PROMPT else {}))
+                    return self.embedding_model.encode(sanitized, convert_to_numpy=True, **({"prompt":PRODUCT_QUERY_PROMPT,"normalize_embeddings":True} if PRODUCT_TEXT_PROFILE!='gte-v1' else {}))
                 finally:
                     gate.release()
                     logger.info("text embedding service finished: service_seconds=%.4f query_characters=%d", time.monotonic()-service_started, len(sanitized), extra={

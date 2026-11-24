@@ -19,6 +19,9 @@ class RetrievalSpace:
     query_prompt:str=''
 
 SPACES={
+    'granite-v1':RetrievalSpace('granite-v1','ibm-granite/granite-embedding-311m-multilingual-r2',
+        '44399559930365213510b1ee2eb15ded83374f0e',768,'airdeliver_products_granite_v1',
+        'airdeliver_products_granite_v1','airdeliver_intents_granite_v1','airdeliver_memory_granite_v1'),
     'gte-v1':RetrievalSpace('gte-v1','Alibaba-NLP/gte-Qwen2-1.5B-instruct',
         'a9af15a6372d7d6b25e9fb07c2ccb9e1fe645644',1536,'airdeliver_products_sota_v4',
         'airdeliver_products','airdeliver_intents_sota_v4','airdeliver_memory_sota_v4'),
@@ -42,3 +45,5 @@ PRODUCT_SEARCH_INDEX=ACTIVE_SPACE.search_index
 PRODUCT_INTENT_COLLECTION=ACTIVE_SPACE.intent_collection
 PRODUCT_MEMORY_COLLECTION=ACTIVE_SPACE.memory_collection
 PRODUCT_QUERY_PROMPT=ACTIVE_SPACE.query_prompt
+
+PRODUCT_TEXT_PROFILE=ACTIVE_SPACE.key

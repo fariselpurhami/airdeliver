@@ -6,9 +6,11 @@ with source IDs as provenance and original timestamps. Existing GTE indexes are 
 import argparse,asyncio,hashlib,json,os,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-if __name__=='__main__':os.environ['PRODUCT_TEXT_PROFILE']='harrier-v1'
+if __name__=='__main__':
+    pre=argparse.ArgumentParser(add_help=False);pre.add_argument('--profile',choices=['harrier-v1','granite-v1'],default='harrier-v1')
+    selected,_=pre.parse_known_args();os.environ['PRODUCT_TEXT_PROFILE']=selected.profile
 from app.core.catalog_contract import SPACES
-TARGET=SPACES['harrier-v1'];SOURCE=SPACES['gte-v1']
+TARGET=SPACES[os.environ.get('PRODUCT_TEXT_PROFILE','harrier-v1')];SOURCE=SPACES['gte-v1']
 FIELDS=('id','sku','name','description','category','price','currency','inventory','image','is_active','attributes','tags','rating','created_at','updated_at')
 
 def digest(rows,memory):
@@ -91,7 +93,7 @@ async def run(args):
     finally:client.close()
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--apply',action='store_true');p.add_argument('--reviewed-sha256');p.add_argument('--expected-products',type=int,default=1100)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--profile',choices=['harrier-v1','granite-v1'],default='harrier-v1');p.add_argument('--apply',action='store_true');p.add_argument('--reviewed-sha256');p.add_argument('--expected-products',type=int,default=1100)
     try:asyncio.run(run(p.parse_args()))
     except Exception as exc:
         print(json.dumps({'status':'failed_or_partial','error_type':type(exc).__name__,'action':'Do not activate. Old indexes and SQL untouched. Inspect partial candidate before retry.'}));raise SystemExit(1) from None
