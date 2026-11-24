@@ -1,0 +1,390 @@
+{
+  "version": 1,
+  "as_of": "2026-11-25T00:08:00+02:00",
+  "source_revision": "d48b561bd00d73b621e7ea15cb367b7bcc2bb06b",
+  "canonical_group_count": 55,
+  "closed_partial_groups": 0,
+  "remaining_partial_groups": 20,
+  "scope": "Acceptance work map. No promotion of code, model quality or owner deployment from adjacent tests.",
+  "rows": [
+    {
+      "id": "CAP-07",
+      "capability": "Fresh homepage matrix, tier/freshness exclusions and fallback selection",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Retained homepage hybrid/tier fallback and SQL eligibility",
+      "next_code_or_boundary_acceptance": "Audit fallback versus current-card filters and large-catalog selection before declaring caller breadth complete",
+      "quality_acceptance": "Real catalog ranking usefulness and cold/warm retrieval latency",
+      "owner_acceptance": "Owner stack/model/index profile and homepage delivery",
+      "evidence_leads": [
+        "apps/api/tests/test_homepage_postgres.py",
+        "apps/api/tests/test_opening_pool_postgres.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-13",
+      "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Typed capacity family conversion and explicit prefix/suffix bounds, scoped hard constraints",
+      "next_code_or_boundary_acceptance": "Inventory all supported non-capacity attributes and verify exact target assignment; do not guess locale or physical units",
+      "quality_acceptance": "Held-out multilingual extraction and correction meaning",
+      "owner_acceptance": "Real merchant attribute vocabulary and provenance",
+      "evidence_leads": [
+        "apps/api/tests/test_capacity_suffix_bounds.py",
+        "apps/api/tests/test_arabic_target_scope_postgres.py",
+        "apps/api/tests/test_explicit_capacity_conversion.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-14",
+      "capability": "Typed product-target array, occasion, sentiment, intent, cart action and deduplication contracts",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Separate literal targets; explicit price/negotiation/objection tasks; reviewed cart commands",
+      "next_code_or_boundary_acceptance": "Crosswalk original intent/occasion/sentiment fields to current caller semantics; mark intentional non-restoration separately",
+      "quality_acceptance": "Actual router accuracy across dialects, paraphrases and multi-turn changes",
+      "owner_acceptance": "Owner observation of full text route and useful replies",
+      "evidence_leads": [
+        "apps/api/tests/test_advisory_task_routing.py",
+        "apps/api/tests/test_cart_lifecycle_review.py",
+        "apps/api/tests/test_staged_search_postgres.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-15",
+      "capability": "Persona, retention modes, four-phase response policies and sanitizer",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Explicit current customer concern and shared consultative writer/review policy",
+      "next_code_or_boundary_acceptance": "Crosswalk original four phases/retention strategies to safe current response paths; hidden persona/wealth and fabricated urgency excluded",
+      "quality_acceptance": "Human-rated usefulness, faithful tone and honest persuasion across languages",
+      "owner_acceptance": "Approve realistic evaluation rubric and held-out examples",
+      "evidence_leads": [
+        "apps/api/tests/test_sales_response_service.py",
+        "apps/api/tests/test_legacy_advisory_task_continuity.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-18",
+      "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "SQL consent lifecycle, bounded customer history and canonical exposure timestamps",
+      "next_code_or_boundary_acceptance": "Audit separate behavior/history cache lifecycle and retention; opt-out scope must be decided rather than silently expanded",
+      "quality_acceptance": "Saved hints must remain optional and never override current words",
+      "owner_acceptance": "Confirm expected privacy/retention scope and feature configuration",
+      "evidence_leads": [
+        "apps/api/tests/test_memory_http_real_lifecycle.py",
+        "apps/api/tests/test_memory_consent_generation.py",
+        "apps/api/tests/test_behavior_cached_state.py",
+        "apps/api/tests/test_behavior_consolidation_packets.py",
+        "apps/api/tests/test_search_seen_recency.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-20",
+      "capability": "Global model intent router with heuristic failure route",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Typed ordinary router and legacy category bridges, safe unsupported route",
+      "next_code_or_boundary_acceptance": "Crosswalk original category success/error callers including richer fields; no heuristic replacement for model understanding",
+      "quality_acceptance": "Held-out actual-model taxonomy accuracy and safe failure rate",
+      "owner_acceptance": "Provider quota/profile receipts for routed conversation",
+      "evidence_leads": [
+        "apps/api/tests/test_advisory_task_routing.py",
+        "apps/api/tests/test_strict_legacy_routing.py",
+        "apps/api/tests/test_product_domain_routing.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-22",
+      "capability": "Smart cart actions and text commands",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Owner-bound one-shot snapshot reviews, durable cart boundaries",
+      "next_code_or_boundary_acceptance": "Review alternate legacy clear/save semantics and held cart migration integration; no silent activation",
+      "quality_acceptance": "Actual language proposal fidelity without inferred mutations",
+      "owner_acceptance": "Held cart runtime/migration decisions and owner cart UI receipts",
+      "evidence_leads": [
+        "apps/api/tests/test_cart_lifecycle_review.py",
+        "apps/api/tests/test_nlu_cart_execution_truth.py",
+        "apps/api/tests/test_cart_sales_postgres.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-23",
+      "capability": "Ecosystem planner, component searches and collection prose/cards",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Reviewed component plan, per-component hard scope and aggregate budget",
+      "next_code_or_boundary_acceptance": "Audit completeness/compatibility evidence coverage and every retained setup caller failure path",
+      "quality_acceptance": "Actual-model component planning and honest incomplete setup behavior",
+      "owner_acceptance": "Merchant facts sufficient for any physical compatibility claim",
+      "evidence_leads": [
+        "apps/api/tests/test_legacy_ecosystem_postgres.py",
+        "apps/api/tests/test_discovery_planner.py",
+        "apps/api/tests/test_arabic_target_scope_postgres.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-24",
+      "capability": "Opening matrix: personal/bestseller/trending/deal pools, diversity, freshness, stages and streaming",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Four ordered independently selected opening roles, reviewed copy/current SQL publication",
+      "next_code_or_boundary_acceptance": "Audit full catalog sort bounds, empty-role/partial-publication and latest client delivery boundary; labels are not sales/trend/discount proof",
+      "quality_acceptance": "Real opening copy/ranking and quota behavior under mixed load",
+      "owner_acceptance": "Owner browser observation with real current data",
+      "evidence_leads": [
+        "apps/api/tests/test_opening_sales_postgres.py",
+        "apps/api/tests/test_opening_batch_copy.py",
+        "apps/api/tests/test_opening_provider_diagnostics.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-25",
+      "capability": "Vision identification and query optimizer with recent-context references",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Bounded vision identity/title retrieval hints, current SQL card gate",
+      "next_code_or_boundary_acceptance": "Audit image hint caller cancellation/native lifetime and stale paths across supported ingress",
+      "quality_acceptance": "Actual image identity/ranking under wrong-model/adversarial/multi-item inputs",
+      "owner_acceptance": "Real image assets, model profile and supported-device receipts",
+      "evidence_leads": [
+        "apps/api/tests/test_neural_core_visual.py",
+        "apps/api/tests/test_bounded_image_decode.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-26",
+      "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Staged per-target exact/ranked/broad search and hard-scope continuity",
+      "next_code_or_boundary_acceptance": "Audit all target/capacity/non-capacity entrypoints and retrieval tier fallback semantics",
+      "quality_acceptance": "Held-out retrieval relevance and multilingual constraint assignment",
+      "owner_acceptance": "Current real catalog/index alignment and model provenance",
+      "evidence_leads": [
+        "apps/api/tests/test_staged_search_contract.py",
+        "apps/api/tests/test_staged_search_postgres.py",
+        "apps/api/tests/test_arabic_target_scope_postgres.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-28",
+      "capability": "Informational web/spec/comparison synthesis, targeted specs, main product prose, missing-product recovery",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Source quote/type/coverage gates and original prose/synthesis bridges",
+      "next_code_or_boundary_acceptance": "Audit all informational and incomplete-card legacy callers against exact failure contract",
+      "quality_acceptance": "Actual source entailment, exact product identity and useful synthesis",
+      "owner_acceptance": "Bounded provider/source execution with authoritative live receipts",
+      "evidence_leads": [
+        "apps/api/tests/test_research_fact_types.py",
+        "apps/api/tests/test_legacy_synthesis_strict.py",
+        "apps/api/tests/test_legacy_prose_postgres.py",
+        "apps/api/tests/test_reviewed_consultation.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-29",
+      "capability": "Multi-target extraction versus informational query concatenation",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Separate bounded source acquisition per literal target and explicit missing coverage",
+      "next_code_or_boundary_acceptance": "Audit multi-target malformed/duplicate identity and partial source attribution across callers",
+      "quality_acceptance": "Actual target extraction/coverage and source quality under multilingual queries",
+      "owner_acceptance": "Provider/source credentials and request budget receipts",
+      "evidence_leads": [
+        "apps/api/tests/test_staged_search_postgres.py",
+        "apps/api/tests/test_specification_service.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-30",
+      "capability": "Consent-aware memory collection and seen-product persistence",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Canonical consented shopping collection and confirmed display-only exposure",
+      "next_code_or_boundary_acceptance": "Audit remaining separate legacy collection/seen/history lifecycle without enabling hidden inferred traits",
+      "quality_acceptance": "Actual extraction precision for affirmative customer-owned shopping preferences",
+      "owner_acceptance": "Feature flag and explicit retention/deletion scope acceptance",
+      "evidence_leads": [
+        "apps/api/tests/test_customer_memory_postgres.py",
+        "apps/api/tests/test_memory_http_real_lifecycle.py",
+        "apps/api/tests/test_search_seen_recency.py",
+        "apps/api/tests/test_behavior_consolidation_packets.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-32",
+      "capability": "Removal recovery alternatives and optional confirmation prompt",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Confirmed removal reason reaches optional read-only reviewed alternatives",
+      "next_code_or_boundary_acceptance": "Audit retained fallback branch success/error/cancel behavior and catalog changes without automatic re-add",
+      "quality_acceptance": "Actual concern interpretation and alternative usefulness",
+      "owner_acceptance": "Owner observation after confirmed removal, not before persistence",
+      "evidence_leads": [
+        "apps/api/tests/test_cart_sales_postgres.py",
+        "apps/api/tests/test_legacy_recovery_strict.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-43",
+      "capability": "Singleton/client lifecycle, configured models, admission, deadlines, retries and completion transport",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Deadlines/retries, shared admission and isolated quota/heartbeat gates",
+      "next_code_or_boundary_acceptance": "Audit native/model/client lifetime plus whole-turn distributed quota behavior; preserve synchronous review",
+      "quality_acceptance": "Full-app mixed-load latency/error/recovery, not microbenchmarks",
+      "owner_acceptance": "Agreed workload/SLO, remote dependencies and owner hardware measurements",
+      "evidence_leads": [
+        "apps/api/tests/test_llm_execution_limits.py",
+        "apps/api/tests/test_async_limiter_load.py",
+        "apps/api/tests/test_search_client_lifecycle.py",
+        "apps/api/tests/test_opening_shared_admission.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-44",
+      "capability": "generate_response plain/JSON/context adapter",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Strict adapter and retained success/failure bridges with safe diagnostics",
+      "next_code_or_boundary_acceptance": "Enumerate remaining generate_response callers, separate dormant unreviewed bodies from active callers, cover incomplete-card compatibility",
+      "quality_acceptance": "Actual model quality remains separate from typed adapter success",
+      "owner_acceptance": "Model/profile/configuration and deployed error receipts",
+      "evidence_leads": [
+        "apps/api/tests/test_strict_adapter_json_boundary.py",
+        "apps/api/tests/test_strict_legacy_routing.py",
+        "apps/api/tests/test_legacy_synthesis_strict.py",
+        "apps/api/tests/test_legacy_recovery_strict.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-49",
+      "capability": "Product-image identification and optional Tavily title enrichment",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Retained image analysis and optional external title hint",
+      "next_code_or_boundary_acceptance": "Audit optional enrichment timeout/outage/cancel and untrusted return shapes through every caller",
+      "quality_acceptance": "Real vision/provider recognition, hint never identity proof",
+      "owner_acceptance": "Real assets/provider execution and owner profile receipts",
+      "evidence_leads": [
+        "apps/api/tests/test_neural_core_visual.py",
+        "apps/api/tests/test_bounded_image_decode.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-50",
+      "capability": "Tavily web search",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Tavily transport, per-target source lookup and truthful cause notices",
+      "next_code_or_boundary_acceptance": "Audit all retained web caller shapes/limits/URL handling and cancellation boundaries",
+      "quality_acceptance": "Actual returned source relevance/entailment; exact quote is not semantic proof",
+      "owner_acceptance": "Bounded credential/quota/source execution and current network outcomes",
+      "evidence_leads": [
+        "apps/api/tests/test_specification_service.py",
+        "apps/api/tests/test_reviewed_consultation.py"
+      ],
+      "unresolved_test_leads": []
+    },
+    {
+      "id": "CAP-51",
+      "capability": "Product consultation with web/context/history",
+      "whole_group_closed": false,
+      "code_status": "review_required",
+      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "quality_status": "unverified",
+      "owner_status": "unverified",
+      "current_source_scope": "Consultation independent of inventory with canonical consented hints across retained paths",
+      "next_code_or_boundary_acceptance": "Audit every consultation adapter/context lifecycle and no-source catalog fallback boundary",
+      "quality_acceptance": "Actual source-backed usefulness, language and no invented availability",
+      "owner_acceptance": "Provider, real source and owner delivery receipts",
+      "evidence_leads": [
+        "apps/api/tests/test_legacy_consented_hint_continuity.py",
+        "apps/api/tests/test_reviewed_consultation.py",
+        "apps/api/tests/test_research_fact_types.py"
+      ],
+      "unresolved_test_leads": []
+    }
+  ]
+}
