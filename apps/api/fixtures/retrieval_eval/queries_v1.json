@@ -1,0 +1,3538 @@
+{
+  "version": 1,
+  "catalog_sha256": "4bcaf87eaae246f4c7e61dcf254f231a7aacb83c87281b2ae6fee05e46a189e9",
+  "source_kind": "synthetic_dev_fixture",
+  "label_policy": "Assistant-authored draft relevance sets from fixture fields. No human adjudication, real-product truth or benchmark result claimed. Exact type equivalence is a narrow test, not exhaustive semantic judgments.",
+  "queries": [
+    {
+      "id": "clothing-01",
+      "category": "clothing",
+      "kind": "exact",
+      "split": "dev",
+      "query": "ADL-DEV-v1-clothing-0001",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0001": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-clothing-0001"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-02",
+      "category": "clothing",
+      "kind": "exact",
+      "split": "test",
+      "query": "ADL-DEV-v1-clothing-0002",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0002": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-clothing-0002"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-03",
+      "category": "clothing",
+      "kind": "exact",
+      "split": "dev",
+      "query": "Black Fleece zip jacket - Size S",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0003": 2
+      },
+      "label_basis": {
+        "name": "Black Fleece zip jacket - Size S"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-04",
+      "category": "clothing",
+      "kind": "exact",
+      "split": "test",
+      "query": "Black Straight leg trousers - Size S",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0004": 2
+      },
+      "label_basis": {
+        "name": "Black Straight leg trousers - Size S"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-05",
+      "category": "clothing",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a cotton top with a round neck",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0001": 2,
+        "ADL-DEV-v1-clothing-0009": 2,
+        "ADL-DEV-v1-clothing-0017": 2,
+        "ADL-DEV-v1-clothing-0025": 2,
+        "ADL-DEV-v1-clothing-0033": 2,
+        "ADL-DEV-v1-clothing-0041": 2,
+        "ADL-DEV-v1-clothing-0049": 2,
+        "ADL-DEV-v1-clothing-0057": 2,
+        "ADL-DEV-v1-clothing-0065": 2,
+        "ADL-DEV-v1-clothing-0073": 2,
+        "ADL-DEV-v1-clothing-0081": 2,
+        "ADL-DEV-v1-clothing-0089": 2,
+        "ADL-DEV-v1-clothing-0097": 2,
+        "ADL-DEV-v1-clothing-0105": 2,
+        "ADL-DEV-v1-clothing-0113": 2,
+        "ADL-DEV-v1-clothing-0121": 2,
+        "ADL-DEV-v1-clothing-0129": 2,
+        "ADL-DEV-v1-clothing-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Cotton crewneck shirt"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-06",
+      "category": "clothing",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "a relaxed linen shirt",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0002": 2,
+        "ADL-DEV-v1-clothing-0010": 2,
+        "ADL-DEV-v1-clothing-0018": 2,
+        "ADL-DEV-v1-clothing-0026": 2,
+        "ADL-DEV-v1-clothing-0034": 2,
+        "ADL-DEV-v1-clothing-0042": 2,
+        "ADL-DEV-v1-clothing-0050": 2,
+        "ADL-DEV-v1-clothing-0058": 2,
+        "ADL-DEV-v1-clothing-0066": 2,
+        "ADL-DEV-v1-clothing-0074": 2,
+        "ADL-DEV-v1-clothing-0082": 2,
+        "ADL-DEV-v1-clothing-0090": 2,
+        "ADL-DEV-v1-clothing-0098": 2,
+        "ADL-DEV-v1-clothing-0106": 2,
+        "ADL-DEV-v1-clothing-0114": 2,
+        "ADL-DEV-v1-clothing-0122": 2,
+        "ADL-DEV-v1-clothing-0130": 2,
+        "ADL-DEV-v1-clothing-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Linen relaxed shirt"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-07",
+      "category": "clothing",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a zip-up fleece jacket",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0003": 2,
+        "ADL-DEV-v1-clothing-0011": 2,
+        "ADL-DEV-v1-clothing-0019": 2,
+        "ADL-DEV-v1-clothing-0027": 2,
+        "ADL-DEV-v1-clothing-0035": 2,
+        "ADL-DEV-v1-clothing-0043": 2,
+        "ADL-DEV-v1-clothing-0051": 2,
+        "ADL-DEV-v1-clothing-0059": 2,
+        "ADL-DEV-v1-clothing-0067": 2,
+        "ADL-DEV-v1-clothing-0075": 2,
+        "ADL-DEV-v1-clothing-0083": 2,
+        "ADL-DEV-v1-clothing-0091": 2,
+        "ADL-DEV-v1-clothing-0099": 2,
+        "ADL-DEV-v1-clothing-0107": 2,
+        "ADL-DEV-v1-clothing-0115": 2,
+        "ADL-DEV-v1-clothing-0123": 2,
+        "ADL-DEV-v1-clothing-0131": 2,
+        "ADL-DEV-v1-clothing-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Fleece zip jacket"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-08",
+      "category": "clothing",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "straight cut trousers",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0004": 2,
+        "ADL-DEV-v1-clothing-0012": 2,
+        "ADL-DEV-v1-clothing-0020": 2,
+        "ADL-DEV-v1-clothing-0028": 2,
+        "ADL-DEV-v1-clothing-0036": 2,
+        "ADL-DEV-v1-clothing-0044": 2,
+        "ADL-DEV-v1-clothing-0052": 2,
+        "ADL-DEV-v1-clothing-0060": 2,
+        "ADL-DEV-v1-clothing-0068": 2,
+        "ADL-DEV-v1-clothing-0076": 2,
+        "ADL-DEV-v1-clothing-0084": 2,
+        "ADL-DEV-v1-clothing-0092": 2,
+        "ADL-DEV-v1-clothing-0100": 2,
+        "ADL-DEV-v1-clothing-0108": 2,
+        "ADL-DEV-v1-clothing-0116": 2,
+        "ADL-DEV-v1-clothing-0124": 2,
+        "ADL-DEV-v1-clothing-0132": 2,
+        "ADL-DEV-v1-clothing-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Straight leg trousers"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-09",
+      "category": "clothing",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Cotton crewneck shirt, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0009": 2,
+        "ADL-DEV-v1-clothing-0073": 2,
+        "ADL-DEV-v1-clothing-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Cotton crewneck shirt",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-10",
+      "category": "clothing",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Linen relaxed shirt, not Black",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0010": 2,
+        "ADL-DEV-v1-clothing-0018": 2,
+        "ADL-DEV-v1-clothing-0026": 2,
+        "ADL-DEV-v1-clothing-0034": 2,
+        "ADL-DEV-v1-clothing-0042": 2,
+        "ADL-DEV-v1-clothing-0050": 2,
+        "ADL-DEV-v1-clothing-0058": 2,
+        "ADL-DEV-v1-clothing-0074": 2,
+        "ADL-DEV-v1-clothing-0082": 2,
+        "ADL-DEV-v1-clothing-0090": 2,
+        "ADL-DEV-v1-clothing-0098": 2,
+        "ADL-DEV-v1-clothing-0106": 2,
+        "ADL-DEV-v1-clothing-0114": 2,
+        "ADL-DEV-v1-clothing-0122": 2,
+        "ADL-DEV-v1-clothing-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Linen relaxed shirt",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-11",
+      "category": "clothing",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Fleece zip jacket, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0011": 2,
+        "ADL-DEV-v1-clothing-0075": 2,
+        "ADL-DEV-v1-clothing-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Fleece zip jacket",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-12",
+      "category": "clothing",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Straight leg trousers, not Black",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0012": 2,
+        "ADL-DEV-v1-clothing-0020": 2,
+        "ADL-DEV-v1-clothing-0028": 2,
+        "ADL-DEV-v1-clothing-0036": 2,
+        "ADL-DEV-v1-clothing-0044": 2,
+        "ADL-DEV-v1-clothing-0052": 2,
+        "ADL-DEV-v1-clothing-0060": 2,
+        "ADL-DEV-v1-clothing-0076": 2,
+        "ADL-DEV-v1-clothing-0084": 2,
+        "ADL-DEV-v1-clothing-0092": 2,
+        "ADL-DEV-v1-clothing-0100": 2,
+        "ADL-DEV-v1-clothing-0108": 2,
+        "ADL-DEV-v1-clothing-0116": 2,
+        "ADL-DEV-v1-clothing-0124": 2,
+        "ADL-DEV-v1-clothing-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Straight leg trousers",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-13",
+      "category": "clothing",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "عايز تيشيرت قطن برقبة مدورة",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0001": 2,
+        "ADL-DEV-v1-clothing-0009": 2,
+        "ADL-DEV-v1-clothing-0017": 2,
+        "ADL-DEV-v1-clothing-0025": 2,
+        "ADL-DEV-v1-clothing-0033": 2,
+        "ADL-DEV-v1-clothing-0041": 2,
+        "ADL-DEV-v1-clothing-0049": 2,
+        "ADL-DEV-v1-clothing-0057": 2,
+        "ADL-DEV-v1-clothing-0065": 2,
+        "ADL-DEV-v1-clothing-0073": 2,
+        "ADL-DEV-v1-clothing-0081": 2,
+        "ADL-DEV-v1-clothing-0089": 2,
+        "ADL-DEV-v1-clothing-0097": 2,
+        "ADL-DEV-v1-clothing-0105": 2,
+        "ADL-DEV-v1-clothing-0113": 2,
+        "ADL-DEV-v1-clothing-0121": 2,
+        "ADL-DEV-v1-clothing-0129": 2,
+        "ADL-DEV-v1-clothing-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Cotton crewneck shirt"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-14",
+      "category": "clothing",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "قميص كتان واسع",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0002": 2,
+        "ADL-DEV-v1-clothing-0010": 2,
+        "ADL-DEV-v1-clothing-0018": 2,
+        "ADL-DEV-v1-clothing-0026": 2,
+        "ADL-DEV-v1-clothing-0034": 2,
+        "ADL-DEV-v1-clothing-0042": 2,
+        "ADL-DEV-v1-clothing-0050": 2,
+        "ADL-DEV-v1-clothing-0058": 2,
+        "ADL-DEV-v1-clothing-0066": 2,
+        "ADL-DEV-v1-clothing-0074": 2,
+        "ADL-DEV-v1-clothing-0082": 2,
+        "ADL-DEV-v1-clothing-0090": 2,
+        "ADL-DEV-v1-clothing-0098": 2,
+        "ADL-DEV-v1-clothing-0106": 2,
+        "ADL-DEV-v1-clothing-0114": 2,
+        "ADL-DEV-v1-clothing-0122": 2,
+        "ADL-DEV-v1-clothing-0130": 2,
+        "ADL-DEV-v1-clothing-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Linen relaxed shirt"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-15",
+      "category": "clothing",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "جاكيت فليس بسوستة",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0003": 2,
+        "ADL-DEV-v1-clothing-0011": 2,
+        "ADL-DEV-v1-clothing-0019": 2,
+        "ADL-DEV-v1-clothing-0027": 2,
+        "ADL-DEV-v1-clothing-0035": 2,
+        "ADL-DEV-v1-clothing-0043": 2,
+        "ADL-DEV-v1-clothing-0051": 2,
+        "ADL-DEV-v1-clothing-0059": 2,
+        "ADL-DEV-v1-clothing-0067": 2,
+        "ADL-DEV-v1-clothing-0075": 2,
+        "ADL-DEV-v1-clothing-0083": 2,
+        "ADL-DEV-v1-clothing-0091": 2,
+        "ADL-DEV-v1-clothing-0099": 2,
+        "ADL-DEV-v1-clothing-0107": 2,
+        "ADL-DEV-v1-clothing-0115": 2,
+        "ADL-DEV-v1-clothing-0123": 2,
+        "ADL-DEV-v1-clothing-0131": 2,
+        "ADL-DEV-v1-clothing-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Fleece zip jacket"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-16",
+      "category": "clothing",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "بنطلون بقصة مستقيمة",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0004": 2,
+        "ADL-DEV-v1-clothing-0012": 2,
+        "ADL-DEV-v1-clothing-0020": 2,
+        "ADL-DEV-v1-clothing-0028": 2,
+        "ADL-DEV-v1-clothing-0036": 2,
+        "ADL-DEV-v1-clothing-0044": 2,
+        "ADL-DEV-v1-clothing-0052": 2,
+        "ADL-DEV-v1-clothing-0060": 2,
+        "ADL-DEV-v1-clothing-0068": 2,
+        "ADL-DEV-v1-clothing-0076": 2,
+        "ADL-DEV-v1-clothing-0084": 2,
+        "ADL-DEV-v1-clothing-0092": 2,
+        "ADL-DEV-v1-clothing-0100": 2,
+        "ADL-DEV-v1-clothing-0108": 2,
+        "ADL-DEV-v1-clothing-0116": 2,
+        "ADL-DEV-v1-clothing-0124": 2,
+        "ADL-DEV-v1-clothing-0132": 2,
+        "ADL-DEV-v1-clothing-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Straight leg trousers"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-17",
+      "category": "clothing",
+      "kind": "typo",
+      "split": "dev",
+      "query": "Coton crewneck shirt",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0001": 2,
+        "ADL-DEV-v1-clothing-0009": 2,
+        "ADL-DEV-v1-clothing-0017": 2,
+        "ADL-DEV-v1-clothing-0025": 2,
+        "ADL-DEV-v1-clothing-0033": 2,
+        "ADL-DEV-v1-clothing-0041": 2,
+        "ADL-DEV-v1-clothing-0049": 2,
+        "ADL-DEV-v1-clothing-0057": 2,
+        "ADL-DEV-v1-clothing-0065": 2,
+        "ADL-DEV-v1-clothing-0073": 2,
+        "ADL-DEV-v1-clothing-0081": 2,
+        "ADL-DEV-v1-clothing-0089": 2,
+        "ADL-DEV-v1-clothing-0097": 2,
+        "ADL-DEV-v1-clothing-0105": 2,
+        "ADL-DEV-v1-clothing-0113": 2,
+        "ADL-DEV-v1-clothing-0121": 2,
+        "ADL-DEV-v1-clothing-0129": 2,
+        "ADL-DEV-v1-clothing-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Cotton crewneck shirt"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-18",
+      "category": "clothing",
+      "kind": "typo",
+      "split": "test",
+      "query": "Linn relaxed shirt",
+      "qrels": {
+        "ADL-DEV-v1-clothing-0002": 2,
+        "ADL-DEV-v1-clothing-0010": 2,
+        "ADL-DEV-v1-clothing-0018": 2,
+        "ADL-DEV-v1-clothing-0026": 2,
+        "ADL-DEV-v1-clothing-0034": 2,
+        "ADL-DEV-v1-clothing-0042": 2,
+        "ADL-DEV-v1-clothing-0050": 2,
+        "ADL-DEV-v1-clothing-0058": 2,
+        "ADL-DEV-v1-clothing-0066": 2,
+        "ADL-DEV-v1-clothing-0074": 2,
+        "ADL-DEV-v1-clothing-0082": 2,
+        "ADL-DEV-v1-clothing-0090": 2,
+        "ADL-DEV-v1-clothing-0098": 2,
+        "ADL-DEV-v1-clothing-0106": 2,
+        "ADL-DEV-v1-clothing-0114": 2,
+        "ADL-DEV-v1-clothing-0122": 2,
+        "ADL-DEV-v1-clothing-0130": 2,
+        "ADL-DEV-v1-clothing-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Linen relaxed shirt"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "clothing-19",
+      "category": "clothing",
+      "kind": "no_match",
+      "split": "dev",
+      "query": "Cotton crewneck shirt made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "clothing-20",
+      "category": "clothing",
+      "kind": "no_match",
+      "split": "test",
+      "query": "Linen relaxed shirt made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "accessories-01",
+      "category": "accessories",
+      "kind": "exact",
+      "split": "dev",
+      "query": "ADL-DEV-v1-accessories-0001",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0001": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-accessories-0001"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-02",
+      "category": "accessories",
+      "kind": "exact",
+      "split": "test",
+      "query": "ADL-DEV-v1-accessories-0002",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0002": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-accessories-0002"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-03",
+      "category": "accessories",
+      "kind": "exact",
+      "split": "dev",
+      "query": "Black Woven belt - Small",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0003": 2
+      },
+      "label_basis": {
+        "name": "Black Woven belt - Small"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-04",
+      "category": "accessories",
+      "kind": "exact",
+      "split": "test",
+      "query": "Black Lightweight scarf - Small",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0004": 2
+      },
+      "label_basis": {
+        "name": "Black Lightweight scarf - Small"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-05",
+      "category": "accessories",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a canvas bag for carrying things",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0001": 2,
+        "ADL-DEV-v1-accessories-0009": 2,
+        "ADL-DEV-v1-accessories-0017": 2,
+        "ADL-DEV-v1-accessories-0025": 2,
+        "ADL-DEV-v1-accessories-0033": 2,
+        "ADL-DEV-v1-accessories-0041": 2,
+        "ADL-DEV-v1-accessories-0049": 2,
+        "ADL-DEV-v1-accessories-0057": 2,
+        "ADL-DEV-v1-accessories-0065": 2,
+        "ADL-DEV-v1-accessories-0073": 2,
+        "ADL-DEV-v1-accessories-0081": 2,
+        "ADL-DEV-v1-accessories-0089": 2,
+        "ADL-DEV-v1-accessories-0097": 2,
+        "ADL-DEV-v1-accessories-0105": 2,
+        "ADL-DEV-v1-accessories-0113": 2,
+        "ADL-DEV-v1-accessories-0121": 2,
+        "ADL-DEV-v1-accessories-0129": 2,
+        "ADL-DEV-v1-accessories-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Canvas tote bag"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-06",
+      "category": "accessories",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "a small holder for payment cards",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0002": 2,
+        "ADL-DEV-v1-accessories-0010": 2,
+        "ADL-DEV-v1-accessories-0018": 2,
+        "ADL-DEV-v1-accessories-0026": 2,
+        "ADL-DEV-v1-accessories-0034": 2,
+        "ADL-DEV-v1-accessories-0042": 2,
+        "ADL-DEV-v1-accessories-0050": 2,
+        "ADL-DEV-v1-accessories-0058": 2,
+        "ADL-DEV-v1-accessories-0066": 2,
+        "ADL-DEV-v1-accessories-0074": 2,
+        "ADL-DEV-v1-accessories-0082": 2,
+        "ADL-DEV-v1-accessories-0090": 2,
+        "ADL-DEV-v1-accessories-0098": 2,
+        "ADL-DEV-v1-accessories-0106": 2,
+        "ADL-DEV-v1-accessories-0114": 2,
+        "ADL-DEV-v1-accessories-0122": 2,
+        "ADL-DEV-v1-accessories-0130": 2,
+        "ADL-DEV-v1-accessories-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Leatherette card holder"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-07",
+      "category": "accessories",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a woven waist belt",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0003": 2,
+        "ADL-DEV-v1-accessories-0011": 2,
+        "ADL-DEV-v1-accessories-0019": 2,
+        "ADL-DEV-v1-accessories-0027": 2,
+        "ADL-DEV-v1-accessories-0035": 2,
+        "ADL-DEV-v1-accessories-0043": 2,
+        "ADL-DEV-v1-accessories-0051": 2,
+        "ADL-DEV-v1-accessories-0059": 2,
+        "ADL-DEV-v1-accessories-0067": 2,
+        "ADL-DEV-v1-accessories-0075": 2,
+        "ADL-DEV-v1-accessories-0083": 2,
+        "ADL-DEV-v1-accessories-0091": 2,
+        "ADL-DEV-v1-accessories-0099": 2,
+        "ADL-DEV-v1-accessories-0107": 2,
+        "ADL-DEV-v1-accessories-0115": 2,
+        "ADL-DEV-v1-accessories-0123": 2,
+        "ADL-DEV-v1-accessories-0131": 2,
+        "ADL-DEV-v1-accessories-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Woven belt"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-08",
+      "category": "accessories",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "a light scarf",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0004": 2,
+        "ADL-DEV-v1-accessories-0012": 2,
+        "ADL-DEV-v1-accessories-0020": 2,
+        "ADL-DEV-v1-accessories-0028": 2,
+        "ADL-DEV-v1-accessories-0036": 2,
+        "ADL-DEV-v1-accessories-0044": 2,
+        "ADL-DEV-v1-accessories-0052": 2,
+        "ADL-DEV-v1-accessories-0060": 2,
+        "ADL-DEV-v1-accessories-0068": 2,
+        "ADL-DEV-v1-accessories-0076": 2,
+        "ADL-DEV-v1-accessories-0084": 2,
+        "ADL-DEV-v1-accessories-0092": 2,
+        "ADL-DEV-v1-accessories-0100": 2,
+        "ADL-DEV-v1-accessories-0108": 2,
+        "ADL-DEV-v1-accessories-0116": 2,
+        "ADL-DEV-v1-accessories-0124": 2,
+        "ADL-DEV-v1-accessories-0132": 2,
+        "ADL-DEV-v1-accessories-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Lightweight scarf"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-09",
+      "category": "accessories",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Canvas tote bag, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0009": 2,
+        "ADL-DEV-v1-accessories-0073": 2,
+        "ADL-DEV-v1-accessories-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Canvas tote bag",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-10",
+      "category": "accessories",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Leatherette card holder, not Black",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0010": 2,
+        "ADL-DEV-v1-accessories-0018": 2,
+        "ADL-DEV-v1-accessories-0026": 2,
+        "ADL-DEV-v1-accessories-0034": 2,
+        "ADL-DEV-v1-accessories-0042": 2,
+        "ADL-DEV-v1-accessories-0050": 2,
+        "ADL-DEV-v1-accessories-0058": 2,
+        "ADL-DEV-v1-accessories-0074": 2,
+        "ADL-DEV-v1-accessories-0082": 2,
+        "ADL-DEV-v1-accessories-0090": 2,
+        "ADL-DEV-v1-accessories-0098": 2,
+        "ADL-DEV-v1-accessories-0106": 2,
+        "ADL-DEV-v1-accessories-0114": 2,
+        "ADL-DEV-v1-accessories-0122": 2,
+        "ADL-DEV-v1-accessories-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Leatherette card holder",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-11",
+      "category": "accessories",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Woven belt, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0011": 2,
+        "ADL-DEV-v1-accessories-0075": 2,
+        "ADL-DEV-v1-accessories-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Woven belt",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-12",
+      "category": "accessories",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Lightweight scarf, not Black",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0012": 2,
+        "ADL-DEV-v1-accessories-0020": 2,
+        "ADL-DEV-v1-accessories-0028": 2,
+        "ADL-DEV-v1-accessories-0036": 2,
+        "ADL-DEV-v1-accessories-0044": 2,
+        "ADL-DEV-v1-accessories-0052": 2,
+        "ADL-DEV-v1-accessories-0060": 2,
+        "ADL-DEV-v1-accessories-0076": 2,
+        "ADL-DEV-v1-accessories-0084": 2,
+        "ADL-DEV-v1-accessories-0092": 2,
+        "ADL-DEV-v1-accessories-0100": 2,
+        "ADL-DEV-v1-accessories-0108": 2,
+        "ADL-DEV-v1-accessories-0116": 2,
+        "ADL-DEV-v1-accessories-0124": 2,
+        "ADL-DEV-v1-accessories-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Lightweight scarf",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-13",
+      "category": "accessories",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "شنطة توت قماش كانفاس",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0001": 2,
+        "ADL-DEV-v1-accessories-0009": 2,
+        "ADL-DEV-v1-accessories-0017": 2,
+        "ADL-DEV-v1-accessories-0025": 2,
+        "ADL-DEV-v1-accessories-0033": 2,
+        "ADL-DEV-v1-accessories-0041": 2,
+        "ADL-DEV-v1-accessories-0049": 2,
+        "ADL-DEV-v1-accessories-0057": 2,
+        "ADL-DEV-v1-accessories-0065": 2,
+        "ADL-DEV-v1-accessories-0073": 2,
+        "ADL-DEV-v1-accessories-0081": 2,
+        "ADL-DEV-v1-accessories-0089": 2,
+        "ADL-DEV-v1-accessories-0097": 2,
+        "ADL-DEV-v1-accessories-0105": 2,
+        "ADL-DEV-v1-accessories-0113": 2,
+        "ADL-DEV-v1-accessories-0121": 2,
+        "ADL-DEV-v1-accessories-0129": 2,
+        "ADL-DEV-v1-accessories-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Canvas tote bag"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-14",
+      "category": "accessories",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "حافظة كروت جلد صناعي",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0002": 2,
+        "ADL-DEV-v1-accessories-0010": 2,
+        "ADL-DEV-v1-accessories-0018": 2,
+        "ADL-DEV-v1-accessories-0026": 2,
+        "ADL-DEV-v1-accessories-0034": 2,
+        "ADL-DEV-v1-accessories-0042": 2,
+        "ADL-DEV-v1-accessories-0050": 2,
+        "ADL-DEV-v1-accessories-0058": 2,
+        "ADL-DEV-v1-accessories-0066": 2,
+        "ADL-DEV-v1-accessories-0074": 2,
+        "ADL-DEV-v1-accessories-0082": 2,
+        "ADL-DEV-v1-accessories-0090": 2,
+        "ADL-DEV-v1-accessories-0098": 2,
+        "ADL-DEV-v1-accessories-0106": 2,
+        "ADL-DEV-v1-accessories-0114": 2,
+        "ADL-DEV-v1-accessories-0122": 2,
+        "ADL-DEV-v1-accessories-0130": 2,
+        "ADL-DEV-v1-accessories-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Leatherette card holder"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-15",
+      "category": "accessories",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "حزام منسوج",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0003": 2,
+        "ADL-DEV-v1-accessories-0011": 2,
+        "ADL-DEV-v1-accessories-0019": 2,
+        "ADL-DEV-v1-accessories-0027": 2,
+        "ADL-DEV-v1-accessories-0035": 2,
+        "ADL-DEV-v1-accessories-0043": 2,
+        "ADL-DEV-v1-accessories-0051": 2,
+        "ADL-DEV-v1-accessories-0059": 2,
+        "ADL-DEV-v1-accessories-0067": 2,
+        "ADL-DEV-v1-accessories-0075": 2,
+        "ADL-DEV-v1-accessories-0083": 2,
+        "ADL-DEV-v1-accessories-0091": 2,
+        "ADL-DEV-v1-accessories-0099": 2,
+        "ADL-DEV-v1-accessories-0107": 2,
+        "ADL-DEV-v1-accessories-0115": 2,
+        "ADL-DEV-v1-accessories-0123": 2,
+        "ADL-DEV-v1-accessories-0131": 2,
+        "ADL-DEV-v1-accessories-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Woven belt"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-16",
+      "category": "accessories",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "إيشارب خفيف",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0004": 2,
+        "ADL-DEV-v1-accessories-0012": 2,
+        "ADL-DEV-v1-accessories-0020": 2,
+        "ADL-DEV-v1-accessories-0028": 2,
+        "ADL-DEV-v1-accessories-0036": 2,
+        "ADL-DEV-v1-accessories-0044": 2,
+        "ADL-DEV-v1-accessories-0052": 2,
+        "ADL-DEV-v1-accessories-0060": 2,
+        "ADL-DEV-v1-accessories-0068": 2,
+        "ADL-DEV-v1-accessories-0076": 2,
+        "ADL-DEV-v1-accessories-0084": 2,
+        "ADL-DEV-v1-accessories-0092": 2,
+        "ADL-DEV-v1-accessories-0100": 2,
+        "ADL-DEV-v1-accessories-0108": 2,
+        "ADL-DEV-v1-accessories-0116": 2,
+        "ADL-DEV-v1-accessories-0124": 2,
+        "ADL-DEV-v1-accessories-0132": 2,
+        "ADL-DEV-v1-accessories-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Lightweight scarf"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-17",
+      "category": "accessories",
+      "kind": "typo",
+      "split": "dev",
+      "query": "Canas tote bag",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0001": 2,
+        "ADL-DEV-v1-accessories-0009": 2,
+        "ADL-DEV-v1-accessories-0017": 2,
+        "ADL-DEV-v1-accessories-0025": 2,
+        "ADL-DEV-v1-accessories-0033": 2,
+        "ADL-DEV-v1-accessories-0041": 2,
+        "ADL-DEV-v1-accessories-0049": 2,
+        "ADL-DEV-v1-accessories-0057": 2,
+        "ADL-DEV-v1-accessories-0065": 2,
+        "ADL-DEV-v1-accessories-0073": 2,
+        "ADL-DEV-v1-accessories-0081": 2,
+        "ADL-DEV-v1-accessories-0089": 2,
+        "ADL-DEV-v1-accessories-0097": 2,
+        "ADL-DEV-v1-accessories-0105": 2,
+        "ADL-DEV-v1-accessories-0113": 2,
+        "ADL-DEV-v1-accessories-0121": 2,
+        "ADL-DEV-v1-accessories-0129": 2,
+        "ADL-DEV-v1-accessories-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Canvas tote bag"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-18",
+      "category": "accessories",
+      "kind": "typo",
+      "split": "test",
+      "query": "Leaherette card holder",
+      "qrels": {
+        "ADL-DEV-v1-accessories-0002": 2,
+        "ADL-DEV-v1-accessories-0010": 2,
+        "ADL-DEV-v1-accessories-0018": 2,
+        "ADL-DEV-v1-accessories-0026": 2,
+        "ADL-DEV-v1-accessories-0034": 2,
+        "ADL-DEV-v1-accessories-0042": 2,
+        "ADL-DEV-v1-accessories-0050": 2,
+        "ADL-DEV-v1-accessories-0058": 2,
+        "ADL-DEV-v1-accessories-0066": 2,
+        "ADL-DEV-v1-accessories-0074": 2,
+        "ADL-DEV-v1-accessories-0082": 2,
+        "ADL-DEV-v1-accessories-0090": 2,
+        "ADL-DEV-v1-accessories-0098": 2,
+        "ADL-DEV-v1-accessories-0106": 2,
+        "ADL-DEV-v1-accessories-0114": 2,
+        "ADL-DEV-v1-accessories-0122": 2,
+        "ADL-DEV-v1-accessories-0130": 2,
+        "ADL-DEV-v1-accessories-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Leatherette card holder"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "accessories-19",
+      "category": "accessories",
+      "kind": "no_match",
+      "split": "dev",
+      "query": "Canvas tote bag made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "accessories-20",
+      "category": "accessories",
+      "kind": "no_match",
+      "split": "test",
+      "query": "Leatherette card holder made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "beauty-01",
+      "category": "beauty",
+      "kind": "exact",
+      "split": "dev",
+      "query": "ADL-DEV-v1-beauty-0001",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0001": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-beauty-0001"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-02",
+      "category": "beauty",
+      "kind": "exact",
+      "split": "test",
+      "query": "ADL-DEV-v1-beauty-0002",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0002": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-beauty-0002"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-03",
+      "category": "beauty",
+      "kind": "exact",
+      "split": "dev",
+      "query": "Black Compact mirror - Small",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0003": 2
+      },
+      "label_basis": {
+        "name": "Black Compact mirror - Small"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-04",
+      "category": "beauty",
+      "kind": "exact",
+      "split": "test",
+      "query": "Black Hair dryer - Small",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0004": 2
+      },
+      "label_basis": {
+        "name": "Black Hair dryer - Small"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-05",
+      "category": "beauty",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a brush for cleaning the face",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0001": 2,
+        "ADL-DEV-v1-beauty-0009": 2,
+        "ADL-DEV-v1-beauty-0017": 2,
+        "ADL-DEV-v1-beauty-0025": 2,
+        "ADL-DEV-v1-beauty-0033": 2,
+        "ADL-DEV-v1-beauty-0041": 2,
+        "ADL-DEV-v1-beauty-0049": 2,
+        "ADL-DEV-v1-beauty-0057": 2,
+        "ADL-DEV-v1-beauty-0065": 2,
+        "ADL-DEV-v1-beauty-0073": 2,
+        "ADL-DEV-v1-beauty-0081": 2,
+        "ADL-DEV-v1-beauty-0089": 2,
+        "ADL-DEV-v1-beauty-0097": 2,
+        "ADL-DEV-v1-beauty-0105": 2,
+        "ADL-DEV-v1-beauty-0113": 2,
+        "ADL-DEV-v1-beauty-0121": 2,
+        "ADL-DEV-v1-beauty-0129": 2,
+        "ADL-DEV-v1-beauty-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Facial cleansing brush"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-06",
+      "category": "beauty",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "a travel case for cosmetics",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0002": 2,
+        "ADL-DEV-v1-beauty-0010": 2,
+        "ADL-DEV-v1-beauty-0018": 2,
+        "ADL-DEV-v1-beauty-0026": 2,
+        "ADL-DEV-v1-beauty-0034": 2,
+        "ADL-DEV-v1-beauty-0042": 2,
+        "ADL-DEV-v1-beauty-0050": 2,
+        "ADL-DEV-v1-beauty-0058": 2,
+        "ADL-DEV-v1-beauty-0066": 2,
+        "ADL-DEV-v1-beauty-0074": 2,
+        "ADL-DEV-v1-beauty-0082": 2,
+        "ADL-DEV-v1-beauty-0090": 2,
+        "ADL-DEV-v1-beauty-0098": 2,
+        "ADL-DEV-v1-beauty-0106": 2,
+        "ADL-DEV-v1-beauty-0114": 2,
+        "ADL-DEV-v1-beauty-0122": 2,
+        "ADL-DEV-v1-beauty-0130": 2,
+        "ADL-DEV-v1-beauty-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Cosmetic travel case"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-07",
+      "category": "beauty",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a mirror that fits in a bag",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0003": 2,
+        "ADL-DEV-v1-beauty-0011": 2,
+        "ADL-DEV-v1-beauty-0019": 2,
+        "ADL-DEV-v1-beauty-0027": 2,
+        "ADL-DEV-v1-beauty-0035": 2,
+        "ADL-DEV-v1-beauty-0043": 2,
+        "ADL-DEV-v1-beauty-0051": 2,
+        "ADL-DEV-v1-beauty-0059": 2,
+        "ADL-DEV-v1-beauty-0067": 2,
+        "ADL-DEV-v1-beauty-0075": 2,
+        "ADL-DEV-v1-beauty-0083": 2,
+        "ADL-DEV-v1-beauty-0091": 2,
+        "ADL-DEV-v1-beauty-0099": 2,
+        "ADL-DEV-v1-beauty-0107": 2,
+        "ADL-DEV-v1-beauty-0115": 2,
+        "ADL-DEV-v1-beauty-0123": 2,
+        "ADL-DEV-v1-beauty-0131": 2,
+        "ADL-DEV-v1-beauty-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Compact mirror"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-08",
+      "category": "beauty",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "a hair drying device",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0004": 2,
+        "ADL-DEV-v1-beauty-0012": 2,
+        "ADL-DEV-v1-beauty-0020": 2,
+        "ADL-DEV-v1-beauty-0028": 2,
+        "ADL-DEV-v1-beauty-0036": 2,
+        "ADL-DEV-v1-beauty-0044": 2,
+        "ADL-DEV-v1-beauty-0052": 2,
+        "ADL-DEV-v1-beauty-0060": 2,
+        "ADL-DEV-v1-beauty-0068": 2,
+        "ADL-DEV-v1-beauty-0076": 2,
+        "ADL-DEV-v1-beauty-0084": 2,
+        "ADL-DEV-v1-beauty-0092": 2,
+        "ADL-DEV-v1-beauty-0100": 2,
+        "ADL-DEV-v1-beauty-0108": 2,
+        "ADL-DEV-v1-beauty-0116": 2,
+        "ADL-DEV-v1-beauty-0124": 2,
+        "ADL-DEV-v1-beauty-0132": 2,
+        "ADL-DEV-v1-beauty-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Hair dryer"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-09",
+      "category": "beauty",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Facial cleansing brush, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0009": 2,
+        "ADL-DEV-v1-beauty-0073": 2,
+        "ADL-DEV-v1-beauty-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Facial cleansing brush",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-10",
+      "category": "beauty",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Cosmetic travel case, not Black",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0010": 2,
+        "ADL-DEV-v1-beauty-0018": 2,
+        "ADL-DEV-v1-beauty-0026": 2,
+        "ADL-DEV-v1-beauty-0034": 2,
+        "ADL-DEV-v1-beauty-0042": 2,
+        "ADL-DEV-v1-beauty-0050": 2,
+        "ADL-DEV-v1-beauty-0058": 2,
+        "ADL-DEV-v1-beauty-0074": 2,
+        "ADL-DEV-v1-beauty-0082": 2,
+        "ADL-DEV-v1-beauty-0090": 2,
+        "ADL-DEV-v1-beauty-0098": 2,
+        "ADL-DEV-v1-beauty-0106": 2,
+        "ADL-DEV-v1-beauty-0114": 2,
+        "ADL-DEV-v1-beauty-0122": 2,
+        "ADL-DEV-v1-beauty-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Cosmetic travel case",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-11",
+      "category": "beauty",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Compact mirror, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0011": 2,
+        "ADL-DEV-v1-beauty-0075": 2,
+        "ADL-DEV-v1-beauty-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Compact mirror",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-12",
+      "category": "beauty",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Hair dryer, not Black",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0012": 2,
+        "ADL-DEV-v1-beauty-0020": 2,
+        "ADL-DEV-v1-beauty-0028": 2,
+        "ADL-DEV-v1-beauty-0036": 2,
+        "ADL-DEV-v1-beauty-0044": 2,
+        "ADL-DEV-v1-beauty-0052": 2,
+        "ADL-DEV-v1-beauty-0060": 2,
+        "ADL-DEV-v1-beauty-0076": 2,
+        "ADL-DEV-v1-beauty-0084": 2,
+        "ADL-DEV-v1-beauty-0092": 2,
+        "ADL-DEV-v1-beauty-0100": 2,
+        "ADL-DEV-v1-beauty-0108": 2,
+        "ADL-DEV-v1-beauty-0116": 2,
+        "ADL-DEV-v1-beauty-0124": 2,
+        "ADL-DEV-v1-beauty-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Hair dryer",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-13",
+      "category": "beauty",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "فرشة لتنضيف الوش",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0001": 2,
+        "ADL-DEV-v1-beauty-0009": 2,
+        "ADL-DEV-v1-beauty-0017": 2,
+        "ADL-DEV-v1-beauty-0025": 2,
+        "ADL-DEV-v1-beauty-0033": 2,
+        "ADL-DEV-v1-beauty-0041": 2,
+        "ADL-DEV-v1-beauty-0049": 2,
+        "ADL-DEV-v1-beauty-0057": 2,
+        "ADL-DEV-v1-beauty-0065": 2,
+        "ADL-DEV-v1-beauty-0073": 2,
+        "ADL-DEV-v1-beauty-0081": 2,
+        "ADL-DEV-v1-beauty-0089": 2,
+        "ADL-DEV-v1-beauty-0097": 2,
+        "ADL-DEV-v1-beauty-0105": 2,
+        "ADL-DEV-v1-beauty-0113": 2,
+        "ADL-DEV-v1-beauty-0121": 2,
+        "ADL-DEV-v1-beauty-0129": 2,
+        "ADL-DEV-v1-beauty-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Facial cleansing brush"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-14",
+      "category": "beauty",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "شنطة مستحضرات للسفر",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0002": 2,
+        "ADL-DEV-v1-beauty-0010": 2,
+        "ADL-DEV-v1-beauty-0018": 2,
+        "ADL-DEV-v1-beauty-0026": 2,
+        "ADL-DEV-v1-beauty-0034": 2,
+        "ADL-DEV-v1-beauty-0042": 2,
+        "ADL-DEV-v1-beauty-0050": 2,
+        "ADL-DEV-v1-beauty-0058": 2,
+        "ADL-DEV-v1-beauty-0066": 2,
+        "ADL-DEV-v1-beauty-0074": 2,
+        "ADL-DEV-v1-beauty-0082": 2,
+        "ADL-DEV-v1-beauty-0090": 2,
+        "ADL-DEV-v1-beauty-0098": 2,
+        "ADL-DEV-v1-beauty-0106": 2,
+        "ADL-DEV-v1-beauty-0114": 2,
+        "ADL-DEV-v1-beauty-0122": 2,
+        "ADL-DEV-v1-beauty-0130": 2,
+        "ADL-DEV-v1-beauty-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Cosmetic travel case"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-15",
+      "category": "beauty",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "مراية صغيرة",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0003": 2,
+        "ADL-DEV-v1-beauty-0011": 2,
+        "ADL-DEV-v1-beauty-0019": 2,
+        "ADL-DEV-v1-beauty-0027": 2,
+        "ADL-DEV-v1-beauty-0035": 2,
+        "ADL-DEV-v1-beauty-0043": 2,
+        "ADL-DEV-v1-beauty-0051": 2,
+        "ADL-DEV-v1-beauty-0059": 2,
+        "ADL-DEV-v1-beauty-0067": 2,
+        "ADL-DEV-v1-beauty-0075": 2,
+        "ADL-DEV-v1-beauty-0083": 2,
+        "ADL-DEV-v1-beauty-0091": 2,
+        "ADL-DEV-v1-beauty-0099": 2,
+        "ADL-DEV-v1-beauty-0107": 2,
+        "ADL-DEV-v1-beauty-0115": 2,
+        "ADL-DEV-v1-beauty-0123": 2,
+        "ADL-DEV-v1-beauty-0131": 2,
+        "ADL-DEV-v1-beauty-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Compact mirror"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-16",
+      "category": "beauty",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "سيشوار للشعر",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0004": 2,
+        "ADL-DEV-v1-beauty-0012": 2,
+        "ADL-DEV-v1-beauty-0020": 2,
+        "ADL-DEV-v1-beauty-0028": 2,
+        "ADL-DEV-v1-beauty-0036": 2,
+        "ADL-DEV-v1-beauty-0044": 2,
+        "ADL-DEV-v1-beauty-0052": 2,
+        "ADL-DEV-v1-beauty-0060": 2,
+        "ADL-DEV-v1-beauty-0068": 2,
+        "ADL-DEV-v1-beauty-0076": 2,
+        "ADL-DEV-v1-beauty-0084": 2,
+        "ADL-DEV-v1-beauty-0092": 2,
+        "ADL-DEV-v1-beauty-0100": 2,
+        "ADL-DEV-v1-beauty-0108": 2,
+        "ADL-DEV-v1-beauty-0116": 2,
+        "ADL-DEV-v1-beauty-0124": 2,
+        "ADL-DEV-v1-beauty-0132": 2,
+        "ADL-DEV-v1-beauty-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Hair dryer"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-17",
+      "category": "beauty",
+      "kind": "typo",
+      "split": "dev",
+      "query": "Facal cleansing brush",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0001": 2,
+        "ADL-DEV-v1-beauty-0009": 2,
+        "ADL-DEV-v1-beauty-0017": 2,
+        "ADL-DEV-v1-beauty-0025": 2,
+        "ADL-DEV-v1-beauty-0033": 2,
+        "ADL-DEV-v1-beauty-0041": 2,
+        "ADL-DEV-v1-beauty-0049": 2,
+        "ADL-DEV-v1-beauty-0057": 2,
+        "ADL-DEV-v1-beauty-0065": 2,
+        "ADL-DEV-v1-beauty-0073": 2,
+        "ADL-DEV-v1-beauty-0081": 2,
+        "ADL-DEV-v1-beauty-0089": 2,
+        "ADL-DEV-v1-beauty-0097": 2,
+        "ADL-DEV-v1-beauty-0105": 2,
+        "ADL-DEV-v1-beauty-0113": 2,
+        "ADL-DEV-v1-beauty-0121": 2,
+        "ADL-DEV-v1-beauty-0129": 2,
+        "ADL-DEV-v1-beauty-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Facial cleansing brush"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-18",
+      "category": "beauty",
+      "kind": "typo",
+      "split": "test",
+      "query": "Cosetic travel case",
+      "qrels": {
+        "ADL-DEV-v1-beauty-0002": 2,
+        "ADL-DEV-v1-beauty-0010": 2,
+        "ADL-DEV-v1-beauty-0018": 2,
+        "ADL-DEV-v1-beauty-0026": 2,
+        "ADL-DEV-v1-beauty-0034": 2,
+        "ADL-DEV-v1-beauty-0042": 2,
+        "ADL-DEV-v1-beauty-0050": 2,
+        "ADL-DEV-v1-beauty-0058": 2,
+        "ADL-DEV-v1-beauty-0066": 2,
+        "ADL-DEV-v1-beauty-0074": 2,
+        "ADL-DEV-v1-beauty-0082": 2,
+        "ADL-DEV-v1-beauty-0090": 2,
+        "ADL-DEV-v1-beauty-0098": 2,
+        "ADL-DEV-v1-beauty-0106": 2,
+        "ADL-DEV-v1-beauty-0114": 2,
+        "ADL-DEV-v1-beauty-0122": 2,
+        "ADL-DEV-v1-beauty-0130": 2,
+        "ADL-DEV-v1-beauty-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Cosmetic travel case"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "beauty-19",
+      "category": "beauty",
+      "kind": "no_match",
+      "split": "dev",
+      "query": "Facial cleansing brush made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "beauty-20",
+      "category": "beauty",
+      "kind": "no_match",
+      "split": "test",
+      "query": "Cosmetic travel case made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "electronics-01",
+      "category": "electronics",
+      "kind": "exact",
+      "split": "dev",
+      "query": "ADL-DEV-v1-electronics-0001",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0001": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-electronics-0001"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-02",
+      "category": "electronics",
+      "kind": "exact",
+      "split": "test",
+      "query": "ADL-DEV-v1-electronics-0002",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0002": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-electronics-0002"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-03",
+      "category": "electronics",
+      "kind": "exact",
+      "split": "dev",
+      "query": "Black USB C power bank - Standard",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0003": 2
+      },
+      "label_basis": {
+        "name": "Black USB C power bank - Standard"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-04",
+      "category": "electronics",
+      "kind": "exact",
+      "split": "test",
+      "query": "Black Adjustable desk light - Standard",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0004": 2
+      },
+      "label_basis": {
+        "name": "Black Adjustable desk light - Standard"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-05",
+      "category": "electronics",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "wireless headphones covering the ears",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0001": 2,
+        "ADL-DEV-v1-electronics-0009": 2,
+        "ADL-DEV-v1-electronics-0017": 2,
+        "ADL-DEV-v1-electronics-0025": 2,
+        "ADL-DEV-v1-electronics-0033": 2,
+        "ADL-DEV-v1-electronics-0041": 2,
+        "ADL-DEV-v1-electronics-0049": 2,
+        "ADL-DEV-v1-electronics-0057": 2,
+        "ADL-DEV-v1-electronics-0065": 2,
+        "ADL-DEV-v1-electronics-0073": 2,
+        "ADL-DEV-v1-electronics-0081": 2,
+        "ADL-DEV-v1-electronics-0089": 2,
+        "ADL-DEV-v1-electronics-0097": 2,
+        "ADL-DEV-v1-electronics-0105": 2,
+        "ADL-DEV-v1-electronics-0113": 2,
+        "ADL-DEV-v1-electronics-0121": 2,
+        "ADL-DEV-v1-electronics-0129": 2,
+        "ADL-DEV-v1-electronics-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Wireless over ear headphones"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-06",
+      "category": "electronics",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "a portable speaker using Bluetooth",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0002": 2,
+        "ADL-DEV-v1-electronics-0010": 2,
+        "ADL-DEV-v1-electronics-0018": 2,
+        "ADL-DEV-v1-electronics-0026": 2,
+        "ADL-DEV-v1-electronics-0034": 2,
+        "ADL-DEV-v1-electronics-0042": 2,
+        "ADL-DEV-v1-electronics-0050": 2,
+        "ADL-DEV-v1-electronics-0058": 2,
+        "ADL-DEV-v1-electronics-0066": 2,
+        "ADL-DEV-v1-electronics-0074": 2,
+        "ADL-DEV-v1-electronics-0082": 2,
+        "ADL-DEV-v1-electronics-0090": 2,
+        "ADL-DEV-v1-electronics-0098": 2,
+        "ADL-DEV-v1-electronics-0106": 2,
+        "ADL-DEV-v1-electronics-0114": 2,
+        "ADL-DEV-v1-electronics-0122": 2,
+        "ADL-DEV-v1-electronics-0130": 2,
+        "ADL-DEV-v1-electronics-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Portable Bluetooth speaker"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-07",
+      "category": "electronics",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a portable charger with USB C",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0003": 2,
+        "ADL-DEV-v1-electronics-0011": 2,
+        "ADL-DEV-v1-electronics-0019": 2,
+        "ADL-DEV-v1-electronics-0027": 2,
+        "ADL-DEV-v1-electronics-0035": 2,
+        "ADL-DEV-v1-electronics-0043": 2,
+        "ADL-DEV-v1-electronics-0051": 2,
+        "ADL-DEV-v1-electronics-0059": 2,
+        "ADL-DEV-v1-electronics-0067": 2,
+        "ADL-DEV-v1-electronics-0075": 2,
+        "ADL-DEV-v1-electronics-0083": 2,
+        "ADL-DEV-v1-electronics-0091": 2,
+        "ADL-DEV-v1-electronics-0099": 2,
+        "ADL-DEV-v1-electronics-0107": 2,
+        "ADL-DEV-v1-electronics-0115": 2,
+        "ADL-DEV-v1-electronics-0123": 2,
+        "ADL-DEV-v1-electronics-0131": 2,
+        "ADL-DEV-v1-electronics-0139": 2
+      },
+      "label_basis": {
+        "item_type": "USB C power bank"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-08",
+      "category": "electronics",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "an adjustable lamp for a desk",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0004": 2,
+        "ADL-DEV-v1-electronics-0012": 2,
+        "ADL-DEV-v1-electronics-0020": 2,
+        "ADL-DEV-v1-electronics-0028": 2,
+        "ADL-DEV-v1-electronics-0036": 2,
+        "ADL-DEV-v1-electronics-0044": 2,
+        "ADL-DEV-v1-electronics-0052": 2,
+        "ADL-DEV-v1-electronics-0060": 2,
+        "ADL-DEV-v1-electronics-0068": 2,
+        "ADL-DEV-v1-electronics-0076": 2,
+        "ADL-DEV-v1-electronics-0084": 2,
+        "ADL-DEV-v1-electronics-0092": 2,
+        "ADL-DEV-v1-electronics-0100": 2,
+        "ADL-DEV-v1-electronics-0108": 2,
+        "ADL-DEV-v1-electronics-0116": 2,
+        "ADL-DEV-v1-electronics-0124": 2,
+        "ADL-DEV-v1-electronics-0132": 2,
+        "ADL-DEV-v1-electronics-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Adjustable desk light"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-09",
+      "category": "electronics",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Wireless over ear headphones, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0009": 2,
+        "ADL-DEV-v1-electronics-0073": 2,
+        "ADL-DEV-v1-electronics-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Wireless over ear headphones",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-10",
+      "category": "electronics",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Portable Bluetooth speaker, not Black",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0010": 2,
+        "ADL-DEV-v1-electronics-0018": 2,
+        "ADL-DEV-v1-electronics-0026": 2,
+        "ADL-DEV-v1-electronics-0034": 2,
+        "ADL-DEV-v1-electronics-0042": 2,
+        "ADL-DEV-v1-electronics-0050": 2,
+        "ADL-DEV-v1-electronics-0058": 2,
+        "ADL-DEV-v1-electronics-0074": 2,
+        "ADL-DEV-v1-electronics-0082": 2,
+        "ADL-DEV-v1-electronics-0090": 2,
+        "ADL-DEV-v1-electronics-0098": 2,
+        "ADL-DEV-v1-electronics-0106": 2,
+        "ADL-DEV-v1-electronics-0114": 2,
+        "ADL-DEV-v1-electronics-0122": 2,
+        "ADL-DEV-v1-electronics-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Portable Bluetooth speaker",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-11",
+      "category": "electronics",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "USB C power bank, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0011": 2,
+        "ADL-DEV-v1-electronics-0075": 2,
+        "ADL-DEV-v1-electronics-0139": 2
+      },
+      "label_basis": {
+        "item_type": "USB C power bank",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-12",
+      "category": "electronics",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Adjustable desk light, not Black",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0012": 2,
+        "ADL-DEV-v1-electronics-0020": 2,
+        "ADL-DEV-v1-electronics-0028": 2,
+        "ADL-DEV-v1-electronics-0036": 2,
+        "ADL-DEV-v1-electronics-0044": 2,
+        "ADL-DEV-v1-electronics-0052": 2,
+        "ADL-DEV-v1-electronics-0060": 2,
+        "ADL-DEV-v1-electronics-0076": 2,
+        "ADL-DEV-v1-electronics-0084": 2,
+        "ADL-DEV-v1-electronics-0092": 2,
+        "ADL-DEV-v1-electronics-0100": 2,
+        "ADL-DEV-v1-electronics-0108": 2,
+        "ADL-DEV-v1-electronics-0116": 2,
+        "ADL-DEV-v1-electronics-0124": 2,
+        "ADL-DEV-v1-electronics-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Adjustable desk light",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-13",
+      "category": "electronics",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "سماعة لاسلكية فوق الودن",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0001": 2,
+        "ADL-DEV-v1-electronics-0009": 2,
+        "ADL-DEV-v1-electronics-0017": 2,
+        "ADL-DEV-v1-electronics-0025": 2,
+        "ADL-DEV-v1-electronics-0033": 2,
+        "ADL-DEV-v1-electronics-0041": 2,
+        "ADL-DEV-v1-electronics-0049": 2,
+        "ADL-DEV-v1-electronics-0057": 2,
+        "ADL-DEV-v1-electronics-0065": 2,
+        "ADL-DEV-v1-electronics-0073": 2,
+        "ADL-DEV-v1-electronics-0081": 2,
+        "ADL-DEV-v1-electronics-0089": 2,
+        "ADL-DEV-v1-electronics-0097": 2,
+        "ADL-DEV-v1-electronics-0105": 2,
+        "ADL-DEV-v1-electronics-0113": 2,
+        "ADL-DEV-v1-electronics-0121": 2,
+        "ADL-DEV-v1-electronics-0129": 2,
+        "ADL-DEV-v1-electronics-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Wireless over ear headphones"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-14",
+      "category": "electronics",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "سبيكر بلوتوث محمول",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0002": 2,
+        "ADL-DEV-v1-electronics-0010": 2,
+        "ADL-DEV-v1-electronics-0018": 2,
+        "ADL-DEV-v1-electronics-0026": 2,
+        "ADL-DEV-v1-electronics-0034": 2,
+        "ADL-DEV-v1-electronics-0042": 2,
+        "ADL-DEV-v1-electronics-0050": 2,
+        "ADL-DEV-v1-electronics-0058": 2,
+        "ADL-DEV-v1-electronics-0066": 2,
+        "ADL-DEV-v1-electronics-0074": 2,
+        "ADL-DEV-v1-electronics-0082": 2,
+        "ADL-DEV-v1-electronics-0090": 2,
+        "ADL-DEV-v1-electronics-0098": 2,
+        "ADL-DEV-v1-electronics-0106": 2,
+        "ADL-DEV-v1-electronics-0114": 2,
+        "ADL-DEV-v1-electronics-0122": 2,
+        "ADL-DEV-v1-electronics-0130": 2,
+        "ADL-DEV-v1-electronics-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Portable Bluetooth speaker"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-15",
+      "category": "electronics",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "باور بانك USB C",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0003": 2,
+        "ADL-DEV-v1-electronics-0011": 2,
+        "ADL-DEV-v1-electronics-0019": 2,
+        "ADL-DEV-v1-electronics-0027": 2,
+        "ADL-DEV-v1-electronics-0035": 2,
+        "ADL-DEV-v1-electronics-0043": 2,
+        "ADL-DEV-v1-electronics-0051": 2,
+        "ADL-DEV-v1-electronics-0059": 2,
+        "ADL-DEV-v1-electronics-0067": 2,
+        "ADL-DEV-v1-electronics-0075": 2,
+        "ADL-DEV-v1-electronics-0083": 2,
+        "ADL-DEV-v1-electronics-0091": 2,
+        "ADL-DEV-v1-electronics-0099": 2,
+        "ADL-DEV-v1-electronics-0107": 2,
+        "ADL-DEV-v1-electronics-0115": 2,
+        "ADL-DEV-v1-electronics-0123": 2,
+        "ADL-DEV-v1-electronics-0131": 2,
+        "ADL-DEV-v1-electronics-0139": 2
+      },
+      "label_basis": {
+        "item_type": "USB C power bank"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-16",
+      "category": "electronics",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "لمبة مكتب قابلة للتعديل",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0004": 2,
+        "ADL-DEV-v1-electronics-0012": 2,
+        "ADL-DEV-v1-electronics-0020": 2,
+        "ADL-DEV-v1-electronics-0028": 2,
+        "ADL-DEV-v1-electronics-0036": 2,
+        "ADL-DEV-v1-electronics-0044": 2,
+        "ADL-DEV-v1-electronics-0052": 2,
+        "ADL-DEV-v1-electronics-0060": 2,
+        "ADL-DEV-v1-electronics-0068": 2,
+        "ADL-DEV-v1-electronics-0076": 2,
+        "ADL-DEV-v1-electronics-0084": 2,
+        "ADL-DEV-v1-electronics-0092": 2,
+        "ADL-DEV-v1-electronics-0100": 2,
+        "ADL-DEV-v1-electronics-0108": 2,
+        "ADL-DEV-v1-electronics-0116": 2,
+        "ADL-DEV-v1-electronics-0124": 2,
+        "ADL-DEV-v1-electronics-0132": 2,
+        "ADL-DEV-v1-electronics-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Adjustable desk light"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-17",
+      "category": "electronics",
+      "kind": "typo",
+      "split": "dev",
+      "query": "Wirless over ear headphones",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0001": 2,
+        "ADL-DEV-v1-electronics-0009": 2,
+        "ADL-DEV-v1-electronics-0017": 2,
+        "ADL-DEV-v1-electronics-0025": 2,
+        "ADL-DEV-v1-electronics-0033": 2,
+        "ADL-DEV-v1-electronics-0041": 2,
+        "ADL-DEV-v1-electronics-0049": 2,
+        "ADL-DEV-v1-electronics-0057": 2,
+        "ADL-DEV-v1-electronics-0065": 2,
+        "ADL-DEV-v1-electronics-0073": 2,
+        "ADL-DEV-v1-electronics-0081": 2,
+        "ADL-DEV-v1-electronics-0089": 2,
+        "ADL-DEV-v1-electronics-0097": 2,
+        "ADL-DEV-v1-electronics-0105": 2,
+        "ADL-DEV-v1-electronics-0113": 2,
+        "ADL-DEV-v1-electronics-0121": 2,
+        "ADL-DEV-v1-electronics-0129": 2,
+        "ADL-DEV-v1-electronics-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Wireless over ear headphones"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-18",
+      "category": "electronics",
+      "kind": "typo",
+      "split": "test",
+      "query": "Porable Bluetooth speaker",
+      "qrels": {
+        "ADL-DEV-v1-electronics-0002": 2,
+        "ADL-DEV-v1-electronics-0010": 2,
+        "ADL-DEV-v1-electronics-0018": 2,
+        "ADL-DEV-v1-electronics-0026": 2,
+        "ADL-DEV-v1-electronics-0034": 2,
+        "ADL-DEV-v1-electronics-0042": 2,
+        "ADL-DEV-v1-electronics-0050": 2,
+        "ADL-DEV-v1-electronics-0058": 2,
+        "ADL-DEV-v1-electronics-0066": 2,
+        "ADL-DEV-v1-electronics-0074": 2,
+        "ADL-DEV-v1-electronics-0082": 2,
+        "ADL-DEV-v1-electronics-0090": 2,
+        "ADL-DEV-v1-electronics-0098": 2,
+        "ADL-DEV-v1-electronics-0106": 2,
+        "ADL-DEV-v1-electronics-0114": 2,
+        "ADL-DEV-v1-electronics-0122": 2,
+        "ADL-DEV-v1-electronics-0130": 2,
+        "ADL-DEV-v1-electronics-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Portable Bluetooth speaker"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "electronics-19",
+      "category": "electronics",
+      "kind": "no_match",
+      "split": "dev",
+      "query": "Wireless over ear headphones made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "electronics-20",
+      "category": "electronics",
+      "kind": "no_match",
+      "split": "test",
+      "query": "Portable Bluetooth speaker made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "makeup-01",
+      "category": "makeup",
+      "kind": "exact",
+      "split": "dev",
+      "query": "ADL-DEV-v1-makeup-0001",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0001": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-makeup-0001"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-02",
+      "category": "makeup",
+      "kind": "exact",
+      "split": "test",
+      "query": "ADL-DEV-v1-makeup-0002",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0002": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-makeup-0002"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-03",
+      "category": "makeup",
+      "kind": "exact",
+      "split": "dev",
+      "query": "Black Satin lipstick - Single pack",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0003": 2
+      },
+      "label_basis": {
+        "name": "Black Satin lipstick - Single pack"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-04",
+      "category": "makeup",
+      "kind": "exact",
+      "split": "test",
+      "query": "Black Mascara - Single pack",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0004": 2
+      },
+      "label_basis": {
+        "name": "Black Mascara - Single pack"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-05",
+      "category": "makeup",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a lip moisturizer with tint",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0001": 2,
+        "ADL-DEV-v1-makeup-0009": 2,
+        "ADL-DEV-v1-makeup-0017": 2,
+        "ADL-DEV-v1-makeup-0025": 2,
+        "ADL-DEV-v1-makeup-0033": 2,
+        "ADL-DEV-v1-makeup-0041": 2,
+        "ADL-DEV-v1-makeup-0049": 2,
+        "ADL-DEV-v1-makeup-0057": 2,
+        "ADL-DEV-v1-makeup-0065": 2,
+        "ADL-DEV-v1-makeup-0073": 2,
+        "ADL-DEV-v1-makeup-0081": 2,
+        "ADL-DEV-v1-makeup-0089": 2,
+        "ADL-DEV-v1-makeup-0097": 2,
+        "ADL-DEV-v1-makeup-0105": 2,
+        "ADL-DEV-v1-makeup-0113": 2,
+        "ADL-DEV-v1-makeup-0121": 2,
+        "ADL-DEV-v1-makeup-0129": 2,
+        "ADL-DEV-v1-makeup-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Tinted lip balm"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-06",
+      "category": "makeup",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "powder for adding cheek color",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0002": 2,
+        "ADL-DEV-v1-makeup-0010": 2,
+        "ADL-DEV-v1-makeup-0018": 2,
+        "ADL-DEV-v1-makeup-0026": 2,
+        "ADL-DEV-v1-makeup-0034": 2,
+        "ADL-DEV-v1-makeup-0042": 2,
+        "ADL-DEV-v1-makeup-0050": 2,
+        "ADL-DEV-v1-makeup-0058": 2,
+        "ADL-DEV-v1-makeup-0066": 2,
+        "ADL-DEV-v1-makeup-0074": 2,
+        "ADL-DEV-v1-makeup-0082": 2,
+        "ADL-DEV-v1-makeup-0090": 2,
+        "ADL-DEV-v1-makeup-0098": 2,
+        "ADL-DEV-v1-makeup-0106": 2,
+        "ADL-DEV-v1-makeup-0114": 2,
+        "ADL-DEV-v1-makeup-0122": 2,
+        "ADL-DEV-v1-makeup-0130": 2,
+        "ADL-DEV-v1-makeup-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Powder blush"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-07",
+      "category": "makeup",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "lipstick with a satin finish",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0003": 2,
+        "ADL-DEV-v1-makeup-0011": 2,
+        "ADL-DEV-v1-makeup-0019": 2,
+        "ADL-DEV-v1-makeup-0027": 2,
+        "ADL-DEV-v1-makeup-0035": 2,
+        "ADL-DEV-v1-makeup-0043": 2,
+        "ADL-DEV-v1-makeup-0051": 2,
+        "ADL-DEV-v1-makeup-0059": 2,
+        "ADL-DEV-v1-makeup-0067": 2,
+        "ADL-DEV-v1-makeup-0075": 2,
+        "ADL-DEV-v1-makeup-0083": 2,
+        "ADL-DEV-v1-makeup-0091": 2,
+        "ADL-DEV-v1-makeup-0099": 2,
+        "ADL-DEV-v1-makeup-0107": 2,
+        "ADL-DEV-v1-makeup-0115": 2,
+        "ADL-DEV-v1-makeup-0123": 2,
+        "ADL-DEV-v1-makeup-0131": 2,
+        "ADL-DEV-v1-makeup-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Satin lipstick"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-08",
+      "category": "makeup",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "makeup for eyelashes",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0004": 2,
+        "ADL-DEV-v1-makeup-0012": 2,
+        "ADL-DEV-v1-makeup-0020": 2,
+        "ADL-DEV-v1-makeup-0028": 2,
+        "ADL-DEV-v1-makeup-0036": 2,
+        "ADL-DEV-v1-makeup-0044": 2,
+        "ADL-DEV-v1-makeup-0052": 2,
+        "ADL-DEV-v1-makeup-0060": 2,
+        "ADL-DEV-v1-makeup-0068": 2,
+        "ADL-DEV-v1-makeup-0076": 2,
+        "ADL-DEV-v1-makeup-0084": 2,
+        "ADL-DEV-v1-makeup-0092": 2,
+        "ADL-DEV-v1-makeup-0100": 2,
+        "ADL-DEV-v1-makeup-0108": 2,
+        "ADL-DEV-v1-makeup-0116": 2,
+        "ADL-DEV-v1-makeup-0124": 2,
+        "ADL-DEV-v1-makeup-0132": 2,
+        "ADL-DEV-v1-makeup-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Mascara"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-09",
+      "category": "makeup",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Tinted lip balm, shade Navy",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0009": 2,
+        "ADL-DEV-v1-makeup-0073": 2,
+        "ADL-DEV-v1-makeup-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Tinted lip balm",
+        "attribute": "shade",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-10",
+      "category": "makeup",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Powder blush, not Black",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0010": 2,
+        "ADL-DEV-v1-makeup-0018": 2,
+        "ADL-DEV-v1-makeup-0026": 2,
+        "ADL-DEV-v1-makeup-0034": 2,
+        "ADL-DEV-v1-makeup-0042": 2,
+        "ADL-DEV-v1-makeup-0050": 2,
+        "ADL-DEV-v1-makeup-0058": 2,
+        "ADL-DEV-v1-makeup-0074": 2,
+        "ADL-DEV-v1-makeup-0082": 2,
+        "ADL-DEV-v1-makeup-0090": 2,
+        "ADL-DEV-v1-makeup-0098": 2,
+        "ADL-DEV-v1-makeup-0106": 2,
+        "ADL-DEV-v1-makeup-0114": 2,
+        "ADL-DEV-v1-makeup-0122": 2,
+        "ADL-DEV-v1-makeup-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Powder blush",
+        "attribute": "shade",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-11",
+      "category": "makeup",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Satin lipstick, shade Navy",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0011": 2,
+        "ADL-DEV-v1-makeup-0075": 2,
+        "ADL-DEV-v1-makeup-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Satin lipstick",
+        "attribute": "shade",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-12",
+      "category": "makeup",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Mascara, not Black",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0012": 2,
+        "ADL-DEV-v1-makeup-0020": 2,
+        "ADL-DEV-v1-makeup-0028": 2,
+        "ADL-DEV-v1-makeup-0036": 2,
+        "ADL-DEV-v1-makeup-0044": 2,
+        "ADL-DEV-v1-makeup-0052": 2,
+        "ADL-DEV-v1-makeup-0060": 2,
+        "ADL-DEV-v1-makeup-0076": 2,
+        "ADL-DEV-v1-makeup-0084": 2,
+        "ADL-DEV-v1-makeup-0092": 2,
+        "ADL-DEV-v1-makeup-0100": 2,
+        "ADL-DEV-v1-makeup-0108": 2,
+        "ADL-DEV-v1-makeup-0116": 2,
+        "ADL-DEV-v1-makeup-0124": 2,
+        "ADL-DEV-v1-makeup-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Mascara",
+        "attribute": "shade",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-13",
+      "category": "makeup",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "مرطب شفايف ملون",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0001": 2,
+        "ADL-DEV-v1-makeup-0009": 2,
+        "ADL-DEV-v1-makeup-0017": 2,
+        "ADL-DEV-v1-makeup-0025": 2,
+        "ADL-DEV-v1-makeup-0033": 2,
+        "ADL-DEV-v1-makeup-0041": 2,
+        "ADL-DEV-v1-makeup-0049": 2,
+        "ADL-DEV-v1-makeup-0057": 2,
+        "ADL-DEV-v1-makeup-0065": 2,
+        "ADL-DEV-v1-makeup-0073": 2,
+        "ADL-DEV-v1-makeup-0081": 2,
+        "ADL-DEV-v1-makeup-0089": 2,
+        "ADL-DEV-v1-makeup-0097": 2,
+        "ADL-DEV-v1-makeup-0105": 2,
+        "ADL-DEV-v1-makeup-0113": 2,
+        "ADL-DEV-v1-makeup-0121": 2,
+        "ADL-DEV-v1-makeup-0129": 2,
+        "ADL-DEV-v1-makeup-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Tinted lip balm"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-14",
+      "category": "makeup",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "بلاشر بودرة",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0002": 2,
+        "ADL-DEV-v1-makeup-0010": 2,
+        "ADL-DEV-v1-makeup-0018": 2,
+        "ADL-DEV-v1-makeup-0026": 2,
+        "ADL-DEV-v1-makeup-0034": 2,
+        "ADL-DEV-v1-makeup-0042": 2,
+        "ADL-DEV-v1-makeup-0050": 2,
+        "ADL-DEV-v1-makeup-0058": 2,
+        "ADL-DEV-v1-makeup-0066": 2,
+        "ADL-DEV-v1-makeup-0074": 2,
+        "ADL-DEV-v1-makeup-0082": 2,
+        "ADL-DEV-v1-makeup-0090": 2,
+        "ADL-DEV-v1-makeup-0098": 2,
+        "ADL-DEV-v1-makeup-0106": 2,
+        "ADL-DEV-v1-makeup-0114": 2,
+        "ADL-DEV-v1-makeup-0122": 2,
+        "ADL-DEV-v1-makeup-0130": 2,
+        "ADL-DEV-v1-makeup-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Powder blush"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-15",
+      "category": "makeup",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "روج بلمسة ساتان",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0003": 2,
+        "ADL-DEV-v1-makeup-0011": 2,
+        "ADL-DEV-v1-makeup-0019": 2,
+        "ADL-DEV-v1-makeup-0027": 2,
+        "ADL-DEV-v1-makeup-0035": 2,
+        "ADL-DEV-v1-makeup-0043": 2,
+        "ADL-DEV-v1-makeup-0051": 2,
+        "ADL-DEV-v1-makeup-0059": 2,
+        "ADL-DEV-v1-makeup-0067": 2,
+        "ADL-DEV-v1-makeup-0075": 2,
+        "ADL-DEV-v1-makeup-0083": 2,
+        "ADL-DEV-v1-makeup-0091": 2,
+        "ADL-DEV-v1-makeup-0099": 2,
+        "ADL-DEV-v1-makeup-0107": 2,
+        "ADL-DEV-v1-makeup-0115": 2,
+        "ADL-DEV-v1-makeup-0123": 2,
+        "ADL-DEV-v1-makeup-0131": 2,
+        "ADL-DEV-v1-makeup-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Satin lipstick"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-16",
+      "category": "makeup",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "ماسكارا للرموش",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0004": 2,
+        "ADL-DEV-v1-makeup-0012": 2,
+        "ADL-DEV-v1-makeup-0020": 2,
+        "ADL-DEV-v1-makeup-0028": 2,
+        "ADL-DEV-v1-makeup-0036": 2,
+        "ADL-DEV-v1-makeup-0044": 2,
+        "ADL-DEV-v1-makeup-0052": 2,
+        "ADL-DEV-v1-makeup-0060": 2,
+        "ADL-DEV-v1-makeup-0068": 2,
+        "ADL-DEV-v1-makeup-0076": 2,
+        "ADL-DEV-v1-makeup-0084": 2,
+        "ADL-DEV-v1-makeup-0092": 2,
+        "ADL-DEV-v1-makeup-0100": 2,
+        "ADL-DEV-v1-makeup-0108": 2,
+        "ADL-DEV-v1-makeup-0116": 2,
+        "ADL-DEV-v1-makeup-0124": 2,
+        "ADL-DEV-v1-makeup-0132": 2,
+        "ADL-DEV-v1-makeup-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Mascara"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-17",
+      "category": "makeup",
+      "kind": "typo",
+      "split": "dev",
+      "query": "Tined lip balm",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0001": 2,
+        "ADL-DEV-v1-makeup-0009": 2,
+        "ADL-DEV-v1-makeup-0017": 2,
+        "ADL-DEV-v1-makeup-0025": 2,
+        "ADL-DEV-v1-makeup-0033": 2,
+        "ADL-DEV-v1-makeup-0041": 2,
+        "ADL-DEV-v1-makeup-0049": 2,
+        "ADL-DEV-v1-makeup-0057": 2,
+        "ADL-DEV-v1-makeup-0065": 2,
+        "ADL-DEV-v1-makeup-0073": 2,
+        "ADL-DEV-v1-makeup-0081": 2,
+        "ADL-DEV-v1-makeup-0089": 2,
+        "ADL-DEV-v1-makeup-0097": 2,
+        "ADL-DEV-v1-makeup-0105": 2,
+        "ADL-DEV-v1-makeup-0113": 2,
+        "ADL-DEV-v1-makeup-0121": 2,
+        "ADL-DEV-v1-makeup-0129": 2,
+        "ADL-DEV-v1-makeup-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Tinted lip balm"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-18",
+      "category": "makeup",
+      "kind": "typo",
+      "split": "test",
+      "query": "Power blush",
+      "qrels": {
+        "ADL-DEV-v1-makeup-0002": 2,
+        "ADL-DEV-v1-makeup-0010": 2,
+        "ADL-DEV-v1-makeup-0018": 2,
+        "ADL-DEV-v1-makeup-0026": 2,
+        "ADL-DEV-v1-makeup-0034": 2,
+        "ADL-DEV-v1-makeup-0042": 2,
+        "ADL-DEV-v1-makeup-0050": 2,
+        "ADL-DEV-v1-makeup-0058": 2,
+        "ADL-DEV-v1-makeup-0066": 2,
+        "ADL-DEV-v1-makeup-0074": 2,
+        "ADL-DEV-v1-makeup-0082": 2,
+        "ADL-DEV-v1-makeup-0090": 2,
+        "ADL-DEV-v1-makeup-0098": 2,
+        "ADL-DEV-v1-makeup-0106": 2,
+        "ADL-DEV-v1-makeup-0114": 2,
+        "ADL-DEV-v1-makeup-0122": 2,
+        "ADL-DEV-v1-makeup-0130": 2,
+        "ADL-DEV-v1-makeup-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Powder blush"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "makeup-19",
+      "category": "makeup",
+      "kind": "no_match",
+      "split": "dev",
+      "query": "Tinted lip balm made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "makeup-20",
+      "category": "makeup",
+      "kind": "no_match",
+      "split": "test",
+      "query": "Powder blush made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "personal_care-01",
+      "category": "personal_care",
+      "kind": "exact",
+      "split": "dev",
+      "query": "ADL-DEV-v1-personal_care-0001",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0001": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-personal_care-0001"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-02",
+      "category": "personal_care",
+      "kind": "exact",
+      "split": "test",
+      "query": "ADL-DEV-v1-personal_care-0002",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0002": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-personal_care-0002"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-03",
+      "category": "personal_care",
+      "kind": "exact",
+      "split": "dev",
+      "query": "Standard Gentle face cleanser - 250 ml",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0003": 2
+      },
+      "label_basis": {
+        "name": "Standard Gentle face cleanser - 250 ml"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-04",
+      "category": "personal_care",
+      "kind": "exact",
+      "split": "test",
+      "query": "Standard Fluoride toothpaste - 75 ml",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0004": 2
+      },
+      "label_basis": {
+        "name": "Standard Fluoride toothpaste - 75 ml"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-05",
+      "category": "personal_care",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "body wash without fragrance",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0001": 2,
+        "ADL-DEV-v1-personal_care-0009": 2,
+        "ADL-DEV-v1-personal_care-0017": 2,
+        "ADL-DEV-v1-personal_care-0025": 2,
+        "ADL-DEV-v1-personal_care-0033": 2,
+        "ADL-DEV-v1-personal_care-0041": 2,
+        "ADL-DEV-v1-personal_care-0049": 2,
+        "ADL-DEV-v1-personal_care-0057": 2,
+        "ADL-DEV-v1-personal_care-0065": 2,
+        "ADL-DEV-v1-personal_care-0073": 2,
+        "ADL-DEV-v1-personal_care-0081": 2,
+        "ADL-DEV-v1-personal_care-0089": 2,
+        "ADL-DEV-v1-personal_care-0097": 2,
+        "ADL-DEV-v1-personal_care-0105": 2,
+        "ADL-DEV-v1-personal_care-0113": 2,
+        "ADL-DEV-v1-personal_care-0121": 2,
+        "ADL-DEV-v1-personal_care-0129": 2,
+        "ADL-DEV-v1-personal_care-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Unscented body wash"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-06",
+      "category": "personal_care",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "body lotion for daily use",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0002": 2,
+        "ADL-DEV-v1-personal_care-0010": 2,
+        "ADL-DEV-v1-personal_care-0018": 2,
+        "ADL-DEV-v1-personal_care-0026": 2,
+        "ADL-DEV-v1-personal_care-0034": 2,
+        "ADL-DEV-v1-personal_care-0042": 2,
+        "ADL-DEV-v1-personal_care-0050": 2,
+        "ADL-DEV-v1-personal_care-0058": 2,
+        "ADL-DEV-v1-personal_care-0066": 2,
+        "ADL-DEV-v1-personal_care-0074": 2,
+        "ADL-DEV-v1-personal_care-0082": 2,
+        "ADL-DEV-v1-personal_care-0090": 2,
+        "ADL-DEV-v1-personal_care-0098": 2,
+        "ADL-DEV-v1-personal_care-0106": 2,
+        "ADL-DEV-v1-personal_care-0114": 2,
+        "ADL-DEV-v1-personal_care-0122": 2,
+        "ADL-DEV-v1-personal_care-0130": 2,
+        "ADL-DEV-v1-personal_care-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Daily body lotion"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-07",
+      "category": "personal_care",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a gentle cleanser for the face",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0003": 2,
+        "ADL-DEV-v1-personal_care-0011": 2,
+        "ADL-DEV-v1-personal_care-0019": 2,
+        "ADL-DEV-v1-personal_care-0027": 2,
+        "ADL-DEV-v1-personal_care-0035": 2,
+        "ADL-DEV-v1-personal_care-0043": 2,
+        "ADL-DEV-v1-personal_care-0051": 2,
+        "ADL-DEV-v1-personal_care-0059": 2,
+        "ADL-DEV-v1-personal_care-0067": 2,
+        "ADL-DEV-v1-personal_care-0075": 2,
+        "ADL-DEV-v1-personal_care-0083": 2,
+        "ADL-DEV-v1-personal_care-0091": 2,
+        "ADL-DEV-v1-personal_care-0099": 2,
+        "ADL-DEV-v1-personal_care-0107": 2,
+        "ADL-DEV-v1-personal_care-0115": 2,
+        "ADL-DEV-v1-personal_care-0123": 2,
+        "ADL-DEV-v1-personal_care-0131": 2,
+        "ADL-DEV-v1-personal_care-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Gentle face cleanser"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-08",
+      "category": "personal_care",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "toothpaste containing fluoride",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0004": 2,
+        "ADL-DEV-v1-personal_care-0012": 2,
+        "ADL-DEV-v1-personal_care-0020": 2,
+        "ADL-DEV-v1-personal_care-0028": 2,
+        "ADL-DEV-v1-personal_care-0036": 2,
+        "ADL-DEV-v1-personal_care-0044": 2,
+        "ADL-DEV-v1-personal_care-0052": 2,
+        "ADL-DEV-v1-personal_care-0060": 2,
+        "ADL-DEV-v1-personal_care-0068": 2,
+        "ADL-DEV-v1-personal_care-0076": 2,
+        "ADL-DEV-v1-personal_care-0084": 2,
+        "ADL-DEV-v1-personal_care-0092": 2,
+        "ADL-DEV-v1-personal_care-0100": 2,
+        "ADL-DEV-v1-personal_care-0108": 2,
+        "ADL-DEV-v1-personal_care-0116": 2,
+        "ADL-DEV-v1-personal_care-0124": 2,
+        "ADL-DEV-v1-personal_care-0132": 2,
+        "ADL-DEV-v1-personal_care-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Fluoride toothpaste"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-09",
+      "category": "personal_care",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Unscented body wash, pack 750 ml",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0129": 2,
+        "ADL-DEV-v1-personal_care-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Unscented body wash",
+        "attribute": "pack",
+        "equals": "750 ml"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-10",
+      "category": "personal_care",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Daily body lotion, not 250 ml",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0066": 2,
+        "ADL-DEV-v1-personal_care-0074": 2,
+        "ADL-DEV-v1-personal_care-0082": 2,
+        "ADL-DEV-v1-personal_care-0090": 2,
+        "ADL-DEV-v1-personal_care-0098": 2,
+        "ADL-DEV-v1-personal_care-0106": 2,
+        "ADL-DEV-v1-personal_care-0114": 2,
+        "ADL-DEV-v1-personal_care-0122": 2,
+        "ADL-DEV-v1-personal_care-0130": 2,
+        "ADL-DEV-v1-personal_care-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Daily body lotion",
+        "attribute": "pack",
+        "not_equals": "250 ml"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-11",
+      "category": "personal_care",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Gentle face cleanser, pack 750 ml",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0131": 2,
+        "ADL-DEV-v1-personal_care-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Gentle face cleanser",
+        "attribute": "pack",
+        "equals": "750 ml"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-12",
+      "category": "personal_care",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Fluoride toothpaste, not 75 ml",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0068": 2,
+        "ADL-DEV-v1-personal_care-0076": 2,
+        "ADL-DEV-v1-personal_care-0084": 2,
+        "ADL-DEV-v1-personal_care-0092": 2,
+        "ADL-DEV-v1-personal_care-0100": 2,
+        "ADL-DEV-v1-personal_care-0108": 2,
+        "ADL-DEV-v1-personal_care-0116": 2,
+        "ADL-DEV-v1-personal_care-0124": 2,
+        "ADL-DEV-v1-personal_care-0132": 2,
+        "ADL-DEV-v1-personal_care-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Fluoride toothpaste",
+        "attribute": "pack",
+        "not_equals": "75 ml"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-13",
+      "category": "personal_care",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "غسول جسم من غير عطر",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0001": 2,
+        "ADL-DEV-v1-personal_care-0009": 2,
+        "ADL-DEV-v1-personal_care-0017": 2,
+        "ADL-DEV-v1-personal_care-0025": 2,
+        "ADL-DEV-v1-personal_care-0033": 2,
+        "ADL-DEV-v1-personal_care-0041": 2,
+        "ADL-DEV-v1-personal_care-0049": 2,
+        "ADL-DEV-v1-personal_care-0057": 2,
+        "ADL-DEV-v1-personal_care-0065": 2,
+        "ADL-DEV-v1-personal_care-0073": 2,
+        "ADL-DEV-v1-personal_care-0081": 2,
+        "ADL-DEV-v1-personal_care-0089": 2,
+        "ADL-DEV-v1-personal_care-0097": 2,
+        "ADL-DEV-v1-personal_care-0105": 2,
+        "ADL-DEV-v1-personal_care-0113": 2,
+        "ADL-DEV-v1-personal_care-0121": 2,
+        "ADL-DEV-v1-personal_care-0129": 2,
+        "ADL-DEV-v1-personal_care-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Unscented body wash"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-14",
+      "category": "personal_care",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "لوشن للجسم للاستعمال اليومي",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0002": 2,
+        "ADL-DEV-v1-personal_care-0010": 2,
+        "ADL-DEV-v1-personal_care-0018": 2,
+        "ADL-DEV-v1-personal_care-0026": 2,
+        "ADL-DEV-v1-personal_care-0034": 2,
+        "ADL-DEV-v1-personal_care-0042": 2,
+        "ADL-DEV-v1-personal_care-0050": 2,
+        "ADL-DEV-v1-personal_care-0058": 2,
+        "ADL-DEV-v1-personal_care-0066": 2,
+        "ADL-DEV-v1-personal_care-0074": 2,
+        "ADL-DEV-v1-personal_care-0082": 2,
+        "ADL-DEV-v1-personal_care-0090": 2,
+        "ADL-DEV-v1-personal_care-0098": 2,
+        "ADL-DEV-v1-personal_care-0106": 2,
+        "ADL-DEV-v1-personal_care-0114": 2,
+        "ADL-DEV-v1-personal_care-0122": 2,
+        "ADL-DEV-v1-personal_care-0130": 2,
+        "ADL-DEV-v1-personal_care-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Daily body lotion"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-15",
+      "category": "personal_care",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "غسول لطيف للوش",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0003": 2,
+        "ADL-DEV-v1-personal_care-0011": 2,
+        "ADL-DEV-v1-personal_care-0019": 2,
+        "ADL-DEV-v1-personal_care-0027": 2,
+        "ADL-DEV-v1-personal_care-0035": 2,
+        "ADL-DEV-v1-personal_care-0043": 2,
+        "ADL-DEV-v1-personal_care-0051": 2,
+        "ADL-DEV-v1-personal_care-0059": 2,
+        "ADL-DEV-v1-personal_care-0067": 2,
+        "ADL-DEV-v1-personal_care-0075": 2,
+        "ADL-DEV-v1-personal_care-0083": 2,
+        "ADL-DEV-v1-personal_care-0091": 2,
+        "ADL-DEV-v1-personal_care-0099": 2,
+        "ADL-DEV-v1-personal_care-0107": 2,
+        "ADL-DEV-v1-personal_care-0115": 2,
+        "ADL-DEV-v1-personal_care-0123": 2,
+        "ADL-DEV-v1-personal_care-0131": 2,
+        "ADL-DEV-v1-personal_care-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Gentle face cleanser"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-16",
+      "category": "personal_care",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "معجون سنان بالفلورايد",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0004": 2,
+        "ADL-DEV-v1-personal_care-0012": 2,
+        "ADL-DEV-v1-personal_care-0020": 2,
+        "ADL-DEV-v1-personal_care-0028": 2,
+        "ADL-DEV-v1-personal_care-0036": 2,
+        "ADL-DEV-v1-personal_care-0044": 2,
+        "ADL-DEV-v1-personal_care-0052": 2,
+        "ADL-DEV-v1-personal_care-0060": 2,
+        "ADL-DEV-v1-personal_care-0068": 2,
+        "ADL-DEV-v1-personal_care-0076": 2,
+        "ADL-DEV-v1-personal_care-0084": 2,
+        "ADL-DEV-v1-personal_care-0092": 2,
+        "ADL-DEV-v1-personal_care-0100": 2,
+        "ADL-DEV-v1-personal_care-0108": 2,
+        "ADL-DEV-v1-personal_care-0116": 2,
+        "ADL-DEV-v1-personal_care-0124": 2,
+        "ADL-DEV-v1-personal_care-0132": 2,
+        "ADL-DEV-v1-personal_care-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Fluoride toothpaste"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-17",
+      "category": "personal_care",
+      "kind": "typo",
+      "split": "dev",
+      "query": "Unsented body wash",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0001": 2,
+        "ADL-DEV-v1-personal_care-0009": 2,
+        "ADL-DEV-v1-personal_care-0017": 2,
+        "ADL-DEV-v1-personal_care-0025": 2,
+        "ADL-DEV-v1-personal_care-0033": 2,
+        "ADL-DEV-v1-personal_care-0041": 2,
+        "ADL-DEV-v1-personal_care-0049": 2,
+        "ADL-DEV-v1-personal_care-0057": 2,
+        "ADL-DEV-v1-personal_care-0065": 2,
+        "ADL-DEV-v1-personal_care-0073": 2,
+        "ADL-DEV-v1-personal_care-0081": 2,
+        "ADL-DEV-v1-personal_care-0089": 2,
+        "ADL-DEV-v1-personal_care-0097": 2,
+        "ADL-DEV-v1-personal_care-0105": 2,
+        "ADL-DEV-v1-personal_care-0113": 2,
+        "ADL-DEV-v1-personal_care-0121": 2,
+        "ADL-DEV-v1-personal_care-0129": 2,
+        "ADL-DEV-v1-personal_care-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Unscented body wash"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-18",
+      "category": "personal_care",
+      "kind": "typo",
+      "split": "test",
+      "query": "Daiy body lotion",
+      "qrels": {
+        "ADL-DEV-v1-personal_care-0002": 2,
+        "ADL-DEV-v1-personal_care-0010": 2,
+        "ADL-DEV-v1-personal_care-0018": 2,
+        "ADL-DEV-v1-personal_care-0026": 2,
+        "ADL-DEV-v1-personal_care-0034": 2,
+        "ADL-DEV-v1-personal_care-0042": 2,
+        "ADL-DEV-v1-personal_care-0050": 2,
+        "ADL-DEV-v1-personal_care-0058": 2,
+        "ADL-DEV-v1-personal_care-0066": 2,
+        "ADL-DEV-v1-personal_care-0074": 2,
+        "ADL-DEV-v1-personal_care-0082": 2,
+        "ADL-DEV-v1-personal_care-0090": 2,
+        "ADL-DEV-v1-personal_care-0098": 2,
+        "ADL-DEV-v1-personal_care-0106": 2,
+        "ADL-DEV-v1-personal_care-0114": 2,
+        "ADL-DEV-v1-personal_care-0122": 2,
+        "ADL-DEV-v1-personal_care-0130": 2,
+        "ADL-DEV-v1-personal_care-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Daily body lotion"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "personal_care-19",
+      "category": "personal_care",
+      "kind": "no_match",
+      "split": "dev",
+      "query": "Unscented body wash made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "personal_care-20",
+      "category": "personal_care",
+      "kind": "no_match",
+      "split": "test",
+      "query": "Daily body lotion made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "sports-01",
+      "category": "sports",
+      "kind": "exact",
+      "split": "dev",
+      "query": "ADL-DEV-v1-sports-0001",
+      "qrels": {
+        "ADL-DEV-v1-sports-0001": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-sports-0001"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-02",
+      "category": "sports",
+      "kind": "exact",
+      "split": "test",
+      "query": "ADL-DEV-v1-sports-0002",
+      "qrels": {
+        "ADL-DEV-v1-sports-0002": 2
+      },
+      "label_basis": {
+        "sku": "ADL-DEV-v1-sports-0002"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-03",
+      "category": "sports",
+      "kind": "exact",
+      "split": "dev",
+      "query": "Black Stainless water bottle - Small",
+      "qrels": {
+        "ADL-DEV-v1-sports-0003": 2
+      },
+      "label_basis": {
+        "name": "Black Stainless water bottle - Small"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-04",
+      "category": "sports",
+      "kind": "exact",
+      "split": "test",
+      "query": "Black Adjustable jump rope - Small",
+      "qrels": {
+        "ADL-DEV-v1-sports-0004": 2
+      },
+      "label_basis": {
+        "name": "Black Adjustable jump rope - Small"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-05",
+      "category": "sports",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a mat for floor exercises",
+      "qrels": {
+        "ADL-DEV-v1-sports-0001": 2,
+        "ADL-DEV-v1-sports-0009": 2,
+        "ADL-DEV-v1-sports-0017": 2,
+        "ADL-DEV-v1-sports-0025": 2,
+        "ADL-DEV-v1-sports-0033": 2,
+        "ADL-DEV-v1-sports-0041": 2,
+        "ADL-DEV-v1-sports-0049": 2,
+        "ADL-DEV-v1-sports-0057": 2,
+        "ADL-DEV-v1-sports-0065": 2,
+        "ADL-DEV-v1-sports-0073": 2,
+        "ADL-DEV-v1-sports-0081": 2,
+        "ADL-DEV-v1-sports-0089": 2,
+        "ADL-DEV-v1-sports-0097": 2,
+        "ADL-DEV-v1-sports-0105": 2,
+        "ADL-DEV-v1-sports-0113": 2,
+        "ADL-DEV-v1-sports-0121": 2,
+        "ADL-DEV-v1-sports-0129": 2,
+        "ADL-DEV-v1-sports-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Exercise mat"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-06",
+      "category": "sports",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "bands for resistance training",
+      "qrels": {
+        "ADL-DEV-v1-sports-0002": 2,
+        "ADL-DEV-v1-sports-0010": 2,
+        "ADL-DEV-v1-sports-0018": 2,
+        "ADL-DEV-v1-sports-0026": 2,
+        "ADL-DEV-v1-sports-0034": 2,
+        "ADL-DEV-v1-sports-0042": 2,
+        "ADL-DEV-v1-sports-0050": 2,
+        "ADL-DEV-v1-sports-0058": 2,
+        "ADL-DEV-v1-sports-0066": 2,
+        "ADL-DEV-v1-sports-0074": 2,
+        "ADL-DEV-v1-sports-0082": 2,
+        "ADL-DEV-v1-sports-0090": 2,
+        "ADL-DEV-v1-sports-0098": 2,
+        "ADL-DEV-v1-sports-0106": 2,
+        "ADL-DEV-v1-sports-0114": 2,
+        "ADL-DEV-v1-sports-0122": 2,
+        "ADL-DEV-v1-sports-0130": 2,
+        "ADL-DEV-v1-sports-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Resistance band set"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-07",
+      "category": "sports",
+      "kind": "paraphrase",
+      "split": "dev",
+      "query": "a water bottle made of stainless steel",
+      "qrels": {
+        "ADL-DEV-v1-sports-0003": 2,
+        "ADL-DEV-v1-sports-0011": 2,
+        "ADL-DEV-v1-sports-0019": 2,
+        "ADL-DEV-v1-sports-0027": 2,
+        "ADL-DEV-v1-sports-0035": 2,
+        "ADL-DEV-v1-sports-0043": 2,
+        "ADL-DEV-v1-sports-0051": 2,
+        "ADL-DEV-v1-sports-0059": 2,
+        "ADL-DEV-v1-sports-0067": 2,
+        "ADL-DEV-v1-sports-0075": 2,
+        "ADL-DEV-v1-sports-0083": 2,
+        "ADL-DEV-v1-sports-0091": 2,
+        "ADL-DEV-v1-sports-0099": 2,
+        "ADL-DEV-v1-sports-0107": 2,
+        "ADL-DEV-v1-sports-0115": 2,
+        "ADL-DEV-v1-sports-0123": 2,
+        "ADL-DEV-v1-sports-0131": 2,
+        "ADL-DEV-v1-sports-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Stainless water bottle"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-08",
+      "category": "sports",
+      "kind": "paraphrase",
+      "split": "test",
+      "query": "a jump rope with adjustable length",
+      "qrels": {
+        "ADL-DEV-v1-sports-0004": 2,
+        "ADL-DEV-v1-sports-0012": 2,
+        "ADL-DEV-v1-sports-0020": 2,
+        "ADL-DEV-v1-sports-0028": 2,
+        "ADL-DEV-v1-sports-0036": 2,
+        "ADL-DEV-v1-sports-0044": 2,
+        "ADL-DEV-v1-sports-0052": 2,
+        "ADL-DEV-v1-sports-0060": 2,
+        "ADL-DEV-v1-sports-0068": 2,
+        "ADL-DEV-v1-sports-0076": 2,
+        "ADL-DEV-v1-sports-0084": 2,
+        "ADL-DEV-v1-sports-0092": 2,
+        "ADL-DEV-v1-sports-0100": 2,
+        "ADL-DEV-v1-sports-0108": 2,
+        "ADL-DEV-v1-sports-0116": 2,
+        "ADL-DEV-v1-sports-0124": 2,
+        "ADL-DEV-v1-sports-0132": 2,
+        "ADL-DEV-v1-sports-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Adjustable jump rope"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-09",
+      "category": "sports",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Exercise mat, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-sports-0009": 2,
+        "ADL-DEV-v1-sports-0073": 2,
+        "ADL-DEV-v1-sports-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Exercise mat",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-10",
+      "category": "sports",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Resistance band set, not Black",
+      "qrels": {
+        "ADL-DEV-v1-sports-0010": 2,
+        "ADL-DEV-v1-sports-0018": 2,
+        "ADL-DEV-v1-sports-0026": 2,
+        "ADL-DEV-v1-sports-0034": 2,
+        "ADL-DEV-v1-sports-0042": 2,
+        "ADL-DEV-v1-sports-0050": 2,
+        "ADL-DEV-v1-sports-0058": 2,
+        "ADL-DEV-v1-sports-0074": 2,
+        "ADL-DEV-v1-sports-0082": 2,
+        "ADL-DEV-v1-sports-0090": 2,
+        "ADL-DEV-v1-sports-0098": 2,
+        "ADL-DEV-v1-sports-0106": 2,
+        "ADL-DEV-v1-sports-0114": 2,
+        "ADL-DEV-v1-sports-0122": 2,
+        "ADL-DEV-v1-sports-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Resistance band set",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-11",
+      "category": "sports",
+      "kind": "constraint",
+      "split": "dev",
+      "query": "Stainless water bottle, color Navy",
+      "qrels": {
+        "ADL-DEV-v1-sports-0011": 2,
+        "ADL-DEV-v1-sports-0075": 2,
+        "ADL-DEV-v1-sports-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Stainless water bottle",
+        "attribute": "color",
+        "equals": "Navy"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-12",
+      "category": "sports",
+      "kind": "constraint",
+      "split": "test",
+      "query": "Adjustable jump rope, not Black",
+      "qrels": {
+        "ADL-DEV-v1-sports-0012": 2,
+        "ADL-DEV-v1-sports-0020": 2,
+        "ADL-DEV-v1-sports-0028": 2,
+        "ADL-DEV-v1-sports-0036": 2,
+        "ADL-DEV-v1-sports-0044": 2,
+        "ADL-DEV-v1-sports-0052": 2,
+        "ADL-DEV-v1-sports-0060": 2,
+        "ADL-DEV-v1-sports-0076": 2,
+        "ADL-DEV-v1-sports-0084": 2,
+        "ADL-DEV-v1-sports-0092": 2,
+        "ADL-DEV-v1-sports-0100": 2,
+        "ADL-DEV-v1-sports-0108": 2,
+        "ADL-DEV-v1-sports-0116": 2,
+        "ADL-DEV-v1-sports-0124": 2,
+        "ADL-DEV-v1-sports-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Adjustable jump rope",
+        "attribute": "color",
+        "not_equals": "Black"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-13",
+      "category": "sports",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "مات للتمارين على الأرض",
+      "qrels": {
+        "ADL-DEV-v1-sports-0001": 2,
+        "ADL-DEV-v1-sports-0009": 2,
+        "ADL-DEV-v1-sports-0017": 2,
+        "ADL-DEV-v1-sports-0025": 2,
+        "ADL-DEV-v1-sports-0033": 2,
+        "ADL-DEV-v1-sports-0041": 2,
+        "ADL-DEV-v1-sports-0049": 2,
+        "ADL-DEV-v1-sports-0057": 2,
+        "ADL-DEV-v1-sports-0065": 2,
+        "ADL-DEV-v1-sports-0073": 2,
+        "ADL-DEV-v1-sports-0081": 2,
+        "ADL-DEV-v1-sports-0089": 2,
+        "ADL-DEV-v1-sports-0097": 2,
+        "ADL-DEV-v1-sports-0105": 2,
+        "ADL-DEV-v1-sports-0113": 2,
+        "ADL-DEV-v1-sports-0121": 2,
+        "ADL-DEV-v1-sports-0129": 2,
+        "ADL-DEV-v1-sports-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Exercise mat"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-14",
+      "category": "sports",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "أستيك مقاومة للتمرين",
+      "qrels": {
+        "ADL-DEV-v1-sports-0002": 2,
+        "ADL-DEV-v1-sports-0010": 2,
+        "ADL-DEV-v1-sports-0018": 2,
+        "ADL-DEV-v1-sports-0026": 2,
+        "ADL-DEV-v1-sports-0034": 2,
+        "ADL-DEV-v1-sports-0042": 2,
+        "ADL-DEV-v1-sports-0050": 2,
+        "ADL-DEV-v1-sports-0058": 2,
+        "ADL-DEV-v1-sports-0066": 2,
+        "ADL-DEV-v1-sports-0074": 2,
+        "ADL-DEV-v1-sports-0082": 2,
+        "ADL-DEV-v1-sports-0090": 2,
+        "ADL-DEV-v1-sports-0098": 2,
+        "ADL-DEV-v1-sports-0106": 2,
+        "ADL-DEV-v1-sports-0114": 2,
+        "ADL-DEV-v1-sports-0122": 2,
+        "ADL-DEV-v1-sports-0130": 2,
+        "ADL-DEV-v1-sports-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Resistance band set"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-15",
+      "category": "sports",
+      "kind": "arabic_crosslingual",
+      "split": "dev",
+      "query": "إزازة مية ستانلس",
+      "qrels": {
+        "ADL-DEV-v1-sports-0003": 2,
+        "ADL-DEV-v1-sports-0011": 2,
+        "ADL-DEV-v1-sports-0019": 2,
+        "ADL-DEV-v1-sports-0027": 2,
+        "ADL-DEV-v1-sports-0035": 2,
+        "ADL-DEV-v1-sports-0043": 2,
+        "ADL-DEV-v1-sports-0051": 2,
+        "ADL-DEV-v1-sports-0059": 2,
+        "ADL-DEV-v1-sports-0067": 2,
+        "ADL-DEV-v1-sports-0075": 2,
+        "ADL-DEV-v1-sports-0083": 2,
+        "ADL-DEV-v1-sports-0091": 2,
+        "ADL-DEV-v1-sports-0099": 2,
+        "ADL-DEV-v1-sports-0107": 2,
+        "ADL-DEV-v1-sports-0115": 2,
+        "ADL-DEV-v1-sports-0123": 2,
+        "ADL-DEV-v1-sports-0131": 2,
+        "ADL-DEV-v1-sports-0139": 2
+      },
+      "label_basis": {
+        "item_type": "Stainless water bottle"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-16",
+      "category": "sports",
+      "kind": "arabic_crosslingual",
+      "split": "test",
+      "query": "حبل نط قابل للتعديل",
+      "qrels": {
+        "ADL-DEV-v1-sports-0004": 2,
+        "ADL-DEV-v1-sports-0012": 2,
+        "ADL-DEV-v1-sports-0020": 2,
+        "ADL-DEV-v1-sports-0028": 2,
+        "ADL-DEV-v1-sports-0036": 2,
+        "ADL-DEV-v1-sports-0044": 2,
+        "ADL-DEV-v1-sports-0052": 2,
+        "ADL-DEV-v1-sports-0060": 2,
+        "ADL-DEV-v1-sports-0068": 2,
+        "ADL-DEV-v1-sports-0076": 2,
+        "ADL-DEV-v1-sports-0084": 2,
+        "ADL-DEV-v1-sports-0092": 2,
+        "ADL-DEV-v1-sports-0100": 2,
+        "ADL-DEV-v1-sports-0108": 2,
+        "ADL-DEV-v1-sports-0116": 2,
+        "ADL-DEV-v1-sports-0124": 2,
+        "ADL-DEV-v1-sports-0132": 2,
+        "ADL-DEV-v1-sports-0140": 2
+      },
+      "label_basis": {
+        "item_type": "Adjustable jump rope"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-17",
+      "category": "sports",
+      "kind": "typo",
+      "split": "dev",
+      "query": "Execise mat",
+      "qrels": {
+        "ADL-DEV-v1-sports-0001": 2,
+        "ADL-DEV-v1-sports-0009": 2,
+        "ADL-DEV-v1-sports-0017": 2,
+        "ADL-DEV-v1-sports-0025": 2,
+        "ADL-DEV-v1-sports-0033": 2,
+        "ADL-DEV-v1-sports-0041": 2,
+        "ADL-DEV-v1-sports-0049": 2,
+        "ADL-DEV-v1-sports-0057": 2,
+        "ADL-DEV-v1-sports-0065": 2,
+        "ADL-DEV-v1-sports-0073": 2,
+        "ADL-DEV-v1-sports-0081": 2,
+        "ADL-DEV-v1-sports-0089": 2,
+        "ADL-DEV-v1-sports-0097": 2,
+        "ADL-DEV-v1-sports-0105": 2,
+        "ADL-DEV-v1-sports-0113": 2,
+        "ADL-DEV-v1-sports-0121": 2,
+        "ADL-DEV-v1-sports-0129": 2,
+        "ADL-DEV-v1-sports-0137": 2
+      },
+      "label_basis": {
+        "item_type": "Exercise mat"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-18",
+      "category": "sports",
+      "kind": "typo",
+      "split": "test",
+      "query": "Resstance band set",
+      "qrels": {
+        "ADL-DEV-v1-sports-0002": 2,
+        "ADL-DEV-v1-sports-0010": 2,
+        "ADL-DEV-v1-sports-0018": 2,
+        "ADL-DEV-v1-sports-0026": 2,
+        "ADL-DEV-v1-sports-0034": 2,
+        "ADL-DEV-v1-sports-0042": 2,
+        "ADL-DEV-v1-sports-0050": 2,
+        "ADL-DEV-v1-sports-0058": 2,
+        "ADL-DEV-v1-sports-0066": 2,
+        "ADL-DEV-v1-sports-0074": 2,
+        "ADL-DEV-v1-sports-0082": 2,
+        "ADL-DEV-v1-sports-0090": 2,
+        "ADL-DEV-v1-sports-0098": 2,
+        "ADL-DEV-v1-sports-0106": 2,
+        "ADL-DEV-v1-sports-0114": 2,
+        "ADL-DEV-v1-sports-0122": 2,
+        "ADL-DEV-v1-sports-0130": 2,
+        "ADL-DEV-v1-sports-0138": 2
+      },
+      "label_basis": {
+        "item_type": "Resistance band set"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": false
+    },
+    {
+      "id": "sports-19",
+      "category": "sports",
+      "kind": "no_match",
+      "split": "dev",
+      "query": "Exercise mat made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    },
+    {
+      "id": "sports-20",
+      "category": "sports",
+      "kind": "no_match",
+      "split": "test",
+      "query": "Resistance band set made of unobtainium with 99999 certified units",
+      "qrels": {},
+      "label_basis": {
+        "impossible_attribute": "unobtainium"
+      },
+      "review_status": "draft_requires_human_review",
+      "no_match": true
+    }
+  ]
+}
