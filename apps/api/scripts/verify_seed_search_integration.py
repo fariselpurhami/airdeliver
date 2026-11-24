@@ -125,6 +125,10 @@ async def verify(settings,compose,backend):
                           'object_storage':backend,'milvus_recreated_without_local_cache':True,'embedding_dimension':service._embedding.dimension,'model':'all-MiniLM-L6-v2','rerun_inserted':second['inserted'],'scope':'isolated test indexes, not the production GTE model'}))
         # New importer reaches actual learned embeddings and both real sinks,
         # independently of the legacy seeder run above. UUID-local resources only.
+        import runpy
+        os.environ['DATABASE_URI']=settings.postgres_dsn
+        runpy.run_path(str(API/'tests/conftest.py'))
+        import app.models # Register normalProductrelationships inthisstandaloneprocess.
         from app.core.config import get_core_settings
         from app.services.real_catalog_import import ImportFile,persist_import,sync_import
         from scripts.generate_dev_catalog import generate
