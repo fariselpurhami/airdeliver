@@ -403,7 +403,7 @@ class InternalCommand(str, Enum):
 class MatrixConfig:
     max_items_per_row: int = 10
     trending_pool_limit: int = 100
-    deals_min_rating: float = 40.0
+    deals_min_rating: float = 4.0
     stream_delay_sec: float = 0.8
     matrix_timeout_sec: float = 75.0
     matrix_stage_timeout_sec: float = 45.0
@@ -3386,7 +3386,31 @@ class AINLUService:
             StructuredLog.warning("fetch_personal_failed", user_id=user_id, error=str(exc))
             return []
 
-    async def _fetch_bestsellers(self, seen_ids: Set[int]) -> Sequence[ProductLike]:
+    async def _eligible_opening_pool(self, seen_ids, *, order_by, min_rating=None):
+        """Apply eligibility before LIMIT, not after an ineligible top pool."""
+        from sqlalchemy import func
+        statement = select(Product).where(
+            Product.is_active.is_(True), Product.inventory > 0,
+            Product.price >= 0, Product.currency.op("~")("^[A-Z]{3}$"),
+            func.coalesce(Product.attributes.op("->>")("_seed_dataset"), "") != "airdeliver-demo-v1",
+            ~Product.sku.like("ADL-DEMO-v1-%"), func.length(func.trim(Product.name)) > 0,
+        )
+        if seen_ids:
+            statement = statement.where(Product.id.notin_(seen_ids))
+        if min_rating is not None:
+            statement = statement.where(Product.rating >= min_rating)
+        return (await self.db.execute(statement.order_by(*order_by).limit(self.config.trending_pool_limit))).scalars().all()
+
+    async def _fetch_bestsellers(self, seen_ids):
+        return await self._eligible_opening_pool(seen_ids,order_by=[col(Product.rating).desc()])
+
+    async def _fetch_trending(self, seen_ids):
+        return await self._eligible_opening_pool(seen_ids,order_by=[col(Product.rating).desc(),col(Product.inventory).asc()])
+
+    async def _fetch_deals(self, seen_ids):
+        return await self._eligible_opening_pool(seen_ids,order_by=[col(Product.price).asc()],min_rating=self.config.deals_min_rating)
+
+    async def _legacy_fetch_bestsellers(self, seen_ids: Set[int]) -> Sequence[ProductLike]:
         try:
             stmt = select(Product)
             if seen_ids:
@@ -3400,7 +3424,7 @@ class AINLUService:
             StructuredLog.warning("fetch_bestsellers_failed", error=str(exc))
             return []
 
-    async def _fetch_trending(self, seen_ids: Set[int]) -> Sequence[ProductLike]:
+    async def _legacy_fetch_trending(self, seen_ids: Set[int]) -> Sequence[ProductLike]:
         try:
             stmt = select(Product)
             if seen_ids:
@@ -3415,7 +3439,7 @@ class AINLUService:
             StructuredLog.warning("fetch_trending_failed", error=str(exc))
             return []
 
-    async def _fetch_deals(self, seen_ids: Set[int]) -> Sequence[ProductLike]:
+    async def _legacy_fetch_deals(self, seen_ids: Set[int]) -> Sequence[ProductLike]:
         try:
             stmt = select(Product).where(Product.rating >= self.config.deals_min_rating)
             if seen_ids:
