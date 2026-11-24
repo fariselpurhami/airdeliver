@@ -1,0 +1,7 @@
+# Scoped catalog exclusions
+
+Setup component plans and ordinary multi-target catalog assignment can now carry negative excluded-term spans separately from positive required features. Exact customer spans and independent scope review remain required. Shared exclusions stay global. A scoped desk exclusion no longer incorrectly excludes an unrelated chair. Candidate checks combine shared and target exclusions before selection and revalidate the same scoped brief after current SQL publication checks.
+
+Setup and target exclusion maps persist separately with the existing bounded scope-state contracts, union later assignments and reject target/component identity changes. Existing independently reviewed explicit replacement resets all scoped maps; ordinary additions preserve them. Old session records hydrate with empty defaults. Router output cannot inject scoped fields directly because target normalization reconstructs literal identities before the separate review.
+
+Tests cover actual two-turn HTTP/PostgreSQL/Redis for setup and ordinary target exclusion, omission preservation, matching excluded evidence withheld, unrelated targets retained, review rejection, unknown/nonliteral plan entries and reset preservation. Missing negative evidence retains the existing exclusion policy; this does not certify a product lacks an attribute. Source-research scope and real-model multilingual semantic accuracy remain separate. No provider calls or owner-machine actions.

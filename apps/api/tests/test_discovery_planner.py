@@ -106,3 +106,9 @@ async def test_prior_component_identity_cannot_silently_drop_scope():
     result=await svc._handle_setup_discovery(object(),'more setup options',ShoppingBrief(),memory=memory)
     svc._handle_staged_product_search.assert_not_awaited()
     assert result.explain=='Setup plan unavailable' and memory.setup_requirements=={'desk':['120cm']}
+
+
+@pytest.mark.asyncio
+async def test_setup_exclusion_unknown_or_nonliteral_scope_rejected():
+    infer=AsyncMock(return_value=json.dumps({'components':['desk'],'component_exclusions':{'chair':['invented']}}))
+    with pytest.raises(ValueError):await plan_setup(infer,'desk not red',detailed=True)

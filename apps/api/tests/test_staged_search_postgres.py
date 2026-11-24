@@ -243,6 +243,8 @@ async def test_http_constraint_history_preserves_or_explicitly_replaces_literal_
             assert [p['id'] for p in first.json()['products']]==ids[:1]
             cached=await cache.get_json_required(svc._get_session_key('constraint-history'))
             cached['setup_requirements']={'laptop':['16GB RAM']}
+            cached['setup_exclusions']={'laptop':['red']}
+            cached['target_exclusions']={'laptop':['blue']}
             await cache.set_json_required(svc._get_session_key('constraint-history'),cached)
             second=await client.post('/api/v1/ai-support/chat',json={'message':('replace old requirements, laptop SSD' if replace else 'also laptop SSD'),'session_id':'constraint-history'})
         assert second.status_code==200,second.text
@@ -250,6 +252,8 @@ async def test_http_constraint_history_preserves_or_explicitly_replaces_literal_
         history=await cache.get_json_required(svc._get_session_key('constraint-history'))
         assert history['shopping_brief']['required_features']==(['SSD'] if replace else ['16GB RAM','SSD'])
         assert history['setup_requirements']==({} if replace else {'laptop':['16GB RAM']})
+        assert history['setup_exclusions']==({} if replace else {'laptop':['red']})
+        assert history['target_exclusions']==({} if replace else {'laptop':['blue']})
     finally:
         app.dependency_overrides.clear()
         async with sessions() as db:
@@ -309,4 +313,112 @@ async def test_target_scope_http_current_cards_and_two_turn_persistence(real_cac
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('scoped,width',[(False,'120cm'),(True,'120cm'),(True,'90cm')])
+async def test_setup_scoped_exclusions_http_persist_without_excluding_unrelated_chair(real_cache,scoped,width):
+    from httpx import AsyncClient,ASGITransport
+    from app.main import app
+    from app.db.session import get_async_session
+    from app.services.cache_service import get_cache_from_request
+    cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
+    try:
+        async with sessions() as db:
+            rows=[Product(sku=uuid4().hex,name=name,description='',category='office',price=20,inventory=5,currency='USD',attributes={'width':width} if name=='Office desk' else {}) for name in ['Office desk','Office chair']]
+            db.add_all(rows);await db.commit();ids=[p.id for p in rows]
+        async def retrieve(db,query,**kwargs):
+            result=await db.execute(select(Product).where(Product.id.in_(ids),Product.name.ilike('%'+query+'%')))
+            return result.scalars().all()
+        from sqlalchemy import select
+        svc=NeuralCoreService(SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=retrieve)),cache);svc.is_healthy=True;svc.configuration_error=False
+        plan_calls=0
+        async def infer(messages):
+            nonlocal plan_calls
+            prompt=messages[0]['content']
+            if 'primary cognitive routing' in prompt:return json.dumps({'intent':'SETUP_DISCOVERY','search_subject':'home office setup','brief':{'excluded_terms':['120cm'] if scoped else []}})
+            if 'Plan generic component' in prompt:
+                plan_calls+=1
+                return json.dumps({'components':['desk','chair'],'component_exclusions':{'desk':['120cm']} if scoped and plan_calls==1 else {}})
+            if 'Review a generic setup' in prompt:return json.dumps({'appropriate':True,'no_invented_products':True})
+            data=json.loads(messages[1]['content'])
+            if 'catalog_evidence' in data:
+                assert data['request_evidence']['shopping_task']=='setup'
+                return json.dumps({'text':'These cards are possible components. Compatibility and a complete setup have not been verified.','product_ids':[],'claims':[]})
+            return json.dumps({'supported':True,'all_product_mentions_declared':True,'no_unsupported_commercial_claims':True,'fulfills_discovery_task':True})
+        svc._execute_llm_inference=infer
+        async def get_db():
+            async with sessions() as db:yield db
+        app.dependency_overrides[get_async_session]=get_db
+        app.dependency_overrides[get_neural_core_service]=lambda:svc
+        app.dependency_overrides[get_cache_from_request]=lambda:cache
+        try:
+            async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
+                response=await client.post('/api/v1/ai-support/chat',json={'message':'build a home office setup with desk not120cm' if scoped else 'build a home office setup','session_id':'setup-real-test'})
+                if scoped:
+                    response=await client.post('/api/v1/ai-support/chat',json={'message':'more home office setup options','session_id':'setup-real-test'})
+            assert response.status_code==200,response.text
+            assert [p['id'] for p in response.json()['products']]==(ids[1:] if scoped and width=='120cm' else ids)
+            assert 'Compatibility' in response.json()['text']
+        finally:app.dependency_overrides.clear()
+    finally:
+        async with sessions() as db:
+            await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('scoped,width',[(False,'120cm'),(True,'120cm'),(True,'90cm'),(True,'reject')])
+async def test_target_exclusion_http_current_cards_and_two_turn_persistence(real_cache,scoped,width):
+    from httpx import AsyncClient,ASGITransport
+    from app.main import app
+    from app.db.session import get_async_session
+    from app.services.cache_service import get_cache_from_request
+    cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
+    try:
+        async with sessions() as db:
+            rows=[Product(sku=uuid4().hex,name=name,description='',category='office',price=20,inventory=5,currency='USD',attributes={'width':width} if name=='Office desk' else {}) for name in ['Office desk','Office chair']]
+            db.add_all(rows);await db.commit();ids=[p.id for p in rows]
+        async def retrieve(db,query,**kwargs):
+            result=await db.execute(select(Product).where(Product.id.in_(ids),Product.name.ilike('%'+query+'%')))
+            return result.scalars().all()
+        from sqlalchemy import select
+        svc=NeuralCoreService(SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=retrieve)),cache);svc.is_healthy=True;svc.configuration_error=False
+        plan_calls=0
+        async def infer(messages):
+            nonlocal plan_calls
+            prompt=messages[0]['content']
+            if 'primary cognitive routing' in prompt:return json.dumps({'intent':'PRODUCT_SEARCH','search_subject':'home office setup','targets':[{'product_name':'desk'},{'product_name':'chair'}],'brief':{'excluded_terms':['120cm'] if scoped else []}})
+            if 'Assign existing hard features' in prompt:
+                plan_calls+=1
+                return json.dumps({'assignments':{'desk':['120cm']} if scoped and plan_calls==1 else {}})
+            if 'Review exact target/feature scope' in prompt:return json.dumps({'explicit_scope':width!='reject'})
+            data=json.loads(messages[1]['content'])
+            if 'catalog_evidence' in data:
+                assert data['request_evidence']['shopping_task']=='search'
+                return json.dumps({'text':'These cards are possible components. Compatibility and a complete setup have not been verified.','product_ids':[],'claims':[]})
+            return json.dumps({'supported':True,'all_product_mentions_declared':True,'no_unsupported_commercial_claims':True,'fulfills_discovery_task':True})
+        svc._execute_llm_inference=infer
+        async def get_db():
+            async with sessions() as db:yield db
+        app.dependency_overrides[get_async_session]=get_db
+        app.dependency_overrides[get_neural_core_service]=lambda:svc
+        app.dependency_overrides[get_cache_from_request]=lambda:cache
+        try:
+            async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
+                response=await client.post('/api/v1/ai-support/chat',json={'message':'home office setup with desk not120cm and chair' if scoped else 'home office setup with desk and chair','session_id':'setup-real-test'})
+                if scoped:
+                    response=await client.post('/api/v1/ai-support/chat',json={'message':'more home office setup desk and chair options','session_id':'setup-real-test'})
+            assert response.status_code==200,response.text
+            if width=='reject':
+                assert response.json()['response_kind']=='clarification' and response.json()['products']==[]
+            else:
+                assert [p['id'] for p in response.json()['products']]==(ids[1:] if scoped and width=='120cm' else ids)
+                assert 'Compatibility' in response.json()['text']
+        finally:app.dependency_overrides.clear()
+    finally:
+        async with sessions() as db:
+            await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()
+
 

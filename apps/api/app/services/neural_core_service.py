@@ -65,7 +65,9 @@ class SessionMemory(BaseModel):
     user_name: str = Field(max_length=256)
     shopping_brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
     setup_requirements: dict[ScopedComponent,ScopedFeatures] = Field(default_factory=dict,max_length=3)
+    setup_exclusions: dict[ScopedComponent,ScopedFeatures] = Field(default_factory=dict,max_length=3)
     target_requirements: dict[Annotated[str,Field(min_length=1,max_length=256)],ScopedFeatures] = Field(default_factory=dict,max_length=3)
+    target_exclusions: dict[Annotated[str,Field(min_length=1,max_length=256)],ScopedFeatures] = Field(default_factory=dict,max_length=3)
     history: List[ChatMessage] = Field(default_factory=list, max_length=10)
     
     def append_turn(self, user_msg: str, ai_msg: str, max_turns: int = 5) -> None:
@@ -86,6 +88,7 @@ class SessionMemory(BaseModel):
 class SearchTarget(BaseModel):
     product_name: str = Field(min_length=1,max_length=256)
     required_features: list[str] = Field(default_factory=list,max_length=8)
+    excluded_terms: list[str] = Field(default_factory=list,max_length=8)
 
 
 class RouterDecision(BaseModel):
@@ -423,18 +426,23 @@ class NeuralCoreService:
         from app.services.target_constraint_scope import assign_target_scope
         try:
             names=[target.product_name for target in decision.targets]
-            prior=memory.target_requirements
-            if set(prior)-set(names):raise ValueError('Prior target scope needs explicit reset')
-            assignments=(await assign_target_scope(self._execute_llm_inference,message,names,brief.required_features,_customer_turn_context.get())) if brief.required_features and len(names)>1 else {}
-            combined={key:list(values) for key,values in prior.items()}
-            for key,values in assignments.items():combined[key]=list(dict.fromkeys([*combined.get(key,[]),*values]))
-            if len(combined)>3 or any(len(v)>8 for v in combined.values()):raise ValueError('Too many target constraints')
             scoped=brief.model_copy(deep=True)
-            assigned={f for values in combined.values() for f in values}
-            scoped.required_features=[f for f in brief.required_features if f not in assigned]
-            for target in decision.targets:target.required_features=combined.get(target.product_name,[])
+            retained={}
+            for field,state_field in (('required_features','target_requirements'),('excluded_terms','target_exclusions')):
+                prior=getattr(memory,state_field)
+                if set(prior)-set(names):raise ValueError('Prior target scope needs explicit reset')
+                values=getattr(brief,field)
+                assignments=(await assign_target_scope(self._execute_llm_inference,message,names,values,_customer_turn_context.get(),kind=field)) if values and len(names)>1 else {}
+                combined={key:list(items) for key,items in prior.items()}
+                for key,items in assignments.items():combined[key]=list(dict.fromkeys([*combined.get(key,[]),*items]))
+                if len(combined)>3 or any(len(items)>8 for items in combined.values()):raise ValueError('Too many target constraints')
+                assigned={f for items in combined.values() for f in items}
+                setattr(scoped,field,[f for f in values if f not in assigned])
+                for target in decision.targets:setattr(target,field,combined.get(target.product_name,[]))
+                retained[state_field]=combined
             response=await self._handle_staged_product_search(db,decision,scoped,message)
-            if response.response_kind!='system_notice':memory.target_requirements=combined
+            if response.response_kind!='system_notice':
+                for field,values in retained.items():setattr(memory,field,values)
             return response
         except Exception as exc:
             _log_inference_failure('neural_core.target_scope.withheld',exc)
@@ -444,19 +452,21 @@ class NeuralCoreService:
         from app.services.discovery_planner import plan_setup
         try:
             plan=await plan_setup(self._execute_llm_inference,message,customer_context=_customer_turn_context.get(),saved_preferences=_request_preferences.get(),detailed=True)
-            prior=memory.setup_requirements if memory is not None else {}
-            if set(prior)-set(plan.components):raise ValueError('Prior component scope needs explicit reset or same component identity')
-            combined={k:list(v) for k,v in prior.items()}
-            for component,features in plan.component_requirements.items():
-                combined[component]=list(dict.fromkeys([*combined.get(component,[]),*features]))
-            if len(combined)>3 or any(len(v)>8 for v in combined.values()):raise ValueError('Scoped constraint capacity reached')
-            assigned={f for features in combined.values() for f in features}
             shared=brief.model_copy(deep=True)
-            shared.required_features=[f for f in brief.required_features if f not in assigned]
-            decision=RouterDecision(intent='PRODUCT_SEARCH',shopping_task='setup',
-                targets=[SearchTarget(product_name=c,required_features=combined.get(c,[])) for c in plan.components])
+            retained={}
+            for field,plan_field,state_field in (('required_features','component_requirements','setup_requirements'),('excluded_terms','component_exclusions','setup_exclusions')):
+                prior=getattr(memory,state_field) if memory is not None else {}
+                if set(prior)-set(plan.components):raise ValueError('Prior component scope needs explicit reset or same component identity')
+                combined={k:list(v) for k,v in prior.items()}
+                for component,features in getattr(plan,plan_field).items():combined[component]=list(dict.fromkeys([*combined.get(component,[]),*features]))
+                if len(combined)>3 or any(len(v)>8 for v in combined.values()):raise ValueError('Scoped constraint capacity reached')
+                assigned={f for features in combined.values() for f in features}
+                setattr(shared,field,[f for f in getattr(brief,field) if f not in assigned])
+                retained[state_field]=combined
+            decision=RouterDecision(intent='PRODUCT_SEARCH',shopping_task='setup',targets=[SearchTarget(product_name=c,required_features=retained['setup_requirements'].get(c,[]),excluded_terms=retained['setup_exclusions'].get(c,[])) for c in plan.components])
             response=await self._handle_staged_product_search(db,decision,shared,message)
-            if memory is not None and response.response_kind!='system_notice':memory.setup_requirements=combined
+            if memory is not None and response.response_kind!='system_notice':
+                for field,values in retained.items():setattr(memory,field,values)
             return response
         except Exception as exc:
             _log_inference_failure('neural_core.setup.withheld',exc)
@@ -488,12 +498,13 @@ class NeuralCoreService:
                         rank=CandidateRanker(self.ai_engine).rerank,broaden=_build_broad_query,timeout=5)
                     target_brief=brief.model_copy(deep=True)
                     target_brief.required_features=list(dict.fromkeys([*brief.required_features,*target.required_features]))
-                    if len(target_brief.required_features)>8:raise ValueError('Too many target constraints')
+                    target_brief.excluded_terms=list(dict.fromkeys([*brief.excluded_terms,*target.excluded_terms]))
+                    if len(target_brief.required_features)>8 or len(target_brief.excluded_terms)>8:raise ValueError('Too many target constraints')
                     filtered=[p for p in result.candidates if (card:=catalog_result(p)) is not None and target_brief.permits(card)]
                     for product in filtered:scoped_checks.setdefault(product.id,[]).append(target_brief)
                     groups.append(filtered)
                     trace.append({'target':target.product_name,'tier':result.tier,
-                        'retrieved_ids':[p.id for p in filtered],'required_features':target.required_features})
+                        'retrieved_ids':[p.id for p in filtered],'required_features':target.required_features,'excluded_terms':target.excluded_terms})
                 # Round robin keeps every target represented under5-card cap.
                 candidates=[];seen=set()
                 for pos in range(5):
@@ -795,6 +806,8 @@ class NeuralCoreService:
         if decision.constraint_replacement_signal:
             memory.setup_requirements={}
             memory.target_requirements={}
+            memory.setup_exclusions={}
+            memory.target_exclusions={}
 
         # A literal category is enough to browse. Optional material/style are
         # not reasons to trap a completed brief in repeated gift clarification.
@@ -825,7 +838,7 @@ class NeuralCoreService:
                     # stock-only advice when the router omitted its target list.
                     decision.targets=[SearchTarget(product_name=query)]
                 if decision.targets:
-                    if decision.shopping_task=='search' and (memory.target_requirements or (len(decision.targets)>1 and memory.shopping_brief.required_features)):
+                    if decision.shopping_task=='search' and (memory.target_requirements or memory.target_exclusions or (len(decision.targets)>1 and (memory.shopping_brief.required_features or memory.shopping_brief.excluded_terms))):
                         response=await self._handle_scoped_target_search(db,decision,memory.shopping_brief,message,memory)
                     else:
                         response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message)
