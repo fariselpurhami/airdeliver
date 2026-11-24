@@ -1686,9 +1686,10 @@ class RedisProductFreshnessRepository(IProductFreshnessRepository):
     L8/L9 Pattern: Dedicated state repository for cross-session product discovery.
     Guarantees isolation of freshness logic from the core NLU service.
     """
-    def __init__(self, cache: IAsyncCacheClient, key_prefix: str = "airdeliver:freshness:") -> None:
+    def __init__(self, cache: IAsyncCacheClient, key_prefix: str = "airdeliver:freshness:", *, clock=time.time) -> None:
         self._cache = cache
         self._prefix = key_prefix
+        self._clock = clock
 
     def _build_key(self, user_id: int) -> str:
         return f"{self._prefix}{user_id}"
@@ -1702,6 +1703,16 @@ class RedisProductFreshnessRepository(IProductFreshnessRepository):
             StructuredLog.warning("freshness_cache_read_failed", user_id=user_id, error=type(exc).__name__)
             return set() # Graceful degradation to empty set
 
+    async def get_recent_product_ids(self, user_id: int) -> Set[int]:
+        from app.core.config import get_core_settings
+        client = getattr(self._cache, "client", self._cache)
+        try:
+            members = await client.zrangebyscore(self._build_key(user_id)+":shown_at", self._clock()-get_core_settings().OPENING_PRODUCT_COOLDOWN_SECONDS, "+inf")
+            return {int(value) for value in members}
+        except Exception as exc:
+            StructuredLog.warning("freshness_recency_read_failed",user_id=user_id,error=type(exc).__name__)
+            return set()
+
     async def mark_products_as_seen(self, user_id: int, product_ids: Set[int], ttl_seconds: int = 43200) -> None:
         if not product_ids:
             return
@@ -1711,6 +1722,7 @@ class RedisProductFreshnessRepository(IProductFreshnessRepository):
             if hasattr(client, "pipeline"):
                 pipeline = client.pipeline()
                 pipeline.sadd(key, *product_ids)
+                pipeline.zadd(key+":shown_at", {str(pid):self._clock() for pid in product_ids})
                 pipeline.expire(key, ttl_seconds)
                 await pipeline.execute()
             else:
@@ -3065,7 +3077,8 @@ class AINLUService:
         # 1. State Hydration
         global_seen_ids: Set[int] = set()
         try:
-            historical_seen = await self._matrix_stage(user_id, "freshness", lambda: self.freshness_repo.get_seen_product_ids(user_id))
+            recency_reader = getattr(self.freshness_repo, "get_recent_product_ids", None)
+            historical_seen = await self._matrix_stage(user_id, "freshness", lambda: recency_reader(user_id) if callable(recency_reader) else self.freshness_repo.get_seen_product_ids(user_id))
             global_seen_ids.update(historical_seen)
         except Exception as exc:
             StructuredLog.warning("freshness_hydration_failed", user_id=user_id, error=str(exc))
@@ -3096,7 +3109,7 @@ class AINLUService:
             from app.services.shopping_discovery import catalog_result
             eligible = [p for p in pool if (card := catalog_result(p)) is not None
                         and card.evidence_kind == 'local_catalog' and card.stock_status == 'local_in_stock'
-                        and card.price is not None]
+                        and card.price is not None and p.id not in global_seen_ids]
             return self._enforce_diversity(
                 pool=eligible,
                 limit=min(5, self.config.max_items_per_row),
@@ -3394,7 +3407,7 @@ class AINLUService:
 
     async def _eligible_opening_pool(self, seen_ids, *, order_by, min_rating=None):
         """Apply eligibility before LIMIT, not after an ineligible top pool."""
-        from sqlalchemy import func
+        from sqlalchemy import func, String
         statement = select(Product).where(
             Product.is_active.is_(True), Product.inventory > 0,
             Product.price >= 0, Product.currency.op("~")("^[A-Z]{3}$"),
@@ -3405,7 +3418,13 @@ class AINLUService:
             statement = statement.where(Product.id.notin_(seen_ids))
         if min_rating is not None:
             statement = statement.where(Product.rating >= min_rating)
-        return (await self.db.execute(statement.order_by(*order_by).limit(self.config.trending_pool_limit))).scalars().all()
+        # Rotate within a bounded candidate pool instead of repeating a fixed
+        # top100 forever. Ranking still supplies half the pool; the other half
+        # explores eligible catalog rows using a fresh server-side nonce.
+        ranked = list((await self.db.execute(statement.order_by(*order_by).limit(max(1,self.config.trending_pool_limit//2)))).scalars().all())
+        nonce = uuid.uuid4().hex
+        rotating = list((await self.db.execute(statement.order_by(func.md5(Product.id.cast(String)+nonce)).limit(max(1,self.config.trending_pool_limit//2)))).scalars().all())
+        return list({p.id:p for p in ranked+rotating}.values())
 
     async def _fetch_bestsellers(self, seen_ids):
         return await self._eligible_opening_pool(seen_ids,order_by=[col(Product.rating).desc()])

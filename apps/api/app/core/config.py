@@ -47,6 +47,7 @@ class CoreSettings(BaseAppConfig):
     APP_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     MANUAL_FULFILLMENT_ENABLED: bool = False
     CUSTOMER_MEMORY_ENABLED: bool = False
+    OPENING_PRODUCT_COOLDOWN_SECONDS: int = Field(default=86400, ge=60, le=604800)
     API_V1_STR: str = "/api/v1"
     API_BASE_URL: AnyHttpUrl = Field(..., alias="API_BASE_URL")
     

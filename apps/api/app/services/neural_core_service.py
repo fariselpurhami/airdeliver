@@ -104,7 +104,7 @@ Analyze the user's message and the conversation history.
 You MUST output a valid JSON object strictly matching this schema:
 {
     "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE" | "GIFT_DISCOVERY" | "SETUP_DISCOVERY",
-    "brief": {"version": 1, "recipient": null, "occasion": null, "category": null, "budget": null, "budget_max": null, "budget_currency": null, "preference": null},
+    "brief": {"version": 1, "recipient": null, "occasion": null, "category": null, "budget": null, "budget_max": null, "budget_currency": null, "preference": null, "excluded_terms": [], "required_features": []},
     "requested_name": "Literal customer product/brand/model or null for broad browsing",
     "alternative_query": "Generic functional category such as smartwatch for Apple Watch, or null",
     "search_subject": "Literal customer category, interest or exact item, or null for an unspecified gift",
@@ -121,6 +121,7 @@ ROUTING RULES:
 - Concrete product questions: set PRODUCT_SEARCH and provide1..3 targets, one separate literal customer product/category span per target. Never concatenate two products into one retrieval query. Preserve comparison/specification/consultation task. Do not invent a target from assistant text or recipient gender. If more than3 targets are essential, ask to split the request. No web/general model knowledge is product evidence.
 - GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Ask about budget and interests/occasion before choosing. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
 - Alternatives: preserve the original sales intent. For a concrete unavailable item, retrieve genuine same-purpose alternatives and explain the honest tradeoff, never pretend the original is available. alternative_query is a short generic functional category, not an invented brand/model. For comparisons/specs preserve each named product. Fresh sourced research may answer independently of local stock; never imply merchant availability from web evidence.
+- Hard constraints: excluded_terms and required_features are exact literal customer spans only, never invented. Preserve explicit RAM/storage, material and feature requirements. Do not put generic preferences in required_features. Missing evidence cannot satisfy a hard requirement.
 - Budget fields: budget is an exact customer source span; budget_max is its explicit maximum amount as a decimal string, budget_currency is an explicit ISO code or USD when the source uses $, dollar, dollars or US dollars. Never convert currencies or infer a cap from vague cheap/affordable. If amount/currency is missing, clarify it.
 - PRODUCT_SEARCH: query must be a literal span of the current customer message. Never translate an unspecified gift request into a brand or item. Products, prices and availability are rendered only from current catalog records with evidence labels.
 - CART_ADD / CART_REMOVE: explicit request to add a named product or remove its whole line from cart. Extract product name into query and quantity1..99. Do not infer product IDs. Vague references need clarification, not an invented name. This produces a review button only, never execution.
@@ -414,6 +415,14 @@ class NeuralCoreService:
                         if pos<len(group) and group[pos].id not in seen:
                             candidates.append(group[pos]);seen.add(group[pos].id)
                 candidates=candidates[:5]
+                if decision.shopping_task=='setup' and brief.budget_max is not None:
+                    # Collection budget is one cap, never one cap per item.
+                    from decimal import Decimal
+                    selected=[];remaining=Decimal(brief.budget_max)
+                    for candidate in candidates:
+                        if candidate.currency==brief.budget_currency and Decimal(str(candidate.price))<=remaining:
+                            selected.append(candidate);remaining-=Decimal(str(candidate.price))
+                    candidates=selected
                 response=await self._catalog_response(db,candidates,'PRODUCT_SEARCH',
                     brief=brief,customer_message=message,
                     decision=decision if len(decision.targets)==1 else None,
@@ -669,7 +678,7 @@ class NeuralCoreService:
         merged=memory.shopping_brief.model_dump()
         if incoming.budget is not None and incoming.budget!=memory.shopping_brief.budget:
             merged.update(budget_max=None,budget_currency=None)
-        merged.update({k:v for k,v in incoming.model_dump().items() if v is not None})
+        merged.update({k:v for k,v in incoming.model_dump().items() if v is not None and (k not in {'excluded_terms','required_features'} or v)})
         memory.shopping_brief=ShoppingBrief.model_validate(merged)
 
         # A literal category is enough to browse. Optional material/style are

@@ -65,3 +65,29 @@ async def test_obsolete_demo_preview_environment_cannot_publish_synthetic_pool(m
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_pool_nonce_varies_selection_beyond_ranked_top_while_preserving_filters(monkeypatch):
+    from types import SimpleNamespace
+    import app.services.ai_nlu_service as module
+    engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
+    try:
+        async with sessions() as db:
+            rows=[Product(sku=uuid4().hex,name='Rotation '+str(i),description='',price=10,inventory=3,rating=4) for i in range(140)]
+            db.add_all(rows);await db.commit();ids=[r.id for r in rows]
+            from sqlalchemy import select
+            excluded=set((await db.execute(select(Product.id))).scalars())-set(ids)
+        async with sessions() as db:
+            svc=object.__new__(AINLUService);svc.db=db;svc.config=MatrixConfig()
+            monkeypatch.setattr(module,'uuid',SimpleNamespace(uuid4=lambda:SimpleNamespace(hex='rotation-one')))
+            first={p.id for p in await svc._fetch_bestsellers(excluded)}
+            monkeypatch.setattr(module,'uuid',SimpleNamespace(uuid4=lambda:SimpleNamespace(hex='rotation-two')))
+            second={p.id for p in await svc._fetch_bestsellers(excluded)}
+            assert first!=second and first<=set(ids) and second<=set(ids)
+            assert len(first)<=100 and len(second)<=100
+            assert set(ids[100:]) & (first|second)
+    finally:
+        async with sessions() as db:
+            await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()
