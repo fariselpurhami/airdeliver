@@ -1738,7 +1738,12 @@ class RedisProductFreshnessRepository(IProductFreshnessRepository):
             if hasattr(client, "pipeline"):
                 pipeline = client.pipeline()
                 pipeline.sadd(key, *product_ids)
-                pipeline.zadd(key+":shown_at", {str(pid):self._clock() for pid in product_ids})
+                now=self._clock()
+                from app.core.config import get_core_settings
+                retention=max(ttl_seconds,get_core_settings().OPENING_PRODUCT_COOLDOWN_SECONDS)
+                pipeline.zadd(key+":shown_at", {str(pid):now for pid in product_ids})
+                pipeline.zremrangebyscore(key+":shown_at",'-inf',now-retention)
+                pipeline.expire(key+":shown_at",retention)
                 pipeline.expire(key, ttl_seconds)
                 await pipeline.execute()
             else:
@@ -2512,7 +2517,7 @@ class AINLUService:
             "reason": decision.reason,
         }
 
-        await self._send_to_ui(request.user_id, payload, ctx)
+        await self._send_to_ui(request.user_id, payload, ctx, strict=True)
 
         await self._save_conversation_turn(request.user_id, request.message_text, decision.response_text)
         self.tasks.create_task(self._mark_products_as_seen(request.user_id, list(decision.products)))
@@ -5193,6 +5198,24 @@ Execute your response adhering strictly to this visual and structural blueprint:
             )
 
     async def _mark_products_as_seen(self, user_id: int, products: Sequence[ProductLike]) -> None:
+        """Visible search cards share opening recency; not preference evidence."""
+        if type(user_id) is not int or user_id<=0:return
+        ids={ProductAccess.get(product,'id',None) for product in products[:20]}
+        ids={value for value in ids if type(value) is int and 0<value<=2147483647}
+        if not ids:return
+        exposure=getattr(self.behavior_engine,'record_product_exposure',None)
+        if callable(exposure):
+            try:await exposure(user_id,ids)
+            except asyncio.CancelledError:raise
+            except Exception as exc:
+                StructuredLog.warning('product_exposure_unavailable',error_type=type(exc).__name__)
+                await self.freshness_repo.mark_products_as_seen(user_id,ids,self.config.seen_cache_ttl_sec)
+        else:await self.freshness_repo.mark_products_as_seen(user_id,ids,self.config.seen_cache_ttl_sec)
+        # Preserve existing legacy set readers while canonical freshness is used
+        # by opening. These IDs never feed a financial/personality inference.
+        await self._mark_products_as_seen_legacy_set(user_id,[{'id':identity} for identity in ids])
+
+    async def _mark_products_as_seen_legacy_set(self, user_id: int, products: Sequence[ProductLike]) -> None:
         if not products:
             return
         try:

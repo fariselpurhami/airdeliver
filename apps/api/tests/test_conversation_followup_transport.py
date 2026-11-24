@@ -54,6 +54,7 @@ async def test_two_turn_product_followup_uses_server_history_over_real_transport
     emitted=[]
     async def publish(channel,message): emitted.append((channel,json.loads(message)))
     cache.publish=publish
+    cache.publish_required=publish
     try:
         # No frontend-supplied history. Both turns use the same authenticated id.
         await service.process_message({'user_id':17,'message':'Tell me about Atlas Headphones'})

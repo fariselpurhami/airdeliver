@@ -513,6 +513,18 @@ class BehaviorEngine:
         await self.cache.client.lpush(key, str(price))
         await self.cache.client.ltrim(key, 0, 19)
 
+    async def record_product_exposure(self,user_id:int,product_ids) -> None:
+        """Observed display only. Never embeds text or infers shopping traits."""
+        if type(user_id) is not int or user_id<=0:return
+        ids={pid for pid in list(product_ids)[:20] if type(pid) is int and 0<pid<=2147483647}
+        if not ids:return
+        from app.services.ai_nlu_service import RedisProductFreshnessRepository
+        await RedisProductFreshnessRepository(self.cache).mark_products_as_seen(user_id,ids,86400)
+        pipe=self.cache.client.pipeline()
+        pipe.sadd(self._key_seen_24h(user_id),*[str(pid) for pid in ids])
+        pipe.expire(self._key_seen_24h(user_id),86400)
+        await pipe.execute()
+
     async def _update_seen_history(self, user_id: int, item_id: int) -> None:
         key = self._key_seen_24h(user_id)
         await self.cache.sadd(key, str(item_id))
