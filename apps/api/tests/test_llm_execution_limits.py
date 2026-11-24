@@ -119,3 +119,30 @@ async def test_invalid_provider_request_is_not_retried():
     with pytest.raises(BadRequestError):
         await svc._chat_completion(messages=[{"role": "user", "content": "q"}], model="test")
     assert create.await_count == 1
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('header,value,expected',[('retry-after','0.01',True),('retry-after','600',False),('retry-after-ms','10',True)])
+async def test_provider429_honors_retry_after_within_existing_deadline(header,value,expected):
+    import httpx
+    from groq import RateLimitError
+    svc=service();response=httpx.Response(429,headers={header:value},request=httpx.Request('POST','https://provider.invalid'))
+    create=AsyncMock(side_effect=[RateLimitError('quota',response=response,body={}),completion('ok')])
+    svc._get_client=AsyncMock(return_value=provider(create))
+    started=asyncio.get_running_loop().time()
+    if expected:
+        await svc._chat_completion(messages=[{'role':'user','content':'q'}],model='test',timeout_seconds=.5)
+        assert create.await_count==2 and asyncio.get_running_loop().time()-started>=.009
+    else:
+        with pytest.raises(RateLimitError):await svc._chat_completion(messages=[{'role':'user','content':'q'}],model='test',timeout_seconds=.5)
+        assert create.await_count==1
+
+
+def test_retry_after_http_date_and_invalid_values():
+    from app.services.free_llm_service import _provider_retry_delay
+    from datetime import datetime,timedelta,timezone
+    from email.utils import format_datetime
+    exc=SimpleNamespace(response=SimpleNamespace(headers={'retry-after':format_datetime(datetime.now(timezone.utc)+timedelta(seconds=10))}))
+    assert 8<=_provider_retry_delay(exc,0)<=10
+    for value in ['nan','-1','nonsense']:
+        exc.response.headers={'retry-after':value}
+        assert _provider_retry_delay(exc,0)==.35

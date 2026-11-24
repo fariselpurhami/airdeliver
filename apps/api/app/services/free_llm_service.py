@@ -12,6 +12,7 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from hashlib import sha256
 from typing import Any, Awaitable, Callable, Dict, Iterable, List, Literal, Mapping, Optional, Protocol, Sequence, Tuple, Type, TypeVar, Union
 
@@ -44,6 +45,25 @@ class StructuredOutputError(FreeLLMServiceError):
 
 class TimeoutBudgetExceeded(FreeLLMServiceError):
     pass
+
+
+def _provider_retry_delay(exc,attempt):
+    headers=getattr(getattr(exc,'response',None),'headers',{})
+    raw=headers.get('retry-after')
+    if raw is not None:
+        try:
+            delay=float(raw)
+        except (TypeError,ValueError):
+            try:delay=(parsedate_to_datetime(raw)-datetime.now(timezone.utc)).total_seconds()
+            except (TypeError,ValueError,OverflowError):delay=None
+        if delay is not None and math.isfinite(delay) and delay>=0:return delay
+    raw_ms=headers.get('retry-after-ms')
+    if raw_ms is not None:
+        try:
+            delay=float(raw_ms)/1000
+            if math.isfinite(delay) and delay>=0:return delay
+        except (TypeError,ValueError):pass
+    return .35*(2**attempt)
 
 
 class SearchStrategy(BaseModel):
@@ -500,6 +520,8 @@ class FreeLLMService:
             async with self._execution_semaphore:
                 return await client.chat.completions.create(**kwargs_to_send)
 
+        deadline=asyncio.get_running_loop().time()+timeout_budget
+
         async def _invoke_with_retries() -> Any:
             # One outer deadline covers queueing, every attempt and backoff.
             # Do not hold the admission slot while waiting to retry.
@@ -516,7 +538,12 @@ class FreeLLMService:
                         "model": model, "attempt": attempt + 1,
                         "error_type": type(exc).__name__, "correlation_id": correlation_id,
                     })
-                    await asyncio.sleep(0.35 * (2 ** attempt))
+                    delay=_provider_retry_delay(exc,attempt)
+                    if isinstance(exc,APIStatusError) and delay>=deadline-asyncio.get_running_loop().time():
+                        # Do not retry earlier than requested or extend the
+                        # caller deadline for a long quota reset.
+                        raise
+                    await asyncio.sleep(delay)
             raise ProviderUnavailableError(f"LLM execution failed for model={model}")
 
         try:

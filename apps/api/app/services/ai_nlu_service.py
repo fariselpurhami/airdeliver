@@ -3054,7 +3054,7 @@ class AINLUService:
     async def _handle_initial_suggestions_bounded(self, user_id: int) -> bool:
         """
         L8 Architecture: Hybrid concurrency model.
-        Sequential Data Access (protecting AsyncSession invariant) + Concurrent Heavy I/O (LLM generation).
+        Sequential data access and writer/reviewer chains, bounded by one matrix deadline.
         """
         StructuredLog.info("matrix_generation_started", user_id=user_id)
         spending_tier = self.config.default_spending_tier
@@ -3150,13 +3150,16 @@ class AINLUService:
         reason_deals = _build_contextual_fallback_reason("Deals", deals_products)
 
         # 🚀 [EXECUTION]: Concurrent UI Copy Generation with Fallbacks mapped directly to Live Inventory
-        copy_tasks = await asyncio.gather(
-            _safe_generate_copy("Personalized", personal_products, self._get_time_aware_greeting(spending_tier), reason_personal),
-            _safe_generate_copy("Bestsellers", bestsellers_products, self.config.copy_bestsellers, reason_bestsellers),
-            _safe_generate_copy("Trending", trending_products, self.config.copy_trending, reason_trending),
-            _safe_generate_copy("Deals", deals_products, self.config.copy_deals, reason_deals),
-            return_exceptions=True
-        )
+        # One writer/reviewer chain at a time. Four concurrent chains caused
+        # rate-limit bursts; overall matrix deadline still bounds the work.
+        copy_tasks=[]
+        for args in (
+            ("Personalized", personal_products, self._get_time_aware_greeting(spending_tier), reason_personal),
+            ("Bestsellers", bestsellers_products, self.config.copy_bestsellers, reason_bestsellers),
+            ("Trending", trending_products, self.config.copy_trending, reason_trending),
+            ("Deals", deals_products, self.config.copy_deals, reason_deals),
+        ):
+            copy_tasks.append(await _safe_generate_copy(*args))
 
         # 6. Presentation Stream
         streamed_any = False

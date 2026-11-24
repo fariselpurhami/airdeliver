@@ -91,3 +91,34 @@ async def test_opening_strict_publication_propagates_real_redis_outage(real_cach
     process.terminate();await asyncio.to_thread(process.wait,3)
     with pytest.raises(Exception):
         await service._send_to_ui(3,{"type":"info","content":"test"},strict=True)
+
+@pytest.mark.asyncio
+async def test_four_opening_copy_chains_do_not_burst_concurrently(real_cache):
+    cache,_=real_cache
+    engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False)
+    ids=[];active=peak=0
+    try:
+        async with sessions() as db:
+            rows=[Product(sku=uuid4().hex,name=f'Eligible catalog item {i}',description='',category='accessories',price=20,inventory=5,currency='USD') for i in range(4)]
+            db.add_all(rows);await db.commit();ids=[p.id for p in rows]
+        async with sessions() as db:
+            svc=AINLUService(db,SimpleNamespace(),SimpleNamespace(),cache,SimpleNamespace())
+            svc.config=MatrixConfig(stream_delay_sec=0)
+            svc.freshness_repo=SimpleNamespace(get_seen_product_ids=AsyncMock(return_value=set()),mark_products_as_seen=AsyncMock())
+            for name,row in zip(['personal','bestsellers','trending','deals'],rows):setattr(svc,'_fetch_'+name,AsyncMock(return_value=[row]))
+            async def generate(*args):
+                nonlocal active,peak
+                active+=1;peak=max(peak,active)
+                try:
+                    await asyncio.sleep(.01)
+                    return 'Model introduction','Model Insight'
+                finally:active-=1
+            svc._generate_dynamic_row_copy=generate
+            svc._stream_row=AsyncMock()
+            await svc._handle_initial_suggestions(3)
+            await asyncio.gather(*tuple(svc.tasks._tasks))
+            assert peak==1 and svc._stream_row.await_count==4
+    finally:
+        async with sessions() as db:
+            await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()
