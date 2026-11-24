@@ -1,3 +1,4 @@
+# Historical retained-method contracts. New production bridge is tested separately.
 """Legacy read-only recovery/copy caller migration, not voice/cart mutation."""
 import asyncio,logging
 from types import SimpleNamespace
@@ -33,14 +34,14 @@ async def test_genius_strict_success_failure_blank_and_cancel(caplog):
     svc._get_user_dna=AsyncMock(return_value=SimpleNamespace(persona='EXPLORER',tier='MEDIUM'))
     product={'id':1,'name':'chair','price':20}
     llm._chat_completion=AsyncMock(return_value=completion('Listed chair facts'))
-    assert await svc._generate_genius_response(7,'chair',product)=='Listed chair facts'
+    assert await svc._generate_genius_response_legacy_unreviewed(7,'chair',product)=='Listed chair facts'
     for failure in [ConnectionError('private failure sentinel'),None]:
         llm._chat_completion=AsyncMock(side_effect=failure) if failure else AsyncMock(return_value=completion(''))
-        with caplog.at_level(logging.ERROR):result=await svc._generate_genius_response(7,'private customer sentinel',product)
+        with caplog.at_level(logging.ERROR):result=await svc._generate_genius_response_legacy_unreviewed(7,'private customer sentinel',product)
         assert 'could not assess' in result and 'Listed price: 20' in result
         assert 'private failure sentinel' not in caplog.text and 'private customer sentinel' not in caplog.text
     llm._chat_completion=AsyncMock(side_effect=asyncio.CancelledError())
-    with pytest.raises(asyncio.CancelledError):await svc._generate_genius_response(7,'chair',product)
+    with pytest.raises(asyncio.CancelledError):await svc._generate_genius_response_legacy_unreviewed(7,'chair',product)
 
 @pytest.mark.asyncio
 async def test_older_injected_recovery_adapter_remains_supported():

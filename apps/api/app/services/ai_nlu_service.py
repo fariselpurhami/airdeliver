@@ -1590,6 +1590,17 @@ class MemoryStore:
         except Exception as exc:
             StructuredLog.error("memory_append_failed", user_id=user_id, error=str(exc))
 
+    async def customer_context(self,user_id:int,limit:int=8) -> tuple[str,...]:
+        """Bounded owner-key customer originals only, never assistant claims."""
+        try:
+            raw=await self._cache.client.lrange(RedisKeys.chat_history(user_id),0,min(max(limit,1),20)-1)
+            events=[MemoryEvent.from_raw(item) for item in reversed(raw)]
+            return tuple(event.content[:1000] for event in events if event and event.role=='u')[-5:]
+        except asyncio.CancelledError:raise
+        except Exception as exc:
+            StructuredLog.warning('customer_context_unavailable',error_type=type(exc).__name__)
+            return ()
+
     async def get_context(self, user_id: int, limit: int) -> str:
         key = RedisKeys.chat_history(user_id)
         try:
@@ -4165,7 +4176,27 @@ class AINLUService:
                 "currency": raw.get("currency", "USD"), "is_active": active,
                 "inventory": stock if known_stock else None, "availability": state}
 
-    async def _synthesize_response(
+    async def _synthesize_response(self, *, request: IncomingMessage, ctx: RequestContext,
+        plan: SearchPlan, final_products: Sequence[ProductLike], ai_response_prefix: str,
+        intent_payload: CommerceIntentPayload = None) -> LlmDecision:
+        """Reviewed current evidence, never legacy unreviewed prose/prefix."""
+        from app.services.legacy_prose_boundary import reviewed_legacy_answer
+        try:
+            async with asyncio.timeout(40):
+                response=await reviewed_legacy_answer(self.db,self.search_engine,self.cache,
+                    self.llm_service,request.message_text,final_products,intent_payload,plan.is_specs_query,
+                    customer_context=await self.memory.customer_context(request.user_id))
+            products=tuple(card.model_dump(mode='json') for card in response.products)
+            return LlmDecision(response_text=response.text,products=products,
+                response_type=UiPayloadType.PRODUCT_CAROUSEL if products else UiPayloadType.TEXT,
+                reason='Current reviewed evidence; merchant availability and suitability are not guaranteed.')
+        except asyncio.CancelledError:raise
+        except Exception as exc:
+            StructuredLog.error('legacy_answer_withheld',error_type=type(exc).__name__)
+            return LlmDecision(response_text='I could not verify an answer or current catalog evidence. Please clarify the exact product and constraints.',
+                products=(),response_type=UiPayloadType.TEXT,reason='Evidence unavailable')
+
+    async def _synthesize_response_legacy_unreviewed(
         self,
         *,
         request: IncomingMessage,
@@ -4635,7 +4666,7 @@ SCOPE & BEHAVIOR
             else:
                 try:
                     chat_context = await self._get_conversation_context(request.user_id)
-                    ai_response_text = await self._generate_genius_response(
+                    ai_response_text = await self._generate_genius_response_legacy_unreviewed(
                         user_id=request.user_id,
                         user_query=request.message_text,
                         product=top_product,
@@ -5291,7 +5322,22 @@ Execute your response adhering strictly to this visual and structural blueprint:
 
         return f"TARGETED SPECS NOT EXPLICITLY FOUND. Full Context:\n{desc[:500]}"
 
-    async def _generate_genius_response(
+    async def _generate_genius_response(self,user_id:int,user_query:str,product:ProductLike,
+        chat_history:str="",intent_payload:CommerceIntentPayload=None) -> str:
+        """Legacy text contract, current evidence and reviewed prose only."""
+        from app.services.legacy_prose_boundary import reviewed_legacy_answer
+        try:
+            async with asyncio.timeout(40):
+                response=await reviewed_legacy_answer(self.db,self.search_engine,self.cache,
+                    self.llm_service,user_query,[product],intent_payload,
+                    customer_context=await self.memory.customer_context(user_id))
+            return response.text
+        except asyncio.CancelledError:raise
+        except Exception as exc:
+            StructuredLog.error('legacy_product_copy_withheld',error_type=type(exc).__name__)
+            return 'I could not verify the current product facts or assess how well this item fits your needs.'
+
+    async def _generate_genius_response_legacy_unreviewed(
         self,
         user_id: int,
         user_query: str,

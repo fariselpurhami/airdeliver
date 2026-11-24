@@ -1,3 +1,4 @@
+# Historical retained-method contracts. New production bridge is tested separately.
 """Legacy specialized response failures must not turn into product claims."""
 import asyncio,logging
 from types import SimpleNamespace
@@ -26,9 +27,9 @@ async def test_specialized_strict_boundaries(branch,failure,caplog):
     products=[] if branch=='recovery' else [{'id':7,'name':'Listed chair','description':'catalog details','price':'49.00','inventory':3}]
     kwargs=dict(request=request,ctx=RequestContext(17,'local',0),plan=plan,final_products=products,ai_response_prefix='',intent_payload=intent)
     if failure=='cancel':
-        with pytest.raises(asyncio.CancelledError):await svc._synthesize_response(**kwargs)
+        with pytest.raises(asyncio.CancelledError):await svc._synthesize_response_legacy_unreviewed(**kwargs)
         return
-    with caplog.at_level(logging.ERROR):answer=await svc._synthesize_response(**kwargs)
+    with caplog.at_level(logging.ERROR):answer=await svc._synthesize_response_legacy_unreviewed(**kwargs)
     if failure=='success':assert answer.response_text=='Grounded answer'
     else:
         assert 'could not verify' in answer.response_text

@@ -44,6 +44,8 @@ async def test_two_turn_product_followup_uses_server_history_over_real_transport
     sdk=AsyncGroq(api_key='local-test-only',base_url=f'http://127.0.0.1:{server.server_port}/v1',max_retries=0)
     llm=FreeLLMService();llm._get_client=AsyncMock(return_value=sdk)
     service=AINLUService(object(),SimpleNamespace(),object(),cache,llm)
+    # Historical original-method transport contract; reviewed production bridge tested separately.
+    service._synthesize_response=service._synthesize_response_legacy_unreviewed
     service._handle_text_commands=AsyncMock(return_value=False)
     service._safe_web_search=AsyncMock(return_value='')
     service._get_user_dna=AsyncMock(return_value=SimpleNamespace(persona='explorer',tier='MEDIUM'))

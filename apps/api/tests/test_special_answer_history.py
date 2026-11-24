@@ -1,3 +1,4 @@
+# Historical retained-method contracts. New production bridge is tested separately.
 """History plumbing through specialized response branches, no provider calls."""
 import json
 from types import SimpleNamespace
@@ -21,7 +22,7 @@ async def test_specialized_answer_receives_history_as_user_data_not_policy(branc
     request=service._parse_incoming_message({'user_id':17,'message':'What about that item?'})
     plan=SearchPlan('headphones','',SearchConstraints(clean_query='headphones'),branch=='specs',False)
     products=[] if branch=='recovery' else [{'id':7,'name':'Atlas Headphones','description':'Listed catalog details','price':'49.00','inventory':3}]
-    answer=await service._synthesize_response(request=request,ctx=RequestContext(17,'local',0),plan=plan,final_products=products,ai_response_prefix='',intent_payload=intent)
+    answer=await service._synthesize_response_legacy_unreviewed(request=request,ctx=RequestContext(17,'local',0),plan=plan,final_products=products,ai_response_prefix='',intent_payload=intent)
     assert answer.response_text=='Grounded answer'
     call=llm.generate_response.call_args.kwargs
     data=json.loads(call['prompt'])

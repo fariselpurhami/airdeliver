@@ -1,3 +1,4 @@
+# Historical retained-method contracts. New production bridge is tested separately.
 """Catalog presence is not a stock/dispatch claim."""
 import json
 from types import SimpleNamespace
@@ -26,7 +27,7 @@ async def test_specs_answer_has_exact_price_and_stock_metadata_not_forced_instoc
     svc._enrich_specs_context=AsyncMock(return_value='No battery specification')
     request=svc._parse_incoming_message({'user_id':17,'message':'What battery does it have?'})
     product={'id':7,'name':'headphones','price':'49.00','is_active':True,'inventory':0}
-    await svc._synthesize_response(request=request,ctx=RequestContext(17,'local',0),plan=SearchPlan('headphones','',SearchConstraints(clean_query='headphones'),True,False),final_products=[product],ai_response_prefix='',intent_payload=CommerceIntentPayload(category=IntentCategory.PRICE_INQUIRY,is_chitchat=False))
+    await svc._synthesize_response_legacy_unreviewed(request=request,ctx=RequestContext(17,'local',0),plan=SearchPlan('headphones','',SearchConstraints(clean_query='headphones'),True,False),final_products=[product],ai_response_prefix='',intent_payload=CommerceIntentPayload(category=IntentCategory.PRICE_INQUIRY,is_chitchat=False))
     prompt=json.loads(svc.llm_service.generate_response.call_args.kwargs['prompt'])
     assert prompt['catalog_availability'][0]['availability']=='unavailable'
     assert prompt['catalog_availability'][0]['price']=='49.00'

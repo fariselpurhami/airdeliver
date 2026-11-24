@@ -1,3 +1,4 @@
+# Historical retained-method contracts. New production bridge is tested separately.
 """Real PostgreSQL consent/dedupe/retention/self-service boundaries."""
 import os
 from datetime import datetime,timedelta,timezone
@@ -108,7 +109,7 @@ async def test_real_pg_preference_reaches_new_nlu_instance_answer_context(memory
         nlu._safe_web_search=AsyncMock(return_value='')
         context=await nlu._get_conversation_context(uid)
         assert 'color: blue' in context
-        await nlu._generate_genius_response(uid,'headphones',{'id':7,'name':'headphones','price':10},context)
+        await nlu._generate_genius_response_legacy_unreviewed(uid,'headphones',{'id':7,'name':'headphones','price':10},context)
         call=llm.generate_response.call_args.kwargs
         assert 'color: blue' in call['prompt']
         assert 'color: blue' not in call['system_role']

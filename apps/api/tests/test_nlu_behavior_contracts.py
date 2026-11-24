@@ -1,3 +1,4 @@
+# Historical retained-method contracts. New production bridge is tested separately.
 """Pin NLU's behavior/memory/public embedding contracts."""
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -47,7 +48,7 @@ async def test_genius_response_accepts_real_typed_cognitive_assessment():
     svc.search_engine.get_query_embedding = AsyncMock(return_value=[1., 0.])
     svc.meta_cognition = MetaCognitionService()
     svc.llm_service.generate_response = AsyncMock(return_value="Verified headphones information")
-    result = await svc._generate_genius_response(7, "headphones", {"id": 1, "name": "headphones", "price": 20})
+    result = await svc._generate_genius_response_legacy_unreviewed(7, "headphones", {"id": 1, "name": "headphones", "price": 20})
     assert result == "Verified headphones information"
     svc.llm_service.generate_response.assert_awaited_once()
 
@@ -58,7 +59,7 @@ async def test_unavailable_meta_does_not_invent_confidence_or_duplicate_embeddin
     svc._get_user_dna=AsyncMock(return_value=SimpleNamespace(persona="EXPLORER",tier="MEDIUM"))
     svc.search_engine.get_query_embedding=AsyncMock(side_effect=RuntimeError("must not allocate inference"))
     svc.llm_service.generate_response=AsyncMock(return_value="Listed item facts")
-    await svc._generate_genius_response(7,"headphones",{"id":1,"name":"headphones","price":20})
+    await svc._generate_genius_response_legacy_unreviewed(7,"headphones",{"id":1,"name":"headphones","price":20})
     svc.search_engine.get_query_embedding.assert_not_awaited()
     prompt=svc.llm_service.generate_response.call_args.kwargs['system_role']
     assert 'No calibrated confidence or learned preference estimate is available' in prompt
@@ -70,6 +71,6 @@ async def test_generation_failure_does_not_invent_product_fit():
     svc=service()
     svc._get_user_dna=AsyncMock(return_value=SimpleNamespace(persona="EXPLORER",tier="MEDIUM"))
     svc.llm_service.generate_response=AsyncMock(side_effect=RuntimeError("unavailable"))
-    result=await svc._generate_genius_response(7,"headphones",{"id":1,"name":"headphones","price":20})
+    result=await svc._generate_genius_response_legacy_unreviewed(7,"headphones",{"id":1,"name":"headphones","price":20})
     assert 'matches your needs' not in result
     assert 'could not assess' in result
