@@ -221,8 +221,9 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     stage='writer_provider'
     try:
         with anyio.fail_after(timeout):
-            raw=await infer([{'role':'system','content':WRITER_RULES},
-                             {'role':'user','content':json.dumps(payload,ensure_ascii=False)}])
+            from app.services.structured_output import infer_schema
+            raw=await infer_schema(infer,[{'role':'system','content':WRITER_RULES},
+                             {'role':'user','content':json.dumps(payload,ensure_ascii=False)}],ShoppingDraft)
             stage='writer_schema'
             draft=ShoppingDraft.model_validate_json(raw)
             stage='writer_evidence'
@@ -233,15 +234,15 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
                 stage='writer_repair_provider'
                 repair=dict(payload)
                 repair['repair_requirement']='Previous draft failed the no-card numeric/link contract. Write an honest current-results no-match response without any numerals, URLs, product recommendations or invented facts. Say your stated budget instead of repeating an amount. Return empty product_ids and claims.'
-                raw=await infer([{'role':'system','content':WRITER_RULES},
-                    {'role':'user','content':json.dumps(repair,ensure_ascii=False)}])
+                raw=await infer_schema(infer,[{'role':'system','content':WRITER_RULES},
+                    {'role':'user','content':json.dumps(repair,ensure_ascii=False)}],ShoppingDraft)
                 stage='writer_repair_schema'
                 draft=ShoppingDraft.model_validate_json(raw)
                 stage='writer_evidence'
                 validate_draft(draft,cards,context,brief)
             stage='review_provider'
-            review=await infer([{'role':'system','content':REVIEW_RULES},
-                {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False)}])
+            review=await infer_schema(infer,[{'role':'system','content':REVIEW_RULES},
+                {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False)}],GroundingReview)
             stage='review_schema'
             verdict=GroundingReview.model_validate_json(review)
             stage='review_verdict'

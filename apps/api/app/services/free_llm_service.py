@@ -575,17 +575,22 @@ class FreeLLMService:
             )
             raise
 
-    async def infer_sales_json(self, messages: List[Dict[str, str]]) -> str:
+    async def infer_sales_json(self, messages: List[Dict[str, str]], *, response_schema=None) -> str:
         """Strict sales transport adapter. Provider failures remain failures."""
+        from app.services.structured_output import response_format
+        wire_format = response_format(self.models.brain_model, response_schema) if response_schema else {"type": "json_object"}
         completion = await self._chat_completion(
             messages=messages, model=self.models.brain_model, temperature=0.2,
-            max_tokens=1200, response_format={"type": "json_object"},
+            max_tokens=1200, response_format=wire_format,
         )
         message = completion.choices[0].message if completion and completion.choices else None
         content = getattr(message, "content", None)
         if not isinstance(content, str) or not content.strip():
             raise StructuredOutputError("Empty sales completion")
         return content.strip()
+
+    async def _execute_schema_inference(self, messages, schema):
+        return await self.infer_sales_json(messages, response_schema=schema)
 
     async def generate_response_strict(self, *args, **kwargs) -> str:
         """Additive typed adapter; legacy empty-string callers stay compatible."""

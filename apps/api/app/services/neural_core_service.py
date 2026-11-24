@@ -299,16 +299,18 @@ class NeuralCoreService:
         stop=stop_after_attempt(3),
         reraise=True
     )
-    async def _execute_llm_inference(self, messages: List[Dict[str, str]]) -> str:
+    async def _execute_llm_inference(self, messages: List[Dict[str, str]], *, response_schema=None) -> str:
         """Executes LLM call with strict network boundaries and resilient backoff."""
         if not self.client:
             raise RuntimeError("LLM Client uninitialized")
 
+        from app.services.structured_output import response_format
+        wire_format=response_format(self.profile.support_model,response_schema) if response_schema else {"type":"json_object"}
         completion = await self.client.chat.completions.create(
             model=self.profile.support_model,
             messages=messages,
             temperature=0.0, # Zero variance for deterministic routing
-            response_format={"type": "json_object"}
+            response_format=wire_format
         )
         
         response_content = completion.choices[0].message.content
@@ -316,6 +318,9 @@ class NeuralCoreService:
             raise ValueError("Empty response received from LLM")
             
         return response_content
+
+    async def _execute_schema_inference(self,messages,schema):
+        return await self._execute_llm_inference(messages,response_schema=schema)
 
     async def _analyze_intent(self, message: str, memory: SessionMemory) -> RouterDecision:
         """
@@ -328,7 +333,7 @@ class NeuralCoreService:
             return RouterDecision(intent="SOCIAL_CHAT", social_reply="Chat assistance is not configured right now. Please use the catalog or support page.")
 
         messages = [{"role": "system", "content": SYSTEM_ROUTING_PROMPT+
-            "\nAuthoritative output JSON schema for this request. Use exactly these enum values and field types. Omit irrelevant optional fields instead of null for non-nullable fields. quantity is integer1 when no cart quantity applies. brief is an object; targets is an array, empty when not used.\n"+
+            "\nAuthoritative output JSON schema for this request. Use exactly these enum values and field types. Include every schema property. Use null only for nullable irrelevant fields, empty arrays when unused, and default-valued nonnullable fields. quantity is integer1 when no cart quantity applies. brief is an object; targets is an array, empty when not used.\n"+
             json.dumps(RouterDecision.model_json_schema(),ensure_ascii=False)}]
         messages.extend([{"role": msg.role, "content": msg.content} for msg in memory.history])
         messages.append({"role": "user", "content": message})
@@ -336,7 +341,8 @@ class NeuralCoreService:
         try:
             # One deadline covers every network attempt and retry backoff.
             with anyio.fail_after(NeuralCoreConfig.LLM_TIMEOUT_SEC):
-                raw_json = await self._execute_llm_inference(messages)
+                from app.services.structured_output import infer_schema
+                raw_json = await infer_schema(self._execute_llm_inference,messages,RouterDecision)
             decision = RouterDecision.model_validate_json(raw_json)
 
             # Anti-hallucination grounding: an LLM-extracted order ID is only
