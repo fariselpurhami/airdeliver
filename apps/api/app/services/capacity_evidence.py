@@ -1,7 +1,7 @@
 """Narrow capacity identity, not inferred upgrade or generic spec parsing.
 
-Amounts compare only in the same normalized unit. Explicit English bound
-phrases are recognized; no GB/GiB or MB/GB conversion or implied upgrade.
+Explicit SI units compare by powers of1000; IEC units by powers of1024.
+Never convert between decimal GB and binary GiB or infer an upgrade.
 """
 import re
 from decimal import Decimal
@@ -11,6 +11,8 @@ KIND=r'(?:ram|memory|storage|ssd|hdd)'
 AMOUNT=r'(?P<amount>\d+(?:\.\d+)?)\s*(?P<unit>'+UNIT+r')'
 PATTERNS=[re.compile(r'^\s*'+AMOUNT+r'\s*(?P<kind>'+KIND+r')\s*$',re.I),
           re.compile(r'^\s*(?P<kind>'+KIND+r')\s*[:=]?\s*'+AMOUNT+r'\s*$',re.I)]
+SCALES={'mb':('si',Decimal(1000)**2),'gb':('si',Decimal(1000)**3),'tb':('si',Decimal(1000)**4),
+        'mib':('iec',Decimal(1024)**2),'gib':('iec',Decimal(1024)**3),'tib':('iec',Decimal(1024)**4)}
 UNITS={'megabyte':'mb','megabytes':'mb','gigabyte':'gb','gigabytes':'gb','terabyte':'tb','terabytes':'tb'}
 
 
@@ -49,8 +51,12 @@ def supported_capacity(feature,specs,name=''):
         direct=capacity_token(str(value))
         paired=capacity_token(str(key)+' '+str(value))
         for actual in (direct,paired):
-            if actual is None or actual[0]!=wanted[0] or actual[2]!=wanted[2]:continue
-            if comparator=='eq' and actual[1]==wanted[1]:return True
-            if comparator=='ge' and actual[1]>=wanted[1]:return True
-            if comparator=='le' and actual[1]<=wanted[1]:return True
+            if actual is None or actual[0]!=wanted[0]:continue
+            actual_family,actual_scale=SCALES[actual[2]]
+            wanted_family,wanted_scale=SCALES[wanted[2]]
+            if actual_family!=wanted_family:continue
+            actual_bytes=actual[1]*actual_scale;wanted_bytes=wanted[1]*wanted_scale
+            if comparator=='eq' and actual_bytes==wanted_bytes:return True
+            if comparator=='ge' and actual_bytes>=wanted_bytes:return True
+            if comparator=='le' and actual_bytes<=wanted_bytes:return True
     return False

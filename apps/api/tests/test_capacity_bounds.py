@@ -9,7 +9,7 @@ from app.services.capacity_evidence import supported_capacity
  ('maximum 16GB RAM',{'RAM':'32GB'},False),
  ('at least 16GB RAM',{'storage':'512GB','RAM':'8GB'},False),
  ('at least 16GB RAM',{'RAM':'32GiB'},False),
- ('at least 16GB RAM',{'RAM':'32768MB'},False),
+ ('at least 16GB RAM',{'RAM':'32768MB'},True),
  ('at least 16GB RAM',{'RAM':'8GB or32GB'},False),
  ('at least 16GB RAM',{},False),
  ('at least lots RAM',{'description':'at least lots RAM'},False),
