@@ -47,6 +47,9 @@ class ShoppingBrief(BaseModel):
         # lexical boundaries. 'red' is not 'infrared',16GB is not116GB.
         evidence=' '.join([card.name,card.category or '',*card.catalog_specs.keys(),*card.catalog_specs.values()]).casefold()
         def present(term):
+            from app.services.capacity_evidence import supported_capacity
+            capacity=supported_capacity(term,card.catalog_specs)
+            if capacity is not None:return capacity
             chars=re.sub(r'\s+','',str(term).casefold())
             return bool(chars and re.search(r'(?<!\w)'+r'\s*'.join(re.escape(c) for c in chars)+r'(?!\w)',evidence))
         if any(present(term) for term in self.excluded_terms):return False

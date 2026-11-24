@@ -28,3 +28,17 @@ def test_literal_feature_boundaries_do_not_match_substrings_or_digit_prefixes():
     assert not ShoppingBrief(required_features=['16GB RAM']).permits(card('Laptop',{'memory':'116GB RAM'}))
     assert not ShoppingBrief(required_features=['wired']).permits(card('Adapter',{'connection':'unwired'}))
     assert ShoppingBrief(required_features=['USB-C']).permits(card('Adapter',{'connection':'USB - C'}))
+
+
+def test_typed_capacity_reverses_only_explicit_key_and_value_without_converting_units():
+    brief=ShoppingBrief(required_features=['16GB RAM'])
+    assert brief.permits(card('Laptop',{'RAM':'16 GB'}))
+    assert brief.permits(card('Laptop',{'memory':'16 gigabytes'}))
+    assert not brief.permits(card('Laptop',{'RAM':'116 GB'}))
+    assert not brief.permits(card('Laptop',{'RAM':'16384 MB'}))
+    assert not brief.permits(card('Laptop',{'RAM':'16 GiB'}))
+    assert not brief.permits(card('Laptop',{'RAM':'8GB or16GB'}))
+    assert not brief.permits(card('Laptop',{'storage':'16GB'}))
+    assert not brief.permits(card('Laptop',{'RAM':'8GB','storage':'16GB'}))
+    assert ShoppingBrief(required_features=['1TB SSD']).permits(card('Laptop',{'SSD':'1 terabyte'}))
+    assert not ShoppingBrief(required_features=['1TB SSD']).permits(card('Laptop',{'HDD':'1TB'}))

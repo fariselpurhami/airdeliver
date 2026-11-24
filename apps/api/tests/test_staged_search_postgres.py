@@ -164,7 +164,8 @@ async def test_setup_http_plans_components_and_publishes_real_current_cards(real
         await engine.dispose()
 
 @pytest.mark.asyncio
-async def test_http_hard_features_use_fresh_sql_lexical_evidence_not_substrings(real_cache):
+@pytest.mark.parametrize('typed_layout',[False,True])
+async def test_http_hard_features_use_fresh_sql_lexical_evidence_not_substrings(real_cache,typed_layout):
     from httpx import AsyncClient,ASGITransport
     from app.main import app
     from app.db.session import get_async_session
@@ -173,7 +174,7 @@ async def test_http_hard_features_use_fresh_sql_lexical_evidence_not_substrings(
     engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
-            rows=[Product(sku=uuid4().hex,name=name,description='',category='computers',price=20,inventory=5,currency='USD',attributes={'memory':ram}) for name,ram in [('Infrared laptop','16 GB RAM'),('Other laptop','116GB RAM'),('Red laptop','16GB RAM')]]
+            rows=[Product(sku=uuid4().hex,name=name,description='',category='computers',price=20,inventory=5,currency='USD',attributes=({'RAM':ram.replace(' RAM','')} if typed_layout else {'memory':ram})) for name,ram in [('Infrared laptop','16 GB RAM'),('Other laptop','116GB RAM'),('Red laptop','16GB RAM')]]
             db.add_all(rows);await db.commit();ids=[p.id for p in rows]
         async def retrieve(db,query,**kw):
             return (await db.execute(__import__('sqlalchemy').select(Product).where(Product.id.in_(ids)))).scalars().all()
