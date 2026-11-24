@@ -134,7 +134,7 @@ class Settings(BaseSettings):
                 raise ValueError('The API collection requires the same model revision as PRODUCT_TEXT_MODEL_REVISION')
         from app.core.catalog_contract import SPACES
         for space in SPACES.values():
-            if space.key=='harrier-v1' and (self.milvus_collection==space.collection or self.opensearch_index==space.search_index):
+            if space.key!='gte-v1' and (self.milvus_collection==space.collection or self.opensearch_index==space.search_index):
                 if (self.embedding_model,self.embedding_dimension,self.embedding_revision)!=(space.model,space.dimension,space.revision):
                     raise ValueError('Model identity/revision does not match versioned index namespace')
         if self.retry_max_seconds < self.retry_min_seconds:
@@ -832,15 +832,15 @@ class EmbeddingService:
     def __init__(self, settings: Settings, logger: logging.Logger) -> None:
         self._logger = logger
         self._encode_batch_size = settings.embedding_encode_batch_size
-        self._harrier = settings.embedding_model=='microsoft/harrier-oss-v1-0.6b'
+        self._candidate = next((key.split('-')[0] for key,space in __import__('app.core.catalog_contract',fromlist=['SPACES']).SPACES.items() if key!='gte-v1' and settings.embedding_model==space.model),None)
         import torch
         from sentence_transformers import SentenceTransformer
         torch.set_num_threads(settings.embedding_threads)
         options={'local_files_only':True,'model_kwargs':{'dtype':torch.float32}} if settings.embedding_local_files_only else {}
         model_path=settings.embedding_model
-        if self._harrier:
+        if self._candidate:
             from scripts.owner_embedding_benchmark import resolve,validate_files,definitions
-            path,revision=resolve('harrier');validate_files(path,definitions()['harrier']);model_path=str(path)
+            path,revision=resolve(self._candidate);validate_files(path,definitions()[self._candidate]);model_path=str(path)
         self._model = SentenceTransformer(model_path, revision=settings.embedding_revision, device='cpu', trust_remote_code=False, **options)
         self._model.max_seq_length = settings.embedding_max_seq_length
         self._dimension = int(self._model.get_embedding_dimension())
@@ -868,7 +868,7 @@ class EmbeddingService:
                 batch_size=self._encode_batch_size,
                 convert_to_numpy=True,
                 show_progress_bar=False,
-                **({"prompt":""} if self._harrier else {}),
+                **({"prompt":""} if self._candidate else {}),
             )
             return [row.astype(float).tolist() for row in embeddings]
 

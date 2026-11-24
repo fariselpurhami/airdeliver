@@ -5,7 +5,7 @@ import pytest
 from app.core.catalog_contract import SPACES,retrieval_space
 
 def test_spaces_are_distinct_and_unknown_is_not_fallback():
-    a,b=SPACES.values()
+    a,b=SPACES['gte-v1'],SPACES['harrier-v1']
     for field in ('collection','search_index','intent_collection','memory_collection'):
         assert getattr(a,field)!=getattr(b,field)
     assert (b.dimension,len(b.revision))==(1024,40)
@@ -68,6 +68,7 @@ async def test_real_query_boundary_sends_official_prompt_and_normalization(monke
     engine=object.__new__(module.AICommerceEngine)
     encoder=Encoder();engine.embedding_model=encoder;engine.limits=SimpleNamespace(max_query_length=100,embedding_timeout_seconds=2)
     monkeypatch.setattr(module,'PRODUCT_QUERY_PROMPT',SPACES['harrier-v1'].query_prompt)
+    monkeypatch.setattr(module,'PRODUCT_TEXT_PROFILE','harrier-v1')
     monkeypatch.setattr(module,'PRODUCT_TEXT_MODEL',SimpleNamespace(dimension=2))
     value=await engine._get_query_embedding('  blue shirt  ')
     assert value==[1.,0.]
@@ -146,3 +147,22 @@ async def test_owner_migration_actual_control_flow_readonly_sha_memory_and_count
     assert state['operations']==['candidate']
     # Existing target facts cannot be silently duplicated by rerun.
     with pytest.raises(ValueError,match='Nonempty'):await migration.run(args)
+
+def test_granite_fresh_process_contract_is_pinned_separate_and_empty_prompt():
+    env={**os.environ,'PRODUCT_TEXT_PROFILE':'granite-v1','PRODUCT_TEXT_MODEL_REVISION':''}
+    for key in ('EMBEDDING_MODEL','SEED_EMBEDDING_DIMENSION','SEED_EMBEDDING_REVISION','MILVUS_COLLECTION','OPENSEARCH_INDEX'):env.pop(key,None)
+    code='''
+import json
+from app.core.catalog_contract import *
+from app.core.ai_profile import get_ai_profile
+from app.services.ai_commerce_engine import AICommerceEngine
+from seed_ultra_scale import Settings
+p=get_ai_profile();s=Settings(_env_file=None,DATABASE_URI='postgresql+asyncpg://unused/test',APP_ENV='development')
+print(json.dumps([p.text_retrieval_model,p.text_retrieval_revision,p.text_retrieval_dimension,s.embedding_dimension,s.embedding_model,PRODUCT_QUERY_PROMPT,PRODUCT_SEARCH_INDEX,{k:v.name for k,v in AICommerceEngine.SCHEMA_CONFIG.items()}]))
+'''
+    result=subprocess.run([sys.executable,'-c',code],env=env,text=True,capture_output=True,check=True)
+    x=json.loads(result.stdout.splitlines()[-1]);g=SPACES['granite-v1']
+    assert x[:7]==[g.model,g.revision,768,768,g.model,'',g.search_index]
+    assert x[7]['product_text']==g.collection and x[7]['memory']==g.memory_collection and x[7]['intent']==g.intent_collection
+    for field in ('collection','search_index','intent_collection','memory_collection'):
+        assert len({getattr(v,field) for v in SPACES.values()})==3
