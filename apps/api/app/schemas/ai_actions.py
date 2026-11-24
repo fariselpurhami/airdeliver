@@ -273,7 +273,7 @@ class CatalogResult(SchemaBaseModel):
 class NeuralCoreResponse(SchemaBaseModel):
     text: StrictStr = Field(..., min_length=1, max_length=10_000)
     action: Optional[AnyAction] = None
-    products: List[CatalogResult] = Field(default_factory=list,max_length=5)
+    products: List[CatalogResult] = Field(default_factory=list,max_length=10)
     response_kind: Literal["text","catalog_results","clarification","system_notice","conversation"] = "text"
     explain: StrictStr = Field(..., min_length=1, max_length=10_000)
     confidence: float = Field(..., ge=0.0, le=1.0)

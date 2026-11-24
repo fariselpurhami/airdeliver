@@ -3140,7 +3140,7 @@ class AINLUService:
                         and card.price is not None and p.id not in global_seen_ids]
             return self._enforce_diversity(
                 pool=eligible,
-                limit=min(5, self.config.max_items_per_row),
+                limit=min(10, self.config.max_items_per_row),
                 max_per_brand=max_brand
             )
 

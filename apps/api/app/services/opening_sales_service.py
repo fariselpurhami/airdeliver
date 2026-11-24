@@ -5,7 +5,7 @@ from app.services.shopping_discovery import ShoppingBrief, catalog_result
 
 async def write_opening(llm, products, row_type, *, timeout=12.0):
     cards=[]
-    for product in products[:5]:
+    for product in products[:10]:
         card=catalog_result(product)
         if card is not None and card.evidence_kind=='local_catalog' and card.stock_status=='local_in_stock' and card.price is not None:
             cards.append(card)

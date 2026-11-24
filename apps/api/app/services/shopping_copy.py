@@ -20,8 +20,8 @@ class Claim(BaseModel):
 class ShoppingDraft(BaseModel):
     model_config=ConfigDict(extra='forbid')
     text: StrictStr = Field(min_length=1,max_length=2000)
-    product_ids: list[StrictInt] = Field(default_factory=list,max_length=5)
-    claims: list[Claim] = Field(default_factory=list,max_length=25)
+    product_ids: list[StrictInt] = Field(default_factory=list,max_length=10)
+    claims: list[Claim] = Field(default_factory=list,max_length=50)
 
 
 class GroundingReview(BaseModel):

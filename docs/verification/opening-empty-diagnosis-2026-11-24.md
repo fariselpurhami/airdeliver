@@ -28,3 +28,18 @@ indexing. Their names are internal pools, not proof of sales/trends. Admin creat
 currently does not index OpenSearch/Milvus. Search/vector parity requires a separate
 reviewed indexsync, not the syntheticseeder or an unapproved rebuild. A merchant
 feed/import connector is not claimed to be available here. No ownerwrites run.
+
+## Original four-section shape restored and tested
+
+Personalized, Bestsellers, Trending, Deals remain four separate ordered streamed
+carousel sections, not one mergedcarousel. Emptyroles skip with no crossrolefill;
+all-empty precise notice remains. Eachrole again permits up to10currentrealcards
+(original max_items_per_row10). Shared SalesResponseRequest permits10onlyfor
+OPENING_INSIGHT, otherintents still5. Shared claimdraft permits10declaredIDs/
+50claims; exactcardclaims and independentreview unchanged. ResponseDTO nowcan
+carry10cards, but ordinarysearch callers remain5. Openingwriter sees all10cards,
+not a truncatedfive with unsupportedextraUIcards. No reviewbypass.
+
+ActualPG19 ordered4role/emptyrole tests and10cardsharedwriter/rejection tests pass.
+No livefourrole/10cardvisualvalidation with ownerrealinventory recorded; his
+100demo-onlyDB still cannot show realoffers. Poollabels not popularityproof.

@@ -122,3 +122,41 @@ async def test_four_opening_copy_chains_do_not_burst_concurrently(real_cache):
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('empty_role',[None,'Bestsellers'])
+async def test_original_four_role_stack_order_no_crossrole_backfill(real_cache,empty_role):
+    cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
+    roles=['Personalized','Bestsellers','Trending','Deals'];published=[];written=[]
+    try:
+        async with sessions() as db:
+            rows=[Product(sku=uuid4().hex,name=role+' real catalog item',description='',category=role,price=20,inventory=3,currency='USD') for role in roles]
+            db.add_all(rows);await db.commit();ids=[row.id for row in rows]
+            for row in rows:await db.refresh(row)
+        async def infer(messages):
+            data=json.loads(messages[1]['content'])
+            if 'catalog_evidence' in data:
+                role=data['request_evidence']['row_pool'];written.append(role)
+                return json.dumps({'text':'Explore this local catalog section.\n\nVerify the listed details and merchant availability before choosing.','product_ids':[],'claims':[]})
+            return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
+        async with sessions() as db:
+            from app.services.free_llm_service import FreeLLMService
+            llm=object.__new__(FreeLLMService);llm.__init__();llm.infer_sales_json=infer
+            svc=AINLUService(db,SimpleNamespace(),SimpleNamespace(),cache,llm)
+            svc.config=MatrixConfig(stream_delay_sec=0)
+            async def publish(channel,message):published.append(json.loads(message));return 1
+            cache.publish_required=publish
+            svc.freshness_repo=SimpleNamespace(get_recent_product_ids=AsyncMock(return_value=set()),mark_products_as_seen=AsyncMock())
+            for method,row,role in zip(['_fetch_personal','_fetch_bestsellers','_fetch_trending','_fetch_deals'],rows,roles):
+                setattr(svc,method,AsyncMock(return_value=[] if role==empty_role else [row]))
+            await svc._handle_initial_suggestions(3)
+            if svc.tasks._tasks:await asyncio.gather(*tuple(svc.tasks._tasks))
+        expected=[role for role in roles if role!=empty_role]
+        assert written==expected
+        assert [event['products'][0]['name'] for event in published]==[role+' real catalog item' for role in expected]
+        assert [event['type'] for event in published]==['proactive_suggestion']+['product_carousel']*(len(expected)-1)
+        assert len(published)==(4 if empty_role is None else 3)
+    finally:
+        async with sessions() as db:
+            if ids:await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()

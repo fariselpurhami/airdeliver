@@ -27,7 +27,8 @@ class SalesResponseRequest:
     evidence: dict=field(default_factory=dict)
 
     def __post_init__(self):
-        if len(self.message)>10000 or len(self.products)>5:
+        limit=10 if self.intent=='OPENING_INSIGHT' else 5
+        if len(self.message)>10000 or len(self.products)>limit:
             raise ValueError('Sales request exceeds boundary')
         identities=[p.id for p in self.products]
         if len(set(identities))!=len(identities):raise ValueError('Duplicate sales identity')

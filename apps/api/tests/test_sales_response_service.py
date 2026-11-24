@@ -51,3 +51,23 @@ async def test_existing_support_adapter_uses_same_shared_contract():
     svc._execute_llm_inference=AsyncMock(side_effect=[draft,verdict])
     result=await svc._shopping_response('gift',[],ShoppingBrief(),'clarification','GIFT_DISCOVERY')
     assert result.text=='What interests should we explore?' and result.response_kind=='clarification'
+
+@pytest.mark.asyncio
+async def test_ten_opening_cards_keep_shared_claim_and_review_contract():
+    cards=[]
+    for identity in range(1,11):
+        product=row();product.id=identity;product.name='Catalog item '+str(identity)
+        cards.append(catalog_result(product))
+    def req(intent,products):return SalesResponseRequest(message='opening',products=tuple(products),brief=ShoppingBrief(),mode='catalog_results',intent=intent)
+    with pytest.raises(ValueError):req('PRODUCT_SEARCH',cards)
+    with pytest.raises(ValueError):req('OPENING_INSIGHT',cards+[cards[0].model_copy(update={'id':11})])
+    draft=json.dumps({'text':'Explore the local catalog selection.\n\nVerify listed details and merchant availability.','product_ids':[],'claims':[]})
+    good=dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True)
+    infer=AsyncMock(side_effect=[draft,json.dumps(good)])
+    response=await SalesResponseService(infer,provider_ready=True,timeout=1).respond(req('OPENING_INSIGHT',cards))
+    assert len(response.products)==10 and infer.await_count==2
+    assert len(json.loads(infer.await_args.args[0][1]['content'])['input']['catalog_evidence'])==10
+    good['supported']=False
+    infer=AsyncMock(side_effect=[draft,json.dumps(good)])
+    response=await SalesResponseService(infer,provider_ready=True,timeout=1).respond(req('OPENING_INSIGHT',cards))
+    assert response.products==[] and response.response_kind=='system_notice'
