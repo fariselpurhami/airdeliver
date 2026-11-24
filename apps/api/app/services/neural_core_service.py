@@ -644,6 +644,19 @@ class NeuralCoreService:
             memory_token=None
             for key,memory in deferred:
                 await self._persist_session(key,memory)
+            # Explicit opt-in collection uses only the current customer's text,
+            # never model prose or inferred behavior. Existing SQL consent lock
+            # protects a revoke racing with extraction. Optional failure cannot
+            # erase a successfully verified shopping response.
+            if eligible and self.is_healthy and message and response.response_kind!='system_notice':
+                try:
+                    from app.services.free_llm_service import FreeLLMService
+                    async with asyncio.timeout(3):
+                        await CustomerMemoryService(db).collect(user.id,message,FreeLLMService())
+                except asyncio.CancelledError:raise
+                except Exception as exc:
+                    _log_inference_failure('neural_core.preference_collection_unavailable',exc)
+                    await db.rollback()
             return response
         finally:
             if memory_token is not None:_deferred_memory.reset(memory_token)
