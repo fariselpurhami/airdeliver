@@ -704,6 +704,10 @@ class NeuralCoreService:
                 response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
             else:
                 query = decision.query or decision.search_subject or message
+                if not decision.targets and decision.shopping_task in {'specifications','comparison','consultation'}:
+                    # Typed informational task must not silently fall back to
+                    # stock-only advice when the router omitted its target list.
+                    decision.targets=[SearchTarget(product_name=query)]
                 if decision.targets:
                     response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message)
                 else:

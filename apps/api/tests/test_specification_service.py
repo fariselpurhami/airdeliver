@@ -101,3 +101,10 @@ async def test_invented_target_coverage_cannot_publish():
     async def infer(messages):return json.dumps({'covered_targets':['Invented'],'facts':[{'label':'connection','quote':'Alpha facts.','source':0}]})
     result=await answer_product_question(infer,'Alpha',targets=('Alpha',),lookup=lookup)
     assert result.text==NO_SOURCE
+
+@pytest.mark.asyncio
+async def test_source_transport_error_without_catalog_gives_honest_unknown():
+    async def lookup(q):raise ConnectionError('controlled source outage')
+    async def infer(messages):raise AssertionError('no evidence must not invoke writer')
+    result=await answer_product_question(infer,'any product specs',lookup=lookup)
+    assert result.text==NO_SOURCE
