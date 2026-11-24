@@ -31,10 +31,18 @@ def capacity_token(text):
 def supported_capacity(feature,specs,name=''):
     comparator='eq'
     literal=feature
-    bound=re.fullmatch(r'\s*(at least|minimum|min\.?|at most|maximum|max\.?|على الأقل|علي الاقل|بحد أدنى|بحد ادنى|على الأكثر|علي الاكثر|بحد أقصى|بحد اقصى)\s+(.+?)\s*',feature,re.I) if isinstance(feature,str) else None
-    if bound:
-        comparator='ge' if bound[1].casefold().rstrip('.') in {'at least','minimum','min','على الأقل','علي الاقل','بحد أدنى','بحد ادنى'} else 'le'
-        literal=bound[2]
+    bound=None
+    minimum={'at least','minimum','min','على الأقل','علي الاقل','بحد أدنى','بحد ادنى'}
+    marker=r'(at least|minimum|min\.?|at most|maximum|max\.?|على الأقل|علي الاقل|بحد أدنى|بحد ادنى|على الأكثر|علي الاكثر|بحد أقصى|بحد اقصى)'
+    if isinstance(feature,str):
+        prefix=re.fullmatch(r'\s*'+marker+r'\s+(.+?)\s*',feature,re.I)
+        suffix=re.fullmatch(r'\s*(.+?)\s+'+marker+r'\s*',feature,re.I)
+        if prefix:
+            bound=True;label,literal=prefix[1],prefix[2]
+        elif suffix:
+            bound=True;literal,label=suffix[1],suffix[2]
+        if bound:
+            comparator='ge' if label.casefold().rstrip('.') in minimum else 'le'
     wanted=capacity_token(literal)
     if wanted is None:
         # Recognized bound with unparseable typed value cannot fall through to

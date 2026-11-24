@@ -17,9 +17,10 @@ pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='migrate
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mode',['ok','wrong_ram','scope_reject','invented_target','changed'])
-async def test_arabic_per_target_scope_current_sql_and_reviewed_publication(mode):
+@pytest.mark.parametrize('feature',['على الأقل ١٦ جيجابايت رام','١٦ جيجابايت رام على الأقل'])
+async def test_arabic_per_target_scope_current_sql_and_reviewed_publication(mode,feature):
     engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[];seen=[]
-    target='لابتوب';other='كرسي';feature='على الأقل ١٦ جيجابايت رام';exclusion='أحمر'
+    target='لابتوب';other='كرسي';exclusion='أحمر'
     message=f'عايز {target} {feature} و {other} بدون {exclusion}'
     try:
         async with sessions() as db:
