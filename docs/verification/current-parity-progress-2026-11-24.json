@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T06:19:00+02:00",
+  "as_of": "2026-11-24T06:32:00+02:00",
   "scope": "Current source-route snapshot, not live/model acceptance. Historical03:30audit remains separate.",
   "counts": {
     "preserved": 35,
@@ -444,7 +444,7 @@
       "id": "CAP-18",
       "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
       "parity": "degraded",
-      "finding": "Owner-bound ordinary HTTP recalls and optionally collects consented narrow shopping preferences using SQL consent and request-local context. Special routes receive recent customer intent; image retains hard brief. Remaining: Feature off by default. Setup/research saved preference fields are pending PR105, not shipped in this snapshot. Legacy behavior unification and broader lifecycle remain separate.",
+      "finding": "Owner-bound ordinary HTTP recalls and optionally collects consented narrow shopping preferences using SQL consent and request-local context. Special routes receive recent customer intent; image retains hard brief. Remaining: Feature off by default. Setup/research saved preference fields are shipped PR105. Legacy behavior unification and broader lifecycle remain separate.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_customer_memory_postgres.py",
@@ -815,7 +815,7 @@
       "id": "CAP-32",
       "capability": "Removal recovery alternatives and optional confirmation prompt",
       "parity": "degraded",
-      "finding": "Confirmed removal requests optional read-only shared model alternatives using current same-category bounded price-window evidence; worker rechecks cart/catalog. Remaining: Exact current-customer reason bridge pending PR104. Semantic model quality unverified; no automatic re-add.",
+      "finding": "Confirmed removal requests optional read-only shared model alternatives using current same-category bounded price-window evidence; worker rechecks cart/catalog. Remaining: Exact current-customer reason bridge shipped PR104. Semantic model quality unverified; no automatic re-add.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_sales_postgres.py"
@@ -1398,8 +1398,6 @@
   ],
   "anchor_caveat": "Original/current implementation anchor line numbers are retained from the historical03:30audit as navigation leads, not reverified against this shipped revision.",
   "remaining_acceptance_matrix": "remaining-acceptance-matrix-2026-11-24.md",
-  "pending_prs": {
-    "104": "Literal removal context, latest0004e9f includes absent-field AMQP compatibility fix, awaiting required CI",
-    "105": "Separate consented setup/research hints, latest0eca297 contains104 as ancestor, awaiting required CI"
-  }
+  "pending_prs": {},
+  "shipped_revision": "9216b18e88b92e54a49645e368b5bd52c79ec416"
 }

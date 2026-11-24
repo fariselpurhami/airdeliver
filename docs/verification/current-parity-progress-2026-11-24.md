@@ -1,10 +1,10 @@
-# Current restoration progress, November24 06:19
+# Current restoration progress, November24 06:32
 
-Shipped main cd339c0 through PR102. Conservative source-route groups remain35 preserved,20 degraded/partial,0 lost. This does not mean55 capabilities passed acceptance. Historical35/15/5 snapshot remains unchanged. Missing ordinaryHTTP route replacements exist, but grouped breadth/model/quality acceptance is still partial. Every live_verified remains false.
+Shipped main9216b18 through PR106. Conservative source-route groups remain35 preserved,20 degraded/partial,0 lost. This does not mean55 capabilities passed acceptance. Historical35/15/5 snapshot remains unchanged. Missing ordinaryHTTP route replacements exist, but grouped breadth/model/quality acceptance is still partial. Every live_verified remains false.
 
 Recent shipped behavior: narrow typed capacity evidence including literal current-name facts; hard constraint union across turns unless explicit independently reviewed replacement; canonical opt-in preference collection through ordinary HTTP; recent customer-only context for setup/research and preserved image hard brief; reviewed per-component setup feature scope; explicit one-shot owner-bound snapshot reviews for cart clear/save. Reviewed clear is cart-only, unlike the retained legacy clear route. Save records an unpaid cancelled Saved List then clears the active cart, with explicit cleanup-unconfirmed handling.
 
-Pending PR104 carries exact current-customer removal reason through displayed review and authenticated mutation to optional read-only advice. Pending PR105 adds separate consented preferences to setup/research, never external search queries or source facts. These pending heads are not counted as shipped here.
+Shipped PR104 carries exact current-customer removal reason through displayed review and authenticated mutation to optional read-only advice. Shipped PR105 adds separate consented preferences to setup/research, never external search queries or source facts. Both passed exact-head CI and merged before this snapshot.
 
 Redis PR92 keeps mandatory isolated exact100 admit/50 quota and0.2sheartbeat measurement with GC enabled and pre-measurement collect only. Separate deliberateGC/process/Redis pause tests bound failure and prevent INCR replay. This is a measurement split, not a productionGC tail-latency fix. Required follow-up remains real-processp99/max under mixedHTTP/model/SQLload, GC duration/retention and remoteRedis503/recovery.
 

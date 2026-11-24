@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T06:19:00+02:00",
+  "as_of": "2026-11-24T06:32:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -597,7 +597,7 @@
       "file": "2. ai_nlu_service.py",
       "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
       "observed_wiring": "Owner-bound ordinary HTTP recalls and optionally collects consented narrow shopping preferences using SQL consent and request-local context. Special routes receive recent customer intent; image retains hard brief.",
-      "gap": "Feature off by default. Setup/research saved preference fields are pending PR105, not shipped in this snapshot. Legacy behavior unification and broader lifecycle remain separate.",
+      "gap": "Feature off by default. Setup/research saved preference fields are shipped PR105. Legacy behavior unification and broader lifecycle remain separate.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
@@ -1121,7 +1121,7 @@
       "file": "2. ai_nlu_service.py",
       "capability": "Removal recovery alternatives and optional confirmation prompt",
       "observed_wiring": "Confirmed removal requests optional read-only shared model alternatives using current same-category bounded price-window evidence; worker rechecks cart/catalog.",
-      "gap": "Exact current-customer reason bridge pending PR104. Semantic model quality unverified; no automatic re-add.",
+      "gap": "Exact current-customer reason bridge shipped PR104. Semantic model quality unverified; no automatic re-add.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
@@ -1929,10 +1929,7 @@
   "count_caveat": "Grouped inventory rows are broad. Only 3 groups are currently marked fully reconciled at real boundary; this is a conservative evidence-tracking baseline, not a claim the other code is untested. Prior tests need capability-by-capability reconciliation. PR references identify the current restoration boundary, not original authorship of every test.",
   "canonical_note": "This repository file is the single canonical scoreboard. Earlier attached snapshots are superseded; edits should update this file in place.",
   "coverage_policy": "Every grouped capability has an explicit verification plan. Candidate test mappings are not a coverage certification; real-boundary flags remain conservative until scenario-level assertions are reconciled.",
-  "shipped_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+  "shipped_revision": "9216b18e88b92e54a49645e368b5bd52c79ec416",
   "historical_parity_audit": "original-current-parity-2026-11-24.json",
-  "pending_prs": {
-    "104": "Literal removal context, latest0004e9f includes absent-field AMQP compatibility fix, awaiting required CI",
-    "105": "Separate consented setup/research hints, latest0eca297 contains104 as ancestor, awaiting required CI"
-  }
+  "pending_prs": {}
 }
