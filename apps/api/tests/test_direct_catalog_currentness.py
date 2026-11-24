@@ -22,7 +22,6 @@ async def test_direct_search_actual_sql_postwriter_recheck(change,entry,monkeypa
             db.add(row);await db.commit();pid=row.id
         async def retrieve(db,query,**kwargs):return (await db.execute(select(Product).where(Product.id==pid))).scalars().all()
         svc=object.__new__(NeuralCoreService);svc.ai_engine=SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=retrieve));svc.is_healthy=True
-        svc.ai_engine.search_by_image_vector=AsyncMock(side_effect=lambda *args,**kwargs:[])
         async def visual(*args,**kwargs):
             async with sessions() as db:return await retrieve(db,"Atlas laptop")
         svc.ai_engine.search_by_image_vector=visual

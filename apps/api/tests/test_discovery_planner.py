@@ -34,10 +34,12 @@ async def test_visual_identity_enriches_retrieval_without_becoming_product_evide
     monkeypatch.setattr(FreeLLMService,'analyze_product_image',identify)
     engine=SimpleNamespace(search_by_image_vector=AsyncMock(return_value=[SimpleNamespace(id=1)]),perform_hybrid_search_pure=AsyncMock(return_value=[SimpleNamespace(id=2)]))
     svc=NeuralCoreService(engine,object());svc._catalog_response=AsyncMock(return_value='reviewed-result')
+    svc._recheck_catalog_response=AsyncMock()
     assert await svc._handle_visual_search('base64-test','find this',object())=='reviewed-result'
     assert [p.id for p in svc._catalog_response.await_args.args[1]]==[1,2]
     assert svc._catalog_response.await_args.args[3]=='find this'
     identify.assert_awaited_once()
+    svc._recheck_catalog_response.assert_awaited_once()
 
 @pytest.mark.asyncio
 async def test_setup_recent_customer_context_is_bounded_separate_data():
@@ -54,6 +56,7 @@ async def test_visual_publication_keeps_prior_hard_brief_and_customer_context(mo
     monkeypatch.setattr(FreeLLMService,'analyze_product_image',AsyncMock(return_value='generic'))
     svc=NeuralCoreService(SimpleNamespace(search_by_image_vector=AsyncMock(return_value=[])),object())
     svc._catalog_response=AsyncMock(return_value='verified')
+    svc._recheck_catalog_response=AsyncMock()
     brief=ShoppingBrief(required_features=['16GB RAM'])
     token=_customer_turn_context.set(('customer headphones request',))
     try:
