@@ -166,7 +166,8 @@ async def test_setup_http_plans_components_and_publishes_real_current_cards(real
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('typed_layout',[False,True])
-async def test_http_hard_features_use_fresh_sql_lexical_evidence_not_substrings(real_cache,typed_layout):
+@pytest.mark.parametrize('feature',['16GB RAM','at least 16GB RAM','at most 16GB RAM'])
+async def test_http_hard_features_use_fresh_sql_lexical_evidence_not_substrings(real_cache,typed_layout,feature):
     from httpx import AsyncClient,ASGITransport
     from app.main import app
     from app.db.session import get_async_session
@@ -182,7 +183,7 @@ async def test_http_hard_features_use_fresh_sql_lexical_evidence_not_substrings(
         svc=NeuralCoreService(SimpleNamespace(perform_hybrid_search_pure=retrieve),cache);svc.is_healthy=True;svc.configuration_error=False
         async def infer(messages):
             if 'primary cognitive routing' in messages[0]['content']:
-                return json.dumps({'intent':'PRODUCT_SEARCH','query':'laptop','search_subject':'laptop','brief':{'required_features':['16GB RAM'],'excluded_terms':['red']}})
+                return json.dumps({'intent':'PRODUCT_SEARCH','query':'laptop','search_subject':'laptop','brief':{'required_features':[feature],'excluded_terms':['red']}})
             payload=json.loads(messages[1]['content'])
             if 'catalog_evidence' in payload:return json.dumps({'text':'Review the listed facts in these cards.','product_ids':[],'claims':[]})
             return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
@@ -193,9 +194,9 @@ async def test_http_hard_features_use_fresh_sql_lexical_evidence_not_substrings(
         app.dependency_overrides[get_neural_core_service]=lambda:svc
         app.dependency_overrides[get_cache_from_request]=lambda:cache
         async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
-            r=await client.post('/api/v1/ai-support/chat',json={'message':'laptop with16GB RAM, no red','session_id':'features-real-boundary'})
+            r=await client.post('/api/v1/ai-support/chat',json={'message':'laptop with '+feature+', no red','session_id':'features-real-boundary'})
         assert r.status_code==200,r.text
-        assert [p['id'] for p in r.json()['products']]==ids[:1]
+        assert [p['id'] for p in r.json()['products']]==(ids[:2] if feature.startswith('at least') else ids[:1])
     finally:
         app.dependency_overrides.clear()
         async with sessions() as db:

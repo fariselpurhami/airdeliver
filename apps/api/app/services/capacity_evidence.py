@@ -1,7 +1,7 @@
 """Narrow capacity identity, not inferred upgrade or generic spec parsing.
 
-Amounts must match exactly in the same normalized unit. No GB/GiB or MB/GB
-conversion, minimum-capacity inference or alternatives are accepted here.
+Amounts compare only in the same normalized unit. Explicit English bound
+phrases are recognized; no GB/GiB or MB/GB conversion or implied upgrade.
 """
 import re
 from decimal import Decimal
@@ -26,11 +26,20 @@ def capacity_token(text):
 
 
 def supported_capacity(feature,specs,name=''):
-    wanted=capacity_token(feature)
-    if wanted is None:return None
+    comparator='eq'
+    literal=feature
+    bound=re.fullmatch(r'\s*(at least|minimum|min\.?|at most|maximum|max\.?)\s+(.+?)\s*',feature,re.I) if isinstance(feature,str) else None
+    if bound:
+        comparator='ge' if bound[1].casefold().rstrip('.') in {'at least','minimum','min'} else 'le'
+        literal=bound[2]
+    wanted=capacity_token(literal)
+    if wanted is None:
+        # Recognized bound with unparseable typed value cannot fall through to
+        # generic prose matching. Missing evidence fails closed.
+        return False if bound else None
     # Preserve literal typed capacity in a current product name as evidence.
     # Reject ambiguous variant/option syntax instead of selecting a maximum.
-    if isinstance(name,str) and not re.search(r'\b(?:or|option|options|variant|variants)\b|[/|]',name,re.I):
+    if comparator=='eq' and isinstance(name,str) and not re.search(r'\b(?:or|option|options|variant|variants)\b|[/|]',name,re.I):
         normalized=re.sub(r'\s+','',feature.casefold())
         pattern=r'(?<!\w)'+r'\s*'.join(re.escape(c) for c in normalized)+r'(?!\w)'
         if re.search(pattern,name.casefold()):return True
@@ -39,5 +48,9 @@ def supported_capacity(feature,specs,name=''):
         # unrelated adjacent flattened field. Full string must be unambiguous.
         direct=capacity_token(str(value))
         paired=capacity_token(str(key)+' '+str(value))
-        if wanted in (direct,paired):return True
+        for actual in (direct,paired):
+            if actual is None or actual[0]!=wanted[0] or actual[2]!=wanted[2]:continue
+            if comparator=='eq' and actual[1]==wanted[1]:return True
+            if comparator=='ge' and actual[1]>=wanted[1]:return True
+            if comparator=='le' and actual[1]<=wanted[1]:return True
     return False
