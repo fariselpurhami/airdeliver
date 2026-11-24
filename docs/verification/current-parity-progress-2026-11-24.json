@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T06:32:00+02:00",
+  "as_of": "2026-11-24T06:54:00+02:00",
   "scope": "Current source-route snapshot, not live/model acceptance. Historical03:30audit remains separate.",
   "counts": {
     "preserved": 35,
@@ -315,7 +315,7 @@
       "id": "CAP-13",
       "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
       "parity": "degraded",
-      "finding": "Literal hard features/exclusions use lexical/digit boundaries and narrow typed capacity evidence. Turn updates union prior hard constraints unless explicit reviewed replacement. PR101 scopes reviewed literal setup requirements to components. Remaining: Minimum/maximum and unit-conversion semantics remain unimplemented. Ordinary multi-target scope and durable per-component scope across follow-up turns remain partial.",
+      "finding": "Literal hard features/exclusions use lexical/digit boundaries and narrow typed capacity evidence. Turn updates union prior hard constraints unless explicit reviewed replacement. PR101 scopes reviewed literal setup requirements to components. PR107 adds narrow explicit English same-kind/same-unit minimum/maximum attribute comparisons. Remaining: Unit conversion and multilingual bound extraction remain unimplemented. PR110 ordinary catalog target scope is pending CI. Per-component exclusions remain separate.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_ai_nlu_pure.py",
@@ -325,7 +325,7 @@
         "apps/api/tests/test_discovery_planner.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
       "original_anchors": {
         "_extract_ram_candidates": [
           "apps/api/app/services/ai_nlu_service.py:131"
@@ -367,14 +367,14 @@
       "id": "CAP-15",
       "capability": "Persona, retention modes, four-phase response policies and sanitizer",
       "parity": "degraded",
-      "finding": "Literal customer signal selects browse/understand/compare/price_objection/hesitation and shared consultative sequence. Remaining: Calibrated model strategy and complete original persona/retention bridge not certified; missing signal fix93pending.",
+      "finding": "Literal customer signal selects browse/understand/compare/price_objection/hesitation and shared consultative sequence. Remaining: Calibrated model strategy and complete original persona/retention bridge not certified; missing signal fix93 shipped, real-model strategy remains unverified.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_nlu_characterization.py",
         "apps/api/tests/test_sales_response_service.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
       "original_anchors": {
         "TextSanitizer": [
           "apps/api/app/services/ai_nlu_service.py:922"
@@ -444,7 +444,7 @@
       "id": "CAP-18",
       "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
       "parity": "degraded",
-      "finding": "Owner-bound ordinary HTTP recalls and optionally collects consented narrow shopping preferences using SQL consent and request-local context. Special routes receive recent customer intent; image retains hard brief. Remaining: Feature off by default. Setup/research saved preference fields are shipped PR105. Legacy behavior unification and broader lifecycle remain separate.",
+      "finding": "Owner-bound ordinary HTTP recalls and optionally collects consented narrow shopping preferences using SQL consent and request-local context. Special routes receive recent customer intent; image retains hard brief. Remaining: Feature off by default. PR105 setup/research separate saved-preference hints shipped. Legacy behavior unification and broader lifecycle remain separate.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_customer_memory_postgres.py",
@@ -453,7 +453,7 @@
         "PR46 merged 5774dfa: test_consented_http_context.py uses mounted HTTP and actual SQL/Redis; five consent scenarios. Opt-in feature flag remains off by default. No live owner verification."
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
       "original_anchors": {
         "UserDnaStore": [
           "apps/api/app/services/ai_nlu_service.py:1586"
@@ -564,14 +564,14 @@
       "id": "CAP-23",
       "capability": "Ecosystem planner, component searches and collection prose/cards",
       "parity": "degraded",
-      "finding": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. Remaining: Physical compatibility/completeness and real-model scope quality unverified. Per-component scope is recomputed, not durable typed session scope.",
+      "finding": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. PR109 persists previously reviewed setup scope across turns and withholds component identity changes. Remaining: Physical compatibility/completeness and real-model scope quality remain unverified. Per-component exclusions remain separate.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_postgres.py",
         "apps/api/tests/test_discovery_planner.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
       "original_anchors": {
         "_handle_ecosystem_building": [
           "apps/api/app/services/ai_nlu_service.py:2704"
@@ -640,7 +640,7 @@
       "id": "CAP-26",
       "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
       "parity": "degraded",
-      "finding": "Staged per-target search preserves literal identity and reviewed customer retrieval hint. Hard constraint continuity and narrow typed capacity evidence are tested. Remaining: Minimum/unit policy, ordinary per-target scope and real ranking remain partial.",
+      "finding": "Staged per-target search preserves literal identity and reviewed customer retrieval hint. Hard constraint continuity and narrow typed capacity evidence are tested. Remaining: Narrow explicit English minimum/maximum capacity is shipped in107. Unit conversion, real ranking and pending110 ordinary target scope remain partial.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_contract.py",
@@ -648,7 +648,7 @@
         "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
       "original_anchors": {
         "_execute_universal_search": [
           "apps/api/app/services/ai_nlu_service.py:3434"
@@ -815,13 +815,13 @@
       "id": "CAP-32",
       "capability": "Removal recovery alternatives and optional confirmation prompt",
       "parity": "degraded",
-      "finding": "Confirmed removal requests optional read-only shared model alternatives using current same-category bounded price-window evidence; worker rechecks cart/catalog. Remaining: Exact current-customer reason bridge shipped PR104. Semantic model quality unverified; no automatic re-add.",
+      "finding": "Confirmed removal requests optional read-only shared model alternatives using current same-category bounded price-window evidence; worker rechecks cart/catalog. Remaining: PR104 exact displayed current-customer reason reaches optional read-only worker. Semantic model quality unverified; no automatic re-add.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
+      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
       "original_anchors": {
         "_perform_devilish_recovery": [
           "apps/api/app/services/ai_nlu_service.py:5405"
@@ -1110,13 +1110,13 @@
       "id": "CAP-44",
       "capability": "generate_response plain/JSON/context adapter",
       "parity": "degraded",
-      "finding": "Shippedadditivestrictadapter and boundedsharedlogs; legacyemptystringcallersnotallmigrated.",
+      "finding": "Additive strict adapter exposes configuration/empty/invalidJSON/provider failures; shared wrapper logs omit exception bodies/tracebacks. PR108 migrates legacy global intent and query optimization to strict adapter when available, preserving fallback and old injected adapters. Remaining: Other legacy empty-string callers remain unmigrated; existing voice/cart fallbacks remain unchanged. Not universal typed failure handling.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_llm_execution_limits.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
       "original_anchors": {
         "generate_response": [
           "apps/api/app/services/free_llm_service.py:479"
@@ -1398,6 +1398,8 @@
   ],
   "anchor_caveat": "Original/current implementation anchor line numbers are retained from the historical03:30audit as navigation leads, not reverified against this shipped revision.",
   "remaining_acceptance_matrix": "remaining-acceptance-matrix-2026-11-24.md",
-  "pending_prs": {},
-  "shipped_revision": "9216b18e88b92e54a49645e368b5bd52c79ec416"
+  "pending_prs": {
+    "110": "Reviewed durable catalog target scope, head e2e2740, awaiting exact-head required CI"
+  },
+  "shipped_revision": "a23251ffb410ea598ee91eec655023f05fad2a30"
 }

@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T06:32:00+02:00",
+  "as_of": "2026-11-24T06:54:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -52,7 +52,7 @@
         56
       ],
       "evidence": [
-        "PR56 merged9b53953:1205passed5skipped locally, dedicated real-AMQP delivery test passed in CI. Actual loopback health recovery, native-loader single-flight, registry retry, configured budgets and shutdown requeue tested. Owner hardware/deployed readiness unverified."
+        "Historical checkpoint: PR56 merged9b53953:1205passed5skipped locally, dedicated real-AMQP delivery test passed in CI. Actual loopback health recovery, native-loader single-flight, registry retry, configured budgets and shutdown requeue tested. Owner hardware/deployed readiness unverified."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -146,7 +146,7 @@
       "live_verified": false,
       "prs": [],
       "evidence": [
-        "PR57 main-target continuation of PR52 pending latest CI. test_vector_native_admission.py. Do not count as deployed or complete feature verification."
+        "Historical checkpoint: PR57 main-target continuation of PR52 pending latest CI. test_vector_native_admission.py. Do not count as deployed or complete feature verification."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -287,8 +287,8 @@
       ],
       "evidence": [
         "apps/api/tests/test_shopping_catalog_postgres.py; test_neural_core_visual.py",
-        "PR50 merged. test_bounded_image_decode.py. Do not count as deployed or complete feature verification.",
-        "PR53 main-target continuation of PR51 merged. test_vision_native_admission.py. Do not count as deployed or complete feature verification."
+        "Historical checkpoint: PR50 merged. test_bounded_image_decode.py. Do not count as deployed or complete feature verification.",
+        "Historical checkpoint: PR53 main-target continuation of PR51 merged. test_vision_native_admission.py. Do not count as deployed or complete feature verification."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -411,8 +411,8 @@
       "id": "CAP-13",
       "file": "2. ai_nlu_service.py",
       "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
-      "observed_wiring": "Literal hard features/exclusions use lexical/digit boundaries and narrow typed capacity evidence. Turn updates union prior hard constraints unless explicit reviewed replacement. PR101 scopes reviewed literal setup requirements to components.",
-      "gap": "Minimum/maximum and unit-conversion semantics remain unimplemented. Ordinary multi-target scope and durable per-component scope across follow-up turns remain partial.",
+      "observed_wiring": "Literal hard features/exclusions use lexical/digit boundaries and narrow typed capacity evidence. Turn updates union prior hard constraints unless explicit reviewed replacement. PR101 scopes reviewed literal setup requirements to components. PR107 adds narrow explicit English same-kind/same-unit minimum/maximum attribute comparisons.",
+      "gap": "Unit conversion and multilingual bound extraction remain unimplemented. PR110 ordinary catalog target scope is pending CI. Per-component exclusions remain separate.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "not_reconciled",
       "hardened": "not_certified",
@@ -423,7 +423,8 @@
         96,
         97,
         98,
-        101
+        101,
+        107
       ],
       "evidence": [
         "apps/api/tests/test_literal_shopping_constraints.py",
@@ -447,7 +448,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Minimum/maximum and unit-conversion semantics remain unimplemented. Ordinary multi-target scope and durable per-component scope across follow-up turns remain partial.",
+        "remaining_boundary_gap": "Unit conversion and multilingual bound extraction remain unimplemented. PR110 ordinary catalog target scope is pending CI. Per-component exclusions remain separate.",
         "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -496,7 +497,7 @@
       "file": "2. ai_nlu_service.py",
       "capability": "Persona, retention modes, four-phase response policies and sanitizer",
       "observed_wiring": "Literal customer signal selects browse/understand/compare/price_objection/hesitation and shared consultative sequence.",
-      "gap": "Calibrated model strategy and complete original persona/retention bridge not certified; missing signal fix93pending.",
+      "gap": "Calibrated model strategy and complete original persona/retention bridge not certified; missing signal fix93 shipped, real-model strategy remains unverified.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "not_reconciled",
       "hardened": "not_certified",
@@ -519,7 +520,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Calibrated model strategy and complete original persona/retention bridge not certified; missing signal fix93pending.",
+        "remaining_boundary_gap": "Calibrated model strategy and complete original persona/retention bridge not certified; missing signal fix93 shipped, real-model strategy remains unverified.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -571,8 +572,8 @@
         47
       ],
       "evidence": [
-        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending.",
-        "PR47 merged 8cb9603: 1180 passed, 4 skipped with disposable SQL/Redis. test_commerce_safe_diagnostics.py checks actual current logger-to-formatter JSON/text paths and exception bodies. Raw query/prose omitted before LogRecord; broader lock/image-key review remains open."
+        "Historical checkpoint: PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending.",
+        "Historical checkpoint: PR47 merged 8cb9603: 1180 passed, 4 skipped with disposable SQL/Redis. test_commerce_safe_diagnostics.py checks actual current logger-to-formatter JSON/text paths and exception bodies. Raw query/prose omitted before LogRecord; broader lock/image-key review remains open."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -597,7 +598,7 @@
       "file": "2. ai_nlu_service.py",
       "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
       "observed_wiring": "Owner-bound ordinary HTTP recalls and optionally collects consented narrow shopping preferences using SQL consent and request-local context. Special routes receive recent customer intent; image retains hard brief.",
-      "gap": "Feature off by default. Setup/research saved preference fields are shipped PR105. Legacy behavior unification and broader lifecycle remain separate.",
+      "gap": "Feature off by default. PR105 setup/research separate saved-preference hints shipped. Legacy behavior unification and broader lifecycle remain separate.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
@@ -608,8 +609,8 @@
         100
       ],
       "evidence": [
-        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46.",
-        "PR46 merged 5774dfa: test_consented_http_context.py uses mounted HTTP and actual SQL/Redis; five consent scenarios. Opt-in feature flag remains off by default. No live owner verification.",
+        "Historical checkpoint: ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46.",
+        "Historical checkpoint: PR46 merged 5774dfa: test_consented_http_context.py uses mounted HTTP and actual SQL/Redis; five consent scenarios. Opt-in feature flag remains off by default. No live owner verification.",
         "apps/api/tests/test_consented_http_context.py"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
@@ -626,7 +627,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Feature off by default. Setup/research saved preference fields are pending PR105, not shipped in this snapshot. Legacy behavior unification and broader lifecycle remain separate.",
+        "remaining_boundary_gap": "Feature off by default. PR105 setup/research separate saved-preference hints shipped. Legacy behavior unification and broader lifecycle remain separate.",
         "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -647,8 +648,8 @@
         43
       ],
       "evidence": [
-        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt.",
-        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+        "Historical checkpoint: PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt.",
+        "Historical checkpoint: PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -724,7 +725,7 @@
         43
       ],
       "evidence": [
-        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
+        "Historical checkpoint: PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -761,7 +762,7 @@
         102
       ],
       "evidence": [
-        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending.",
+        "Historical checkpoint: PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending.",
         "apps/api/tests/test_assistant_cart_review.py",
         "apps/api/tests/test_cart_lifecycle_review.py"
       ],
@@ -790,15 +791,16 @@
       "id": "CAP-23",
       "file": "2. ai_nlu_service.py",
       "capability": "Ecosystem planner, component searches and collection prose/cards",
-      "observed_wiring": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP.",
-      "gap": "Physical compatibility/completeness and real-model scope quality unverified. Per-component scope is recomputed, not durable typed session scope.",
+      "observed_wiring": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. PR109 persists previously reviewed setup scope across turns and withholds component identity changes.",
+      "gap": "Physical compatibility/completeness and real-model scope quality remain unverified. Per-component exclusions remain separate.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "not_reconciled",
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
         79,
-        101
+        101,
+        109
       ],
       "evidence": [
         "apps/api/tests/test_staged_search_postgres.py",
@@ -818,7 +820,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Physical compatibility/completeness and real-model scope quality unverified. Per-component scope is recomputed, not durable typed session scope.",
+        "remaining_boundary_gap": "Physical compatibility/completeness and real-model scope quality remain unverified. Per-component exclusions remain separate.",
         "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -842,7 +844,7 @@
       ],
       "evidence": [
         "apps/api/tests/test_welcome_deadline_logging.py",
-        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt.",
+        "Historical checkpoint: PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt.",
         "apps/api/tests/test_opening_pool_postgres.py",
         "apps/api/tests/test_opening_recency_redis.py"
       ],
@@ -904,7 +906,7 @@
       "file": "2. ai_nlu_service.py",
       "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
       "observed_wiring": "Staged per-target search preserves literal identity and reviewed customer retrieval hint. Hard constraint continuity and narrow typed capacity evidence are tested.",
-      "gap": "Minimum/unit policy, ordinary per-target scope and real ranking remain partial.",
+      "gap": "Narrow explicit English minimum/maximum capacity is shipped in107. Unit conversion, real ranking and pending110 ordinary target scope remain partial.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
@@ -918,7 +920,7 @@
         101
       ],
       "evidence": [
-        "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified.",
+        "Historical checkpoint: PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified.",
         "apps/api/tests/test_staged_search_postgres.py"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
@@ -935,7 +937,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Minimum/unit policy, ordinary per-target scope and real ranking remain partial.",
+        "remaining_boundary_gap": "Narrow explicit English minimum/maximum capacity is shipped in107. Unit conversion, real ranking and pending110 ordinary target scope remain partial.",
         "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -988,9 +990,9 @@
         87
       ],
       "evidence": [
-        "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified.",
-        "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
-        "PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy.",
+        "Historical checkpoint: PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified.",
+        "Historical checkpoint: Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
+        "Historical checkpoint: PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy.",
         "apps/api/tests/test_specification_service.py",
         "apps/api/tests/test_staged_search_postgres.py"
       ],
@@ -1028,7 +1030,7 @@
         87
       ],
       "evidence": [
-        "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
+        "Historical checkpoint: PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1063,7 +1065,7 @@
         100
       ],
       "evidence": [
-        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46.",
+        "Historical checkpoint: ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46.",
         "apps/api/tests/test_consented_http_context.py"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
@@ -1121,7 +1123,7 @@
       "file": "2. ai_nlu_service.py",
       "capability": "Removal recovery alternatives and optional confirmation prompt",
       "observed_wiring": "Confirmed removal requests optional read-only shared model alternatives using current same-category bounded price-window evidence; worker rechecks cart/catalog.",
-      "gap": "Exact current-customer reason bridge shipped PR104. Semantic model quality unverified; no automatic re-add.",
+      "gap": "PR104 exact displayed current-customer reason reaches optional read-only worker. Semantic model quality unverified; no automatic re-add.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
@@ -1145,7 +1147,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Exact current-customer reason bridge pending PR104. Semantic model quality unverified; no automatic re-add.",
+        "remaining_boundary_gap": "PR104 exact displayed current-customer reason reaches optional read-only worker. Semantic model quality unverified; no automatic re-add.",
         "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -1523,14 +1525,15 @@
       "id": "CAP-44",
       "file": "4. free_llm_service.py",
       "capability": "generate_response plain/JSON/context adapter",
-      "observed_wiring": "Additive strict adapter exposes configuration/empty/invalidJSON/provider failures; shared wrapper logs omit exception bodies/tracebacks.",
-      "gap": "Legacy empty-string API preserved, not all callers migrated; not universal typed failure handling.",
+      "observed_wiring": "Additive strict adapter exposes configuration/empty/invalidJSON/provider failures; shared wrapper logs omit exception bodies/tracebacks. PR108 migrates legacy global intent and query optimization to strict adapter when available, preserving fallback and old injected adapters.",
+      "gap": "Other legacy empty-string callers remain unmigrated; existing voice/cart fallbacks remain unchanged. Not universal typed failure handling.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
-        88
+        88,
+        108
       ],
       "evidence": [],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
@@ -1546,7 +1549,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Legacy empty-string API preserved, not all callers migrated; not universal typed failure handling.",
+        "remaining_boundary_gap": "Other legacy empty-string callers remain unmigrated; existing voice/cart fallbacks remain unchanged. Not universal typed failure handling.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -1565,7 +1568,7 @@
         39
       ],
       "evidence": [
-        "PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
+        "Historical checkpoint: PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1762,8 +1765,8 @@
         87
       ],
       "evidence": [
-        "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
-        "PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy.",
+        "Historical checkpoint: Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
+        "Historical checkpoint: PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy.",
         "apps/api/tests/test_staged_search_postgres.py"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
@@ -1828,7 +1831,7 @@
         48
       ],
       "evidence": [
-        "PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
+        "Historical checkpoint: PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1892,7 +1895,7 @@
         48
       ],
       "evidence": [
-        "PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
+        "Historical checkpoint: PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1929,7 +1932,9 @@
   "count_caveat": "Grouped inventory rows are broad. Only 3 groups are currently marked fully reconciled at real boundary; this is a conservative evidence-tracking baseline, not a claim the other code is untested. Prior tests need capability-by-capability reconciliation. PR references identify the current restoration boundary, not original authorship of every test.",
   "canonical_note": "This repository file is the single canonical scoreboard. Earlier attached snapshots are superseded; edits should update this file in place.",
   "coverage_policy": "Every grouped capability has an explicit verification plan. Candidate test mappings are not a coverage certification; real-boundary flags remain conservative until scenario-level assertions are reconciled.",
-  "shipped_revision": "9216b18e88b92e54a49645e368b5bd52c79ec416",
+  "shipped_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
   "historical_parity_audit": "original-current-parity-2026-11-24.json",
-  "pending_prs": {}
+  "pending_prs": {
+    "110": "Reviewed durable catalog target scope, head e2e2740, awaiting exact-head required CI"
+  }
 }
