@@ -79,3 +79,30 @@ async def test_scoped_assignment_rejection_withholds_search():
     response=await svc._handle_setup_discovery(object(),'desk120cm and chair',ShoppingBrief(required_features=['120cm']))
     svc._handle_staged_product_search.assert_not_awaited()
     assert response.explain=='Setup plan unavailable'
+
+@pytest.mark.asyncio
+async def test_setup_scopes_survive_new_service_and_omitted_assignment():
+    memory=SessionMemory(user_name='Fixture',shopping_brief=ShoppingBrief(required_features=['120cm']))
+    first=NeuralCoreService(SimpleNamespace(),object())
+    first._execute_llm_inference=AsyncMock(side_effect=[json.dumps({'components':['desk','chair'],'component_requirements':{'desk':['120cm']}}),json.dumps({'appropriate':True,'no_invented_products':True})])
+    result=SimpleNamespace(response_kind='text')
+    first._handle_staged_product_search=AsyncMock(return_value=result)
+    await first._handle_setup_discovery(object(),'desk120cm and chair setup',memory.shopping_brief,memory=memory)
+    restored=SessionMemory.model_validate_json(memory.model_dump_json())
+    second=NeuralCoreService(SimpleNamespace(),object())
+    second._execute_llm_inference=AsyncMock(side_effect=[json.dumps({'components':['desk','chair']}),json.dumps({'appropriate':True,'no_invented_products':True})])
+    second._handle_staged_product_search=AsyncMock(return_value=result)
+    await second._handle_setup_discovery(object(),'show more setup options',restored.shopping_brief,memory=restored)
+    _,decision,brief,_=second._handle_staged_product_search.await_args.args
+    assert decision.targets[0].required_features==['120cm'] and decision.targets[1].required_features==[]
+    assert brief.required_features==[] and restored.setup_requirements=={'desk':['120cm']}
+
+@pytest.mark.asyncio
+async def test_prior_component_identity_cannot_silently_drop_scope():
+    memory=SessionMemory(user_name='Fixture',setup_requirements={'desk':['120cm']})
+    svc=NeuralCoreService(SimpleNamespace(),object())
+    svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps({'components':['table','chair']}),json.dumps({'appropriate':True,'no_invented_products':True})])
+    svc._handle_staged_product_search=AsyncMock()
+    result=await svc._handle_setup_discovery(object(),'more setup options',ShoppingBrief(),memory=memory)
+    svc._handle_staged_product_search.assert_not_awaited()
+    assert result.explain=='Setup plan unavailable' and memory.setup_requirements=={'desk':['120cm']}

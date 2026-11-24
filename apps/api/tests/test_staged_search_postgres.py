@@ -136,10 +136,14 @@ async def test_setup_http_plans_components_and_publishes_real_current_cards(real
             return result.scalars().all()
         from sqlalchemy import select
         svc=NeuralCoreService(SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=retrieve)),cache);svc.is_healthy=True;svc.configuration_error=False
+        plan_calls=0
         async def infer(messages):
+            nonlocal plan_calls
             prompt=messages[0]['content']
             if 'primary cognitive routing' in prompt:return json.dumps({'intent':'SETUP_DISCOVERY','search_subject':'home office setup','brief':{'required_features':['120cm'] if scoped else []}})
-            if 'Plan generic component' in prompt:return json.dumps({'components':['desk','chair'],'component_requirements':{'desk':['120cm']} if scoped else {}})
+            if 'Plan generic component' in prompt:
+                plan_calls+=1
+                return json.dumps({'components':['desk','chair'],'component_requirements':{'desk':['120cm']} if scoped and plan_calls==1 else {}})
             if 'Review a generic setup' in prompt:return json.dumps({'appropriate':True,'no_invented_products':True})
             data=json.loads(messages[1]['content'])
             if 'catalog_evidence' in data:
@@ -155,6 +159,8 @@ async def test_setup_http_plans_components_and_publishes_real_current_cards(real
         try:
             async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
                 response=await client.post('/api/v1/ai-support/chat',json={'message':'build a home office setup with desk120cm' if scoped else 'build a home office setup','session_id':'setup-real-test'})
+                if scoped:
+                    response=await client.post('/api/v1/ai-support/chat',json={'message':'more home office setup options','session_id':'setup-real-test'})
             assert response.status_code==200,response.text
             assert [p['id'] for p in response.json()['products']]==(ids[1:] if scoped and width=='90cm' else ids)
             assert 'Compatibility' in response.json()['text']
@@ -235,11 +241,15 @@ async def test_http_constraint_history_preserves_or_explicitly_replaces_literal_
         async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
             first=await client.post('/api/v1/ai-support/chat',json={'message':'laptop16GB RAM','session_id':'constraint-history'})
             assert [p['id'] for p in first.json()['products']]==ids[:1]
+            cached=await cache.get_json_required(svc._get_session_key('constraint-history'))
+            cached['setup_requirements']={'laptop':['16GB RAM']}
+            await cache.set_json_required(svc._get_session_key('constraint-history'),cached)
             second=await client.post('/api/v1/ai-support/chat',json={'message':('replace old requirements, laptop SSD' if replace else 'also laptop SSD'),'session_id':'constraint-history'})
         assert second.status_code==200,second.text
         assert [p['id'] for p in second.json()['products']]==(ids if replace else ids[:1])
         history=await cache.get_json_required(svc._get_session_key('constraint-history'))
         assert history['shopping_brief']['required_features']==(['SSD'] if replace else ['16GB RAM','SSD'])
+        assert history['setup_requirements']==({} if replace else {'laptop':['16GB RAM']})
     finally:
         app.dependency_overrides.clear()
         async with sessions() as db:

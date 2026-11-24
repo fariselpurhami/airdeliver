@@ -56,9 +56,15 @@ class ChatMessage(BaseModel):
     content: str = Field(min_length=1, max_length=10000)
 
 
+from typing import Annotated
+ScopedComponent=Annotated[str,Field(min_length=2,max_length=128)]
+ScopedFeature=Annotated[str,Field(min_length=2,max_length=128)]
+ScopedFeatures=Annotated[list[ScopedFeature],Field(max_length=8)]
+
 class SessionMemory(BaseModel):
     user_name: str = Field(max_length=256)
     shopping_brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
+    setup_requirements: dict[ScopedComponent,ScopedFeatures] = Field(default_factory=dict,max_length=3)
     history: List[ChatMessage] = Field(default_factory=list, max_length=10)
     
     def append_turn(self, user_msg: str, ai_msg: str, max_turns: int = 5) -> None:
@@ -412,16 +418,23 @@ class NeuralCoreService:
         text=(f"Review adding {decision.quantity} × {product.name}." if operation=="add" else f"Review removing the entire {product.name} line from your cart.")
         return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
 
-    async def _handle_setup_discovery(self,db,message,brief):
+    async def _handle_setup_discovery(self,db,message,brief,memory=None):
         from app.services.discovery_planner import plan_setup
         try:
             plan=await plan_setup(self._execute_llm_inference,message,customer_context=_customer_turn_context.get(),saved_preferences=_request_preferences.get(),detailed=True)
-            assigned={f for features in plan.component_requirements.values() for f in features}
+            prior=memory.setup_requirements if memory is not None else {}
+            if set(prior)-set(plan.components):raise ValueError('Prior component scope needs explicit reset or same component identity')
+            combined={k:list(v) for k,v in prior.items()}
+            for component,features in plan.component_requirements.items():
+                combined[component]=list(dict.fromkeys([*combined.get(component,[]),*features]))
+            if len(combined)>3 or any(len(v)>8 for v in combined.values()):raise ValueError('Scoped constraint capacity reached')
+            assigned={f for features in combined.values() for f in features}
             shared=brief.model_copy(deep=True)
             shared.required_features=[f for f in brief.required_features if f not in assigned]
             decision=RouterDecision(intent='PRODUCT_SEARCH',shopping_task='setup',
-                targets=[SearchTarget(product_name=c,required_features=plan.component_requirements.get(c,[])) for c in plan.components])
+                targets=[SearchTarget(product_name=c,required_features=combined.get(c,[])) for c in plan.components])
             response=await self._handle_staged_product_search(db,decision,shared,message)
+            if memory is not None and response.response_kind!='system_notice':memory.setup_requirements=combined
             return response
         except Exception as exc:
             _log_inference_failure('neural_core.setup.withheld',exc)
@@ -757,6 +770,7 @@ class NeuralCoreService:
                     response_kind='clarification',confidence=0,explain='Constraint capacity reached',telemetry={'intent':'GIFT_DISCOVERY','entities':[],'turn':0})
             merged[field]=values
         memory.shopping_brief=ShoppingBrief.model_validate(merged)
+        if decision.constraint_replacement_signal:memory.setup_requirements={}
 
         # A literal category is enough to browse. Optional material/style are
         # not reasons to trap a completed brief in repeated gift clarification.
@@ -774,7 +788,7 @@ class NeuralCoreService:
         elif decision.intent in {"CART_ADD", "CART_REMOVE"}:
             response = await self._handle_cart_review(db,decision,user)
         elif decision.intent == "SETUP_DISCOVERY":
-            response=await self._handle_setup_discovery(db,message,memory.shopping_brief)
+            response=await self._handle_setup_discovery(db,message,memory.shopping_brief,memory=memory)
         elif decision.intent == "GIFT_DISCOVERY":
             response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
         elif decision.intent == "PRODUCT_SEARCH":
