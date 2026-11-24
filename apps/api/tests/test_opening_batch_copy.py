@@ -8,17 +8,17 @@ from tests.test_shopping_discovery_contract import row
 
 
 def body(groups):
-    return {'rows':[{'row':label,'draft':{'introduction':'Explore these catalog designs.','insight':'Compare the listed material before choosing.','product_ids':[],'claims':[]}} for label,_ in groups]}
+    return {label:{'introduction':'Explore these catalog designs.','insight':'Compare the listed material before choosing.','product_ids':[],'claims':[]} for label,_ in groups}
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('failure',[None,'ids','numeric','undeclared','review','paragraph','provider'])
 async def test_batch_actual_writer_validator_and_independent_reviewer(failure):
     groups=[(name,[row()]) for name in ('Personalized','Bestsellers','Trending','Deals')]
     draft=body(groups)
-    if failure=='ids':draft['rows'][1]['row']='other'
-    if failure=='numeric':draft['rows'][0]['draft']['introduction']='Explore999designs.'
-    if failure=='undeclared':draft['rows'][0]['draft'].update(product_ids=[1])
-    if failure=='paragraph':draft['rows'][0]['draft']['insight']='Two\n\nparagraphs'
+    if failure=='ids':draft['other']=draft.pop('Bestsellers')
+    if failure=='numeric':draft['Personalized']['introduction']='Explore999designs.'
+    if failure=='undeclared':draft['Personalized'].update(product_ids=[1])
+    if failure=='paragraph':draft['Personalized']['insight']='Two\n\nparagraphs'
     verdict={k:True for k in ('supported','all_product_mentions_declared','no_unsupported_commercial_claims','fulfills_discovery_task')}
     if failure=='review':verdict['supported']=False
     infer=AsyncMock(side_effect=[json.dumps(draft),json.dumps(verdict)])
@@ -26,7 +26,7 @@ async def test_batch_actual_writer_validator_and_independent_reviewer(failure):
     llm=SimpleNamespace(infer_sales_json=infer)
     if failure:
         with pytest.raises(ShoppingCopyError) as caught:await write_batch(llm,groups)
-        expected={'ids':'writer_identity','numeric':'writer_evidence','undeclared':'writer_evidence','review':'review_verdict','paragraph':'writer_format','provider':'writer_provider'}
+        expected={'ids':'writer_schema','numeric':'writer_evidence','undeclared':'writer_evidence','review':'review_verdict','paragraph':'writer_format','provider':'writer_provider'}
         assert caught.value.stage==expected[failure]
         assert 'catalog designs' not in caught.value.reason
         assert infer.await_count==2 if failure=='review' else infer.await_count==1
@@ -88,7 +88,7 @@ async def test_native_batch_adapter_uses_bounded_output_and_strict_schemas():
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(content)))])
     svc._get_client=AsyncMock(return_value=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create))))
     await svc.generate_opening_batch(groups)
-    assert [c['max_tokens'] for c in calls]==[1000,256]
+    assert [c['max_tokens'] for c in calls]==[1800,256]
     assert [c['response_format']['json_schema']['name'] for c in calls]==['OpeningBatch','GroundingReview']
     assert all(c['response_format']['json_schema']['strict'] and c['reasoning_effort']=='low' for c in calls)
 
@@ -99,3 +99,38 @@ async def test_opening_safe_reason_is_visible_without_model_text(caplog):
     with caplog.at_level(logging.WARNING):
         StructuredLog.warning('opening_batch_withheld',stage='writer_format',reason='opening_paragraph_contract',raw_model_text='private-model-text')
     assert 'opening_paragraph_contract' in caplog.text and 'private-model-text' not in caplog.text
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('labels',[('Personalized',),('Personalized','Deals'),('Personalized','Bestsellers','Trending','Deals')])
+async def test_native_schema_requires_exact_active_keys_and_bounded_drafts(labels):
+    from app.services.opening_batch_copy import opening_schema
+    from app.services.structured_output import response_format
+    schema=response_format('openai/gpt-oss-120b',opening_schema(labels))['json_schema']['schema']
+    assert set(schema['required'])==set(labels) and schema['additionalProperties'] is False
+    draft=schema['$defs']['OpeningParagraphDraft']
+    assert set(draft['required'])=={'introduction','insight','product_ids','claims'}
+    assert draft['properties']['introduction']['maxLength']==350
+    assert draft['properties']['claims']['maxItems']==10
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('invalid',['missing','extra','duplicate'])
+async def test_partial_or_duplicate_identities_never_reach_review(invalid):
+    groups=[(name,[row()]) for name in ('Personalized','Bestsellers','Trending','Deals')]
+    draft=body(groups)
+    if invalid=='missing':draft.pop('Deals')
+    if invalid=='extra':draft['other']=draft['Deals']
+    raw=json.dumps(draft)
+    if invalid=='duplicate':raw=raw[:-1]+',"Deals":'+json.dumps(draft['Deals'])+'}'
+    infer=AsyncMock(return_value=raw)
+    with pytest.raises(ShoppingCopyError) as caught:await write_batch(SimpleNamespace(infer_sales_json=infer),groups)
+    assert caught.value.stage=='writer_schema' and infer.await_count==1
+
+@pytest.mark.asyncio
+async def test_length_finish_reason_rejected_even_for_valid_partial_json():
+    from app.services.free_llm_service import FreeLLMService,StructuredOutputError
+    from app.services.opening_batch_copy import opening_schema
+    svc=object.__new__(FreeLLMService);svc.__init__();svc.models=SimpleNamespace(brain_model='openai/gpt-oss-120b')
+    svc._chat_completion=AsyncMock(return_value=SimpleNamespace(choices=[SimpleNamespace(finish_reason='length',message=SimpleNamespace(content=json.dumps(body([('Personalized',[row()])]))))]))
+    with pytest.raises(StructuredOutputError):
+        await svc.infer_sales_json([{'role':'user','content':'opening'}],response_schema=opening_schema(['Personalized']))
+    assert svc._chat_completion.await_args.kwargs['max_tokens']==1800
