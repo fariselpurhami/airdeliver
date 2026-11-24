@@ -1875,6 +1875,9 @@ Output ONE line of search keywords only.
 
         for raw_product in products[: self.limits.max_products_for_ranking]:
             product = _sanitize_product(raw_product)
+            if {'is_active','inventory','currency','price'} <= raw_product.keys():
+                from copy import deepcopy
+                product.update({key:deepcopy(raw_product[key]) for key in ('is_active','inventory','attributes','sku','image') if key in raw_product})
             if not product.get("name"):
                 continue
 
@@ -1933,6 +1936,31 @@ Output ONE line of search keywords only.
     ) -> Optional[CognitiveResponse]:
         if not products:
             return None
+
+        # Complete caller-supplied card evidence takes the shared reviewed path.
+        # Incomplete historical dictionaries remain on their original adapter;
+        # never invent active stock or turn them into current merchant offers.
+        from app.services.shopping_discovery import catalog_result
+        from types import SimpleNamespace
+        from copy import deepcopy
+        evidence_snapshot = deepcopy(products)
+        complete = all(isinstance(p, dict) and {'id','name','is_active','inventory','currency','price'} <= p.keys() for p in evidence_snapshot)
+        if complete:
+            try:
+                cards = [catalog_result(SimpleNamespace(**p)) for p in evidence_snapshot]
+                cards = [c for c in cards if c is not None and c.stock_status in {'local_in_stock','fixture_in_stock'}]
+                if not cards:
+                    return CognitiveResponse(selected_ids=[],reasoning={},intro_message='System notice: no eligible supplied catalog cards were available for reviewed recommendations.',confidence_score=0.0)
+                from app.services.reviewed_recommendation import reviewed_recommendation
+                ids, reasons, intro = await reviewed_recommendation(self.infer_sales_json,user_query,cards[:5],timeout=20)
+                if products != evidence_snapshot:
+                    raise ValueError('Recommendation evidence changed during review')
+                return CognitiveResponse(selected_ids=ids,reasoning=reasons,intro_message=intro,confidence_score=0.5)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning('reviewed_recommendation_withheld error_type=%s',type(exc).__name__)
+                return CognitiveResponse(selected_ids=[],reasoning={},intro_message='System notice: a grounded recommendation could not be verified. No product has been reserved.',confidence_score=0.0)
 
         ranked_products = self._rank_products_by_relevance(user_query, products)
         products_slice = ranked_products[: self.limits.max_products_for_context]
@@ -2141,7 +2169,16 @@ Output ONE line of search keywords only.
                 intent_metadata={},
             ).model_dump()
 
-        sanitized_products = [_sanitize_product(p) for p in all_products if p]
+        sanitized_products = []
+        for product in all_products:
+            if not product:
+                continue
+            sanitized = _sanitize_product(product)
+            # Carry explicit evidence only, never fill missing stock/activity.
+            if {'is_active','inventory','currency','price'} <= product.keys():
+                from copy import deepcopy
+                sanitized.update({key:deepcopy(product[key]) for key in ('is_active','inventory','attributes','sku','image') if key in product})
+            sanitized_products.append(sanitized)
         safe_history = _sanitize_chat_history(chat_history, self.limits.max_chat_history_messages)
 
         try:
@@ -2218,7 +2255,7 @@ Output ONE line of search keywords only.
         )
         selected_ids = (
             recommendation.selected_ids
-            if recommendation is not None and recommendation.selected_ids
+            if recommendation is not None
             else [p["id"] for p in target_products[:3] if p.get("id")]
         )
 
