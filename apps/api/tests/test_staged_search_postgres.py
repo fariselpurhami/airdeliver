@@ -120,8 +120,8 @@ async def test_product_research_http_no_catalog_stock_requirement(real_cache,mon
         app.dependency_overrides.clear();await engine.dispose()
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('scoped',[False,True])
-async def test_setup_http_plans_components_and_publishes_real_current_cards(real_cache,scoped):
+@pytest.mark.parametrize('scoped,width',[(False,'120cm'),(True,'120cm'),(True,'90cm')])
+async def test_setup_http_plans_components_and_publishes_real_current_cards(real_cache,scoped,width):
     from httpx import AsyncClient,ASGITransport
     from app.main import app
     from app.db.session import get_async_session
@@ -129,7 +129,7 @@ async def test_setup_http_plans_components_and_publishes_real_current_cards(real
     cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
-            rows=[Product(sku=uuid4().hex,name=name,description='',category='office',price=20,inventory=5,currency='USD',attributes={'width':'120cm'} if name=='Office desk' else {}) for name in ['Office desk','Office chair']]
+            rows=[Product(sku=uuid4().hex,name=name,description='',category='office',price=20,inventory=5,currency='USD',attributes={'width':width} if name=='Office desk' else {}) for name in ['Office desk','Office chair']]
             db.add_all(rows);await db.commit();ids=[p.id for p in rows]
         async def retrieve(db,query,**kwargs):
             result=await db.execute(select(Product).where(Product.id.in_(ids),Product.name.ilike('%'+query+'%')))
@@ -156,7 +156,7 @@ async def test_setup_http_plans_components_and_publishes_real_current_cards(real
             async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
                 response=await client.post('/api/v1/ai-support/chat',json={'message':'build a home office setup with desk120cm' if scoped else 'build a home office setup','session_id':'setup-real-test'})
             assert response.status_code==200,response.text
-            assert [p['id'] for p in response.json()['products']]==ids
+            assert [p['id'] for p in response.json()['products']]==(ids[1:] if scoped and width=='90cm' else ids)
             assert 'Compatibility' in response.json()['text']
         finally:app.dependency_overrides.clear()
     finally:

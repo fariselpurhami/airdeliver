@@ -70,3 +70,12 @@ async def test_component_requirements_are_literal_and_reviewed_not_unrelated_fea
     assert plan.component_requirements=={'laptop':['16GB RAM']}
     infer=AsyncMock(return_value=json.dumps({'components':['laptop'],'component_requirements':{'chair':['invented']}}))
     with pytest.raises(ValueError):await plan_setup(infer,'laptop16GB RAM',detailed=True)
+
+@pytest.mark.asyncio
+async def test_scoped_assignment_rejection_withholds_search():
+    svc=NeuralCoreService(SimpleNamespace(),object())
+    svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps({'components':['desk','chair'],'component_requirements':{'chair':['120cm']}}),json.dumps({'appropriate':False,'no_invented_products':True})])
+    svc._handle_staged_product_search=AsyncMock()
+    response=await svc._handle_setup_discovery(object(),'desk120cm and chair',ShoppingBrief(required_features=['120cm']))
+    svc._handle_staged_product_search.assert_not_awaited()
+    assert response.explain=='Setup plan unavailable'
