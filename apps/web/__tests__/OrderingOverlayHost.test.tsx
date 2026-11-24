@@ -43,7 +43,10 @@ it('renders the owner landing sentence without the removed subtitle',()=>{
  // is unnecessary: the store source contract and live bubble are both checked.
  useAIOrderingStore.setState({isOverlayVisible:true,messages:[greeting||{id:0,sender:'ai',contentType:'text',content:expected,timestamp:0}]});
  const view=render(<AppShell><p>Underlying home</p></AppShell>);
- expect(screen.getByText(expected)).toBeInTheDocument();
+ expect(screen.getAllByText(expected)).toHaveLength(1);
+ const subtitle=screen.getByText(expected);
+ expect(subtitle).toHaveClass('text-white/45','mt-0.5','text-[15px]','sm:text-[20px]');
+ expect(subtitle.previousElementSibling?.tagName).toBe('H1');
  expect(screen.queryByText(/Powered by airdeliver/)).not.toBeInTheDocument();
  expect(screen.queryByText(/Welcome to airdeliver/)).not.toBeInTheDocument();
  if(process.env.LANDING_COPY_PREVIEW)fs.writeFileSync('/tmp/landing-copy-render.html','<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/home-layer.css"></head><body style="margin:0;background:#04060a;color:white">'+view.container.innerHTML+'</body></html>');

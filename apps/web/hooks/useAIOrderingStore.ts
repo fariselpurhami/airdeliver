@@ -183,11 +183,13 @@ const generateUUID = randomId;
 
 // Initial assistant greeting shown when the overlay opens. Must be a fully
 // populated Message: the render path requires id/sender/contentType/content.
+export const ORDERING_INTRO = "Type, speak, or snap what you need-I'll find it, build your cart, and check you out.";
+
 const initialWelcomeMessage: Message = {
   id: 0,
   sender: 'ai',
   contentType: 'text',
-  content: "Type, speak, or snap what you need-I'll find it, build your cart, and check you out.",
+  content: ORDERING_INTRO,
   timestamp: Date.now(),
 };
 

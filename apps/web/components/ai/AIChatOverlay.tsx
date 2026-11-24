@@ -14,7 +14,7 @@ import {
     ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap,
     Activity, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock, Eye, ShieldCheck
 } from 'lucide-react';
-import { useAIOrderingStore, Message } from '../../hooks/useAIOrderingStore';
+import { useAIOrderingStore, Message, ORDERING_INTRO } from '../../hooks/useAIOrderingStore';
 import Image from 'next/image';
 import { DemoImageAttribution } from '@/components/products/DemoImageAttribution';
 import { CatalogImage } from '@/components/products/CatalogImage';
@@ -1541,10 +1541,13 @@ function OrderingOverlaySession({ isOpen, onClose }: { isOpen: boolean; onClose:
                                                 <h1 className="text-[23px] sm:text-[25px] font-semibold text-white tracking-[-0.02em] leading-snug">
                                                     Don’t search. Just ask.
                                                 </h1>
+                                                <p className="text-[15px] sm:text-[20px] font-normal text-white/45 tracking-[-0.01em] leading-snug mt-0.5">
+                                                    {ORDERING_INTRO}
+                                                </p>
                                             </div>
 
                                             <AnimatePresence initial={false}>
-                                                {messages.map((msg) => (
+                                                {messages.filter((msg) => !(msg.id === 0 && msg.sender === 'ai' && msg.contentType === 'text' && msg.content === ORDERING_INTRO)).map((msg) => (
                                                     <ChatMessage
                                                         key={msg.id}
                                                         message={msg}
