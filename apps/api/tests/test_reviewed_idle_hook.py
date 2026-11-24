@@ -17,7 +17,9 @@ async def test_explicit_idle_hook_real_sql_reviews_rechecks_and_publishes_or_wit
     try:
         async with sessions() as db:
             row=Product(sku=uuid4().hex,name='Optional Chair',description='',category='chairs',price=20,currency='USD',inventory=3,rating=5,attributes={})
-            db.add(row);await db.commit();ids=[row.id]
+            # PostgreSQL DESC otherwise ranks unknown NULL ratings before five stars.
+            unrated=[Product(sku=uuid4().hex,name='Unrated chair',description='',category='chairs',price=20,currency='USD',inventory=3,rating=None,attributes={}) for _ in range(4)]
+            db.add_all([row,*unrated]);await db.commit();ids=[row.id,*[p.id for p in unrated]]
         calls=[]
         async def infer(messages):
             policy=messages[0]['content'];payload=json.loads(messages[1]['content']);calls.append(payload)
