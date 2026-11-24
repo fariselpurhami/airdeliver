@@ -3472,8 +3472,11 @@ class AINLUService:
         if seen_ids:
             statement = statement.where(Product.id.notin_(seen_ids))
         if min_rating is not None:
-            from app.services.catalog_visibility import fixtures_enabled
-            if not fixtures_enabled():statement = statement.where(Product.rating >= min_rating)
+            from app.services.catalog_visibility import fixtures_enabled,FIXTURE_DATASET
+            from sqlalchemy import or_
+            rating_rule=Product.rating >= min_rating
+            if fixtures_enabled():rating_rule=or_(rating_rule,Product.attributes.op('->>')('_seed_dataset')==FIXTURE_DATASET)
+            statement=statement.where(rating_rule)
         # Rotate within a bounded candidate pool instead of repeating a fixed
         # top100 forever. Ranking still supplies half the pool; the other half
         # explores eligible catalog rows using a fresh server-side nonce.

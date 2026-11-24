@@ -147,3 +147,29 @@ async def test_fixture_normal_cart_add_uses_persisted_product_with_actual_redis(
         await engine.dispose()
 
 from tests.test_cart_persistence_outcomes import real_cache
+
+@pytest.mark.asyncio
+async def test_all1000_rows_actual_sql_twice_and_flagoff_exclusion(fixture_mode,monkeypatch):
+    if not os.environ.get('TEST_POSTGRES_DSN'):pytest.skip('Disposable PostgreSQL required')
+    from sqlalchemy.ext.asyncio import create_async_engine,async_sessionmaker
+    from app.models.product import Product
+    engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);factory=async_sessionmaker(engine,expire_on_commit=False)
+    payload=ImportFile.model_validate(generate());suffix=uuid.uuid4().hex[:6];ids=[]
+    for row in payload.products:row.sku+='-'+suffix
+    try:
+        async with factory() as db:
+            first,report=await persist_import(db,payload);ids=[p['id'] for p in first]
+            second,report=await persist_import(db,payload)
+            assert len(set(ids))==1000 and [p['id'] for p in second]==ids and report['create']==0
+            assert set(p['category'] for p in first)==set(__import__('app.services.real_catalog_import',fromlist=['CATEGORIES']).CATEGORIES)
+            visible=(await db.execute(select(Product.id).where(Product.id.in_(ids),*visibility.real_catalog_predicates(Product)))).scalars().all()
+            assert set(visible)==set(ids)
+            monkeypatch.setattr(visibility,'fixtures_enabled',lambda:False)
+            hidden=(await db.execute(select(Product.id).where(Product.id.in_(ids),*visibility.real_catalog_predicates(Product)))).scalars().all()
+            assert hidden==[]
+            assert (await db.execute(select(Product.id).where(Product.id.in_(ids)))).scalars().all()
+    finally:
+        from sqlalchemy import delete
+        async with factory() as db:
+            await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()
