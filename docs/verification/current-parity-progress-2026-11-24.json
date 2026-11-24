@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T06:54:00+02:00",
+  "as_of": "2026-11-24T07:35:00+02:00",
   "scope": "Current source-route snapshot, not live/model acceptance. Historical03:30audit remains separate.",
   "counts": {
     "preserved": 35,
@@ -315,7 +315,7 @@
       "id": "CAP-13",
       "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
       "parity": "degraded",
-      "finding": "Literal hard features/exclusions use lexical/digit boundaries and narrow typed capacity evidence. Turn updates union prior hard constraints unless explicit reviewed replacement. PR101 scopes reviewed literal setup requirements to components. PR107 adds narrow explicit English same-kind/same-unit minimum/maximum attribute comparisons. Remaining: Unit conversion and multilingual bound extraction remain unimplemented. PR110 ordinary catalog target scope is pending CI. Per-component exclusions remain separate.",
+      "finding": "Literal hard features/exclusions use lexical/digit boundaries and narrow typed capacity evidence. Turn updates union prior hard constraints unless explicit reviewed replacement. PR101 scopes reviewed literal setup requirements to components. PR107 adds narrow explicit English same-kind/same-unit minimum/maximum attribute comparisons. PR110 durable reviewed ordinary catalog target features and PR112 separate negative exclusions for catalog/setup are shipped. Remaining: Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_ai_nlu_pure.py",
@@ -325,7 +325,7 @@
         "apps/api/tests/test_discovery_planner.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
+      "current_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b",
       "original_anchors": {
         "_extract_ram_candidates": [
           "apps/api/app/services/ai_nlu_service.py:131"
@@ -564,14 +564,14 @@
       "id": "CAP-23",
       "capability": "Ecosystem planner, component searches and collection prose/cards",
       "parity": "degraded",
-      "finding": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. PR109 persists previously reviewed setup scope across turns and withholds component identity changes. Remaining: Physical compatibility/completeness and real-model scope quality remain unverified. Per-component exclusions remain separate.",
+      "finding": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. PR109 persists previously reviewed setup scope across turns and withholds component identity changes. PR110 durable reviewed ordinary catalog target features and PR112 separate negative exclusions for catalog/setup are shipped. Remaining: Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_postgres.py",
         "apps/api/tests/test_discovery_planner.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
+      "current_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b",
       "original_anchors": {
         "_handle_ecosystem_building": [
           "apps/api/app/services/ai_nlu_service.py:2704"
@@ -640,7 +640,7 @@
       "id": "CAP-26",
       "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
       "parity": "degraded",
-      "finding": "Staged per-target search preserves literal identity and reviewed customer retrieval hint. Hard constraint continuity and narrow typed capacity evidence are tested. Remaining: Narrow explicit English minimum/maximum capacity is shipped in107. Unit conversion, real ranking and pending110 ordinary target scope remain partial.",
+      "finding": "Staged per-target search preserves literal identity and reviewed customer retrieval hint. Hard constraint continuity and narrow typed capacity evidence are tested. PR110 durable reviewed ordinary catalog target features and PR112 separate negative exclusions for catalog/setup are shipped. Remaining: Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_contract.py",
@@ -648,7 +648,7 @@
         "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
+      "current_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b",
       "original_anchors": {
         "_execute_universal_search": [
           "apps/api/app/services/ai_nlu_service.py:3434"
@@ -1398,8 +1398,6 @@
   ],
   "anchor_caveat": "Original/current implementation anchor line numbers are retained from the historical03:30audit as navigation leads, not reverified against this shipped revision.",
   "remaining_acceptance_matrix": "remaining-acceptance-matrix-2026-11-24.md",
-  "pending_prs": {
-    "110": "Reviewed durable catalog target scope, head e2e2740, awaiting exact-head required CI"
-  },
-  "shipped_revision": "a23251ffb410ea598ee91eec655023f05fad2a30"
+  "pending_prs": {},
+  "shipped_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b"
 }

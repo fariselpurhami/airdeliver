@@ -83,3 +83,7 @@ SEC-10: ordinary HTTP opt-in collection and revocation tests now reach canonical
 ## Shipped checkpoint, November24 06:54
 
 Main a23251f includes PR104 displayed literal removal context, PR105 separate consented setup/research hints, PR107 narrow same-unit English explicit capacity bounds, PR108 strict read-only legacy intent/query callers with safe failure logging and PR109 durable reviewed setup scope. Their exact latest heads passed required CI before merging. This supersedes earlier pending-status notes, not their residual risks. PR110 ordinary catalog target scope remains pending required CI. Semantic review is still not proof; no real-provider or deployed verification, physical compatibility, full unit conversion, universal strict-adapter migration, productionp99 or ownerDR certification. All live flags remain false.
+
+## Scoped constraint checkpoint, November24 07:35
+
+PR110 and112 are merged after exact-head required CI: positive and negative ordinary catalog target/setup scope persist separately, union additions and reset only with the existing literal independently reviewed replacement. Target/component identity changes withhold rather than infer a new identity. Current SQL scope filters and post-copy checks remain. These changes supersede earlier pending110/per-target-exclusion notes, not semantic risk or all-live-false status. Source research remains informational evidence, never a claim the catalog satisfies hard requirements. PR112 post-push verification is still awaited by this snapshot. No owner/provider/DR action occurred.

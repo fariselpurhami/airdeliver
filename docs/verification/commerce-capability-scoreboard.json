@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T06:54:00+02:00",
+  "as_of": "2026-11-24T07:35:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -411,8 +411,8 @@
       "id": "CAP-13",
       "file": "2. ai_nlu_service.py",
       "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
-      "observed_wiring": "Literal hard features/exclusions use lexical/digit boundaries and narrow typed capacity evidence. Turn updates union prior hard constraints unless explicit reviewed replacement. PR101 scopes reviewed literal setup requirements to components. PR107 adds narrow explicit English same-kind/same-unit minimum/maximum attribute comparisons.",
-      "gap": "Unit conversion and multilingual bound extraction remain unimplemented. PR110 ordinary catalog target scope is pending CI. Per-component exclusions remain separate.",
+      "observed_wiring": "Literal hard features/exclusions use lexical/digit boundaries and narrow typed capacity evidence. Turn updates union prior hard constraints unless explicit reviewed replacement. PR101 scopes reviewed literal setup requirements to components. PR107 adds narrow explicit English same-kind/same-unit minimum/maximum attribute comparisons. PR110 durable reviewed ordinary catalog target features and PR112 separate negative exclusions for catalog/setup are shipped.",
+      "gap": "Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "not_reconciled",
       "hardened": "not_certified",
@@ -424,7 +424,9 @@
         97,
         98,
         101,
-        107
+        107,
+        110,
+        112
       ],
       "evidence": [
         "apps/api/tests/test_literal_shopping_constraints.py",
@@ -448,7 +450,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Unit conversion and multilingual bound extraction remain unimplemented. PR110 ordinary catalog target scope is pending CI. Per-component exclusions remain separate.",
+        "remaining_boundary_gap": "Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
         "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -791,8 +793,8 @@
       "id": "CAP-23",
       "file": "2. ai_nlu_service.py",
       "capability": "Ecosystem planner, component searches and collection prose/cards",
-      "observed_wiring": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. PR109 persists previously reviewed setup scope across turns and withholds component identity changes.",
-      "gap": "Physical compatibility/completeness and real-model scope quality remain unverified. Per-component exclusions remain separate.",
+      "observed_wiring": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. PR109 persists previously reviewed setup scope across turns and withholds component identity changes. PR110 durable reviewed ordinary catalog target features and PR112 separate negative exclusions for catalog/setup are shipped.",
+      "gap": "Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "not_reconciled",
       "hardened": "not_certified",
@@ -800,7 +802,9 @@
       "prs": [
         79,
         101,
-        109
+        109,
+        110,
+        112
       ],
       "evidence": [
         "apps/api/tests/test_staged_search_postgres.py",
@@ -820,7 +824,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Physical compatibility/completeness and real-model scope quality remain unverified. Per-component exclusions remain separate.",
+        "remaining_boundary_gap": "Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
         "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -905,8 +909,8 @@
       "id": "CAP-26",
       "file": "2. ai_nlu_service.py",
       "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
-      "observed_wiring": "Staged per-target search preserves literal identity and reviewed customer retrieval hint. Hard constraint continuity and narrow typed capacity evidence are tested.",
-      "gap": "Narrow explicit English minimum/maximum capacity is shipped in107. Unit conversion, real ranking and pending110 ordinary target scope remain partial.",
+      "observed_wiring": "Staged per-target search preserves literal identity and reviewed customer retrieval hint. Hard constraint continuity and narrow typed capacity evidence are tested. PR110 durable reviewed ordinary catalog target features and PR112 separate negative exclusions for catalog/setup are shipped.",
+      "gap": "Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
@@ -917,7 +921,9 @@
         96,
         97,
         98,
-        101
+        101,
+        110,
+        112
       ],
       "evidence": [
         "Historical checkpoint: PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified.",
@@ -937,7 +943,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Narrow explicit English minimum/maximum capacity is shipped in107. Unit conversion, real ranking and pending110 ordinary target scope remain partial.",
+        "remaining_boundary_gap": "Broader unit conversion and multilingual extraction/assignment quality remain unverified. Literal identity changes conservatively require clarification/reset. Source research is informational evidence, not catalog suitability acceptance.",
         "next_action": "Resolve the explicitly remaining implementation breadth, then run actual affected boundaries. Provider and owner gates remain separate.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -1932,9 +1938,7 @@
   "count_caveat": "Grouped inventory rows are broad. Only 3 groups are currently marked fully reconciled at real boundary; this is a conservative evidence-tracking baseline, not a claim the other code is untested. Prior tests need capability-by-capability reconciliation. PR references identify the current restoration boundary, not original authorship of every test.",
   "canonical_note": "This repository file is the single canonical scoreboard. Earlier attached snapshots are superseded; edits should update this file in place.",
   "coverage_policy": "Every grouped capability has an explicit verification plan. Candidate test mappings are not a coverage certification; real-boundary flags remain conservative until scenario-level assertions are reconciled.",
-  "shipped_revision": "a23251ffb410ea598ee91eec655023f05fad2a30",
+  "shipped_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b",
   "historical_parity_audit": "original-current-parity-2026-11-24.json",
-  "pending_prs": {
-    "110": "Reviewed durable catalog target scope, head e2e2740, awaiting exact-head required CI"
-  }
+  "pending_prs": {}
 }
