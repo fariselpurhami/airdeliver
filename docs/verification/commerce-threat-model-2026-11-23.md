@@ -114,3 +114,15 @@ Supersedes08:29unbridgedlegacyclaims: originalsetup/prose/optionalcartsuccesspat
 ## Shippedthrough128 plus126, November24 10:51
 
 Main e0ee9e2 includes121confirmedpublicationrecency/IDsonlyexposure,125explicitdevelopmentfixtureimport,128sourcecausediagnosticsand126typedproduct-onlyscope. Production/defaultcatalogandcheckoutrejectfixtures; developmentoptindoesnotauthorizepayment.1000fixturesareauthoredsynthetictestvaluesandneutralcategoryillustrations, notmerchantfacts or exactproductphotos. Actual1000SQLidentitytwiceplus7rowlearnedMilvus/OpenSearchrerunverifiedbothCIstoragebackends, notownerrollout. OUT_OF_SCOPE preventsasecondmodel/searchafterthatclassification, notproofclassificationalwayscorrect. Sourcecausewarningslogonlyfixedstages/codes/counts, no secrets/queries/pages. Exactquotes/independentexactmodelreviewremainsemanticrisk. Owner10:21routingfixedbutresearchstillunverifiedpending128retest. Everyliveflagfalse, noowner/provider/spending/deletion/DRexecution.
+
+## Provider-schema checkpoint, November24 11:07
+
+Typed commerce stages now request provider-constrained schemas for documented
+supported Groq models. Local exact-quote, target/literal grounding and independent
+review remain mandatory. Unsupported model overrides retain explicitly warned JSON
+mode. No provider400 downgrade, raw response logging or fabricated recorded evidence.
+SetupPlan/TargetScope dynamic-map writers and general legacy/vision/voice paths
+remain unconstrained, with the stage matrix in docs/engineering. Installed SDK over
+real loopback HTTP proves serialization/error behavior, not provider acceptance,
+semantic truth or production quality. Owner's raw failing responses unavailable.
+All live flags remain false. No owner stack, provider or DB import execution.

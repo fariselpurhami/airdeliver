@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T10:51:00+02:00",
+  "as_of": "2026-11-24T11:07:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -1511,7 +1511,9 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
+      "evidence": [
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
@@ -1553,7 +1555,8 @@
         "apps/api/tests/test_async_limiter_load.py",
         "apps/api/tests/test_offline_mixed_process.py",
         "docs/verification/offline-process-mixed-load-2026-11-24.json",
-        "PR114: opt-in actual Uvicorn/HTTP + disposablePG19 SQL/Redis and strict adapter with controlled12ms completion. GC enabled;2000requests x2 all200. Retained rerun steady p99=441.91ms/max754.34ms; pressurep99=155.07ms/max173.59ms; maxGC60.74ms. Synthetic process only, no full app/models/provider/remoteRedis acceptance. Required isolated100/50/<0.2s gate unchanged."
+        "PR114: opt-in actual Uvicorn/HTTP + disposablePG19 SQL/Redis and strict adapter with controlled12ms completion. GC enabled;2000requests x2 all200. Retained rerun steady p99=441.91ms/max754.34ms; pressurep99=155.07ms/max173.59ms; maxGC60.74ms. Synthetic process only, no full app/models/provider/remoteRedis acceptance. Required isolated100/50/<0.2s gate unchanged.",
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1598,7 +1601,8 @@
         "apps/api/tests/test_legacy_recovery_strict.py",
         "apps/api/tests/test_legacy_synthesis_strict.py",
         "PR115/116: original missing-item recovery, product response and three specialized informational/specification/recovery synthesis branches use strict adapter, preserving old injections and cancellation. Actual strict adapter controlled success/blank/outage/cancel tests; truthful failure copy and error-type logs. Successful legacy model prose, ecosystem planner and optional cart copy callers still unreviewed.",
-        "docs/verification/restoration-through120-2026-11-24.md"
+        "docs/verification/restoration-through120-2026-11-24.md",
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1633,7 +1637,8 @@
         39
       ],
       "evidence": [
-        "Historical checkpoint: PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt."
+        "Historical checkpoint: PR39 merged3d5876f: 1139pass4skip disposable full suite. Actual NLU/FreeLLM adapter with SQL revalidation and Redis subscription/outage tests. Scope is opening intro/Insight, not all legacy variants or browser receipt.",
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1665,7 +1670,9 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
+      "evidence": [
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
@@ -1695,7 +1702,9 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
+      "evidence": [
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
@@ -1725,7 +1734,9 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
+      "evidence": [
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
@@ -1758,7 +1769,8 @@
         79
       ],
       "evidence": [
-        "apps/api/tests/test_discovery_planner.py"
+        "apps/api/tests/test_discovery_planner.py",
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1795,7 +1807,8 @@
       ],
       "evidence": [
         "apps/api/tests/test_specification_service.py",
-        "docs/verification/restoration-through128-2026-11-24.md"
+        "docs/verification/restoration-through128-2026-11-24.md",
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1837,7 +1850,8 @@
         "Historical checkpoint: Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
         "Historical checkpoint: PR45 merged 5947d79: test_reviewed_consultation.py covers shared FreeLLM adapter and mounted HTTP comparison/specification/consultation with current SQL cards. Controlled model transport, no live provider quality claim. Raw web remains explicit legacy.",
         "apps/api/tests/test_staged_search_postgres.py",
-        "docs/verification/restoration-through128-2026-11-24.md"
+        "docs/verification/restoration-through128-2026-11-24.md",
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1869,7 +1883,9 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
+      "evidence": [
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
@@ -1902,7 +1918,8 @@
         48
       ],
       "evidence": [
-        "Historical checkpoint: PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
+        "Historical checkpoint: PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP.",
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1933,7 +1950,9 @@
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [],
-      "evidence": [],
+      "evidence": [
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
@@ -1966,7 +1985,8 @@
         48
       ],
       "evidence": [
-        "Historical checkpoint: PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP."
+        "Historical checkpoint: PR48 merged 95bfd5e: test_llm_search_log_privacy.py invokes actual short-result fallback and orchestrator with controlled completions. Logs contain counts/length/route only; response search terms and fallback preserved. Full suite 1182 passed, 4 skipped. This does not reconnect legacy orchestrator to normal HTTP.",
+        "docs/engineering/protocol-application-research-2026-11-24.md: scoped provider-schema contracts; actual SDK/local HTTP tests, not provider quality or universal strict migration"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
