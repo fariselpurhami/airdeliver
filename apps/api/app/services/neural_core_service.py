@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from contextvars import ContextVar
 import hashlib
+import json
 import anyio
 import logging
 import os
@@ -198,6 +199,21 @@ def _safe_inference_failure(exc: Exception) -> dict:
     return {"error_type": safe_type, "status_code": status, "failure_category": category}
 
 
+def _router_failure_notice(exc: Exception) -> str:
+    category=_safe_inference_failure(exc)['failure_category']
+    notices={
+        'authentication':'Chat assistance could not authenticate with the model provider. An administrator must check its credentials.',
+        'rate_limit':'Chat assistance was rate-limited by the model provider. This may be a request or account quota limit. No cause beyond the provider limit is verified.',
+        'provider_server':'Chat assistance received a model-provider server error. Please retry later.',
+        'provider_request':'Chat assistance encountered a model or request configuration error. An administrator must check the safe API diagnostics.',
+        'timeout':'Chat assistance timed out while routing this request. Please retry later.',
+        'connection':'Chat assistance could not connect to the model provider. Please retry later.',
+        'schema':'Chat assistance received an invalid structured routing response. No shopping action was taken.',
+        'inference':'Chat assistance could not validate the model routing result. No shopping action was taken. Please retry or use the catalog.'
+    }
+    return notices[category]
+
+
 def _log_inference_failure(event: str, exc: Exception) -> None:
     fields = _safe_inference_failure(exc)
     # Existing formatter deliberately drops arbitrary extras. Include only these
@@ -308,7 +324,9 @@ class NeuralCoreService:
         if not self.is_healthy:
             return RouterDecision(intent="SOCIAL_CHAT", social_reply="Chat assistance is not configured right now. Please use the catalog or support page.")
 
-        messages = [{"role": "system", "content": SYSTEM_ROUTING_PROMPT}]
+        messages = [{"role": "system", "content": SYSTEM_ROUTING_PROMPT+
+            "\nAuthoritative output JSON schema for this request. Use exactly these enum values and field types. Omit irrelevant optional fields instead of null for non-nullable fields. quantity is integer1 when no cart quantity applies. brief is an object; targets is an array, empty when not used.\n"+
+            json.dumps(RouterDecision.model_json_schema(),ensure_ascii=False)}]
         messages.extend([{"role": msg.role, "content": msg.content} for msg in memory.history])
         messages.append({"role": "user", "content": message})
 
@@ -368,10 +386,21 @@ class NeuralCoreService:
 
         except ValidationError as exc:
             _log_inference_failure("neural_core.router.schema_violation", exc)
+            # Only schema-owned locations and fixed validator error types.
+            # No input values, messages, contexts or rejected provider content.
+            allowed=set(RouterDecision.model_fields)|set(ShoppingBrief.model_fields)|set(SearchTarget.model_fields)
+            errors=[]
+            for error in exc.errors(include_input=False,include_context=False,include_url=False)[:12]:
+                location='.'.join(str(item) if type(item) is int else item if item in allowed else 'field' for item in error['loc'])
+                code=error['type'] if re.fullmatch(r'[a-z_]{1,64}',error['type']) else 'validation_error'
+                errors.append(location+':'+code)
+            logger.error('neural_core.router.schema_fields details=%s',','.join(errors))
+            return RouterDecision(intent="SOCIAL_CHAT",social_reply=_router_failure_notice(exc))
         except Exception as exc:
             _log_inference_failure("neural_core.router.inference_failure", exc)
             if _safe_inference_failure(exc)["status_code"] == 404:
                 return RouterDecision(intent="SOCIAL_CHAT", social_reply="Chat assistance has a model or endpoint configuration problem. Please use the catalog or support page while it is corrected.")
+            return RouterDecision(intent="SOCIAL_CHAT",social_reply=_router_failure_notice(exc))
 
         return RouterDecision(
             intent="SOCIAL_CHAT", 

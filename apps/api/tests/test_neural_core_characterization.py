@@ -154,7 +154,7 @@ class TestAnalyzeIntent:
         monkeypatch.setattr(service, "_execute_llm_inference", fake_infer)
         decision = await service._analyze_intent("hi", SessionMemory(user_name="F"))
         assert decision.intent == "SOCIAL_CHAT"
-        assert "temporarily unavailable" in decision.social_reply
+        assert "invalid structured routing response" in decision.social_reply
 
     async def test_inference_exception_falls_back_to_social(self, monkeypatch):
         service = make_service()
