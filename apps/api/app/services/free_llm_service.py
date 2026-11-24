@@ -754,6 +754,8 @@ class FreeLLMService:
             # JSON whitespace is also safe to preserve for json.loads callers.
             normalized = str(raw_content or "").strip()
             if raise_on_failure:
+                if completion and completion.choices and getattr(completion.choices[0],"finish_reason",None)=="length":
+                    raise StructuredOutputError("Model completion exceeded output budget")
                 if not normalized:raise StructuredOutputError("Empty model completion")
                 if json_mode:
                     try:
