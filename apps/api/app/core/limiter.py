@@ -21,6 +21,12 @@ SCRIPT="""local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',K
 class AdmissionUnavailable(Exception):pass
 
 
+# Admission is cheap Redis I/O, but a cold burst opens sockets and runs the
+# Redis handshake before EVAL. Bound that fanout below the outer request queue.
+# Preserve the .25s per-I/O and .6s end-to-end fail-closed budgets.
+REDIS_ADMISSION_CONCURRENCY = 8
+
+
 class AsyncLimiter:
     def __init__(self,settings):
         self.enabled=True
@@ -32,8 +38,8 @@ class AsyncLimiter:
         loop=asyncio.get_running_loop()
         if loop not in self._loops:
             client=Redis.from_url(self.uri,socket_timeout=.25,socket_connect_timeout=.25,
-                max_connections=32,decode_responses=True) if self.uri else None
-            self._loops[loop]=(client,asyncio.Semaphore(32),{})
+                max_connections=REDIS_ADMISSION_CONCURRENCY,decode_responses=True) if self.uri else None
+            self._loops[loop]=(client,asyncio.Semaphore(REDIS_ADMISSION_CONCURRENCY),{})
         return self._loops[loop]
 
     async def close(self):
