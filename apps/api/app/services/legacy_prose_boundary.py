@@ -8,7 +8,7 @@ from app.services.legacy_setup_boundary import reviewed_current_brief
 from app.services.shopping_discovery import catalog_result
 
 
-async def reviewed_legacy_answer(db,engine,cache,llm,message,candidates,intent=None,is_specs=False,*,customer_context=()):
+async def reviewed_legacy_answer(db,engine,cache,llm,message,candidates,intent=None,is_specs=False,*,customer_context=(),saved_preferences=()):
     from app.services.neural_core_service import NeuralCoreService,_customer_turn_context,_request_preferences
     from app.services.product_knowledge_service import answer_product_question
     infer=getattr(llm,'infer_sales_json',None)
@@ -51,11 +51,11 @@ async def reviewed_legacy_answer(db,engine,cache,llm,message,candidates,intent=N
                 if now is None or now.model_dump(exclude={'relation'})!=card.model_dump(exclude={'relation'}) or not brief.permits(now):
                     raise ValueError('Catalog changed during reviewed copy')
         return response
-    token=_customer_turn_context.set(());saved=_request_preferences.set(())
+    token=_customer_turn_context.set(());saved=_request_preferences.set(tuple(saved_preferences)[:5])
     try:
         if is_specs or category in {'COMPARISON','SPECS_INQUIRY','BROAD_DISCOVERY'}:
             # Source research never treats catalog availability as product facts.
-            return await answer_product_question(infer,message,targets=tuple(names),fallback=catalog,timeout=24,customer_context=customer_context)
+            return await answer_product_question(infer,message,targets=tuple(names),fallback=catalog,timeout=24,customer_context=customer_context,saved_preferences=saved_preferences)
         return await catalog()
     finally:
         _customer_turn_context.reset(token);_request_preferences.reset(saved)

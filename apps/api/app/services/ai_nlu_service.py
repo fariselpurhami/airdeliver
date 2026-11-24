@@ -2644,6 +2644,16 @@ class AINLUService:
     async def _append_to_memory(self, user_id: int, role: str, content: str, intent: str = "general") -> None:
         await self.memory.append(user_id, MemoryEvent.create(role, content, intent))
 
+    async def _consented_shopping_hints(self,user_id: int) -> tuple[str,...]:
+        # Canonical SQL consent/expiry, never legacy DNA/profile inference.
+        from app.services.customer_memory_service import CustomerMemoryService
+        try:return tuple(await CustomerMemoryService(self.db).recall(user_id))
+        except asyncio.CancelledError:raise
+        except Exception as exc:
+            StructuredLog.warning('customer_hints_unavailable',error_type=type(exc).__name__)
+            await self.db.rollback()
+            return ()
+
     async def _get_conversation_context(self, user_id: int, limit: Optional[int] = None) -> str:
         recent = await self.memory.get_context(user_id, limit or self.config.context_window_size)
         from app.services.customer_memory_service import CustomerMemoryService
@@ -2825,7 +2835,9 @@ class AINLUService:
         try:
             async with asyncio.timeout(45):
                 response=await reviewed_legacy_setup(self.db,self.search_engine,self.cache,
-                    self.llm_service,request.message_text)
+                    self.llm_service,request.message_text,
+                    customer_context=await self.memory.customer_context(request.user_id),
+                    saved_preferences=await self._consented_shopping_hints(request.user_id))
             products=[card.model_dump(mode='json') for card in response.products]
             await self._send_to_ui(request.user_id,{
                 'content':response.text,
@@ -4225,7 +4237,8 @@ class AINLUService:
             async with asyncio.timeout(40):
                 response=await reviewed_legacy_answer(self.db,self.search_engine,self.cache,
                     self.llm_service,request.message_text,final_products,intent_payload,plan.is_specs_query,
-                    customer_context=await self.memory.customer_context(request.user_id))
+                    customer_context=await self.memory.customer_context(request.user_id),
+                    saved_preferences=await self._consented_shopping_hints(request.user_id))
             products=tuple(card.model_dump(mode='json') for card in response.products)
             return LlmDecision(response_text=response.text,products=products,
                 response_type=UiPayloadType.PRODUCT_CAROUSEL if products else UiPayloadType.TEXT,
@@ -5388,7 +5401,8 @@ Execute your response adhering strictly to this visual and structural blueprint:
             async with asyncio.timeout(40):
                 response=await reviewed_legacy_answer(self.db,self.search_engine,self.cache,
                     self.llm_service,user_query,[product],intent_payload,
-                    customer_context=await self.memory.customer_context(user_id))
+                    customer_context=await self.memory.customer_context(user_id),
+                    saved_preferences=await self._consented_shopping_hints(user_id))
             return response.text
         except asyncio.CancelledError:raise
         except Exception as exc:

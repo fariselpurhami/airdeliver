@@ -30,9 +30,9 @@ async def reviewed_current_brief(llm,message,*,customer_context=()):
     return brief
 
 
-async def reviewed_legacy_setup(db,engine,cache,llm,message):
+async def reviewed_legacy_setup(db,engine,cache,llm,message,*,customer_context=(),saved_preferences=()):
     from app.services.neural_core_service import NeuralCoreService
-    brief=await reviewed_current_brief(llm,message)
+    brief=await reviewed_current_brief(llm,message,customer_context=customer_context)
     infer=llm.infer_sales_json
     # Construct only a request-local adapter. Do not create a separate provider
     # client or invoke the ordinary router/history/consent/cart entrypoint.
@@ -40,8 +40,8 @@ async def reviewed_legacy_setup(db,engine,cache,llm,message):
     service.ai_engine=engine;service.cache=cache;service.is_healthy=True
     service._execute_llm_inference=infer
     from app.services.neural_core_service import _customer_turn_context,_request_preferences
-    customer_token=_customer_turn_context.set(())
-    preference_token=_request_preferences.set(())
+    customer_token=_customer_turn_context.set(tuple(customer_context)[-5:])
+    preference_token=_request_preferences.set(tuple(saved_preferences)[:5])
     try:return await service._handle_setup_discovery(db,message,brief)
     finally:
         _customer_turn_context.reset(customer_token)
