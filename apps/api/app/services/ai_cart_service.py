@@ -67,6 +67,7 @@ class CartOperationPayload(BaseModel):
         if isinstance(value, bool):
             raise ValueError("Boolean is not an identifier or quantity")
         return value
+    removal_reason: Optional[str] = Field(default=None,max_length=256,strict=True)
     mutation_id: Optional[uuid.UUID] = None
     action: str = "default"
     notify_user: bool = True
@@ -348,10 +349,10 @@ class AICartService:
                 "options": ["Confirm Order"]
             })
 
-    async def _request_optional_recommendations(self, user_id: int, product_id: int, operation: str) -> None:
+    async def _request_optional_recommendations(self, user_id: int, product_id: int, operation: str, removal_reason: str | None = None) -> None:
         """Read-only follow-up. Broker failure must never undo a saved cart."""
         try:
-            event = CartRecommendationEvent(user_id=user_id, product_id=product_id, operation=operation)
+            event = CartRecommendationEvent(user_id=user_id, product_id=product_id, operation=operation,removal_reason=removal_reason if operation=="removed" else None)
             async with asyncio.timeout(1.0):
                 outcome = await self.rabbitmq.publish(event.model_dump(), CART_RECOMMENDATION_ROUTING_KEY, max_retries=1)
             if not outcome.is_success:
@@ -836,7 +837,7 @@ class AICartService:
                 return
 
             if payload.action != "clear_all" and (self.shared_sales_followups or not self.commerce_engine):
-                await self._request_optional_recommendations(payload.user_id, int(payload.product_id), "removed")
+                await self._request_optional_recommendations(payload.user_id, int(payload.product_id), "removed",payload.removal_reason)
 
             alternatives = [] if self.shared_sales_followups else await _find_alternatives(payload)
 

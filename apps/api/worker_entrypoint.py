@@ -579,7 +579,7 @@ class WorkerRuntime:
                 if (event.product_id in ids) != (event.operation == 'added'):
                     return
                 response = await CartSalesService(db, getattr(self.services, 'llm', None)).respond(
-                    anchor_id=event.product_id, candidates=candidates, operation=event.operation, excluded=ids)
+                    anchor_id=event.product_id, candidates=candidates, operation=event.operation, excluded=ids,removal_reason=event.removal_reason)
                 if response is None:
                     return
                 latest = await current_ids()

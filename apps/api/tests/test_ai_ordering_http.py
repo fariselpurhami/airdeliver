@@ -96,6 +96,13 @@ class TestCartEndpoints:
         assert resp.status_code == 202
         assert cart.calls == [("remove", {"user_id": 1, "product_id": 7, "mutation_id": "a02cf0a7-67a1-4dcc-96d6-45b7be67d306"})]
 
+    def test_remove_reason_forwarded_bounded_and_owner_derived(self,client):
+        c,cart,_,_nlu=client
+        response=c.post('/api/v1/ai-ordering/cart/remove',json={'product_id':7,'removal_reason':'too costly','user_id':999})
+        assert response.status_code==202
+        assert cart.calls[0][1]['user_id']==1 and cart.calls[0][1]['removal_reason']=='too costly'
+        assert c.post('/api/v1/ai-ordering/cart/remove',json={'product_id':7,'removal_reason':'x'*257}).status_code==422
+
     def test_clear_cart(self, client):
         c, cart, _, _nlu = client
         resp = c.post("/api/v1/ai-ordering/cart/clear")

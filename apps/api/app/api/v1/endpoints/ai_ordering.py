@@ -111,6 +111,7 @@ class AddToCartRequest(BaseModel):
 
 
 class RemoveFromCartRequest(BaseModel):
+    removal_reason: Optional[str] = Field(default=None,max_length=256,strict=True)
     product_id: int = Field(ge=1, le=9223372036854775807, strict=True)
 
 
@@ -245,6 +246,7 @@ async def remove_from_cart(
     await cart_service.handle_remove_from_cart({
         "user_id": current_user.id,
         "product_id": payload.product_id,
+        **({"removal_reason":payload.removal_reason} if payload.removal_reason is not None else {}),
         **({"mutation_id": str(mutation_id)} if mutation_id else {}),
     })
     return {"status": "accepted"}

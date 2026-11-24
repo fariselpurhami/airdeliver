@@ -181,6 +181,7 @@ class PresentOptionsAction(SchemaBaseModel):
 
 
 class CartReviewPayload(SchemaBaseModel):
+    removal_reason: Optional[StrictStr] = Field(default=None,max_length=256)
     review_id: StrictStr = Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
     product_id: StrictInt = Field(gt=0, le=2147483647)
     product_name: StrictStr = Field(min_length=1, max_length=512)
