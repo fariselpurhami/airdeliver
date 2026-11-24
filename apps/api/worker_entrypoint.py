@@ -298,7 +298,7 @@ class WorkerRuntime:
             self.ensure_ai_services()
 
     async def track_behavior(self, user_id: Any, action: str, metadata: Dict[str, Any]) -> None:
-        if not user_id or self.services.behavior is None:
+        if type(user_id) is not int or user_id<=0 or self.services.behavior is None or not isinstance(metadata,dict):
             return
         # Vector enrichment: events carrying a product id get its stored 1536-dim
         # embedding so the OmniNet ghost profiles receive real semantic signal
@@ -316,10 +316,9 @@ class WorkerRuntime:
         commerce = self.services.commerce
         if commerce is None:
             return None
-        try:
-            pid = int(product_id)
-        except (TypeError, ValueError):
+        if type(product_id) is not int or product_id<=0 or product_id>2147483647:
             return None
+        pid=product_id
         try:
             rows = await asyncio.to_thread(
                 commerce.milvus_client.get,
@@ -327,12 +326,15 @@ class WorkerRuntime:
                 ids=[pid],
             )
         except Exception as exc:
-            logger.warning("behavior vector enrichment failed: %s", exc)
+            logger.warning("behavior vector enrichment failed error_type=%s",type(exc).__name__)
             return None
-        if not rows:
+        if not isinstance(rows,list) or len(rows)!=1 or not isinstance(rows[0],dict) or type(rows[0].get("id")) is not int or rows[0]["id"]!=pid:
             return None
         vector = rows[0].get("vector")
-        return list(vector) if vector is not None else None
+        import math
+        if not isinstance(vector,(list,tuple)) or not 0<len(vector)<=4096 or any(type(v) not in (int,float) or not math.isfinite(v) for v in vector):
+            return None
+        return list(vector)
 
     @staticmethod
     def is_message_startup_dependent(payload: dict) -> bool:
