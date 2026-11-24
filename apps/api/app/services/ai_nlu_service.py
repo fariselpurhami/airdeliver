@@ -2536,24 +2536,35 @@ class AINLUService:
         )
 
     async def handle_idle_trigger(self, user_id: int) -> None:
-        try:
-            statement = select(Product).order_by(col(Product.rating).desc()).limit(3)
-            result = await self.db.execute(statement)
-            products = result.scalars().all()
+        """Retained explicit hook, no scheduler or inferred engagement policy.
 
-            if products:
-                await self._send_to_ui(
-                    user_id,
-                    {
-                        "content": "Still thinking? Check out these top-rated items!",
-                        "type": UiPayloadType.PROACTIVE_SUGGESTION.value,
-                        "products": [ProductAccess.dump(p) for p in products],
-                        "reason": "Idle Recovery",
-                    },
-                    RequestContext(user_id=user_id, correlation_id=f"idle:{user_id}:{int(time.time())}", received_at=time.monotonic()),
-                )
+        Caller owns whether an idle event is authorized. This method never
+        starts a monitor, reads a hidden profile or pretends catalog rank is
+        popularity. Use current reviewed evidence and recheck before publish.
+        """
+        if type(user_id) is not int or user_id<=0:
+            return
+        try:
+            statement=select(Product).where(Product.is_active.is_(True),Product.inventory>0).order_by(col(Product.rating).desc()).limit(3)
+            result=await self.db.execute(statement)
+            products=result.scalars().all()
+            if not products:
+                return
+            from app.services.legacy_prose_boundary import reviewed_legacy_answer
+            response=await reviewed_legacy_answer(self.db,self.search_engine,self.cache,
+                self.llm_service,'Offer optional exploration of these current catalog cards. No known customer need or preference is supplied.',products)
+            if response.response_kind=='system_notice' or not response.products:
+                return
+            await self._send_to_ui(user_id,{
+                'content':response.text,
+                'type':UiPayloadType.PROACTIVE_SUGGESTION.value,
+                'products':[card.model_dump(mode='json') for card in response.products],
+                'reason':'Optional current catalog exploration; no verified popularity, suitability or merchant availability.',
+            },RequestContext(user_id=user_id,correlation_id=f'idle:{user_id}:{int(time.time())}',received_at=time.monotonic()),strict=True)
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
-            StructuredLog.error("idle_trigger_failed", user_id=user_id, error=str(exc))
+            StructuredLog.error('idle_trigger_failed',error_type=type(exc).__name__)
 
     # -------------------------------------------------------------------------
     # INPUT VALIDATION
