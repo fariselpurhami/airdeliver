@@ -19,7 +19,7 @@ async def test_list_filters_before_limit_and_keeps_both_synthetic_markers():
             data=await read_products(db=db,skip=0,limit=1,page=None,category=category)
             assert len(data)==1 and data[0]['id']==ids[2]
             retained=(await db.execute(select(Product).where(Product.id.in_(ids)))).scalars().all()
-            assert len(retained)==3 and retained[1].attributes['_seed_dataset']=='airdeliver-demo-v1'
+            assert len(retained)==3 and {p.id:p for p in retained}[ids[1]].attributes['_seed_dataset']=='airdeliver-demo-v1'
     finally:
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
