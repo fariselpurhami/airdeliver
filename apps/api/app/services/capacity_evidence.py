@@ -25,9 +25,15 @@ def capacity_token(text):
     return None
 
 
-def supported_capacity(feature,specs):
+def supported_capacity(feature,specs,name=''):
     wanted=capacity_token(feature)
     if wanted is None:return None
+    # Preserve literal typed capacity in a current product name as evidence.
+    # Reject ambiguous variant/option syntax instead of selecting a maximum.
+    if isinstance(name,str) and not re.search(r'\b(?:or|option|options|variant|variants)\b|[/|]',name,re.I):
+        normalized=re.sub(r'\s+','',feature.casefold())
+        pattern=r'(?<!\w)'+r'\s*'.join(re.escape(c) for c in normalized)+r'(?!\w)'
+        if re.search(pattern,name.casefold()):return True
     for key,value in specs.items():
         # An isolated typed value can bind to its own attribute key, never an
         # unrelated adjacent flattened field. Full string must be unambiguous.

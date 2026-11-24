@@ -42,3 +42,12 @@ def test_typed_capacity_reverses_only_explicit_key_and_value_without_converting_
     assert not brief.permits(card('Laptop',{'RAM':'8GB','storage':'16GB'}))
     assert ShoppingBrief(required_features=['1TB SSD']).permits(card('Laptop',{'SSD':'1 terabyte'}))
     assert not ShoppingBrief(required_features=['1TB SSD']).permits(card('Laptop',{'HDD':'1TB'}))
+
+
+def test_explicit_capacity_in_current_name_remains_valid_but_ambiguous_variants_do_not():
+    brief=ShoppingBrief(required_features=['16GB RAM'])
+    assert brief.permits(card('Laptop16 GB RAM',{})) is False  # No lexical boundary.
+    assert brief.permits(card('Laptop 16 GB RAM',{}))
+    assert not brief.permits(card('Laptop 116GB RAM',{}))
+    assert not brief.permits(card('Laptop 8GB or16GB RAM',{}))
+    assert not brief.permits(card('Laptop 8GB/16GB RAM',{}))
