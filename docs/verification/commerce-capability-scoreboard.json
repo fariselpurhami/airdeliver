@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T01:12:00+02:00",
+  "as_of": "2026-11-24T02:30:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -9,16 +9,21 @@
       "observed_wiring": "Used by engine search",
       "gap": "Preserve explicit currency, hard constraints and exclusion semantics across every caller.",
       "reachable": "yes_source_path",
-      "real_boundary_tested": "not_reconciled",
+      "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        58
+      ],
+      "evidence": [
+        "apps/api/tests/test_search_filter_postgres.py"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
         "candidate_test_files": [
-          "apps/api/tests/test_commerce_constraints.py"
+          "apps/api/tests/test_commerce_constraints.py",
+          "apps/api/tests/test_search_filter_postgres.py"
         ],
         "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
         "required_scenarios": [
@@ -27,9 +32,10 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Preserve explicit currency, hard constraints and exclusion semantics across every caller.",
+        "remaining_boundary_gap": "Preserve explicit currency, hard constraints and exclusion semantics across every caller. Actual migrated PostgreSQL: SearchFilter cache roundtrip, current price mutation, exclusions/activity, category injection-like literal, normalization and limit. Currency/hard constraints across every caller remain open.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
-        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
+        "verified_boundary_note": "Actual migrated PostgreSQL: SearchFilter cache roundtrip, current price mutation, exclusions/activity, category injection-like literal, normalization and limit. Currency/hard constraints across every caller remain open."
       }
     },
     {
@@ -205,13 +211,20 @@
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        61,
+        62
+      ],
+      "evidence": [
+        "apps/api/tests/test_opening_pool_postgres.py",
+        "apps/api/tests/test_opening_sales_postgres.py"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
         "candidate_test_files": [
-          "apps/api/tests/test_opening_sales_postgres.py"
+          "apps/api/tests/test_opening_sales_postgres.py",
+          "apps/api/tests/test_opening_pool_postgres.py"
         ],
         "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
         "required_scenarios": [
@@ -220,9 +233,10 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Harden eligibility, diversity, factual row labels and model-authored Insight without inventing popularity or personal knowledge.",
+        "remaining_boundary_gap": "Harden eligibility, diversity, factual row labels and model-authored Insight without inventing popularity or personal knowledge. Actual PostgreSQL pre-limit eligibility test with105 demo rows above a real item, seen exclusions and valid five-point deal rating. Actual Redis publication distinguishes empty pools and withheld model copy. Personalized hybrid all-seen fallback and pre-limit eligibility remain open; no live model quality or catalog-cause proof.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
-        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
+        "verified_boundary_note": "Actual PostgreSQL pre-limit eligibility test with105 demo rows above a real item, seen exclusions and valid five-point deal rating. Actual Redis publication distinguishes empty pools and withheld model copy. Personalized hybrid all-seen fallback and pre-limit eligibility remain open; no live model quality or catalog-cause proof."
       }
     },
     {
@@ -361,16 +375,21 @@
       "observed_wiring": "Dependency factories/startup",
       "gap": "Verify timeout, connection cleanup and bounded failure behavior.",
       "reachable": "yes_source_path",
-      "real_boundary_tested": "not_reconciled",
+      "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
-      "evidence": [],
+      "prs": [
+        59
+      ],
+      "evidence": [
+        "apps/api/tests/test_search_client_lifecycle.py"
+      ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
         "coverage": "partial_or_adjacent_only",
         "candidate_test_files": [
-          "apps/api/tests/test_worker_lifecycle.py"
+          "apps/api/tests/test_worker_lifecycle.py",
+          "apps/api/tests/test_search_client_lifecycle.py"
         ],
         "candidate_caveat": "Existing test files are evidence leads, not proof every branch of this grouped capability is covered. Inspect assertions and run the named boundary before promoting coverage.",
         "required_scenarios": [
@@ -379,9 +398,10 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Verify timeout, connection cleanup and bounded failure behavior.",
+        "remaining_boundary_gap": "Verify timeout, connection cleanup and bounded failure behavior. Real loopback HTTP through AsyncOpenSearch and actual client session closure. Controlled SDK factory verifies Milvus retry/backoff/token/timeout/exhaustion, not an actual Milvus server. Live service/auth/network failure coverage remains open.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
-        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
+        "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed.",
+        "verified_boundary_note": "Real loopback HTTP through AsyncOpenSearch and actual client session closure. Controlled SDK factory verifies Milvus retry/backoff/token/timeout/exhaustion, not an actual Milvus server. Live service/auth/network failure coverage remains open."
       }
     },
     {
@@ -1794,7 +1814,7 @@
     "inventory_groups": 55,
     "source_reachable": 44,
     "fully_reconciled_real_boundary_groups": 3,
-    "partial_boundary_groups": 33,
+    "partial_boundary_groups": 35,
     "live_verified_groups": 0,
     "next": [
       "Owner combined refresh and live gift/no-match/cart reconnect retest, deployed revision not yet verified",
