@@ -62,3 +62,11 @@ async def test_visual_publication_keeps_prior_hard_brief_and_customer_context(mo
         assert kwargs['brief']==brief
         assert kwargs['search_evidence']['customer_only_recent_context']==['customer headphones request']
     finally:_customer_turn_context.reset(token)
+
+@pytest.mark.asyncio
+async def test_component_requirements_are_literal_and_reviewed_not_unrelated_features():
+    infer=AsyncMock(side_effect=[json.dumps({'components':['laptop','chair'],'component_requirements':{'laptop':['16GB RAM']}}),json.dumps({'appropriate':True,'no_invented_products':True})])
+    plan=await plan_setup(infer,'setup with laptop16GB RAM and chair',detailed=True)
+    assert plan.component_requirements=={'laptop':['16GB RAM']}
+    infer=AsyncMock(return_value=json.dumps({'components':['laptop'],'component_requirements':{'chair':['invented']}}))
+    with pytest.raises(ValueError):await plan_setup(infer,'laptop16GB RAM',detailed=True)

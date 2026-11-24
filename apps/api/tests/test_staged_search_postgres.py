@@ -120,7 +120,8 @@ async def test_product_research_http_no_catalog_stock_requirement(real_cache,mon
         app.dependency_overrides.clear();await engine.dispose()
 
 @pytest.mark.asyncio
-async def test_setup_http_plans_components_and_publishes_real_current_cards(real_cache):
+@pytest.mark.parametrize('scoped',[False,True])
+async def test_setup_http_plans_components_and_publishes_real_current_cards(real_cache,scoped):
     from httpx import AsyncClient,ASGITransport
     from app.main import app
     from app.db.session import get_async_session
@@ -128,7 +129,7 @@ async def test_setup_http_plans_components_and_publishes_real_current_cards(real
     cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
-            rows=[Product(sku=uuid4().hex,name=name,description='',category='office',price=20,inventory=5,currency='USD') for name in ['Office desk','Office chair']]
+            rows=[Product(sku=uuid4().hex,name=name,description='',category='office',price=20,inventory=5,currency='USD',attributes={'width':'120cm'} if name=='Office desk' else {}) for name in ['Office desk','Office chair']]
             db.add_all(rows);await db.commit();ids=[p.id for p in rows]
         async def retrieve(db,query,**kwargs):
             result=await db.execute(select(Product).where(Product.id.in_(ids),Product.name.ilike('%'+query+'%')))
@@ -137,8 +138,8 @@ async def test_setup_http_plans_components_and_publishes_real_current_cards(real
         svc=NeuralCoreService(SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=retrieve)),cache);svc.is_healthy=True;svc.configuration_error=False
         async def infer(messages):
             prompt=messages[0]['content']
-            if 'primary cognitive routing' in prompt:return json.dumps({'intent':'SETUP_DISCOVERY','search_subject':'home office setup'})
-            if 'Plan generic component' in prompt:return json.dumps({'components':['desk','chair']})
+            if 'primary cognitive routing' in prompt:return json.dumps({'intent':'SETUP_DISCOVERY','search_subject':'home office setup','brief':{'required_features':['120cm'] if scoped else []}})
+            if 'Plan generic component' in prompt:return json.dumps({'components':['desk','chair'],'component_requirements':{'desk':['120cm']} if scoped else {}})
             if 'Review a generic setup' in prompt:return json.dumps({'appropriate':True,'no_invented_products':True})
             data=json.loads(messages[1]['content'])
             if 'catalog_evidence' in data:
@@ -153,7 +154,7 @@ async def test_setup_http_plans_components_and_publishes_real_current_cards(real
         app.dependency_overrides[get_cache_from_request]=lambda:cache
         try:
             async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
-                response=await client.post('/api/v1/ai-support/chat',json={'message':'build a home office setup','session_id':'setup-real-test'})
+                response=await client.post('/api/v1/ai-support/chat',json={'message':'build a home office setup with desk120cm' if scoped else 'build a home office setup','session_id':'setup-real-test'})
             assert response.status_code==200,response.text
             assert [p['id'] for p in response.json()['products']]==ids
             assert 'Compatibility' in response.json()['text']

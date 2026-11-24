@@ -77,6 +77,7 @@ class SessionMemory(BaseModel):
 
 class SearchTarget(BaseModel):
     product_name: str = Field(min_length=1,max_length=256)
+    required_features: list[str] = Field(default_factory=list,max_length=8)
 
 
 class RouterDecision(BaseModel):
@@ -397,10 +398,13 @@ class NeuralCoreService:
     async def _handle_setup_discovery(self,db,message,brief):
         from app.services.discovery_planner import plan_setup
         try:
-            components=await plan_setup(self._execute_llm_inference,message,customer_context=_customer_turn_context.get())
+            plan=await plan_setup(self._execute_llm_inference,message,customer_context=_customer_turn_context.get(),detailed=True)
+            assigned={f for features in plan.component_requirements.values() for f in features}
+            shared=brief.model_copy(deep=True)
+            shared.required_features=[f for f in brief.required_features if f not in assigned]
             decision=RouterDecision(intent='PRODUCT_SEARCH',shopping_task='setup',
-                targets=[SearchTarget(product_name=c) for c in components])
-            response=await self._handle_staged_product_search(db,decision,brief,message)
+                targets=[SearchTarget(product_name=c,required_features=plan.component_requirements.get(c,[])) for c in plan.components])
+            response=await self._handle_staged_product_search(db,decision,shared,message)
             return response
         except Exception as exc:
             _log_inference_failure('neural_core.setup.withheld',exc)
@@ -430,9 +434,13 @@ class NeuralCoreService:
                     query=decision.retrieval_query if len(decision.targets)==1 and decision.retrieval_query else target.product_name
                     result=await staged_search(self.ai_engine,db,query,
                         rank=CandidateRanker(self.ai_engine).rerank,broaden=_build_broad_query,timeout=5)
-                    groups.append(result.candidates)
+                    target_brief=brief.model_copy(deep=True)
+                    target_brief.required_features=list(dict.fromkeys([*brief.required_features,*target.required_features]))
+                    if len(target_brief.required_features)>8:raise ValueError('Too many target constraints')
+                    filtered=[p for p in result.candidates if (card:=catalog_result(p)) is not None and target_brief.permits(card)]
+                    groups.append(filtered)
                     trace.append({'target':target.product_name,'tier':result.tier,
-                        'retrieved_ids':[p.id for p in result.candidates]})
+                        'retrieved_ids':[p.id for p in filtered],'required_features':target.required_features})
                 # Round robin keeps every target represented under5-card cap.
                 candidates=[];seen=set()
                 for pos in range(5):
