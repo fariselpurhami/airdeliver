@@ -184,3 +184,55 @@ async def test_actual_source_http_causes_safe_notices_and_counts(monkeypatch,cap
     assert result.text==SOURCE_NOTICES[mode]
     assert 'cause='+mode in caplog.text
     assert 'private-sentinel' not in result.text+caplog.text and 'private-question-sentinel' not in caplog.text
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('stage',['extraction','review'])
+async def test_actual_sdk_model429_is_specific_and_no_secret_or_quota_guess(stage,caplog):
+    import httpx,logging
+    from groq import AsyncGroq
+    from types import SimpleNamespace
+    from app.services.neural_core_service import NeuralCoreService
+    count=0
+    async def handler(request):
+        nonlocal count
+        count+=1
+        if stage=='extraction' or count>1:return httpx.Response(429,json={'error':{'message':'private-secret-sentinel','type':'rate_limit_error'}},request=request)
+        return httpx.Response(200,json={'id':'local','object':'chat.completion','created':0,'model':'test','choices':[{'index':0,'message':{'role':'assistant','content':json.dumps({'facts':[{'label':'connection','quote':'Alpha wired connection.','source':0}]})},'finish_reason':'stop'}]})
+    async def lookup(q):return [{'url':'https://maker.example/spec','text':'Alpha wired connection.'}]
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        async with AsyncGroq(api_key='offline',http_client=http,max_retries=0) as client:
+            svc=object.__new__(NeuralCoreService);svc.client=client;svc.profile=SimpleNamespace(support_model='test')
+            # ExerciseactualSDK/inferencecallonce; retrybackoffisaseparatelytestedpolicy.
+            async def infer(messages):return await NeuralCoreService._execute_llm_inference.__wrapped__(svc,messages)
+            with caplog.at_level(logging.WARNING):result=await answer_product_question(infer,'Alpha specs',lookup=lookup)
+    assert result.text==SOURCE_NOTICES['model_rate_limit'] and 'cause=model_rate_limit' in caplog.text
+    assert ('stage=extraction_provider' if stage=='extraction' else 'stage=review_provider') in caplog.text
+    assert 'private-secret-sentinel' not in result.text+caplog.text
+    assert 'credit' not in result.text and 'quota' not in result.text
+    assert count==(1 if stage=='extraction' else 2)
+
+@pytest.mark.asyncio
+async def test_extraction_exact_generated_schema_safe_fields_and_harmless_nulls(caplog):
+    import logging
+    async def lookup(q):return [{'url':'https://maker.example/spec','text':'Alpha wired connection.'}]
+    async def infer(messages):
+        assert 'Authoritative output JSON schema' in messages[0]['content']
+        assert '"facts"' in messages[0]['content']
+        return json.dumps({'facts':[{'label':'private-label-sentinel','quote':None,'source':'private-source-sentinel'}]})
+    with caplog.at_level(logging.WARNING):result=await answer_product_question(infer,'Alpha',lookup=lookup)
+    assert result.text==SOURCE_NOTICES['extraction_schema']
+    assert 'facts.0.quote:string_type' in caplog.text and 'facts.0.source:int_parsing' in caplog.text
+    assert 'private-label-sentinel' not in caplog.text and 'private-source-sentinel' not in caplog.text
+    calls=0
+    async def valid(messages):
+        nonlocal calls
+        calls+=1
+        if calls==1:return json.dumps({'covered_targets':None,'facts':[{'label':'connection','quote':'Alpha wired connection.','source':0,'statement':None}]})
+        return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
+    result=await answer_product_question(valid,'Alpha',lookup=lookup)
+    assert 'Alpha wired connection.' in result.text
+    # Null coverage is harmless only for no-target legacycall. With explicit
+    # requested target it must still fail, never assume model identity.
+    calls=0
+    result=await answer_product_question(valid,'Alpha',lookup=lookup,targets=('Alpha',))
+    assert result.text==SOURCE_NOTICES['quote_rejected']
