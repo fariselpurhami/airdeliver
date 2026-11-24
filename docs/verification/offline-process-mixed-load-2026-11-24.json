@@ -1,0 +1,73 @@
+{
+  "base_commit": "274d9774f2225fd003958db506e20e1dba8f5602",
+  "python": "3.10.12",
+  "runs": {
+    "steady": {
+      "requests": 2000,
+      "concurrency": 32,
+      "allocation": false,
+      "elapsed_seconds": 7.576417716000009,
+      "rps": 263.9769974372408,
+      "statuses": {
+        "200": 2000
+      },
+      "errors": {},
+      "client_seconds": {
+        "p50": 0.0858801789999859,
+        "p95": 0.318076168999994,
+        "p99": 0.4419136539999897,
+        "max": 0.7543357030000095
+      },
+      "heartbeat_seconds": {
+        "p99": 0.008328452999990077,
+        "max": 0.009890521999977864
+      },
+      "gc": {
+        "enabled": true,
+        "thresholds": [
+          2000,
+          10,
+          10
+        ],
+        "collection_count": 15,
+        "pause_p99_seconds": 0.005476820000012594,
+        "pause_max_seconds": 0.005476820000012594
+      },
+      "scope": "Local loopback Redis and PG19 SQL; actual Uvicorn and strict model adapter with controlled12ms transport; no provider, weights, production app startup or remote Redis."
+    },
+    "allocation": {
+      "requests": 2000,
+      "concurrency": 32,
+      "allocation": true,
+      "elapsed_seconds": 5.963452303000025,
+      "rps": 335.3762046514337,
+      "statuses": {
+        "200": 2000
+      },
+      "errors": {},
+      "client_seconds": {
+        "p50": 0.09172659800000815,
+        "p95": 0.14213558700001272,
+        "p99": 0.15507224899999983,
+        "max": 0.1735855610000101
+      },
+      "heartbeat_seconds": {
+        "p99": 0.010181527000014512,
+        "max": 0.06596468300000424
+      },
+      "gc": {
+        "enabled": true,
+        "thresholds": [
+          2000,
+          10,
+          10
+        ],
+        "collection_count": 491,
+        "pause_p99_seconds": 0.0035413450000021385,
+        "pause_max_seconds": 0.06073893100000305
+      },
+      "scope": "Local loopback Redis and PG19 SQL; actual Uvicorn and strict model adapter with controlled12ms transport; no provider, weights, production app startup or remote Redis."
+    }
+  },
+  "live_acceptance": false
+}
