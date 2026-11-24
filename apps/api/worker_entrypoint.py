@@ -707,7 +707,7 @@ class WorkerRuntime:
             user_id = payload.get("user_id")
             if user_id and self.services.behavior is not None:
                 self.create_background_task(
-                    self.track_behavior(user_id, "buy", {"context": "checkout_initiated"}),
+                    self.track_behavior(user_id, "checkout", {"context": "checkout_initiated"}),
                     "behavior-confirm-order",
                 )
 
