@@ -756,8 +756,10 @@ class FreeLLMService:
             if raise_on_failure:
                 if not normalized:raise StructuredOutputError("Empty model completion")
                 if json_mode:
-                    try:json.loads(normalized)
-                    except (ValueError,TypeError) as exc:raise StructuredOutputError("Invalid model JSON") from exc
+                    try:
+                        from app.services.strict_planner_json import planner_object
+                        planner_object(normalized)
+                    except (ValueError,TypeError) as exc:raise StructuredOutputError("Invalid model JSON object") from exc
 
             if json_mode:
                # في وضع الـ JSON، نفضّل إرجاع النص كما هو، مع افتراض أن المستهلك سيقوم بالـ json.loads
