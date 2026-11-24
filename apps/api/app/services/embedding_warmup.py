@@ -6,6 +6,7 @@ readiness and publication immediately; already-running native work may drain.
 from dataclasses import dataclass
 import logging
 import time
+import threading
 
 import numpy as np
 
@@ -31,7 +32,7 @@ class WarmupPolicy:
 
 
 def warm_text_encoder(model, dimension, *, policy=WarmupPolicy(), clock=time.monotonic,
-                      rejected=None):
+                      rejected=None, progress_interval_seconds=30):
     """Require consecutive fast, valid encodes before publishing the model.
 
     Uses the existing raw-query encode contract. This does not select a prompt,
@@ -44,8 +45,20 @@ def warm_text_encoder(model, dimension, *, policy=WarmupPolicy(), clock=time.mon
         if (rejected is not None and rejected.is_set()) or clock() - started >= policy.budget_seconds:
             raise TextEmbeddingWarmupError("Text embedding warmup budget exhausted")
         sample_started = clock()
-        vector = np.asarray(model.encode(
-            "I need a warm fleece jacket for cool weather", convert_to_numpy=True))
+        logger.info("text embedding warmup sample started attempt=%d", attempt)
+        stopped = threading.Event()
+        def report_pending():
+            while not stopped.wait(progress_interval_seconds):
+                logger.info("text embedding warmup sample pending attempt=%d elapsed_seconds=%.1f state=native_encode_in_flight",
+                            attempt, clock() - sample_started)
+        heartbeat = threading.Thread(target=report_pending, daemon=True, name="text-warmup-progress")
+        heartbeat.start()
+        try:
+            vector = np.asarray(model.encode(
+                "I need a warm fleece jacket for cool weather", convert_to_numpy=True))
+        finally:
+            stopped.set()
+            heartbeat.join(timeout=1)
         elapsed = clock() - sample_started
         durations.append(round(elapsed, 4))
         if (vector.shape != (dimension,) or not np.isfinite(vector).all()

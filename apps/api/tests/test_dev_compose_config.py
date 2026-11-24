@@ -307,3 +307,13 @@ def test_acceptance_override_is_opt_in_and_preserves_dev_environment(prepared):
     # Held migration dependency still exists, which is why applying remains --no-deps.
     assert 'api-migrator' in stable['services']['api']['depends_on']
     assert stable['services']['api-worker'] == base['services']['api-worker']
+
+
+def test_dev_vector_storage_restarts_clean_exits_and_gates_initial_milvus_start(prepared):
+    root,_=prepared
+    services=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')['services']
+    assert services['minio']['restart']=='unless-stopped'
+    assert services['milvus']['depends_on']['minio']['condition']=='service_healthy'
+    assert services['milvus']['depends_on']['etcd']['condition']=='service_healthy'
+    assert services['etcd']['healthcheck']['test']==['CMD','etcdctl','--endpoints=http://127.0.0.1:2379','endpoint','health']
+    assert any(v['target']=='/data' and v['type']=='volume' for v in services['minio']['volumes'])

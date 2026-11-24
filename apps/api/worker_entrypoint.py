@@ -766,8 +766,14 @@ class WorkerRuntime:
             self.services.opensearch_gen = get_opensearch_client(settings)
             self.services.opensearch_client = await anext(self.services.opensearch_gen)
 
-        milvus_client = get_milvus_client(settings)
-        self.ensure_milvus_schema(milvus_client)
+        # SDK connect retries and schema calls are synchronous native I/O.
+        # Keep the health server responsive while readiness remains rejected.
+        logger.info("worker.ai_stage_started stage=milvus_connect")
+        milvus_client = await asyncio.to_thread(get_milvus_client, settings)
+        logger.info("worker.ai_stage_completed stage=milvus_connect")
+        logger.info("worker.ai_stage_started stage=milvus_schema")
+        await asyncio.to_thread(self.ensure_milvus_schema, milvus_client)
+        logger.info("worker.ai_stage_completed stage=milvus_schema")
 
         loop = asyncio.get_running_loop()
 

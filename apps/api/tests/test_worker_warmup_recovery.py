@@ -156,3 +156,41 @@ async def test_shutdown_during_readiness_backoff_retains_original_delivery(monke
     with pytest.raises(asyncio.CancelledError):await task
     incoming.reject.assert_awaited_once_with(requeue=True)
     incoming.ack.assert_not_awaited()
+
+
+def test_inflight_warmup_logs_pending_then_stops_heartbeat_on_failure(caplog):
+    import time,logging
+    from app.services.embedding_warmup import warm_text_encoder
+    caplog.set_level(logging.INFO)
+    def encode(*args,**kwargs):
+        time.sleep(.04)
+        raise ValueError('controlled invalid encoder')
+    with pytest.raises(ValueError):
+        warm_text_encoder(SimpleNamespace(encode=encode),1536,progress_interval_seconds=.01)
+    assert 'warmup sample started attempt=1' in caplog.text
+    assert 'state=native_encode_in_flight' in caplog.text
+    assert 'model ready' not in caplog.text
+    assert not any(t.name=="text-warmup-progress" for t in threading.enumerate())
+
+
+@pytest.mark.asyncio
+async def test_worker_health_responsive_during_native_milvus_retry(monkeypatch):
+    import time
+    runtime=worker.WorkerRuntime();runtime.services.opensearch_client=object()
+    monkeypatch.setattr(worker,'initialize_query_embeddings',AsyncMock(return_value=object()))
+    started=threading.Event();release=threading.Event()
+    def connect(settings):
+        started.set();release.wait(2)
+        raise commerce.MilvusConnectionError('controlled outage')
+    monkeypatch.setattr(worker,'get_milvus_client',connect)
+    task=asyncio.create_task(runtime.initialize_ai(object()))
+    try:
+        for _ in range(100):
+            if started.is_set():break
+            await asyncio.sleep(.005)
+        assert started.is_set()
+        response=await asyncio.wait_for(runtime.health_check_handler(None),.1)
+        assert response.status==503 and not runtime.services.ai_ready
+    finally:
+        release.set()
+        with pytest.raises(commerce.MilvusConnectionError):await task

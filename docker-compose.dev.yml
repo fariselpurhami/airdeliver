@@ -173,6 +173,12 @@ services:
     volumes:
       - etcd-data:/etcd
     command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: [CMD, etcdctl, --endpoints=http://127.0.0.1:2379, endpoint, health]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
     networks:
       - global-net
     logging:
@@ -193,6 +199,7 @@ services:
     image: rustfs/rustfs:1.0.6@sha256:ee717072290bec9b11abfc0365f8310b00df1cd9b3639943edae47bdef05044a
     pull_policy: missing
     container_name: airdeliver-minio
+    restart: unless-stopped
     user: '0:0'
     command: [server, /data]
     environment: !override
@@ -239,7 +246,7 @@ services:
       - "9091:9091"
     depends_on: !override
       etcd:
-        condition: service_started
+        condition: service_healthy
       minio:
         condition: service_healthy
     networks:
