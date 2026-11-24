@@ -86,10 +86,11 @@ class UserProfileResult(BaseModel):
     meta: Dict[str, str] = Field(default_factory=dict)
 
 class TrackInteractionPayload(BaseModel):
-    id: Optional[int] = None
-    price: Optional[float] = None
-    vector: Optional[List[float]] = Field(None, alias="vec")
-    image_vector: Optional[List[float]] = None
+    model_config = ConfigDict(extra="ignore", strict=True, allow_inf_nan=False)
+    id: Optional[int] = Field(None, ge=1, le=2147483647)
+    price: Optional[float] = Field(None, ge=0)
+    vector: Optional[List[float]] = Field(None, alias="vec", min_length=1, max_length=4096)
+    image_vector: Optional[List[float]] = Field(None, min_length=1, max_length=4096)
 
     def get_active_vector(self) -> Optional[List[float]]:
         return self.vector or self.image_vector
@@ -457,13 +458,14 @@ class BehaviorEngine:
 
     async def track_interaction(self, user_id: int, interaction_type: str, raw_metadata: Dict[str, Any]) -> None:
         """Asynchronously stages an interaction event into the neural buffer."""
-        if interaction_type not in ACTION_MAP:
+        if type(user_id) is not int or user_id<=0 or interaction_type not in ACTION_MAP:
             return
+        if not isinstance(raw_metadata,dict):return
 
         try:
             meta = TrackInteractionPayload(**raw_metadata)
         except ValidationError as e:
-            logger.warning("Invalid interaction metadata payload", extra={"error": str(e), "user_id": user_id})
+            logger.warning("Invalid interaction metadata payload", extra={"error_type": type(e).__name__})
             return
 
         # Parallel fire-and-forget state updates
