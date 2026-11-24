@@ -120,3 +120,13 @@ async def test_actual_extraction_review_are_packed_and_keep_strict_schema():
     for call in calls:
         assert call['response_format']['json_schema']['strict'] is True
         assert token_upper_bound({'messages':call['messages'],'response_format':call['response_format']})+call['max_tokens']<=7800
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('value', ['', 'invalid-private', 'nan', '-1'])
+async def test_invalid_or_missing_reset_does_not_hot_retry(value):
+    model='offline-bad-header-'+value
+    create=AsyncMock(side_effect=rate_error(value))
+    with pytest.raises(RateLimitError):
+        await complete(create,model=model,messages=[],response_format={},timeout=.03)
+    assert create.await_count==1
+    assert admission(model).until-asyncio.get_running_loop().time()>59

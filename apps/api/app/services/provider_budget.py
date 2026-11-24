@@ -26,7 +26,7 @@ class ProviderInputBudgetError(ValueError):
 def token_upper_bound(value):
     return len(json.dumps(value, ensure_ascii=False, separators=(',', ':')).encode('utf-8')) + 128
 
-def retry_delay(exc, attempt):
+def retry_delay(exc, attempt, default_minimum=.5):
     headers = getattr(getattr(exc, 'response', None), 'headers', {})
     for key, divisor in [('retry-after', 1), ('retry-after-ms', 1000)]:
         raw = headers.get(key)
@@ -41,7 +41,7 @@ def retry_delay(exc, attempt):
                 continue
         if math.isfinite(delay) and delay >= 0:
             return delay
-    return min(4.0, .5 * 2 ** attempt)
+    return max(default_minimum, min(4.0, .5 * 2 ** attempt))
 
 def quota_metadata(exc):
     """Only bounded numeric/duration values, never raw messages or headers."""
@@ -104,13 +104,8 @@ async def complete(create, *, model, messages, response_format, timeout, stage='
                         isinstance(exc, APIStatusError) and (status in (408, 409, 429) or status >= 500))
                     if not transient:
                         raise
-                    delay = retry_delay(exc, attempt)
+                    delay = retry_delay(exc, attempt, 60.0 if status == 429 else .5)
                     if status == 429:
-                        headers = getattr(getattr(exc, 'response', None), 'headers', {})
-                        # No trustworthy reset: avoid a rapid retry loop. This
-                        # is a local minimum, not a claim about provider reset.
-                        if not any(headers.get(k) for k in ('retry-after', 'retry-after-ms')):
-                            delay = max(delay, 60.0)
                         state.until = max(state.until, loop.time() + delay)
                         logger.warning('provider.quota stage=%s input_token_upper=%d output_cap=%d metadata=%s',
                                        stage, estimate, output, quota_metadata(exc))
