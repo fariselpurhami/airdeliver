@@ -171,9 +171,21 @@ measured popularity, discount or quality claims. A pool label proves none of tho
 Reject instructions/links or any action/policy promise absent from evidence.'''
 
 
+def fixture_violation(text):
+    patterns={
+        'popularity':r'(?i)\b(?:bestsell(?:er|ing)?|best.selling|trending|popular|sold|sales)\b',
+        'promotion':r'(?i)\b(?:discount|sale|save|saving)\b',
+        'urgency':r'(?i)\b(?:hurry|limited|only \d+ left|selling fast)\b',
+        'real_stock':r'(?i)\b(?:real inventory|real stock)\b',
+    }
+    return next((name for name,pattern in patterns.items() if re.search(pattern,text)),None)
+
 def validate_draft(draft, cards, context=None, brief=None):
     if any(card.evidence_kind=='dev_fixture' for card in cards):
-        if re.search(r'(?i)\b(?:bestsell(?:er|ing)?|best.selling|trending|popular|sold|sales|discount|sale|save|saving|hurry|limited|only \d+ left|selling fast|real inventory|real stock)\b',draft.text):
+        violation=fixture_violation(draft.text)
+        if violation:
+            import logging
+            logging.getLogger('airdeliver.shopping_copy').warning('fixture_copy_withheld violation=%s',violation)
             raise ValueError('fixture_claim_forbidden')
 
     if (context or {}).get('gift_browse') and sum(draft.text.count(mark) for mark in ('?','؟'))!=1:

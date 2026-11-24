@@ -13,6 +13,7 @@ from app.core.logging_config import JsonFormatter
 @pytest.mark.asyncio
 async def test_matrix_deadline_reports_real_failure_and_cancels_pending_work(caplog):
     service=object.__new__(AINLUService)
+    service.cache=SimpleNamespace(client=None)
     service.config=MatrixConfig(matrix_timeout_sec=.02,matrix_stage_timeout_sec=.01)
     cancelled=asyncio.Event()
     async def blocked(user):

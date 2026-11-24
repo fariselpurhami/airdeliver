@@ -3093,8 +3093,13 @@ class AINLUService:
 
     async def _handle_initial_suggestions(self, user_id: int) -> None:
         try:
-            async with asyncio.timeout(self.config.matrix_timeout_sec):
-                outcome = await self._handle_initial_suggestions_bounded(user_id)
+            from app.services.opening_admission import opening_generation
+            async with opening_generation(self.cache,user_id,self.config.matrix_timeout_sec) as acquired:
+                if not acquired:
+                    StructuredLog.info('opening_generation_coalesced',user_id=user_id)
+                    return
+                async with asyncio.timeout(self.config.matrix_timeout_sec):
+                    outcome = await self._handle_initial_suggestions_bounded(user_id)
             if outcome is not False:
                 StructuredLog.info("matrix_generation_completed", user_id=user_id)
         except asyncio.CancelledError:

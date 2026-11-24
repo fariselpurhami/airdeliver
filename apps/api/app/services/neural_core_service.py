@@ -199,7 +199,9 @@ def _safe_inference_failure(exc: Exception) -> dict:
     """Allowlisted diagnostics only. Never serialize exception text or response."""
     status = getattr(exc, "status_code", None)
     status = status if type(status) is int and 100 <= status <= 599 else None
-    category = ("authentication" if status in (401,403) else
+    from app.services.shared_provider_admission import SharedProviderBudgetError
+    category = ("capacity" if isinstance(exc,SharedProviderBudgetError) else
+                "authentication" if status in (401,403) else
                 "rate_limit" if status == 429 else
                 "provider_server" if status and status >= 500 else
                 "provider_request" if status and status >= 400 else
@@ -215,6 +217,7 @@ def _safe_inference_failure(exc: Exception) -> dict:
 def _router_failure_notice(exc: Exception) -> str:
     category=_safe_inference_failure(exc)['failure_category']
     notices={
+        'capacity':'Chat assistance is temporarily at its shared model capacity. No shopping action was taken. Please wait briefly or use the catalog.',
         'authentication':'Chat assistance could not authenticate with the model provider. An administrator must check its credentials.',
         'rate_limit':'Chat assistance was rate-limited by the model provider. This may be a request or account quota limit. No cause beyond the provider limit is verified.',
         'provider_server':'Chat assistance received a model-provider server error. Please retry later.',
