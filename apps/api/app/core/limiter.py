@@ -64,7 +64,10 @@ class AsyncLimiter:
                             if len(memory)>=10000:raise AdmissionUnavailable()
                         count+=1;memory[key]=(count,expiry)
         except asyncio.CancelledError:raise
-        except Exception as exc:raise AdmissionUnavailable() from exc
+        except Exception as exc:
+            import logging
+            logging.getLogger('airdeliver.admission').warning('admission_unavailable type=%s cause=%s',type(exc).__name__,type(exc.__cause__).__name__)
+            raise AdmissionUnavailable() from exc
         if count>item.amount:
             request.state.view_rate_limit=None
             raise RateLimitExceeded(SimpleNamespace(error_message=None,limit=item))

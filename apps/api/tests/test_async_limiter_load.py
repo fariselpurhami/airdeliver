@@ -23,8 +23,9 @@ async def test_real_redis_concurrent_admission_and_event_loop_latency(redis_serv
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=application(instance)),base_url='http://test') as c:
             results=await asyncio.gather(*(c.get('/plain') for _ in range(150)))
         elapsed=time.perf_counter()-started
-        assert sum(r.status_code==200 for r in results)==100
-        assert sum(r.status_code==429 for r in results)==50
+        statuses={status:sum(r.status_code==status for r in results) for status in (200,429,503)}
+        assert sum(r.status_code==200 for r in results)==100, statuses
+        assert sum(r.status_code==429 for r in results)==50, statuses
         assert samples and max(samples)<.2
         print({'actual_redis_requests':150,'elapsed_seconds':round(elapsed,4),
                'heartbeat_max_gap_seconds':round(max(samples),4),'success':100,'rate_limited':50})
