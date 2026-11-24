@@ -517,14 +517,17 @@ class NeuralCoreService:
         from app.services.ai_nlu_service import CandidateRanker, _build_broad_query
         from app.services.staged_search_service import staged_search
         groups=[];trace=[];scoped_checks={}
+        stage='retrieval'
         try:
             # Sequential SQL work. One target timing out aborts publication so a
             # partial result cannot masquerade as a complete comparison.
             async with asyncio.timeout(24):
                 for target in decision.targets:
                     query=decision.retrieval_query if len(decision.targets)==1 and decision.retrieval_query else target.product_name
+                    stage='retrieval'
                     result=await staged_search(self.ai_engine,db,query,
                         rank=CandidateRanker(self.ai_engine).rerank,broaden=_build_broad_query,timeout=5)
+                    stage='constraint_filter'
                     target_brief=brief.model_copy(deep=True)
                     target_brief.required_features=list(dict.fromkeys([*brief.required_features,*target.required_features]))
                     target_brief.excluded_terms=list(dict.fromkeys([*brief.excluded_terms,*target.excluded_terms]))
@@ -549,12 +552,14 @@ class NeuralCoreService:
                         if candidate.currency==brief.budget_currency and Decimal(str(candidate.price))<=remaining:
                             selected.append(candidate);remaining-=Decimal(str(candidate.price))
                     candidates=selected
+                stage='catalog_copy'
                 response=await self._catalog_response(db,candidates,'PRODUCT_SEARCH',
                     brief=brief,customer_message=message,
                     decision=decision if len(decision.targets)==1 else None,
                     search_evidence={'shopping_task':decision.shopping_task,'advice_goal':decision.advice_goal,
                         'customer_signal':decision.customer_signal,'target_searches':trace,
                         'missing_target_evidence_is_unknown':True,'external_web_evidence':False})
+                stage='postcopy_revalidation'
                 if response.products:
                     ids=[c.id for c in response.products]
                     rows=await db.execute(select(models.Product).where(models.Product.id.in_(ids)).execution_options(populate_existing=True))
@@ -565,6 +570,7 @@ class NeuralCoreService:
                             raise ValueError('Catalog changed during staged copy')
                 return response
         except Exception as exc:
+            logger.warning('neural_core.staged_search.stage stage=%s targets=%d',stage,len(decision.targets))
             _log_inference_failure('neural_core.staged_search.withheld',exc)
             return NeuralCoreResponse(text='System notice: the complete current product evidence could not be checked. Please retry.',
                 response_kind='system_notice',confidence=0,explain='Staged search unavailable',

@@ -2,7 +2,7 @@
 import json
 import anyio
 from pydantic import BaseModel,ConfigDict,Field,StrictStr
-from app.services.shopping_copy import ShoppingDraft,GroundingReview,validate_draft
+from app.services.shopping_copy import ShoppingDraft,GroundingReview,validate_draft,ShoppingCopyError,ShoppingCopyTimeout
 from app.services.structured_output import infer_schema
 from app.services.shopping_discovery import catalog_result
 
@@ -23,16 +23,31 @@ async def write_batch(llm,groups,timeout=25.):
     cards={k:v for k,v in cards.items() if v}
     if not cards:return {}
     payload={'rows':[{'row':label,'cards':[{'id':c.id,'name':c.name,'catalog_specs':c.catalog_specs,'evidence_kind':c.evidence_kind,'stock_status':c.stock_status} for c in values]} for label,values in cards.items()]}
-    with anyio.fail_after(timeout):
-        raw=await infer_schema(llm.infer_sales_json,[{'role':'system','content':RULES},{'role':'user','content':json.dumps(payload,ensure_ascii=False)}],OpeningBatch)
-        result=OpeningBatch.model_validate_json(raw)
-        if len(result.rows)!=len(cards) or {r.row for r in result.rows}!=set(cards):raise ValueError('Opening batch identity mismatch')
-        output={}
-        for row in result.rows:
-            validate_draft(row.draft,cards[row.row],{'sales_intent':'OPENING_INSIGHT'},{})
-            paragraphs=row.draft.text.split('\n\n')
-            if len(paragraphs)!=2 or any(not p.strip() for p in paragraphs):raise ValueError('Opening paragraph contract')
-            output[row.row]=tuple(p.strip() for p in paragraphs)
-        review=await infer_schema(llm.infer_sales_json,[{'role':'system','content':REVIEW},{'role':'user','content':json.dumps({'input':payload,'draft':result.model_dump()},ensure_ascii=False)}],GroundingReview)
-        if not all(GroundingReview.model_validate_json(review).model_dump().values()):raise ValueError('Opening independent review rejected')
+    stage='writer_provider'
+    try:
+        with anyio.fail_after(timeout):
+            raw=await infer_schema(llm.infer_sales_json,[{'role':'system','content':RULES},{'role':'user','content':json.dumps(payload,ensure_ascii=False)}],OpeningBatch)
+            stage='writer_schema'
+            result=OpeningBatch.model_validate_json(raw)
+            stage='writer_identity'
+            if len(result.rows)!=len(cards) or {r.row for r in result.rows}!=set(cards):raise ValueError('opening_identity_mismatch')
+            output={}
+            for row in result.rows:
+                stage='writer_evidence'
+                validate_draft(row.draft,cards[row.row],{'sales_intent':'OPENING_INSIGHT'},{})
+                stage='writer_format'
+                paragraphs=row.draft.text.split('\n\n')
+                if len(paragraphs)!=2 or any(not p.strip() for p in paragraphs):raise ValueError('opening_paragraph_contract')
+                output[row.row]=tuple(p.strip() for p in paragraphs)
+            stage='review_provider'
+            review=await infer_schema(llm.infer_sales_json,[{'role':'system','content':REVIEW},{'role':'user','content':json.dumps({'input':payload,'draft':result.model_dump()},ensure_ascii=False)}],GroundingReview)
+            stage='review_schema'
+            verdict=GroundingReview.model_validate_json(review)
+            stage='review_verdict'
+            if not all(verdict.model_dump().values()):raise ValueError('grounding_review_rejected')
+    except Exception as exc:
+        allowed={'opening_identity_mismatch','opening_paragraph_contract','grounding_review_rejected','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim'}
+        reason=str(exc) if type(exc) is ValueError and str(exc) in allowed else type(exc).__name__
+        kind=ShoppingCopyTimeout if isinstance(exc,TimeoutError) else ShoppingCopyError
+        raise kind(stage,reason) from exc
     return output

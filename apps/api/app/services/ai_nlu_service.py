@@ -3220,7 +3220,10 @@ class AINLUService:
                 from app.services.shopping_discovery import catalog_result
                 copy_tasks=[(*batch[label],[catalog_result(p) for p in products]) if label in batch else None for label,products in row_groups]
             except Exception as exc:
-                StructuredLog.warning('opening_batch_withheld',error_type=type(exc).__name__)
+                from app.services.shopping_copy import ShoppingCopyError
+                StructuredLog.warning('opening_batch_withheld',error_type=type(exc).__name__,
+                    stage=exc.stage if isinstance(exc,ShoppingCopyError) else 'batch_adapter',
+                    reason=exc.reason if isinstance(exc,ShoppingCopyError) else type(exc).__name__)
                 copy_tasks=[None]*4
         else:
             copy_tasks=[]

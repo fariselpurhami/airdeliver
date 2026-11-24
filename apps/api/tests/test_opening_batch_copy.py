@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
 from app.services.opening_batch_copy import write_batch,RULES,REVIEW
+from app.services.shopping_copy import ShoppingCopyError
 from tests.test_shopping_discovery_contract import row
 
 
@@ -24,7 +25,10 @@ async def test_batch_actual_writer_validator_and_independent_reviewer(failure):
     if failure=='provider':infer.side_effect=TimeoutError()
     llm=SimpleNamespace(infer_sales_json=infer)
     if failure:
-        with pytest.raises(Exception):await write_batch(llm,groups)
+        with pytest.raises(ShoppingCopyError) as caught:await write_batch(llm,groups)
+        expected={'ids':'writer_identity','numeric':'writer_evidence','undeclared':'writer_evidence','review':'review_verdict','paragraph':'writer_format','provider':'writer_provider'}
+        assert caught.value.stage==expected[failure]
+        assert 'catalog designs' not in caught.value.reason
         assert infer.await_count==2 if failure=='review' else infer.await_count==1
     else:
         result=await write_batch(llm,groups)
