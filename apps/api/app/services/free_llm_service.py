@@ -2263,7 +2263,7 @@ Output ONE line of search keywords only.
             type="carousel",
             intro=intro,
             selected_ids=selected_ids,
-            products=target_products,
+            products=[p for p in target_products if p.get("id") in selected_ids],
             search_terms=clean_terms,
             intent_metadata=strategy.model_dump(),
         )

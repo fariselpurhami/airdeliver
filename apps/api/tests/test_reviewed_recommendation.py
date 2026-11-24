@@ -52,7 +52,7 @@ async def test_real_orchestrator_uses_explicit_evidence_and_never_repopulates_re
     llm.extract_search_terms=AsyncMock(return_value='shirt')
     llm._chat_completion=AsyncMock(side_effect=[completion(json.dumps(D)),completion(json.dumps({**V,'supported':False}))])
     result=await llm.handle_commerce_interaction('cotton shirt',[deepcopy(P)])
-    assert result['selected_ids']==[] and result['intro'].startswith('System notice:')
+    assert result['selected_ids']==[] and result['products']==[] and result['intro'].startswith('System notice:')
     assert llm._chat_completion.await_count==2
 
 @pytest.mark.asyncio
