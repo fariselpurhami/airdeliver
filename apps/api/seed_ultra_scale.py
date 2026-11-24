@@ -24,7 +24,7 @@ from pymilvus import DataType, MilvusClient
 from sqlalchemy import text, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.models.product import Product as DatabaseProduct
-from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION
+from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION, PRODUCT_SEARCH_INDEX
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     allow_production: bool = Field(False, alias='SEED_ALLOW_PRODUCTION')
     opensearch_host: str = Field('opensearch', alias='OPENSEARCH_HOST')
     opensearch_port: int = Field(9200, alias='OPENSEARCH_PORT')
-    opensearch_index: str = Field('airdeliver_products', alias='OPENSEARCH_INDEX')
+    opensearch_index: str = Field(PRODUCT_SEARCH_INDEX, alias='OPENSEARCH_INDEX')
     opensearch_pass: SecretStr | None = Field(None, alias='OPENSEARCH_PASS')
     opensearch_user: str | None = Field(None, alias='OPENSEARCH_USER')
     opensearch_use_ssl: bool = Field(True, alias='OPENSEARCH_USE_SSL')
@@ -85,6 +85,7 @@ class Settings(BaseSettings):
     api_embedding_revision: str | None = Field(None, alias='PRODUCT_TEXT_MODEL_REVISION')
     embedding_revision: str | None = Field(None, alias='SEED_EMBEDDING_REVISION')
     embedding_dimension: PositiveInt = Field(PRODUCT_TEXT_MODEL_DIMENSION, alias='SEED_EMBEDDING_DIMENSION')
+    embedding_local_files_only: bool = Field(False, alias='SEED_EMBEDDING_LOCAL_FILES_ONLY')
     embedding_max_seq_length: int = Field(256, ge=32, le=8192, alias='SEED_EMBEDDING_MAX_SEQ_LENGTH')
     embedding_threads: int = Field(2, ge=1, le=16, alias='SEED_EMBEDDING_THREADS')
     embedding_encode_batch_size: int = Field(1, ge=1, le=32, alias='EMBEDDING_ENCODE_BATCH_SIZE')
@@ -128,9 +129,14 @@ class Settings(BaseSettings):
             self.embedding_revision=self.api_embedding_revision or (DEFAULT_PRODUCT_TEXT_MODEL_REVISION if self.embedding_model==PRODUCT_TEXT_MODEL_NAME else None)
         if self.milvus_enabled and self.milvus_collection==PRODUCT_TEXT_COLLECTION:
             if self.embedding_model!=PRODUCT_TEXT_MODEL_NAME or self.embedding_dimension!=PRODUCT_TEXT_MODEL_DIMENSION:
-                raise ValueError('The API product collection requires its GTE model and 1536 dimensions; use a separate collection for experiments')
+                raise ValueError(f'The API product collection requires its selected model and {PRODUCT_TEXT_MODEL_DIMENSION} dimensions; use a separate collection for experiments')
             if self.embedding_revision!=(self.api_embedding_revision or DEFAULT_PRODUCT_TEXT_MODEL_REVISION):
                 raise ValueError('The API collection requires the same model revision as PRODUCT_TEXT_MODEL_REVISION')
+        from app.core.catalog_contract import SPACES
+        for space in SPACES.values():
+            if space.key=='harrier-v1' and (self.milvus_collection==space.collection or self.opensearch_index==space.search_index):
+                if (self.embedding_model,self.embedding_dimension,self.embedding_revision)!=(space.model,space.dimension,space.revision):
+                    raise ValueError('Model identity/revision does not match versioned index namespace')
         if self.retry_max_seconds < self.retry_min_seconds:
             raise ValueError('Retry maximum must be at least the minimum')
         return self
@@ -826,10 +832,16 @@ class EmbeddingService:
     def __init__(self, settings: Settings, logger: logging.Logger) -> None:
         self._logger = logger
         self._encode_batch_size = settings.embedding_encode_batch_size
+        self._harrier = settings.embedding_model=='microsoft/harrier-oss-v1-0.6b'
         import torch
         from sentence_transformers import SentenceTransformer
         torch.set_num_threads(settings.embedding_threads)
-        self._model = SentenceTransformer(settings.embedding_model, revision=settings.embedding_revision, device='cpu', trust_remote_code=False)
+        options={'local_files_only':True,'model_kwargs':{'dtype':torch.float32}} if settings.embedding_local_files_only else {}
+        model_path=settings.embedding_model
+        if self._harrier:
+            from scripts.owner_embedding_benchmark import resolve,validate_files,definitions
+            path,revision=resolve('harrier');validate_files(path,definitions()['harrier']);model_path=str(path)
+        self._model = SentenceTransformer(model_path, revision=settings.embedding_revision, device='cpu', trust_remote_code=False, **options)
         self._model.max_seq_length = settings.embedding_max_seq_length
         self._dimension = int(self._model.get_embedding_dimension())
         if self._dimension!=settings.embedding_dimension:
@@ -856,6 +868,7 @@ class EmbeddingService:
                 batch_size=self._encode_batch_size,
                 convert_to_numpy=True,
                 show_progress_bar=False,
+                **({"prompt":""} if self._harrier else {}),
             )
             return [row.astype(float).tolist() for row in embeddings]
 

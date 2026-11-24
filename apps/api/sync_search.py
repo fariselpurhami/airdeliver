@@ -25,13 +25,14 @@ from sqlmodel import select
 from transformers import AutoModel, AutoProcessor
 
 from app.core.config import get_core_settings
+from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME,PRODUCT_TEXT_MODEL_DIMENSION,PRODUCT_TEXT_COLLECTION,PRODUCT_SEARCH_INDEX,DEFAULT_PRODUCT_TEXT_MODEL_REVISION
 from app.models.product import Product
 
 # --- CONSTANTS & CONFIGURATION ---
 
-CHECKPOINT_FILE = "sync_checkpoint.json"
+CHECKPOINT_FILE = "sync_checkpoint.json" if PRODUCT_TEXT_MODEL_DIMENSION==1536 else "sync_checkpoint_harrier_v1.json"
 MAX_SEQ_LENGTH = 8192
-MILVUS_TEXT_DIM = 1536
+MILVUS_TEXT_DIM = PRODUCT_TEXT_MODEL_DIMENSION
 MILVUS_VIS_DIM = 1152
 HNSW_M = 16
 HNSW_EF_CONSTRUCTION = 200
@@ -125,8 +126,10 @@ class NeuralInferenceEngine:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"⚙️ Initializing Compute Architecture on: {self.device.type.upper()}")
 
+        if PRODUCT_TEXT_MODEL_DIMENSION!=1536:
+            raise ValueError("Legacy sync serialization is not Harrier importer-compatible; use scripts/migrate_harrier_catalog.py")
         # Load Text Model (Qwen2)
-        self.text_model = SentenceTransformer("Alibaba-NLP/gte-Qwen2-1.5B-instruct", trust_remote_code=True, device=self.device)
+        self.text_model = SentenceTransformer(PRODUCT_TEXT_MODEL_NAME, revision=DEFAULT_PRODUCT_TEXT_MODEL_REVISION, trust_remote_code=False, device=self.device)
         self.text_model.max_seq_length = MAX_SEQ_LENGTH
 
         # Load Vision Model (SigLIP)
@@ -201,7 +204,7 @@ class UnifiedSyncPipeline:
         self.AsyncSessionLocal = sessionmaker(self.db_engine, class_=AsyncSession, expire_on_commit=False)
 
         # 2. OpenSearch Configuration
-        self.os_index = "airdeliver_products"
+        self.os_index = PRODUCT_SEARCH_INDEX
         self.os_client = AsyncOpenSearch(
             hosts=[{"host": self.settings.OPENSEARCH_HOST, "port": self.settings.OPENSEARCH_PORT}],
             use_ssl=False, verify_certs=False, timeout=30
@@ -209,7 +212,7 @@ class UnifiedSyncPipeline:
 
         # 3. Milvus Configuration
         self.milvus_client = MilvusClient(uri=self.settings.MILVUS_URI)
-        self.milvus_text_col = "airdeliver_products_sota_v4"
+        self.milvus_text_col = PRODUCT_TEXT_COLLECTION
         self.milvus_vis_col = "airdeliver_visual_sota_v4"
         self._assert_milvus_schemas()
 

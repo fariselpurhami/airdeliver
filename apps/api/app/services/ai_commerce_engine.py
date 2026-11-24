@@ -6,7 +6,7 @@ from app.core.ai_profile import get_ai_profile
 from app.services.ai_adapters import LocalRetrievalAdapter
 from app.services.complement_evidence import catalog_asserts_complement
 from app.services.catalog_visibility import is_catalog_hidden,real_catalog_predicates
-from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION
+from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION, PRODUCT_SEARCH_INDEX, PRODUCT_INTENT_COLLECTION, PRODUCT_MEMORY_COLLECTION, PRODUCT_QUERY_PROMPT
 
 import asyncio
 import base64
@@ -392,6 +392,8 @@ class ModelRegistry:
             if self._text_model is not None:
                 return self._text_model
 
+            if get_core_settings().PRODUCT_TEXT_MODEL_REVISION not in (None,DEFAULT_PRODUCT_TEXT_MODEL_REVISION):
+                raise ValueError('Revision override differs from the selected versioned retrieval space')
             logger.info("loading text embedding model", extra={"model": PRODUCT_TEXT_MODEL.name, "device": self._device})
             logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
 
@@ -413,8 +415,16 @@ class ModelRegistry:
             timer.start()
             warmup_timer = None
             try:
+                if PRODUCT_QUERY_PROMPT and get_core_settings().PRODUCT_TEXT_MODEL_REVISION not in (None,DEFAULT_PRODUCT_TEXT_MODEL_REVISION):
+                    raise ValueError('Revision override differs from Harrier versioned space')
+                factory=SentenceTransformer
+                if PRODUCT_QUERY_PROMPT:
+                    from scripts.owner_embedding_benchmark import resolve,validate_files,definitions
+                    path,_=resolve('harrier');validate_files(path,definitions()['harrier'])
+                    def factory(_name,**kwargs):
+                        return SentenceTransformer(str(path),local_files_only=True,**kwargs)
                 model = LocalRetrievalAdapter(get_ai_profile()).create_text_encoder(
-                    SentenceTransformer,
+                    factory,
                     revision=get_core_settings().PRODUCT_TEXT_MODEL_REVISION or DEFAULT_PRODUCT_TEXT_MODEL_REVISION,
                     trust_remote_code=False,
                     device=self._device,
@@ -425,7 +435,7 @@ class ModelRegistry:
                         model[0].auto_model.config.use_cache = False
                 except Exception:
                     logger.debug("unable to disable transformer use_cache on embedding model")
-                model.max_seq_length = 8192
+                model.max_seq_length = 256 if PRODUCT_QUERY_PROMPT else 8192
                 model.to(self._device)
                 model.eval()
                 warmup_timer = threading.Timer(policy.budget_seconds, expire)
@@ -556,12 +566,12 @@ class AICommerceEngine:
             description="Visual Similarity Search",
         ),
         "intent": CollectionSpec(
-            name="airdeliver_intents_sota_v4",
+            name=PRODUCT_INTENT_COLLECTION,
             dim=PRODUCT_TEXT_MODEL.dimension,
             description="User Intent Classification",
         ),
         "memory": CollectionSpec(
-            name="airdeliver_memory_sota_v4",
+            name=PRODUCT_MEMORY_COLLECTION,
             dim=PRODUCT_TEXT_MODEL.dimension,
             description="Long-term User Context",
         ),
@@ -720,7 +730,7 @@ class AICommerceEngine:
 
         rows: List[Dict[str, Any]] = []
         for label, phrases in intent_map.items():
-            vectors = self.embedding_model.encode(phrases, convert_to_numpy=True)
+            vectors = self.embedding_model.encode(phrases, convert_to_numpy=True, **({"prompt":PRODUCT_QUERY_PROMPT,"normalize_embeddings":True} if PRODUCT_QUERY_PROMPT else {}))
             for vector in vectors:
                 rows.append({"vector": vector, "intent_label": label})
 
@@ -756,7 +766,7 @@ class AICommerceEngine:
 
             def encode_and_release():
                 try:
-                    return self.embedding_model.encode(sanitized, convert_to_numpy=True)
+                    return self.embedding_model.encode(sanitized, convert_to_numpy=True, **({"prompt":PRODUCT_QUERY_PROMPT,"normalize_embeddings":True} if PRODUCT_QUERY_PROMPT else {}))
                 finally:
                     gate.release()
                     logger.info("text embedding service finished: service_seconds=%.4f query_characters=%d", time.monotonic()-service_started, len(sanitized), extra={
@@ -1225,7 +1235,7 @@ class AICommerceEngine:
         try:
             response = await asyncio.wait_for(
                 self.opensearch_client.search(
-                    index="airdeliver_products",
+                    index=PRODUCT_SEARCH_INDEX,
                     body={
                         "query": {"bool": {"must": must_clauses, "must_not": must_not_clauses}},
                         "size": limit,
@@ -1464,7 +1474,7 @@ class AICommerceEngine:
         ids_str = [str(item) for item in ids]
         try:
             response = await self.opensearch_client.mget(
-                index="airdeliver_products",
+                index=PRODUCT_SEARCH_INDEX,
                 body={"ids": ids_str},
                 request_timeout=self.limits.opensearch_timeout_seconds,
             )
@@ -1553,7 +1563,7 @@ class AICommerceEngine:
             return []
 
     async def ensure_opensearch_index(self) -> None:
-        index_name = "airdeliver_products"
+        index_name = PRODUCT_SEARCH_INDEX
         try:
             exists = await self.opensearch_client.indices.exists(index=index_name)
             if exists:
