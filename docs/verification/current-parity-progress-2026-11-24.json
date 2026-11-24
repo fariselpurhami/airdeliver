@@ -3,7 +3,8 @@
   "scope": "Current source-route snapshot, not live/model acceptance. Historical03:30audit remains separate.",
   "counts": {
     "preserved": 35,
-    "degraded": 20
+    "degraded": 20,
+    "lost": 0
   },
   "no_live_certification": true,
   "rows": [
@@ -1377,5 +1378,6 @@
       },
       "original_audit_parity": "preserved"
     }
-  ]
+  ],
+  "anchor_caveat": "Original/current implementation anchor line numbers are retained from the historical03:30audit as navigation leads, not reverified against this shipped revision."
 }
