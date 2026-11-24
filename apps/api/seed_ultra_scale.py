@@ -103,6 +103,13 @@ class Settings(BaseSettings):
     fail_on_milvus_error: bool = Field(True, alias='FAIL_ON_MILVUS_ERROR')
     fail_on_opensearch_error: bool = Field(True, alias='FAIL_ON_OPENSEARCH_ERROR')
 
+    @field_validator('embedding_model', mode='before')
+    @classmethod
+    def selected_model_when_unset(cls, value):
+        # Compose can pass an empty optional override. Preserve explicit models
+        # and namespace validation, otherwise use the selected versioned space.
+        return PRODUCT_TEXT_MODEL_NAME if value is None or value == '' else value
+
     @field_validator('embedding_revision','api_embedding_revision', mode='before')
     @classmethod
     def revision_or_none(cls, value):

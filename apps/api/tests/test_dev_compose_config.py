@@ -318,3 +318,34 @@ def test_dev_vector_storage_restarts_clean_exits_and_gates_initial_milvus_start(
     assert services['milvus']['depends_on']['etcd']['condition']=='service_healthy'
     assert services['etcd']['healthcheck']['test']==['CMD','etcdctl','--endpoints=http://127.0.0.1:2379','endpoint','health']
     assert any(v['target']=='/data' and v['type']=='volume' for v in services['minio']['volumes'])
+
+
+@pytest.mark.parametrize('profile',['gte-v1','granite-v1','harrier-v1'])
+def test_combined_compose_selected_profile_without_legacy_gte_override(prepared,monkeypatch,profile):
+    root,_=prepared
+    monkeypatch.setenv('COMPOSE_PROFILES','tools')
+    monkeypatch.setenv('PRODUCT_TEXT_PROFILE',profile)
+    monkeypatch.delenv('EMBEDDING_MODEL',raising=False)
+    monkeypatch.delenv('EMBEDDING_MODEL_PATH',raising=False)
+    monkeypatch.delenv('PRODUCT_TEXT_MODEL_REVISION',raising=False)
+    services=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')['services']
+    for name in ('api','api-worker','api-seeder'):
+        values=services[name]['environment']
+        assert values['PRODUCT_TEXT_PROFILE']==profile
+        assert values.get('EMBEDDING_MODEL','')==''
+        assert values.get('EMBEDDING_MODEL_PATH','')==''
+        assert values['HF_HUB_CACHE']=='/data/storage/models_cache/huggingface/hub'
+    # Fresh process: catalog_contract captures profile at import, as containers do.
+    probe="from seed_ultra_scale import Settings;from app.core.catalog_contract import ACTIVE_SPACE; s=Settings(_env_file=None);assert s.embedding_model==ACTIVE_SPACE.model;assert s.embedding_revision==ACTIVE_SPACE.revision;assert s.embedding_dimension==ACTIVE_SPACE.dimension;assert s.milvus_collection==ACTIVE_SPACE.collection;assert s.opensearch_index==ACTIVE_SPACE.search_index"
+    env={**os.environ,**services['api-seeder']['environment'],'PYTHONPATH':str(ROOT/'apps/api')}
+    result=subprocess.run([__import__('sys').executable,'-c',probe],env=env,capture_output=True,text=True)
+    assert result.returncode==0,result.stderr
+
+
+def test_explicit_embedding_override_is_preserved_for_namespace_validation(prepared,monkeypatch):
+    root,_=prepared
+    monkeypatch.setenv('COMPOSE_PROFILES','tools')
+    monkeypatch.setenv('PRODUCT_TEXT_PROFILE','granite-v1')
+    monkeypatch.setenv('EMBEDDING_MODEL','Alibaba-NLP/gte-Qwen2-1.5B-instruct')
+    services=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')['services']
+    assert services['api-seeder']['environment']['EMBEDDING_MODEL']=='Alibaba-NLP/gte-Qwen2-1.5B-instruct'

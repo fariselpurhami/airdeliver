@@ -330,12 +330,13 @@ services:
       - TEXT_WARMUP_SAMPLE_MAX_SECONDS=${TEXT_WARMUP_SAMPLE_MAX_SECONDS:-5}
       - AI_RECOVERY_INTERVAL_SECONDS=${AI_RECOVERY_INTERVAL_SECONDS:-30}
       - PRODUCT_TEXT_PROFILE=${PRODUCT_TEXT_PROFILE:-gte-v1}
-      - EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH:-Alibaba-NLP/gte-Qwen2-1.5B-instruct}
+      # Legacy hint only; active encoder identity comes from PRODUCT_TEXT_PROFILE.
+      - EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH:-}
       - HF_HUB_DISABLE_SYMLINKS_WARNING=1
       - HF_TOKEN=${HF_TOKEN}
       - OMP_NUM_THREADS=1
       - MKL_NUM_THREADS=1
-      - EMBEDDING_MODEL_REVISION=main
+      - EMBEDDING_MODEL_REVISION=${PRODUCT_TEXT_MODEL_REVISION:-}
       - HF_HUB_DISABLE_DOWNLOAD_PROGRESS=1
 
     volumes:
@@ -410,7 +411,8 @@ services:
       - TEXT_WARMUP_SAMPLE_MAX_SECONDS=${TEXT_WARMUP_SAMPLE_MAX_SECONDS:-5}
       - AI_RECOVERY_INTERVAL_SECONDS=${AI_RECOVERY_INTERVAL_SECONDS:-30}
       - PRODUCT_TEXT_PROFILE=${PRODUCT_TEXT_PROFILE:-gte-v1}
-      - EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH:-Alibaba-NLP/gte-Qwen2-1.5B-instruct}
+      # Legacy hint only; active encoder identity comes from PRODUCT_TEXT_PROFILE.
+      - EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH:-}
       - STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - OMP_NUM_THREADS=4
@@ -418,7 +420,7 @@ services:
       - PYTORCH_ENABLE_MPS_FALLBACK=0
       - HF_HUB_DISABLE_SYMLINKS_WARNING=1
       - HF_TOKEN=${HF_TOKEN}
-      - EMBEDDING_MODEL_REVISION=main
+      - EMBEDDING_MODEL_REVISION=${PRODUCT_TEXT_MODEL_REVISION:-}
       - HF_HUB_DISABLE_DOWNLOAD_PROGRESS=1
       - HF_DATASETS_CACHE=/data/storage/models_cache/huggingface/datasets
       - HF_HUB_CACHE=/data/storage/models_cache/huggingface/hub
@@ -486,7 +488,8 @@ services:
       - OPENSEARCH_ENABLED=${SEED_OPENSEARCH_ENABLED:-true}
       - PRODUCT_TEXT_MODEL_REVISION=${PRODUCT_TEXT_MODEL_REVISION:-}
       - PRODUCT_TEXT_PROFILE=${PRODUCT_TEXT_PROFILE:-gte-v1}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Alibaba-NLP/gte-Qwen2-1.5B-instruct}
+      # Empty means use the versioned profile, not a hardcoded GTE model.
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-}
       - HF_TOKEN=${HF_TOKEN:-}
       - HF_HOME=/data/storage/models_cache/huggingface
       # Pin library-specific overrides too: env_file values otherwise escape
