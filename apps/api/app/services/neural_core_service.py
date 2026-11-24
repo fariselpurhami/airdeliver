@@ -415,7 +415,7 @@ class NeuralCoreService:
     async def _handle_setup_discovery(self,db,message,brief):
         from app.services.discovery_planner import plan_setup
         try:
-            plan=await plan_setup(self._execute_llm_inference,message,customer_context=_customer_turn_context.get(),detailed=True)
+            plan=await plan_setup(self._execute_llm_inference,message,customer_context=_customer_turn_context.get(),saved_preferences=_request_preferences.get(),detailed=True)
             assigned={f for features in plan.component_requirements.values() for f in features}
             shared=brief.model_copy(deep=True)
             shared.required_features=[f for f in brief.required_features if f not in assigned]
@@ -436,7 +436,7 @@ class NeuralCoreService:
             return await answer_product_question(self._execute_llm_inference,message,
                 timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,fallback=catalog_fallback,
                 targets=tuple(t.product_name for t in decision.targets),
-                customer_context=_customer_turn_context.get())
+                customer_context=_customer_turn_context.get(),saved_preferences=_request_preferences.get())
         return await self._handle_staged_catalog_search(db,decision,brief,message)
 
     async def _handle_staged_catalog_search(self,db,decision,brief,message):
