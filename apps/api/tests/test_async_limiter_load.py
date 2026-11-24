@@ -66,17 +66,26 @@ async def test_repeated_cold_redis_bursts_keep_exact_quota_and_one_connection(re
     for _ in range(5):
         instance=build_limiter(settings(url,'100/minute'))
         client,slots,_=instance._state()
+        collections=[];gc_started={}
+        import gc
+        def observe_gc(phase,info):
+            generation=info.get('generation')
+            if phase=='start':gc_started[generation]=time.perf_counter()
+            elif generation in gc_started:collections.append((generation,round(time.perf_counter()-gc_started.pop(generation),4)))
+        gc.callbacks.append(observe_gc)
         assert client.connection_pool.max_connections==1
         await client.flushdb()
         began=time.perf_counter()
         try:
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=application(instance)),base_url='http://test') as c:
                 results=await asyncio.gather(*(c.get('/plain') for _ in range(150)))
-            print('COLD_BURST',round(time.perf_counter()-began,4),{c:[r.status_code for r in results].count(c) for c in (200,429,503)})
+            print('COLD_BURST',round(time.perf_counter()-began,4),{c:[r.status_code for r in results].count(c) for c in (200,429,503)},'GC',collections)
             assert [r.status_code for r in results].count(200)==100
             assert [r.status_code for r in results].count(429)==50
             assert time.perf_counter()-began<1.0
-        finally:await instance.close()
+        finally:
+            gc.callbacks.remove(observe_gc)
+            await instance.close()
 
 @pytest.mark.asyncio
 async def test_real_paused_redis_fails_closed_without_replaying_uncertain_increment(redis_server):
