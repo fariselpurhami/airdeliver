@@ -132,9 +132,24 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={onClose} 
-                    className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 overflow-hidden"
+                    className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-2xl flex justify-center items-center p-4 overflow-hidden"
                     style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
                 >
+
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                            backgroundImage: [
+                                'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,255,255,0.07), transparent 70%)',
+                                'radial-gradient(1px 1px at 18% 28%, rgba(255,255,255,0.14) 50%, transparent 50%)',
+                                'radial-gradient(1px 1px at 72% 18%, rgba(255,255,255,0.10) 50%, transparent 50%)',
+                                'radial-gradient(1px 1px at 86% 62%, rgba(255,255,255,0.12) 50%, transparent 50%)',
+                                'radial-gradient(1px 1px at 32% 78%, rgba(255,255,255,0.08) 50%, transparent 50%)',
+                                'radial-gradient(1px 1px at 58% 44%, rgba(255,255,255,0.07) 50%, transparent 50%)',
+                            ].join(', '),
+                        }}
+                    />
 
 
                     <motion.div
@@ -144,10 +159,10 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                         exit={{ opacity: 0, transition: { duration: 0.2 } }}
                         onClick={(e) => e.stopPropagation()} 
 			style={{ willChange: "opacity, transform" }}
-                        className="w-full h-full max-w-[460px] max-h-[1050px] md:max-w-7xl md:h-[93vh] md:max-h-none flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[28px] md:rounded-[40px] ring-1 ring-inset ring-white/5 shadow-[0_40px_120px_rgba(0,0,0,0.65)] overflow-hidden relative"
+                        className="w-full h-full max-w-[460px] max-h-[1050px] md:max-w-7xl md:h-[93vh] md:max-h-none flex flex-col overflow-hidden relative"
                     >
                   
-                        <header className="relative z-10 flex-shrink-0 border-b border-white/5 px-6 py-5 md:px-10 md:py-6">
+                        <header className="relative z-10 flex-shrink-0 px-6 pt-6 pb-2 md:px-10 md:pt-8 md:pb-3">
                             <div className="flex items-center justify-between gap-4">
                                 <div className="flex min-w-0 items-baseline gap-3">
                                     <h2 className="truncate text-lg md:text-xl font-semibold tracking-tight text-white/95">
@@ -163,7 +178,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                                 <button
                                     onClick={onClose}
                                     aria-label="Close products"
-                                    className="group flex-shrink-0 p-2.5 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
+                                    className="group flex-shrink-0 p-2.5 rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-all duration-300"
                                 >
                                     <X size={20} className="group-hover:rotate-90 transition-transform duration-300" />
                                 </button>
@@ -173,9 +188,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                         
                         <div className="flex-grow relative z-10 overflow-hidden">
                           
-                            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none" />
-                            
-                            <div className="h-full overflow-y-auto p-6 md:p-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                            <div className="h-full overflow-y-auto px-6 pb-10 pt-2 md:px-10 md:pb-12 md:pt-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                                 {isLoading ? (
                                     <LoadingSpinner />
                                 ) : error ? (
