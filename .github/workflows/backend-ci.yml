@@ -148,3 +148,5 @@ jobs:
         if: matrix.storage == 'rustfs'
         timeout-minutes: 3
         run: python scripts/verify_traefik_docker.py
+
+# Credential renewal verification, 2026-11-24. No workflow behavior change.
