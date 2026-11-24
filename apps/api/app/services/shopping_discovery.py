@@ -69,21 +69,24 @@ def catalog_result(product) -> CatalogResult | None:
     attrs=getattr(product,'attributes',{}) or {}
     if not isinstance(attrs,dict):attrs={}
     sku=getattr(product,'sku','') or ''
+    from app.services.catalog_visibility import is_dev_fixture,fixtures_enabled
+    fixture=is_dev_fixture(product)
+    if fixture and not fixtures_enabled():return None
     demo=(attrs.get('_seed_dataset')=='airdeliver-demo-v1' or sku.startswith('ADL-DEMO-v1-'))
     try:
         cost=Decimal(str(product.price));currency=product.currency
         valid=cost.is_finite() and cost>=0 and isinstance(currency,str) and len(currency)==3 and currency.isalpha() and currency.isupper()
     except (AttributeError,InvalidOperation,TypeError,ValueError):valid=False
     quantity=getattr(product,'inventory',None)
-    stock=('demo' if demo else 'local_in_stock' if type(quantity) is int and quantity>0 else
+    stock=('fixture_in_stock' if fixture and type(quantity) is int and quantity>0 else 'fixture_out_of_stock' if fixture else 'demo' if demo else 'local_in_stock' if type(quantity) is int and quantity>0 else
            'local_out_of_stock' if quantity==0 else 'unverified')
     return CatalogResult(id=pid,name=name,sku=sku,category=getattr(product,'category','uncategorized'),
         price=str(cost) if valid else None,currency=currency if valid else None,
         price_status='listed' if valid else 'unknown',image=getattr(product,'image',None),
-        attributes={'_seed_dataset':'airdeliver-demo-v1'} if demo else {},
+        attributes={'_seed_dataset':'airdeliver-dev-fixtures-v1'} if fixture else {'_seed_dataset':'airdeliver-demo-v1'} if demo else {},
         catalog_specs={str(k)[:64]:str(v)[:256] for k,v in list(attrs.items())[:32] if isinstance(k,str) and not k.startswith('_') and isinstance(v,(str,int,float,bool))},
-        evidence_kind='seeded_demo' if demo else 'local_catalog',stock_status=stock,
-        availability_note=('Demo catalog. Price and stock are synthetic, not a merchant offer.' if demo else
+        evidence_kind='dev_fixture' if fixture else 'seeded_demo' if demo else 'local_catalog',stock_status=stock,
+        availability_note=('Local development fixture. All product attributes, price and stock are synthetic test values, not real offers or supplier evidence.' if fixture else 'Demo catalog. Price and stock are synthetic, not a merchant offer.' if demo else
             'Local catalog lists stock. Merchant availability, reservation and delivery are not verified.' if stock=='local_in_stock' else
             'Local catalog lists no stock. Merchant availability is not verified.' if stock=='local_out_of_stock' else
             'Stock and merchant availability are not verified.'))

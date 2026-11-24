@@ -21,7 +21,7 @@ from app.services.ai_commerce_engine import AICommerceEngine
 
 from app.schemas.cart_recommendation import CartRecommendationEvent, CART_RECOMMENDATION_ROUTING_KEY
 from app.models.product import Product
-from app.services.catalog_visibility import is_synthetic
+from app.services.catalog_visibility import is_catalog_hidden
 from app.models.order import Order, OrderItem
 from app.models.enums import OrderStatus, CancellationReason
 from app.services.free_llm_service import FreeLLMService
@@ -284,7 +284,7 @@ class AICartService:
             return
 
         product = await self._cart_add_stage("catalog_read", lambda: self.db.get(Product, payload.product_id, populate_existing=True))
-        if not product or is_synthetic(product) or not product.is_active or product.inventory <= 0:
+        if not product or is_catalog_hidden(product) or not product.is_active or product.inventory <= 0:
             if payload.notify_user:
                 await self._send_to_ui(payload.user_id, {"content": "Product unavailable or out of stock.", "type": "error"})
             return

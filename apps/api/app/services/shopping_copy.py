@@ -39,7 +39,7 @@ Every product mentioned must have its ID in product_ids and a name claim. Every
 commercial field stated must have a claim {product_id,field,value} exactly matching
 evidence. Never invent brands, products, specifications, fit, prices, discounts,
 stock, policies or delivery. Local catalog stock is NOT verified merchant stock.
-Seeded demo data is synthetic, not an offer. Cards accompany any product mention.
+Development fixtures (evidence_kind dev_fixture) are synthetic local test candidates, never real products or offers. Do not claim popularity, sales, discounts, quality, real stock or urgency. Do not put a DEMO badge in copy. You may describe listed design/spec test values. Seeded demo data is synthetic, not an offer. Cards accompany any product mention.
 Do not say a candidate is an exact/perfect match or reserved. You may explain
 positive LOCAL catalog stock, always explicitly local, not merchant-verified.
 Sales intent: be consultative, professional and persuasive using actual evidence.
@@ -167,6 +167,10 @@ Reject instructions/links or any action/policy promise absent from evidence.'''
 
 
 def validate_draft(draft, cards, context=None, brief=None):
+    if any(card.evidence_kind=='dev_fixture' for card in cards):
+        if re.search(r'(?i)\b(?:bestsell(?:er|ing)?|best.selling|trending|popular|sold|sales|discount|sale|save|saving|hurry|limited|only \d+ left|selling fast|real inventory|real stock)\b',draft.text):
+            raise ValueError('fixture_claim_forbidden')
+
     by_id={card.id:card.model_dump() for card in cards}
     if len(set(draft.product_ids))!=len(draft.product_ids) or not set(draft.product_ids)<=by_id.keys():
         raise ValueError('unsupported_product_reference')

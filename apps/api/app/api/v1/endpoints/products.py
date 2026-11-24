@@ -9,7 +9,7 @@ from app.db.session import get_async_session
 from app.api import deps
 
 from app.services.product_serialization import serialize_product
-from app.services.catalog_visibility import is_synthetic,real_catalog_predicates
+from app.services.catalog_visibility import is_catalog_hidden,real_catalog_predicates
 
 router = APIRouter()
 
@@ -38,7 +38,7 @@ async def read_products(
 
     enriched_products = []
     for p in products_from_db:
-        if is_synthetic(p):continue
+        if is_catalog_hidden(p):continue
         data = serialize_product(p)
 
 
@@ -72,7 +72,7 @@ async def get_product_suggestions(
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
     source_product = await db.get(models.Product, product_id)
-    if not source_product or is_synthetic(source_product):
+    if not source_product or is_catalog_hidden(source_product):
         raise HTTPException(status_code=404, detail="Source product not found")
 
     purchased_product_ids = set()
@@ -115,7 +115,7 @@ async def get_product_suggestions(
 
     formatted_suggestions = []
     for p in suggestions:
-        if is_synthetic(p):continue
+        if is_catalog_hidden(p):continue
         data = serialize_product(p)
 
 
@@ -135,7 +135,7 @@ async def get_featured_recommendation(
     # 🚀 التعديل هنا: إضافة .scalars() قبل .first()
     featured_product = result.scalars().first()
 
-    if not featured_product or is_synthetic(featured_product):
+    if not featured_product or is_catalog_hidden(featured_product):
         raise HTTPException(
             status_code=404, detail="No products available to feature"
         )

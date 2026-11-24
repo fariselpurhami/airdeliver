@@ -265,8 +265,8 @@ class CatalogResult(SchemaBaseModel):
     attributes: Dict[str,str] = Field(default_factory=dict)
     catalog_specs: Dict[str,str] = Field(default_factory=dict)
     relation: Literal['candidate','requested','alternative'] = 'candidate'
-    evidence_kind: Literal['seeded_demo','local_catalog']
-    stock_status: Literal['demo','local_in_stock','local_out_of_stock','unverified']
+    evidence_kind: Literal['seeded_demo','local_catalog','dev_fixture']
+    stock_status: Literal['demo','local_in_stock','local_out_of_stock','unverified','fixture_in_stock','fixture_out_of_stock']
     availability_note: StrictStr
 
 

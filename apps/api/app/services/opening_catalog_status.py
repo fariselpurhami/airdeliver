@@ -5,11 +5,13 @@ async def opening_catalog_status(db,recent_ids):
     result=await db.execute(text('''WITH classified AS (
       SELECT id,
        (coalesce(attributes->>'_seed_dataset','')='airdeliver-demo-v1' OR sku LIKE 'ADL-DEMO-v1-%') AS demo,
+       (coalesce(attributes->>'_seed_dataset','')='airdeliver-dev-fixtures-v1' OR sku LIKE 'ADL-DEV-v1-%') AS fixture,
        (is_active AND inventory>0 AND price>=0 AND currency ~ '^[A-Z]{3}$' AND length(trim(name))>0
-        AND coalesce(attributes->>'_seed_dataset','')<>'airdeliver-demo-v1' AND sku NOT LIKE 'ADL-DEMO-v1-%') AS eligible
+        AND coalesce(attributes->>'_seed_dataset','') NOT IN ('airdeliver-demo-v1','airdeliver-dev-fixtures-v1') AND sku NOT LIKE 'ADL-DEV-v1-%' AND sku NOT LIKE 'ADL-DEMO-v1-%') AS eligible
       FROM products)
       SELECT count(*) AS total,
        count(*) FILTER(WHERE demo) AS demo,
+       count(*) FILTER(WHERE fixture) AS dev_fixtures,
        count(*) FILTER(WHERE eligible) AS real_eligible,
        count(*) FILTER(WHERE eligible AND id=ANY(CAST(:recent AS integer[]))) AS real_recent,
        count(*) FILTER(WHERE eligible AND NOT(id=ANY(CAST(:recent AS integer[])))) AS real_fresh

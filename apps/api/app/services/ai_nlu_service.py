@@ -1634,8 +1634,8 @@ class UiGateway:
         channel = RedisKeys.ui_channel(user_id)
         envelope = dict(payload)
         if isinstance(envelope.get('products'),list):
-            from app.services.catalog_visibility import is_synthetic
-            envelope['products']=[p for p in envelope['products'] if not is_synthetic(p)]
+            from app.services.catalog_visibility import is_catalog_hidden,real_catalog_predicates
+            envelope['products']=[p for p in envelope['products'] if not is_catalog_hidden(p)]
         envelope["meta"] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "node": "diamond_nlu_ultra_v1",
@@ -3463,16 +3463,17 @@ class AINLUService:
     async def _eligible_opening_pool(self, seen_ids, *, order_by, min_rating=None):
         """Apply eligibility before LIMIT, not after an ineligible top pool."""
         from sqlalchemy import func, String
+        from app.services.catalog_visibility import real_catalog_predicates
         statement = select(Product).where(
             Product.is_active.is_(True), Product.inventory > 0,
             Product.price >= 0, Product.currency.op("~")("^[A-Z]{3}$"),
-            func.coalesce(Product.attributes.op("->>")("_seed_dataset"), "") != "airdeliver-demo-v1",
-            ~Product.sku.like("ADL-DEMO-v1-%"), func.length(func.trim(Product.name)) > 0,
+            *real_catalog_predicates(Product), func.length(func.trim(Product.name)) > 0,
         )
         if seen_ids:
             statement = statement.where(Product.id.notin_(seen_ids))
         if min_rating is not None:
-            statement = statement.where(Product.rating >= min_rating)
+            from app.services.catalog_visibility import fixtures_enabled
+            if not fixtures_enabled():statement = statement.where(Product.rating >= min_rating)
         # Rotate within a bounded candidate pool instead of repeating a fixed
         # top100 forever. Ranking still supplies half the pool; the other half
         # explores eligible catalog rows using a fresh server-side nonce.

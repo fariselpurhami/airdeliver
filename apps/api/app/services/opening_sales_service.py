@@ -7,7 +7,7 @@ async def write_opening(llm, products, row_type, *, timeout=12.0):
     cards=[]
     for product in products[:10]:
         card=catalog_result(product)
-        if card is not None and card.evidence_kind=='local_catalog' and card.stock_status=='local_in_stock' and card.price is not None:
+        if card is not None and card.evidence_kind in {'local_catalog','dev_fixture'} and card.stock_status in {'local_in_stock','fixture_in_stock'} and card.price is not None:
             cards.append(card)
     if not cards:
         raise ValueError('No eligible current opening cards')

@@ -23,7 +23,7 @@ class CartSalesService:
         if anchor is None:
             return None, []
         anchor_card = catalog_result(anchor)
-        if operation == 'added' and (anchor_card is None or anchor_card.stock_status != 'local_in_stock' or anchor_card.evidence_kind != 'local_catalog'):
+        if operation == 'added' and (anchor_card is None or anchor_card.stock_status not in {'local_in_stock','fixture_in_stock'} or anchor_card.evidence_kind not in {'local_catalog','dev_fixture'}):
             return None, []
         cards = []
         for identity in ids:
@@ -31,7 +31,7 @@ class CartSalesService:
             if row is None or identity == anchor_id or identity in excluded:
                 continue
             card = catalog_result(row)
-            if card is None or card.stock_status != 'local_in_stock' or card.evidence_kind != 'local_catalog' or card.currency != 'USD' or card.price is None:
+            if card is None or card.stock_status not in {'local_in_stock','fixture_in_stock'} or card.evidence_kind not in {'local_catalog','dev_fixture'} or card.currency != 'USD' or card.price is None:
                 continue
             if operation == 'added':
                 ratio = Decimal('2') if Decimal(str(anchor.price)) < 50 else Decimal('.6')

@@ -32,7 +32,7 @@ from tenacity import (
 from app.services.shopping_discovery import ShoppingBrief, catalog_result
 from app.services.sales_response_service import SalesResponseRequest, SalesResponseService
 from app import models
-from app.services.catalog_visibility import is_synthetic
+from app.services.catalog_visibility import is_catalog_hidden
 from app.schemas.ai_actions import (
     NeuralCoreResponse,
     CartReviewAction,
@@ -441,7 +441,7 @@ class NeuralCoreService:
         if len(matches)!=1:
             return reply("I could not identify one exact product. Open the catalog and choose its add/remove control, or send the full product name. Your cart has not changed.")
         product=await db.get(models.Product,matches[0].id,populate_existing=True)
-        if not product or is_synthetic(product) or not product.is_active or product.currency.upper()!="USD":
+        if not product or is_catalog_hidden(product) or not product.is_active or product.currency.upper()!="USD":
             return reply("That product is unavailable for this USD cart. Your cart has not changed.")
         operation="add" if decision.intent=="CART_ADD" else "remove"
         if operation=="add" and product.inventory<decision.quantity:
@@ -602,7 +602,7 @@ class NeuralCoreService:
             cards=[]
             for pid in ids:
                 card=catalog_result(by_id[pid]) if pid in by_id else None
-                if card and card.evidence_kind=="local_catalog":cards.append(card)
+                if card and card.evidence_kind in {'local_catalog','dev_fixture'}:cards.append(card)
             return cards
         cards=await current_cards(products)
         evidence={"requested_name":decision.requested_name if decision else None,
@@ -612,14 +612,14 @@ class NeuralCoreService:
             normalize=lambda value:' '.join(value.casefold().split())
             requested=normalize(decision.requested_name)
             matches=[c for c in cards if requested in normalize(c.name)]
-            available=[c for c in matches if c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog" and brief.permits(c)]
+            available=[c for c in matches if c.stock_status in {'local_in_stock','fixture_in_stock'} and c.evidence_kind in {'local_catalog','dev_fixture'} and brief.permits(c)]
             for card in available:card.relation="requested"
             # Demo rows are not in-stock substitutes. Preserve demo browsing but
             # never turn synthetic inventory into an actionable sales pivot.
             evidence["unavailable_requested"]=[c.model_dump(mode="json") for c in matches if c not in available]
-            evidence["requested_status"]=("locally_stocked" if available else "outside_budget" if any(c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog" for c in matches) else "demo_only" if any(c.evidence_kind=="seeded_demo" for c in matches) else "local_out_of_stock" if matches else "no_match_in_retrieved_results")
+            evidence["requested_status"]=("locally_stocked" if available else "outside_budget" if any(c.stock_status in {'local_in_stock','fixture_in_stock'} and c.evidence_kind in {'local_catalog','dev_fixture'} for c in matches) else "demo_only" if any(c.evidence_kind=="seeded_demo" for c in matches) else "local_out_of_stock" if matches else "no_match_in_retrieved_results")
             if not available:
-                candidates=[c for c in cards if c not in matches and c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog"]
+                candidates=[c for c in cards if c not in matches and c.stock_status in {'local_in_stock','fixture_in_stock'} and c.evidence_kind in {'local_catalog','dev_fixture'}]
                 # Reuse the project's existing bounded same-category alternative
                 # engine for a known unavailable anchor, never a copy of it.
                 if matches and hasattr(self.ai_engine,"find_genius_alternatives"):
@@ -632,12 +632,12 @@ class NeuralCoreService:
                     with anyio.fail_after(3.0):
                         extra=await self.ai_engine.perform_hybrid_search_pure(db,decision.alternative_query,limit=10)
                     candidates+=await current_cards(extra)
-                unique={c.id:c for c in candidates if c.id not in {m.id for m in matches} and c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog" and brief.permits(c)}
+                unique={c.id:c for c in candidates if c.id not in {m.id for m in matches} and c.stock_status in {'local_in_stock','fixture_in_stock'} and c.evidence_kind in {'local_catalog','dev_fixture'} and brief.permits(c)}
                 cards=list(unique.values())[:5]
                 for card in cards:card.relation="alternative"
             else:
-                cards=(available+[c for c in cards if c not in matches and c.stock_status=="local_in_stock" and c.evidence_kind=="local_catalog"])[:5]
-        cards=[c for c in cards if brief.permits(c) and c.stock_status in {"local_in_stock","demo"}]
+                cards=(available+[c for c in cards if c not in matches and c.stock_status in {'local_in_stock','fixture_in_stock'} and c.evidence_kind in {'local_catalog','dev_fixture'}])[:5]
+        cards=[c for c in cards if brief.permits(c) and c.stock_status in {"local_in_stock","demo","fixture_in_stock"}]
         return await self._shopping_response(customer_message or query,cards[:5],brief,"catalog_results",intent,evidence)
 
     async def _shopping_response(self,message,cards,brief,mode,intent,evidence=None):

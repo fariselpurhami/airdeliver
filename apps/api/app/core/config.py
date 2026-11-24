@@ -6,7 +6,7 @@ from pathlib import Path
 import urllib.parse
 from typing import List, Literal, Optional
 
-from pydantic import AnyHttpUrl, Field, SecretStr, computed_field, field_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,6 +43,14 @@ class BaseAppConfig(BaseSettings):
 
 class CoreSettings(BaseAppConfig):
     APP_ENV: Literal["development", "staging", "production"] = Field("production", alias="APP_ENV")
+    AIRDELIVER_DEV_FIXTURES: bool = False
+
+    @model_validator(mode='after')
+    def fixture_environment(self):
+        if self.AIRDELIVER_DEV_FIXTURES and (self.APP_ENV!='development' or any(os.environ.get(k,'').lower() in {'prod','production','staging'} for k in ('ENVIRONMENT','NODE_ENV','ENV'))):
+            raise ValueError('Dev fixtures are forbidden outside development')
+        return self
+
     LOG_FORMAT: Literal["json", "text"] = "json"
     APP_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     MANUAL_FULFILLMENT_ENABLED: bool = False
