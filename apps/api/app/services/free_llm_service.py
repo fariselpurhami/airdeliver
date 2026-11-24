@@ -950,7 +950,7 @@ class FreeLLMService:
 
     async def extract_shopping_preferences(self, user_message: str) -> dict:
         """Strict v1 extractor. Caller verifies evidence and allowed vocabulary."""
-        raw = await self.generate_response(
+        raw = await self.generate_response_strict(
             prompt=json.dumps({"customer_statement": user_message[:2000]}),
             system_role=("Extract ONE explicitly stated durable shopping preference. "
                 "Allowed categories: color, material, style. Never infer traits, identity, health, finances, religion or lifestyle. "
@@ -960,9 +960,11 @@ class FreeLLMService:
         )
         try:
             parsed = json.loads(raw)
-            return parsed if isinstance(parsed, dict) else {}
-        except (ValueError, TypeError):
-            return {}
+            if not isinstance(parsed, dict):
+                raise StructuredOutputError('Preference extraction must return an object')
+            return parsed
+        except (ValueError, TypeError) as exc:
+            raise StructuredOutputError('Invalid preference extraction JSON') from exc
 
     async def extract_memory_worthy_facts(self, user_message: str) -> Optional[str]:
         if not user_message or len(user_message.split()) < 3:
