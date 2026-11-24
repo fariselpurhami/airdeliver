@@ -104,6 +104,12 @@ jobs:
           make -C /tmp/redis-7.4.2 -j2 BUILD_TLS=no MALLOC=libc OPT='-O2' redis-server
           echo "TEST_REDIS_SERVER_BIN=/tmp/redis-7.4.2/src/redis-server" >> "$GITHUB_ENV"
 
+      - name: Required isolated Redis admission and heartbeat benchmark
+        working-directory: apps/api
+        env:
+          AIRDELIVER_ISOLATED_ADMISSION_BENCHMARK: '1'
+        run: poetry run pytest -q tests/test_async_limiter_load.py -k 'concurrent_admission_and_event_loop_latency or repeated_cold_redis_bursts'
+
       - name: Migrate PostgreSQL 19 and run tests
         working-directory: apps/api
         env:

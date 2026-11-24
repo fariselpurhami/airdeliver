@@ -90,6 +90,7 @@ class RouterDecision(BaseModel):
     social_reply: Optional[str] = Field(default=None, description="Contextual chat response")
     quantity: int = Field(default=1, ge=1, le=99, strict=True)
     targets: List[SearchTarget] = Field(default_factory=list,max_length=3)
+    retrieval_query: Optional[str] = Field(default=None,max_length=256,description="Optional rewritten retrieval query, never evidence")
     shopping_task: Literal['search','comparison','specifications','consultation','setup'] = 'search' 
 
 
@@ -108,6 +109,7 @@ You MUST output a valid JSON object strictly matching this schema:
     "requested_name": "Literal customer product/brand/model or null for broad browsing",
     "alternative_query": "Generic functional category such as smartwatch for Apple Watch, or null",
     "search_subject": "Literal customer category, interest or exact item, or null for an unspecified gift",
+    "retrieval_query": "Optional generic query rewrite based on customer context, never invented brand/model",
     "quantity": 1,
     "targets": [{"product_name":"Exact literal customer span for one concrete product or category"}],
     "shopping_task": "search" | "comparison" | "specifications" | "consultation",
@@ -118,6 +120,7 @@ You MUST output a valid JSON object strictly matching this schema:
 
 ROUTING RULES:
 - SETUP_DISCOVERY: customer explicitly asks to build a setup, kit, system or ecosystem requiring several complementary component types. Set search_subject to exact customer span describing setup. Do not invent component targets in router, targets must be empty. Planning is read-only; no compatibility or completeness claim without evidence.
+- Context rewriting: retrieval_query may normalize spelling or resolve an explicit prior customer product reference. Never borrow assistant product names or invent brands/models/features. Literal targets remain unchanged for identity and missing-evidence accounting.
 - Concrete product questions: set PRODUCT_SEARCH and provide1..3 targets, one separate literal customer product/category span per target. Never concatenate two products into one retrieval query. Preserve comparison/specification/consultation task. Do not invent a target from assistant text or recipient gender. If more than3 targets are essential, ask to split the request. No web/general model knowledge is product evidence.
 - GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Ask about budget and interests/occasion before choosing. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
 - Alternatives: preserve the original sales intent. For a concrete unavailable item, retrieve genuine same-purpose alternatives and explain the honest tradeoff, never pretend the original is available. alternative_query is a short generic functional category, not an invented brand/model. For comparisons/specs preserve each named product. Fresh sourced research may answer independently of local stock; never imply merchant availability from web evidence.
@@ -325,6 +328,10 @@ class NeuralCoreService:
             if decision.intent == "PRODUCT_SEARCH" and decision.query and not decision.targets:
                 if ' '.join(decision.query.casefold().split()) not in ' '.join(customer_context.casefold().split()):
                     return RouterDecision(intent="GIFT_DISCOVERY", brief=ShoppingBrief())
+            if decision.retrieval_query:
+                from app.services.query_rewrite import review_query
+                decision.retrieval_query=await review_query(self._execute_llm_inference,
+                    customer_context,decision.retrieval_query,decision.targets)
             return decision
 
         except ValidationError as exc:
@@ -391,7 +398,8 @@ class NeuralCoreService:
             async def catalog_fallback():
                 return await self._handle_staged_catalog_search(db,decision,brief,message)
             return await answer_product_question(self._execute_llm_inference,message,
-                timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,fallback=catalog_fallback)
+                timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,fallback=catalog_fallback,
+                targets=tuple(t.product_name for t in decision.targets))
         return await self._handle_staged_catalog_search(db,decision,brief,message)
 
     async def _handle_staged_catalog_search(self,db,decision,brief,message):
@@ -403,7 +411,8 @@ class NeuralCoreService:
             # partial result cannot masquerade as a complete comparison.
             async with asyncio.timeout(24):
                 for target in decision.targets:
-                    result=await staged_search(self.ai_engine,db,target.product_name,
+                    query=decision.retrieval_query if len(decision.targets)==1 and decision.retrieval_query else target.product_name
+                    result=await staged_search(self.ai_engine,db,query,
                         rank=CandidateRanker(self.ai_engine).rerank,broaden=_build_broad_query,timeout=5)
                     groups.append(result.candidates)
                     trace.append({'target':target.product_name,'tier':result.tier,
@@ -703,6 +712,10 @@ class NeuralCoreService:
                 response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
             else:
                 query = decision.query or decision.search_subject or message
+                if not decision.targets and decision.shopping_task in {'specifications','comparison','consultation'}:
+                    # Typed informational task must not silently fall back to
+                    # stock-only advice when the router omitted its target list.
+                    decision.targets=[SearchTarget(product_name=query)]
                 if decision.targets:
                     response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message)
                 else:
