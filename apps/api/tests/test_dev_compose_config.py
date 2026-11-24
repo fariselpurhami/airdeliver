@@ -318,3 +318,18 @@ def test_dev_vector_storage_restarts_clean_exits_and_gates_initial_milvus_start(
     assert services['milvus']['depends_on']['etcd']['condition']=='service_healthy'
     assert services['etcd']['healthcheck']['test']==['CMD','etcdctl','--endpoints=http://127.0.0.1:2379','endpoint','health']
     assert any(v['target']=='/data' and v['type']=='volume' for v in services['minio']['volumes'])
+
+
+def test_demo_preview_flag_is_explicit_dev_only_false_default(prepared,monkeypatch):
+    root,_=prepared
+    monkeypatch.delenv('DEV_DEMO_CATALOG_PREVIEW',raising=False)
+    files=['docker-compose.yml','docker-compose.dev.yml']
+    services=config(root,files,root/'.env.dev')['services']
+    for name in ('api','api-worker'):
+        assert services[name]['environment']['DEV_DEMO_CATALOG_PREVIEW']=='false'
+    monkeypatch.setenv('DEV_DEMO_CATALOG_PREVIEW','true')
+    services=config(root,files,root/'.env.dev')['services']
+    for name in ('api','api-worker'):
+        assert services[name]['environment']['DEV_DEMO_CATALOG_PREVIEW']=='true'
+    production=config(root,['docker-compose.yml'],root/'.env.dev')['services']
+    assert 'DEV_DEMO_CATALOG_PREVIEW' not in production['api']['environment']
