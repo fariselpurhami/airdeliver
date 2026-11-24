@@ -9,6 +9,7 @@ from app.services.catalog_visibility import is_catalog_hidden,real_catalog_predi
 from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION, PRODUCT_SEARCH_INDEX, PRODUCT_INTENT_COLLECTION, PRODUCT_MEMORY_COLLECTION, PRODUCT_QUERY_PROMPT, PRODUCT_TEXT_PROFILE
 
 import asyncio
+import numpy as np
 import base64
 import hashlib
 import json
@@ -743,6 +744,11 @@ class AICommerceEngine:
 
     async def _get_query_embedding(self, query: str) -> List[float]:
         sanitized = _sanitize_query_text(query, self.limits.max_query_length)
+        from app.services.query_vector_cache import QueryVectorCache
+        if not hasattr(self,'_query_vectors'):self._query_vectors=QueryVectorCache()
+        vector_key=(id(self.embedding_model),PRODUCT_TEXT_MODEL_NAME,DEFAULT_PRODUCT_TEXT_MODEL_REVISION,PRODUCT_QUERY_PROMPT,PRODUCT_TEXT_MODEL.dimension,sanitized)
+        cached=self._query_vectors.get(vector_key)
+        if cached is not None:return cached
 
         gate = _text_model_gate(self.embedding_model)
         started = time.monotonic()
@@ -766,7 +772,11 @@ class AICommerceEngine:
 
             def encode_and_release():
                 try:
-                    return self.embedding_model.encode(sanitized, convert_to_numpy=True, **({"prompt":PRODUCT_QUERY_PROMPT,"normalize_embeddings":True} if PRODUCT_TEXT_PROFILE!='gte-v1' else {}))
+                    cached=self._query_vectors.get(vector_key)
+                    if cached is not None:return np.asarray(cached)
+                    result=self.embedding_model.encode(sanitized, convert_to_numpy=True, **({"prompt":PRODUCT_QUERY_PROMPT,"normalize_embeddings":True} if PRODUCT_TEXT_PROFILE!='gte-v1' else {}))
+                    self._query_vectors.put(vector_key,result.tolist(),PRODUCT_TEXT_MODEL.dimension)
+                    return result
                 finally:
                     gate.release()
                     logger.info("text embedding service finished: service_seconds=%.4f query_characters=%d", time.monotonic()-service_started, len(sanitized), extra={
@@ -1131,7 +1141,8 @@ class AICommerceEngine:
                 "query": sanitized_query,
                 "limit": safe_limit,
                 "filters": filter_obj.to_cache_dict(),
-                "version": 3,
+                "version": 4, "retrieval_model":PRODUCT_TEXT_MODEL_NAME,
+                "revision":DEFAULT_PRODUCT_TEXT_MODEL_REVISION,"dimension":PRODUCT_TEXT_MODEL.dimension,"prompt":PRODUCT_QUERY_PROMPT,
             },
         )
 
@@ -1144,14 +1155,19 @@ class AICommerceEngine:
             except Exception:
                 logger.warning("search cache read failed", extra={"query": sanitized_query})
 
-        try:
-            query_vector = await self._get_query_embedding(sanitized_query)
-        except Exception:
-            logger.warning("embedding unavailable; using degraded hybrid search", extra={"query": sanitized_query}, exc_info=True)
-            query_vector = []
+        async def semantic_search():
+            try:
+                async with asyncio.timeout(get_core_settings().SEARCH_EMBEDDING_BUDGET_SECONDS):
+                    query_vector=await self._get_query_embedding(sanitized_query)
+                    return await self._search_milvus_text(query_vector,safe_limit,filter_obj)
+            except asyncio.CancelledError:raise
+            except Exception as exc:
+                logger.warning('semantic_enrichment_withheld error_type=%s',type(exc).__name__)
+                return []
 
-        opensearch_task = self._search_opensearch(sanitized_query, safe_limit, filter_obj)
-        milvus_task = self._search_milvus_text(query_vector, safe_limit, filter_obj)
+        # Keyword work no longer waits for semantic encode; both are bounded.
+        opensearch_task=self._search_opensearch(sanitized_query,safe_limit,filter_obj)
+        milvus_task=semantic_search()
 
         async def observed(stage, operation):
             started = time.monotonic()
