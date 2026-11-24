@@ -1,3 +1,7 @@
+# Current checkpoint, November24 10:51
+
+[Restorationthrough128](restoration-through128-2026-11-24.md) supersedesearlierpendingstatusbelow. Main e0ee9e2 includes121/125/128/126. Every55liveflagfalse; nofullparity/productionreadyclaim. Historicalnotesremainbelow.
+
 # Current shipped checkpoint supersession
 
 As of10:00, see [restorationthrough120](restoration-through120-2026-11-24.md). PR118-120 and122-124 are shipped; earlier pendingnotes below are historical.121/125/126 remainpending. Every liveflagfalse. Semanticquality/provider/owner gates persist.

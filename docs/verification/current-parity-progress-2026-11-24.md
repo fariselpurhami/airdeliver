@@ -1,3 +1,7 @@
+# Current checkpoint, November24 10:51
+
+[Restorationthrough128](restoration-through128-2026-11-24.md) supersedesearlierpendingstatusbelow. Main e0ee9e2 includes121/125/128/126. Every55liveflagfalse; nofullparity/productionreadyclaim. Historicalnotesremainbelow.
+
 # Current source checkpoint supersession
 
 November24 10:00: main d37191d throughPR120 plus122-124. See [boundedcurrentcheckpoint](restoration-through120-2026-11-24.md). Earlier08:29contentsbelowretainedhistorically, notcurrentpendingstatus. Counts35preserved/20partial/0lostremainconservative sourcegroupings,55liveflagsfalse.
