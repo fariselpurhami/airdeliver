@@ -152,3 +152,16 @@ async def test_outer_deadline_cancels_all_target_lookups():
     async def infer(messages):raise AssertionError('no evidence')
     result=await answer_product_question(infer,'compare',targets=('Alpha','Beta','Gamma'),lookup=lookup,timeout=.02)
     assert result.text==NO_SOURCE and len(started)==3 and sorted(started)==sorted(stopped)
+
+@pytest.mark.asyncio
+async def test_research_context_is_customer_intent_data_not_source_quote_evidence():
+    async def lookup(q):return [{'url':'https://maker.example/spec','text':'Alpha wired connection.'}]
+    calls=[]
+    async def infer(messages):
+        payload=json.loads(messages[-1]['content']);calls.append(payload)
+        if len(calls)==1:
+            assert payload['customer_only_recent_context']==['prefer quiet use']
+            return json.dumps({'facts':[{'label':'connection','quote':'Alpha wired connection.','source':0}]})
+        return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
+    result=await answer_product_question(infer,'specs',lookup=lookup,customer_context=('prefer quiet use',))
+    assert 'Alpha wired connection.' in result.text

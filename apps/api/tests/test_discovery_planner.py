@@ -38,3 +38,27 @@ async def test_visual_identity_enriches_retrieval_without_becoming_product_evide
     assert [p.id for p in svc._catalog_response.await_args.args[1]]==[1,2]
     assert svc._catalog_response.await_args.args[3]=='find this'
     identify.assert_awaited_once()
+
+@pytest.mark.asyncio
+async def test_setup_recent_customer_context_is_bounded_separate_data():
+    infer=AsyncMock(side_effect=[json.dumps({'components':['desk']}),json.dumps({'appropriate':True,'no_invented_products':True})])
+    await plan_setup(infer,'now build setup',customer_context=tuple(str(i) for i in range(8)))
+    for call in infer.await_args_list:
+        payload=json.loads(call.args[0][1]['content'])
+        assert payload['customer_only_recent_context']==['3','4','5','6','7']
+
+@pytest.mark.asyncio
+async def test_visual_publication_keeps_prior_hard_brief_and_customer_context(monkeypatch):
+    from app.services.neural_core_service import _customer_turn_context
+    from app.services.free_llm_service import FreeLLMService
+    monkeypatch.setattr(FreeLLMService,'analyze_product_image',AsyncMock(return_value='generic'))
+    svc=NeuralCoreService(SimpleNamespace(search_by_image_vector=AsyncMock(return_value=[])),object())
+    svc._catalog_response=AsyncMock(return_value='verified')
+    brief=ShoppingBrief(required_features=['16GB RAM'])
+    token=_customer_turn_context.set(('customer headphones request',))
+    try:
+        assert await svc._handle_visual_search('image','this one',object(),brief=brief)=='verified'
+        kwargs=svc._catalog_response.await_args.kwargs
+        assert kwargs['brief']==brief
+        assert kwargs['search_evidence']['customer_only_recent_context']==['customer headphones request']
+    finally:_customer_turn_context.reset(token)

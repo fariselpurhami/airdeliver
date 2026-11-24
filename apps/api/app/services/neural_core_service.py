@@ -44,6 +44,7 @@ from app.services.cache_service import IAsyncCacheClient, get_cache_from_request
 logger = logging.getLogger("airdeliver.neural_core")
 _deferred_memory: ContextVar[list | None] = ContextVar("support_deferred_memory",default=None)
 _request_preferences: ContextVar[tuple[str,...]] = ContextVar("support_preferences",default=())
+_customer_turn_context: ContextVar[tuple[str,...]] = ContextVar("support_customer_context",default=())
 
 # =============================================================================
 # DOMAIN CONTRACTS & SCHEMAS
@@ -396,7 +397,7 @@ class NeuralCoreService:
     async def _handle_setup_discovery(self,db,message,brief):
         from app.services.discovery_planner import plan_setup
         try:
-            components=await plan_setup(self._execute_llm_inference,message)
+            components=await plan_setup(self._execute_llm_inference,message,customer_context=_customer_turn_context.get())
             decision=RouterDecision(intent='PRODUCT_SEARCH',shopping_task='setup',
                 targets=[SearchTarget(product_name=c) for c in components])
             response=await self._handle_staged_product_search(db,decision,brief,message)
@@ -413,7 +414,8 @@ class NeuralCoreService:
                 return await self._handle_staged_catalog_search(db,decision,brief,message)
             return await answer_product_question(self._execute_llm_inference,message,
                 timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,fallback=catalog_fallback,
-                targets=tuple(t.product_name for t in decision.targets))
+                targets=tuple(t.product_name for t in decision.targets),
+                customer_context=_customer_turn_context.get())
         return await self._handle_staged_catalog_search(db,decision,brief,message)
 
     async def _handle_staged_catalog_search(self,db,decision,brief,message):
@@ -555,7 +557,7 @@ class NeuralCoreService:
         return await service.respond(SalesResponseRequest(message=message,products=tuple(cards),brief=brief,
             mode=mode,intent=intent,evidence=evidence or {}))
 
-    async def _handle_visual_search(self, image_base64: str, caption: str = "", db=None) -> NeuralCoreResponse:
+    async def _handle_visual_search(self, image_base64: str, caption: str = "", db=None,brief=None) -> NeuralCoreResponse:
         """Visual candidates are revalidated against current DB rows, then
         supplied as bounded evidence to the model writer and review boundary."""
         try:
@@ -581,7 +583,8 @@ class NeuralCoreService:
             )
 
         try:
-            return await self._catalog_response(db, products, "VISUAL_SEARCH",caption)
+            return await self._catalog_response(db, products, "VISUAL_SEARCH",caption,brief=brief,
+                search_evidence={'customer_only_recent_context':list(_customer_turn_context.get()),'context_scope':'Customer intent hints only, never product facts. Current caption wins.'})
         except Exception as exc:
             logger.warning("neural_core.catalog.revalidation_failed",extra={"error_type":type(exc).__name__})
             return NeuralCoreResponse(text="System notice: current catalog evidence could not be checked. No product recommendation was published.",response_kind="system_notice",confidence=0.0,explain="Catalog revalidation unavailable",telemetry={"intent":"VISUAL_SEARCH","entities":[],"turn":0})
@@ -631,6 +634,7 @@ class NeuralCoreService:
                 _log_inference_failure('neural_core.saved_context_unavailable',exc)
                 await db.rollback()
         token=_request_preferences.set(preferences)
+        context_token=_customer_turn_context.set(())
         deferred=[]
         memory_token=_deferred_memory.set(deferred)
         try:
@@ -667,6 +671,7 @@ class NeuralCoreService:
         finally:
             if memory_token is not None:_deferred_memory.reset(memory_token)
             _request_preferences.reset(token)
+            _customer_turn_context.reset(context_token)
 
     async def _handle_message_with_context(
         self,
@@ -692,12 +697,13 @@ class NeuralCoreService:
             digest = hashlib.sha256(session_id.encode()).hexdigest()
             session_id = f"owner:{owner}:{digest}"
         memory = await self._hydrate_session(session_id, user_name)
+        _customer_turn_context.set(tuple(m.content for m in memory.history if m.role=='user')[-5:])
 
         # Visual queries skip the LLM intent router entirely: an image upload
         # is unambiguous visual-search intent. Copy still uses the model writer
         # and independent evidence review, never a fixed product-sales template.
         if image_base64:
-            response = await self._handle_visual_search(image_base64, caption=message, db=db)
+            response = await self._handle_visual_search(image_base64, caption=message, db=db,brief=memory.shopping_brief)
             turn_count = len(memory.history) // 2
             response.enrich_telemetry(turn=turn_count)
             memory.append_turn(message or "[image upload]", response.text, max_turns=NeuralCoreConfig.MAX_CONTEXT_TURNS)
