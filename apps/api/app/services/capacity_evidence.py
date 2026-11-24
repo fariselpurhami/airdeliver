@@ -6,14 +6,14 @@ Never convert between decimal GB and binary GiB or infer an upgrade.
 import re
 from decimal import Decimal
 
-UNIT=r'(?:megabytes?|gigabytes?|terabytes?|mb|gb|tb|mib|gib|tib)'
-KIND=r'(?:ram|memory|storage|ssd|hdd)'
-AMOUNT=r'(?P<amount>\d+(?:\.\d+)?)\s*(?P<unit>'+UNIT+r')'
+UNIT=r'(?:megabytes?|gigabytes?|terabytes?|mb|gb|tb|mib|gib|tib|ميجابايت|ميغا بايت|ميجا بايت|جيجابايت|جيجا بايت|غيغابايت|تيرابايت|تيرا بايت)'
+KIND=r'(?:ram|memory|storage|ssd|hdd|رام|الرام|ذاكرة الوصول العشوائي|الذاكرة العشوائية|تخزين|التخزين|سعة التخزين)'
+AMOUNT=r'(?P<amount>\d+(?:[.٫]\d+)?)\s*(?P<unit>'+UNIT+r')'
 PATTERNS=[re.compile(r'^\s*'+AMOUNT+r'\s*(?P<kind>'+KIND+r')\s*$',re.I),
           re.compile(r'^\s*(?P<kind>'+KIND+r')\s*[:=]?\s*'+AMOUNT+r'\s*$',re.I)]
 SCALES={'mb':('si',Decimal(1000)**2),'gb':('si',Decimal(1000)**3),'tb':('si',Decimal(1000)**4),
         'mib':('iec',Decimal(1024)**2),'gib':('iec',Decimal(1024)**3),'tib':('iec',Decimal(1024)**4)}
-UNITS={'megabyte':'mb','megabytes':'mb','gigabyte':'gb','gigabytes':'gb','terabyte':'tb','terabytes':'tb'}
+UNITS={'ميجابايت':'mb','ميغا بايت':'mb','ميجا بايت':'mb','جيجابايت':'gb','جيجا بايت':'gb','غيغابايت':'gb','تيرابايت':'tb','تيرا بايت':'tb','megabyte':'mb','megabytes':'mb','gigabyte':'gb','gigabytes':'gb','terabyte':'tb','terabytes':'tb'}
 
 
 def capacity_token(text):
@@ -21,18 +21,19 @@ def capacity_token(text):
     for pattern in PATTERNS:
         match=pattern.fullmatch(text)
         if match:
-            amount=Decimal(match['amount']);unit=match['unit'].casefold();kind=match['kind'].casefold()
+            amount=Decimal(match['amount'].replace('٫','.'));unit=' '.join(match['unit'].casefold().split());kind=' '.join(match['kind'].casefold().split())
             if amount<=0:return None
-            return ('ram' if kind in {'ram','memory'} else kind,amount,UNITS.get(unit,unit))
+            kind={'memory':'ram','رام':'ram','الرام':'ram','ذاكرة الوصول العشوائي':'ram','الذاكرة العشوائية':'ram','تخزين':'storage','التخزين':'storage','سعة التخزين':'storage'}.get(kind,kind)
+            return (kind,amount,UNITS.get(unit,unit))
     return None
 
 
 def supported_capacity(feature,specs,name=''):
     comparator='eq'
     literal=feature
-    bound=re.fullmatch(r'\s*(at least|minimum|min\.?|at most|maximum|max\.?)\s+(.+?)\s*',feature,re.I) if isinstance(feature,str) else None
+    bound=re.fullmatch(r'\s*(at least|minimum|min\.?|at most|maximum|max\.?|على الأقل|علي الاقل|بحد أدنى|بحد ادنى|على الأكثر|علي الاكثر|بحد أقصى|بحد اقصى)\s+(.+?)\s*',feature,re.I) if isinstance(feature,str) else None
     if bound:
-        comparator='ge' if bound[1].casefold().rstrip('.') in {'at least','minimum','min'} else 'le'
+        comparator='ge' if bound[1].casefold().rstrip('.') in {'at least','minimum','min','على الأقل','علي الاقل','بحد أدنى','بحد ادنى'} else 'le'
         literal=bound[2]
     wanted=capacity_token(literal)
     if wanted is None:
