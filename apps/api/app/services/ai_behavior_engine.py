@@ -299,17 +299,29 @@ class BehaviorEngine:
         return f"{self._key_stream(user_id, dimension)}:{version}"
 
     async def get_ghost_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
-        if self.brain is None:
+        if self.brain is None or type(user_id) is not int or not 0<user_id<=2147483647:
             return None
         raw = await self.cache.get(self.ghost_key(user_id))
         if not raw:
             return None
         try:
             data = json.loads(raw)
-            if data.get("model_id") != self._model_namespace:
+            if not isinstance(data,dict) or data.get("model_id") != self._model_namespace:
                 return None
+            source=data.get("src_dim")
+            if type(source) is not int or source not in self._trained_dims:
+                return None
+            stamp=data.get("ts")
+            if type(stamp) not in (int,float) or not math.isfinite(stamp) or not 0<stamp<=time.time()+60 or time.time()-stamp>3600:
+                return None
+            for name in ("pos","neg"):
+                vector=data.get(name)
+                if not isinstance(vector,list) or len(vector)!=self.net_config.internal_dim:
+                    return None
+                if not all(type(value) in (int,float) and math.isfinite(value) and abs(value)<=1.00001 for value in vector) or not any(vector):
+                    return None
             return data
-        except (ValueError, TypeError, AttributeError):
+        except (ValueError, TypeError, AttributeError,OverflowError):
             return None
 
     def _resolve_device(self) -> torch.device:
