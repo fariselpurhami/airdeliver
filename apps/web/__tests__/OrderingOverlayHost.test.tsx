@@ -38,7 +38,7 @@ it('does not tile full-page color gradients and pauses hidden canvas work',()=>{
 });
 it('renders the owner landing sentence without the removed subtitle',()=>{
  const greeting=useAIOrderingStore.getState().messages.find(m=>m.id===0);
- const expected="Type, speak, or snap what you need-I'll find it, build your cart, and check you out";
+ const expected="Type, speak, or snap what you need-I'll find it, build your cart, and check you out.";
  // A previous test may clear state; load the exact initial value via resetModules
  // is unnecessary: the store source contract and live bubble are both checked.
  useAIOrderingStore.setState({isOverlayVisible:true,messages:[greeting||{id:0,sender:'ai',contentType:'text',content:expected,timestamp:0}]});

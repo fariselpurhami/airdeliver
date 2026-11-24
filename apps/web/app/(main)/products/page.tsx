@@ -101,7 +101,7 @@ const AICatalogHero = React.memo(() => {
                 </h1>
                 
                 <p className="max-w-xs sm:max-w-lg mx-auto text-xs sm:text-base md:text-lg text-gray-300 font-light leading-relaxed mb-10 sm:mb-12 drop-shadow-md relative z-10">
-                    Don't search. Just ask. airdeliverOS scans thousands of products and secures them for instant air-drop.
+                    Don't search. Just ask.
                 </p>
 
                 <div className="w-full max-w-xl mx-auto relative group cursor-pointer z-10" onClick={() => setOverlayVisible(true)}> 
