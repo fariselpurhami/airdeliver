@@ -2788,6 +2788,29 @@ class AINLUService:
         return False
 
     async def _handle_ecosystem_building(self, request: IncomingMessage, ctx: RequestContext, intent_payload: CommerceIntentPayload) -> None:
+        """Read-only bridge to shared reviewed setup, never old planner prose.
+
+        The original implementation stays below for source continuity. Neither
+        model plans nor caller intent fields supply commercial evidence.
+        """
+        from app.services.legacy_setup_boundary import reviewed_legacy_setup
+        try:
+            async with asyncio.timeout(45):
+                response=await reviewed_legacy_setup(self.db,self.search_engine,self.cache,
+                    self.llm_service,request.message_text)
+            products=[card.model_dump(mode='json') for card in response.products]
+            await self._send_to_ui(request.user_id,{
+                'content':response.text,
+                'type':UiPayloadType.PRODUCT_CAROUSEL.value if products else UiPayloadType.TEXT.value,
+                'products':products,
+                'reason':'Read-only catalog component suggestions; completeness and compatibility are not verified.',
+            },ctx)
+        except asyncio.CancelledError:raise
+        except Exception as exc:
+            StructuredLog.error('legacy_setup_withheld',error_type=type(exc).__name__)
+            await self._send_to_ui(request.user_id,{'content':'I could not verify a current setup suggestion. Please clarify the main use, essential components and budget currency.','type':UiPayloadType.TEXT.value,'products':[]},ctx)
+
+    async def _handle_ecosystem_building_legacy_unreviewed(self, request: IncomingMessage, ctx: RequestContext, intent_payload: CommerceIntentPayload) -> None:
         """
         AI Commerce OS Feature: Ecosystem Architect Mode.
         Builds a complete setup (e.g., PC + Monitor + Accessories) instead of just returning a single category.
