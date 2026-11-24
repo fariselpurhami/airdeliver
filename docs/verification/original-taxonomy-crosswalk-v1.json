@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "source_revision": "8f8cfaf8f5d62e32d8c130bdf0526f7896a6c8da",
+  "scope": "Source contract crosswalk, not semantic model accuracy or whole-group acceptance",
+  "categories": {
+    "SPECIFIC_SEARCH": {"intent": "PRODUCT_SEARCH", "tasks": ["search"], "boundary": "Current catalog evidence and hard constraints, no transaction"},
+    "BROAD_DISCOVERY": {"intent": "PRODUCT_SEARCH", "tasks": ["search", "consultation"], "boundary": "Literal category or clarification, never inferred recipient tastes"},
+    "COMPARISON": {"intent": "PRODUCT_SEARCH", "tasks": ["comparison"], "boundary": "Per-target source evidence or catalog fallback; missing coverage explicit"},
+    "PRICE_INQUIRY": {"intent": "PRODUCT_SEARCH", "tasks": ["price_inquiry"], "boundary": "Listed price/currency only; no invented discount or policy"},
+    "SPECS_INQUIRY": {"intent": "PRODUCT_SEARCH", "tasks": ["specifications"], "boundary": "Source quotes and independent exact-product review; entailment not certified"},
+    "CART_ACTION": {"intent": "CART_ADD", "tasks": [], "alternate_intents": ["CART_REMOVE", "CART_CLEAR", "CART_CHECKOUT"], "boundary": "Explicit current request, owner-bound review/navigation, never inferred execution"},
+    "OUT_OF_DOMAIN": {"intent": "OUT_OF_SCOPE", "tasks": [], "alternate_intents": ["SOCIAL_CHAT"], "boundary": "Brief greeting differs from unrelated substantive request"},
+    "ECOSYSTEM_BUILDER": {"intent": "SETUP_DISCOVERY", "tasks": ["setup"], "boundary": "Reviewed component planning/scope/budget; no unsupported complete-compatible system claim"},
+    "NEGOTIATION": {"intent": "PRODUCT_SEARCH", "tasks": ["negotiation"], "boundary": "Acknowledge explicit concession request, never authorize discount or commitment"},
+    "OBJECTION": {"intent": "PRODUCT_SEARCH", "tasks": ["objection"], "boundary": "Exact current concern and honest unknowns, no inferred wealth/personality or pressure"}
+  },
+  "fields": {
+    "target_products": "Literal SearchTarget array; maximum3, ambiguity clarifies instead of truncating an essential target",
+    "detected_occasion": "ShoppingBrief occasion, grounded in customer text",
+    "sentiment": "No direct five-label semantic equivalence claimed. Current explicit customer_signal/advice_goal is narrower; full tone/phase crosswalk remains open",
+    "competitor_mentioned": "Exact customer question is preserved. No separate ordinary competitor field or verified competitor-price policy equivalence claimed",
+    "budget_max": "Grounded decimal budget plus explicit currency; no conversion or assumed currency",
+    "required_features": "Literal shared or independently reviewed per-target positive/negative constraints",
+    "cart_action_type": "Typed ordinary cart intents require explicit request and customer review",
+    "is_chitchat": "SOCIAL_CHAT is separated from OUT_OF_SCOPE",
+    "is_jailbreak_attempt": "Untrusted input boundaries, not a classifier boolean trusted to grant authority",
+    "suggested_pivot": "No unreviewed model pivot is product evidence or permission"
+  },
+  "intentional_exclusions": ["Hidden financial/personality inference as sales authority", "Fabricated urgency, popularity, stock or discounts", "Model-selected transactions without explicit owner review", "Unreviewed legacy prose as a current offer"],
+  "still_open": ["Original phase/retention policy crosswalk", "Actual model multilingual category/sentiment/occasion interpretation", "Informational task catalog fallback and persisted per-target scope audit", "Every alternate caller error/cancellation/lifecycle boundary", "Owner deployment and real provider receipts"],
+  "whole_group_closed": false
+}
