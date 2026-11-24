@@ -17,14 +17,18 @@ pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='migrate
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mode',['ok','price_changed','offline','rejected','one_paragraph','demo','empty'])
-async def test_opening_model_insight_and_current_cards_through_real_publication(real_cache, mode,caplog):
+@pytest.mark.parametrize('mode',['ok','price_changed','offline','rejected','one_paragraph','demo','empty','fixture_on','fixture_off'])
+async def test_opening_model_insight_and_current_cards_through_real_publication(real_cache, mode,caplog,monkeypatch):
+    if mode.startswith('fixture_'):
+        from app.services import catalog_visibility
+        monkeypatch.setattr(catalog_visibility,'fixtures_enabled',lambda:mode=='fixture_on')
     cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
             assert (await db.execute(text('SELECT current_database()'))).scalar_one().startswith('airdeliver_test_')
             rows=[Product(sku=uuid4().hex,name='Catalog case',description='',category='accessories',price=20,inventory=10,currency='USD',attributes={'material':'cotton'})]
             if mode=='demo':rows[0].attributes={'_seed_dataset':'airdeliver-demo-v1'}
+            if mode.startswith('fixture_'):rows[0].attributes={'_seed_dataset':'airdeliver-dev-fixtures-v1'}
             db.add_all(rows);await db.commit();ids=[p.id for p in rows]
             for row in rows:await db.refresh(row)
         calls=[];published=[]
@@ -56,13 +60,17 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
         event=await subscriber.get_message(ignore_subscribe_messages=True, timeout=1)
         if event is not None:published.append(json.loads(event["data"]))
         await subscriber.aclose()
-        if mode=='ok':
+        if mode in {'ok','fixture_on'}:
             assert 'matrix_generation_completed' in caplog.text
             assert 'opening_pool_evaluated' in caplog.text
             assert len(published)==1 and published[0]['type']=='proactive_suggestion'
             assert published[0]['content']=='Explore the current local catalog selection.'
             assert published[0]['reason'].startswith('Consider the listed material')
             assert published[0]['products'][0]['price']=='20.00'
+            if mode=='fixture_on':
+                assert published[0]['products'][0]['evidence_kind']=='dev_fixture'
+                assert published[0]['products'][0]['stock_status']=='fixture_in_stock'
+                assert 'synthetic' in published[0]['products'][0]['availability_note']
             assert calls[0]['request_evidence']['sales_intent']=='OPENING_INSIGHT'
             assert len(calls)==2
             svc.freshness_repo.mark_products_as_seen.assert_awaited_once()
@@ -71,11 +79,11 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
             if mode!='price_changed':
                 assert 'matrix_generation_completed' not in caplog.text
                 assert published[0]['status']=='retryable'
-                assert published[0]['opening_stage']==('no_eligible_cards' if mode in {'demo','empty'} else 'model_copy_unavailable')
+                assert published[0]['opening_stage']==('no_eligible_cards' if mode in {'demo','empty','fixture_off'} else 'model_copy_unavailable')
             assert not any(p.get('products') for p in published)
             assert published and published[0]['type'] in {'info','error'}
             svc.freshness_repo.mark_products_as_seen.assert_not_awaited()
-            if mode in {'demo','empty'}:assert calls==[]
+            if mode in {'demo','empty','fixture_off'}:assert calls==[]
     finally:
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()

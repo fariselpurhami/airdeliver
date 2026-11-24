@@ -3151,9 +3151,9 @@ class AINLUService:
             if isinstance(pool, Exception) or not pool:
                 return []
             from app.services.shopping_discovery import catalog_result
+            from app.services.catalog_visibility import opening_card_eligible
             eligible = [p for p in pool if (card := catalog_result(p)) is not None
-                        and card.evidence_kind == 'local_catalog' and card.stock_status == 'local_in_stock'
-                        and card.price is not None and p.id not in global_seen_ids]
+                        and opening_card_eligible(card) and p.id not in global_seen_ids]
             return self._enforce_diversity(
                 pool=eligible,
                 limit=min(10, self.config.max_items_per_row),
@@ -3308,7 +3308,8 @@ class AINLUService:
                 current = [catalog_result(rows[i]) if i in rows else None for i in ids]
                 if before != current:
                     raise ValueError('Opening catalog changed during model generation')
-                if any(c is None or c.evidence_kind != 'local_catalog' or c.stock_status != 'local_in_stock' for c in current):
+                from app.services.catalog_visibility import opening_card_eligible
+                if any(not opening_card_eligible(c) for c in current):
                     raise ValueError('Opening catalog no longer eligible')
             payload = {
                 "content": content,

@@ -17,6 +17,9 @@ async def opening_catalog_status(db,recent_ids):
        count(*) FILTER(WHERE eligible AND NOT(id=ANY(CAST(:recent AS integer[])))) AS real_fresh
       FROM classified'''),{'recent':sorted(i for i in recent_ids if type(i) is int and 0<i<=2147483647)})
     counts=dict(result.mappings().one())
+    from app.services.catalog_visibility import fixtures_enabled
+    if fixtures_enabled() and counts['dev_fixtures'] and not counts['real_eligible']:
+        return {'reason':'dev_fixture_pool_not_published',**counts}
     reason=('catalog_empty' if not counts['total'] else 'demo_only_catalog' if counts['demo']==counts['total'] else
             'no_real_eligible_stock' if not counts['real_eligible'] else
             'all_real_cards_recent' if not counts['real_fresh'] else 'eligible_pool_not_published')
@@ -26,6 +29,7 @@ async def opening_catalog_status(db,recent_ids):
 def opening_status_notice(status):
     reason=status['reason']
     return {
+      'dev_fixture_pool_not_published':'System notice: development fixtures exist, but this opening selection did not publish them. Fixture cards are synthetic local test data, not real stock or offers. Check fixture eligibility, cooldown and model-copy status.',
       'catalog_empty':'System notice: this local catalog has no products. A store administrator must add real products before opening cards can appear.',
       'demo_only_catalog':'System notice: this local catalog contains only synthetic demo records. They are hidden, not offers. A store administrator must add real products with actual price and stock before opening cards can appear.',
       'no_real_eligible_stock':'System notice: no real active products with positive local stock and valid price/currency are eligible. A store administrator must verify the catalog data. No demo record will be shown.',

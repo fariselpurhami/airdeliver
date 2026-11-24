@@ -32,3 +32,12 @@ def real_catalog_predicates(product):
     return (func.coalesce(product.attributes.op('->>')('_seed_dataset'),'')!='airdeliver-demo-v1',
         ~product.sku.like('ADL-DEMO-v1-%'),
         *(() if fixtures_enabled() else (func.coalesce(product.attributes.op('->>')('_seed_dataset'),'')!=FIXTURE_DATASET,~product.sku.like('ADL-DEV-v1-%'))))
+
+
+def opening_card_eligible(card):
+    """Same opt-in policy at pool selection and current-SQL publication."""
+    if card is None or card.price is None:
+        return False
+    return ((card.evidence_kind == 'local_catalog' and card.stock_status == 'local_in_stock')
+            or (fixtures_enabled() and card.evidence_kind == 'dev_fixture'
+                and card.stock_status == 'fixture_in_stock'))
