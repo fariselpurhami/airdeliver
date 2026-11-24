@@ -65,7 +65,7 @@ class SessionMemory(BaseModel):
     user_name: str = Field(max_length=256)
     shopping_brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
     setup_requirements: dict[ScopedComponent,ScopedFeatures] = Field(default_factory=dict,max_length=3)
-    target_requirements: dict[ScopedComponent,ScopedFeatures] = Field(default_factory=dict,max_length=3)
+    target_requirements: dict[Annotated[str,Field(min_length=1,max_length=256)],ScopedFeatures] = Field(default_factory=dict,max_length=3)
     history: List[ChatMessage] = Field(default_factory=list, max_length=10)
     
     def append_turn(self, user_msg: str, ai_msg: str, max_turns: int = 5) -> None:
