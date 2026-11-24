@@ -72,3 +72,77 @@ async def test_real_query_boundary_sends_official_prompt_and_normalization(monke
     value=await engine._get_query_embedding('  blue shirt  ')
     assert value==[1.,0.]
     assert calls==[('blue shirt',{'convert_to_numpy':True,'prompt':SPACES['harrier-v1'].query_prompt,'normalize_embeddings':True})]
+
+@pytest.mark.asyncio
+async def test_owner_migration_actual_control_flow_readonly_sha_memory_and_counts(monkeypatch,capsys):
+    from scripts import migrate_harrier_catalog as migration
+    from app.db import session as session_module
+    from app.core import config
+    import seed_ultra_scale as seed
+    import pymilvus
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    import numpy as np
+    rows=[SimpleNamespace(**{f:None for f in migration.FIELDS})]
+    rows[0].id=8;rows[0].sku='old-stable-sku';rows[0].attributes={}
+    sql=[]
+    class Session:
+        async def __aenter__(self):return self
+        async def __aexit__(self,*args):pass
+        async def execute(self,statement):
+            sql.append(str(statement));return SimpleNamespace(scalars=lambda:SimpleNamespace(all=lambda:rows))
+        async def rollback(self):sql.append('ROLLBACK')
+    monkeypatch.setattr(session_module,'AsyncSessionFactory',Session)
+    monkeypatch.setattr(config,'get_core_settings',lambda:SimpleNamespace(DATABASE_URI='postgresql+asyncpg://unused/test',APP_ENV='development'))
+    memory=[{'id':17,'user_id':2,'fact_text':'likes blue','timestamp':11}]
+    state={'built':False,'memory':[],'operations':[],'iter_closed':False}
+    class Iterator:
+        first=True
+        def next(self):
+            if self.first:self.first=False;return memory
+            return []
+        def close(self):state['iter_closed']=True
+    class Client:
+        def __init__(self,**kwargs):pass
+        def has_collection(self,name):return name==migration.SOURCE.memory_collection or state['built']
+        def query_iterator(self,**kwargs):return Iterator()
+        def get_collection_stats(self,name):return {'row_count':len(state['memory']) if name==migration.TARGET.memory_collection else 1}
+        def create_schema(self,**kwargs):
+            assert kwargs['auto_id'] is True
+            return SimpleNamespace(add_field=lambda **kwargs:None)
+        def prepare_index_params(self):return SimpleNamespace(add_index=lambda **kwargs:None)
+        def create_collection(self,**kwargs):state['built']=True
+        def insert(self,**kwargs):state['memory']+=kwargs['data']
+        def flush(self,**kwargs):pass
+        def close(self):pass
+    monkeypatch.setattr(pymilvus,'MilvusClient',Client)
+    def forbidden(*args,**kwargs):raise AssertionError('Dryrun loaded model or wrote index')
+    monkeypatch.setattr(seed,'EmbeddingService',forbidden)
+    args=SimpleNamespace(apply=False,reviewed_sha256=None,expected_products=1)
+    await migration.run(args)
+    dry=json.loads(capsys.readouterr().out);assert dry['products']==1 and dry['memory_records']==1
+    assert state['iter_closed'] and not state['built'] and sql[0]=='SET TRANSACTION READ ONLY'
+    args.apply=True;args.reviewed_sha256='bad'
+    with pytest.raises(ValueError,match='SHA'):await migration.run(args)
+    assert not state['built']
+    class Repository:
+        def __init__(self,*args):
+            self._client=SimpleNamespace(indices=SimpleNamespace(refresh=AsyncMock()),count=AsyncMock(return_value={'count':1}))
+        async def close(self):pass
+    monkeypatch.setattr(seed,'MilvusRepository',Repository);monkeypatch.setattr(seed,'OpenSearchRepository',Repository)
+    class Encoder:
+        def encode(self,text,**kwargs):
+            assert text=='likes blue' and kwargs['prompt']==migration.TARGET.query_prompt and kwargs['normalize_embeddings']
+            return np.array([1.]+[0.]*1023)
+    monkeypatch.setattr(seed,'EmbeddingService',lambda *args:SimpleNamespace(_model=Encoder()))
+    from app.services import real_catalog_import
+    async def sync(products,*args):
+        assert products[0]['id']==8;state['operations'].append('candidate');return {'milvus':1,'opensearch':1}
+    monkeypatch.setattr(real_catalog_import,'sync_import',sync)
+    args.reviewed_sha256=dry['sha256'];await migration.run(args)
+    migrated=state['memory'][0]
+    assert migrated['source_memory_id']==17 and 'id' not in migrated
+    assert {k:migrated[k] for k in ('user_id','fact_text','timestamp')}=={k:memory[0][k] for k in ('user_id','fact_text','timestamp')}
+    assert state['operations']==['candidate']
+    # Existing target facts cannot be silently duplicated by rerun.
+    with pytest.raises(ValueError,match='Nonempty'):await migration.run(args)
