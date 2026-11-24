@@ -17,12 +17,17 @@ class ShoppingBrief(BaseModel):
     budget_max: str | None = Field(default=None,max_length=24)
     budget_currency: str | None = Field(default=None,max_length=3)
     preference: str | None = Field(default=None,max_length=256)
+    excluded_terms: list[str] = Field(default_factory=list,max_length=8)
+    required_features: list[str] = Field(default_factory=list,max_length=8)
 
     def grounded(self, message: str) -> 'ShoppingBrief':
         """Retain only literal customer-provided spans, not inferred tastes."""
         haystack=' '.join(message.casefold().split())
         fields={key:value for key,value in self.model_dump().items()
             if key not in {'version','budget_max','budget_currency'} and isinstance(value,str) and value.strip() and ' '.join(value.casefold().split()) in haystack}
+        for key in ('excluded_terms','required_features'):
+            fields[key]=list(dict.fromkeys(value.strip() for value in getattr(self,key)
+                if isinstance(value,str) and 1<len(value)<=128 and ' '.join(value.casefold().split()) in haystack))
         if fields.get('budget') and self.budget_max and self.budget_currency:
             try:
                 value=Decimal(self.budget_max)
@@ -37,6 +42,11 @@ class ShoppingBrief(BaseModel):
         return ShoppingBrief(**fields)
 
     def permits(self,card: CatalogResult) -> bool:
+        evidence=' '.join([card.name,card.category or '',*card.catalog_specs.keys(),*card.catalog_specs.values()]).casefold()
+        if any(term.casefold() in evidence for term in self.excluded_terms):return False
+        # Literal explicit requirements stay hard. Missing structured evidence
+        # never becomes a match just because retrieval found a similar name.
+        if any(term.casefold() not in evidence for term in self.required_features):return False
         if self.budget_max is None:return True
         return (card.currency==self.budget_currency and card.price is not None and
                 Decimal(card.price)<=Decimal(self.budget_max))
