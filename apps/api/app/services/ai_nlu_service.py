@@ -3090,10 +3090,9 @@ class AINLUService:
         def _process_pool(pool: Any, max_brand: int = 2) -> List[ProductLike]:
             if isinstance(pool, Exception) or not pool:
                 return []
-            from app.services.shopping_discovery import catalog_result
+            from app.services.shopping_discovery import catalog_result, opening_card_eligible, demo_preview_enabled
             eligible = [p for p in pool if (card := catalog_result(p)) is not None
-                        and card.evidence_kind == 'local_catalog' and card.stock_status == 'local_in_stock'
-                        and card.price is not None]
+                        and opening_card_eligible(card) and type(p.inventory) is int and p.inventory>0]
             return self._enforce_diversity(
                 pool=eligible,
                 limit=min(5, self.config.max_items_per_row),
@@ -3104,6 +3103,15 @@ class AINLUService:
         bestsellers_products = _process_pool(bestsellers_pool, max_brand=2)
         trending_products = _process_pool(trending_pool, max_brand=2)
         deals_products = _process_pool(deals_pool, max_brand=3)
+
+        from app.services.shopping_discovery import demo_preview_enabled
+        if demo_preview_enabled() and not any((personal_products,bestsellers_products,trending_products,deals_products)) and global_seen_ids:
+            # One bounded repeat only. Preserve the existing history set.
+            personal_products = _process_pool(await self._eligible_opening_pool(set(), order_by=[col(Product.rating).desc()]),max_brand=1)
+            bestsellers_products = _process_pool(await self._fetch_bestsellers(set()),max_brand=2)
+            trending_products = _process_pool(await self._fetch_trending(set()),max_brand=2)
+            deals_products = _process_pool(await self._fetch_deals(set()),max_brand=3)
+            StructuredLog.info("opening_demo_seen_replay",user_id=user_id)
 
         for pool_name, raw_pool, eligible_pool in (
             ("personal", personal_pool, personal_products),
@@ -3128,7 +3136,7 @@ class AINLUService:
             if not products:
                 return None
             try:
-                from app.services.shopping_discovery import catalog_result
+                from app.services.shopping_discovery import catalog_result, opening_card_eligible, demo_preview_enabled
                 snapshot = [catalog_result(p) for p in products]
                 content, insight = await self._generate_dynamic_row_copy(row_type, products, fallback, reason)
                 return content, insight, snapshot
@@ -3225,7 +3233,7 @@ class AINLUService:
         product_count = len(safe_products)
 
         try:
-            from app.services.shopping_discovery import catalog_result
+            from app.services.shopping_discovery import catalog_result, opening_card_eligible, demo_preview_enabled
             before = expected_cards if expected_cards is not None else [catalog_result(p) for p in safe_products]
             if safe_products:
                 ids = [p.id for p in safe_products]
@@ -3234,10 +3242,12 @@ class AINLUService:
                 current = [catalog_result(rows[i]) if i in rows else None for i in ids]
                 if before != current:
                     raise ValueError('Opening catalog changed during model generation')
-                if any(c is None or c.evidence_kind != 'local_catalog' or c.stock_status != 'local_in_stock' for c in current):
+                if any(not opening_card_eligible(c) for c in current) or any(type(rows[i].inventory) is not int or rows[i].inventory<=0 for i in ids):
                     raise ValueError('Opening catalog no longer eligible')
+            is_demo = any(c.evidence_kind=='seeded_demo' for c in before if c is not None)
             payload = {
-                "content": content,
+                "content": ("Demo catalog preview, synthetic prices and stock. " if is_demo else "") + content,
+                "demo_preview": is_demo,
                 "type": ui_type,
                 "products": [card.model_dump(mode='json') for card in before],
                 "reason": reason,
@@ -3392,9 +3402,13 @@ class AINLUService:
         statement = select(Product).where(
             Product.is_active.is_(True), Product.inventory > 0,
             Product.price >= 0, Product.currency.op("~")("^[A-Z]{3}$"),
-            func.coalesce(Product.attributes.op("->>")("_seed_dataset"), "") != "airdeliver-demo-v1",
-            ~Product.sku.like("ADL-DEMO-v1-%"), func.length(func.trim(Product.name)) > 0,
+            func.length(func.trim(Product.name)) > 0,
         )
+        from app.services.shopping_discovery import demo_preview_enabled
+        if not demo_preview_enabled():
+            statement = statement.where(
+                func.coalesce(Product.attributes.op("->>")("_seed_dataset"), "") != "airdeliver-demo-v1",
+                ~Product.sku.like("ADL-DEMO-v1-%"))
         if seen_ids:
             statement = statement.where(Product.id.notin_(seen_ids))
         if min_rating is not None:

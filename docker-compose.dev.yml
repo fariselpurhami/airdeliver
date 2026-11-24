@@ -314,6 +314,7 @@ services:
       - REDIS_HOST=redis
       - APP_ENV=development
       - CUSTOMER_MEMORY_ENABLED=${CUSTOMER_MEMORY_ENABLED:-true}
+      - DEV_DEMO_CATALOG_PREVIEW=${DEV_DEMO_CATALOG_PREVIEW:-false}
       - LOG_LEVEL=info
       - DB_POOL_SIZE=3
       - DB_MAX_OVERFLOW=5
@@ -391,6 +392,7 @@ services:
       - GROQ_BASE_URL=${GROQ_BASE_URL:-https://api.groq.com}
       - APP_ENV=development
       - CUSTOMER_MEMORY_ENABLED=${CUSTOMER_MEMORY_ENABLED:-true}
+      - DEV_DEMO_CATALOG_PREVIEW=${DEV_DEMO_CATALOG_PREVIEW:-false}
       - DATABASE_URI=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_SERVER}:${POSTGRES_PORT}/${POSTGRES_DB}
       - POSTGRES_SERVER=${POSTGRES_SERVER}
       - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers

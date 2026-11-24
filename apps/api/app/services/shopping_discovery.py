@@ -69,3 +69,15 @@ def catalog_result(product) -> CatalogResult | None:
             'Local catalog lists stock. Merchant availability, reservation and delivery are not verified.' if stock=='local_in_stock' else
             'Local catalog lists no stock. Merchant availability is not verified.' if stock=='local_out_of_stock' else
             'Stock and merchant availability are not verified.'))
+
+
+def demo_preview_enabled():
+    from app.core.config import get_core_settings
+    settings=get_core_settings()
+    return settings.APP_ENV == 'development' and settings.DEV_DEMO_CATALOG_PREVIEW
+
+
+def opening_card_eligible(card):
+    return card is not None and card.price is not None and (
+        (card.evidence_kind=='local_catalog' and card.stock_status=='local_in_stock') or
+        (demo_preview_enabled() and card.evidence_kind=='seeded_demo' and card.stock_status=='demo'))
