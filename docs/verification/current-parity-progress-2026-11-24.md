@@ -1,0 +1,9 @@
+# Current restoration progress, November24 05:18
+
+Shipped maina705fe4. Conservative source-route groups:35preserved,20degraded/partial,0lost. This does NOT mean55capabilities passed acceptance. Historical35/15/5snapshot remains unchanged. All5missing ordinaryHTTP routes now have replacements, but are classified partial until full breadth/model/quality evidence exists. Original function names are not proof of restoration. Every live_verified remainsfalse.
+
+Merged source restoration: setup generic component planning, bounded image/title retrieval hint, customer-context query review, source-attributed specs/comparison/consultation independent of stock, per-target research with missing-evidence disclosure, literal hard features/aggregate setup budget, explicit customer advice strategy. Real-only publication and realcatalog dailyrotation retain stored history. Additive strict model adapter preserves legacy fallback.
+
+Boundary evidence: combined disposablePG19/Redis suite1281passed5skipped before93followup. Required separate Redis exact100/50quota plus0.2sheartbeat benchmark keepsGCenabled/precollectonly; separate deliberateGCpause tests bounded503/noINCRreplay/recovery. This is a measurement split, NOT a fix for productionGCtail latency. Required followup remains real-processp99 under mixedHTTP/model/SQLload, GCduration/allocations, remoteRedis and recovery. No productionlatencycertification.
+
+Open: full unit/capacity constraints, broader consented context integration/lifecycle, richer originalstrategy/removal evidence, physical setupcompatibility/completeness, source/model semanticquality, realvisionquality, archiveprovenance/fullDRcomparison and ownerdeployment. Preparedquarantineisreversibleinactivation, not deletion; noownerexecution.93missingadvicesignalfixpendingCI. No providercalls, money, owner-machine migration/seeding/deployment/rotation, deletion or visibility changes.

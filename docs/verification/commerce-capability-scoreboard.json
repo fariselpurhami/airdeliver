@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T04:38:00+02:00",
+  "as_of": "2026-11-24T05:18:00+02:00",
   "definition": "Flags are independent. Hardened means scoped protection tested, not vulnerability-free. Live verified requires deployed owner evidence, not CI.",
   "capabilities": [
     {
@@ -411,14 +411,15 @@
       "id": "CAP-13",
       "file": "2. ai_nlu_service.py",
       "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
-      "observed_wiring": "HTTP brief now carries literal excluded_terms/required_features, typographic spacing and aggregate setup cap.",
-      "gap": "Substring boundary issue found in review and fixed in pending89, not yet shipped; unit/capacity equivalence unimplemented.",
+      "observed_wiring": "Literal required/excluded features now respect lexical/digit boundaries and typographic spaces; actualHTTP/SQL/Redis publication checks.",
+      "gap": "Semantic capacity/unit equivalence and full original constraints remain partial.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "not_reconciled",
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
-        82
+        82,
+        89
       ],
       "evidence": [
         "apps/api/tests/test_literal_shopping_constraints.py"
@@ -437,7 +438,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Substring boundary issue found in review and fixed in pending89, not yet shipped; unit/capacity equivalence unimplemented.",
+        "remaining_boundary_gap": "Semantic capacity/unit equivalence and full original constraints remain partial.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -477,13 +478,15 @@
       "id": "CAP-15",
       "file": "2. ai_nlu_service.py",
       "capability": "Persona, retention modes, four-phase response policies and sanitizer",
-      "observed_wiring": "Legacy synthesis paths",
-      "gap": "Preserve strategy logic but reconcile contradictory factual instructions. Several paths still promote unknown details to secrecy or allow prior model knowledge and supply-chain guesses.",
+      "observed_wiring": "Literal customer signal selects browse/understand/compare/price_objection/hesitation and shared consultative sequence.",
+      "gap": "Calibrated model strategy and complete original persona/retention bridge not certified; missing signal fix93pending.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "not_reconciled",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
+      "prs": [
+        86
+      ],
       "evidence": [],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -499,7 +502,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Preserve strategy logic but reconcile contradictory factual instructions. Several paths still promote unknown details to secrecy or allow prior model knowledge and supply-chain guesses.",
+        "remaining_boundary_gap": "Calibrated model strategy and complete original persona/retention bridge not certified; missing signal fix93pending.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -832,14 +835,15 @@
       "id": "CAP-25",
       "file": "2. ai_nlu_service.py",
       "capability": "Vision identification and query optimizer with recent-context references",
-      "observed_wiring": "HTTP vector image retrieval also attempts bounded retained image identity/title lookup as retrieval hint.",
-      "gap": "Hint is not product identity proof; context-query review85pending; live vision quality unverified.",
+      "observed_wiring": "HTTP bounded image identity/title hint plus reviewed customer-only query rewrite reached before current SQL publication.",
+      "gap": "Hint never identity proof; physical compatibility and real vision quality unverified.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "not_reconciled",
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
-        79
+        79,
+        85
       ],
       "evidence": [
         "apps/api/tests/test_discovery_planner.py"
@@ -857,7 +861,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Hint is not product identity proof; context-query review85pending; live vision quality unverified.",
+        "remaining_boundary_gap": "Hint never identity proof; physical compatibility and real vision quality unverified.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -866,14 +870,15 @@
       "id": "CAP-26",
       "file": "2. ai_nlu_service.py",
       "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
-      "observed_wiring": "Legacy NLU chat",
-      "gap": "Normal support bypasses this. Restore staged search and separate per-item comparison evidence.",
+      "observed_wiring": "Staged per-target search carries reviewed customer-only retrieval hint for single targets, literal identity retained.",
+      "gap": "All constraints/query normalization across legacy callers and real ranking quality unverified.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
-        44
+        44,
+        85
       ],
       "evidence": [
         "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
@@ -892,7 +897,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Normal support bypasses this. Restore staged search and separate per-item comparison evidence.",
+        "remaining_boundary_gap": "All constraints/query normalization across legacy callers and real ranking quality unverified.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -931,8 +936,8 @@
       "id": "CAP-28",
       "file": "2. ai_nlu_service.py",
       "capability": "Informational web/spec/comparison synthesis, targeted specs, main product prose, missing-product recovery",
-      "observed_wiring": "HTTP specs/comparison/consultation acquire source records before catalog fallback, exact quote membership and independent review.",
-      "gap": "Per-target acquisition/coverage83and87pending. Semantic entailment is model-reviewed, not guaranteed.",
+      "observed_wiring": "HTTP informational source acquisition per literal target, coverage subset validation, exact source quote membership, reviewed prose and explicit missing target warning.",
+      "gap": "Model semantic entailment not guaranteed; no live provider/source quality certification.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
@@ -940,7 +945,9 @@
       "prs": [
         44,
         45,
-        73
+        73,
+        83,
+        87
       ],
       "evidence": [
         "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified.",
@@ -962,7 +969,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Per-target acquisition/coverage83and87pending. Semantic entailment is model-reviewed, not guaranteed.",
+        "remaining_boundary_gap": "Model semantic entailment not guaranteed; no live provider/source quality certification.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -971,14 +978,16 @@
       "id": "CAP-29",
       "file": "2. ai_nlu_service.py",
       "capability": "Multi-target extraction versus informational query concatenation",
-      "observed_wiring": "Legacy informational path uses one combined search query",
-      "gap": "Existing array extraction does not prove complete item-by-item comparison retrieval. Add missing-item and unequal-evidence tests.",
+      "observed_wiring": "Up to3literal targets each get separate bounded source query, up to9source records under one outer deadline.",
+      "gap": "Caps explicit; exhaustive research, target extraction/model accuracy and source coverage quality unverified.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
-        44
+        44,
+        83,
+        87
       ],
       "evidence": [
         "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
@@ -996,7 +1005,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Existing array extraction does not prove complete item-by-item comparison retrieval. Add missing-item and unequal-evidence tests.",
+        "remaining_boundary_gap": "Caps explicit; exhaustive research, target extraction/model accuracy and source coverage quality unverified.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -1464,13 +1473,15 @@
       "id": "CAP-44",
       "file": "4. free_llm_service.py",
       "capability": "generate_response plain/JSON/context adapter",
-      "observed_wiring": "NLU model calls and conditional direct cart copy",
-      "gap": "Returns empty string on provider failure. Callers often only catch exceptions, so empty-success behavior needs explicit tests and a typed unavailable result.",
+      "observed_wiring": "Additive strict adapter exposes configuration/empty/invalidJSON/provider failures; shared wrapper logs omit exception bodies/tracebacks.",
+      "gap": "Legacy empty-string API preserved, not all callers migrated; not universal typed failure handling.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
-      "prs": [],
+      "prs": [
+        88
+      ],
       "evidence": [],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1485,7 +1496,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Returns empty string on provider failure. Callers often only catch exceptions, so empty-success behavior needs explicit tests and a typed unavailable result.",
+        "remaining_boundary_gap": "Legacy empty-string API preserved, not all callers migrated; not universal typed failure handling.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -1653,14 +1664,15 @@
       "id": "CAP-50",
       "file": "4. free_llm_service.py",
       "capability": "Tavily web search",
-      "observed_wiring": "General source acquisition reached by ordinary HTTP informational tasks, fixedHTTPS Tavily transport, source attribution.",
-      "gap": "Per-target87pending. External page instructions are data. Search results not automatically official.",
+      "observed_wiring": "OrdinaryHTTP uses per-target fresh source acquisition and source attribution, fixedHTTPS transport and cancellation.",
+      "gap": "Untrusted pages remain data; exact quote and model review are not semantic-proof/security certification.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "not_reconciled",
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
-        73
+        73,
+        87
       ],
       "evidence": [
         "apps/api/tests/test_specification_service.py"
@@ -1678,7 +1690,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Per-target87pending. External page instructions are data. Search results not automatically official.",
+        "remaining_boundary_gap": "Untrusted pages remain data; exact quote and model review are not semantic-proof/security certification.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -1687,15 +1699,17 @@
       "id": "CAP-51",
       "file": "4. free_llm_service.py",
       "capability": "Product consultation with web/context/history",
-      "observed_wiring": "HTTP consultation uses source research before current catalog fallback, no stocked-card prerequisite.",
-      "gap": "Consented saved hints not unified with every research adapter; provider entailment/quality unverified.",
+      "observed_wiring": "HTTP consultation/source research independent of catalog inventory, per-target missing evidence is explicit, current catalog fallback retained.",
+      "gap": "Consented saved hints not unified across every research adapter and provider quality unverified.",
       "reachable": "yes_source_path",
       "real_boundary_tested": "partial",
       "hardened": "not_certified",
       "live_verified": false,
       "prs": [
         45,
-        73
+        73,
+        83,
+        87
       ],
       "evidence": [
         "Reviewed catalog consultation change: 1171pass4skip disposableSQL/Redis suite; mountedHTTP compare/spec/consult tasks, currentSQL snapshots, invalid specs/review/provider failures. Raw web consultation remains explicit legacy; no live quality or external-source claim. Merged as PR45.",
@@ -1715,7 +1729,7 @@
           "Dependency outage, timeout and cancellation with state/resource cleanup",
           "Replay, stale data and concurrent change where applicable; assert no unauthorized side effects"
         ],
-        "remaining_boundary_gap": "Consented saved hints not unified with every research adapter; provider entailment/quality unverified.",
+        "remaining_boundary_gap": "Consented saved hints not unified across every research adapter and provider quality unverified.",
         "next_action": "Inspect mapped assertions, add missing real-boundary scenarios, run them with disposable dependencies; preserve separate live/provider limitations.",
         "live_provider_or_owner_gate": "No provider calls or owner-machine execution by this work. Stage a bounded owner-run check separately when needed."
       }
@@ -1865,6 +1879,6 @@
   "count_caveat": "Grouped inventory rows are broad. Only 3 groups are currently marked fully reconciled at real boundary; this is a conservative evidence-tracking baseline, not a claim the other code is untested. Prior tests need capability-by-capability reconciliation. PR references identify the current restoration boundary, not original authorship of every test.",
   "canonical_note": "This repository file is the single canonical scoreboard. Earlier attached snapshots are superseded; edits should update this file in place.",
   "coverage_policy": "Every grouped capability has an explicit verification plan. Candidate test mappings are not a coverage certification; real-boundary flags remain conservative until scenario-level assertions are reconciled.",
-  "shipped_revision": "694cec5f928b42705b9120e2eac3e2a32932f4f2",
+  "shipped_revision": "a705fe48ecb07c5ccdb3ac36e8f9cc0f454d03a3",
   "historical_parity_audit": "original-current-parity-2026-11-24.json"
 }
