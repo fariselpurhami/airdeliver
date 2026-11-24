@@ -317,7 +317,7 @@ class NeuralCoreService:
                 decision.intent='GIFT_DISCOVERY'
             else:
                 decision.targets=[SearchTarget(product_name=name) for name in target_names]
-            if decision.intent=="PRODUCT_SEARCH":
+            if decision.intent in {"PRODUCT_SEARCH","SETUP_DISCOVERY"}:
                 subject=decision.search_subject
                 if not subject or ' '.join(subject.casefold().split()) not in ' '.join(customer_context.casefold().split()):
                     decision.intent="GIFT_DISCOVERY"
