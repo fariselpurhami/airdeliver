@@ -50,3 +50,24 @@ async def test_delayed_native_io_keeps_loop_responsive_and_cancels(monkeypatch,r
         with pytest.raises(asyncio.CancelledError):await request
         assert cancelled.is_set()
     await instance.close()
+
+
+@pytest.mark.asyncio
+async def test_real_redis_handshake_fanout_is_bounded_without_extending_deadlines(monkeypatch,redis_server):
+    url,_=redis_server;instance=build_limiter(settings(url,'100/minute'))
+    client,slots,_=instance._state();original=client.eval;active=0;peak=0
+    async def measured(*args):
+        nonlocal active,peak
+        active+=1;peak=max(peak,active)
+        try:
+            await asyncio.sleep(.01)
+            return await original(*args)
+        finally:active-=1
+    monkeypatch.setattr(client,'eval',measured)
+    try:
+        assert client.connection_pool.max_connections==8
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=application(instance)),base_url='http://test') as c:
+            results=await asyncio.gather(*(c.get('/plain') for _ in range(40)))
+        assert all(r.status_code==200 for r in results)
+        assert peak==8 and active==0
+    finally:await instance.close()
