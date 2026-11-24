@@ -3087,12 +3087,14 @@ class AINLUService:
             raise
 
         # 3. Defensive Processing & Diversity Enforcement
+        allow_seen_preview = False
         def _process_pool(pool: Any, max_brand: int = 2) -> List[ProductLike]:
             if isinstance(pool, Exception) or not pool:
                 return []
             from app.services.shopping_discovery import catalog_result, opening_card_eligible, demo_preview_enabled
             eligible = [p for p in pool if (card := catalog_result(p)) is not None
-                        and opening_card_eligible(card) and type(p.inventory) is int and p.inventory>0]
+                        and opening_card_eligible(card) and type(p.inventory) is int and p.inventory>0
+                        and (not demo_preview_enabled() or allow_seen_preview or p.id not in global_seen_ids)]
             return self._enforce_diversity(
                 pool=eligible,
                 limit=min(5, self.config.max_items_per_row),
@@ -3107,6 +3109,7 @@ class AINLUService:
         from app.services.shopping_discovery import demo_preview_enabled
         if demo_preview_enabled() and not any((personal_products,bestsellers_products,trending_products,deals_products)) and global_seen_ids:
             # One bounded repeat only. Preserve the existing history set.
+            allow_seen_preview = True
             personal_products = _process_pool(await self._eligible_opening_pool(set(), order_by=[col(Product.rating).desc()]),max_brand=1)
             bestsellers_products = _process_pool(await self._fetch_bestsellers(set()),max_brand=2)
             trending_products = _process_pool(await self._fetch_trending(set()),max_brand=2)
