@@ -16,7 +16,7 @@ async def test_explicit_idle_hook_real_sql_reviews_rechecks_and_publishes_or_wit
     engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
-            row=Product(sku=uuid4().hex,name='Optional Chair',description='',category='chairs',price=20,currency='USD',inventory=3,attributes={})
+            row=Product(sku=uuid4().hex,name='Optional Chair',description='',category='chairs',price=20,currency='USD',inventory=3,rating=5,attributes={})
             db.add(row);await db.commit();ids=[row.id]
         calls=[]
         async def infer(messages):

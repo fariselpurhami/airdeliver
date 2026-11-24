@@ -2545,7 +2545,7 @@ class AINLUService:
         if type(user_id) is not int or user_id<=0:
             return
         try:
-            statement=select(Product).where(Product.is_active.is_(True),Product.inventory>0).order_by(col(Product.rating).desc()).limit(3)
+            statement=select(Product).where(Product.is_active.is_(True),Product.inventory>0).order_by(col(Product.rating).desc(),Product.id.desc()).limit(3)
             result=await self.db.execute(statement)
             products=result.scalars().all()
             if not products:
