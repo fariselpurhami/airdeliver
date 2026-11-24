@@ -123,7 +123,8 @@ async def sync_import(snapshots,embedding,milvus,opensearch):
     from types import SimpleNamespace
     from seed_ultra_scale import ProductVector
     products=[SimpleNamespace(**{**row,'rating':row['rating'] if row['rating'] is not None else 0.}) for row in snapshots] # Index schema uses0 for unrated; SQL remainsNULL.
-    vectors=await embedding.embed_products(products)
+    embedding_rows=[SimpleNamespace(**{**p.__dict__,'attributes':{k:v for k,v in p.attributes.items() if not k.startswith(('_','fixture_')) and k!='image_kind'}}) for p in products]
+    vectors=await embedding.embed_products(embedding_rows)
     if len(vectors)!=len(products):raise ValueError('Embedding identity/count mismatch')
     vector_rows=[ProductVector(product_id=p.id,vector=vector,price=float(p.price),rating=p.rating if p.rating is not None else 0.,category=p.category,attributes=p.attributes) for p,vector in zip(products,vectors)]
     await milvus.initialize_schema(embedding.dimension,drop_existing=False)

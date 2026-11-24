@@ -84,7 +84,7 @@ def catalog_result(product) -> CatalogResult | None:
         price=str(cost) if valid else None,currency=currency if valid else None,
         price_status='listed' if valid else 'unknown',image=getattr(product,'image',None),
         attributes={'_seed_dataset':'airdeliver-dev-fixtures-v1'} if fixture else {'_seed_dataset':'airdeliver-demo-v1'} if demo else {},
-        catalog_specs={str(k)[:64]:str(v)[:256] for k,v in list(attrs.items())[:32] if isinstance(k,str) and not k.startswith('_') and isinstance(v,(str,int,float,bool))},
+        catalog_specs={str(k)[:64]:str(v)[:256] for k,v in list(attrs.items())[:32] if isinstance(k,str) and not k.startswith(('_','fixture_')) and k!='image_kind' and isinstance(v,(str,int,float,bool))},
         evidence_kind='dev_fixture' if fixture else 'seeded_demo' if demo else 'local_catalog',stock_status=stock,
         availability_note=('Local development fixture. All product attributes, price and stock are synthetic test values, not real offers or supplier evidence.' if fixture else 'Demo catalog. Price and stock are synthetic, not a merchant offer.' if demo else
             'Local catalog lists stock. Merchant availability, reservation and delivery are not verified.' if stock=='local_in_stock' else
