@@ -50,3 +50,21 @@ async def test_delayed_native_io_keeps_loop_responsive_and_cancels(monkeypatch,r
         with pytest.raises(asyncio.CancelledError):await request
         assert cancelled.is_set()
     await instance.close()
+
+@pytest.mark.asyncio
+async def test_repeated_cold_redis_bursts_keep_exact_quota_and_one_connection(redis_server):
+    url,_=redis_server
+    for _ in range(5):
+        instance=build_limiter(settings(url,'100/minute'))
+        client,slots,_=instance._state()
+        assert client.connection_pool.max_connections==1
+        await client.flushdb()
+        began=time.perf_counter()
+        try:
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=application(instance)),base_url='http://test') as c:
+                results=await asyncio.gather(*(c.get('/plain') for _ in range(150)))
+            print('COLD_BURST',round(time.perf_counter()-began,4),{c:[r.status_code for r in results].count(c) for c in (200,429,503)})
+            assert [r.status_code for r in results].count(200)==100
+            assert [r.status_code for r in results].count(429)==50
+            assert time.perf_counter()-began<1.0
+        finally:await instance.close()

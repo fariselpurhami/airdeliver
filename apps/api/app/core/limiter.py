@@ -10,6 +10,8 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from limits import parse
 from redis.asyncio import Redis
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.routing import Match
@@ -31,9 +33,10 @@ class AsyncLimiter:
     def _state(self):
         loop=asyncio.get_running_loop()
         if loop not in self._loops:
-            client=Redis.from_url(self.uri,socket_timeout=.25,socket_connect_timeout=.25,
-                max_connections=32,decode_responses=True) if self.uri else None
-            self._loops[loop]=(client,asyncio.Semaphore(32),{})
+            client=Redis.from_url(self.uri,socket_timeout=.5,socket_connect_timeout=.25,
+                # Never retry a potentially applied quota increment.
+                max_connections=1,decode_responses=True,protocol=2,retry=Retry(NoBackoff(),0)) if self.uri else None
+            self._loops[loop]=(client,asyncio.Semaphore(1),{})
         return self._loops[loop]
 
     async def close(self):
@@ -49,7 +52,7 @@ class AsyncLimiter:
         identifier=hashlib.sha256((get_remote_address(request)+'|'+scope).encode()).hexdigest()
         key=f'airdeliver:http:v2:{item.amount}:{item.get_expiry()}:{identifier}'
         try:
-            async with asyncio.timeout(.6):
+            async with asyncio.timeout(1.0):
                 async with slots:
                     if client:
                         count=await client.eval(SCRIPT,1,key,item.get_expiry())
