@@ -987,14 +987,8 @@ class AICommerceEngine:
                 filters={},
             )
 
-            from app.services.shopping_discovery import demo_preview_enabled, catalog_result, opening_card_eligible
-            preview = demo_preview_enabled()
-            if preview:
-                candidates = [p for p in candidates if p.id not in seen_ids and opening_card_eligible(catalog_result(p))]
             if not candidates:
                 statement = select(Product).where(col(Product.id).notin_(seen_ids))
-                if preview:
-                    statement = statement.where(Product.is_active.is_(True),Product.inventory>0,Product.price>=0)
                 if tier == SpendingTier.HIGH:
                     statement = statement.order_by(col(Product.price).desc())
                 elif tier == SpendingTier.LOW:
@@ -1003,9 +997,6 @@ class AICommerceEngine:
                     statement = statement.order_by(col(Product.rating).desc())
 
                 candidates = list((await db.execute(statement.limit(20))).scalars().all())
-                if preview and not candidates and seen_ids:
-                    replay = select(Product).where(Product.is_active.is_(True),Product.inventory>0,Product.price>=0).order_by(col(Product.rating).desc()).limit(20)
-                    candidates = list((await db.execute(replay)).scalars().all())
 
             fresh_products: List[Product] = []
             for product in candidates:
@@ -1016,8 +1007,6 @@ class AICommerceEngine:
 
             if not fresh_products:
                 fresh_products = list(candidates[:8])
-            if preview:
-                fresh_products = [p for p in fresh_products if opening_card_eligible(catalog_result(p))]
 
             deterministic_random.shuffle(fresh_products)
             return fresh_products

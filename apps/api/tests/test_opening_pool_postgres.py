@@ -49,36 +49,18 @@ async def test_owner_pool_diagnostic_is_read_only_and_prints_counts(monkeypatch,
 
 
 @pytest.mark.asyncio
-async def test_demo_preview_pool_flag_is_dev_only_and_history_is_preserved(monkeypatch):
-    from app.core.config import get_core_settings
-    from app.services.shopping_discovery import demo_preview_enabled,catalog_result,opening_card_eligible
-    from app.services.ai_commerce_engine import AICommerceEngine
-    from unittest.mock import AsyncMock
-    settings=get_core_settings()
+async def test_obsolete_demo_preview_environment_cannot_publish_synthetic_pool(monkeypatch):
+    monkeypatch.setenv('DEV_DEMO_CATALOG_PREVIEW','true')
     engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
-            rows=[Product(sku='ADL-DEMO-v1-'+uuid4().hex,name='Demo preview',description='',price=10,inventory=3,rating=4.5)]
-            db.add_all(rows);await db.commit();ids=[r.id for r in rows]
-        monkeypatch.setattr(settings,'DEV_DEMO_CATALOG_PREVIEW',True)
-        for environment,allowed in [('production',False),('staging',False),('development',True)]:
-            monkeypatch.setattr(settings,'APP_ENV',environment)
-            assert demo_preview_enabled() is allowed
-            assert opening_card_eligible(catalog_result(rows[0])) is allowed
-            async with sessions() as db:
-                svc=object.__new__(AINLUService);svc.db=db;svc.config=MatrixConfig()
-                selected=await svc._fetch_bestsellers(set())
-                assert (ids[0] in [p.id for p in selected]) is allowed
-        seen=set(ids)
-        commerce=AICommerceEngine(opensearch_client=object(),milvus_client=object(),embedding_model=object())
-        commerce.bootstrap=AsyncMock();commerce.perform_hybrid_search_pure=AsyncMock(return_value=rows)
+            row=Product(sku='ADL-DEMO-v1-'+uuid4().hex,name='Synthetic fixture',description='',price=10,inventory=5,rating=5)
+            db.add(row);await db.commit();ids=[row.id]
         async with sessions() as db:
-            # Exclude other tests' rows without deleting any history or catalog.
-            from sqlalchemy import select
-            all_ids=set((await db.execute(select(Product.id))).scalars())
-            result=await commerce.get_fresh_homepage_matrix(db,3,list(all_ids),'MEDIUM')
-            assert ids[0] in [p.id for p in result]
-        assert seen==set(ids)
+            svc=object.__new__(AINLUService);svc.db=db;svc.config=MatrixConfig()
+            assert ids[0] not in [p.id for p in await svc._fetch_bestsellers(set())]
+        async with sessions() as db:
+            assert (await db.get(Product,ids[0])).sku.startswith('ADL-DEMO-v1-')
     finally:
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()

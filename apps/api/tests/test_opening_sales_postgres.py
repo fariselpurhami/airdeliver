@@ -17,19 +17,16 @@ pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='migrate
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mode',['ok','price_changed','offline','rejected','one_paragraph','demo','demo_preview','demo_preview_seen','empty'])
-async def test_opening_model_insight_and_current_cards_through_real_publication(real_cache, mode,caplog,monkeypatch):
+@pytest.mark.parametrize('mode',['ok','price_changed','offline','rejected','one_paragraph','demo','empty'])
+async def test_opening_model_insight_and_current_cards_through_real_publication(real_cache, mode,caplog):
     cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
             assert (await db.execute(text('SELECT current_database()'))).scalar_one().startswith('airdeliver_test_')
             rows=[Product(sku=uuid4().hex,name='Catalog case',description='',category='accessories',price=20,inventory=10,currency='USD',attributes={'material':'cotton'})]
-            if mode in {'demo','demo_preview','demo_preview_seen'}:rows[0].attributes={'_seed_dataset':'airdeliver-demo-v1'}
+            if mode=='demo':rows[0].attributes={'_seed_dataset':'airdeliver-demo-v1'}
             db.add_all(rows);await db.commit();ids=[p.id for p in rows]
             for row in rows:await db.refresh(row)
-        if mode in {'demo_preview','demo_preview_seen'}:
-            from app.core.config import get_core_settings
-            monkeypatch.setattr(get_core_settings(),'DEV_DEMO_CATALOG_PREVIEW',True)
         calls=[];published=[]
         subscriber=cache.client.pubsub()
         await subscriber.subscribe(RedisKeys.ui_channel(3))
@@ -53,46 +50,23 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
             svc.freshness_repo=SimpleNamespace(get_seen_product_ids=AsyncMock(return_value=set()),mark_products_as_seen=AsyncMock())
             svc._fetch_personal=AsyncMock(return_value=[] if mode=='empty' else rows)
             svc._fetch_bestsellers=AsyncMock(return_value=[]);svc._fetch_trending=AsyncMock(return_value=[]);svc._fetch_deals=AsyncMock(return_value=[])
-            if mode=='demo_preview_seen':
-                from app.services.ai_nlu_service import RedisProductFreshnessRepository
-                svc.freshness_repo=RedisProductFreshnessRepository(cache)
-                from sqlalchemy import select
-                all_ids=set((await db.execute(select(Product.id))).scalars())
-                await svc.freshness_repo.mark_products_as_seen(3,all_ids)
-                svc._fetch_personal=AsyncMock(return_value=[])
-                svc._fetch_bestsellers=AINLUService._fetch_bestsellers.__get__(svc)
-                svc._fetch_trending=AINLUService._fetch_trending.__get__(svc)
-                svc._fetch_deals=AINLUService._fetch_deals.__get__(svc)
-                original_pool=svc._eligible_opening_pool
-                async def fixture_pool(*args,**kwargs):
-                    return [p for p in await original_pool(*args,**kwargs) if p.id in ids]
-                svc._eligible_opening_pool=fixture_pool
             with caplog.at_level(__import__("logging").INFO,logger="airdeliver.commerce_os"):
                 await svc._handle_initial_suggestions(3)
             await asyncio.gather(*tuple(svc.tasks._tasks))
         event=await subscriber.get_message(ignore_subscribe_messages=True, timeout=1)
         if event is not None:published.append(json.loads(event["data"]))
         await subscriber.aclose()
-        if mode in {'ok','demo_preview','demo_preview_seen'}:
+        if mode=='ok':
             assert 'matrix_generation_completed' in caplog.text
             assert 'opening_pool_evaluated' in caplog.text
             assert len(published)==1 and published[0]['type']=='proactive_suggestion'
-            assert published[0]['content'].endswith('Explore the current local catalog selection.')
-            if mode in {'demo_preview','demo_preview_seen'}:
-                assert published[0]['content'].startswith('Demo catalog preview')
-                assert published[0]['products'][0]['evidence_kind']=='seeded_demo'
-                assert published[0]['products'][0]['stock_status']=='demo'
-                assert calls[0]['request_evidence']['demo_preview'] is True
+            assert published[0]['content']=='Explore the current local catalog selection.'
             assert published[0]['reason'].startswith('Consider the listed material')
             assert published[0]['products'][0]['price']=='20.00'
             assert calls[0]['request_evidence']['sales_intent']=='OPENING_INSIGHT'
-            assert len(calls)==(6 if mode=='demo_preview_seen' else 2)
-            if mode=='demo_preview_seen':
-                assert await svc.freshness_repo.get_seen_product_ids(3)==all_ids
-                assert 'opening_demo_seen_replay' in caplog.text
-            else:
-                svc.freshness_repo.mark_products_as_seen.assert_awaited_once()
-                assert svc.freshness_repo.mark_products_as_seen.await_args.kwargs["product_ids"]==set(ids)
+            assert len(calls)==2
+            svc.freshness_repo.mark_products_as_seen.assert_awaited_once()
+            assert svc.freshness_repo.mark_products_as_seen.await_args.kwargs["product_ids"]==set(ids)
         else:
             if mode!='price_changed':
                 assert 'matrix_generation_completed' not in caplog.text

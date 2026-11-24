@@ -1,13 +1,13 @@
 """Model-written opening and Insight, using the shared evidence/review boundary."""
 from app.services.sales_response_service import SalesResponseService, SalesResponseRequest
-from app.services.shopping_discovery import ShoppingBrief, catalog_result, opening_card_eligible, demo_preview_enabled
+from app.services.shopping_discovery import ShoppingBrief, catalog_result
 
 
 async def write_opening(llm, products, row_type, *, timeout=12.0):
     cards=[]
     for product in products[:5]:
         card=catalog_result(product)
-        if opening_card_eligible(card):
+        if card is not None and card.evidence_kind=='local_catalog' and card.stock_status=='local_in_stock' and card.price is not None:
             cards.append(card)
     if not cards:
         raise ValueError('No eligible current opening cards')
@@ -16,9 +16,7 @@ async def write_opening(llm, products, row_type, *, timeout=12.0):
             products=tuple(cards),brief=ShoppingBrief(),mode='catalog_results',intent='OPENING_INSIGHT',
             evidence={'sales_intent':'OPENING_INSIGHT','row_pool':row_type,
                 'customer_preferences':'unknown','customer_language':'not recorded; use concise English',
-                'row_labels_are_not_claims':True,'sales_or_trend_or_discount_evidence':False,
-                'demo_preview':demo_preview_enabled(),
-                'demo_rule':'Any seeded_demo card is synthetic test data, not an offer. Do not claim real stock, popularity, discounts or merchant availability.'}))
+                'row_labels_are_not_claims':True,'sales_or_trend_or_discount_evidence':False}))
     if result.response_kind=='system_notice':
         raise ValueError('Opening copy withheld')
     parts=result.text.split('\n\n')
