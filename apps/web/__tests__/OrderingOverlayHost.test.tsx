@@ -3,6 +3,7 @@ import fs from 'fs';
 import { render,screen,cleanup } from '@testing-library/react';
 import AppShell from '@/components/layout/AppShell';
 import AIChatOverlay from '@/components/ai/AIChatOverlay';
+import { useUIStore } from '@/hooks/useUIStore';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 jest.mock('next-auth/react',()=>({useSession:()=>({status:'unauthenticated',data:null})}));
 jest.mock('next/navigation',()=>({useRouter:()=>({push:jest.fn()}),usePathname:()=>'/'}));
@@ -11,7 +12,7 @@ jest.mock('next/image',()=>({__esModule:true,default:({src,alt,...props}:any)=><
 jest.mock('react-markdown',()=>({__esModule:true,default:({children}:any)=><p>{children}</p>}));
 jest.mock('remark-gfm',()=>({__esModule:true,default:()=>null}));
 beforeEach(()=>{window.scrollTo=jest.fn();});
-afterEach(()=>{cleanup();useAIOrderingStore.setState({isOverlayVisible:false,messages:[]});});
+afterEach(()=>{cleanup();useUIStore.setState({isProductOverlayVisible:false});useAIOrderingStore.setState({isOverlayVisible:false,messages:[]});});
 it('one shell-owned live overlay, hidden inert chrome, readable mobile surface',()=>{
  useAIOrderingStore.setState({isOverlayVisible:true,messages:[]});
  const view=render(<AppShell><AIChatOverlay isOpen onClose={jest.fn()}/><p>Underlying home</p></AppShell>);
@@ -50,4 +51,12 @@ it('renders the owner landing sentence without the removed subtitle',()=>{
  expect(screen.queryByText(/Powered by airdeliver/)).not.toBeInTheDocument();
  expect(screen.queryByText(/Welcome to airdeliver/)).not.toBeInTheDocument();
  if(process.env.LANDING_COPY_PREVIEW)fs.writeFileSync('/tmp/landing-copy-render.html','<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/home-layer.css"></head><body style="margin:0;background:#04060a;color:white">'+view.container.innerHTML+'</body></html>');
+});
+
+it('hides and makes shell chrome inert for trending products too',()=>{
+ useUIStore.getState().showProductOverlay();
+ const view=render(<AppShell><p>Underlying home</p></AppShell>);
+ expect(view.container.querySelector('header')!.parentElement).toHaveAttribute('hidden');
+ expect(view.container.querySelector('main')).toHaveAttribute('inert');
+ expect(view.container.querySelector('footer')!.parentElement).toHaveAttribute('hidden');
 });

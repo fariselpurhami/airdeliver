@@ -3,6 +3,7 @@
 'use client';
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, PackageSearch, ScanBarcode, Sparkles, Database, Wifi, Plus, ShoppingBag } from 'lucide-react';
 import ProductList from './ProductList'; 
@@ -122,7 +123,8 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
         };
     }, [isOpen]);
 
-    return (
+    if (typeof document === 'undefined') return null;
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <motion.div
@@ -131,11 +133,13 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                     exit={{ opacity: 0 }}
                     onClick={onClose} 
                     className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 overflow-hidden"
+                    style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
                 >
 
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500/50 to-transparent opacity-50" />
 
                     <motion.div
+                        role="dialog" aria-modal="true" aria-label="Trending products"
                         initial={{ scale: 0.95, opacity: 0, y: 30 }}
                         animate={{ scale: 1, opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }}
                         exit={{ opacity: 0, transition: { duration: 0.2 } }}
@@ -161,6 +165,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
 
                                 <button
                                     onClick={onClose}
+                                    aria-label="Close products"
                                     className="group p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300 backdrop-blur-sm"
                                 >
                                     <X size={22} className="group-hover:rotate-90 transition-transform duration-300" />
@@ -205,6 +210,7 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }
