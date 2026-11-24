@@ -29,6 +29,8 @@ def evaluate(catalog_path, query_path, ranking_path, *, split='dev', allow_draft
         if ms is not None:
             if type(ms) not in (float,int) or not math.isfinite(ms) or ms<0:raise ValueError('Invalid latency')
             latencies.append(ms)
+        if not isinstance(q['qrels'],dict) or any(type(g) not in (int,float) or not math.isfinite(g) or g not in (0,1,2) for g in q['qrels'].values()):raise ValueError('Invalid qrel grades')
+        if not set(q['qrels'])<=skus:raise ValueError('Unknown qrel')
         relevant={s:g for s,g in q['qrels'].items() if g>0}
         if not set(relevant)<=skus:raise ValueError('Unknown qrel')
         if q['no_match']:
@@ -48,7 +50,7 @@ def evaluate(catalog_path, query_path, ranking_path, *, split='dev', allow_draft
         values['mrr@10']=next((1/(i+1) for i,s in enumerate(ids[:10]) if s in relevant),0.)
         metrics.append((q,values))
     def mean(rows):return {k:statistics.mean(v[k] for _,v in rows) for k in ('recall@10','recall@20','recall@50','ndcg@10','mrr@10')} if rows else {}
-    output={'catalog_sha256':digest,'split':split,'queries':len(queries),'draft_labels':any(q['review_status']!='human_reviewed' for q in queries),'acceptance_pass':False,'metrics':mean(metrics),'hard_constraint_violation@10':statistics.mean(v['hard_constraint_violation@10'] for _,v in metrics if 'hard_constraint_violation@10' in v) if any('hard_constraint_violation@10' in v for _,v in metrics) else None,'by_kind':{kind:mean([(q,v) for q,v in metrics if q['kind']==kind]) for kind in sorted({q['kind'] for q,_ in metrics})},'no_match_false_positive_rate':statistics.mean(no_match) if no_match else None,'latency_samples':len(latencies),'latency_p50_ms':statistics.median(latencies) if latencies else None,'latency_p95_ms':sorted(latencies)[max(0,math.ceil(.95*len(latencies))-1)] if latencies else None,'run_metadata':run.get('metadata',{}),'caveat':'Synthetic draft labels are not customer answer accuracy. No model/index/provider was executed by this scorer.'}
+    output={'catalog_sha256':digest,'split':split,'queries':len(queries),'draft_labels':any(q['review_status']!='human_reviewed' for q in queries),'acceptance_pass':False,'metrics':mean(metrics),'hard_constraint_violation@10':statistics.mean(v['hard_constraint_violation@10'] for _,v in metrics if 'hard_constraint_violation@10' in v) if any('hard_constraint_violation@10' in v for _,v in metrics) else None,'by_kind':{kind:mean([(q,v) for q,v in metrics if q['kind']==kind]) for kind in sorted({q['kind'] for q,_ in metrics})},'by_category':{category:mean([(q,v) for q,v in metrics if q.get('category')==category]) for category in sorted({q.get('category','unspecified') for q,_ in metrics})},'no_match_false_positive_rate':statistics.mean(no_match) if no_match else None,'latency_samples':len(latencies),'latency_p50_ms':statistics.median(latencies) if latencies else None,'latency_p95_ms':sorted(latencies)[max(0,math.ceil(.95*len(latencies))-1)] if latencies else None,'run_metadata':run.get('metadata',{}),'caveat':'Synthetic draft labels are not customer answer accuracy. No model/index/provider was executed by this scorer.'}
     return output
 
 

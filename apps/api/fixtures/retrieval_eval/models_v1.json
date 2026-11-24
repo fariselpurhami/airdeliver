@@ -1,0 +1,135 @@
+{
+  "harrier": {
+    "repo": "microsoft/harrier-oss-v1-0.6b",
+    "revision": "f9b9dc8d367d443f2479d27aa5d8d2850c0774ee",
+    "license": "mit",
+    "download_bytes": 1208034182,
+    "files": [
+      {
+        "path": "1_Pooling/config.json",
+        "size": 297,
+        "sha256": null
+      },
+      {
+        "path": "README.md",
+        "size": 7606,
+        "sha256": null
+      },
+      {
+        "path": "added_tokens.json",
+        "size": 707,
+        "sha256": null
+      },
+      {
+        "path": "config.json",
+        "size": 1355,
+        "sha256": null
+      },
+      {
+        "path": "config_sentence_transformers.json",
+        "size": 351,
+        "sha256": null
+      },
+      {
+        "path": "merges.txt",
+        "size": 1671853,
+        "sha256": null
+      },
+      {
+        "path": "model.safetensors",
+        "size": 1192133232,
+        "sha256": "6bb124227f33c3dbf7fbbd38119b2afa8be959e93666d3c9be7142b66708b66c"
+      },
+      {
+        "path": "modules.json",
+        "size": 349,
+        "sha256": null
+      },
+      {
+        "path": "mteb_v2_eval_prompts.json",
+        "size": 11877,
+        "sha256": null
+      },
+      {
+        "path": "special_tokens_map.json",
+        "size": 613,
+        "sha256": null
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 11423705,
+        "sha256": "def76fb086971c7867b829c23a26261e38d9d74e02139253b38aeb9df8b4b50a"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 5404,
+        "sha256": null
+      },
+      {
+        "path": "vocab.json",
+        "size": 2776833,
+        "sha256": null
+      }
+    ],
+    "query_prompt": "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
+  },
+  "granite": {
+    "repo": "ibm-granite/granite-embedding-311m-multilingual-r2",
+    "revision": "44399559930365213510b1ee2eb15ded83374f0e",
+    "license": "apache-2.0",
+    "download_bytes": 657906584,
+    "files": [
+      {
+        "path": "1_Pooling/config.json",
+        "size": 313,
+        "sha256": null
+      },
+      {
+        "path": "README.md",
+        "size": 21421,
+        "sha256": null
+      },
+      {
+        "path": "config.json",
+        "size": 1191,
+        "sha256": null
+      },
+      {
+        "path": "config_sentence_transformers.json",
+        "size": 283,
+        "sha256": null
+      },
+      {
+        "path": "model.safetensors",
+        "size": 623341952,
+        "sha256": "dcb6431bfa6e817fe100a2b0521360cec3383963b03fa966b685de18ca310d31"
+      },
+      {
+        "path": "modules.json",
+        "size": 349,
+        "sha256": null
+      },
+      {
+        "path": "sentence_bert_config.json",
+        "size": 60,
+        "sha256": null
+      },
+      {
+        "path": "special_tokens_map.json",
+        "size": 694,
+        "sha256": null
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 33384821,
+        "sha256": "0087c868b33bad550a78a08d19798cfd7f713cde4f020803b8f51f405503e15f"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 1155500,
+        "sha256": null
+      }
+    ],
+    "query_prompt": ""
+  }
+}
