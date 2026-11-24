@@ -1222,6 +1222,13 @@ class BoundedTaskSupervisor:
         task.add_done_callback(_done)
 
 
+async def _strict_model_text(llm,**kwargs):
+    """Use typed production adapter, retain older injected adapter contracts."""
+    strict=getattr(llm,'generate_response_strict',None)
+    if callable(strict):return await strict(**kwargs)
+    return await llm.generate_response(**kwargs)
+
+
 class GlobalCommerceIntentEngine:
 
     COMPARISON_RE = re.compile(r"\b(vs|versus|compare|comparison|difference|diff|مقارنة|الفرق|فرق بين|أفضل من)\b", re.IGNORECASE)
@@ -1287,7 +1294,7 @@ class GlobalCommerceIntentEngine:
 
         try:
             # افتراض أن llm_service يحتوي على دالة لتوليد الردود بصيغة JSON
-            raw_response = await self.llm_service.generate_response(
+            raw_response = await _strict_model_text(self.llm_service,
                 prompt=prompt,
                 system_role=system_instruction,
                 temperature=0.0, # صفر لضمان الدقة والصرامة
@@ -1314,11 +1321,9 @@ class GlobalCommerceIntentEngine:
                 "global_intent_engine_critical_failure",
                 extra={
                     "error_type": error_type,
-                    "error_message": str(exc),
-                    "user_text_preview": safe_text,
                     "fallback_triggered": True
                 },
-                exc_info=True # التقاط التتبع بصمت لتسهيل تتبع الأعطال (Debugging)
+                exc_info=False
             )
 
             # 2. Deterministic Heuristic Fallback (الانحدار للتحليل الحتمي)
@@ -3527,7 +3532,7 @@ class AINLUService:
                 )
                 
                 # استخدام generate_response بحرارة 0.0 لضمان الدقة المطلقة بدون أي هلوسة
-                optimized_raw = await self.llm_service.generate_response(
+                optimized_raw = await _strict_model_text(self.llm_service,
                     prompt=json.dumps({"input": search_query, "conversation_history": conversation_context[-2000:]}, ensure_ascii=False),
                     system_role=system_prompt,
                     temperature=0.0, 
