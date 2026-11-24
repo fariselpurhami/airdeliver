@@ -842,7 +842,7 @@
         79
       ],
       "evidence": [
-        "apps/api/tests/test_context_discovery_planner.py"
+        "apps/api/tests/test_discovery_planner.py"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
@@ -1629,7 +1629,7 @@
         79
       ],
       "evidence": [
-        "apps/api/tests/test_context_discovery_planner.py"
+        "apps/api/tests/test_discovery_planner.py"
       ],
       "live_note": "No end-to-end deployed verification recorded for this entire grouped capability.",
       "verification_plan": {
