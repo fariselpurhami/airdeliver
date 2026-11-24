@@ -4,6 +4,7 @@
 // (app/(main)/page.tsx) is an async server component that reads headers(),
 // so the tests render the client tree it delegates to: LandingClient.
 
+import fs from 'fs';
 import type * as JestGlobals from '@jest/globals';
 import '@testing-library/jest-dom/jest-globals';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -73,11 +74,14 @@ describe('HomePage', () => {
   });
 
   it('renders the main headline', () => {
-    renderLanding();
+    const view=renderLanding();
+    const badge=screen.getByText('AI-SECURED ORDERS');
     const headline = screen.getByRole('heading', {
       name: /shopping at the\s+speed of thought/i,
     });
     expect(headline).toBeInTheDocument();
+    expect(badge.compareDocumentPosition(headline)&Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    if(process.env.HOME_BADGE_PREVIEW)fs.writeFileSync('/tmp/home-badge-render.html','<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/home-layer.css"></head><body style="margin:0;background:#04060a;color:white">'+view.container.innerHTML+'</body></html>');
   });
 
   it('renders the main action buttons', () => {

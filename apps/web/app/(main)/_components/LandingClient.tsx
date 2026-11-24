@@ -6,6 +6,7 @@
 import { randomId } from '@/lib/random-id';
 import Image from "next/image";
 import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
+import { AISecuredOrdersBadge } from '@/components/hero/AISecuredOrdersBadge';
 import Link from 'next/link';
 import React, { 
   useRef, useMemo, useEffect, useReducer, memo, useId, Component, ErrorInfo, ReactNode 
@@ -545,6 +546,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
         <div className="w-full flex flex-col items-center justify-center relative">
           
           <div className="flex flex-col items-center text-center max-w-3xl w-full relative z-30 pointer-events-auto">
+            <AISecuredOrdersBadge />
             <motion.h1
               id={titleId}
               initial="hidden" animate="visible" variants={fadeUpVariant}
@@ -667,6 +669,7 @@ const MobileHomeHeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectio
         <div className="w-full flex flex-col items-center justify-center relative h-full min-h-[600px]">
           
           <div className="flex flex-col items-center text-center max-w-3xl w-full relative z-30 pointer-events-auto">
+            <AISecuredOrdersBadge />
             <motion.h1
               id={titleId}
               initial="hidden" animate="visible" variants={fadeUpVariant}

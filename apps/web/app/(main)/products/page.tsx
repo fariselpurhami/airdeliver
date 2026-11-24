@@ -20,6 +20,8 @@ import { ProductDetailsCard } from '@/components/products/ProductDetailsCard';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 import AIChatOverlay from '@/components/ai/AIChatOverlay';
 
+import { AISecuredOrdersBadge } from '@/components/hero/AISecuredOrdersBadge';
+
 const fetcher = (url: string) => api.get(url).then(res => res.data);
 
 const formatCurrency = (value: number | string | undefined | null): string => {
@@ -87,10 +89,7 @@ const AICatalogHero = React.memo(() => {
             <div className="relative z-30 w-full max-w-3xl lg:max-w-[48%] mx-auto px-4 sm:px-6 text-center">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(13,13,12,0.95)_0%,rgba(13,13,12,0.7)_40%,transparent_80%)] lg:hidden pointer-events-none -z-10" />
 
-                <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#0D0D0C]/80 border border-white/10 backdrop-blur-xl mb-6 sm:mb-8 shadow-2xl relative z-10">
-                    <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
-                    <span className="text-[8px] sm:text-[10px] font-mono text-gray-300 uppercase tracking-[0.2em]">AI-SECURED ORDERS</span>
-                </div>
+                <AISecuredOrdersBadge />
                 
                 <h1 className="text-4xl sm:text-6xl lg:text-[clamp(36px,4.4vw,76px)] font-black uppercase tracking-tighter mb-4 sm:mb-6 leading-[1.05] sm:leading-[0.95] drop-shadow-2xl relative z-10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                     The <br />
