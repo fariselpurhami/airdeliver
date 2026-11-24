@@ -55,7 +55,7 @@ async def test_chat_completion_limits_concurrent_provider_calls():
         svc._chat_completion(messages=[{"role": "user", "content": "q"}], model="test-model")
         for _ in range(8)
     ])
-    assert peak == 2
+    assert peak == 1  # Shared process/model admission also covers core chat.
 
 
 @pytest.mark.asyncio

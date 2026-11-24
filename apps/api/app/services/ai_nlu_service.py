@@ -3212,15 +3212,25 @@ class AINLUService:
         # 🚀 [EXECUTION]: Concurrent UI Copy Generation with Fallbacks mapped directly to Live Inventory
         # One writer/reviewer chain at a time. Four concurrent chains caused
         # rate-limit bursts; overall matrix deadline still bounds the work.
-        copy_tasks=[]
-        for args in (
-            ("Personalized", personal_products, self._get_time_aware_greeting(spending_tier), reason_personal),
-            ("Bestsellers", bestsellers_products, self.config.copy_bestsellers, reason_bestsellers),
-            ("Trending", trending_products, self.config.copy_trending, reason_trending),
-            ("Deals", deals_products, self.config.copy_deals, reason_deals),
-        ):
-            copy_tasks.append(await _safe_generate_copy(*args))
-
+        row_groups=[('Personalized',personal_products),('Bestsellers',bestsellers_products),('Trending',trending_products),('Deals',deals_products)]
+        batch_writer=getattr(self.llm_service,'generate_opening_batch',None)
+        if callable(batch_writer):
+            try:
+                batch=await batch_writer(row_groups)
+                from app.services.shopping_discovery import catalog_result
+                copy_tasks=[(*batch[label],[catalog_result(p) for p in products]) if label in batch else None for label,products in row_groups]
+            except Exception as exc:
+                StructuredLog.warning('opening_batch_withheld',error_type=type(exc).__name__)
+                copy_tasks=[None]*4
+        else:
+            copy_tasks=[]
+            for args in (
+                ("Personalized", personal_products, self._get_time_aware_greeting(spending_tier), reason_personal),
+                ("Bestsellers", bestsellers_products, self.config.copy_bestsellers, reason_bestsellers),
+                ("Trending", trending_products, self.config.copy_trending, reason_trending),
+                ("Deals", deals_products, self.config.copy_deals, reason_deals),
+            ):
+                copy_tasks.append(await _safe_generate_copy(*args))
         # 6. Presentation Stream
         streamed_any = False
         stream_plan = [

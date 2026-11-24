@@ -77,8 +77,14 @@ def admission(model):
     loop = asyncio.get_running_loop()
     return _states.setdefault(loop, {}).setdefault(model, Admission())
 
+def log_usage(response,model,stage,messages,output):
+    usage=getattr(response,'usage',None)
+    values={k:getattr(usage,k,None) for k in ('prompt_tokens','completion_tokens','total_tokens')}
+    values={k:v for k,v in values.items() if type(v) is int and v>=0}
+    logger.info('provider.usage model=%s stage=%s input_bytes_upper=%d output_cap=%d usage=%s',model,stage,token_upper_bound(messages),output,values)
+
 async def complete(create, *, model, messages, response_format, timeout, stage='inference'):
-    output = {'SpecDraft': 1200, 'SourceReview': 1200}.get(stage, 2048)
+    output = {'SpecDraft': 1200, 'SourceReview': 1200,'GroundingReview':512}.get(stage, 2048)
     estimate = token_upper_bound({'messages': messages, 'response_format': response_format})
     if stage in {'SpecDraft', 'SourceReview'} and estimate + output > 7800:
         logger.warning('provider.input_withheld stage=%s input_token_upper=%d output_cap=%d', stage, estimate, output)
@@ -96,8 +102,11 @@ async def complete(create, *, model, messages, response_format, timeout, stage='
                     await asyncio.sleep(max(.001, remaining))
                     remaining = state.until - loop.time()
                 try:
-                    return await create(model=model, messages=messages, temperature=0.0,
-                                        response_format=response_format, max_tokens=output)
+                    response=await create(model=model, messages=messages, temperature=0.0,
+                                        response_format=response_format, max_tokens=output,
+                                        **({'reasoning_effort':'low'} if model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and stage=='GroundingReview' else {}))
+                    log_usage(response,model,stage,messages,output)
+                    return response
                 except Exception as exc:
                     status = getattr(exc, 'status_code', None)
                     transient = isinstance(exc, (APIConnectionError, TimeoutError)) or (

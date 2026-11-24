@@ -497,7 +497,7 @@ class FreeLLMService:
         client = await self._get_client()
 
         # 3. Strict whitelist of allowed extra kwargs
-        allowed_keys = {"seed", "stop", "stream", "user"}
+        allowed_keys = {"seed", "stop", "stream", "user", "reasoning_effort"}
         safe_kwargs: Dict[str, Any] = {k: v for k, v in kwargs.items() if k in allowed_keys}
 
         async def _invoke() -> Any:
@@ -517,9 +517,13 @@ class FreeLLMService:
 
             # Admission is inside the timed invocation, so queueing also
             # consumes the caller's timeout budget. Cancellation releases it.
-            async with self._execution_semaphore:
-                await _wait_cooldown()
-                return await client.chat.completions.create(**kwargs_to_send)
+            async with provider_admission.lock:
+                async with self._execution_semaphore:
+                    await _wait_cooldown()
+                    response=await client.chat.completions.create(**kwargs_to_send)
+                    from app.services.provider_budget import log_usage
+                    log_usage(response,model,'free_llm',messages,max_tokens)
+                    return response
 
         from app.services.provider_budget import admission, ProviderCooldownError, quota_metadata
         provider_admission = admission(model)
@@ -606,7 +610,8 @@ class FreeLLMService:
         wire_format = response_format(self.models.brain_model, response_schema) if response_schema else {"type": "json_object"}
         completion = await self._chat_completion(
             messages=messages, model=self.models.brain_model, temperature=0.2,
-            max_tokens=1200, response_format=wire_format,
+            max_tokens=1600 if response_schema and response_schema.__name__=='OpeningBatch' else 512 if response_schema and response_schema.__name__=='GroundingReview' else 1200, response_format=wire_format,
+            **({'reasoning_effort':'low'} if self.models.brain_model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and response_schema and response_schema.__name__ in {'OpeningBatch','GroundingReview'} else {}),
         )
         message = completion.choices[0].message if completion and completion.choices else None
         content = getattr(message, "content", None)
@@ -790,6 +795,10 @@ class FreeLLMService:
             return vibes[0]
         rng = random.Random(_stable_seed("vibe", session_key))
         return rng.choice(vibes)
+
+    async def generate_opening_batch(self,groups):
+        from app.services.opening_batch_copy import write_batch
+        return await write_batch(self,groups)
 
     async def generate_lifestyle_matrix(self, all_products: List[Dict[str, Any]], *, row_type: str = 'Discovery') -> List[Dict[str, Any]]:
         """Current opening selection, using shared reviewed model prose."""

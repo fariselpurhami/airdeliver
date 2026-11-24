@@ -38,13 +38,14 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
         async def infer(messages):
             data=json.loads(messages[1]['content']);calls.append(data)
             if mode=='offline':raise ConnectionError('controlled transport failure')
-            if 'catalog_evidence' in data:
+            if 'catalog_evidence' in data or 'rows' in data:
                 if mode=='price_changed':
                     async with sessions() as writer:
                         await writer.execute(update(Product).where(Product.id==ids[0]).values(price=30));await writer.commit()
                 intro='Explore the current local catalog selection.'
                 insight='Consider the listed material in the card before deciding. Merchant availability is unverified.'
-                return json.dumps({'text':intro+(' ' if mode=='one_paragraph' else '\n\n')+insight,'product_ids':[],'claims':[]})
+                draft={'text':intro+(' ' if mode=='one_paragraph' else '\n\n')+insight,'product_ids':[],'claims':[]}
+                return json.dumps({'rows':[{'row':r['row'],'draft':draft} for r in data['rows']]} if 'rows' in data else draft)
             return json.dumps(dict(supported=mode!='rejected',all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
         async with sessions() as db:
             from app.services.free_llm_service import FreeLLMService
@@ -71,7 +72,7 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
                 assert published[0]['products'][0]['evidence_kind']=='dev_fixture'
                 assert published[0]['products'][0]['stock_status']=='fixture_in_stock'
                 assert 'synthetic' in published[0]['products'][0]['availability_note']
-            assert calls[0]['request_evidence']['sales_intent']=='OPENING_INSIGHT'
+            assert calls[0]['rows'][0]['row']=='Personalized'
             assert len(calls)==2
             svc.freshness_repo.mark_products_as_seen.assert_awaited_once()
             assert svc.freshness_repo.mark_products_as_seen.await_args.kwargs["product_ids"]==set(ids)
@@ -143,9 +144,13 @@ async def test_original_four_role_stack_order_no_crossrole_backfill(real_cache,e
             for row in rows:await db.refresh(row)
         async def infer(messages):
             data=json.loads(messages[1]['content'])
-            if 'catalog_evidence' in data:
+            if 'catalog_evidence' in data or 'rows' in data:
+                draft={'text':'Explore this local catalog section.\n\nVerify the listed details and merchant availability before choosing.','product_ids':[],'claims':[]}
+                if 'rows' in data:
+                    written.extend(r['row'] for r in data['rows'])
+                    return json.dumps({'rows':[{'row':r['row'],'draft':draft} for r in data['rows']]})
                 role=data['request_evidence']['row_pool'];written.append(role)
-                return json.dumps({'text':'Explore this local catalog section.\n\nVerify the listed details and merchant availability before choosing.','product_ids':[],'claims':[]})
+                return json.dumps(draft)
             return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
         async with sessions() as db:
             from app.services.free_llm_service import FreeLLMService
