@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T05:43:00+02:00",
+  "as_of": "2026-11-24T06:19:00+02:00",
   "scope": "Current source-route snapshot, not live/model acceptance. Historical03:30audit remains separate.",
   "counts": {
     "preserved": 35,
@@ -315,14 +315,17 @@
       "id": "CAP-13",
       "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
       "parity": "degraded",
-      "finding": "Shipped literal constraints, typed capacity identity and turn continuity; per-target/component scope and minimum/unit semantics remain incomplete.",
+      "finding": "Literal hard features/exclusions use lexical/digit boundaries and narrow typed capacity evidence. Turn updates union prior hard constraints unless explicit reviewed replacement. PR101 scopes reviewed literal setup requirements to components. Remaining: Minimum/maximum and unit-conversion semantics remain unimplemented. Ordinary multi-target scope and durable per-component scope across follow-up turns remain partial.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_ai_nlu_pure.py",
-        "apps/api/tests/test_nlu_characterization.py"
+        "apps/api/tests/test_nlu_characterization.py",
+        "apps/api/tests/test_literal_shopping_constraints.py",
+        "apps/api/tests/test_staged_search_postgres.py",
+        "apps/api/tests/test_discovery_planner.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {
         "_extract_ram_candidates": [
           "apps/api/app/services/ai_nlu_service.py:131"
@@ -339,14 +342,15 @@
       "id": "CAP-14",
       "capability": "Typed product-target array, occasion, sentiment, intent, cart action and deduplication contracts",
       "parity": "degraded",
-      "finding": "NLU intent engine Remaining: Restore multi-item identity and intent propagation to normal chat without losing ambiguity.",
+      "finding": "Ordinary HTTP supports literal multi-target research/search, setup, consultative goals, explicit add/remove review and owner-bound whole-cart clear/save review. Remaining: Original broader intent taxonomy and real multilingual route accuracy remain unverified. Text checkout is manual guidance, never inferred payment.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_ai_nlu_pure.py",
-        "apps/api/tests/test_staged_search_postgres.py"
+        "apps/api/tests/test_staged_search_postgres.py",
+        "apps/api/tests/test_cart_lifecycle_review.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {
         "CommerceIntentPayload": [
           "apps/api/app/services/ai_nlu_service.py:222"
@@ -440,14 +444,16 @@
       "id": "CAP-18",
       "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
       "parity": "degraded",
-      "finding": "Shipped ownerboundhistory+consentedSQLrecall/HTTPcollection; broaderresearch/setup/imagecontext and behaviorlifecycle incomplete, inferredsensitivepersona deliberatelygated.",
+      "finding": "Owner-bound ordinary HTTP recalls and optionally collects consented narrow shopping preferences using SQL consent and request-local context. Special routes receive recent customer intent; image retains hard brief. Remaining: Feature off by default. Setup/research saved preference fields are pending PR105, not shipped in this snapshot. Legacy behavior unification and broader lifecycle remain separate.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_customer_memory_postgres.py",
-        "apps/api/tests/test_consented_http_context.py"
+        "apps/api/tests/test_consented_http_context.py",
+        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46.",
+        "PR46 merged 5774dfa: test_consented_http_context.py uses mounted HTTP and actual SQL/Redis; five consent scenarios. Opt-in feature flag remains off by default. No live owner verification."
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {
         "UserDnaStore": [
           "apps/api/app/services/ai_nlu_service.py:1586"
@@ -488,14 +494,16 @@
       "id": "CAP-20",
       "capability": "Global model intent router with heuristic failure route",
       "parity": "degraded",
-      "finding": "HTTP setup/source/advice tasks restored, full original taxonomy and smartcart clear/save equivalents incomplete.",
+      "finding": "Ordinary HTTP router dispatches literal setup and reviewed cart lifecycle requests without model mutations. Remaining: Full original taxonomy and real model interpretation not certified.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_router_config.py",
-        "apps/api/tests/test_worker_behavior_seam.py"
+        "apps/api/tests/test_worker_behavior_seam.py",
+        "apps/api/tests/test_staged_search_postgres.py",
+        "apps/api/tests/test_cart_lifecycle_review.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {},
       "current_implementation_anchors": {},
       "anchor_caveat": "Named current schema/helper was added after original revision; inspect surrounding original capability group, do not infer original active behavior.",
@@ -529,14 +537,17 @@
       "id": "CAP-22",
       "capability": "Smart cart actions and text commands",
       "parity": "degraded",
-      "finding": "Legacy NLU chat only Remaining: Preserve submission-versus-confirmation distinction; resolve product identity and keep side effects separate from advisory copy.",
+      "finding": "Ordinary HTTP add/remove proposals require explicit customer button confirmation. Clear/save reviews are owner-bound, five-minute, one-shot and snapshot checked. Remaining: Save retains legacy cancelled Saved List record and possible cleanup-unconfirmed409. Legacy clear route still cancels pending orders; new reviewed clear is cart-only.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_nlu_cart_execution_truth.py",
-        "apps/api/tests/test_cart_sales_postgres.py"
+        "apps/api/tests/test_cart_sales_postgres.py",
+        "PR42/43 merged. 1144pass4skip disposableSQL/Redis,168web combined. Session identity follows visible conversation; stored-token socket reconnect, ticket renewal, bounded retries, ordered unsent commands. Controlled browser transport only, owner live retest pending.",
+        "apps/api/tests/test_assistant_cart_review.py",
+        "apps/api/tests/test_cart_lifecycle_review.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {
         "_handle_smart_cart_action": [
           "apps/api/app/services/ai_nlu_service.py:2610"
@@ -553,13 +564,14 @@
       "id": "CAP-23",
       "capability": "Ecosystem planner, component searches and collection prose/cards",
       "parity": "degraded",
-      "finding": "HTTP setup planning reviews generic components then independently retrieves current catalog rows. Remaining: Compatibility/completeness intentionally not inferred; actual model plan quality unverified.",
+      "finding": "Reviewed generic component planning, staged current catalog search, aggregate budget and literal per-component feature scope are reachable through HTTP. Remaining: Physical compatibility/completeness and real-model scope quality unverified. Per-component scope is recomputed, not durable typed session scope.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
-        "apps/api/tests/test_staged_search_postgres.py"
+        "apps/api/tests/test_staged_search_postgres.py",
+        "apps/api/tests/test_discovery_planner.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {
         "_handle_ecosystem_building": [
           "apps/api/app/services/ai_nlu_service.py:2704"
@@ -628,14 +640,15 @@
       "id": "CAP-26",
       "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
       "parity": "degraded",
-      "finding": "Staged per-target search carries reviewed customer-only retrieval hint for single targets, literal identity retained. Remaining: All constraints/query normalization across legacy callers and real ranking quality unverified.",
+      "finding": "Staged per-target search preserves literal identity and reviewed customer retrieval hint. Hard constraint continuity and narrow typed capacity evidence are tested. Remaining: Minimum/unit policy, ordinary per-target scope and real ranking remain partial.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_contract.py",
-        "apps/api/tests/test_staged_search_postgres.py"
+        "apps/api/tests/test_staged_search_postgres.py",
+        "PR44 merged3d89942: 1156pass4skip disposableSQL/Redis suite. Shared high/mid/broad tiers and max3literal targets reach mountedHTTP; actualSQL/Redis history, missing target, cancellation and price-change tests. Model/retrieval transport controlled. Legacy web consultation and general search recall not certified."
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {
         "_execute_universal_search": [
           "apps/api/app/services/ai_nlu_service.py:3434"
@@ -735,13 +748,15 @@
       "id": "CAP-30",
       "capability": "Consent-aware memory collection and seen-product persistence",
       "parity": "degraded",
-      "finding": "Shipped explicitconsentedHTTP+NLUcollector and shownrecency; originalbehavior/seenunification incomplete.",
+      "finding": "Ordinary HTTP explicitly collects current affirmative color/material/style preferences after verified response, feature and SQL consent gated. Remaining: Sensitive/inferred traits are deliberately not collected. Legacy duplicate behavior/memory paths remain separate.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
-        "apps/api/tests/test_customer_memory_postgres.py"
+        "apps/api/tests/test_customer_memory_postgres.py",
+        "ConsentedHTTPrecall focused change:1176pass4skip disposableSQLRedis, five mountedHTTP canonical-consent tests. Authenticatedowneronly, flagoffbydefault, revoke-during-writer withholds and prevents rejectedRedisreply. CurrentHTTPdoesnotautocollect, priorrecentchatnotretrospectivelypurged. Merged as PR46.",
+        "apps/api/tests/test_consented_http_context.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {
         "_bg_memorize": [
           "apps/api/app/services/ai_nlu_service.py:4864"
@@ -800,13 +815,13 @@
       "id": "CAP-32",
       "capability": "Removal recovery alternatives and optional confirmation prompt",
       "parity": "degraded",
-      "finding": "Internal/smart removal routes Remaining: Current price window can reach four times removed price and fixed copy can mislabel range/superiority. Harden actual constraints and share model copy.",
+      "finding": "Confirmed removal requests optional read-only shared model alternatives using current same-category bounded price-window evidence; worker rechecks cart/catalog. Remaining: Exact current-customer reason bridge pending PR104. Semantic model quality unverified; no automatic re-add.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {
         "_perform_devilish_recovery": [
           "apps/api/app/services/ai_nlu_service.py:5405"
@@ -1070,13 +1085,15 @@
       "id": "CAP-43",
       "capability": "Singleton/client lifecycle, configured models, admission, deadlines, retries and completion transport",
       "parity": "degraded",
-      "finding": "ShippedRetryAfter/deadline/serialization and isolatedrequiredbenchmark/processpausegate; productionGCtail/p99 and transportunification incomplete.",
+      "finding": "Provider retries/deadlines and serialized openings retained. PR92 bounds native Redis admission; mandatory isolated exact100/50quota and0.2sheartbeat gate with GC enabled plus separate deliberate pause characterization. Remaining: Isolation is measurement split, not a production GC fix. Mixed-process p99/max under HTTP/model/SQL/remote Redis remains required; fail-closed503 under pauses remains possible.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
-        "apps/api/tests/test_llm_execution_limits.py"
+        "apps/api/tests/test_llm_execution_limits.py",
+        "apps/api/tests/test_llm_execution_limits.py; test_cart_sales_transport.py",
+        "apps/api/tests/test_async_limiter_load.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "ff451f8",
+      "current_revision": "cd339c078ae22f6c83a3be303819c4a9e1126de3",
       "original_anchors": {
         "_chat_completion": [
           "apps/api/app/services/free_llm_service.py:372"
@@ -1380,5 +1397,9 @@
     }
   ],
   "anchor_caveat": "Original/current implementation anchor line numbers are retained from the historical03:30audit as navigation leads, not reverified against this shipped revision.",
-  "remaining_acceptance_matrix": "remaining-acceptance-matrix-2026-11-24.md"
+  "remaining_acceptance_matrix": "remaining-acceptance-matrix-2026-11-24.md",
+  "pending_prs": {
+    "104": "Literal current-customer removal context, head6353f22, awaiting required CI",
+    "105": "Separate consented hints in setup/research, head6632c2d, awaiting required CI"
+  }
 }
