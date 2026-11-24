@@ -3034,8 +3034,9 @@ class AINLUService:
     async def _handle_initial_suggestions(self, user_id: int) -> None:
         try:
             async with asyncio.timeout(self.config.matrix_timeout_sec):
-                await self._handle_initial_suggestions_bounded(user_id)
-            StructuredLog.info("matrix_generation_completed", user_id=user_id)
+                outcome = await self._handle_initial_suggestions_bounded(user_id)
+            if outcome is not False:
+                StructuredLog.info("matrix_generation_completed", user_id=user_id)
         except asyncio.CancelledError:
             StructuredLog.warning("matrix_generation_cancelled", user_id=user_id)
             raise
@@ -3050,7 +3051,7 @@ class AINLUService:
             except Exception as notify_exc:
                 StructuredLog.error("matrix_error_delivery_failed", user_id=user_id, error_type=type(notify_exc).__name__)
 
-    async def _handle_initial_suggestions_bounded(self, user_id: int) -> None:
+    async def _handle_initial_suggestions_bounded(self, user_id: int) -> bool:
         """
         L8 Architecture: Hybrid concurrency model.
         Sequential Data Access (protecting AsyncSession invariant) + Concurrent Heavy I/O (LLM generation).
@@ -3103,6 +3104,16 @@ class AINLUService:
         bestsellers_products = _process_pool(bestsellers_pool, max_brand=2)
         trending_products = _process_pool(trending_pool, max_brand=2)
         deals_products = _process_pool(deals_pool, max_brand=3)
+
+        for pool_name, raw_pool, eligible_pool in (
+            ("personal", personal_pool, personal_products),
+            ("bestsellers", bestsellers_pool, bestsellers_products),
+            ("trending", trending_pool, trending_products),
+            ("deals", deals_pool, deals_products),
+        ):
+            StructuredLog.info("opening_pool_evaluated", user_id=user_id,
+                               stage=pool_name, candidate_count=len(raw_pool or []),
+                               product_count=len(eligible_pool))
 
         # 4. Session Deduplication Tracking
         session_newly_seen_ids: Set[int] = set()
@@ -3167,7 +3178,18 @@ class AINLUService:
             self.tasks.create_task(self.freshness_repo.mark_products_as_seen(user_id=user_id, product_ids=streamed_seen_ids, ttl_seconds=43200))
 
         if not streamed_any:
-            await self._send_to_ui(user_id, {"content": 'System notice: the opening selection could not be generated. Please retry or browse the catalog.', "type": "info"}, strict=True)
+            has_eligible = any((personal_products, bestsellers_products, trending_products, deals_products))
+            stage = "model_copy_unavailable" if has_eligible else "no_eligible_cards"
+            StructuredLog.warning("opening_selection_withheld", user_id=user_id, stage=stage,
+                                  product_count=sum(map(len,(personal_products,bestsellers_products,trending_products,deals_products))))
+            notice = (
+                "System notice: catalog cards were found, but the opening introduction could not be verified. Retry the opening or browse the catalog."
+                if has_eligible else
+                "System notice: no eligible cards were found for this opening selection. This does not mean the catalog is empty. Retry or browse the catalog."
+            )
+            await self._send_to_ui(user_id, {"content": notice, "type": "info",
+                "status": "retryable", "opening_stage": stage}, strict=True)
+            return False
 
         # 7. Asynchronous Fire-and-Forget State Persistence
         if self.config.legacy_candidate_seen_marking and session_newly_seen_ids:
@@ -3180,6 +3202,7 @@ class AINLUService:
                     ttl_seconds=43200
                 )
             )
+        return True
     # --- 🛠️ Matrix Helper Methods ---
 
     def _register_seen(self, memory_set: Set[int], products: Sequence[Product]) -> None:

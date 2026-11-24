@@ -18,7 +18,7 @@ pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='migrate
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mode',['ok','price_changed','offline','rejected','one_paragraph','demo','empty'])
-async def test_opening_model_insight_and_current_cards_through_real_publication(real_cache, mode):
+async def test_opening_model_insight_and_current_cards_through_real_publication(real_cache, mode,caplog):
     cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
@@ -50,12 +50,15 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
             svc.freshness_repo=SimpleNamespace(get_seen_product_ids=AsyncMock(return_value=set()),mark_products_as_seen=AsyncMock())
             svc._fetch_personal=AsyncMock(return_value=[] if mode=='empty' else rows)
             svc._fetch_bestsellers=AsyncMock(return_value=[]);svc._fetch_trending=AsyncMock(return_value=[]);svc._fetch_deals=AsyncMock(return_value=[])
-            await svc._handle_initial_suggestions(3)
+            with caplog.at_level(__import__("logging").INFO,logger="airdeliver.commerce_os"):
+                await svc._handle_initial_suggestions(3)
             await asyncio.gather(*tuple(svc.tasks._tasks))
         event=await subscriber.get_message(ignore_subscribe_messages=True, timeout=1)
         if event is not None:published.append(json.loads(event["data"]))
         await subscriber.aclose()
         if mode=='ok':
+            assert 'matrix_generation_completed' in caplog.text
+            assert 'opening_pool_evaluated' in caplog.text
             assert len(published)==1 and published[0]['type']=='proactive_suggestion'
             assert published[0]['content']=='Explore the current local catalog selection.'
             assert published[0]['reason'].startswith('Consider the listed material')
@@ -65,6 +68,10 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
             svc.freshness_repo.mark_products_as_seen.assert_awaited_once()
             assert svc.freshness_repo.mark_products_as_seen.await_args.kwargs["product_ids"]==set(ids)
         else:
+            if mode!='price_changed':
+                assert 'matrix_generation_completed' not in caplog.text
+                assert published[0]['status']=='retryable'
+                assert published[0]['opening_stage']==('no_eligible_cards' if mode in {'demo','empty'} else 'model_copy_unavailable')
             assert not any(p.get('products') for p in published)
             assert published and published[0]['type'] in {'info','error'}
             svc.freshness_repo.mark_products_as_seen.assert_not_awaited()
