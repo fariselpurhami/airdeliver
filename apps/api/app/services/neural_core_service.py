@@ -315,7 +315,7 @@ class NeuralCoreService:
                     decision.query=None
                 if decision.quantity!=1 and not re.search(r"(?<![\w.])"+str(decision.quantity)+r"(?![\w.])",message):
                     decision.query=None
-            if decision.customer_signal and ' '.join(decision.customer_signal.casefold().split()) not in ' '.join(message.casefold().split()):
+            if not decision.customer_signal or ' '.join(decision.customer_signal.casefold().split()) not in ' '.join(message.casefold().split()):
                 decision.customer_signal=None
                 decision.advice_goal='browse'
             customer_context="\n".join([m.content for m in memory.history if m.role=="user"]+[message])
