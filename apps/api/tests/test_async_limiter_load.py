@@ -11,6 +11,14 @@ from tests.test_limiter_boundary import redis_server,settings,application
 
 @pytest.mark.asyncio
 async def test_real_redis_concurrent_admission_and_event_loop_latency(redis_server):
+    import os,subprocess,sys,gc
+    if os.environ.get('AIRDELIVER_ISOLATED_ADMISSION_BENCHMARK')!='1':
+        env=dict(os.environ,AIRDELIVER_ISOLATED_ADMISSION_BENCHMARK='1')
+        result=subprocess.run([sys.executable,'-m','pytest','-q',__file__+'::test_real_redis_concurrent_admission_and_event_loop_latency'],env=env,capture_output=True,text=True,timeout=30)
+        assert result.returncode==0,result.stdout+result.stderr
+        return
+    assert gc.isenabled()
+    gc.collect()  # Before measurement only, GC stays enabled throughout.
     url,_=redis_server;instance=build_limiter(settings(url,'100/second'))
     samples=[];running=True;collections=[];gc_started={}
     import gc
@@ -33,7 +41,7 @@ async def test_real_redis_concurrent_admission_and_event_loop_latency(redis_serv
         diagnostics={'statuses':statuses,'elapsed':elapsed,'gc':collections,'heartbeat':max(samples,default=0)}
         assert sum(r.status_code==200 for r in results)==100, diagnostics
         assert sum(r.status_code==429 for r in results)==50, diagnostics
-        assert samples and max(samples)<.2
+        assert samples and max(samples)<.2, diagnostics
         print({'actual_redis_requests':150,'elapsed_seconds':round(elapsed,4),
                'heartbeat_max_gap_seconds':round(max(samples),4),'success':100,'rate_limited':50})
     finally:
@@ -62,6 +70,14 @@ async def test_delayed_native_io_keeps_loop_responsive_and_cancels(monkeypatch,r
 
 @pytest.mark.asyncio
 async def test_repeated_cold_redis_bursts_keep_exact_quota_and_one_connection(redis_server):
+    import os,subprocess,sys,gc
+    if os.environ.get('AIRDELIVER_ISOLATED_ADMISSION_BENCHMARK')!='1':
+        env=dict(os.environ,AIRDELIVER_ISOLATED_ADMISSION_BENCHMARK='1')
+        result=subprocess.run([sys.executable,'-m','pytest','-q',__file__+'::test_repeated_cold_redis_bursts_keep_exact_quota_and_one_connection'],env=env,capture_output=True,text=True,timeout=30)
+        assert result.returncode==0,result.stdout+result.stderr
+        return
+    assert gc.isenabled()
+    gc.collect()
     url,_=redis_server
     for _ in range(5):
         instance=build_limiter(settings(url,'100/minute'))
@@ -113,5 +129,33 @@ async def test_real_paused_redis_fails_closed_without_replaying_uncertain_increm
             assert (await client.get('/plain')).status_code==200
             keys=await inspector.keys('airdeliver:http:v2:*')
             assert len(keys)==1 and int(await inspector.get(keys[0]))==before+1
+    finally:
+        await instance.close();await inspector.aclose()
+
+@pytest.mark.asyncio
+async def test_process_gc_pause_characterization_fails_closed_without_increment_replay(redis_server):
+    import gc
+    from redis.asyncio import Redis
+    assert gc.isenabled()
+    url,_=redis_server;instance=build_limiter(settings(url,'100/minute'))
+    inspector=Redis.from_url(url,socket_timeout=2)
+    try:
+        await inspector.execute_command('CLIENT','PAUSE',900,'ALL')
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=application(instance)),base_url='http://test') as client:
+            began=time.perf_counter();pending=asyncio.create_task(client.get('/plain'))
+            await asyncio.sleep(.02)
+            # Deliberate stop-the-world characterization, not a latency benchmark.
+            gc.collect();time.sleep(.65)
+            response=await pending
+            assert response.status_code==503
+            assert time.perf_counter()-began<1.5
+            await asyncio.sleep(.8)
+            keys=await inspector.keys('airdeliver:http:v2:*')
+            before=int(await inspector.get(keys[0])) if keys else 0
+            assert len(keys)<=1 and before<=1
+            assert (await client.get('/plain')).status_code==200
+            keys=await inspector.keys('airdeliver:http:v2:*')
+            assert len(keys)==1 and int(await inspector.get(keys[0]))==before+1
+            assert gc.isenabled()
     finally:
         await instance.close();await inspector.aclose()
