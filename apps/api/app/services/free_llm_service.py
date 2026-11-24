@@ -518,27 +518,46 @@ class FreeLLMService:
             # Admission is inside the timed invocation, so queueing also
             # consumes the caller's timeout budget. Cancellation releases it.
             async with self._execution_semaphore:
+                await _wait_cooldown()
                 return await client.chat.completions.create(**kwargs_to_send)
 
+        from app.services.provider_budget import admission, ProviderCooldownError, quota_metadata
+        provider_admission = admission(model)
+        safe_model = model if re.fullmatch(r'[A-Za-z0-9_.:/-]{1,200}', model) else 'invalid'
         deadline=asyncio.get_running_loop().time()+timeout_budget
+
+        async def _wait_cooldown() -> None:
+            remaining = provider_admission.until - asyncio.get_running_loop().time()
+            while remaining > 0:
+                if remaining >= deadline - asyncio.get_running_loop().time():
+                    raise ProviderCooldownError('Provider cooldown exceeds caller deadline')
+                await asyncio.sleep(max(.001, remaining))
+                remaining = provider_admission.until - asyncio.get_running_loop().time()
 
         async def _invoke_with_retries() -> Any:
             # One outer deadline covers queueing, every attempt and backoff.
             # Do not hold the admission slot while waiting to retry.
             for attempt in range(self.limits.retries + 1):
                 try:
+                    await _wait_cooldown()
                     return await _invoke()
                 except Exception as exc:
+                    if getattr(exc, 'status_code', None) == 429:
+                        from app.services.provider_budget import retry_delay
+                        quota_delay = retry_delay(exc, attempt, 60.0)
+                        if not isinstance(exc, ProviderCooldownError):
+                            provider_admission.until = max(provider_admission.until, asyncio.get_running_loop().time() + quota_delay)
+                        logger.warning('llm_provider_quota model=%s metadata=%s', safe_model, quota_metadata(exc))
                     retryable = isinstance(exc, (APIConnectionError, asyncio.TimeoutError))
                     if isinstance(exc, APIStatusError):
                         retryable = exc.status_code in {408, 409, 429} or exc.status_code >= 500
                     if not retryable or attempt >= self.limits.retries:
                         raise
-                    logger.warning("llm_transient_retry", extra={
+                    logger.warning("llm_transient_retry model=%s attempt=%d error_type=%s", safe_model, attempt + 1, type(exc).__name__, extra={
                         "model": model, "attempt": attempt + 1,
                         "error_type": type(exc).__name__, "correlation_id": correlation_id,
                     })
-                    delay=_provider_retry_delay(exc,attempt)
+                    delay=quota_delay if getattr(exc,'status_code',None)==429 else _provider_retry_delay(exc,attempt)
                     if isinstance(exc,APIStatusError) and delay>=deadline-asyncio.get_running_loop().time():
                         # Do not retry earlier than requested or extend the
                         # caller deadline for a long quota reset.
@@ -563,8 +582,14 @@ class FreeLLMService:
             raise
 
         except Exception as exc:
+            body = getattr(exc, 'body', None)
+            error = body.get('error', body) if isinstance(body, dict) else {}
+            code = error.get('code') if isinstance(error, dict) else None
+            safe_code = code if isinstance(code, str) and code in {'json_validate_failed', 'model_decommissioned', 'model_not_found', 'rate_limit_exceeded', 'context_length_exceeded', 'invalid_request_error', 'invalid_api_key'} else 'unclassified'
+            logger.warning('llm_provider_failure_code model=%s code=%s', safe_model, safe_code)
             logger.error(
-                "llm_chat_completion_failure",
+                "llm_chat_completion_failure model=%s error_type=%s status_code=%s",
+                safe_model, type(exc).__name__, getattr(exc, "status_code", None) if type(getattr(exc, "status_code", None)) is int else None,
                 extra={
                     "error_type": type(exc).__name__,
                     
@@ -770,9 +795,9 @@ class FreeLLMService:
         """Current opening selection, using shared reviewed model prose."""
         from types import SimpleNamespace
         from app.services.opening_sales_service import write_opening
-        rows = [SimpleNamespace(**p) if isinstance(p, dict) else p for p in all_products[:5]]
+        rows = [SimpleNamespace(**p) if isinstance(p, dict) else p for p in all_products[:10]]
         content, insight = await write_opening(self, rows, row_type)
-        return [{'text': content, 'insight': insight, 'products': all_products[:5], 'type': 'discovery'}]
+        return [{'text': content, 'insight': insight, 'products': all_products[:10], 'type': 'discovery'}]
 
     async def _legacy_generate_lifestyle_matrix(self, all_products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         products = [ _sanitize_product(p) for p in all_products if p ]
