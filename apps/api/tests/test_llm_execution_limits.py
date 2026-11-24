@@ -146,3 +146,27 @@ def test_retry_after_http_date_and_invalid_values():
     for value in ['nan','-1','nonsense']:
         exc.response.headers={'retry-after':value}
         assert _provider_retry_delay(exc,0)==.35
+
+@pytest.mark.asyncio
+async def test_strict_adapter_distinguishes_empty_invalid_json_and_provider_failure(caplog):
+    from app.services.free_llm_service import StructuredOutputError,ProviderUnavailableError
+    svc=service()
+    for content in ['', 'not-json']:
+        svc._chat_completion=AsyncMock(return_value=completion(content))
+        with pytest.raises(StructuredOutputError):await svc.generate_response_strict('question',json_mode=True)
+    svc._chat_completion=AsyncMock(side_effect=ConnectionError('private upstream body sentinel'))
+    with pytest.raises(ProviderUnavailableError):await svc.generate_response_strict('question')
+    assert 'private upstream body sentinel' not in caplog.text
+    assert await svc.generate_response('question')==''
+
+@pytest.mark.asyncio
+async def test_strict_adapter_preserves_text_json_and_cancellation():
+    from app.services.free_llm_service import ConfigurationError
+    svc=service();svc._chat_completion=AsyncMock(return_value=completion(' {"ok":true} '))
+    assert await svc.generate_response_strict('question',json_mode=True)=='{"ok":true}'
+    assert 'raise_on_failure' not in svc._chat_completion.await_args.kwargs
+    svc._chat_completion=AsyncMock(side_effect=asyncio.CancelledError())
+    with pytest.raises(asyncio.CancelledError):await svc.generate_response_strict('question')
+    svc.models=SimpleNamespace(brain_model=None)
+    with pytest.raises(ConfigurationError):await svc.generate_response_strict('question')
+    assert await svc.generate_response('question')==''

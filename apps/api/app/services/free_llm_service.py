@@ -567,11 +567,11 @@ class FreeLLMService:
                 "llm_chat_completion_failure",
                 extra={
                     "error_type": type(exc).__name__,
-                    "error_message": str(exc),
+                    
                     "model": model,
                     "correlation_id": correlation_id,
                 },
-                exc_info=True,
+                exc_info=False,
             )
             raise
 
@@ -587,6 +587,10 @@ class FreeLLMService:
             raise StructuredOutputError("Empty sales completion")
         return content.strip()
 
+    async def generate_response_strict(self, *args, **kwargs) -> str:
+        """Additive typed adapter; legacy empty-string callers stay compatible."""
+        return await self.generate_response(*args, **kwargs, raise_on_failure=True)
+
     async def generate_response(
         self,
         prompt: str,
@@ -595,6 +599,7 @@ class FreeLLMService:
         temperature: float = 0.7,
         json_mode: bool = False,
         max_tokens: int = 2048,
+        raise_on_failure: bool = False,
         **kwargs: Any,
     ) -> str:
         """
@@ -646,7 +651,7 @@ class FreeLLMService:
                     "llm_context_serialization_failed",
                     extra={
                         "error_type": type(ctx_exc).__name__,
-                        "error_message": str(ctx_exc),
+                        
                         "correlation_id": correlation_id,
                     },
                     exc_info=False,
@@ -673,6 +678,7 @@ class FreeLLMService:
                 "llm_generate_response_missing_model",
                 extra={"correlation_id": correlation_id},
             )
+            if raise_on_failure:raise ConfigurationError("Brain model is not configured")
             return ""
 
         safe_temperature = temperature if temperature is not None else 0.5
@@ -698,6 +704,11 @@ class FreeLLMService:
             # Preserve paragraphs and list boundaries for the chat UI.
             # JSON whitespace is also safe to preserve for json.loads callers.
             normalized = str(raw_content or "").strip()
+            if raise_on_failure:
+                if not normalized:raise StructuredOutputError("Empty model completion")
+                if json_mode:
+                    try:json.loads(normalized)
+                    except (ValueError,TypeError) as exc:raise StructuredOutputError("Invalid model JSON") from exc
 
             if json_mode:
                # في وضع الـ JSON، نفضّل إرجاع النص كما هو، مع افتراض أن المستهلك سيقوم بالـ json.loads
@@ -712,15 +723,18 @@ class FreeLLMService:
                 "llm_generate_response_critical_failure",
                 extra={
                     "error_type": type(exc).__name__,
-                    "error_message": str(exc),
+                    
                     "correlation_id": correlation_id,
                     "json_mode": json_mode,
                     "model": model_name,
                 },
-                exc_info=True,
+                exc_info=False,
             )
          # في هذا المستوى، نرجع نصاً فارغاً بدلاً من رفع الاستثناء حتى لا نكسر الـ pipeline.
          # يمكن بناء طبقة أعلى للتعامل مع هذا كسيناريو “LLM unavailable”.
+            if raise_on_failure:
+                if isinstance(exc,FreeLLMServiceError):raise
+                raise ProviderUnavailableError("Model completion unavailable") from exc
             return ""
     def _get_spontaneous_vibe(self, session_key: Optional[str] = None) -> str:
         """🎲 Random Vibe Selector. Picks a unique 'Scene' for the AI to act upon."""
