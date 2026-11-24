@@ -43,3 +43,19 @@ Injected adapters without the explicit schema method remain visibly unconstraine
 Tests use installed SDK serialization over real local HTTP sockets and real disposable PostgreSQL/Redis. Local HTTP response bodies are authored contract inputs, not recorded or sanitized provider responses. No new mock transport is used. Existing suite contains historical controlled adapters, which are not end-to-end quality evidence. External model execution is prohibited by owner limits. No raw response logging is added to obtain evidence.
 
 Owner-approved sanitized real provider responses remain an acceptance gap, as do live multilingual quality, actual rate-limit recovery and production load. Overall status: NOT PRODUCTION QUALIFIED.
+
+## Follow-up: bounded setup/target wire schemas
+
+SetupPlanWire and TargetScopeWire now use bounded arrays of typed assignments.
+Conversion retains existing dictionary state contracts. Duplicate assignment keys
+are rejected, never last-write-wins. Old dictionary responses remain accepted only
+by the local compatibility parser for retained adapters; the provider receives
+closed array-entry schemas. Exact component/target membership, literal feature
+validation and independent reviews remain unchanged. These two writer gaps from
+the earlier checkpoint are now covered in source, not yet live-provider verified.
+General legacy, vision and voice paths remain outside this scoped migration.
+
+Seven added tests include actual planner -> installed SDK -> real loopback HTTP ->
+review flows for both positive setup requirements and negative target scope.
+Local full suite: 1490 passed, 24 skipped, disposable PostgreSQL19/Redis.
+No provider execution, owner seeding or production qualification.
