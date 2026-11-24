@@ -77,3 +77,32 @@ async def test_repeated_cold_redis_bursts_keep_exact_quota_and_one_connection(re
             assert [r.status_code for r in results].count(429)==50
             assert time.perf_counter()-began<1.0
         finally:await instance.close()
+
+@pytest.mark.asyncio
+async def test_real_paused_redis_fails_closed_without_replaying_uncertain_increment(redis_server):
+    from redis.asyncio import Redis
+    url,_=redis_server;instance=build_limiter(settings(url,'100/minute'))
+    inspector=Redis.from_url(url,socket_timeout=2)
+    try:
+        assert await inspector.ping()
+        await inspector.execute_command('CLIENT','PAUSE',700,'ALL')
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=application(instance)),base_url='http://test') as client:
+            began=time.perf_counter()
+            pending=asyncio.create_task(client.get('/plain'))
+            await asyncio.sleep(.02)
+            health_started=time.perf_counter()
+            assert (await client.get('/health')).status_code==200
+            assert time.perf_counter()-health_started<.1
+            response=await pending
+            assert response.status_code==503
+            assert time.perf_counter()-began<1.2
+            await asyncio.sleep(.8)
+            keys=await inspector.keys('airdeliver:http:v2:*')
+            assert len(keys)<=1
+            before=int(await inspector.get(keys[0])) if keys else 0
+            assert before<=1  # An uncertain increment is never retried.
+            assert (await client.get('/plain')).status_code==200
+            keys=await inspector.keys('airdeliver:http:v2:*')
+            assert len(keys)==1 and int(await inspector.get(keys[0]))==before+1
+    finally:
+        await instance.close();await inspector.aclose()
