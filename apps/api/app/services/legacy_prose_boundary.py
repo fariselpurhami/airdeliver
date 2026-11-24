@@ -14,6 +14,14 @@ async def reviewed_legacy_answer(db,engine,cache,llm,message,candidates,intent=N
     infer=getattr(llm,'infer_sales_json',None)
     if not callable(infer):raise ValueError('Reviewed inference adapter unavailable')
     brief=await reviewed_current_brief(llm,message,customer_context=customer_context)
+    category=getattr(getattr(intent,'category',None),'value','')
+    # Original classifier category is task context, never commercial evidence
+    # or a substitute for the exact customer question. No personality policy.
+    tasks={'SPECIFIC_SEARCH':'search','BROAD_DISCOVERY':'consultation',
+        'COMPARISON':'comparison','PRICE_INQUIRY':'price_inquiry',
+        'SPECS_INQUIRY':'specifications','NEGOTIATION':'negotiation',
+        'OBJECTION':'objection'}
+    advisory_task=tasks.get(category,'consultation')
     names=[]
     for target in getattr(intent,'target_products',[]) or []:
         name=getattr(target,'product_name','')
@@ -35,7 +43,7 @@ async def reviewed_legacy_answer(db,engine,cache,llm,message,candidates,intent=N
     async def catalog():
         rows=await current()
         response=await service._catalog_response(db,rows,'LEGACY_REVIEWED_CATALOG',brief=brief,customer_message=message,
-            search_evidence={'shopping_task':'consultation','source_scope':'Current local catalog only, never model memory or retrieval rank as proof.','customer_only_recent_context':list(customer_context)[-5:]})
+            search_evidence={'shopping_task':advisory_task,'legacy_declared_category':category if category in tasks else None,'exact_customer_question':message,'response_policy':'Answer the exact current customer question, supported tradeoffs, unknown evidence and low-pressure next step. A declared negotiation/objection category does not prove a discount, competitor price, financial tier, concern or preference. Never invent concessions or urgency. Prior context is customer-only reference, never product proof.','source_scope':'Current local catalog only, never model memory or retrieval rank as proof.','customer_only_recent_context':list(customer_context)[-5:]})
         if response.products:
             fresh={row.id:catalog_result(row) for row in await current()}
             for card in response.products:
@@ -45,7 +53,6 @@ async def reviewed_legacy_answer(db,engine,cache,llm,message,candidates,intent=N
         return response
     token=_customer_turn_context.set(());saved=_request_preferences.set(())
     try:
-        category=getattr(getattr(intent,'category',None),'value','')
         if is_specs or category in {'COMPARISON','SPECS_INQUIRY','BROAD_DISCOVERY'}:
             # Source research never treats catalog availability as product facts.
             return await answer_product_question(infer,message,targets=tuple(names),fallback=catalog,timeout=24,customer_context=customer_context)
