@@ -18,25 +18,39 @@ lost counts remain conservative and are not silently promoted.
 - Owner: deployed configuration, data, browser delivery, readiness, recovery and
   real provider availability require receipts. No CI-to-live status promotion.
 
-## Work started November24 evening
+## Scoped work November24 evening
 
-153 strict consented preference extraction closes one empty-failure ambiguity.
-154 reviewed model intro/reasons for complete explicit-card legacy input, pending;
+153 strict consented preference extraction separates invalid completion from a
+    valid empty object; actual adapter/SQL boundaries covered.
+154 reviewed model intro/reasons for complete explicit-card legacy input;
     incomplete dictionaries retain old factual compatibility, not universal prose.
-155 exact same-family SI/IEC capacity conversion, pending; no binary/decimal mix.
-156 duplicate-key planner/reviewer rejection, pending; no hard-scope erasure.
-Each PR has its own verification note and exact-head gates. This register is not
-an implementation-success receipt or a claim all pending PRs merged.
+155 exact same-family SI/IEC capacity conversion; no binary/decimal mix.
+156 duplicate-key planner/reviewer rejection; no hard-scope erasure.
+157 original252 method inventory and canonical55 identity/live-evidence tripwires.
+158 retained explicit idle hook uses shared currentSQL/review/publication; dormant,
+    no hidden timer or new unsolicited customer engagement policy.
+159 explicit Arabic typed capacity/bounds evidence at literal catalog gate;
+    not general multilingual feature extraction or target assignment.
+160 shared structured inference return rejects ambiguous/nonfinite/nonobject JSON;
+    writer/review failures remain correctly classified as schema, not provider.
+161 strict JSON completion adapter rejects the same ambiguity; plain-text and
+    historical non-strict shape retained, no broader preference collection.
+Each PR has its own verification note and exact-head gates. This register lists
+scope, not merge status. Consult the PR for current head/check/merge state; no
+pending or merged entry implies deployed/live/model-quality acceptance.
 
 ## Still open after those scoped changes
 
 Full intent/command and explicit-customer strategy breadth; broader multilingual
 constraint extraction/assignment; consented behavior lifecycle unification;
-dormant commerce/idle orchestration caller coverage; remaining legacy typed
+dormant commerce/idle orchestration caller activation/coverage; remaining legacy typed
 adapters and incomplete-card prose handling. Hidden inferred sensitive/DNA traits,
 fabricated urgency/stock and inferred commercial side effects are not restoration
 targets. Live semantic/entailment/vision/setup/load/delivery acceptance remains
 separate. No blanket claim of world-class quality or permanent completeness.
 
-Granite owner build/activation/retirement is independent. Do not restart owner
-services or alter source/model/index data during the candidate build.
+Granite owner build/activation/retirement is independent. Owner receipts for
+configuration, stored-vector query and per-ID readback do not certify end-to-end
+natural-language query quality. Old-state retirement needs its own exact target,
+recovery and approval checkpoint. Do not restart owner services or alter stores
+as a side effect of these feature PRs.
