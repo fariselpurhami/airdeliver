@@ -138,7 +138,7 @@ async def verify(settings,compose,backend):
         try:
             os.environ['APP_ENV']='development';os.environ['AIRDELIVER_DEV_FIXTURES']='true';get_core_settings.cache_clear()
             payload=ImportFile.model_validate(generate(7))
-            for product in payload.products:product.sku+='-'+identity
+            for product in payload.products:product.sku+='-'+settings.opensearch_index.removeprefix('airdeliver_seed_e2e_')
             sessions=async_sessionmaker(service._postgres._engine,expire_on_commit=False)
             async with sessions() as db:
                 snapshots,created=await persist_import(db,payload)
