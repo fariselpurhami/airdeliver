@@ -151,7 +151,7 @@ async def answer_product_question(infer,question,*,lookup=None,timeout=12,cards=
             if not sources:
                 if fallback is not None:
                     catalog=await fallback()
-                    if catalog.products or catalog.response_kind=='system_notice':return catalog
+                    if catalog.products or catalog.response_kind in {'system_notice','clarification'}:return catalog
                 raise SourceFailure(failures[0] if failures else 'empty_results')
             from app.services.research_evidence_budget import pack_sources
             sources=pack_sources(sources,question,targets)

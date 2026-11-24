@@ -469,7 +469,7 @@ class NeuralCoreService:
         text=(f"Review adding {decision.quantity} × {product.name}." if operation=="add" else f"Review removing the entire {product.name} line from your cart.")
         return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
 
-    async def _handle_scoped_target_search(self,db,decision,brief,message,memory):
+    async def _handle_scoped_target_search(self,db,decision,brief,message,memory,*,catalog_only=False):
         from app.services.target_constraint_scope import assign_target_scope
         try:
             names=[target.product_name for target in decision.targets]
@@ -487,7 +487,8 @@ class NeuralCoreService:
                 setattr(scoped,field,[f for f in values if f not in assigned])
                 for target in decision.targets:setattr(target,field,combined.get(target.product_name,[]))
                 retained[state_field]=combined
-            response=await self._handle_staged_product_search(db,decision,scoped,message)
+            response=(await self._handle_staged_catalog_search(db,decision,scoped,message) if catalog_only
+                      else await self._handle_staged_product_search(db,decision,scoped,message))
             if response.response_kind!='system_notice':
                 for field,values in retained.items():setattr(memory,field,values)
             return response
@@ -520,10 +521,12 @@ class NeuralCoreService:
             return NeuralCoreResponse(text='I could not verify a useful component plan. Which main use and essential components should the setup cover?',
                 response_kind='text',confidence=0,explain='Setup plan unavailable',telemetry={'intent':'SETUP_DISCOVERY','entities':[],'turn':0})
 
-    async def _handle_staged_product_search(self,db,decision,brief,message):
+    async def _handle_staged_product_search(self,db,decision,brief,message,*,memory=None):
         if self.is_healthy and decision.shopping_task in {'comparison','specifications','consultation'}:
             from app.services.product_knowledge_service import answer_product_question
             async def catalog_fallback():
+                if memory is not None and (memory.target_requirements or memory.target_exclusions or (len(decision.targets)>1 and (brief.required_features or brief.excluded_terms))):
+                    return await self._handle_scoped_target_search(db,decision,brief,message,memory,catalog_only=True)
                 return await self._handle_staged_catalog_search(db,decision,brief,message)
             return await answer_product_question(self._execute_llm_inference,message,
                 timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,fallback=catalog_fallback,
@@ -959,7 +962,7 @@ class NeuralCoreService:
                     if decision.shopping_task in {'search','price_inquiry','negotiation','objection'} and (memory.target_requirements or memory.target_exclusions or (len(decision.targets)>1 and (memory.shopping_brief.required_features or memory.shopping_brief.excluded_terms))):
                         response=await self._handle_scoped_target_search(db,decision,memory.shopping_brief,message,memory)
                     else:
-                        response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message)
+                        response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message,memory=memory)
                 else:
                     response = await self._handle_product_search(db, query, memory.shopping_brief, message, decision)
         
