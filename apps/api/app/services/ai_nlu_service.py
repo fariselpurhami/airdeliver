@@ -2575,10 +2575,16 @@ class AINLUService:
             raise ValueError("message_payload must be a mapping")
 
         raw_user_id = payload.get("user_id")
-        try:
-            user_id = int(raw_user_id)
-        except Exception as exc:
-            raise ValueError("user_id is required and must be an integer") from exc
+        # Retain canonical decimal bus strings, but never coerce booleans,
+        # floats, signs, whitespace or exponent notation to another owner.
+        if type(raw_user_id) is int:
+            user_id=raw_user_id
+        elif isinstance(raw_user_id,str) and re.fullmatch(r'[1-9][0-9]{0,9}',raw_user_id):
+            user_id=int(raw_user_id)
+        else:
+            raise ValueError("user_id is required and must be a positive integer")
+        if not 0<user_id<=2147483647:
+            raise ValueError("user_id is outside the supported identity range")
 
         raw_type = str(payload.get("type", MessageType.CHAT_MESSAGE.value)).strip().upper()
         try:
