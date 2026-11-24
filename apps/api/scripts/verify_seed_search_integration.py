@@ -123,6 +123,43 @@ async def verify(settings,compose,backend):
         assert {int(hit['_id']) for hit in indexed['hits']['hits']}==ids
         print(json.dumps({'result':'passed','postgres_rows':len(rows),'milvus_rows':len(vectors),'opensearch_rows':len(indexed['hits']['hits']),
                           'object_storage':backend,'milvus_recreated_without_local_cache':True,'embedding_dimension':service._embedding.dimension,'model':'all-MiniLM-L6-v2','rerun_inserted':second['inserted'],'scope':'isolated test indexes, not the production GTE model'}))
+        # New importer reaches actual learned embeddings and both real sinks,
+        # independently of the legacy seeder run above. UUID-local resources only.
+        from app.core.config import get_core_settings
+        from app.services.real_catalog_import import ImportFile,persist_import,sync_import
+        from scripts.generate_dev_catalog import generate
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+        previous={key:os.environ.get(key) for key in ('APP_ENV','AIRDELIVER_DEV_FIXTURES')}
+        fixture_ids=[]
+        try:
+            os.environ['APP_ENV']='development';os.environ['AIRDELIVER_DEV_FIXTURES']='true';get_core_settings.cache_clear()
+            payload=ImportFile.model_validate(generate(7))
+            for product in payload.products:product.sku+='-'+identity
+            sessions=async_sessionmaker(service._postgres._engine,expire_on_commit=False)
+            async with sessions() as db:
+                snapshots,created=await persist_import(db,payload)
+                fixture_ids=[row['id'] for row in snapshots]
+                repeated,again=await persist_import(db,payload)
+                assert created['create']==7 and again['create']==0 and [row['id'] for row in repeated]==fixture_ids
+            confirmed=await sync_import(snapshots,service._embedding,service._milvus,service._opensearch)
+            assert confirmed=={'milvus':7,'opensearch':7}
+            # Rerun indexing also uses stable primary IDs, never duplicate offers.
+            assert await sync_import(repeated,service._embedding,service._milvus,service._opensearch)==confirmed
+            await asyncio.to_thread(client.flush,settings.milvus_collection)
+            actual=await asyncio.to_thread(client.query,collection_name=settings.milvus_collection,filter='id in '+json.dumps(fixture_ids),output_fields=['id','_seed_dataset'],consistency_level='Strong',limit=100)
+            assert {row['id'] for row in actual}==set(fixture_ids) and all(row['_seed_dataset']=='airdeliver-dev-fixtures-v1' for row in actual)
+            await service._opensearch._client.indices.refresh(index=settings.opensearch_index)
+            actual_search=await service._opensearch._client.search(index=settings.opensearch_index,body={'query':{'ids':{'values':[str(i) for i in fixture_ids]}},'size':100})
+            assert {int(hit['_id']) for hit in actual_search['hits']['hits']}==set(fixture_ids)
+            assert all(hit['_source']['attributes']['_seed_dataset']=='airdeliver-dev-fixtures-v1' for hit in actual_search['hits']['hits'])
+            print(json.dumps({'validated_dev_import':'passed','sql':7,'milvus':7,'opensearch':7,'stable_rerun':True,'real_inventory':False,'model':'isolatedMiniLM384, not GTEquality'}))
+        finally:
+            for key,value in previous.items():
+                if value is None:os.environ.pop(key,None)
+                else:os.environ[key]=value
+            get_core_settings.cache_clear()
+            async with service._postgres._engine.begin() as db:
+                await db.execute(text('DELETE FROM products WHERE id=ANY(CAST(:ids AS integer[]))'),{'ids':fixture_ids})
         # Keep only the unrelated test fixtures in the shared disposable DB.
         async with service._postgres._engine.begin() as db:
             await db.execute(text('DELETE FROM products WHERE sku LIKE :pattern'),{'pattern':pattern})
