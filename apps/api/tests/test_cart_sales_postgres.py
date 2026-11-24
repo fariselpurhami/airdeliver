@@ -121,3 +121,13 @@ async def test_confirmed_remove_forwards_explicit_reason_only_to_optional_worker
     assert len(events)==1 and events[0]['removal_reason']=='too costly'
     assert events[0]['operation']=='removed'
     assert all('removal_reason' not in payload for payload,key in published if key!='airdeliver.ai.cart.recommendation')
+
+
+@pytest.mark.asyncio
+async def test_add_optional_event_preserves_legacy_shape_without_null_reason():
+    from app.services.ai_cart_service import AICartService
+    published=[]
+    async def publish(payload,key,**kwargs):
+        published.append(payload);return SimpleNamespace(is_success=True)
+    await AICartService(None,None,SimpleNamespace(publish=publish))._request_optional_recommendations(17,7,'added','must be stripped')
+    assert published==[{'version':1,'user_id':17,'product_id':7,'operation':'added'}]

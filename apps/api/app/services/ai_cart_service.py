@@ -354,7 +354,7 @@ class AICartService:
         try:
             event = CartRecommendationEvent(user_id=user_id, product_id=product_id, operation=operation,removal_reason=removal_reason if operation=="removed" else None)
             async with asyncio.timeout(1.0):
-                outcome = await self.rabbitmq.publish(event.model_dump(), CART_RECOMMENDATION_ROUTING_KEY, max_retries=1)
+                outcome = await self.rabbitmq.publish(event.model_dump(exclude_none=True), CART_RECOMMENDATION_ROUTING_KEY, max_retries=1)
             if not outcome.is_success:
                 logger.warning("cart optional recommendation event unconfirmed")
         except Exception as exc:
