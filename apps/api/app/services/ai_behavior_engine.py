@@ -590,39 +590,40 @@ class BehaviorEngine:
             header_struct = struct.Struct("di")
 
             for event in batch:
+                if not isinstance(event,dict):
+                    continue
                 uid = event.get("u")
                 dim = event.get("d")
                 ts = event.get("ts")
                 action = event.get("a")
                 vector = event.get("v")
 
-                # حماية خلفية ضد البيانات الناقصة
-                if uid is None or dim is None or ts is None or action is None or vector is None:
-                    logger.warning("Incomplete event packet received in synaptic buffer. Skipping.")
+                # Validate again at the drained queue boundary. Never derive a
+                # Redis namespace or inference work from coerced packet fields.
+                if type(uid) is not int or not 0<uid<=2147483647:
                     continue
-
-                if not isinstance(uid, (str, int)):
-                    logger.error(f"Invalid user id: {uid}. Skipping event.")
+                if type(dim) is not int or f"dim_{dim}" not in self.net_config.supported_dims or f"dim_{dim}" not in self.embedding_sources:
                     continue
-
-                if not isinstance(dim, int) or dim <= 0:
-                    logger.error(f"Invalid dimension for user {uid}: {dim}. Skipping event.")
+                if type(action) is not int or not 0<=action<len(ACTION_MAP):
                     continue
-
-                if not isinstance(vector, (list, tuple)) or len(vector) != dim:
-                    logger.error(f"Invalid vector for user {uid}: expected {dim} values. Skipping event.")
+                if type(ts) not in (int,float) or not math.isfinite(ts) or not 0<ts<=time.time()+60 or time.time()-ts>86400:
                     continue
-
-                users_to_update.add(uid)
-
+                if not isinstance(vector,(list,tuple)) or len(vector)!=dim:
+                    continue
+                if not all(type(value) in (int,float) and math.isfinite(value) and abs(value)<=3.4028234663852886e38 for value in vector):
+                    continue
+                price=event.get("price");item_id=event.get("item_id")
+                if price is not None and (type(price) not in (int,float) or not math.isfinite(price) or price<0):
+                    continue
+                if item_id is not None and (type(item_id) is not int or not 0<item_id<=2147483647):
+                    continue
                 stream_key = self.stream_key(uid, dim)
                 active_dim_key = self._key_active_dim(uid)
-
                 try:
                     payload = header_struct.pack(ts, action) + struct.pack(f"{dim}f", *vector)
-                except struct.error as exc:
-                    logger.error(f"Failed to encode event for user {uid}: {exc}. Skipping event.")
+                except (struct.error,OverflowError):
                     continue
+                users_to_update.add(uid)
 
                 # This cache uses decode_responses=True. Persist ASCII rather
                 # than arbitrary binary which Redis cannot decode as UTF-8.
