@@ -1617,6 +1617,9 @@ class UiGateway:
     async def _publish(self, user_id: int, payload: Dict[str, Any], correlation_id: str, *, required: bool) -> None:
         channel = RedisKeys.ui_channel(user_id)
         envelope = dict(payload)
+        if isinstance(envelope.get('products'),list):
+            from app.services.catalog_visibility import is_synthetic
+            envelope['products']=[p for p in envelope['products'] if not is_synthetic(p)]
         envelope["meta"] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "node": "diamond_nlu_ultra_v1",

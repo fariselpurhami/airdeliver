@@ -128,6 +128,8 @@ class VoiceToolExecutor:
             filters=filters
         )
 
+        from app.services.catalog_visibility import is_synthetic
+        products=[p for p in products if not is_synthetic(p)]
         if not products:
             return json.dumps({"status": "NO_MATCHES", "message": "No verified products found matching criteria."})
 

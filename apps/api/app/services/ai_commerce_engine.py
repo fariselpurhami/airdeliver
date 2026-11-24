@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.core.ai_profile import get_ai_profile
 from app.services.ai_adapters import LocalRetrievalAdapter
 from app.services.complement_evidence import catalog_asserts_complement
+from app.services.catalog_visibility import is_synthetic,real_catalog_predicates
 from app.core.catalog_contract import PRODUCT_TEXT_MODEL_NAME, PRODUCT_TEXT_MODEL_DIMENSION, PRODUCT_TEXT_COLLECTION, DEFAULT_PRODUCT_TEXT_MODEL_REVISION
 
 import asyncio
@@ -1083,7 +1084,7 @@ class AICommerceEngine:
                     select(Product)
                     .where(
                         Product.category == removed_item.category,
-                        Product.is_active.is_(True),
+                        Product.is_active.is_(True),*real_catalog_predicates(Product),
                         Product.id != removed_id,
                         Product.price >= price_min,
                         Product.price <= price_max,
@@ -1507,7 +1508,7 @@ class AICommerceEngine:
         """Recheck indexed/cache hits against current database catalog facts."""
         excluded = set(filters.excluded_ids or [])
         return [product for product in products
-                if product.is_active and product.id not in excluded
+                if not is_synthetic(product) and product.is_active and product.id not in excluded
                 and (filters.price_min is None or product.price >= filters.price_min)
                 and (filters.price_max is None or product.price <= filters.price_max)
                 and (not filters.category or product.category == filters.category)]
@@ -1537,7 +1538,7 @@ class AICommerceEngine:
                 .limit(limit)
             )
             filters = filters or SearchFilter()
-            statement = statement.where(Product.is_active.is_(True))
+            statement = statement.where(Product.is_active.is_(True),*real_catalog_predicates(Product))
             if filters.price_min is not None:
                 statement = statement.where(Product.price >= filters.price_min)
             if filters.price_max is not None:

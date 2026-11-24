@@ -31,6 +31,7 @@ from tenacity import (
 from app.services.shopping_discovery import ShoppingBrief, catalog_result
 from app.services.sales_response_service import SalesResponseRequest, SalesResponseService
 from app import models
+from app.services.catalog_visibility import is_synthetic
 from app.schemas.ai_actions import (
     NeuralCoreResponse,
     CartReviewAction,
@@ -359,7 +360,7 @@ class NeuralCoreService:
         if len(matches)!=1:
             return reply("I could not identify one exact product. Open the catalog and choose its add/remove control, or send the full product name. Your cart has not changed.")
         product=await db.get(models.Product,matches[0].id,populate_existing=True)
-        if not product or not product.is_active or product.currency.upper()!="USD":
+        if not product or is_synthetic(product) or not product.is_active or product.currency.upper()!="USD":
             return reply("That product is unavailable for this USD cart. Your cart has not changed.")
         operation="add" if decision.intent=="CART_ADD" else "remove"
         if operation=="add" and product.inventory<decision.quantity:
@@ -451,7 +452,7 @@ class NeuralCoreService:
             cards=[]
             for pid in ids:
                 card=catalog_result(by_id[pid]) if pid in by_id else None
-                if card:cards.append(card)
+                if card and card.evidence_kind=="local_catalog":cards.append(card)
             return cards
         cards=await current_cards(products)
         evidence={"requested_name":decision.requested_name if decision else None,

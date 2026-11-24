@@ -9,6 +9,7 @@ from app.db.session import get_async_session
 from app.api import deps
 
 from app.services.product_serialization import serialize_product
+from app.services.catalog_visibility import is_synthetic,real_catalog_predicates
 
 router = APIRouter()
 
@@ -27,7 +28,7 @@ async def read_products(
     if page is not None and page > 1:
         skip = (page - 1) * limit
 
-    stmt = select(models.Product)
+    stmt = select(models.Product).where(models.Product.is_active.is_(True),*real_catalog_predicates(models.Product))
     if category:
         stmt = stmt.where(models.Product.category == category)
 
@@ -37,6 +38,7 @@ async def read_products(
 
     enriched_products = []
     for p in products_from_db:
+        if is_synthetic(p):continue
         data = serialize_product(p)
 
 
@@ -70,7 +72,7 @@ async def get_product_suggestions(
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
     source_product = await db.get(models.Product, product_id)
-    if not source_product:
+    if not source_product or is_synthetic(source_product):
         raise HTTPException(status_code=404, detail="Source product not found")
 
     purchased_product_ids = set()
@@ -89,6 +91,7 @@ async def get_product_suggestions(
         suggestions = (
             await db.execute(
                 select(models.Product)
+                .where(models.Product.is_active.is_(True),*real_catalog_predicates(models.Product))
                 .where(
                     models.Product.category == source_product.category,
                     models.Product.id.notin_(purchased_product_ids),
@@ -103,6 +106,7 @@ async def get_product_suggestions(
         fallback_suggestions = (
             await db.execute(
                 select(models.Product)
+                .where(models.Product.is_active.is_(True),*real_catalog_predicates(models.Product))
                 .where(models.Product.id.notin_(purchased_product_ids))
                 .limit(needed)
             )
@@ -111,6 +115,7 @@ async def get_product_suggestions(
 
     formatted_suggestions = []
     for p in suggestions:
+        if is_synthetic(p):continue
         data = serialize_product(p)
 
 
@@ -125,12 +130,12 @@ async def get_featured_recommendation(
     db: AsyncSession = Depends(get_async_session),
 ):
     result = await db.execute(
-        select(models.Product).order_by(models.Product.inventory.asc()).limit(1)
+        select(models.Product).where(models.Product.is_active.is_(True),*real_catalog_predicates(models.Product)).order_by(models.Product.inventory.asc()).limit(1)
     )
     # 🚀 التعديل هنا: إضافة .scalars() قبل .first()
     featured_product = result.scalars().first()
 
-    if not featured_product:
+    if not featured_product or is_synthetic(featured_product):
         raise HTTPException(
             status_code=404, detail="No products available to feature"
         )

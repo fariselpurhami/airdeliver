@@ -22,6 +22,7 @@ from app.services.rabbitmq_service import RabbitMQService
 from app.models.order import Order, OrderItem
 from app.schemas.shipping import ShippingAddress
 from app.models.product import Product
+from app.services.catalog_visibility import is_synthetic
 from app.models.enums import OrderStatus, CancellationReason
 
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -242,7 +243,7 @@ class AICheckoutService:
                     raw_price = str(item.get("price", "0.00"))
                     cart_price = Decimal(raw_price)
                     product = await self.db.get(Product, product_id, with_for_update=True)
-                    if product is None or not product.is_active or product.inventory < counts[product_id]:
+                    if product is None or is_synthetic(product) or not product.is_active or product.inventory < counts[product_id]:
                         raise ValueError("Product is unavailable or no longer has sufficient stock")
                     if product.currency.upper() != self.DEFAULT_CURRENCY.upper():
                         raise ValueError("Product currency does not match checkout currency")

@@ -15,7 +15,7 @@ from app.services.shopping_discovery import ShoppingBrief
 pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='requires migrated disposable PostgreSQL')
 
 @pytest.mark.asyncio
-async def test_current_cards_survive_http_but_stale_inactive_deleted_candidates_do_not(capsys):
+async def test_synthetic_inactive_deleted_candidates_never_publish_but_rows_remain(capsys):
     engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False)
     ids=[]
     try:
@@ -29,14 +29,11 @@ async def test_current_cards_survive_http_but_stale_inactive_deleted_candidates_
             await db.execute(update(Product).where(Product.id==ids[1]).values(is_active=False))
             await db.execute(delete(Product).where(Product.id==ids[2]));await db.commit()
         svc=NeuralCoreService(SimpleNamespace(perform_hybrid_search_pure=AsyncMock(return_value=rows+rows)),object());svc.is_healthy=True
-        draft=dict(text='Compare the demo catalog card below. Its price and stock are synthetic, not a merchant offer.',product_ids=[],claims=[])
+        draft=dict(text='No eligible current catalog product was found.',product_ids=[],claims=[])
         svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(draft),json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))])
         async with sessions() as db:
             response=await svc._handle_product_search(db,'bags')
-        assert len(response.products)==1
-        card=response.products[0]
-        assert (card.id,card.name,card.price,card.currency,card.stock_status)==(ids[0],'Current catalog bag','28.50','EUR','demo')
-        assert card.evidence_kind=='seeded_demo'
+        assert response.products==[]
         assert response.text==draft['text']
         from scripts.inspect_catalog_product import inspect
         await inspect('Current catalog bag',engine)
@@ -63,8 +60,7 @@ async def test_current_cards_survive_http_but_stale_inactive_deleted_candidates_
             async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
                 resp=await client.post('/api/v1/ai-support/chat',json={'message':'bags','session_id':'test-evidence'})
             assert resp.status_code==200,resp.text
-            assert resp.json()['products'][0]['id']==ids[0]
-            assert resp.json()['products'][0]['currency']=='EUR'
+            assert resp.json()['products']==[]
             assert resp.json()['text']==draft['text']
         finally:app.dependency_overrides.clear()
     finally:
