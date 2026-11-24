@@ -39,3 +39,14 @@ def test_customer_literal_grounding_and_actual_catalog_gate(feature,expected):
     assert brief.required_features==[feature]
     assert brief.permits(card) is expected
     assert ShoppingBrief(excluded_terms=['٣٢ جيجابايت رام']).grounded('بدون ٣٢ جيجابايت رام').permits(card) is False
+
+@pytest.mark.parametrize('name',[
+ 'لابتوب ١٦ جيجابايت رام أو ٣٢ جيجابايت رام',
+ 'لابتوب خيارات ١٦ جيجابايت رام',
+ 'لابتوب ١٦ جيجابايت رام / ٣٢ جيجابايت رام',
+])
+def test_arabic_name_variants_cannot_be_single_capacity_evidence(name):
+    assert supported_capacity('١٦ جيجابايت رام',{},name) is False
+
+def test_unambiguous_current_name_literal_capacity_retained():
+    assert supported_capacity('١٦ جيجابايت رام',{},'لابتوب ١٦ جيجابايت رام') is True

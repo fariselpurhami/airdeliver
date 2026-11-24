@@ -7,9 +7,9 @@ arbitrary prose, infer capacities from a product category or change kind identit
 Decimal/binary unit families remain separate. RAM is not storage; SSD is not an
 alias for generic storage. Ambiguous variant values do not satisfy a capacity.
 
-Twenty-one additional tests cover same-kind conversion, wrong-kind rejection,
+Twenty-five additional tests cover same-kind conversion, wrong-kind rejection,
 SI/IEC separation, malformed/ambiguous data, Arabic bounds and the actual grounded
-ShoppingBrief/CatalogResult required/excluded gate. All51 capacity tests pass.
+ShoppingBrief/CatalogResult required/excluded gate. All55 capacity tests pass. Ambiguous Arabic name variants cannot become single-capacity evidence.
 This narrows CAP13/23/26 implementation breadth. General multilingual extraction,
 assignment, live model quality and physical compatibility remain unverified.
 No provider calls, model changes, owner steps, data changes or Granite interference.

@@ -42,7 +42,7 @@ def supported_capacity(feature,specs,name=''):
         return False if bound else None
     # Preserve literal typed capacity in a current product name as evidence.
     # Reject ambiguous variant/option syntax instead of selecting a maximum.
-    if comparator=='eq' and isinstance(name,str) and not re.search(r'\b(?:or|option|options|variant|variants)\b|[/|]',name,re.I):
+    if comparator=='eq' and isinstance(name,str) and not re.search(r'\b(?:or|option|options|variant|variants|أو|او|خيارات|خيار|نسخ|نسخة)\b|[/|]',name,re.I):
         normalized=re.sub(r'\s+','',feature.casefold())
         pattern=r'(?<!\w)'+r'\s*'.join(re.escape(c) for c in normalized)+r'(?!\w)'
         if re.search(pattern,name.casefold()):return True
