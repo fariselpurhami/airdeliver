@@ -14,3 +14,9 @@ def test_literal_constraints_survive_grounding_but_model_inventions_do_not():
     assert not grounded.permits(card('Laptop',{'memory':'8GB RAM','color':'blue'}))
     assert not grounded.permits(card('Laptop',{'memory':'16GB RAM','color':'red'}))
     assert not grounded.permits(card('Laptop',{}))
+
+
+def test_typographic_capacity_spacing_does_not_reject_same_explicit_feature():
+    brief=ShoppingBrief(required_features=['16GB RAM'])
+    assert brief.permits(card('Laptop',{'memory':'16 GB RAM'}))
+    assert not brief.permits(card('Laptop',{'memory':'8 GB RAM'}))

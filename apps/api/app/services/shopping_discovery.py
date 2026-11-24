@@ -42,11 +42,13 @@ class ShoppingBrief(BaseModel):
         return ShoppingBrief(**fields)
 
     def permits(self,card: CatalogResult) -> bool:
-        evidence=' '.join([card.name,card.category or '',*card.catalog_specs.keys(),*card.catalog_specs.values()]).casefold()
-        if any(term.casefold() in evidence for term in self.excluded_terms):return False
-        # Literal explicit requirements stay hard. Missing structured evidence
-        # never becomes a match just because retrieval found a similar name.
-        if any(term.casefold() not in evidence for term in self.required_features):return False
+        import re
+        normalize=lambda value:re.sub(r'\s+','',str(value).casefold())
+        evidence=normalize(' '.join([card.name,card.category or '',*card.catalog_specs.keys(),*card.catalog_specs.values()]))
+        if any(normalize(term) in evidence for term in self.excluded_terms):return False
+        # Ignore typographic spacing only. Do not infer missing features or
+        # normalize unit magnitudes without an explicit capacity contract.
+        if any(normalize(term) not in evidence for term in self.required_features):return False
         if self.budget_max is None:return True
         return (card.currency==self.budget_currency and card.price is not None and
                 Decimal(card.price)<=Decimal(self.budget_max))
