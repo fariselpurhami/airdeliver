@@ -23,3 +23,13 @@ async def test_scoped_target_state_preserves_omission_and_shared_constraints():
     _,scoped,brief,_=svc._handle_staged_product_search.await_args.args
     assert scoped.targets[0].required_features==['16GB RAM'] and scoped.targets[1].required_features==[]
     assert brief.required_features==['black'] and memory.target_requirements=={'laptop':['16GB RAM']}
+
+
+@pytest.mark.asyncio
+async def test_prior_target_identity_change_withholds_before_model_or_catalog():
+    memory=SessionMemory(user_name='Fixture',target_requirements={'laptop':['16GB RAM']})
+    svc=NeuralCoreService(object(),object());svc._execute_llm_inference=AsyncMock();svc._handle_staged_product_search=AsyncMock()
+    decision=RouterDecision(intent='PRODUCT_SEARCH',targets=[SearchTarget(product_name='notebook')])
+    result=await svc._handle_scoped_target_search(None,decision,ShoppingBrief(required_features=['16GB RAM']),'more notebook',memory)
+    assert result.response_kind=='clarification'
+    svc._execute_llm_inference.assert_not_awaited();svc._handle_staged_product_search.assert_not_awaited()

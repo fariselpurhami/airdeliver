@@ -257,7 +257,7 @@ async def test_http_constraint_history_preserves_or_explicitly_replaces_literal_
         await engine.dispose()
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('scoped,width',[(False,'120cm'),(True,'120cm'),(True,'90cm')])
+@pytest.mark.parametrize('scoped,width',[(False,'120cm'),(True,'120cm'),(True,'90cm'),(True,'reject')])
 async def test_target_scope_http_current_cards_and_two_turn_persistence(real_cache,scoped,width):
     from httpx import AsyncClient,ASGITransport
     from app.main import app
@@ -281,7 +281,7 @@ async def test_target_scope_http_current_cards_and_two_turn_persistence(real_cac
             if 'Assign existing hard features' in prompt:
                 plan_calls+=1
                 return json.dumps({'assignments':{'desk':['120cm']} if scoped and plan_calls==1 else {}})
-            if 'Review exact target/feature scope' in prompt:return json.dumps({'explicit_scope':True})
+            if 'Review exact target/feature scope' in prompt:return json.dumps({'explicit_scope':width!='reject'})
             data=json.loads(messages[1]['content'])
             if 'catalog_evidence' in data:
                 assert data['request_evidence']['shopping_task']=='search'
@@ -299,8 +299,11 @@ async def test_target_scope_http_current_cards_and_two_turn_persistence(real_cac
                 if scoped:
                     response=await client.post('/api/v1/ai-support/chat',json={'message':'more home office setup desk and chair options','session_id':'setup-real-test'})
             assert response.status_code==200,response.text
-            assert [p['id'] for p in response.json()['products']]==(ids[1:] if scoped and width=='90cm' else ids)
-            assert 'Compatibility' in response.json()['text']
+            if width=='reject':
+                assert response.json()['response_kind']=='clarification' and response.json()['products']==[]
+            else:
+                assert [p['id'] for p in response.json()['products']]==(ids[1:] if scoped and width=='90cm' else ids)
+                assert 'Compatibility' in response.json()['text']
         finally:app.dependency_overrides.clear()
     finally:
         async with sessions() as db:
