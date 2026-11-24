@@ -956,7 +956,7 @@ class NeuralCoreService:
                     # stock-only advice when the router omitted its target list.
                     decision.targets=[SearchTarget(product_name=query)]
                 if decision.targets:
-                    if decision.shopping_task=='search' and (memory.target_requirements or memory.target_exclusions or (len(decision.targets)>1 and (memory.shopping_brief.required_features or memory.shopping_brief.excluded_terms))):
+                    if decision.shopping_task in {'search','price_inquiry','negotiation','objection'} and (memory.target_requirements or memory.target_exclusions or (len(decision.targets)>1 and (memory.shopping_brief.required_features or memory.shopping_brief.excluded_terms))):
                         response=await self._handle_scoped_target_search(db,decision,memory.shopping_brief,message,memory)
                     else:
                         response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message)
