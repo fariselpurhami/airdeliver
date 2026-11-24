@@ -217,7 +217,9 @@ def validate_draft(draft, cards, context=None, brief=None):
         numeric_text=re.sub(r'(?<![\d.])'+amount+r'\s*(?:[- ]?(?:US\s*)?dollars?|USD|\$)?\s+budget\b','customer budget',numeric_text,flags=re.I)
         numeric_text=re.sub(r'\byour\s+(?:USD\s*|\$\s*)?'+amount+r'\s*(?:[- ]?(?:US\s*)?dollars?|USD|\$)?\s+(?:budget|limit|cap)\b','customer budget',numeric_text,flags=re.I)
     numbers=re.findall(r'\d+(?:[.,]\d+)*',numeric_text)
-    allowed=' '.join(c.value for c in draft.claims)
+    # Match complete numeric tokens, never substrings such as16 inside116
+    # or9 inside99. Claims have already passed exact field-value equality.
+    allowed={n for claim in draft.claims for n in re.findall(r'\d+(?:[.,]\d+)*',claim.value)}
     if any(n not in allowed for n in numbers) or re.search(r'https?://|www\.',draft.text,re.I):
         raise ValueError('unsupported_numeric_or_link_claim')
 
