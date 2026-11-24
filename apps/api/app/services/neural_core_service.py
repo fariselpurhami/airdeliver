@@ -391,7 +391,8 @@ class NeuralCoreService:
             async def catalog_fallback():
                 return await self._handle_staged_catalog_search(db,decision,brief,message)
             return await answer_product_question(self._execute_llm_inference,message,
-                timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,fallback=catalog_fallback)
+                timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,fallback=catalog_fallback,
+                targets=tuple(t.product_name for t in decision.targets))
         return await self._handle_staged_catalog_search(db,decision,brief,message)
 
     async def _handle_staged_catalog_search(self,db,decision,brief,message):

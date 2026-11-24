@@ -97,7 +97,7 @@ async def test_product_research_http_no_catalog_stock_requirement(real_cache,mon
         if 'primary cognitive routing' in messages[0]['content']:
             return json.dumps(dict(intent='PRODUCT_SEARCH',query='Phone 17 Pro Max',search_subject='Phone 17 Pro Max',shopping_task=task,targets=[{'product_name':'Phone 17 Pro Max'}]))
         if 'Extract source-backed' in messages[0]['content']:
-            return json.dumps({'facts':[{'label':'Display','statement':'The source lists an OLED display.','quote':'Phone 17 Pro Max has an OLED display.','source':0}]})
+            return json.dumps({'covered_targets':['Phone 17 Pro Max'],'facts':[{'label':'Display','statement':'The source lists an OLED display.','quote':'Phone 17 Pro Max has an OLED display.','source':0}]})
         return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
     svc._execute_llm_inference=infer
     async def get_db():

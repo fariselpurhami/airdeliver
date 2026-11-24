@@ -86,3 +86,18 @@ async def test_tavily_source_transport_is_fixed_url_and_preserves_provenance(mon
     assert result==[{'url':'https://maker.example/spec','text':'Actual source excerpt'}]
     assert str(seen[0].url)=='https://api.tavily.com/search'
     assert json.loads(seen[0].content)['include_answer'] is False
+
+@pytest.mark.asyncio
+async def test_missing_comparison_target_is_explicit_not_borrowed_from_other_product():
+    async def lookup(q):return [{'url':'https://maker.example/spec','text':'Alpha has a wired connection.'}]
+    infer_results=iter([json.dumps({'covered_targets':['Alpha'],'facts':[{'label':'Alpha connection','quote':'Alpha has a wired connection.','source':0}]}),json.dumps({'supported':True,'exact_model':True,'product_information_only':True})])
+    async def infer(messages):return next(infer_results)
+    result=await answer_product_question(infer,'Compare Alpha and Beta',targets=('Alpha','Beta'),lookup=lookup)
+    assert 'not verified for: Beta' in result.text and 'not a complete comparison' in result.text
+
+@pytest.mark.asyncio
+async def test_invented_target_coverage_cannot_publish():
+    async def lookup(q):return [{'url':'https://maker.example/spec','text':'Alpha facts.'}]
+    async def infer(messages):return json.dumps({'covered_targets':['Invented'],'facts':[{'label':'connection','quote':'Alpha facts.','source':0}]})
+    result=await answer_product_question(infer,'Alpha',targets=('Alpha',),lookup=lookup)
+    assert result.text==NO_SOURCE
