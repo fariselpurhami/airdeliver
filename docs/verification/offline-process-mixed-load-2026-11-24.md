@@ -60,7 +60,7 @@ The required CI step and production limiter are unchanged.
 
 Full app mixed traffic, actual catalog SQL/vector retrieval, real model inference,
 real Groq/source latency, owner CPU/memory pressure and remote Redis tail behavior
-remain unmeasured. A41ms or other observed natural GC pause is evidence that the
+remain unmeasured. A60.74ms or other observed natural GC pause is evidence that the
 process can pause, not a bound for another load or machine. The limiter's1second
 budget cannot make the event loop responsive during a stop-the-world pause.
 No live acceptance flags or canonical55 classification changed.
