@@ -6,7 +6,7 @@ import os
 import re
 from urllib.parse import urlsplit
 import httpx
-from pydantic import BaseModel,ConfigDict,Field,ValidationError,field_validator
+from pydantic import BaseModel,ConfigDict,Field,ValidationError,field_validator,StrictInt,StrictStr
 from app.schemas.ai_actions import NeuralCoreResponse
 
 logger=logging.getLogger('airdeliver.product_knowledge')
@@ -45,10 +45,10 @@ class SourceReview(BaseModel):
 
 class Fact(BaseModel):
     model_config=ConfigDict(extra='forbid')
-    label:str=Field(min_length=1,max_length=80)
-    quote:str=Field(min_length=2,max_length=600)
-    statement:str=Field(default='',max_length=800)
-    source:int=Field(ge=0,le=8)
+    label:StrictStr=Field(min_length=1,max_length=80)
+    quote:StrictStr=Field(min_length=2,max_length=600)
+    statement:StrictStr=Field(default='',max_length=800)
+    source:StrictInt=Field(ge=0,le=8)
 
 
     @field_validator('statement',mode='before')
@@ -59,7 +59,7 @@ class Fact(BaseModel):
 class SpecDraft(BaseModel):
     model_config=ConfigDict(extra='forbid')
     facts:list[Fact]=Field(min_length=1,max_length=8)
-    covered_targets:list[str]=Field(default_factory=list,max_length=3)
+    covered_targets:list[StrictStr]=Field(default_factory=list,max_length=3)
 
 
     @field_validator('covered_targets',mode='before')
