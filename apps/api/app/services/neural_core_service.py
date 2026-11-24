@@ -92,6 +92,7 @@ class RouterDecision(BaseModel):
     order_id: Optional[str] = Field(default=None, description="Extracted order ID digits")
     social_reply: Optional[str] = Field(default=None, description="Contextual chat response")
     quantity: int = Field(default=1, ge=1, le=99, strict=True)
+    removal_reason: Optional[str] = Field(default=None,max_length=256)
     targets: List[SearchTarget] = Field(default_factory=list,max_length=3)
     advice_goal: Literal['browse','understand','compare','price_objection','hesitation'] = 'browse'
     customer_signal: Optional[str] = Field(default=None,max_length=256)
@@ -120,6 +121,7 @@ You MUST output a valid JSON object strictly matching this schema:
     "constraint_replacement_signal": "Exact CURRENT customer span explicitly replacing or clearing prior hard requirements/exclusions, otherwise null",
     "retrieval_query": "Optional generic query rewrite based on customer context, never invented brand/model",
     "quantity": 1,
+    "removal_reason": "Exact current customer reason for removal, or null. Never infer.",
     "targets": [{"product_name":"Exact literal customer span for one concrete product or category"}],
     "shopping_task": "search" | "comparison" | "specifications" | "consultation",
     "query": "Extracted search term (only if intent is PRODUCT_SEARCH)",
@@ -315,6 +317,8 @@ class NeuralCoreService:
                 )
                 decision.order_id = None
 
+            if decision.removal_reason and (decision.intent!='CART_REMOVE' or decision.removal_reason not in message):
+                decision.removal_reason=None
             if decision.intent in {"CART_ADD", "CART_REMOVE"} and decision.query:
                 normalized_message=' '.join(message.casefold().split())
                 if ' '.join(decision.query.casefold().split()) not in normalized_message:
@@ -404,7 +408,7 @@ class NeuralCoreService:
         if operation=="add" and product.inventory<decision.quantity:
             return reply("The requested quantity is unavailable. Your cart has not changed.")
         action=CartReviewAction(payload={"review_id":str(uuid4()),"product_id":product.id,"product_name":product.name,
-            "operation":operation,"quantity":decision.quantity,"price":str(product.price),"currency":"USD"})
+            "operation":operation,"quantity":decision.quantity,"price":str(product.price),"currency":"USD","removal_reason":decision.removal_reason if operation=="remove" else None})
         text=(f"Review adding {decision.quantity} × {product.name}." if operation=="add" else f"Review removing the entire {product.name} line from your cart.")
         return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
 

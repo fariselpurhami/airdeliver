@@ -46,3 +46,13 @@ async def test_router_cannot_invent_nondefault_quantity(monkeypatch):
  assert response.query is None
  response=await service._analyze_intent('add 99 Atlas headphones',SessionMemory(user_name='Fixture'))
  assert response.query=='Atlas headphones'
+
+@pytest.mark.asyncio
+async def test_removal_reason_only_exact_current_customer_span():
+ import json
+ service=NeuralCoreService(object(),object());service.is_healthy=True
+ service._execute_llm_inference=AsyncMock(return_value=json.dumps({'intent':'CART_REMOVE','query':'Atlas headphones','removal_reason':'too costly'}))
+ current=await service._analyze_intent('remove Atlas headphones, too costly',SessionMemory(user_name='Fixture'))
+ assert current.removal_reason=='too costly'
+ absent=await service._analyze_intent('remove Atlas headphones',SessionMemory(user_name='Fixture'))
+ assert absent.removal_reason is None

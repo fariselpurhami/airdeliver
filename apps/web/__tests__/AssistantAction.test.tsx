@@ -51,3 +51,12 @@ it('locks uncertain lifecycle results with no retry button',async()=>{
  fireEvent.click(screen.getByRole('button',{name:'Confirm clear active cart'}));
  expect(await screen.findByRole('alert')).toHaveTextContent('Do not retry blindly');expect(screen.queryByRole('button')).not.toBeInTheDocument();
 });
+it('shows exact reviewed reason and sends it only on customer remove confirmation',async()=>{
+ jest.mocked(api.post).mockResolvedValue({});jest.mocked(api.get).mockResolvedValue({data:{items:[]}});
+ render(<AssistantAction action={{...action,payload:{...action.payload,operation:'remove',removal_reason:'too costly'}}}/>);
+ expect(screen.getByText(/Reason shared with optional alternatives: too costly/)).toBeInTheDocument();expect(api.post).not.toHaveBeenCalled();
+ if(process.env.REASON_REVIEW_HTML)fs.writeFileSync(process.env.REASON_REVIEW_HTML,'<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/actions-preview.css"></head><body style="margin:0;background:black;color:white;padding:20px;max-width:520px">'+document.body.innerHTML+'</body></html>');
+ fireEvent.click(screen.getByRole('button',{name:'Confirm remove from cart'}));
+ await waitFor(()=>expect(screen.getByRole('status')).toHaveTextContent('Request processed'));
+ expect(api.post).toHaveBeenCalledWith('/ai-ordering/cart/remove',{product_id:7,removal_reason:'too costly'},{headers:{'Idempotency-Key':action.payload.review_id}});
+});

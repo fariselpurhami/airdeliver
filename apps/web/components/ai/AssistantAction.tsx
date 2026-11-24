@@ -23,11 +23,12 @@ export default function AssistantAction({action}:{action:unknown}) {
  if(candidate.action!=='review_cart_change' || !payload)return null;
  const {product_id:id,product_name:name,operation,quantity,price,currency,review_id:reviewId}=payload;
  if(typeof reviewId!=='string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(reviewId) || !Number.isInteger(id) || Number(id)<1 || Number(id)>2147483647 || typeof name!=='string' || !name.trim() || name.length>512 || !['add','remove'].includes(String(operation)) || !Number.isInteger(quantity) || Number(quantity)<1 || Number(quantity)>99 || typeof price!=='string' || !/^\d+(\.\d{1,2})?$/.test(price) || currency!=='USD')return null;
+ const reason=operation==='remove'&&typeof payload.removal_reason==='string'&&payload.removal_reason.length<=256?payload.removal_reason:undefined;
  const submit=async()=>{
   if(busy.current || state!=='idle')return;
   busy.current=true;setState('pending');
   try {
-   await api.post(`/ai-ordering/cart/${operation}`,{product_id:id,...(operation==='add'?{quantity}:{})},{headers:{'Idempotency-Key':reviewId}});
+   await api.post(`/ai-ordering/cart/${operation}`,{product_id:id,...(operation==='add'?{quantity}:reason?{removal_reason:reason}:{})},{headers:{'Idempotency-Key':reviewId}});
    const response=await api.get('/ai-ordering/cart');
    useCartStore.getState().replaceItems(parseCartItems(response.data));
    setState('checked');
@@ -35,11 +36,12 @@ export default function AssistantAction({action}:{action:unknown}) {
  };
  return <section className="mt-3 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs">
   <p className="text-slate-200">{operation==='add'?`Add ${quantity} × ${name}`:`Remove the entire ${name} line`} · listed unit price USD {price}</p>
+  {reason&&<p className="text-slate-300">Reason shared with optional alternatives: {reason}</p>}
   <p className="text-slate-400">Only your button press submits this change. Current price and stock are checked by the store. No payment.</p>
   {state==='idle' && <button type="button" onClick={()=>void submit()} className={button}>{operation==='add'?'Confirm add to cart':'Confirm remove from cart'}</button>}
   {state==='pending' && <p role="status">Submitting and checking your cart...</p>}
   {state==='checked' && <p role="status">Request processed. Review your refreshed cart for the current quantities and price. Unavailable items may not have been added.</p>}
   {state==='uncertain' && <p role="alert">The change could not be confirmed. Do not submit it again blindly. Open your cart and refresh before deciding what to do next.</p>}
-  <Link href="/cart" className="inline-flex min-h-11 items-center ml-3 underline text-cyan-200">Review cart</Link>
+  <Link href="/cart" className="flex min-h-11 w-fit items-center underline text-cyan-200">Review cart</Link>
  </section>;
 }

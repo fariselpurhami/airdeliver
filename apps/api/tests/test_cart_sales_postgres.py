@@ -53,12 +53,13 @@ async def test_real_worker_model_cards_current_rows_and_no_cart_mutation(real_ca
         retrieval=SimpleNamespace(generate_perfect_bundle=AsyncMock(return_value=[candidate,demo]),find_genius_alternatives=AsyncMock(return_value=[candidate,demo]))
         runtime=WorkerRuntime.__new__(WorkerRuntime);runtime.wait_for_readiness=AsyncMock()
         runtime.services=SimpleNamespace(session_maker=sessions,cache=cache,rabbitmq=object(),commerce=retrieval,llm=llm)
-        await runtime.cart_recommendation_handler_impl({'user_id':71,'product_id':anchor.id,'operation':operation})
+        await runtime.cart_recommendation_handler_impl({'user_id':71,'product_id':anchor.id,'operation':operation,'removal_reason':'too costly' if operation=='removed' else None})
         assert await cache.get_json_required('ai_cart:71')==before
         assert len(published)==1 and published[0]['type']=='product_carousel'
         assert [p['id'] for p in published[0]['products']]==[candidate.id]
         assert published[0]['content'].startswith('Current candidate')
         assert calls[0]['request_evidence']['cart_event']==operation
+        assert calls[0]['request_evidence']['customer_stated_removal_reason']==('too costly' if operation=='removed' else None)
         assert calls[0]['catalog_evidence'][0]['evidence_kind']=='local_catalog'
     finally:
         async with sessions() as db:
@@ -103,3 +104,20 @@ async def test_inflight_change_or_provider_failure_withholds_optional_advice(rea
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_confirmed_remove_forwards_explicit_reason_only_to_optional_worker(real_cache):
+    from app.services.ai_cart_service import AICartService
+    cache,_=real_cache
+    await cache.set_json_required('ai_cart:75',{'items':[{'product_id':7,'name':'Fixture','price':'20','quantity':1}]})
+    published=[]
+    async def publish(payload,key,**kwargs):
+        published.append((payload,key));return SimpleNamespace(is_success=True)
+    service=AICartService(None,cache,SimpleNamespace(publish=publish))
+    await service.handle_remove_from_cart({'user_id':75,'product_id':7,'removal_reason':'too costly'})
+    assert (await cache.get_json_required('ai_cart:75'))['items']==[]
+    events=[payload for payload,key in published if key=='airdeliver.ai.cart.recommendation']
+    assert len(events)==1 and events[0]['removal_reason']=='too costly'
+    assert events[0]['operation']=='removed'
+    assert all('removal_reason' not in payload for payload,key in published if key!='airdeliver.ai.cart.recommendation')
