@@ -18,7 +18,7 @@ class Fact(BaseModel):
     label:str=Field(min_length=1,max_length=80)
     quote:str=Field(min_length=2,max_length=600)
     statement:str=Field(default='',max_length=800)
-    source:int=Field(ge=0,le=2)
+    source:int=Field(ge=0,le=8)
 
 
 class SpecDraft(BaseModel):
@@ -64,11 +64,25 @@ async def answer_product_question(infer,question,*,lookup=None,timeout=12,cards=
     try:
         async with asyncio.timeout(timeout):
             try:
-                sources=await (lookup or lookup_product_sources)(question)
+                search=lookup or lookup_product_sources
+                # Up to three literal customer targets, not a combined query
+                # that can silently return evidence for only one sibling.
+                names=tuple(dict.fromkeys(targets))
+                if len(names)>3 or any(not isinstance(t,str) or not t.strip() or len(t)>256 for t in names):
+                    raise ValueError('invalid_research_targets')
+                async def one(query):
+                    try:
+                        result=await search(query)
+                        if not isinstance(result,list) or len(result)>3:raise ValueError('invalid_sources')
+                        return result
+                    except asyncio.CancelledError:raise
+                    except Exception:return []
+                groups=await asyncio.gather(*(one(t+' | '+question) for t in names)) if names else [await one(question)]
+                sources=[source for group in groups for source in group]
             except asyncio.CancelledError:raise
             except Exception:
                 sources=[]
-            if not isinstance(sources,list) or len(sources)>3:raise ValueError('invalid_sources')
+            if not isinstance(sources,list) or len(sources)>9:raise ValueError('invalid_sources')
             for source in sources:
                 if not allowed_url(source.get('url','')) or not isinstance(source.get('text'),str) or not 0<len(source['text'])<=6000:raise ValueError('invalid_source')
             if not sources:

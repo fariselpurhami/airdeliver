@@ -81,7 +81,8 @@ async def test_multi_target_http_actual_sql_history_and_fresh_publication(real_c
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('task',['specifications','comparison','consultation'])
-async def test_product_research_http_no_catalog_stock_requirement(real_cache,monkeypatch,task):
+@pytest.mark.parametrize('with_targets',[True,False])
+async def test_product_research_http_no_catalog_stock_requirement(real_cache,monkeypatch,task,with_targets):
     from app.services import product_knowledge_service as knowledge
     from httpx import AsyncClient,ASGITransport
     from app.main import app
@@ -95,7 +96,7 @@ async def test_product_research_http_no_catalog_stock_requirement(real_cache,mon
     svc=NeuralCoreService(search,cache);svc.is_healthy=True;svc.configuration_error=False
     async def infer(messages):
         if 'primary cognitive routing' in messages[0]['content']:
-            return json.dumps(dict(intent='PRODUCT_SEARCH',query='Phone 17 Pro Max',search_subject='Phone 17 Pro Max',shopping_task=task,targets=[{'product_name':'Phone 17 Pro Max'}]))
+            return json.dumps(dict(intent='PRODUCT_SEARCH',query='Phone 17 Pro Max',search_subject='Phone 17 Pro Max',shopping_task=task,targets=[{'product_name':'Phone 17 Pro Max'}] if with_targets else []))
         if 'Extract source-backed' in messages[0]['content']:
             return json.dumps({'covered_targets':['Phone 17 Pro Max'],'facts':[{'label':'Display','statement':'The source lists an OLED display.','quote':'Phone 17 Pro Max has an OLED display.','source':0}]})
         return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})

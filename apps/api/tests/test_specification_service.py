@@ -108,3 +108,47 @@ async def test_source_transport_error_without_catalog_gives_honest_unknown():
     async def infer(messages):raise AssertionError('no evidence must not invoke writer')
     result=await answer_product_question(infer,'any product specs',lookup=lookup)
     assert result.text==NO_SOURCE
+
+@pytest.mark.asyncio
+async def test_each_target_gets_own_bounded_source_lookup_and_third_source_index():
+    seen=[]
+    async def lookup(q):
+        seen.append(q)
+        name=q.split(' | ')[0]
+        return [{'url':f'https://maker.example/{name}/{i}','text':f'{name} feature {i}.'} for i in range(3)]
+    async def infer(messages):
+        payload=json.loads(messages[-1]['content'])
+        if 'Extract source-backed' in messages[0]['content']:
+            assert len(payload['untrusted_sources'])==9
+            return json.dumps({'covered_targets':['Alpha','Beta','Gamma'],'facts':[
+                {'label':'Gamma','quote':'Gamma feature 2.','source':8}]})
+        return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
+    result=await answer_product_question(infer,'compare',targets=('Alpha','Beta','Gamma'),lookup=lookup)
+    assert len(seen)==3 and all(q.startswith(t+' | ') for q,t in zip(seen,['Alpha','Beta','Gamma']))
+    assert 'Source 9:' in result.text and 'Gamma feature 2.' in result.text
+
+@pytest.mark.asyncio
+async def test_one_target_source_outage_keeps_other_evidence_but_discloses_missing():
+    async def lookup(q):
+        if q.startswith('Beta'):raise ConnectionError('controlled outage')
+        return [{'url':'https://maker.example/Alpha','text':'Alpha has a wired connection.'}]
+    calls=0
+    async def infer(messages):
+        nonlocal calls
+        calls+=1
+        if calls==1:return json.dumps({'covered_targets':['Alpha'],'facts':[{'label':'Connection','quote':'Alpha has a wired connection.','source':0}]})
+        return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
+    result=await answer_product_question(infer,'compare',targets=('Alpha','Beta'),lookup=lookup)
+    assert 'not verified for: Beta' in result.text and 'not a complete comparison' in result.text
+
+@pytest.mark.asyncio
+async def test_outer_deadline_cancels_all_target_lookups():
+    import asyncio
+    started=[];stopped=[]
+    async def lookup(q):
+        started.append(q)
+        try:await asyncio.Event().wait()
+        finally:stopped.append(q)
+    async def infer(messages):raise AssertionError('no evidence')
+    result=await answer_product_question(infer,'compare',targets=('Alpha','Beta','Gamma'),lookup=lookup,timeout=.02)
+    assert result.text==NO_SOURCE and len(started)==3 and sorted(started)==sorted(stopped)
