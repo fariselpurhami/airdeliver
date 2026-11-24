@@ -1,0 +1,7 @@
+# Reviewed literal target scope
+
+Ordinary multi-target catalog search may scope existing literal hard features to existing literal targets through a separate exact assignment contract and independent customer-scope review. Unknown targets/features and rejected/failed review withhold recommendations. Shared or ambiguous features remain global. Scoped filters apply before round-robin selection and are checked against current cards after copy. The model cannot supply catalog facts or mutate a cart.
+
+Prior target scope persists separately in bounded owner/session memory and unions later assignments. Omitted later assignments do not erase it. A changed target identity withholds until the customer explicitly resets prior constraints. Existing independently reviewed replacement resets shared, setup and target constraints together. This conservative identity rule can require clarification for synonyms; it is not multilingual identity resolution. Ordinary single-target and unscoped routes are unchanged when no prior scope exists.
+
+Actual two-turn HTTP/PostgreSQL/Redis tests cover omission preservation, component-specific width plus unrelated chair, missing-width filtering and unscoped behavior. Direct review tests reject unknown targets/features and failed verdict; state tests keep shared black while scoping RAM only to laptop. Per-target exclusions, semantic unit conversion, source-research constraint application and real-model semantic assignment quality remain separate. No provider calls or owner actions.

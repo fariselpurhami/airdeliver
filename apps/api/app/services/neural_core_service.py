@@ -65,6 +65,7 @@ class SessionMemory(BaseModel):
     user_name: str = Field(max_length=256)
     shopping_brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
     setup_requirements: dict[ScopedComponent,ScopedFeatures] = Field(default_factory=dict,max_length=3)
+    target_requirements: dict[ScopedComponent,ScopedFeatures] = Field(default_factory=dict,max_length=3)
     history: List[ChatMessage] = Field(default_factory=list, max_length=10)
     
     def append_turn(self, user_msg: str, ai_msg: str, max_turns: int = 5) -> None:
@@ -418,6 +419,27 @@ class NeuralCoreService:
         text=(f"Review adding {decision.quantity} × {product.name}." if operation=="add" else f"Review removing the entire {product.name} line from your cart.")
         return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
 
+    async def _handle_scoped_target_search(self,db,decision,brief,message,memory):
+        from app.services.target_constraint_scope import assign_target_scope
+        try:
+            names=[target.product_name for target in decision.targets]
+            prior=memory.target_requirements
+            if set(prior)-set(names):raise ValueError('Prior target scope needs explicit reset')
+            assignments=(await assign_target_scope(self._execute_llm_inference,message,names,brief.required_features,_customer_turn_context.get())) if brief.required_features and len(names)>1 else {}
+            combined={key:list(values) for key,values in prior.items()}
+            for key,values in assignments.items():combined[key]=list(dict.fromkeys([*combined.get(key,[]),*values]))
+            if len(combined)>3 or any(len(v)>8 for v in combined.values()):raise ValueError('Too many target constraints')
+            scoped=brief.model_copy(deep=True)
+            assigned={f for values in combined.values() for f in values}
+            scoped.required_features=[f for f in brief.required_features if f not in assigned]
+            for target in decision.targets:target.required_features=combined.get(target.product_name,[])
+            response=await self._handle_staged_product_search(db,decision,scoped,message)
+            if response.response_kind!='system_notice':memory.target_requirements=combined
+            return response
+        except Exception as exc:
+            _log_inference_failure('neural_core.target_scope.withheld',exc)
+            return NeuralCoreResponse(text='Please clarify which hard requirements apply to each product, or explicitly reset the earlier requirements. No recommendation was published.',response_kind='clarification',confidence=0,explain='Target constraint scope unavailable',telemetry={'intent':'PRODUCT_SEARCH','entities':[],'turn':0})
+
     async def _handle_setup_discovery(self,db,message,brief,memory=None):
         from app.services.discovery_planner import plan_setup
         try:
@@ -770,7 +792,9 @@ class NeuralCoreService:
                     response_kind='clarification',confidence=0,explain='Constraint capacity reached',telemetry={'intent':'GIFT_DISCOVERY','entities':[],'turn':0})
             merged[field]=values
         memory.shopping_brief=ShoppingBrief.model_validate(merged)
-        if decision.constraint_replacement_signal:memory.setup_requirements={}
+        if decision.constraint_replacement_signal:
+            memory.setup_requirements={}
+            memory.target_requirements={}
 
         # A literal category is enough to browse. Optional material/style are
         # not reasons to trap a completed brief in repeated gift clarification.
@@ -801,7 +825,10 @@ class NeuralCoreService:
                     # stock-only advice when the router omitted its target list.
                     decision.targets=[SearchTarget(product_name=query)]
                 if decision.targets:
-                    response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message)
+                    if decision.shopping_task=='search' and (memory.target_requirements or (len(decision.targets)>1 and memory.shopping_brief.required_features)):
+                        response=await self._handle_scoped_target_search(db,decision,memory.shopping_brief,message,memory)
+                    else:
+                        response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message)
                 else:
                     response = await self._handle_product_search(db, query, memory.shopping_brief, message, decision)
         
