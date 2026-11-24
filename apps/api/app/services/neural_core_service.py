@@ -94,7 +94,7 @@ class SearchTarget(BaseModel):
 
 class RouterDecision(BaseModel):
     """Strict contract for the LLM output. Enforces type safety on hallucinations."""
-    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE", "CART_CLEAR", "CART_SAVE", "CART_CHECKOUT", "GIFT_DISCOVERY", "SETUP_DISCOVERY"]
+    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "OUT_OF_SCOPE", "CART_ADD", "CART_REMOVE", "CART_CLEAR", "CART_SAVE", "CART_CHECKOUT", "GIFT_DISCOVERY", "SETUP_DISCOVERY"]
     brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
     requested_name: Optional[str] = Field(default=None,max_length=255,description="Literal customer product/brand/model for availability or comparison")
     alternative_query: Optional[str] = Field(default=None,max_length=128,description="Generic functional category query for genuine alternatives, never invented product/brand")
@@ -122,7 +122,7 @@ Analyze the user's message and the conversation history.
 
 You MUST output a valid JSON object strictly matching this schema:
 {
-    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE" | "CART_CLEAR" | "CART_SAVE" | "CART_CHECKOUT" | "GIFT_DISCOVERY" | "SETUP_DISCOVERY",
+    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "OUT_OF_SCOPE" | "CART_ADD" | "CART_REMOVE" | "CART_CLEAR" | "CART_SAVE" | "CART_CHECKOUT" | "GIFT_DISCOVERY" | "SETUP_DISCOVERY",
     "brief": {"version": 1, "recipient": null, "occasion": null, "category": null, "budget": null, "budget_max": null, "budget_currency": null, "preference": null, "excluded_terms": [], "required_features": []},
     "requested_name": "Literal customer product/brand/model or null for broad browsing",
     "alternative_query": "Generic functional category such as smartwatch for Apple Watch, or null",
@@ -141,6 +141,9 @@ You MUST output a valid JSON object strictly matching this schema:
 }
 
 ROUTING RULES:
+- OUT_OF_SCOPE: a substantive request unrelated to products or their shopping, order, payment, delivery or support context. Output OUT_OF_SCOPE and stop. Do not answer general knowledge, politics, homework, programming or personal advice merely because the word product/store/price is inserted. Never use SOCIAL_CHAT for an unrelated substantive question. A brief greeting is SOCIAL_CHAT, not general advice.
+- Product-world intent is semantic, never a keyword whitelist. Preserve Arabic dialects, transliteration, misspellings, mixed Arabic/English, indirect needs, comparisons, specs, usage and product-care questions as shopping. Product-care/usage questions are consultation, not unrelated general advice. A misspelled literal item remains the literal target; optional retrieval_query can propose a normalization subject to independent review. If a product need is genuinely ambiguous ask a focused clarification, never invent an item or reject it as off-topic. Do not reject a product complaint as out-of-scope; shopping support remains supported.
+- Examples: Egyptian Arabic headphones request, English misspelled headphones request and mixed Arabic/English USB-C comparisons remain PRODUCT_SEARCH with exact literal target spans. A request for news, a math proof or a general program without a product-shopping context is OUT_OF_SCOPE, even after earlier shopping turns. Current off-topic intent takes precedence over old catalog context.
 - CART_CLEAR/CART_SAVE/CART_CHECKOUT: only explicit current customer request to clear cart, save list for later or open checkout. Always review or navigation, never execute from text.
 - SETUP_DISCOVERY: customer explicitly asks to build a setup, kit, system or ecosystem requiring several complementary component types. Set search_subject to exact customer span describing setup. Do not invent component targets in router, targets must be empty. Planning is read-only; no compatibility or completeness claim without evidence.
 - Advice strategy: preserve explicit product questions, price objections, competitor questions and hesitation as valid shopping, not support escalation or out-of-domain. Use advice_goal and exact current customer_signal; never infer financial tier/personality or urgency from demographics.
@@ -155,7 +158,7 @@ ROUTING RULES:
 1. PRODUCT_SEARCH: User supplies a concrete category, interest or exact item to browse. A recipient alone is insufficient. Set search_subject to the literal customer span, not gift/buy/shop. For follow-up turns use only a concrete subject explicitly provided by the customer in prior history. GIFT_DISCOVERY takes precedence for an unspecified gift.
 2. TRACK_ORDER: User asks about delivery status, shipping, or location of an order.
 3. SUPPORT_HANDOFF: User is highly frustrated, demands human escalation, or reports a critical failure.
-4. SOCIAL_CHAT: Greetings, casual conversation, jokes, or vague statements without commerce intent. Treat them as a VIP client.
+4. SOCIAL_CHAT: Brief greetings or ambiguous shopping statements only. Substantive non-product questions are OUT_OF_SCOPE. Never produce jokes or general answers outside products.
 
 SCOPE LOCK (mandatory):
 - social_reply must stay inside your role as a shopping concierge: warm, brief, and steering back to the store's products and services.
@@ -849,7 +852,13 @@ class NeuralCoreService:
             decision.search_subject=category
 
         # Dispatch
-        if decision.intent in {"CART_CLEAR","CART_SAVE","CART_CHECKOUT"}:
+        if decision.intent == "OUT_OF_SCOPE":
+            # Operational scope notice only, never route a rejected request to
+            # a second free-form writer/provider. No catalog/tool action.
+            arabic=bool(re.search(r'[\u0600-\u06ff]',message))
+            response=NeuralCoreResponse(text=("آسف، أقدر أساعدك في المنتجات فقط." if arabic else "Sorry, I can only help with products."),
+                response_kind="text",products=[],confidence=1.0,explain="Product-only scope",telemetry={"intent":"OUT_OF_SCOPE","entities":[],"turn":0})
+        elif decision.intent in {"CART_CLEAR","CART_SAVE","CART_CHECKOUT"}:
             response=await self._handle_cart_lifecycle_review(decision,user)
         elif decision.intent in {"CART_ADD", "CART_REMOVE"}:
             response = await self._handle_cart_review(db,decision,user)
