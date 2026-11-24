@@ -92,6 +92,7 @@ class RouterDecision(BaseModel):
     targets: List[SearchTarget] = Field(default_factory=list,max_length=3)
     advice_goal: Literal['browse','understand','compare','price_objection','hesitation'] = 'browse'
     customer_signal: Optional[str] = Field(default=None,max_length=256)
+    constraint_replacement_signal: Optional[str] = Field(default=None,max_length=256)
     retrieval_query: Optional[str] = Field(default=None,max_length=256,description="Optional rewritten retrieval query, never evidence")
     shopping_task: Literal['search','comparison','specifications','consultation','setup'] = 'search' 
 
@@ -113,6 +114,7 @@ You MUST output a valid JSON object strictly matching this schema:
     "search_subject": "Literal customer category, interest or exact item, or null for an unspecified gift",
     "advice_goal": "browse" | "understand" | "compare" | "price_objection" | "hesitation",
     "customer_signal": "Exact current customer span supporting objection/hesitation, or null",
+    "constraint_replacement_signal": "Exact CURRENT customer span explicitly replacing or clearing prior hard requirements/exclusions, otherwise null",
     "retrieval_query": "Optional generic query rewrite based on customer context, never invented brand/model",
     "quantity": 1,
     "targets": [{"product_name":"Exact literal customer span for one concrete product or category"}],
@@ -318,6 +320,10 @@ class NeuralCoreService:
             if not decision.customer_signal or ' '.join(decision.customer_signal.casefold().split()) not in ' '.join(message.casefold().split()):
                 decision.customer_signal=None
                 decision.advice_goal='browse'
+            if decision.constraint_replacement_signal:
+                from app.services.constraint_continuity import replacement_is_explicit
+                if not await replacement_is_explicit(self._execute_llm_inference,message,decision.constraint_replacement_signal):
+                    decision.constraint_replacement_signal=None
             customer_context="\n".join([m.content for m in memory.history if m.role=="user"]+[message])
             decision.brief=decision.brief.grounded(customer_context)
             if decision.requested_name and ' '.join(decision.requested_name.casefold().split()) not in ' '.join(customer_context.casefold().split()):
@@ -709,7 +715,15 @@ class NeuralCoreService:
         merged=memory.shopping_brief.model_dump()
         if incoming.budget is not None and incoming.budget!=memory.shopping_brief.budget:
             merged.update(budget_max=None,budget_currency=None)
-        merged.update({k:v for k,v in incoming.model_dump().items() if v is not None and (k not in {'excluded_terms','required_features'} or v)})
+        merged.update({k:v for k,v in incoming.model_dump().items() if v is not None and k not in {'excluded_terms','required_features'}})
+        for field in ('excluded_terms','required_features'):
+            prior=[] if decision.constraint_replacement_signal else merged.get(field,[])
+            fresh=incoming.grounded(message) if decision.constraint_replacement_signal else incoming
+            values=list(dict.fromkeys([*prior,*getattr(fresh,field)]))
+            if len(values)>8:
+                return NeuralCoreResponse(text='Please reset or simplify the hard requirements before adding more. No product recommendation was published.',
+                    response_kind='clarification',confidence=0,explain='Constraint capacity reached',telemetry={'intent':'GIFT_DISCOVERY','entities':[],'turn':0})
+            merged[field]=values
         memory.shopping_brief=ShoppingBrief.model_validate(merged)
 
         # A literal category is enough to browse. Optional material/style are

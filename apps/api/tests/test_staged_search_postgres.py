@@ -200,3 +200,46 @@ async def test_http_hard_features_use_fresh_sql_lexical_evidence_not_substrings(
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('replace',[False,True])
+async def test_http_constraint_history_preserves_or_explicitly_replaces_literal_features(real_cache,replace):
+    from httpx import AsyncClient,ASGITransport
+    from app.main import app
+    from app.db.session import get_async_session
+    from app.services.cache_service import get_cache_from_request
+    cache,_=real_cache
+    engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
+    try:
+        async with sessions() as db:
+            rows=[Product(sku=uuid4().hex,name=name,description='',category='computers',price=20,inventory=5,currency='USD',attributes=specs) for name,specs in [('One laptop',{'RAM':'16GB','drive':'SSD'}),('Two laptop',{'RAM':'8GB','drive':'SSD'})]]
+            db.add_all(rows);await db.commit();ids=[p.id for p in rows]
+        async def retrieve(db,query,**kw):return (await db.execute(__import__('sqlalchemy').select(Product).where(Product.id.in_(ids)))).scalars().all()
+        svc=NeuralCoreService(SimpleNamespace(perform_hybrid_search_pure=retrieve),cache);svc.is_healthy=True;svc.configuration_error=False
+        async def infer(messages):
+            prompt=messages[0]['content']
+            if 'primary cognitive routing' in prompt:
+                current=messages[-1]['content'];first='16GB' in current
+                return json.dumps({'intent':'PRODUCT_SEARCH','query':'laptop','search_subject':'laptop','brief':{'required_features':['16GB RAM'] if first else ['SSD']},'constraint_replacement_signal':'replace old requirements' if not first and replace else None})
+            if 'Review whether the exact current' in prompt:return json.dumps({'explicit_replacement':True})
+            if 'catalog_evidence' in json.loads(messages[1]['content']):return json.dumps({'text':'Review the listed facts.','product_ids':[],'claims':[]})
+            return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
+        svc._execute_llm_inference=infer
+        async def get_db():
+            async with sessions() as db:yield db
+        app.dependency_overrides[get_async_session]=get_db
+        app.dependency_overrides[get_neural_core_service]=lambda:svc
+        app.dependency_overrides[get_cache_from_request]=lambda:cache
+        async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
+            first=await client.post('/api/v1/ai-support/chat',json={'message':'laptop16GB RAM','session_id':'constraint-history'})
+            assert [p['id'] for p in first.json()['products']]==ids[:1]
+            second=await client.post('/api/v1/ai-support/chat',json={'message':('replace old requirements, laptop SSD' if replace else 'also laptop SSD'),'session_id':'constraint-history'})
+        assert second.status_code==200,second.text
+        assert [p['id'] for p in second.json()['products']]==(ids if replace else ids[:1])
+        history=await cache.get_json_required(svc._get_session_key('constraint-history'))
+        assert history['shopping_brief']['required_features']==(['SSD'] if replace else ['16GB RAM','SSD'])
+    finally:
+        app.dependency_overrides.clear()
+        async with sessions() as db:
+            await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()
