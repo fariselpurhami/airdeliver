@@ -4857,7 +4857,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
                 "Adapt to the category, do not assume tech."
             )
 
-            llm_analysis = await self.llm_service.generate_response(
+            llm_analysis = await _strict_model_text(self.llm_service,
                 prompt=f"Missing Item: {user_query}",
                 system_role=system_instruction,
                 temperature=0.1,
@@ -4904,7 +4904,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
             return final_mix
 
         except Exception as exc:
-            StructuredLog.error("smart_recovery_failed", error=str(exc))
+            StructuredLog.error("smart_recovery_failed", error_type=type(exc).__name__)
             safe_fallback = (user_query.split()[0] if user_query else "Trending")[: self.config.max_safe_fallback_query_chars]
             return await self.search_engine.perform_hybrid_search_pure(self.db, safe_fallback, limit=3)
 
@@ -5579,7 +5579,7 @@ Structure:
 """
 
         try:
-            response = await self.llm_service.generate_response(
+            response = await _strict_model_text(self.llm_service,
                 prompt=json.dumps({"user_query": user_query, "product": product_data, "catalog_availability": self._catalog_availability(product), "conversation_history": chat_history[-4000:], "web_intel": str(web_context)[:1500], "unverified_profile_labels": {"persona": str(persona), "tier": str(tier)}}, default=str, ensure_ascii=False),
                 system_role=system_prompt,
                 temperature=0.3,
@@ -5587,7 +5587,7 @@ Structure:
             )
             return str(response).strip().replace('"', "")
         except Exception as exc:
-            StructuredLog.error("genius_generation_failed", user_id=user_id, error=str(exc))
+            StructuredLog.error("genius_generation_failed", user_id=user_id, error_type=type(exc).__name__)
             return f"Item: {p_name}. Listed price: {p_price}. I could not assess how well it fits your needs."
 
     async def _perform_devilish_recovery(self, user_id: int, removed_pid: int) -> None:
