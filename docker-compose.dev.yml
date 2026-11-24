@@ -218,6 +218,7 @@ services:
       timeout: 5s
       retries: 48
     deploy:
+      restart_policy: !reset null
       resources:
         limits:
           memory: 1536M

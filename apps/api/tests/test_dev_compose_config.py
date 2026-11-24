@@ -313,6 +313,7 @@ def test_dev_vector_storage_restarts_clean_exits_and_gates_initial_milvus_start(
     root,_=prepared
     services=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')['services']
     assert services['minio']['restart']=='unless-stopped'
+    assert not services['minio'].get('deploy',{}).get('restart_policy')
     assert services['milvus']['depends_on']['minio']['condition']=='service_healthy'
     assert services['milvus']['depends_on']['etcd']['condition']=='service_healthy'
     assert services['etcd']['healthcheck']['test']==['CMD','etcdctl','--endpoints=http://127.0.0.1:2379','endpoint','health']
