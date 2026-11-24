@@ -1541,9 +1541,6 @@ function OrderingOverlaySession({ isOpen, onClose }: { isOpen: boolean; onClose:
                                                 <h1 className="text-[23px] sm:text-[25px] font-semibold text-white tracking-[-0.02em] leading-snug">
                                                     Don’t search. Just ask.
                                                 </h1>
-                                                <p className="text-[15px] sm:text-[20px] font-normal text-white/45 tracking-[-0.01em] leading-snug mt-0.5">
-                                                    Powered by airdeliver, Turning intent into reality.
-                                                </p>
                                             </div>
 
                                             <AnimatePresence initial={false}>

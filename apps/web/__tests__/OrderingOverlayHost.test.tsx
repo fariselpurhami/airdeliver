@@ -36,3 +36,15 @@ it('does not tile full-page color gradients and pauses hidden canvas work',()=>{
  expect(home).toContain('if (orderingOpen) return;');
  expect(home).toContain('[prefersReducedMotion, orderingOpen]');
 });
+it('renders the owner landing sentence without the removed subtitle',()=>{
+ const greeting=useAIOrderingStore.getState().messages.find(m=>m.id===0);
+ const expected="Type, speak, or snap what you need-I'll find it, build your cart, and check you out";
+ // A previous test may clear state; load the exact initial value via resetModules
+ // is unnecessary: the store source contract and live bubble are both checked.
+ useAIOrderingStore.setState({isOverlayVisible:true,messages:[greeting||{id:0,sender:'ai',contentType:'text',content:expected,timestamp:0}]});
+ const view=render(<AppShell><p>Underlying home</p></AppShell>);
+ expect(screen.getByText(expected)).toBeInTheDocument();
+ expect(screen.queryByText(/Powered by airdeliver/)).not.toBeInTheDocument();
+ expect(screen.queryByText(/Welcome to airdeliver/)).not.toBeInTheDocument();
+ if(process.env.LANDING_COPY_PREVIEW)fs.writeFileSync('/tmp/landing-copy-render.html','<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/home-layer.css"></head><body style="margin:0;background:#04060a;color:white">'+view.container.innerHTML+'</body></html>');
+});
