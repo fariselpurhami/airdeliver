@@ -196,14 +196,14 @@ async def test_actual_sdk_model429_is_specific_and_no_secret_or_quota_guess(stag
     async def handler(request):
         nonlocal count
         count+=1
-        if stage=='extraction' or count>1:return httpx.Response(429,json={'error':{'message':'private-secret-sentinel','type':'rate_limit_error'}},request=request)
+        if stage=='extraction' or count>1:return httpx.Response(429,json={'error':{'message':'private-secret-sentinel','type':'rate_limit_error'}},headers={'retry-after':'120'},request=request)
         return httpx.Response(200,json={'id':'local','object':'chat.completion','created':0,'model':'test','choices':[{'index':0,'message':{'role':'assistant','content':json.dumps({'facts':[{'label':'connection','quote':'Alpha wired connection.','source':0}]})},'finish_reason':'stop'}]})
     async def lookup(q):return [{'url':'https://maker.example/spec','text':'Alpha wired connection.'}]
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
         async with AsyncGroq(api_key='offline',http_client=http,max_retries=0) as client:
             svc=object.__new__(NeuralCoreService);svc.client=client;svc.profile=SimpleNamespace(support_model='test')
             # ExerciseactualSDK/inferencecallonce; retrybackoffisaseparatelytestedpolicy.
-            async def infer(messages):return await NeuralCoreService._execute_llm_inference.__wrapped__(svc,messages)
+            async def infer(messages):return await NeuralCoreService._execute_llm_inference(svc,messages)
             with caplog.at_level(logging.WARNING):result=await answer_product_question(infer,'Alpha specs',lookup=lookup)
     assert result.text==SOURCE_NOTICES['model_rate_limit'] and 'cause=model_rate_limit' in caplog.text
     assert ('stage=extraction_provider' if stage=='extraction' else 'stage=review_provider') in caplog.text

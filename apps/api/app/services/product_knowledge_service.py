@@ -19,7 +19,8 @@ class SourceFailure(ValueError):
         super().__init__(cause)
 
 SOURCE_NOTICES={
- 'model_rate_limit':'System notice: the AI provider has temporarily limited product research requests. Please retry shortly. No source-backed answer was verified.',
+ 'model_rate_limit':'System notice: the AI provider has temporarily limited product research requests. Please retry later. No source-backed answer was verified.',
+ 'input_budget':'System notice: the source evidence exceeds the local research request budget. Please narrow the product question. No source-backed answer was verified.',
  'missing_key':'System notice: product web research is not configured. A store administrator must configure the research API credential. No source-backed answer was checked.',
  'authentication':'System notice: product web research could not authenticate. A store administrator must check its research credential. No source-backed answer was verified.',
  'rate_limit':'System notice: product web research is rate-limited right now. Please retry later. No source-backed answer was verified.',
@@ -152,6 +153,8 @@ async def answer_product_question(infer,question,*,lookup=None,timeout=12,cards=
                     catalog=await fallback()
                     if catalog.products or catalog.response_kind=='system_notice':return catalog
                 raise SourceFailure(failures[0] if failures else 'empty_results')
+            from app.services.research_evidence_budget import pack_sources
+            sources=pack_sources(sources,question,targets)
             payload={'question':question,'consented_saved_preferences':list(saved_preferences)[:5],'saved_preferences_scope':'Optional shopping hints only. Current customer request wins. Never source facts, budget, recipient, hard constraints or compatibility evidence.','customer_only_recent_context':list(customer_context)[-5:],'context_scope':'Prior customer intent hints only, never source facts; current question wins.','requested_targets':list(targets),'untrusted_sources':sources}
             logger.info('product_knowledge.sources accepted=%d targets=%d lookup_failures=%d',len(sources),len(targets),len(failures))
             stage='extraction_provider'
@@ -186,7 +189,8 @@ async def answer_product_question(infer,question,*,lookup=None,timeout=12,cards=
                 code=error['type'] if re.fullmatch(r'[a-z_]{1,64}',error['type']) else 'validation_error'
                 fields.append(location+':'+code)
             logger.warning('product_knowledge.schema_fields details=%s',','.join(fields))
+        from app.services.provider_budget import ProviderInputBudgetError
         status=getattr(exc,'status_code',None)
-        cause='model_rate_limit' if stage in {'extraction_provider','review_provider'} and status==429 else exc.cause if isinstance(exc,SourceFailure) else 'timeout' if isinstance(exc,TimeoutError) else {'extraction_schema':'extraction_schema','quote_validation':'quote_rejected','review_verdict':'review_rejected'}.get(stage,'research_failed')
+        cause='input_budget' if isinstance(exc,ProviderInputBudgetError) else 'model_rate_limit' if stage in {'extraction_provider','review_provider'} and status==429 else exc.cause if isinstance(exc,SourceFailure) else 'timeout' if isinstance(exc,TimeoutError) else {'extraction_schema':'extraction_schema','quote_validation':'quote_rejected','review_verdict':'review_rejected'}.get(stage,'research_failed')
         logger.warning('product_knowledge.withheld stage=%s cause=%s error_type=%s',stage,cause,type(exc).__name__)
         return NeuralCoreResponse(text=SOURCE_NOTICES.get(cause,NO_SOURCE),response_kind='text',products=[],confidence=0,explain='Product information not verified',telemetry={'intent':'PRODUCT_RESEARCH','entities':[],'turn':0})

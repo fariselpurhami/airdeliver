@@ -292,31 +292,22 @@ class NeuralCoreService:
 
     # --- COGNITIVE ROUTING ---------------------------------------------------
 
-    @retry(
-    
-        retry=retry_if_exception(_retryable_llm_failure),
-        wait=wait_exponential(multiplier=0.5, min=1.0, max=4.0),
-        stop=stop_after_attempt(3),
-        reraise=True
-    )
     async def _execute_llm_inference(self, messages: List[Dict[str, str]], *, response_schema=None) -> str:
-        """Executes LLM call with strict network boundaries and resilient backoff."""
+        """One bounded admission/cooldown path for routing and product stages."""
         if not self.client:
             raise RuntimeError("LLM Client uninitialized")
-
         from app.services.structured_output import response_format
-        wire_format=response_format(self.profile.support_model,response_schema) if response_schema else {"type":"json_object"}
-        completion = await self.client.chat.completions.create(
-            model=self.profile.support_model,
-            messages=messages,
-            temperature=0.0, # Zero variance for deterministic routing
-            response_format=wire_format
+        from app.services.provider_budget import complete
+        wire_format = response_format(self.profile.support_model, response_schema) if response_schema else {"type": "json_object"}
+        completion = await complete(
+            self.client.chat.completions.create, model=self.profile.support_model,
+            messages=messages, response_format=wire_format,
+            timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,
+            stage=response_schema.__name__ if response_schema else 'inference',
         )
-        
         response_content = completion.choices[0].message.content
         if not response_content:
             raise ValueError("Empty response received from LLM")
-            
         return response_content
 
     async def _execute_schema_inference(self,messages,schema):
