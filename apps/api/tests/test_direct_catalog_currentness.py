@@ -12,8 +12,9 @@ from app.services.shopping_discovery import ShoppingBrief
 
 pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='migrated disposable PostgreSQL required')
 @pytest.mark.asyncio
+@pytest.mark.parametrize('entry',['direct','visual'])
 @pytest.mark.parametrize('change',['none','price','stock','spec','deleted'])
-async def test_direct_search_actual_sql_postwriter_recheck(change):
+async def test_direct_search_actual_sql_postwriter_recheck(change,entry,monkeypatch):
     engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);pid=None
     try:
         async with sessions() as db:
@@ -21,6 +22,11 @@ async def test_direct_search_actual_sql_postwriter_recheck(change):
             db.add(row);await db.commit();pid=row.id
         async def retrieve(db,query,**kwargs):return (await db.execute(select(Product).where(Product.id==pid))).scalars().all()
         svc=object.__new__(NeuralCoreService);svc.ai_engine=SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=retrieve));svc.is_healthy=True
+        svc.ai_engine.search_by_image_vector=AsyncMock(side_effect=lambda *args,**kwargs:[])
+        async def visual(*args,**kwargs):
+            async with sessions() as db:return await retrieve(db,"Atlas laptop")
+        svc.ai_engine.search_by_image_vector=visual
+        monkeypatch.setattr("app.services.free_llm_service.FreeLLMService.analyze_product_image",AsyncMock(return_value="generic"))
         async def infer(messages):
             data=json.loads(messages[1]['content'])
             if 'catalog_evidence' in data:
@@ -32,7 +38,9 @@ async def test_direct_search_actual_sql_postwriter_recheck(change):
                 return json.dumps({'text':'The card shows current catalog facts. Merchant availability is unverified.','product_ids':[],'claims':[]})
             return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
         svc._execute_llm_inference=infer
-        async with sessions() as db:result=await svc._handle_product_search(db,'Atlas laptop',ShoppingBrief(required_features=['at least 16GB RAM']),'Atlas laptop at least 16GB RAM')
+        async with sessions() as db:
+            brief=ShoppingBrief(required_features=['at least 16GB RAM'])
+            result=await svc._handle_product_search(db,'Atlas laptop',brief,'Atlas laptop at least 16GB RAM') if entry=='direct' else await svc._handle_visual_search('controlled-image','Atlas laptop at least 16GB RAM',db=db,brief=brief)
         if change=='none':assert [c.id for c in result.products]==[pid]
         else:assert result.response_kind=='system_notice' and result.products==[]
     finally:
