@@ -425,7 +425,7 @@ class NeuralCoreService:
     async def _handle_staged_catalog_search(self,db,decision,brief,message):
         from app.services.ai_nlu_service import CandidateRanker, _build_broad_query
         from app.services.staged_search_service import staged_search
-        groups=[];trace=[]
+        groups=[];trace=[];scoped_checks={}
         try:
             # Sequential SQL work. One target timing out aborts publication so a
             # partial result cannot masquerade as a complete comparison.
@@ -438,6 +438,7 @@ class NeuralCoreService:
                     target_brief.required_features=list(dict.fromkeys([*brief.required_features,*target.required_features]))
                     if len(target_brief.required_features)>8:raise ValueError('Too many target constraints')
                     filtered=[p for p in result.candidates if (card:=catalog_result(p)) is not None and target_brief.permits(card)]
+                    for product in filtered:scoped_checks.setdefault(product.id,[]).append(target_brief)
                     groups.append(filtered)
                     trace.append({'target':target.product_name,'tier':result.tier,
                         'retrieved_ids':[p.id for p in filtered],'required_features':target.required_features})
@@ -468,7 +469,7 @@ class NeuralCoreService:
                     current={p.id:catalog_result(p) for p in rows.scalars().all()}
                     for card in response.products:
                         now=current.get(card.id)
-                        if now is None or now.model_dump(exclude={'relation'})!=card.model_dump(exclude={'relation'}):
+                        if now is None or now.model_dump(exclude={'relation'})!=card.model_dump(exclude={'relation'}) or not any(b.permits(now) for b in scoped_checks.get(card.id,[])):
                             raise ValueError('Catalog changed during staged copy')
                 return response
         except Exception as exc:
