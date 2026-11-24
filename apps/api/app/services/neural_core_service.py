@@ -645,7 +645,19 @@ class NeuralCoreService:
             )
 
         try:
-            return await self._catalog_response(db, products, "PRODUCT_SEARCH", query, brief, customer_message, decision)
+            response=await self._catalog_response(db, products, "PRODUCT_SEARCH", query, brief, customer_message, decision)
+            # The direct/no-target path has the same post-writer freshness
+            # contract as staged/setup/gift publication, including alternatives.
+            if response.products:
+                ids=[card.id for card in response.products]
+                rows=(await db.execute(select(models.Product).where(models.Product.id.in_(ids)).execution_options(populate_existing=True))).scalars().all()
+                current={row.id:catalog_result(row) for row in rows}
+                constraints=brief or ShoppingBrief()
+                for card in response.products:
+                    now=current.get(card.id)
+                    if now is None or now.model_dump(exclude={'relation'})!=card.model_dump(exclude={'relation'}) or not constraints.permits(now):
+                        raise ValueError('Catalog changed during direct copy')
+            return response
         except Exception as exc:
             logger.warning("neural_core.catalog.revalidation_failed",extra={"error_type":type(exc).__name__})
             return NeuralCoreResponse(text="System notice: current catalog evidence could not be checked. No product recommendation was published.",response_kind="system_notice",confidence=0.0,explain="Catalog revalidation unavailable",telemetry={"intent":"PRODUCT_SEARCH","entities":[],"turn":0})
