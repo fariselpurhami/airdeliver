@@ -80,7 +80,7 @@ class SearchTarget(BaseModel):
 
 class RouterDecision(BaseModel):
     """Strict contract for the LLM output. Enforces type safety on hallucinations."""
-    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE", "GIFT_DISCOVERY"]
+    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE", "GIFT_DISCOVERY", "SETUP_DISCOVERY"]
     brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
     requested_name: Optional[str] = Field(default=None,max_length=255,description="Literal customer product/brand/model for availability or comparison")
     alternative_query: Optional[str] = Field(default=None,max_length=128,description="Generic functional category query for genuine alternatives, never invented product/brand")
@@ -90,7 +90,7 @@ class RouterDecision(BaseModel):
     social_reply: Optional[str] = Field(default=None, description="Contextual chat response")
     quantity: int = Field(default=1, ge=1, le=99, strict=True)
     targets: List[SearchTarget] = Field(default_factory=list,max_length=3)
-    shopping_task: Literal['search','comparison','specifications','consultation'] = 'search' 
+    shopping_task: Literal['search','comparison','specifications','consultation','setup'] = 'search' 
 
 
 # =============================================================================
@@ -103,7 +103,7 @@ Analyze the user's message and the conversation history.
 
 You MUST output a valid JSON object strictly matching this schema:
 {
-    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE" | "GIFT_DISCOVERY",
+    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE" | "GIFT_DISCOVERY" | "SETUP_DISCOVERY",
     "brief": {"version": 1, "recipient": null, "occasion": null, "category": null, "budget": null, "budget_max": null, "budget_currency": null, "preference": null},
     "requested_name": "Literal customer product/brand/model or null for broad browsing",
     "alternative_query": "Generic functional category such as smartwatch for Apple Watch, or null",
@@ -117,6 +117,7 @@ You MUST output a valid JSON object strictly matching this schema:
 }
 
 ROUTING RULES:
+- SETUP_DISCOVERY: customer explicitly asks to build a setup, kit, system or ecosystem requiring several complementary component types. Set search_subject to exact customer span describing setup. Do not invent component targets in router, targets must be empty. Planning is read-only; no compatibility or completeness claim without evidence.
 - Concrete product questions: set PRODUCT_SEARCH and provide1..3 targets, one separate literal customer product/category span per target. Never concatenate two products into one retrieval query. Preserve comparison/specification/consultation task. Do not invent a target from assistant text or recipient gender. If more than3 targets are essential, ask to split the request. No web/general model knowledge is product evidence.
 - GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Ask about budget and interests/occasion before choosing. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
 - Alternatives: preserve the original sales intent. For a concrete unavailable item, retrieve genuine same-purpose alternatives and explain the honest tradeoff, never pretend the original is available. alternative_query is a short generic functional category, not an invented brand/model. For comparisons/specs preserve each named product. Fresh sourced research may answer independently of local stock; never imply merchant availability from web evidence.
@@ -316,7 +317,7 @@ class NeuralCoreService:
                 decision.intent='GIFT_DISCOVERY'
             else:
                 decision.targets=[SearchTarget(product_name=name) for name in target_names]
-            if decision.intent=="PRODUCT_SEARCH":
+            if decision.intent in {"PRODUCT_SEARCH","SETUP_DISCOVERY"}:
                 subject=decision.search_subject
                 if not subject or ' '.join(subject.casefold().split()) not in ' '.join(customer_context.casefold().split()):
                     decision.intent="GIFT_DISCOVERY"
@@ -369,6 +370,19 @@ class NeuralCoreService:
             "operation":operation,"quantity":decision.quantity,"price":str(product.price),"currency":"USD"})
         text=(f"Review adding {decision.quantity} × {product.name}." if operation=="add" else f"Review removing the entire {product.name} line from your cart.")
         return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
+
+    async def _handle_setup_discovery(self,db,message,brief):
+        from app.services.discovery_planner import plan_setup
+        try:
+            components=await plan_setup(self._execute_llm_inference,message)
+            decision=RouterDecision(intent='PRODUCT_SEARCH',shopping_task='setup',
+                targets=[SearchTarget(product_name=c) for c in components])
+            response=await self._handle_staged_product_search(db,decision,brief,message)
+            return response
+        except Exception as exc:
+            _log_inference_failure('neural_core.setup.withheld',exc)
+            return NeuralCoreResponse(text='I could not verify a useful component plan. Which main use and essential components should the setup cover?',
+                response_kind='text',confidence=0,explain='Setup plan unavailable',telemetry={'intent':'SETUP_DISCOVERY','entities':[],'turn':0})
 
     async def _handle_staged_product_search(self,db,decision,brief,message):
         if self.is_healthy and decision.shopping_task in {'comparison','specifications','consultation'}:
@@ -513,6 +527,16 @@ class NeuralCoreService:
         supplied as bounded evidence to the model writer and review boundary."""
         try:
             products = await self.ai_engine.search_by_image_vector(image_base64, limit=5)
+            from app.services.free_llm_service import FreeLLMService
+            try:
+                async with asyncio.timeout(8):
+                    identity=await FreeLLMService().analyze_product_image(image_base64,enrich_with_search=True)
+                    if isinstance(identity,str) and 2<=len(identity)<=256 and 'generic' not in identity.casefold():
+                        candidates=await self.ai_engine.perform_hybrid_search_pure(db,identity,limit=5)
+                        products=list(dict((p.id,p) for p in list(products)+list(candidates)).values())[:10]
+            except asyncio.CancelledError:raise
+            except Exception as exc:
+                logger.warning('neural_core.visual_identity_unavailable error_type=%s',type(exc).__name__)
         except Exception as exc:
             logger.error("neural_core.engine.visual_search_failed", extra={"error_type": type(exc).__name__})
             return NeuralCoreResponse(
@@ -661,6 +685,8 @@ class NeuralCoreService:
         # Dispatch
         if decision.intent in {"CART_ADD", "CART_REMOVE"}:
             response = await self._handle_cart_review(db,decision,user)
+        elif decision.intent == "SETUP_DISCOVERY":
+            response=await self._handle_setup_discovery(db,message,memory.shopping_brief)
         elif decision.intent == "GIFT_DISCOVERY":
             response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
         elif decision.intent == "PRODUCT_SEARCH":
