@@ -520,7 +520,16 @@ class FreeLLMService:
             async with provider_admission.lock:
                 async with self._execution_semaphore:
                     await _wait_cooldown()
-                    response=await client.chat.completions.create(**kwargs_to_send)
+                    from app.services.shared_provider_admission import shared_provider_slot
+                    async with shared_provider_slot(model,messages,response_format,max_tokens,timeout_budget) as reservation:
+                        try:
+                            response=await client.chat.completions.create(**kwargs_to_send)
+                            reservation.observe(response)
+                        except APIStatusError as failure:
+                            if failure.status_code==429:
+                                from app.services.provider_budget import retry_delay
+                                await reservation.quota(retry_delay(failure,0,60.0))
+                            raise
                     from app.services.provider_budget import log_usage
                     log_usage(response,model,'free_llm',messages,max_tokens)
                     return response
@@ -610,7 +619,7 @@ class FreeLLMService:
         wire_format = response_format(self.models.brain_model, response_schema) if response_schema else {"type": "json_object"}
         completion = await self._chat_completion(
             messages=messages, model=self.models.brain_model, temperature=0.2,
-            max_tokens=1600 if response_schema and response_schema.__name__=='OpeningBatch' else 512 if response_schema and response_schema.__name__=='GroundingReview' else 1200, response_format=wire_format,
+            max_tokens=1000 if response_schema and response_schema.__name__=='OpeningBatch' else 256 if response_schema and response_schema.__name__=='GroundingReview' else 1200, response_format=wire_format,
             **({'reasoning_effort':'low'} if self.models.brain_model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and response_schema and response_schema.__name__ in {'OpeningBatch','GroundingReview'} else {}),
         )
         message = completion.choices[0].message if completion and completion.choices else None

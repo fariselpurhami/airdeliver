@@ -103,6 +103,7 @@ class CoreSettings(BaseAppConfig):
     VAPID_PRIVATE_KEY: SecretStr = Field(..., alias="VAPID_PRIVATE_KEY")
     
     AI_CHAT_STATE_TTL_SECONDS: int = Field(900, ge=60)
+    PROVIDER_TPM_BUDGET: int = Field(8000,ge=1000,le=1000000)
     SEARCH_EMBEDDING_BUDGET_SECONDS: float = Field(1.5, gt=0, le=3, allow_inf_nan=False)
     TEXT_WARMUP_BUDGET_SECONDS: float = Field(240, gt=0, le=3600, allow_inf_nan=False)
     TEXT_WARMUP_SAMPLE_MAX_SECONDS: float = Field(5, gt=0, le=25, allow_inf_nan=False)

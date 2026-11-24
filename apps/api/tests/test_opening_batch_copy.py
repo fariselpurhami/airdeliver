@@ -8,7 +8,7 @@ from tests.test_shopping_discovery_contract import row
 
 
 def body(groups):
-    return {'rows':[{'row':label,'draft':{'text':'Explore these catalog designs.\n\nCompare the listed material before choosing.','product_ids':[],'claims':[]}} for label,_ in groups]}
+    return {'rows':[{'row':label,'draft':{'introduction':'Explore these catalog designs.','insight':'Compare the listed material before choosing.','product_ids':[],'claims':[]}} for label,_ in groups]}
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('failure',[None,'ids','numeric','undeclared','review','paragraph','provider'])
@@ -16,9 +16,9 @@ async def test_batch_actual_writer_validator_and_independent_reviewer(failure):
     groups=[(name,[row()]) for name in ('Personalized','Bestsellers','Trending','Deals')]
     draft=body(groups)
     if failure=='ids':draft['rows'][1]['row']='other'
-    if failure=='numeric':draft['rows'][0]['draft']['text']='Explore999designs.\n\nCompare the cards.'
+    if failure=='numeric':draft['rows'][0]['draft']['introduction']='Explore999designs.'
     if failure=='undeclared':draft['rows'][0]['draft'].update(product_ids=[1])
-    if failure=='paragraph':draft['rows'][0]['draft']['text']='Oneparagraph'
+    if failure=='paragraph':draft['rows'][0]['draft']['insight']='Two\n\nparagraphs'
     verdict={k:True for k in ('supported','all_product_mentions_declared','no_unsupported_commercial_claims','fulfills_discovery_task')}
     if failure=='review':verdict['supported']=False
     infer=AsyncMock(side_effect=[json.dumps(draft),json.dumps(verdict)])
@@ -88,6 +88,14 @@ async def test_native_batch_adapter_uses_bounded_output_and_strict_schemas():
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(content)))])
     svc._get_client=AsyncMock(return_value=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create))))
     await svc.generate_opening_batch(groups)
-    assert [c['max_tokens'] for c in calls]==[1600,512]
+    assert [c['max_tokens'] for c in calls]==[1000,256]
     assert [c['response_format']['json_schema']['name'] for c in calls]==['OpeningBatch','GroundingReview']
     assert all(c['response_format']['json_schema']['strict'] and c['reasoning_effort']=='low' for c in calls)
+
+@pytest.mark.asyncio
+async def test_opening_safe_reason_is_visible_without_model_text(caplog):
+    from app.services.ai_nlu_service import StructuredLog
+    import logging
+    with caplog.at_level(logging.WARNING):
+        StructuredLog.warning('opening_batch_withheld',stage='writer_format',reason='opening_paragraph_contract',raw_model_text='private-model-text')
+    assert 'opening_paragraph_contract' in caplog.text and 'private-model-text' not in caplog.text

@@ -1144,6 +1144,7 @@ class StructuredLog:
         for key,value in fields.items():
             if key in numeric and type(value) in (int,float) and math.isfinite(value):safe[key]=value
             elif key in booleans and type(value) is bool:safe[key]=value
+            elif key=='reason' and value in {'opening_identity_mismatch','opening_paragraph_contract','grounding_review_rejected','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','ValidationError','ShoppingCopyTimeout','TimeoutError','RateLimitError','SharedProviderBudgetError'}:safe[key]=value
             elif key in labels and isinstance(value,str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,79}',value):safe[key]=value
             elif key=='correlation_id' and isinstance(value,str) and re.fullmatch(r'[A-Za-z0-9_-]{1,128}',value):safe[key]=value
         if exc_info and sys.exc_info()[0] is not None:

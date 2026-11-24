@@ -84,7 +84,7 @@ def log_usage(response,model,stage,messages,output):
     logger.info('provider.usage model=%s stage=%s input_bytes_upper=%d output_cap=%d usage=%s',model,stage,token_upper_bound(messages),output,values)
 
 async def complete(create, *, model, messages, response_format, timeout, stage='inference'):
-    output = {'SpecDraft': 1200, 'SourceReview': 1200,'GroundingReview':512}.get(stage, 2048)
+    output = {'SpecDraft': 1200, 'SourceReview': 1200,'GroundingReview':256,'ShoppingDraft':640,'RouterDecision':768}.get(stage, 2048)
     estimate = token_upper_bound({'messages': messages, 'response_format': response_format})
     if stage in {'SpecDraft', 'SourceReview'} and estimate + output > 7800:
         logger.warning('provider.input_withheld stage=%s input_token_upper=%d output_cap=%d', stage, estimate, output)
@@ -102,9 +102,16 @@ async def complete(create, *, model, messages, response_format, timeout, stage='
                     await asyncio.sleep(max(.001, remaining))
                     remaining = state.until - loop.time()
                 try:
-                    response=await create(model=model, messages=messages, temperature=0.0,
-                                        response_format=response_format, max_tokens=output,
-                                        **({'reasoning_effort':'low'} if model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and stage=='GroundingReview' else {}))
+                    from app.services.shared_provider_admission import shared_provider_slot
+                    async with shared_provider_slot(model,messages,response_format,output,max(.001,deadline-loop.time())) as reservation:
+                        try:
+                            response=await create(model=model, messages=messages, temperature=0.0,
+                                                response_format=response_format, max_tokens=output,
+                                                **({'reasoning_effort':'low'} if model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and stage in {'RouterDecision','ShoppingDraft','GroundingReview'} else {}))
+                            reservation.observe(response)
+                        except APIStatusError as failure:
+                            if failure.status_code==429:await reservation.quota(retry_delay(failure,attempt,60.0))
+                            raise
                     log_usage(response,model,stage,messages,output)
                     return response
                 except Exception as exc:

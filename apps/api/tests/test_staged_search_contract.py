@@ -8,17 +8,17 @@ from app.services.neural_core_service import NeuralCoreService,SessionMemory
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('tier',['high_precision_exact','high_precision_ranked','mid_precision','broad_fallback','no_match'])
+@pytest.mark.parametrize('tier',['high_precision_exact','high_precision_ranked','broad_fallback','no_match'])
 async def test_real_shared_tiers_preserve_category_and_bounded_identity(tier):
     exact=SimpleNamespace(id=1,name='wireless headphones',price=20)
     other=SimpleNamespace(id=2,name='Audio option',price=10)
     sets={'high_precision_exact':[[exact,exact]],'high_precision_ranked':[[other]],
-        'mid_precision':[[],[other]],'broad_fallback':[[],[],[other]],'no_match':[[],[],[]]}
+        'broad_fallback':[[],[other]],'no_match':[[],[]]}
     engine=SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=sets[tier]))
-    result=await staged_search(engine,object(),'wireless headphones',category='audio',rank=CandidateRanker(engine).rerank,broaden=_build_broad_query)
+    result=await staged_search(engine,object(),'wireless headphones',category='audio',rank=CandidateRanker(engine).rerank,broaden=lambda q:'headphones')
     assert result.tier==tier and len(result.candidates)<=1
     assert all(call.kwargs['filters']=={'category':'audio'} for call in engine.perform_hybrid_search_pure.call_args_list)
-    assert [c.kwargs['limit'] for c in engine.perform_hybrid_search_pure.call_args_list]==[30,10,5][:engine.perform_hybrid_search_pure.await_count]
+    assert [c.kwargs['limit'] for c in engine.perform_hybrid_search_pure.call_args_list]==[30,5][:engine.perform_hybrid_search_pure.await_count]
 
 
 @pytest.mark.asyncio
@@ -42,3 +42,9 @@ async def test_router_target_array_requires_literal_customer_source(injected):
     decision=await service._analyze_intent('Compare Alpha and Beta',SessionMemory(user_name='Client'))
     if injected:assert decision.intent=='GIFT_DISCOVERY' and decision.targets==[]
     else:assert decision.shopping_task=='comparison' and [t.product_name for t in decision.targets]==['Alpha','Beta']
+
+@pytest.mark.asyncio
+async def test_empty_same_query_is_not_repeated():
+    retrieve=AsyncMock(return_value=[])
+    result=await staged_search(SimpleNamespace(perform_hybrid_search_pure=retrieve),None,'laptop',rank=lambda q,p:p,broaden=lambda q:' LAPTOP ')
+    assert result.tier=='no_match' and retrieve.await_count==1

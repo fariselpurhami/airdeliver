@@ -36,7 +36,8 @@ async def test_actual_specification_question_generated_contract_and_safe_field_d
     question='What are the specifications of Apple iPhone 17 Pro Max? Cite the sources you actually checked.'
     result=await service._analyze_intent(question,SessionMemory(user_name='test'))
     assert result.intent=='PRODUCT_SEARCH' and result.shopping_task=='specifications'
-    assert 'Authoritative output JSON schema' in seen[0][0]['content']
+    assert 'authoritative response schema' in seen[0][0]['content']
+    assert '$defs' not in seen[0][0]['content']
     assert 'Apple iPhone 17 Pro Max' not in seen[0][0]['content']
     service._execute_llm_inference=AsyncMock(return_value=json.dumps({'intent':'PRODUCT_SEARCH','quantity':None,'targets':None,'brief':None,'query':'private secret sentinel'}))
     with caplog.at_level(logging.ERROR):result=await service._analyze_intent(question,SessionMemory(user_name='test'))

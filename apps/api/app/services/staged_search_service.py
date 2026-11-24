@@ -38,10 +38,10 @@ async def staged_search(engine, db, query: str, *, category=None, rank: Callable
             return StagedResult(unique(sorted(exact,key=price,reverse=True)),'high_precision_exact')
         if high:
             return StagedResult(unique(await asyncio.to_thread(rank,query,high)),'high_precision_ranked')
-        mid=await engine.perform_hybrid_search_pure(db,query,limit=10,filters=filters)
-        if mid:
-            return StagedResult(unique(await asyncio.to_thread(rank,query,mid)),'mid_precision')
-        broad=broaden(query)
+        # An empty limit30 result cannot gain candidates by repeating limit10.
+        # Retry only when broadening actually changes the query.
+        broad=' '.join(broaden(query).split())
+        if not broad or broad.casefold()==query.casefold():
+            return StagedResult((),'no_match')
         rows=await engine.perform_hybrid_search_pure(db,broad,limit=5,filters=filters)
-        # Unlike the historical branch, preserve explicit category on fallback.
         return StagedResult(unique(rows),'broad_fallback' if rows else 'no_match')

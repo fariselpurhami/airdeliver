@@ -45,7 +45,7 @@ async def test_opening_model_insight_and_current_cards_through_real_publication(
                 intro='Explore the current local catalog selection.'
                 insight='Consider the listed material in the card before deciding. Merchant availability is unverified.'
                 draft={'text':intro+(' ' if mode=='one_paragraph' else '\n\n')+insight,'product_ids':[],'claims':[]}
-                return json.dumps({'rows':[{'row':r['row'],'draft':draft} for r in data['rows']]} if 'rows' in data else draft)
+                return json.dumps({'rows':[{'row':r['row'],'draft':dict(introduction=intro,insight=('' if mode=='one_paragraph' else insight),product_ids=[],claims=[])} for r in data['rows']]} if 'rows' in data else draft)
             return json.dumps(dict(supported=mode!='rejected',all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
         async with sessions() as db:
             from app.services.free_llm_service import FreeLLMService
@@ -148,7 +148,7 @@ async def test_original_four_role_stack_order_no_crossrole_backfill(real_cache,e
                 draft={'text':'Explore this local catalog section.\n\nVerify the listed details and merchant availability before choosing.','product_ids':[],'claims':[]}
                 if 'rows' in data:
                     written.extend(r['row'] for r in data['rows'])
-                    return json.dumps({'rows':[{'row':r['row'],'draft':draft} for r in data['rows']]})
+                    return json.dumps({'rows':[{'row':r['row'],'draft':dict(introduction=draft['text'].split('\n\n')[0],insight=draft['text'].split('\n\n')[1],product_ids=draft['product_ids'],claims=draft['claims'])} for r in data['rows']]})
                 role=data['request_evidence']['row_pool'];written.append(role)
                 return json.dumps(draft)
             return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
