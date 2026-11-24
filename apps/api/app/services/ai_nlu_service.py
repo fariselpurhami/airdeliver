@@ -3234,8 +3234,19 @@ class AINLUService:
                 if has_eligible else
                 "System notice: no eligible cards were found for this opening selection. This does not mean the catalog is empty. Retry or browse the catalog."
             )
+            catalog_reason=None
+            if not has_eligible:
+                try:
+                    from app.services.opening_catalog_status import opening_catalog_status,opening_status_notice
+                    status=await self._matrix_stage(user_id,'empty_catalog_diagnosis',lambda:opening_catalog_status(self.db,global_seen_ids))
+                    catalog_reason=status['reason'];notice=opening_status_notice(status)
+                    StructuredLog.info('opening_catalog_diagnosed',stage=catalog_reason,
+                        candidate_count=status['real_eligible'],product_count=status['real_fresh'])
+                except asyncio.CancelledError:raise
+                except Exception as exc:
+                    StructuredLog.warning('opening_catalog_diagnosis_unavailable',error_type=type(exc).__name__)
             await self._send_to_ui(user_id, {"content": notice, "type": "info",
-                "status": "retryable", "opening_stage": stage}, strict=True)
+                "status": "retryable", "opening_stage": stage,"catalog_reason":catalog_reason}, strict=True)
             return False
 
         # 7. Asynchronous Fire-and-Forget State Persistence
