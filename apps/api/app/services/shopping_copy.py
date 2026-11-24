@@ -118,7 +118,7 @@ and occasion. Do not repeat known fields as missing. Once a literal category and
 resolved budget exist, optional material/style may refine browsing but must not
 block all catalog candidates. Never introduce an occasion/category from nowhere.
 If budget is supplied but currency/maximum is unresolved, clarify it.
-Do not select products before a concrete interest/category exists.
+Do not select products before a concrete interest/category exists EXCEPT request_evidence.gift_browse:true: show actual diverse catalog options within explicit budget as exploration, not ideal suitability, and ask exactly one follow-up question after options. Do not repeat known budget or occasion as missing. Do not infer tastes from gender.
 Do not infer tastes or price range from recipient gender. Do not mention products
 absent from evidence, including examples from general knowledge. If no candidates,
 say the catalog search found no current candidates and ask to broaden it.
@@ -151,9 +151,7 @@ unavailable requested name, but do require cards/references for actual alternati
 Reject irrelevant functional alternatives even if product IDs and stock are valid.
 Spec claims must match catalog_specs exactly. Local positive stock is not supplier
 verification. Require honest absence disclosure before a persuasive alternative.
-A recipient-only gift request MUST ask preferences, not present arbitrary candidates.
-Reject search candidates if the current task is a vague gift without a concrete
-customer-provided category/interest, even when its product_ids are valid.
+A recipient-only gift request without explicit budget and occasion MUST clarify. For request_evidence.gift_browse:true, diverse current catalog options within explicit budget are allowed without category: require exploratory wording, exactly one follow-up question, no gender-based taste or ideal-fit claims. Other vague gift requests must clarify before products.
 Cart-event follow-ups may offer optional catalog-asserted complements or same-category
 alternatives without asserting customer preferences. Reject inferred removal reasons,
 compatibility guarantees, superiority, urgency, personal budget or transaction claims.
@@ -176,6 +174,8 @@ def validate_draft(draft, cards, context=None, brief=None):
         if re.search(r'(?i)\b(?:bestsell(?:er|ing)?|best.selling|trending|popular|sold|sales|discount|sale|save|saving|hurry|limited|only \d+ left|selling fast|real inventory|real stock)\b',draft.text):
             raise ValueError('fixture_claim_forbidden')
 
+    if (context or {}).get('gift_browse') and sum(draft.text.count(mark) for mark in ('?','؟'))!=1:
+        raise ValueError('gift_followup_count')
     by_id={card.id:card.model_dump() for card in cards}
     if len(set(draft.product_ids))!=len(draft.product_ids) or not set(draft.product_ids)<=by_id.keys():
         raise ValueError('unsupported_product_reference')
@@ -258,7 +258,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
             stage='review_verdict'
             if not all(verdict.model_dump().values()):raise ValueError('grounding_review_rejected')
     except Exception as exc:
-        allowed={'fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
+        allowed={'gift_followup_count','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
         reason=str(exc) if type(exc) is ValueError and str(exc) in allowed else type(exc).__name__
         error_class=ShoppingCopyTimeout if isinstance(exc,TimeoutError) else ShoppingCopyError
         raise error_class(stage,reason) from exc

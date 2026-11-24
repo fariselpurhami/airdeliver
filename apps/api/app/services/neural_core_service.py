@@ -149,7 +149,7 @@ ROUTING RULES:
 - Advice strategy: preserve explicit product questions, price objections, competitor questions and hesitation as valid shopping, not support escalation or out-of-domain. Use advice_goal and exact current customer_signal; never infer financial tier/personality or urgency from demographics.
 - Context rewriting: retrieval_query may normalize spelling or resolve an explicit prior customer product reference. Never borrow assistant product names or invent brands/models/features. Literal targets remain unchanged for identity and missing-evidence accounting.
 - Concrete product questions: set PRODUCT_SEARCH and provide1..3 targets, one separate literal customer product/category span per target. Never concatenate two products into one retrieval query. Preserve comparison/specification/consultation task. Do not invent a target from assistant text or recipient gender. If more than3 targets are essential, ask to split the request. No web/general model knowledge is product evidence.
-- GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Ask about budget and interests/occasion before choosing. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
+- GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Extract budget and occasion first. With explicit resolved budget and occasion but no category, keep GIFT_DISCOVERY: catalog will offer diverse categories as exploratory options with one follow-up, never presumed recipient tastes. If budget or occasion missing, clarify it. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
 - Alternatives: preserve the original sales intent. For a concrete unavailable item, retrieve genuine same-purpose alternatives and explain the honest tradeoff, never pretend the original is available. alternative_query is a short generic functional category, not an invented brand/model. For comparisons/specs preserve each named product. Fresh sourced research may answer independently of local stock; never imply merchant availability from web evidence.
 - Hard constraints: excluded_terms and required_features are exact literal customer spans only, never invented. Preserve explicit RAM/storage, material and feature requirements. Do not put generic preferences in required_features. Missing evidence cannot satisfy a hard requirement.
 - Budget fields: budget is an exact customer source span; budget_max is its explicit maximum amount as a decimal string, budget_currency is an explicit ISO code or USD when the source uses $, dollar, dollars or US dollars. Never convert currencies or infer a cap from vague cheap/affordable. If amount/currency is missing, clarify it.
@@ -570,6 +570,43 @@ class NeuralCoreService:
                 response_kind='system_notice',confidence=0,explain='Staged search unavailable',
                 telemetry={'intent':'PRODUCT_SEARCH','entities':[],'turn':0})
 
+    async def _handle_gift_browse(self,db,message,brief):
+        """Owner policy: budget+occasion permits cross-category exploration.
+
+        This is catalog diversity, not inferred recipient tastes or suitability.
+        Revalidation/publication uses the same shared model writer/reviewer.
+        """
+        from decimal import Decimal
+        from app.services.catalog_visibility import real_catalog_predicates
+        if not (brief.occasion and brief.budget_max and brief.budget_currency):
+            return await self._shopping_response(message,[],brief,"clarification","GIFT_DISCOVERY")
+        try:
+            statement=select(models.Product).where(models.Product.is_active.is_(True),
+                models.Product.inventory>0,models.Product.currency==brief.budget_currency,
+                models.Product.price<=Decimal(brief.budget_max),*real_catalog_predicates(models.Product)).order_by(models.Product.id).limit(500)
+            rows=(await db.execute(statement)).scalars().all()
+            groups={}
+            for product in rows:
+                card=catalog_result(product)
+                if card and brief.permits(card):groups.setdefault(product.category,[]).append(product)
+            candidates=[]
+            for position in range(5):
+                for group in groups.values():
+                    if position<len(group) and len(candidates)<5:candidates.append(group[position])
+            response=await self._catalog_response(db,candidates,'GIFT_DISCOVERY',brief=brief,customer_message=message,
+                search_evidence={'gift_browse':True,'selection_basis':'Diverse current catalog categories within explicit budget, not personal suitability','followup_questions':1})
+            # Guard hard constraints/current row values again after model awaits.
+            if response.products:
+                ids=[c.id for c in response.products]
+                current=(await db.execute(select(models.Product).where(models.Product.id.in_(ids)).execution_options(populate_existing=True))).scalars().all()
+                now={p.id:catalog_result(p) for p in current}
+                if any(c.id not in now or now[c.id] is None or now[c.id].model_dump()!=c.model_dump() or not brief.permits(now[c.id]) for c in response.products):
+                    raise ValueError('Gift candidates changed during copy')
+            return response
+        except Exception as exc:
+            _log_inference_failure('neural_core.gift_browse.withheld',exc)
+            return NeuralCoreResponse(text='System notice: current gift candidates could not be checked. Please retry.',response_kind='system_notice',confidence=0,explain='Gift catalog unavailable',telemetry={'intent':'GIFT_DISCOVERY','entities':[],'turn':0})
+
     async def _handle_product_search(self, db: AsyncSession, query: str, brief: ShoppingBrief | None = None, customer_message: str | None = None, decision: RouterDecision | None = None) -> NeuralCoreResponse:
         try:
             products = await self.ai_engine.perform_hybrid_search_pure(db, query, limit=5)
@@ -862,7 +899,7 @@ class NeuralCoreService:
         elif decision.intent == "SETUP_DISCOVERY":
             response=await self._handle_setup_discovery(db,message,memory.shopping_brief,memory=memory)
         elif decision.intent == "GIFT_DISCOVERY":
-            response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
+            response=await self._handle_gift_browse(db,message,memory.shopping_brief)
         elif decision.intent == "PRODUCT_SEARCH":
             if memory.shopping_brief.budget and memory.shopping_brief.budget_max is None:
                 response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
