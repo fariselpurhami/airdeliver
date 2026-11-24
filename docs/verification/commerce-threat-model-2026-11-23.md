@@ -87,3 +87,20 @@ Main a23251f includes PR104 displayed literal removal context, PR105 separate co
 ## Scoped constraint checkpoint, November24 07:35
 
 PR110 and112 are merged after exact-head required CI: positive and negative ordinary catalog target/setup scope persist separately, union additions and reset only with the existing literal independently reviewed replacement. Target/component identity changes withhold rather than infer a new identity. Current SQL scope filters and post-copy checks remain. These changes supersede earlier pending110/per-target-exclusion notes, not semantic risk or all-live-false status. Source research remains informational evidence, never a claim the catalog satisfies hard requirements. PR112 post-push verification is still awaited by this snapshot. No owner/provider/DR action occurred.
+
+## PR114-116 scoped checkpoint, November24 08:29
+
+SEC-05: local synthetic actual-process HTTP/SQL/Redis/strict-adapter characterization
+now recorded, GC enabled. Rerun steady p99=441.91ms/max754.34ms; allocationpressure
+p99=155.07ms/max173.59ms, maxGC60.74ms. This is not fullapp/model/provider/remoteRedis
+load evidence. Required exact100admit/50quota/<0.2s isolated gate unchanged. Earlier
+ledger0.6s description is historical; current limiter queue+EVAL budget is1second,
+Redis socket timeout0.5s. A stopped process/eventloop cannot honor a wallclock SLO.
+
+SEC-04/06: PR115/116 migrate original recovery/productcopy and specialized synthesis
+failure boundaries to strict adapter, typed errorlogs, cancellation and truthful
+failure copy. Controlled adapter tests do not prove successful model entailment.
+Unreviewed legacy ecosystem planner, successfulprose/sourcepolicy and optional
+cartcopy still need scoped work. No original foundation or voice/cartmutation
+path removed, no ordinary user rerouting into unreviewed legacy handlers.
+No provider/owner actions or live flags promoted.

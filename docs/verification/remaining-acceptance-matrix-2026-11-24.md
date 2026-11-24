@@ -1,6 +1,6 @@
-# Remaining acceptance matrix, November24 07:35
+# Remaining acceptance matrix, November24 08:29
 
-This is a bounded handoff after source-route restoration, not a final completion claim. Shipped through PR112, including durable positive/negative catalog target and setup scope.35preserved/20partial/0lost counts were source-route groups only. Some partial groups still contain real unbridged behavior. Grouping them as zero lost routes does not mean no work remains.
+This is a bounded handoff after source-route restoration, not a final completion claim. Shipped through PR116, including durable positive/negative catalog target and setup scope.35preserved/20partial/0lost counts were source-route groups only. Some partial groups still contain real unbridged behavior. Grouping them as zero lost routes does not mean no work remains.
 
 | Groups | Current verified source behavior | Remaining class and next evidence |
 |---|---|---|
@@ -13,8 +13,8 @@ This is a bounded handoff after source-route restoration, not a final completion
 |23|Reviewed generic setup components, separate staged searches, aggregatebudget|Quality/implementation: PR109 persists reviewed literal per-component requirements across turns, with identity changes withheld; PR112 adds separate negative scope. Evidence-backed compatibility and completeness remain unverified. No physical fit claim without actualsourcefacts|
 |25,49|Vectorimage+bounded identity/title retrievalhint, currentSQLgate|Provider/quality: actualimage identity/ranking under adversarial/wrongmodel/outage, hint notproof. No providercalls performed|
 |28,29,50,51|Per-target boundedsourcequeries, exactquotes+review, coverage/missingtargets, catalogfallback|Implementation/quality: PR105 separate saved hints shipped; actualsource/modelentailment multilingualsuite, targetextractionquality. Independentmodelreview notproof|
-|43|RetryAfter/deadlines, serializedopening, boundednativeadmission, isolatedexactquota+heartbeatbenchmark and deliberateGCpausegate|Performance: requiredreal-processp99/max under mixedHTTP/model/SQLload, GCduration/retention, remoteRedis,503rate/recovery. GCtailrisk unresolved|
-|44|Additivestrictmodeladapter, sharedlogsredacted, existingHTTPstricttransport|Implementation migration: PR108 migrates globalintent/queryoptimizer; other legacyemptystringcallers remain. Preserve voice/cartfallback while addingtypedcallers individually|
+|43|RetryAfter/deadlines, serializedopening, boundednativeadmission, isolatedexactquota+heartbeatbenchmark and deliberateGCpausegate|PR114 shipped local synthetic actualUvicorn/HTTP/PG19SQL/Redis/strictadapter mixedload withGCon. Retained rerunsteady p99=441.91ms,max754.34ms; pressurep99=155.07ms,max173.59ms; GCmax60.74ms. Fullapp/catalog/model/provider and remoteRedis load/503/recovery remain. Exactisolatedquota gate unchanged; no latencySLO certification|
+|44|Additivestrictmodeladapter, sharedlogsredacted, existingHTTPstricttransport|PR108 globalintent/queryoptimizer, PR115 originalrecovery/productcopy and PR116 specializedsynthesis migrated tostrictfailureadapter. Success/blank/outage/cancel tested withcontrolled actualadapter. Legacyecosystem planner, optionalcartcopy and successfullegacyprose policy remain. Voice/cartmutations unchanged|
 
 ## Owner-controlled gates, not executed
 

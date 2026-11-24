@@ -1,11 +1,34 @@
-# Current restoration checkpoint, November24 07:35
+# Current restoration checkpoint, November24 08:29
 
-Shipped main7303dfb through PR112. Conservative source-route grouping remains35preserved,20partial,0lost. This is not55accepted capabilities. Historical35/15/5 audit remains unchanged and every live_verified flag remainsfalse.
+Shipped main0194e91 through PR116. Conservative source-route grouping remains
+35preserved,20partial,0lost, not55accepted capabilities. Every live_verified flag
+remainsfalse; original historical audit is unchanged.
 
-Ordinary catalog/setup positive and negative constraints now have separate literal independently reviewed scope, bounded durable session state, conservative identity-change withholding, explicit reviewed reset and currentSQL gates before selection/after copy. Explicit English same-kind/same-unit minimum/maximum typed attributes are supported; unit conversion and multilingual semantic quality are not certified. Broader customer-only/consented context, reviewed clear/save/removal reason and two strict legacy read-only callers are shipped as detailed in the canonical scoreboard.
+PR114 adds repeatable opt-in synthetic real-process mixed-load evidence: actual
+separate Uvicorn/loopback HTTP, disposablePG19SQL and Redis admission, strict adapter
+with controlled12ms completion, GC enabled. Worse rerun retained: steady
+p99=441.91ms/max754.34ms; allocationpressurep99=155.07ms/max173.59ms;
+GCmax60.74ms. No timingSLO or full application/provider/model/remoteRedis claim.
+Required isolated exactquota/heartbeat CI benchmark is unchanged and green.
 
-Full local backend1357passed5skipped at PR112. Required scan and both backend CI jobs succeeded before merge. Post-push PR112 checks remain a separate awaited verification. Earlier applicable push checks through111 were green. Local tests control provider transport; green contracts do not establish real-model/source/vision quality.
+PR115/116 migrate additional original read-only recovery/productcopy/specialized
+synthesis callers to strict failure adapters. Failure no longer invents fit,
+superiority, synchronization or ongoing warehouse work; cancellation propagates.
+Actual strict adapter controlled success/blank/outage/cancel tests retain old
+adapter injection contracts. Legacy ecosystem planner, optionalcartcopy and
+successful legacy prose policy remain explicit open work. Ordinary HTTP reviewed
+setup/research remains separate, not routed into unreviewed legacy handlers.
 
-Remaining work is tracked by the acceptance matrix: real multilingual strategy/source entailment, setup physical compatibility/completeness, vision ranking, remaining legacy strict callers, large-catalog SQL performance, real-processp99/max/GC and remoteRedis failure recovery. Source research answers informational questions with exact quotes/review and must not be mislabeled as catalog suitability or filtered to hide inconvenient product facts.
+PR116 full disposablePG19 local suite1352passed22skipped on its pre-rebase branch;
+transport/backup-dependent skips were not claimed locally executed. Required scan
+and both real-service backend CI jobs passed at exact latest heads before each
+merge. PR114/115 applicable postpush checks green; PR116 postpush still awaited.
+No provider/owner actions. Current constraints/session, reviewedcart and source
+features through112 remain as previously recorded.
 
-Owner-controlled release gates remain archive provenance, full schema/data restore comparison, off-host recovery, cutover rollback and one combined rollout batch. Reversible synthetic-row quarantine preparation is not executed cleanup. No provider calls, spending, owner deployment/migration/seeding/rotation, deletion or visibility changes were performed. No globalproductionready or restoration-finished claim.
+Fullapp/catalog/vector/model/remoteRedisperformance, multilingualsource entailment,
+physical setup compatibility/completeness and realvisionranking are unverified.
+Owner release gates remain archiveprovenance, fullschema/datacomparison,
+offhostrecovery and cutoverrollback. Owner acceptance command/checklist batch was
+prepared, not executed; it contains no migration, seed, demoquarantine or deletion.
+No globalproductionready or restoration-finished claim.

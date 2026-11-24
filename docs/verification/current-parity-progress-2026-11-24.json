@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T07:35:00+02:00",
+  "as_of": "2026-11-24T08:29:00+02:00",
   "scope": "Current source-route snapshot, not live/model acceptance. Historical03:30audit remains separate.",
   "counts": {
     "preserved": 35,
@@ -1399,5 +1399,6 @@
   "anchor_caveat": "Original/current implementation anchor line numbers are retained from the historical03:30audit as navigation leads, not reverified against this shipped revision.",
   "remaining_acceptance_matrix": "remaining-acceptance-matrix-2026-11-24.md",
   "pending_prs": {},
-  "shipped_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b"
+  "shipped_revision": "7303dfb7f62f852377ebf8591d222c8e024a0d9b",
+  "checkpoint": "Shipped throughPR116 at0194e911d8ddaf3b785abd8b0ae5bee5b23d2811; postpush116 pending; no live certification."
 }
