@@ -90,6 +90,8 @@ class RouterDecision(BaseModel):
     social_reply: Optional[str] = Field(default=None, description="Contextual chat response")
     quantity: int = Field(default=1, ge=1, le=99, strict=True)
     targets: List[SearchTarget] = Field(default_factory=list,max_length=3)
+    advice_goal: Literal['browse','understand','compare','price_objection','hesitation'] = 'browse'
+    customer_signal: Optional[str] = Field(default=None,max_length=256)
     retrieval_query: Optional[str] = Field(default=None,max_length=256,description="Optional rewritten retrieval query, never evidence")
     shopping_task: Literal['search','comparison','specifications','consultation','setup'] = 'search' 
 
@@ -109,6 +111,8 @@ You MUST output a valid JSON object strictly matching this schema:
     "requested_name": "Literal customer product/brand/model or null for broad browsing",
     "alternative_query": "Generic functional category such as smartwatch for Apple Watch, or null",
     "search_subject": "Literal customer category, interest or exact item, or null for an unspecified gift",
+    "advice_goal": "browse" | "understand" | "compare" | "price_objection" | "hesitation",
+    "customer_signal": "Exact current customer span supporting objection/hesitation, or null",
     "retrieval_query": "Optional generic query rewrite based on customer context, never invented brand/model",
     "quantity": 1,
     "targets": [{"product_name":"Exact literal customer span for one concrete product or category"}],
@@ -120,6 +124,7 @@ You MUST output a valid JSON object strictly matching this schema:
 
 ROUTING RULES:
 - SETUP_DISCOVERY: customer explicitly asks to build a setup, kit, system or ecosystem requiring several complementary component types. Set search_subject to exact customer span describing setup. Do not invent component targets in router, targets must be empty. Planning is read-only; no compatibility or completeness claim without evidence.
+- Advice strategy: preserve explicit product questions, price objections, competitor questions and hesitation as valid shopping, not support escalation or out-of-domain. Use advice_goal and exact current customer_signal; never infer financial tier/personality or urgency from demographics.
 - Context rewriting: retrieval_query may normalize spelling or resolve an explicit prior customer product reference. Never borrow assistant product names or invent brands/models/features. Literal targets remain unchanged for identity and missing-evidence accounting.
 - Concrete product questions: set PRODUCT_SEARCH and provide1..3 targets, one separate literal customer product/category span per target. Never concatenate two products into one retrieval query. Preserve comparison/specification/consultation task. Do not invent a target from assistant text or recipient gender. If more than3 targets are essential, ask to split the request. No web/general model knowledge is product evidence.
 - GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Ask about budget and interests/occasion before choosing. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
@@ -310,6 +315,9 @@ class NeuralCoreService:
                     decision.query=None
                 if decision.quantity!=1 and not re.search(r"(?<![\w.])"+str(decision.quantity)+r"(?![\w.])",message):
                     decision.query=None
+            if decision.customer_signal and ' '.join(decision.customer_signal.casefold().split()) not in ' '.join(message.casefold().split()):
+                decision.customer_signal=None
+                decision.advice_goal='browse'
             customer_context="\n".join([m.content for m in memory.history if m.role=="user"]+[message])
             decision.brief=decision.brief.grounded(customer_context)
             if decision.requested_name and ' '.join(decision.requested_name.casefold().split()) not in ' '.join(customer_context.casefold().split()):
@@ -435,7 +443,8 @@ class NeuralCoreService:
                 response=await self._catalog_response(db,candidates,'PRODUCT_SEARCH',
                     brief=brief,customer_message=message,
                     decision=decision if len(decision.targets)==1 else None,
-                    search_evidence={'shopping_task':decision.shopping_task,'target_searches':trace,
+                    search_evidence={'shopping_task':decision.shopping_task,'advice_goal':decision.advice_goal,
+                        'customer_signal':decision.customer_signal,'target_searches':trace,
                         'missing_target_evidence_is_unknown':True,'external_web_evidence':False})
                 if response.products:
                     ids=[c.id for c in response.products]
