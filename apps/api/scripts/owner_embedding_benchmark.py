@@ -59,11 +59,15 @@ def validate_files(path,row):
 
 
 def download(label):
+    # Explicit download action only. Local run subprocess restores offline mode.
+    os.environ['HF_HUB_OFFLINE']='0'
+    os.environ['HF_HUB_DISABLE_TELEMETRY']='1'
     from huggingface_hub import hf_hub_download
     d=definitions()[label]
     cache=Path(os.environ.get('HF_HUB_CACHE') or os.environ.get('HF_HOME',Path.home()/'.cache/huggingface'));cache.mkdir(parents=True,exist_ok=True)
     if shutil.disk_usage(cache).free<d['download_bytes']*2+2*1024**3:raise ValueError('Need twice selected download plus2GiB free space')
     for f in d['files']:
+        print('Downloading or verifying cached file: '+f['path']+' ('+str(f['size'])+' bytes)',flush=True)
         hf_hub_download(d['repo'],f['path'],revision=d['revision'],cache_dir=os.environ.get('HF_HUB_CACHE'),token=False)
     path,_=resolve(label);validate_files(path,d)
     print(json.dumps({'downloaded':label,'revision':d['revision'],'selected_bytes':d['download_bytes'],'licence':d['license'],'hosted_inference':False,'application_stores_changed':False}))
