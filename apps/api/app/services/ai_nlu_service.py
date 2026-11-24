@@ -4403,7 +4403,7 @@ SCOPE & BEHAVIOR
 
 """
             fallback_response = (
-              "airdeliver core systems are currently synchronizing. Please attempt your request again momentarily."
+              "I could not verify an answer to this question. The displayed catalog items are not proof of the requested facts."
             )
             web_search_timeout_seconds = 18.0
             llm_timeout_seconds = 28.0
@@ -4485,7 +4485,7 @@ SCOPE & BEHAVIOR
                         f"EXECUTE THE 5-STAGE FRAMEWORK NOW. NO EXCEPTIONS."
                     )
                     ai_response_text = await asyncio.wait_for(
-                        self.llm_service.generate_response(
+                        _strict_model_text(self.llm_service,
                             prompt=with_conversation(user_prompt),
                             system_role=system_instruction + history_policy,
                             temperature=llm_temperature,
@@ -4525,7 +4525,6 @@ SCOPE & BEHAVIOR
                     user_id=request.user_id,
                     correlation_id=correlation_id,
                     intent_category=getattr(intent_category, "name", str(intent_category)),
-                    error=str(exc),
                     error_type=type(exc).__name__,
                 )
 
@@ -4590,15 +4589,15 @@ SCOPE & BEHAVIOR
                         "4. State only the listed price and availability supported by catalog_availability metadata. Missing facts remain unverified."
                     )
 
-                    ai_response_text = await self.llm_service.generate_response(
+                    ai_response_text = await _strict_model_text(self.llm_service,
                         prompt=with_conversation(user_prompt),
                         system_role=system_instruction + history_policy,
                         temperature=0.1, # حرارة شبه معدومة لمنع التأليف
                         max_tokens=1500
                     )
                 except Exception as exc:
-                    StructuredLog.warning("precise_specs_extraction_failed", correlation_id=ctx.correlation_id, user_id=request.user_id, error=str(exc))
-                    ai_response_text = f"Check out {ProductAccess.get(top_product, 'name', 'this item')}, it matches the specs you are looking for."
+                    StructuredLog.warning("precise_specs_extraction_failed", correlation_id=ctx.correlation_id, user_id=request.user_id, error_type=type(exc).__name__)
+                    ai_response_text = "I could not verify the requested specifications. The displayed catalog item is not proof of a match."
             else:
                 try:
                     chat_context = await self._get_conversation_context(request.user_id)
@@ -4613,9 +4612,9 @@ SCOPE & BEHAVIOR
                         "genius_response_failed",
                         correlation_id=ctx.correlation_id,
                         user_id=request.user_id,
-                        error=str(exc),
+                        error_type=type(exc).__name__,
                     )
-                    ai_response_text = f"Check out {ProductAccess.get(top_product, 'name', 'this item')}, it matches what you are looking for."
+                    ai_response_text = "I could not assess how well the displayed catalog item fits your request."
 
             if ai_response_prefix:
                 ai_response_text = f"{ai_response_prefix}{ai_response_text}"
@@ -4801,7 +4800,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
                     f"WEB INTEL:\n{web_intel_safe or 'No external market intelligence available.'}"
                 )
 
-                ai_response_text = await self.llm_service.generate_response(
+                ai_response_text = await _strict_model_text(self.llm_service,
                     prompt=with_conversation(user_payload),
                     system_role=system_instruction + history_policy,
                     context=context_payload,
@@ -4814,16 +4813,12 @@ Execute your response adhering strictly to this visual and structural blueprint:
                     "deep_research_failure",
                     correlation_id=ctx.correlation_id,
                     user_id=request.user_id,
-                    error=str(exc),
+                    error_type=type(exc).__name__,
                 )
-                if products:
-                    ai_response_text = (
-                        f"The exact item isn't available, but I highly recommend "
-                        f"{ProductAccess.get(products[0], 'name', 'this option')}. "
-                        "It's the best alternative in our collection."
-                    )
-                else:
-                    ai_response_text = "I'm checking our live inventory global warehouses. Please wait a moment."
+                ai_response_text = (
+                    "I could not verify an answer to this question. "
+                    "Any displayed catalog alternatives have not been verified as suitable replacements."
+                )
 
             return LlmDecision(
                 response_text=ai_response_text,
