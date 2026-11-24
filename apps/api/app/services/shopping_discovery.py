@@ -33,7 +33,7 @@ class ShoppingBrief(BaseModel):
                 value=Decimal(self.budget_max)
                 source=fields['budget']
                 import re
-                tokens=re.findall(r'(?<![\w.٫])\d+(?:[.٫]\d+)?(?![\w.٫])',source)
+                tokens=re.findall(r'(?<![\w.,٫٬])\d+(?:[.٫]\d+)?(?![\w.,٫٬])',source)
                 currency=self.budget_currency
                 if value.is_finite() and value>0 and any(Decimal(t.replace('٫','.'))==value for t in tokens) and (
                     (bool(re.fullmatch(r'[A-Z]{3}',currency)) and bool(re.search(r'(?<!\w)'+re.escape(currency)+r'(?!\w)',source,re.I))) or (currency=='USD' and ('$' in source or re.search(r'\b(?:us\s+dollars?|dollars?|usd)\b',source,re.I)))):

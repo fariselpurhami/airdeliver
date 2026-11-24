@@ -4,6 +4,8 @@ import pytest
 from app.services.shopping_discovery import ShoppingBrief,catalog_result
 
 @pytest.mark.parametrize('source,amount,currency,accepted',[
+ ('under USD 1,000','1','USD',False),('under USD 100,50','100','USD',False),
+ ('بحد أقصى ١٬٠٠٠ USD','1','USD',False),
  ('under USDT 100','100','USD',False),('under USDA 100','100','USD',False),
  ('under XEUR 100','100','EUR',False),('under EURX 100','100','EUR',False),
  ('under eur 100','100','EUR',True),('under USD 100','100','USD',True),
