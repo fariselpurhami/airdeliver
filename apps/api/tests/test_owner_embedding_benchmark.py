@@ -77,6 +77,23 @@ async def test_real_tiny_local_architecture_through_cpu_runner_offline(tmp_path,
     run=json.loads(result.stdout)
     assert len(run['rankings'])==2 and run['metadata']['corpus_count']==2
     assert run['metadata']['dimension']==16 and run['metadata']['smoke'] is True
+    if architecture=='qwen2':
+        import hashlib
+        catalog=json.loads((ROOT/'fixtures/dev_catalog_v1.json').read_text());catalog['products']=catalog['products'][:20]
+        corpus=tmp_path/'catalog.json';corpus.write_text(json.dumps(catalog))
+        dataset=json.loads((ROOT/'fixtures/retrieval_eval/queries_v1.json').read_text());dataset['catalog_sha256']=hashlib.sha256(corpus.read_bytes()).hexdigest();dataset['queries']=dataset['queries'][:2]
+        query_file=tmp_path/'queries.json';query_file.write_text(json.dumps(dataset))
+        base=[sys.executable,str(ROOT/'scripts/run_cached_fixture_retrieval.py'),'--model-path',str(path),'--run-local-model','--model-revision','a'*40,'--catalog',str(corpus),'--queries',str(query_file)]
+        for prompt,reused in [('',False),('Instruct: query ',True)]:
+            result=subprocess.run(base+['--query-prompt',prompt,'--vector-cache',str(tmp_path/'vectors')],cwd=ROOT,text=True,capture_output=True,timeout=60)
+            assert result.returncode==0,result.stderr
+            metadata=json.loads(result.stdout)['metadata']
+            assert metadata['document_vectors_reused'] is reused and metadata['corpus_vectors_persisted'] is True
+        result=subprocess.run(base+['--query-prompt','','--pilot-docs','20'],cwd=ROOT,text=True,capture_output=True,timeout=60)
+        assert result.returncode==0,result.stderr
+        pilot=json.loads(result.stdout)
+        assert pilot['pilot'] is True and pilot['metadata']['document_count']==20
+        assert pilot['metadata']['queries_measured'] is False and pilot['metadata']['projection_is_upper_bound'] is False
 
 
 def test_actual_comparison_cli_rejects_incomplete_results_without_models(tmp_path):

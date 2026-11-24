@@ -73,7 +73,7 @@ def download(label):
     print(json.dumps({'downloaded':label,'revision':d['revision'],'selected_bytes':d['download_bytes'],'licence':d['license'],'hosted_inference':False,'application_stores_changed':False}))
 
 
-def run(label,output,split,smoke):
+def run(label,output,split,smoke,pilot_docs=None):
     path,revision=resolve(label)
     if label.startswith('baseline'):
         limits=[Path(p).read_text().strip() for p in ('/sys/fs/cgroup/memory.max','/sys/fs/cgroup/memory/memory.limit_in_bytes') if Path(p).is_file()]
@@ -84,12 +84,14 @@ def run(label,output,split,smoke):
             if available<8*1024**3:raise ValueError('Baseline requires8GiB available host memory; pause other model services first, no limit was raised')
     if label in definitions():validate_files(path,definitions()[label])
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
-    suffix='smoke' if smoke else split
+    suffix='pilot'+str(pilot_docs) if pilot_docs else 'smoke' if smoke else split
     dest=output/(label+'-'+suffix+'.rankings.json')
     if dest.exists():raise ValueError('Refusing to overwrite an existing run: '+str(dest))
     prompt='' if label=='baseline-current' else INSTRUCTION if label=='baseline-instructed' else definitions()[label]['query_prompt']
     command=[sys.executable,str(ROOT/'scripts/run_cached_fixture_retrieval.py'),'--model-path',str(path),'--query-prompt',prompt,'--split',split,'--run-local-model','--model-revision',revision]
     if smoke:command+=['--smoke']
+    elif pilot_docs:command+=['--pilot-docs',str(pilot_docs)]
+    else:command+=['--vector-cache',str(output/'document-vectors-v1')]
     env=dict(os.environ,HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1',HF_HUB_DISABLE_TELEMETRY='1',TOKENIZERS_PARALLELISM='false')
     tmp=dest.with_suffix('.partial')
     started=time.time()
@@ -103,15 +105,16 @@ def run(label,output,split,smoke):
     except BaseException:
         print('Run failed; partial artifact retained at '+str(tmp),file=sys.stderr);raise
     print(str(dest))
-    if not smoke:
+    if pilot_docs:print(json.dumps(result))
+    if not smoke and not pilot_docs:
         from evaluate_fixture_retrieval import evaluate
         score=evaluate(ROOT/'fixtures/dev_catalog_v1.json',ROOT/'fixtures/retrieval_eval/queries_v1.json',dest,split=split,allow_draft=True)
         score_path=output/(label+'-'+split+'.scores.json');score_path.write_text(json.dumps(score,indent=2));print(json.dumps(score))
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['preflight','download','smoke','run'])
-    p.add_argument('--model',choices=['baseline-current','baseline-instructed','harrier','granite']);p.add_argument('--output',default='/data/storage/embedding-benchmark-v1');p.add_argument('--split',choices=['dev','test'],default='dev')
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['preflight','download','smoke','pilot','run'])
+    p.add_argument('--pilot-docs',type=int,default=20,choices=range(20,51));p.add_argument('--model',choices=['baseline-current','baseline-instructed','harrier','granite']);p.add_argument('--output',default='/data/storage/embedding-benchmark-v1');p.add_argument('--split',choices=['dev','test'],default='dev')
     a=p.parse_args();definitions()
     if a.action=='preflight':
         import platform
@@ -124,5 +127,5 @@ def main():
     if a.action=='download':
         if a.model.startswith('baseline'):p.error('Baseline must already be cached')
         download(a.model)
-    else:run(a.model,a.output,a.split,a.action=='smoke')
+    else:run(a.model,a.output,a.split,a.action=='smoke',a.pilot_docs if a.action=='pilot' else None)
 if __name__=='__main__':main()
