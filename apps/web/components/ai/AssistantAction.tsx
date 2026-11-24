@@ -1,4 +1,5 @@
 'use client';
+import CartLifecycleReview from './CartLifecycleReview';
 import {useRef,useState} from 'react';
 import Link from 'next/link';
 import {api} from '@/lib/api';
@@ -18,6 +19,7 @@ export default function AssistantAction({action}:{action:unknown}) {
   return <Link className={button} href={`/tracking/${id}`}>Open order #{id}</Link>;
  }
  if(candidate.action==='initiate_support_handoff')return <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-500/5 p-3 text-xs text-amber-100" role="status">Human support is not connected here yet. No ticket or callback has been requested. <Link href="/help" className="underline">Open help</Link></div>;
+ if(candidate.action==='review_cart_lifecycle'&&payload)return <CartLifecycleReview payload={payload}/>;
  if(candidate.action!=='review_cart_change' || !payload)return null;
  const {product_id:id,product_name:name,operation,quantity,price,currency,review_id:reviewId}=payload;
  if(typeof reviewId!=='string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(reviewId) || !Number.isInteger(id) || Number(id)<1 || Number(id)>2147483647 || typeof name!=='string' || !name.trim() || name.length>512 || !['add','remove'].includes(String(operation)) || !Number.isInteger(quantity) || Number(quantity)<1 || Number(quantity)>99 || typeof price!=='string' || !/^\d+(\.\d{1,2})?$/.test(price) || currency!=='USD')return null;

@@ -35,6 +35,7 @@ from app.services.catalog_visibility import is_synthetic
 from app.schemas.ai_actions import (
     NeuralCoreResponse,
     CartReviewAction,
+    CartLifecycleReviewAction,
     SupportHandoffAction,
     TrackOrderAction,
 )
@@ -82,7 +83,7 @@ class SearchTarget(BaseModel):
 
 class RouterDecision(BaseModel):
     """Strict contract for the LLM output. Enforces type safety on hallucinations."""
-    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE", "GIFT_DISCOVERY", "SETUP_DISCOVERY"]
+    intent: Literal["PRODUCT_SEARCH", "TRACK_ORDER", "SUPPORT_HANDOFF", "SOCIAL_CHAT", "CART_ADD", "CART_REMOVE", "CART_CLEAR", "CART_SAVE", "CART_CHECKOUT", "GIFT_DISCOVERY", "SETUP_DISCOVERY"]
     brief: ShoppingBrief = Field(default_factory=ShoppingBrief)
     requested_name: Optional[str] = Field(default=None,max_length=255,description="Literal customer product/brand/model for availability or comparison")
     alternative_query: Optional[str] = Field(default=None,max_length=128,description="Generic functional category query for genuine alternatives, never invented product/brand")
@@ -109,7 +110,7 @@ Analyze the user's message and the conversation history.
 
 You MUST output a valid JSON object strictly matching this schema:
 {
-    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE" | "GIFT_DISCOVERY" | "SETUP_DISCOVERY",
+    "intent": "PRODUCT_SEARCH" | "TRACK_ORDER" | "SUPPORT_HANDOFF" | "SOCIAL_CHAT" | "CART_ADD" | "CART_REMOVE" | "CART_CLEAR" | "CART_SAVE" | "CART_CHECKOUT" | "GIFT_DISCOVERY" | "SETUP_DISCOVERY",
     "brief": {"version": 1, "recipient": null, "occasion": null, "category": null, "budget": null, "budget_max": null, "budget_currency": null, "preference": null, "excluded_terms": [], "required_features": []},
     "requested_name": "Literal customer product/brand/model or null for broad browsing",
     "alternative_query": "Generic functional category such as smartwatch for Apple Watch, or null",
@@ -127,6 +128,7 @@ You MUST output a valid JSON object strictly matching this schema:
 }
 
 ROUTING RULES:
+- CART_CLEAR/CART_SAVE/CART_CHECKOUT: only explicit current customer request to clear cart, save list for later or open checkout. Always review or navigation, never execute from text.
 - SETUP_DISCOVERY: customer explicitly asks to build a setup, kit, system or ecosystem requiring several complementary component types. Set search_subject to exact customer span describing setup. Do not invent component targets in router, targets must be empty. Planning is read-only; no compatibility or completeness claim without evidence.
 - Advice strategy: preserve explicit product questions, price objections, competitor questions and hesitation as valid shopping, not support escalation or out-of-domain. Use advice_goal and exact current customer_signal; never infer financial tier/personality or urgency from demographics.
 - Context rewriting: retrieval_query may normalize spelling or resolve an explicit prior customer product reference. Never borrow assistant product names or invent brands/models/features. Literal targets remain unchanged for identity and missing-evidence accounting.
@@ -361,6 +363,17 @@ class NeuralCoreService:
             intent="SOCIAL_CHAT", 
             social_reply="Chat assistance is temporarily unavailable. Please try again or use the catalog or support page."
         )
+
+    async def _handle_cart_lifecycle_review(self,decision,user):
+        def reply(text,action=None):
+            return NeuralCoreResponse(text=text,action=action,confidence=0,explain='Cart lifecycle customer review',telemetry={'intent':decision.intent,'entities':[],'turn':0})
+        if user is None:return reply('Sign in to review your cart. Nothing has changed.')
+        if decision.intent=='CART_CHECKOUT':return reply('Open your cart to review prices and shipping, then choose checkout. No order or payment has been submitted.')
+        from app.services.cart_lifecycle_review import prepare
+        payload=await prepare(self.cache,user.id,'clear' if decision.intent=='CART_CLEAR' else 'save')
+        if payload is None:return reply('Your current cart is empty. Nothing has changed.')
+        effect=('Clear only the active cart. Existing orders are not cancelled.' if payload['operation']=='clear' else 'Save the list as a cancelled Saved List record in your profile, then clear this active cart. This does not place an order or charge you.')
+        return reply(effect+' Nothing has changed. Confirm below within five minutes; changed carts need a fresh review.',CartLifecycleReviewAction(payload=payload))
 
     # --- ACTION HANDLERS -----------------------------------------------------
 
@@ -752,7 +765,9 @@ class NeuralCoreService:
             decision.search_subject=category
 
         # Dispatch
-        if decision.intent in {"CART_ADD", "CART_REMOVE"}:
+        if decision.intent in {"CART_CLEAR","CART_SAVE","CART_CHECKOUT"}:
+            response=await self._handle_cart_lifecycle_review(decision,user)
+        elif decision.intent in {"CART_ADD", "CART_REMOVE"}:
             response = await self._handle_cart_review(db,decision,user)
         elif decision.intent == "SETUP_DISCOVERY":
             response=await self._handle_setup_discovery(db,message,memory.shopping_brief)

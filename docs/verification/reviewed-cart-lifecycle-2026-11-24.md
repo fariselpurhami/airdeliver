@@ -1,0 +1,9 @@
+# Reviewed cart lifecycle
+
+Ordinary HTTP text may propose clear/save only for explicit customer review. Model output never changes a cart. Sign-in is required. The server records an owner-bound random review identifier with a five-minute TTL and the exact cart snapshot. The confirmation endpoint derives the owner from authentication, atomically consumes the review before effects and rejects changed snapshots. Concurrent confirmations cannot replay it. Uncertain outcomes require a fresh manual cart/saved-list check, never automatic replay.
+
+Reviewed clear deletes only the active cart with Redis compare-and-delete. It does not invoke the legacy clear handler's pending-order cancellation. That legacy route and behavior remain intact. Save uses the existing saved-list behavior: a cancelled Saved List order record in the profile, followed by compare-and-delete of the active cart. The copy discloses this. An additional expected-snapshot check prevents saving a cart changed before the existing save handler reads it. A change during SQL save can still produce saved-list success plus unconfirmed active-cart cleanup; this is an explicit 409 result, not retry permission. This is not a payment or an order placement. Checkout text does not create payment intent or submit an order.
+
+Actual HTTP, PostgreSQL and Redis coverage includes proposal without effects, owner mismatch, one-shot replay rejection, cart-only clear preserving a pending order and save recording one unpaid cancelled list. Additional real Redis checks cover changed snapshots, expiry, concurrency and outage. Frontend tests require a button press and lock uncertain results. UI inspected at 390px width. No live provider calls or owner-machine changes.
+
+The canonical SQL cart runtime remains held and inactive. This is a bounded bridge to existing Redis cart semantics, not full cross-store transactionality or production acceptance.

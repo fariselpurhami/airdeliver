@@ -36,3 +36,18 @@ it('does not pretend to create a human ticket or use model-supplied destination'
 it('does not execute old model add_to_cart actions with user identifiers',()=>{
  render(<AssistantAction action={{action:'add_to_cart',payload:{userId:'other',sku:'7',qty:99}}}/>);expect(screen.queryByRole('button')).not.toBeInTheDocument();expect(api.post).not.toHaveBeenCalled();
 });
+it('requires explicit lifecycle click and explains save-list side effects',async()=>{
+ jest.mocked(api.post).mockResolvedValue({data:{status:'saved'}});jest.mocked(api.get).mockResolvedValue({data:{items:[]}});
+ render(<AssistantAction action={{action:'review_cart_lifecycle',payload:{review_id:action.payload.review_id,operation:'save',item_count:2}}}/>);
+ expect(api.post).not.toHaveBeenCalled();expect(screen.getByText(/cancelled Saved List/)).toBeInTheDocument();
+ if(process.env.LIFECYCLE_REVIEW_HTML)fs.writeFileSync(process.env.LIFECYCLE_REVIEW_HTML,'<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="file:///tmp/actions-preview.css"></head><body style="margin:0;background:black;color:white;padding:20px;max-width:520px">'+document.body.innerHTML+'</body></html>');
+ fireEvent.click(screen.getByRole('button',{name:'Confirm save list and clear cart'}));
+ await waitFor(()=>expect(screen.getByRole('status')).toHaveTextContent('Request confirmed'));
+ expect(api.post).toHaveBeenCalledWith('/ai-ordering/cart/review/confirm',{review_id:action.payload.review_id});
+});
+it('locks uncertain lifecycle results with no retry button',async()=>{
+ jest.mocked(api.post).mockRejectedValue(new Error('unconfirmed'));
+ render(<AssistantAction action={{action:'review_cart_lifecycle',payload:{review_id:action.payload.review_id,operation:'clear',item_count:2}}}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Confirm clear active cart'}));
+ expect(await screen.findByRole('alert')).toHaveTextContent('Do not retry blindly');expect(screen.queryByRole('button')).not.toBeInTheDocument();
+});

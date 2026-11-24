@@ -250,6 +250,18 @@ async def remove_from_cart(
     return {"status": "accepted"}
 
 
+from app.services.cart_lifecycle_review import LifecycleConfirmation,confirm as confirm_cart_lifecycle
+
+@router.post('/cart/review/confirm')
+async def confirm_lifecycle_review(payload:LifecycleConfirmation,response:Response,
+    current_user:models.User=Depends(deps.get_current_active_user),
+    cart_service:AICartService=Depends(get_ai_cart_service)):
+    response.headers['Cache-Control']='no-store'
+    result=await confirm_cart_lifecycle(cart_service,current_user.id,payload.review_id)
+    response.status_code={'saved':200,'cleared':200,'empty':409,'review_required':409,'cleanup_unconfirmed':409,'save_unconfirmed':503}.get(result['status'],503)
+    return result
+
+
 @router.post("/cart/clear", status_code=status.HTTP_202_ACCEPTED)
 async def clear_cart(
     current_user: models.User = Depends(deps.get_current_active_user),

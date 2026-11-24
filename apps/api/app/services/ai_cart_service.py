@@ -535,6 +535,8 @@ class AICartService:
             return {"status": "rejected"}
 
         cart = await self._get_cart_from_redis(payload.user_id)
+        if 'expected_snapshot' in raw_payload and cart._snapshot != raw_payload['expected_snapshot']:
+            return {'status':'review_required'}
         if not cart.items:
             await self._send_to_ui(payload.user_id, {"content": "Nothing to save.", "type": "error"})
             return {"status": "empty"}

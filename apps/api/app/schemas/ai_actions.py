@@ -197,10 +197,23 @@ class CartReviewAction(SchemaBaseModel):
     requires_mfa: StrictBool = False
 
 
+class CartLifecycleReviewPayload(SchemaBaseModel):
+    review_id: StrictStr = Field(pattern=r'^[0-9a-f-]{36}$')
+    operation: Literal['clear','save']
+    item_count: StrictInt = Field(ge=1)
+
+class CartLifecycleReviewAction(SchemaBaseModel):
+    action: Literal['review_cart_lifecycle'] = 'review_cart_lifecycle'
+    payload: CartLifecycleReviewPayload
+    rollback: None = None
+    requires_mfa: StrictBool = False
+
+
 AnyAction = Annotated[
     Union[
         AddToCartAction,
         CartReviewAction,
+        CartLifecycleReviewAction,
         TrackOrderAction,
         ProductSearchAction,
         SupportHandoffAction,
