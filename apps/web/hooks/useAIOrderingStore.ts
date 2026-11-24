@@ -909,9 +909,18 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     }
 
     const ok = await get()._postCartCommand(path, body);
-    // Cart sync and opening suggestions are best-effort hydration calls:
-    // their failure was silent on the worker path too, so keep it quiet.
-    const quiet = path === '/cart/sync' || path === '/session/suggestions';
+    // Opening runs inline in the API and streams over Redis. A failed HTTP
+    // response does not establish whether cards were published. Never retry
+    // automatically or leave a visually empty greeting with no explanation.
+    if (!ok && path === '/session/suggestions') {
+      set({ isLoading: false, isProcessing: false });
+      get().addSocketAIMessage({
+        type: 'info',
+        content: 'The opening request did not confirm completion. Cards may still arrive. Please wait rather than repeatedly reopening; you can browse the catalog meanwhile.',
+      });
+      return;
+    }
+    const quiet = path === '/cart/sync';
     if (!ok && !quiet) {
       set({ isLoading: false, isProcessing: false });
       get().appendSystemMessage({
@@ -926,7 +935,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
     const token = get().authToken;
     if (!token) return false;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    // Backend matrix deadline is75s; include response/publication headroom.
+    // Cart/payment timeouts are deliberately unchanged.
+    const timeoutId = setTimeout(() => controller.abort(), path === '/session/suggestions' ? 90000 : 30000);
     try {
       const checkoutKey = path === '/checkout/confirm'
         ? await getCheckoutRequestKey(token, body, useCartStore.getState().items) : null;

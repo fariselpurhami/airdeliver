@@ -200,12 +200,13 @@ describe('_dispatchCommand', () => {
     expect(postSpy).not.toHaveBeenCalled();
   });
 
-  it('keeps suggestion-fetch failure silent (best-effort hydration)', async () => {
+  it('surfaces uncertain opening completion without automatic retry', async () => {
     const postSpy = jest.fn<(path: string, body?: Record<string, unknown>) => Promise<boolean>>().mockResolvedValue(false);
     useAIOrderingStore.setState({ _postCartCommand: postSpy } as Partial<StoreSnapshot>);
     await useAIOrderingStore.getState()._dispatchCommand({ message: '__INTERNAL_GET_INITIAL_SUGGESTIONS__' });
     const state = useAIOrderingStore.getState();
-    expect(state.messages.some((m) => m.contentType === 'error')).toBe(false);
+    expect(state.messages.some((m) => m.contentType === 'info' && String(m.content).includes('did not confirm completion'))).toBe(true);
+    expect(postSpy).toHaveBeenCalledTimes(1);
   });
 
   it('surfaces an honest error when the command request fails', async () => {
@@ -320,4 +321,16 @@ it('shows an honest pending cart message without claiming the item was added',()
   expect(send).toHaveBeenCalledWith('__INTERNAL_ADD_BY_ID__:7');
   expect(useAIOrderingStore.getState().messages.some(m=>typeof m.content==='string'&&m.content.includes('Waiting for cart confirmation'))).toBe(true);
   expect(useAIOrderingStore.getState().messages.some(m=>typeof m.content==='string'&&m.content.includes('added to your cart'))).toBe(false);
+});
+
+
+describe('opening request deadline', () => {
+  it.each([['/session/suggestions', 90000], ['/cart/sync', 30000], ['/cart/add', 30000]])('uses bounded timeout for %s', async (path, delay) => {
+    const timer=jest.spyOn(global, 'setTimeout');
+    global.fetch=jest.fn<typeof fetch>().mockResolvedValue({ok:true} as Response);
+    useAIOrderingStore.setState({authToken:'offline-test-token'} as Partial<StoreSnapshot>);
+    expect(await useAIOrderingStore.getState()._postCartCommand(path as string, {})).toBe(true);
+    expect(timer).toHaveBeenCalledWith(expect.any(Function), delay);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
 });
