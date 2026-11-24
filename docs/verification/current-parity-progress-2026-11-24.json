@@ -1,5 +1,5 @@
 {
-  "as_of": "2026-11-24T05:18:00+02:00",
+  "as_of": "2026-11-24T05:43:00+02:00",
   "scope": "Current source-route snapshot, not live/model acceptance. Historical03:30audit remains separate.",
   "counts": {
     "preserved": 35,
@@ -12,14 +12,14 @@
       "id": "CAP-01",
       "capability": "SearchFilter parsing, validation, cache serialization, input normalization",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Used by engine search Remaining: Preserve explicit currency, hard constraints and exclusion semantics across every caller.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_commerce_constraints.py",
         "apps/api/tests/test_search_filter_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "SearchFilter": [
           "apps/api/app/services/ai_commerce_engine.py:81"
@@ -36,14 +36,14 @@
       "id": "CAP-02",
       "capability": "ModelRegistry text and vision loading, device/dtype, startup rejection/readiness",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Shared engine startup/model entrypoints Remaining: Exercise cold/warm startup, native cancellation, queue saturation and unavailable model boundaries. No claim of deployed model quality.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_embedding_startup_readiness.py",
         "apps/api/tests/test_worker_warmup_recovery.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "ModelRegistry": [
           "apps/api/app/services/ai_commerce_engine.py:317"
@@ -60,14 +60,14 @@
       "id": "CAP-03",
       "capability": "Collection/index bootstrap and intent hydration",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Engine factory/bootstrap Remaining: Verify schema/version compatibility and repeatability without unapproved production migrations or rebuilds.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_milvus_schema_diagnostics.py",
         "apps/api/tests/test_empty_milvus_repair.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_ensure_all_collections": [
           "apps/api/app/services/ai_commerce_engine.py:522"
@@ -90,13 +90,13 @@
       "id": "CAP-04",
       "capability": "Query embedding, model readiness and inference admission",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Hybrid search and memory Remaining: Keep bounded native work and truthful readiness; load-test failure paths.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_embedding_admission.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_get_query_embedding": [
           "apps/api/app/services/ai_commerce_engine.py:639"
@@ -113,14 +113,14 @@
       "id": "CAP-05",
       "capability": "OpenSearch plus Milvus text retrieval, reciprocal-rank fusion, cache IDs, current SQL row hydration, SQL fallback",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Normal HTTP support search, worker/NLU, voice tool Remaining: Shared current-product evidence policy for all callers; do not treat retrieval rank as stock or suitability.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_postgres.py",
         "apps/api/tests/test_commerce_constraints.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "perform_hybrid_search_pure": [
           "apps/api/app/services/ai_commerce_engine.py:943"
@@ -143,13 +143,13 @@
       "id": "CAP-06",
       "capability": "Complement bundles, explicit complement evidence, active/stock checks",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Cart optional worker; legacy direct cart/NLU paths Remaining: Preserve real relationship evidence. Missing relationship data can legitimately yield no bundle. LLM copy must not invent compatibility.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "generate_perfect_bundle": [
           "apps/api/app/services/ai_commerce_engine.py:660"
@@ -166,14 +166,14 @@
       "id": "CAP-07",
       "capability": "Fresh homepage matrix, tier/freshness exclusions and fallback selection",
       "parity": "degraded",
-      "finding": "Opening is still wired, but lifetime seen filtering can exhaust a bounded candidate set; daily real-data rotation PR70 remains unmerged.",
+      "finding": "Shipped real-only24hshownrecency and actualstream markers; largeSQLsort/providerfreshness quality unverified.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_opening_sales_postgres.py",
         "apps/api/tests/test_opening_pool_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "get_fresh_homepage_matrix": [
           "apps/api/app/services/ai_commerce_engine.py:789"
@@ -190,13 +190,13 @@
       "id": "CAP-08",
       "capability": "Genius alternatives with category and price window",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "HTTP support PR35 anchor expansion; optional removal worker; legacy cart Remaining: Recheck requested constraints, currency, positive current local inventory and non-demo eligibility at publication.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "find_genius_alternatives": [
           "apps/api/app/services/ai_commerce_engine.py:862"
@@ -213,7 +213,7 @@
       "id": "CAP-09",
       "capability": "Image vector encoding/search and OpenSearch materialization",
       "parity": "preserved",
-      "finding": "Vector image retrieval retained with fresh SQL hydration at HTTP publication. Image identity enrichment is tracked separately at CAP25/49.",
+      "finding": "Normal HTTP support visual search Remaining: Engine returns index-derived snapshots here. PR35 support boundary refreshes SQL rows; other callers need equivalent protection.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_bounded_image_decode.py",
@@ -222,7 +222,7 @@
         "apps/api/tests/test_shopping_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "search_by_image_vector": [
           "apps/api/app/services/ai_commerce_engine.py:1122"
@@ -239,13 +239,13 @@
       "id": "CAP-10",
       "capability": "Product ID fetching, common filters and SQL fallback",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Search infrastructure Remaining: Generic _filter_products does not itself enforce positive inventory or demo exclusion. Do not describe that policy as globally solved by PR35.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_fetch_products_from_db_by_ids": [
           "apps/api/app/services/ai_commerce_engine.py:1241"
@@ -262,13 +262,13 @@
       "id": "CAP-11",
       "capability": "Semantic user-fact insert and similarity recall",
       "parity": "preserved",
-      "finding": "Original semantic recall had no traffic caller. Original writer hook used incorrect fact= keyword against fact_text, so successful original persistence is not established. Retained, deliberately gated, not a working-memory regression.",
+      "finding": "Legacy writer exists only behind deliberately unwired inferred-memory hook; no production caller found for recall Remaining: Preserve implementation, add consent/provenance/delete/expiry semantics and tests before connecting it to traffic. Do not revive silent inferred memory.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_customer_memory_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "remember_user_fact": [
           "apps/api/app/services/ai_commerce_engine.py:1321"
@@ -291,14 +291,14 @@
       "id": "CAP-12",
       "capability": "Milvus connection retries/backoff and OpenSearch client lifecycle",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Dependency factories/startup Remaining: Verify timeout, connection cleanup and bounded failure behavior.",
       "original_file": "1. ai_commerce_engine.py",
       "test_leads": [
         "apps/api/tests/test_worker_lifecycle.py",
         "apps/api/tests/test_search_client_lifecycle.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "get_opensearch_client": [
           "apps/api/app/services/ai_commerce_engine.py:1510"
@@ -315,14 +315,14 @@
       "id": "CAP-13",
       "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
       "parity": "degraded",
-      "finding": "Original capacity/constraint helpers retained in NLU. HTTP ShoppingBrief does not carry the full RAM/storage/exclusion contract.",
+      "finding": "Shipped literal constraints, typed capacity identity and turn continuity; per-target/component scope and minimum/unit semantics remain incomplete.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_ai_nlu_pure.py",
         "apps/api/tests/test_nlu_characterization.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_extract_ram_candidates": [
           "apps/api/app/services/ai_nlu_service.py:131"
@@ -339,14 +339,14 @@
       "id": "CAP-14",
       "capability": "Typed product-target array, occasion, sentiment, intent, cart action and deduplication contracts",
       "parity": "degraded",
-      "finding": "Separate literal targets and task now flow through HTTP, maximum3 targets; original richer occasion/sentiment/cart contracts are not fully bridged.",
+      "finding": "NLU intent engine Remaining: Restore multi-item identity and intent propagation to normal chat without losing ambiguity.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_ai_nlu_pure.py",
         "apps/api/tests/test_staged_search_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "CommerceIntentPayload": [
           "apps/api/app/services/ai_nlu_service.py:222"
@@ -363,14 +363,14 @@
       "id": "CAP-15",
       "capability": "Persona, retention modes, four-phase response policies and sanitizer",
       "parity": "degraded",
-      "finding": "Reviewed model prose is wired, but original persona/retention/four-phase strategy is not fully represented by current HTTP contract. Unsupported secrecy/stock claims must not return.",
+      "finding": "Literal customer signal selects browse/understand/compare/price_objection/hesitation and shared consultative sequence. Remaining: Calibrated model strategy and complete original persona/retention bridge not certified; missing signal fix93pending.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_nlu_characterization.py",
         "apps/api/tests/test_sales_response_service.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "TextSanitizer": [
           "apps/api/app/services/ai_nlu_service.py:922"
@@ -387,14 +387,14 @@
       "id": "CAP-16",
       "capability": "Product serialization and JSON sanitation",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "NLU UI delivery and helpers Remaining: Reuse current product evidence/card schema; explicit provenance and demo status.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_shopping_catalog_postgres.py",
         "apps/api/tests/test_llm_grounding.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "ProductAccess": [
           "apps/api/app/services/ai_nlu_service.py:989"
@@ -417,13 +417,13 @@
       "id": "CAP-17",
       "capability": "Correlation logs, bounded task supervision, distributed locks/idempotency",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "NLU process_message Remaining: Real Redis contention, cancellation and failure testing. Content lock excludes image bytes, so same text with different images needs regression coverage.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_commerce_safe_diagnostics.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "process_message": [
           "apps/api/app/services/ai_nlu_service.py:2116"
@@ -440,14 +440,14 @@
       "id": "CAP-18",
       "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
       "parity": "degraded",
-      "finding": "Recent HTTP session and consented saved color/material/style hints connected; behavior/DNA and full original NLU history are not unified into ordinary text.",
+      "finding": "Shipped ownerboundhistory+consentedSQLrecall/HTTPcollection; broaderresearch/setup/imagecontext and behaviorlifecycle incomplete, inferredsensitivepersona deliberatelygated.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_customer_memory_postgres.py",
         "apps/api/tests/test_consented_http_context.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "UserDnaStore": [
           "apps/api/app/services/ai_nlu_service.py:1586"
@@ -464,14 +464,14 @@
       "id": "CAP-19",
       "capability": "UI Redis gateway, typing, payload types and strict row publication",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Opening suggestions and worker NLU Remaining: Test request-to-Redis-to-WebSocket-to-render delivery, not just handler return.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_opening_sales_postgres.py",
         "apps/api/tests/test_response_consumer_integration.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "UiGateway": [
           "apps/api/app/services/ai_nlu_service.py:1569"
@@ -488,14 +488,14 @@
       "id": "CAP-20",
       "capability": "Global model intent router with heuristic failure route",
       "parity": "degraded",
-      "finding": "HTTP has a model router, not equivalent original intent taxonomy. Ecosystem intent absent; fallback is an honest system notice.",
+      "finding": "HTTP setup/source/advice tasks restored, full original taxonomy and smartcart clear/save equivalents incomplete.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_router_config.py",
         "apps/api/tests/test_worker_behavior_seam.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {},
       "current_implementation_anchors": {},
       "anchor_caveat": "Named current schema/helper was added after original revision; inspect surrounding original capability group, do not infer original active behavior.",
@@ -505,14 +505,14 @@
       "id": "CAP-21",
       "capability": "Welcome/internal/reset/cancel/sync command router",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "HTTP suggestions/reset plus worker commands Remaining: Keep operational confirmations fixed and truthful. Reset intentionally preserves saved preferences and can clear pending cart orders.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_session_reset_scope.py",
         "apps/api/tests/test_nlu_cart_execution_truth.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_process_internal_command": [
           "apps/api/app/services/ai_nlu_service.py:2798"
@@ -529,14 +529,14 @@
       "id": "CAP-22",
       "capability": "Smart cart actions and text commands",
       "parity": "degraded",
-      "finding": "HTTP add/remove review is real and confirms before mutation, but richer smart-cart planning/commands remain separate. Do not restore inference-selected side effects.",
+      "finding": "Legacy NLU chat only Remaining: Preserve submission-versus-confirmation distinction; resolve product identity and keep side effects separate from advisory copy.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_nlu_cart_execution_truth.py",
         "apps/api/tests/test_cart_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_handle_smart_cart_action": [
           "apps/api/app/services/ai_nlu_service.py:2610"
@@ -553,13 +553,13 @@
       "id": "CAP-23",
       "capability": "Ecosystem planner, component searches and collection prose/cards",
       "parity": "degraded",
-      "finding": "Source route restored by shipped PR73/79/83/85/87; bounded contracts tested. Semantic/model quality, full original breadth and live acceptance remain unverified, therefore partial/degraded, not fully preserved.",
+      "finding": "HTTP setup planning reviews generic components then independently retrieves current catalog rows. Remaining: Compatibility/completeness intentionally not inferred; actual model plan quality unverified.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_handle_ecosystem_building": [
           "apps/api/app/services/ai_nlu_service.py:2704"
@@ -576,13 +576,13 @@
       "id": "CAP-24",
       "capability": "Opening matrix: personal/bestseller/trending/deal pools, diversity, freshness, stages and streaming",
       "parity": "degraded",
-      "finding": "Model opening/Insight was restored via generate_lifestyle_matrix -> write_opening. Owner observed429 and grounding rejection; four concurrent writer/review chains remain. Seen exhaustion remains pending PR70.",
+      "finding": "Shipped serializedopeningchains+realonlydailyrecency; live429rate/copyquality and largesort unverified.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_opening_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_handle_initial_suggestions": [
           "apps/api/app/services/ai_nlu_service.py:2954"
@@ -599,13 +599,13 @@
       "id": "CAP-25",
       "capability": "Vision identification and query optimizer with recent-context references",
       "parity": "degraded",
-      "finding": "Source route restored by shipped PR73/79/83/85/87; bounded contracts tested. Semantic/model quality, full original breadth and live acceptance remain unverified, therefore partial/degraded, not fully preserved.",
+      "finding": "HTTP bounded image identity/title hint plus reviewed customer-only query rewrite reached before current SQL publication. Remaining: Hint never identity proof; physical compatibility and real vision quality unverified.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_neural_core_visual.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_resolve_vision_query": [
           "apps/api/app/services/ai_nlu_service.py:3333"
@@ -628,14 +628,14 @@
       "id": "CAP-26",
       "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
       "parity": "degraded",
-      "finding": "Shared staged_search now connects HTTP and NLU exact/ranked/mid/broad tiers. Full original optimized-query/constraint planning is not yet equivalent.",
+      "finding": "Staged per-target search carries reviewed customer-only retrieval hint for single targets, literal identity retained. Remaining: All constraints/query normalization across legacy callers and real ranking quality unverified.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_contract.py",
         "apps/api/tests/test_staged_search_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_execute_universal_search": [
           "apps/api/app/services/ai_nlu_service.py:3434"
@@ -658,13 +658,13 @@
       "id": "CAP-27",
       "capability": "Older _execute_search exclusion/price filtering and smart alternatives",
       "parity": "preserved",
-      "finding": "Original _execute_search itself had no pipeline caller, unlike _execute_strategic_search. Retained; its over-budget fallback is not an authority to bypass current hard budget.",
+      "finding": "No production caller found for _execute_search Remaining: Important missed distinction: logic exists but is not the active pipeline. Its price-relaxation route can exceed user budget, so do not reconnect verbatim.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_execute_search": [
           "apps/api/app/services/free_llm_service.py:1025",
@@ -683,13 +683,13 @@
       "id": "CAP-28",
       "capability": "Informational web/spec/comparison synthesis, targeted specs, main product prose, missing-product recovery",
       "parity": "degraded",
-      "finding": "Source route restored by shipped PR73/79/83/85/87; bounded contracts tested. Semantic/model quality, full original breadth and live acceptance remain unverified, therefore partial/degraded, not fully preserved.",
+      "finding": "HTTP informational source acquisition per literal target, coverage subset validation, exact source quote membership, reviewed prose and explicit missing target warning. Remaining: Model semantic entailment not guaranteed; no live provider/source quality certification.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_reviewed_consultation.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_synthesize_response": [
           "apps/api/app/services/ai_nlu_service.py:3949"
@@ -712,13 +712,13 @@
       "id": "CAP-29",
       "capability": "Multi-target extraction versus informational query concatenation",
       "parity": "degraded",
-      "finding": "Current per-target retrieval is improved over original combined informational query, but per-target web source acquisition/completeness is absent.",
+      "finding": "Shipped separateboundedsourcequerypertarget+explicitmissingcoverage; actualsemantic/modelsourcequality unverified.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_staged_search_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_execute_message_pipeline": [
           "apps/api/app/services/ai_nlu_service.py:2224"
@@ -735,13 +735,13 @@
       "id": "CAP-30",
       "capability": "Consent-aware memory collection and seen-product persistence",
       "parity": "degraded",
-      "finding": "Consented preference collection exists in HTTP and NLU; HTTP browsing and original seen/behavior completion do not have full equivalent coverage.",
+      "finding": "Shipped explicitconsentedHTTP+NLUcollector and shownrecency; originalbehavior/seenunification incomplete.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_customer_memory_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_bg_memorize": [
           "apps/api/app/services/ai_nlu_service.py:4864"
@@ -764,14 +764,14 @@
       "id": "CAP-31",
       "capability": "Legacy inferred memory, implicit behavior update, idle nudges, dynamic time/nudge templates",
       "parity": "preserved",
-      "finding": "Idle/implicit/dynamic helpers had no active trigger/caller in original; inferred memory was broken by keyword mismatch. Retained, consent-gated or dormant, not promised live.",
+      "finding": "Legacy memory deliberately unwired; no callers found for implicit update, idle trigger or dynamic-copy helper Remaining: Preserve foundations. Add explicit trigger, consent, evidence and observability gates before activation. Never revive unsupported urgency/scarcity.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_nlu_behavior_contracts.py",
         "apps/api/tests/test_behavior_engine.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "handle_idle_trigger": [
           "apps/api/app/services/ai_nlu_service.py:2453"
@@ -800,13 +800,13 @@
       "id": "CAP-32",
       "capability": "Removal recovery alternatives and optional confirmation prompt",
       "parity": "degraded",
-      "finding": "Read-only optional removal worker uses model copy/current rows; original rich reason/strategy recovery is not completely shared. Same-category bounded window is retained without superiority claim.",
+      "finding": "Internal/smart removal routes Remaining: Current price window can reach four times removed price and fixed copy can mislabel range/superiority. Harden actual constraints and share model copy.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_perform_devilish_recovery": [
           "apps/api/app/services/ai_nlu_service.py:5405"
@@ -823,14 +823,14 @@
       "id": "CAP-33",
       "capability": "Meta-cognition strategy hooks",
       "parity": "preserved",
-      "finding": "Strategy hooks retained, but calibrated learned confidence was not established in original. unavailable assessment is honest gating, not restored quality.",
+      "finding": "Genius-response path uses unavailable_assessment Remaining: No calibrated confidence estimator is deployed. Preserve extensibility, do not advertise dormant authoritative branches as working learned confidence.",
       "original_file": "2. ai_nlu_service.py",
       "test_leads": [
         "apps/api/tests/test_nlu_behavior_contracts.py",
         "apps/api/tests/test_meta_cognition_boundaries.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_generate_genius_response": [
           "apps/api/app/services/ai_nlu_service.py:5067"
@@ -847,14 +847,14 @@
       "id": "CAP-34",
       "capability": "Validated cart/item/operation contracts and decimal totals",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "HTTP cart and RabbitMQ mutation workers Remaining: Preserve strict identifiers, quantities, currency and inventory checks.",
       "original_file": "3. ai_cart_service.py",
       "test_leads": [
         "apps/api/tests/test_ai_cart_service.py",
         "apps/api/tests/test_recommendation_catalog_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "CartStateModel": [
           "apps/api/app/services/ai_cart_service.py:36"
@@ -877,14 +877,14 @@
       "id": "CAP-35",
       "capability": "Authoritative Redis load/sync, compare-and-set updates and mutation receipts",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Normal cart mutation paths Remaining: Keep non-AI correctness independent of model availability, test replay/race/failure at Redis boundary.",
       "original_file": "3. ai_cart_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_mutation_receipts.py",
         "apps/api/tests/test_cart_cache_reconciliation.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_get_cart_from_redis": [
           "apps/api/app/services/ai_cart_service.py:149"
@@ -907,14 +907,14 @@
       "id": "CAP-36",
       "capability": "Add mutation, publication/stage timing and optional recommendation event",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Normal HTTP add, worker add Remaining: Receipt/cart confirmation first; asynchronous sales advice must never replay mutation or delay correctness.",
       "original_file": "3. ai_cart_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_sales_postgres.py",
         "apps/api/tests/test_cart_sales_transport.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "handle_add_to_cart": [
           "apps/api/app/services/ai_cart_service.py:186"
@@ -931,13 +931,13 @@
       "id": "CAP-37",
       "capability": "Direct intelligent bundle fetch and model sentence, bounded timeout and fallback",
       "parity": "preserved",
-      "finding": "Optional worker now calls CartSalesService shared model writer/reviewer with current complement rows; legacy direct helper retained. Tests cover SQL, Redis and actual AMQP boundary separately.",
+      "finding": "Original direct implementation retained behind default-off constructor switch. Shared optional consumer active after PR37; not yet owner-live-verified. Remaining: HTTP optional worker currently generates fixed prose. Restore shared model-copy adapter across both routes while retaining direct foundation and evidence gates.",
       "original_file": "3. ai_cart_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_trigger_intelligent_bundling": [
           "apps/api/app/services/ai_cart_service.py:235"
@@ -954,13 +954,13 @@
       "id": "CAP-38",
       "capability": "Save cart as cancelled-order record/list",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "HTTP/worker save Remaining: Preserve exact semantics; saving is not checkout or a placed order.",
       "original_file": "3. ai_cart_service.py",
       "test_leads": [
         "apps/api/tests/test_saved_list_journal_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "handle_save_cart": [
           "apps/api/app/services/ai_cart_service.py:404"
@@ -977,13 +977,13 @@
       "id": "CAP-39",
       "capability": "Remove mutation, alternative retrieval, model analysis/copy and fallback reasons",
       "parity": "preserved",
-      "finding": "Remove mutation and asynchronous alternative advice are connected. Fresh cart membership/evidence checks preserve no-replay mutation boundary.",
+      "finding": "Normal removal mutation; rich path conditional on injected commerce/LLM Remaining: HTTP constructs service without AI dependencies; optional event is its advisory route. Preserve full rich logic via shared async adapter rather than pretending HTTP invokes it today.",
       "original_file": "3. ai_cart_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_sales_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "handle_remove_from_cart": [
           "apps/api/app/services/ai_cart_service.py:456"
@@ -1000,13 +1000,13 @@
       "id": "CAP-40",
       "capability": "Analytics and removal/conversion-adjacent events",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Cart/worker integration Remaining: Minimize sensitive data, test broker failures separately from committed cart state.",
       "original_file": "3. ai_cart_service.py",
       "test_leads": [
         "apps/api/tests/test_worker_behavior_seam.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_emit_analytics_event": [
           "apps/api/app/services/ai_cart_service.py:754"
@@ -1023,13 +1023,13 @@
       "id": "CAP-41",
       "capability": "Clear cart and pending-order cancellation",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "HTTP/worker clear Remaining: Preserve race/transaction safety and user-visible distinction between cart clear and payment refund/cancellation.",
       "original_file": "3. ai_cart_service.py",
       "test_leads": [
         "apps/api/tests/test_cart_journal_clear_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "handle_clear_cart": [
           "apps/api/app/services/ai_cart_service.py:773"
@@ -1046,14 +1046,14 @@
       "id": "CAP-42",
       "capability": "SearchStrategy, RecommendationResponse and interaction response contracts; sanitizers and limits",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "Used by service APIs Remaining: Preserve strict structured schemas and grounded ID selection.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_llm_grounding.py",
         "apps/api/tests/test_llm_execution_limits.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "SearchStrategy": [
           "apps/api/app/services/free_llm_service.py:46"
@@ -1070,13 +1070,13 @@
       "id": "CAP-43",
       "capability": "Singleton/client lifecycle, configured models, admission, deadlines, retries and completion transport",
       "parity": "degraded",
-      "finding": "Transport and bounds retained;429 retry ignores Retry-After and opening fans out four chains. Owner failure is confirmed; rate-limit remediation not merged.",
+      "finding": "ShippedRetryAfter/deadline/serialization and isolatedrequiredbenchmark/processpausegate; productionGCtail/p99 and transportunification incomplete.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_llm_execution_limits.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_chat_completion": [
           "apps/api/app/services/free_llm_service.py:372"
@@ -1093,13 +1093,13 @@
       "id": "CAP-44",
       "capability": "generate_response plain/JSON/context adapter",
       "parity": "degraded",
-      "finding": "Legacy generate_response still returns empty string on provider failure. Reviewed adapters withhold unsupported sales copy but not all legacy callers have typed failure handling.",
+      "finding": "Shippedadditivestrictadapter and boundedsharedlogs; legacyemptystringcallersnotallmigrated.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_llm_execution_limits.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "generate_response": [
           "apps/api/app/services/free_llm_service.py:479"
@@ -1116,14 +1116,14 @@
       "id": "CAP-45",
       "capability": "Spontaneous scene/vibe and lifestyle matrix",
       "parity": "preserved",
-      "finding": "Opening generate_lifestyle_matrix -> write_opening now produces reviewed model intro/Insight. Original random scene/vibe helper stays retained; invented context is not evidence.",
+      "finding": "Opening restoration commit c8ad510 local only, not merged. Legacy function retained. Remaining: Preserve capability, reconnect opening/editorial only with factual and consented context.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_opening_sales_postgres.py",
         "apps/api/tests/test_llm_grounding.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_get_spontaneous_vibe": [
           "apps/api/app/services/free_llm_service.py:605"
@@ -1146,13 +1146,13 @@
       "id": "CAP-46",
       "capability": "Strict shopping-preference extractor",
       "parity": "preserved",
-      "finding": "Implementation and intended active source path retained; see mapped tests. Preserved means source-level behavior, not deployed/provider certification.",
+      "finding": "CustomerMemoryService uses extraction hook Remaining: Keep explicit consent and current-message provenance.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_customer_memory_postgres.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {},
       "current_implementation_anchors": {
         "extract_shopping_preferences": [
@@ -1166,13 +1166,13 @@
       "id": "CAP-47",
       "capability": "Legacy memory-worthy fact extractor",
       "parity": "preserved",
-      "finding": "Extractor retained. Unconsented original inferred-memory writer is intentionally not reactivated; consented collector replaces its customer traffic purpose.",
+      "finding": "Only deliberately unwired legacy NLU hook found Remaining: Retain but do not enable unconsented inference.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_nlu_behavior_contracts.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "extract_memory_worthy_facts": [
           "apps/api/app/services/free_llm_service.py:756"
@@ -1189,13 +1189,13 @@
       "id": "CAP-48",
       "capability": "Visual-context explanation",
       "parity": "preserved",
-      "finding": "Original analyze_visual_context had no caller outside its service. Remains dormant, not a confirmed lost normal-chat capability.",
+      "finding": "No caller found outside service Remaining: Can complement image retrieval; do not treat description as verified product identity.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_neural_core_visual.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "analyze_visual_context": [
           "apps/api/app/services/free_llm_service.py:839"
@@ -1212,13 +1212,13 @@
       "id": "CAP-49",
       "capability": "Product-image identification and optional Tavily title enrichment",
       "parity": "degraded",
-      "finding": "Source route restored by shipped PR73/79/83/85/87; bounded contracts tested. Semantic/model quality, full original breadth and live acceptance remain unverified, therefore partial/degraded, not fully preserved.",
+      "finding": "Retained image analysis with optional web title enrichment reached as bounded HTTP retrieval hint. Remaining: Not authoritative identity/compatibility proof; live vision/provider behavior unverified.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_bounded_image_decode.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "analyze_product_image": [
           "apps/api/app/services/free_llm_service.py:872"
@@ -1241,13 +1241,13 @@
       "id": "CAP-50",
       "capability": "Tavily web search",
       "parity": "degraded",
-      "finding": "Source route restored by shipped PR73/79/83/85/87; bounded contracts tested. Semantic/model quality, full original breadth and live acceptance remain unverified, therefore partial/degraded, not fully preserved.",
+      "finding": "OrdinaryHTTP uses per-target fresh source acquisition and source attribution, fixedHTTPS transport and cancellation. Remaining: Untrusted pages remain data; exact quote and model review are not semantic-proof/security certification.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_ai_log_data_minimization.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_perform_web_search": [
           "apps/api/app/services/free_llm_service.py:1019"
@@ -1264,13 +1264,13 @@
       "id": "CAP-51",
       "capability": "Product consultation with web/context/history",
       "parity": "degraded",
-      "finding": "consult_on_product now delegates to consult_catalog, explicitly external_web_evidence=False. Structured catalog consultation retained; original web/context behavior is not equivalent.",
+      "finding": "HTTP consultation/source research independent of catalog inventory, per-target missing evidence is explicit, current catalog fallback retained. Remaining: Consented saved hints not unified across every research adapter and provider quality unverified.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_reviewed_consultation.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "consult_on_product": [
           "apps/api/app/services/free_llm_service.py:1094"
@@ -1287,13 +1287,13 @@
       "id": "CAP-52",
       "capability": "Model search strategy and deterministic failure strategy",
       "parity": "preserved",
-      "finding": "strategize_search retained in internal handle_commerce_interaction. That orchestrator had no external original caller; do not call it a removed normal-chat path.",
+      "finding": "Called by internal commerce orchestrator only Remaining: Preserve staged strategy and typed extraction; deterministic fallback is operational recovery, not replacement customer prose.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_llm_search_log_privacy.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {},
       "current_implementation_anchors": {
         "strategize_search": [
@@ -1307,13 +1307,13 @@
       "id": "CAP-53",
       "capability": "Search-term extraction / English rewrite",
       "parity": "preserved",
-      "finding": "extract_search_terms retained in same dormant orchestrator. Separate active NLU optimizer bypass is included under CAP26.",
+      "finding": "Called by internal commerce orchestrator only Remaining: Preserve customer language in prose and original requested entities/constraints.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_llm_search_log_privacy.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "extract_search_terms": [
           "apps/api/app/services/free_llm_service.py:1475"
@@ -1330,13 +1330,13 @@
       "id": "CAP-54",
       "capability": "Local relevance ranking, grounded-ID recommendation and factual intro/reason",
       "parity": "preserved",
-      "finding": "Local ranking/grounded selection retained; shared HTTP model writer is connected. Original orchestrator route was dormant, not proof of live coverage.",
+      "finding": "Called by internal commerce orchestrator only Remaining: filter_and_recommend currently substitutes deterministic grounded intro/reasons after selection. Needs model-authored reviewed prose.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_llm_grounding.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "_rank_products_by_relevance": [
           "apps/api/app/services/free_llm_service.py:1619"
@@ -1359,13 +1359,13 @@
       "id": "CAP-55",
       "capability": "Parallel strategy/term commerce orchestrator with consultation/carousel branches",
       "parity": "preserved",
-      "finding": "Original parallel orchestrator already had no external caller. Retained, not counted as newly lost. Its useful contracts should be integrated rather than adding a competing pipeline.",
+      "finding": "No caller found outside service Remaining: Substantial preserved but unwired capability. Adapt its logic into shared orchestration with real catalog evidence instead of enabling a parallel competing pipeline.",
       "original_file": "4. free_llm_service.py",
       "test_leads": [
         "apps/api/tests/test_llm_search_log_privacy.py"
       ],
       "original_revision": "8b82cf3",
-      "current_revision": "a705fe4",
+      "current_revision": "ff451f8",
       "original_anchors": {
         "handle_commerce_interaction": [
           "apps/api/app/services/free_llm_service.py:1841"
@@ -1379,5 +1379,6 @@
       "original_audit_parity": "preserved"
     }
   ],
-  "anchor_caveat": "Original/current implementation anchor line numbers are retained from the historical03:30audit as navigation leads, not reverified against this shipped revision."
+  "anchor_caveat": "Original/current implementation anchor line numbers are retained from the historical03:30audit as navigation leads, not reverified against this shipped revision.",
+  "remaining_acceptance_matrix": "remaining-acceptance-matrix-2026-11-24.md"
 }
