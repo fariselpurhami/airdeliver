@@ -118,7 +118,7 @@ You MUST output a valid JSON object strictly matching this schema:
 ROUTING RULES:
 - Concrete product questions: set PRODUCT_SEARCH and provide1..3 targets, one separate literal customer product/category span per target. Never concatenate two products into one retrieval query. Preserve comparison/specification/consultation task. Do not invent a target from assistant text or recipient gender. If more than3 targets are essential, ask to split the request. No web/general model knowledge is product evidence.
 - GIFT_DISCOVERY: a broad gift request, especially one naming only a recipient (for example a gift for my wife), is discovery, never an exact product match. Ask about budget and interests/occasion before choosing. Extract brief fields only as literal spans from the customer message or explicit prior turns, never inferred gender tastes, luxury budget or product names. Do not invent a category.
-- Alternatives: preserve the original sales intent. For a concrete unavailable item, retrieve genuine same-purpose alternatives and explain the honest tradeoff, never pretend the original is available. alternative_query is a short generic functional category, not an invented brand/model. For comparisons/specs retrieve the named products, and discuss only structured catalog specs.
+- Alternatives: preserve the original sales intent. For a concrete unavailable item, retrieve genuine same-purpose alternatives and explain the honest tradeoff, never pretend the original is available. alternative_query is a short generic functional category, not an invented brand/model. For comparisons/specs preserve each named product. Fresh sourced research may answer independently of local stock; never imply merchant availability from web evidence.
 - Budget fields: budget is an exact customer source span; budget_max is its explicit maximum amount as a decimal string, budget_currency is an explicit ISO code or USD when the source uses $, dollar, dollars or US dollars. Never convert currencies or infer a cap from vague cheap/affordable. If amount/currency is missing, clarify it.
 - PRODUCT_SEARCH: query must be a literal span of the current customer message. Never translate an unspecified gift request into a brand or item. Products, prices and availability are rendered only from current catalog records with evidence labels.
 - CART_ADD / CART_REMOVE: explicit request to add a named product or remove its whole line from cart. Extract product name into query and quantity1..99. Do not infer product IDs. Vague references need clarification, not an invented name. This produces a review button only, never execution.
@@ -370,6 +370,15 @@ class NeuralCoreService:
         return reply(text+" Your cart has not changed. Confirm below to submit this change; stock and price are checked again.",action)
 
     async def _handle_staged_product_search(self,db,decision,brief,message):
+        if self.is_healthy and decision.shopping_task in {'comparison','specifications','consultation'}:
+            from app.services.product_knowledge_service import answer_product_question
+            async def catalog_fallback():
+                return await self._handle_staged_catalog_search(db,decision,brief,message)
+            return await answer_product_question(self._execute_llm_inference,message,
+                timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC,fallback=catalog_fallback)
+        return await self._handle_staged_catalog_search(db,decision,brief,message)
+
+    async def _handle_staged_catalog_search(self,db,decision,brief,message):
         from app.services.ai_nlu_service import CandidateRanker, _build_broad_query
         from app.services.staged_search_service import staged_search
         groups=[];trace=[]
@@ -490,8 +499,6 @@ class NeuralCoreService:
             evidence['saved_preferences_scope']='Optional shopping hints only. Current customer turns override. No product, budget, recipient or compatibility evidence.'
         if self.is_healthy and mode=='catalog_results' and (evidence or {}).get('shopping_task') in {'consultation','comparison','specifications'}:
             from app.services.free_llm_service import FreeLLMService
-            # Same established transport and total model budget; no secondary
-            # provider client, raw web context or implicit customer history.
             return await FreeLLMService().consult_catalog(cards=cards,question=message,
                 brief=brief,evidence=evidence,infer=self._execute_llm_inference,
                 timeout=NeuralCoreConfig.LLM_TIMEOUT_SEC)

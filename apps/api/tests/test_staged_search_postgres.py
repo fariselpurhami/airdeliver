@@ -78,3 +78,42 @@ async def test_multi_target_http_actual_sql_history_and_fresh_publication(real_c
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('task',['specifications','comparison','consultation'])
+async def test_product_research_http_no_catalog_stock_requirement(real_cache,monkeypatch,task):
+    from app.services import product_knowledge_service as knowledge
+    from httpx import AsyncClient,ASGITransport
+    from app.main import app
+    from app.db.session import get_async_session
+    from app.services.cache_service import get_cache_from_request
+    cache,_=real_cache
+    async def sources(q):return [{'url':'https://maker.example/phone-specs','text':'Phone 17 Pro Max has an OLED display.'}]
+    monkeypatch.setattr(knowledge,'lookup_product_sources',sources)
+    engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False)
+    search=SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=AssertionError('research must not require catalog')))
+    svc=NeuralCoreService(search,cache);svc.is_healthy=True;svc.configuration_error=False
+    async def infer(messages):
+        if 'primary cognitive routing' in messages[0]['content']:
+            return json.dumps(dict(intent='PRODUCT_SEARCH',query='Phone 17 Pro Max',search_subject='Phone 17 Pro Max',shopping_task=task,targets=[{'product_name':'Phone 17 Pro Max'}]))
+        if 'Extract source-backed' in messages[0]['content']:
+            return json.dumps({'facts':[{'label':'Display','statement':'The source lists an OLED display.','quote':'Phone 17 Pro Max has an OLED display.','source':0}]})
+        return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
+    svc._execute_llm_inference=infer
+    async def get_db():
+        async with sessions() as db:yield db
+    app.dependency_overrides[get_async_session]=get_db
+    app.dependency_overrides[get_neural_core_service]=lambda:svc
+    app.dependency_overrides[get_cache_from_request]=lambda:cache
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as client:
+            response=await client.post('/api/v1/ai-support/chat',json={'message':'Phone 17 Pro Max specs','session_id':'web-research-session'})
+        assert response.status_code==200,response.text
+        data=response.json()
+        assert data['response_kind']=='text' and 'OLED' in data['text'] and 'https://maker.example/phone-specs' in data['text']
+        assert data['products']==[]
+        search.perform_hybrid_search_pure.assert_not_awaited()
+        history=await cache.get_json_required(svc._get_session_key('web-research-session'))
+        assert history['history'][-1]['content']==data['text']
+    finally:
+        app.dependency_overrides.clear();await engine.dispose()
