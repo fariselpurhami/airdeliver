@@ -5,7 +5,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, PackageSearch, ScanBarcode, Sparkles, Database, Wifi, Plus, ShoppingBag } from 'lucide-react';
+import { X, PackageSearch, Plus, ShoppingBag } from 'lucide-react';
 import ProductList from './ProductList'; 
 import { type Product } from '@/types'; 
 import useSWR from 'swr';
@@ -26,9 +26,8 @@ export const normalizeProductData = (rawProduct: any): Product => {
 };
 
 const LoadingSpinner = () => (
-    <div className="flex h-full flex-col justify-center items-center gap-4">
-        <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-cyan-500 animate-spin" />
-        <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-gray-500">syncing manifest</span>
+    <div className="flex justify-center items-center h-full">
+        <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-white/60 animate-spin" />
     </div>
 );
 const AddToManifestButton = ({ products }: { products: Product[] }) => {
@@ -137,7 +136,6 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                     style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
                 >
 
-                    <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent opacity-70" />
 
                     <motion.div
                         role="dialog" aria-modal="true" aria-label="Trending products"
@@ -146,47 +144,29 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                         exit={{ opacity: 0, transition: { duration: 0.2 } }}
                         onClick={(e) => e.stopPropagation()} 
 			style={{ willChange: "opacity, transform" }}
-                        className="w-full h-full max-w-[460px] max-h-[1050px] md:max-w-7xl md:h-[93vh] md:max-h-none flex flex-col bg-[#050505]/80 backdrop-blur-2xl border border-white/10 rounded-[28px] md:rounded-[40px] ring-1 ring-inset ring-white/5 shadow-[0_0_80px_rgba(6,182,212,0.10),0_0_60px_rgba(168,85,247,0.12)] overflow-hidden relative"
+                        className="w-full h-full max-w-[460px] max-h-[1050px] md:max-w-7xl md:h-[93vh] md:max-h-none flex flex-col bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[28px] md:rounded-[40px] ring-1 ring-inset ring-white/5 shadow-[0_40px_120px_rgba(0,0,0,0.65)] overflow-hidden relative"
                     >
-                     
-                        <div className="absolute top-0 right-0 w-72 h-72 bg-purple-500/[0.07] blur-[90px] pointer-events-none" />
-                        <div className="absolute bottom-0 left-0 w-72 h-72 bg-cyan-500/[0.07] blur-[90px] pointer-events-none" />
-
                   
-                        <header className="relative z-10 flex-shrink-0 border-b border-white/5 bg-black/30 px-6 py-5 md:px-10 md:py-6">
-                            <div className="absolute inset-x-6 md:inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent pointer-events-none" />
+                        <header className="relative z-10 flex-shrink-0 border-b border-white/5 px-6 py-5 md:px-10 md:py-6">
                             <div className="flex items-center justify-between gap-4">
-                                <div className="flex min-w-0 flex-col gap-1.5">
-                                    <div className="flex items-center gap-2">
-                                        <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
-                                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-60" />
-                                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]" />
-                                        </span>
-                                        <span className="text-[9px] md:text-[10px] font-mono uppercase tracking-[0.3em] text-cyan-300/80">airdeliver · explore</span>
-                                    </div>
-                                    <h2 className="truncate text-xl md:text-2xl font-bold tracking-wide text-white" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                                <div className="flex min-w-0 items-baseline gap-3">
+                                    <h2 className="truncate text-lg md:text-xl font-semibold tracking-tight text-white/95">
                                         Trending products
                                     </h2>
-                                    <p className="text-[10px] md:text-xs text-gray-500 font-sans">
-                                        Live picks from connected partner inventory
-                                    </p>
+                                    {!isLoading && !error && products.length > 0 && (
+                                        <span className="flex-shrink-0 text-xs md:text-sm text-gray-500">
+                                            {products.length} {products.length === 1 ? 'product' : 'products'}
+                                        </span>
+                                    )}
                                 </div>
 
-                                <div className="flex flex-shrink-0 items-center gap-3 md:gap-4">
-                                    <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 backdrop-blur-md">
-                                        <Database size={12} className="text-cyan-400" />
-                                        <span className="text-[10px] font-mono uppercase tracking-widest text-gray-300">
-                                            {isLoading ? 'syncing' : `${products.length} live`}
-                                        </span>
-                                    </div>
-                                    <button
-                                        onClick={onClose}
-                                        aria-label="Close products"
-                                        className="group p-3 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300 backdrop-blur-sm"
-                                    >
-                                        <X size={22} className="group-hover:rotate-90 transition-transform duration-300" />
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={onClose}
+                                    aria-label="Close products"
+                                    className="group flex-shrink-0 p-2.5 rounded-full bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
+                                >
+                                    <X size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+                                </button>
                             </div>
                         </header>
                    
@@ -195,16 +175,14 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                           
                             <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.03] pointer-events-none" />
                             
-                            <div className="h-full overflow-y-auto p-6 md:p-8 scrollbar-thin scrollbar-thumb-purple-500/20 scrollbar-track-transparent">
+                            <div className="h-full overflow-y-auto p-6 md:p-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                                 {isLoading ? (
                                     <LoadingSpinner />
                                 ) : error ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-red-400 gap-4 p-8 border border-red-500/10 rounded-3xl bg-red-500/5">
-                                        <ScanBarcode size={48} className="opacity-50 animate-pulse" />
-                                        <div className="text-center">
-                                            <p className="font-bold text-lg mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>SIGNAL LOST</p>
-                                            <p className="text-sm opacity-70 font-mono">Unable to retrieve manifest. Connection terminated.</p>
-                                        </div>
+                                    <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
+                                        <PackageSearch size={32} className="text-gray-600" />
+                                        <p className="text-sm font-medium text-gray-300">Couldn't load products</p>
+                                        <p className="text-xs text-gray-500">Check your connection and try again.</p>
                                     </div>
                                 ) : (
                                     <div className="animate-in fade-in zoom-in-95 duration-500">
@@ -214,18 +192,6 @@ export default function ProductOverlay({ isOpen, onClose }: { isOpen: boolean, o
                                 )}
                             </div>
                         </div>
-
-                        <footer className="relative z-20 flex flex-shrink-0 items-center justify-between gap-4 border-t border-white/5 bg-black/40 px-6 py-3 md:px-10 backdrop-blur-md">
-                            <div className="absolute inset-x-6 md:inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-purple-400/30 to-transparent pointer-events-none" />
-                            <div className="flex items-center gap-2 text-[9px] md:text-[10px] font-mono uppercase tracking-widest text-gray-500">
-                                <Wifi size={11} className="text-cyan-500/70" />
-                                <span>inventory uplink · stable</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[9px] md:text-[10px] font-mono uppercase tracking-widest text-gray-600">
-                                <Sparkles size={11} className="text-purple-400/70" />
-                                <span>order with air</span>
-                            </div>
-                        </footer>
 
                     </motion.div>
                 </motion.div>
