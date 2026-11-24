@@ -12,7 +12,13 @@ from tests.test_limiter_boundary import redis_server,settings,application
 @pytest.mark.asyncio
 async def test_real_redis_concurrent_admission_and_event_loop_latency(redis_server):
     url,_=redis_server;instance=build_limiter(settings(url,'100/second'))
-    samples=[];running=True
+    samples=[];running=True;collections=[];gc_started={}
+    import gc
+    def observe_gc(phase,info):
+        generation=info.get('generation')
+        if phase=='start':gc_started[generation]=time.perf_counter()
+        elif generation in gc_started:collections.append((generation,round(time.perf_counter()-gc_started.pop(generation),4)))
+    gc.callbacks.append(observe_gc)
     async def heartbeat():
         last=time.perf_counter()
         while running:
@@ -24,12 +30,14 @@ async def test_real_redis_concurrent_admission_and_event_loop_latency(redis_serv
             results=await asyncio.gather(*(c.get('/plain') for _ in range(150)))
         elapsed=time.perf_counter()-started
         statuses={status:sum(r.status_code==status for r in results) for status in (200,429,503)}
-        assert sum(r.status_code==200 for r in results)==100, statuses
-        assert sum(r.status_code==429 for r in results)==50, statuses
+        diagnostics={'statuses':statuses,'elapsed':elapsed,'gc':collections,'heartbeat':max(samples,default=0)}
+        assert sum(r.status_code==200 for r in results)==100, diagnostics
+        assert sum(r.status_code==429 for r in results)==50, diagnostics
         assert samples and max(samples)<.2
         print({'actual_redis_requests':150,'elapsed_seconds':round(elapsed,4),
                'heartbeat_max_gap_seconds':round(max(samples),4),'success':100,'rate_limited':50})
     finally:
+        gc.callbacks.remove(observe_gc)
         running=False;await pulse;await instance.close()
 
 

@@ -51,10 +51,12 @@ class AsyncLimiter:
         import hashlib
         identifier=hashlib.sha256((get_remote_address(request)+'|'+scope).encode()).hexdigest()
         key=f'airdeliver:http:v2:{item.amount}:{item.get_expiry()}:{identifier}'
+        started=time.monotonic();stage='queue'
         try:
             async with asyncio.timeout(1.0):
                 async with slots:
                     if client:
+                        stage='redis_eval'
                         count=await client.eval(SCRIPT,1,key,item.get_expiry())
                     else:
                         now=time.monotonic();count,expiry=memory.get(key,(0,0))
@@ -66,7 +68,7 @@ class AsyncLimiter:
         except asyncio.CancelledError:raise
         except Exception as exc:
             import logging
-            logging.getLogger('airdeliver.admission').warning('admission_unavailable type=%s cause=%s',type(exc).__name__,type(exc.__cause__).__name__)
+            logging.getLogger('airdeliver.admission').warning('admission_unavailable type=%s cause=%s stage=%s elapsed_ms=%d',type(exc).__name__,type(exc.__cause__).__name__,stage,round((time.monotonic()-started)*1000))
             raise AdmissionUnavailable() from exc
         if count>item.amount:
             request.state.view_rate_limit=None
