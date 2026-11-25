@@ -279,9 +279,18 @@ services:
     environment:
       - APP_ENV=development
       - DATABASE_URI=${DATABASE_URL_ASYNC}
-    command: >
-      sh -c "alembic upgrade head &&
-             python -m app.db.initial_data"
+      # Explicit owner action only. Whole-stack dev startup must not advance DB.
+      - AIRDELIVER_DEV_ALLOW_MIGRATIONS=${AIRDELIVER_DEV_ALLOW_MIGRATIONS:-0}
+    command:
+      - sh
+      - -ec
+      - |
+        if [ "$${AIRDELIVER_DEV_ALLOW_MIGRATIONS:-0}" != "1" ]; then
+          echo 'Development migration and seed skipped. Database revision unchanged by this service.'
+          exit 0
+        fi
+        alembic upgrade head
+        python -m app.db.initial_data
     depends_on:
       postgres:
         condition: service_healthy
