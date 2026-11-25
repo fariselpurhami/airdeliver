@@ -927,7 +927,19 @@ class AICartService:
         asyncio.create_task(_publish())
 
     # --- 🧹 COMMAND: CLEAR CART ---
-    async def handle_clear_cart(self, raw_payload: dict) -> None:
+    async def handle_clear_cart(self,raw_payload:dict):
+        """Owner decision: clear means cart only, never order cancellation."""
+        try:payload=CartOperationPayload(**raw_payload)
+        except ValidationError:return
+        try:
+            cart=await self._get_cart_from_redis(payload.user_id)
+            if not await self.cache.compare_json_required(self._get_cart_key(payload.user_id),cart._snapshot,None,delete=True):
+                raise CartPersistenceError('Cart changed concurrently; refresh before clearing')
+        except Exception as exc:
+            raise CartPersistenceError('Cart clear could not be confirmed; refresh before retrying') from exc
+        await self.handle_sync_cart({'user_id':payload.user_id})
+
+    async def _legacy_clear_cart_cancel_pending_orders(self, raw_payload: dict) -> None:
         try:
             payload = CartOperationPayload(**raw_payload)
         except ValidationError:

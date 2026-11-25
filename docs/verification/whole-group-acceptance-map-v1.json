@@ -136,20 +136,22 @@
       "id": "CAP-22",
       "capability": "Smart cart actions and text commands",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Owner-bound one-shot snapshot reviews, durable cart boundaries",
-      "next_code_or_boundary_acceptance": "Review alternate legacy clear/save semantics and held cart migration integration; no silent activation",
+      "next_code_or_boundary_acceptance": "Owner-resolved cart-only clear across active direct/broker/reset paths, snapshot review for retained clear/save suggestions; held cart runtime remains unactivated.",
       "quality_acceptance": "Actual language proposal fidelity without inferred mutations",
       "owner_acceptance": "Held cart runtime/migration decisions and owner cart UI receipts",
       "evidence_leads": [
         "apps/api/tests/test_cart_lifecycle_review.py",
         "apps/api/tests/test_nlu_cart_execution_truth.py",
-        "apps/api/tests/test_cart_sales_postgres.py"
+        "apps/api/tests/test_cart_sales_postgres.py",
+        "apps/api/tests/test_cart_code_closure.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap22-code-acceptance-v1.md"
     },
     {
       "id": "CAP-23",
@@ -429,6 +431,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 17,
-  "code_remaining_groups": 3
+  "code_complete_groups": 18,
+  "code_remaining_groups": 2
 }

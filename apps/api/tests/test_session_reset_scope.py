@@ -11,7 +11,7 @@ async def test_session_reset_never_claims_persistent_memory_or_orders_erased():
     await svc._process_internal_command(17,InternalCommand.RESET_SESSION.value)
     body=svc._safe_send_ui.call_args.args[1]['content']
     assert 'preferences are unchanged and order records are not erased' in body
-    assert 'may cancel pending orders' in body
+    assert 'does not cancel pending orders' in body
     assert 'memory cleared' not in body
     assert 'requested' in body
     keys=[call.args[0] for call in svc.cache.delete.call_args_list]

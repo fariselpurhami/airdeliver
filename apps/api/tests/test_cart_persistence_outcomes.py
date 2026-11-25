@@ -349,5 +349,5 @@ async def test_clear_syncs_current_cart_after_slow_order_cleanup(real_cache):
         return SimpleNamespace(scalars=lambda:SimpleNamespace(all=lambda:[]))
     db.execute=execute
     svc=AICartService(db,cache,object());svc._send_to_ui=AsyncMock()
-    await svc.handle_clear_cart({'user_id':1})
+    await svc._legacy_clear_cart_cancel_pending_orders({'user_id':1})
     assert svc._send_to_ui.call_args.args[1]['content']['items'][0]['product_id']==7

@@ -47,10 +47,10 @@ RAM_PATTERN = re.compile(
     r"""
     (?ix)
     \b
-    (?P<pre_context>ram|memory)         
+    (?P<pre_context>ram|memory)
     \b
     [^\S\r\n]* # مسافات فقط
-    (?P<ram_amount>\d+(?:\.\d+)?)          
+    (?P<ram_amount>\d+(?:\.\d+)?)
     [^\S\r\n]* # مسافات
     (?P<ram_unit>gb|gigabyte|gigabytes|mb|megabyte|megabytes)
     \b
@@ -82,7 +82,7 @@ STORAGE_PATTERN = re.compile(
     (?P<pre_context>ssd|hdd|nvme|m\.2|storage|disk|drive)
     \b
     [^\S\r\n]* # مسافات
-    (?P<storage_amount>\d+(?:\.\d+)?)      
+    (?P<storage_amount>\d+(?:\.\d+)?)
     [^\S\r\n]* # مسافات
     (?P<storage_unit>tb|terabyte|terabytes|gb|gigabyte|gigabytes)
     \b
@@ -94,7 +94,7 @@ STORAGE_PATTERN_POST = re.compile(
     r"""
     (?ix)
     \b
-    (?P<storage_amount>\d+(?:\.\d+)?)      
+    (?P<storage_amount>\d+(?:\.\d+)?)
     [^\S\r\n]* # مسافات
     (?P<storage_unit>tb|terabyte|terabytes|gb|gigabyte|gigabytes)
     \b
@@ -174,9 +174,9 @@ class IntentCategory(str, Enum):
     SPECS_INQUIRY = "SPECS_INQUIRY"           # يسأل عن مواصفات معينة (مثال: الرام كام؟)
     CART_ACTION = "CART_ACTION"               # أوامر السلة (ضف، احذف، اشتري)
     OUT_OF_DOMAIN = "OUT_OF_DOMAIN"           # دردشة عامة (مثال: كيف حالك؟ من أنت؟)
-    ECOSYSTEM_BUILDER = "ECOSYSTEM_BUILDER" 
+    ECOSYSTEM_BUILDER = "ECOSYSTEM_BUILDER"
     NEGOTIATION = "NEGOTIATION"           # [FINAL] التفاوض والمفاصلة في السعر
-    OBJECTION = "OBJECTION"    
+    OBJECTION = "OBJECTION"
 class CartActionType(str, Enum):
     ADD = "ADD"
     REMOVE = "REMOVE"
@@ -232,19 +232,19 @@ class CommerceIntentPayload(BaseModel):
     )
 
     category: IntentCategory = Field(description="The primary intent of the user")
-    
+
     # 🌟 المصفوفة الديناميكية العالمية لاستيعاب أي عدد من المنتجات أياً كان نوعها
     target_products: List[UniversalProductTarget] = Field(
         default_factory=list,
         description="All distinct requested products extracted from the prompt (supports 1 to N items)."
     )
-    
+
     # 🌟 حقل المناسبة المستقل لضمان التقاط الاحتفالات أو أحداث حياة العميل
     detected_occasion: Optional[OptionalCleanStr] = Field(
         default=None,
         description="Optional occasion, milestone, or life event mentioned in the prompt (e.g., wedding, milestone)."
     )
-    
+
     # 🛡️ الحفاظ على حقول النظام الأساسية لمنع الـ AttributeError والانهيار
     cart_action_type: Optional[CartActionType] = Field(default=None, description="If CART_ACTION, specify the exact operation")
     sentiment: UserSentiment = Field(default=UserSentiment.NEUTRAL, description="The emotional state of the user based on their text")
@@ -320,7 +320,7 @@ class CommerceIntentPayload(BaseModel):
 
         for product in raw_products:
             key, normalized_product = normalize_product(product)
- 
+
             if key is None:
                 unique_products.append(normalized_product)
                 continue
@@ -748,14 +748,14 @@ UNIVERSAL_4_PHASE_ARCHITECTURE = (
     "You MUST generate a response divided into EXACTLY 4 parts. "
     "ABSOLUTE RULE: DO NOT output any headers, internal logic tags, or meta-text (e.g., NEVER write 'Part 1:', 'Dynamic Execution', 'If Comparison:', or 'Specs:'). Output ONLY the final customer-facing text.\n"
     "You MUST separate each of the 4 parts with exactly a double line break (\\n\\n) to strictly prevent text merging.\n\n"
-    
+
     "PART 1: THE OPENING (2-3 sentences)\n"
     "Adapt your opening silently based on the query type:\n"
     " - Specific Product: Detail its flagship standing and core engineering philosophy.\n"
     " - Comparison: Define the philosophical or architectural clash between the items.\n"
     " - Broad Advice: Set the strategic parameters of what makes a product elite in this specific category.\n"
     " - Phantom/Unreleased: Authoritatively establish its reality status using global supply chain logic.\n\n"
-    
+
     "PART 2: THE DATA CORE (4-6 bullets)\n"
     "Start each bullet with a standard dash (-). Max 18 words per bullet. Include concrete metrics. ZERO filler.\n"
     "Adapt silently based on the query type:\n"
@@ -763,10 +763,10 @@ UNIVERSAL_4_PHASE_ARCHITECTURE = (
     " - Comparison: Contrast the exact diverging metrics directly (e.g., 'Device A leverages X, whereas Device B uses Y').\n"
     " - Broad Advice: List the non-negotiable features a user must look for.\n"
     " - Phantom/Unreleased: List confirmed historical brand DNA or technical constraints.\n\n"
-    
+
     "PART 3: THE SYNTHESIS (2-3 sentences)\n"
     "Declare a definitive conclusion or a clear winner. You MUST reference at least one constraint (budget, use-case, longevity). Do not simply repeat the bullets.\n\n"
-    
+
     "PART 4: THE CLOSURE (1-2 sentences)\n"
     "State the global availability status and issue a decisive procurement directive. NEVER ask open-ended or trailing questions."
     "ABSOLUTE ECOSYSTEM LOCK: NEVER redirect or advise the user to buy directly from the manufacturer (e.g., Apple) or any external competitor. We are their final and only trusted destination."
@@ -952,22 +952,22 @@ class TextSanitizer:
         text = re.sub(r"(?i)^(?:part|phase|stage|step)\s*\d+[:\-]?\s*", "", text, flags=re.MULTILINE)
         text = re.sub(r"(?i)^(?:dynamic execution|synthesis|closing|the anchor|the specs|specs|conclusion)[:\-]?\s*", "", text, flags=re.MULTILINE)
         text = re.sub(r"\[.*?\]", "", text) # مسح أي حاجة بين أقواس مربعة
-        
+
         # 2. تحويل أي نقطة سميكة أو نجمة لـ داش (عشان الـ Frontend يفهمها)
         text = re.sub(r"(?m)^[ \t]*[●\*][ \t]+", r"- ", text)
-        
+
         # 3. توحيد اسم البراند
         text = text.replace("AirDeliver", "airdeliver").replace("Airdeliver", "airdeliver")
 
         # 4. هندسة المسافات: إجبار سطرين قبل أي داش عشان القائمة تنفصل عن الفقرة اللي قبلها
         text = re.sub(r"(?<!\n)\n?(-\s)", r"\n\n\1", text)
         text = re.sub(r"(?<!\n)\s*(\*\*[A-Za-z\u0600-\u06FF])", r"\n\n\1", text)
-        
+
         text = re.sub(r"(?m)^(-\s.*?[.!?])\s+(?=[A-Z])", r"\1\n\n", text)
         # 5. تنظيف نهائي للمسافات الزائدة
-        text = re.sub(r"[ \t]{2,}", " ", text) 
-        text = re.sub(r"\n{3,}", "\n\n", text) 
-        
+        text = re.sub(r"[ \t]{2,}", " ", text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
+
         return text.strip()
 # =============================================================================
 # KEYSPACE
@@ -1170,13 +1170,13 @@ class StructuredLog:
     ) -> None:
         if not event or not event.strip():
             raise ValueError("event must be a non-empty string")
-        
+
         payload = {
             key: value
             for key, value in fields.items()
             if value is not None
         }
-        
+
         logger.log(
             level,
             "%s | %s",
@@ -1271,7 +1271,7 @@ class GlobalCommerceIntentEngine:
           * ECOSYSTEM_BUILDER (full setups, bundles, e.g., "gaming room", "home office")
 
         [3. EXTRACTION PROTOCOLS]
-    
+
         - SENTIMENT: Analyze tone (URGENT, FRUSTRATED, HESITANT, EXCITED, NEUTRAL). If the user is facing a high-pressure scam or flash sale, sentiment is URGENT.
 
         OUTPUT FORMAT:
@@ -1314,7 +1314,7 @@ class GlobalCommerceIntentEngine:
                 clean_json = clean_json[7:-3].strip()
             elif clean_json.startswith("```"):
                 clean_json = clean_json[3:-3].strip()
-                
+
             from app.services.strict_planner_json import planner_object
             parsed_data = planner_object(clean_json)
             result=CommerceIntentPayload(**parsed_data)
@@ -1338,7 +1338,7 @@ class GlobalCommerceIntentEngine:
             # 1. High-Resolution Telemetry & Log Safety
             safe_text = _normalize_search_text(str(user_text))[:300] # تقصير النص لمنع اختناق السجلات (Log Bloat)
             error_type = type(exc).__name__
-            
+
             # تسجيل الخطأ بتفاصيل دقيقة مع تضمين مسار الخطأ (Stack Trace) للتحليل اللاحق
             logger.error(
                 "global_intent_engine_critical_failure",
@@ -1353,7 +1353,7 @@ class GlobalCommerceIntentEngine:
             # إذا مات الـ LLM، نستعين بقواعد برمجية فائقة السرعة لتخمين النية
             fallback_category, fallback_sentiment = self._derive_heuristic_intent(safe_text)
 
-            # 3. Strict Payload Contract (حماية الأنظمة 
+            # 3. Strict Payload Contract (حماية الأنظمة
             return CommerceIntentPayload(
                 category=fallback_category,
                 sentiment=fallback_sentiment,
@@ -1795,7 +1795,7 @@ class DiamondInterceptor:
     }
 
     def __init__(self, matcher_threshold: float) -> None:
-        
+
         safe_default = 0.30
 
         try:
@@ -1891,7 +1891,7 @@ class ConstraintExtractor:
     intent_patterns: Tuple[str, ...] = (
         r"(?:want|need|buy|get|looking for|search for|find|recommend)\s+(?:a|an|the|some|new|best|top|cheap)?\s*([a-zA-Z0-9\s\-]+?)(?:\s+(?:for|with|under|below|that|which|in|at|from|priced)|$|[.,])",
         # 🚀 [L8/L9 FIX]: تم حذف 'max|' من هنا لمنع فصل أسماء المنتجات (مثل Pro Max)
-        r"^([a-zA-Z0-9\s\-]+?)\s+(?:with|under|below|for|containing)", 
+        r"^([a-zA-Z0-9\s\-]+?)\s+(?:with|under|below|for|containing)",
     )
 
     def extract(self, text: str) -> SearchConstraints:
@@ -2187,7 +2187,7 @@ class AINLUService:
         self.ui = UiGateway(cache)
         self.user_dna_store = UserDnaStore(cache, behavior_engine, self.config)
         self.tasks = BoundedTaskSupervisor()
-        
+
         self.freshness_repo = RedisProductFreshnessRepository(cache)
 
         self.tasks = BoundedTaskSupervisor()
@@ -2285,16 +2285,16 @@ class AINLUService:
             )
             try:
                 await self._send_to_ui(
-                    request.user_id, 
+                    request.user_id,
                     {
                         "content": "Pardon the brief pause, I just refreshed our connection. How can I assist you now?",
                         "type": UiPayloadType.TEXT.value,
                         "reason": "System Auto-Recovery"
-                    }, 
+                    },
                     ctx
                 )
             except Exception:
-                pass 
+                pass
 
         finally:
             try:
@@ -2343,7 +2343,7 @@ class AINLUService:
             )
             await self._process_internal_command(request.user_id, request.message_text)
             return
-        
+
         if self._is_welcome_entrypoint(request):
             await self._handle_welcome_entrypoint(request, ctx)
             return
@@ -2403,7 +2403,7 @@ class AINLUService:
         # =====================================================================
         # 4. [THE FINAL FINISH] AI COMMERCE OS: THE ELITE CLOSER
         # =====================================================================
-        
+
         # Adapted call to seamlessly integrate v3's semantic command interceptor
         handled = await self._handle_text_commands(request.user_id, request.message_text, request.raw_payload)
         if handled:
@@ -2418,7 +2418,7 @@ class AINLUService:
                 return
 
         optimized_query = await self._optimize_search_query(search_query, conversation_context=chat_context)
-        
+
         if intent_payload.target_products and not optimized_query:
             names = [p.product_name for p in intent_payload.target_products]
             optimized_query = " ".join(names)
@@ -2463,7 +2463,7 @@ class AINLUService:
                     search_queries=[plan.search_query],
                     category_filter=plan.constraints.category_filter
                 )
-                
+
                 raw_candidates = await asyncio.wait_for(
                     self._execute_strategic_search(
                         strategy=strategy,
@@ -2765,7 +2765,7 @@ class AINLUService:
         except Exception as exc:
             logger.warning("cache_delete_failed", extra={"key": key, "error": str(exc)})
 
-    async def _handle_smart_cart_action(self, user_id: int, intent_payload: CommerceIntentPayload, ctx: RequestContext) -> bool:
+    async def _legacy_pre_cart_only_handle_smart_cart_action(self, user_id: int, intent_payload: CommerceIntentPayload, ctx: RequestContext) -> bool:
         """
         AI Commerce OS Feature:
         Executes cart operations globally based on the AI-extracted intent.
@@ -2801,7 +2801,7 @@ class AINLUService:
             # نبحث عن المنتج المقصود بسرعة
             candidates = await self._search_single_product(target_product_name, limit=1)
             if not candidates:
-                
+
                 return False
 
             target = candidates[0]
@@ -2860,128 +2860,8 @@ class AINLUService:
 
         return False
 
-    async def _handle_ecosystem_building(self, request: IncomingMessage, ctx: RequestContext, intent_payload: CommerceIntentPayload) -> None:
-        """Read-only bridge to shared reviewed setup, never old planner prose.
 
-        The original implementation stays below for source continuity. Neither
-        model plans nor caller intent fields supply commercial evidence.
-        """
-        from app.services.legacy_setup_boundary import reviewed_legacy_setup
-        try:
-            hints=await self._consented_shopping_hints(request.user_id)
-            async with asyncio.timeout(45):
-                response=await reviewed_legacy_setup(self.db,self.search_engine,self.cache,
-                    self.llm_service,request.message_text,
-                    customer_context=await self.memory.customer_context(request.user_id),
-                    saved_preferences=hints)
-                await self._recheck_shopping_hints(request.user_id,hints)
-            products=[card.model_dump(mode='json') for card in response.products]
-            await self._send_to_ui(request.user_id,{
-                'content':response.text,
-                'type':UiPayloadType.PRODUCT_CAROUSEL.value if products else UiPayloadType.TEXT.value,
-                'products':products,
-                'reason':'Read-only catalog component suggestions; completeness and compatibility are not verified.',
-            },ctx)
-        except asyncio.CancelledError:raise
-        except Exception as exc:
-            StructuredLog.error('legacy_setup_withheld',error_type=type(exc).__name__)
-            await self._send_to_ui(request.user_id,{'content':'I could not verify a current setup suggestion. Please clarify the main use, essential components and budget currency.','type':UiPayloadType.TEXT.value,'products':[]},ctx)
-
-    async def _handle_ecosystem_building_legacy_unreviewed(self, request: IncomingMessage, ctx: RequestContext, intent_payload: CommerceIntentPayload) -> None:
-        """
-        AI Commerce OS Feature: Ecosystem Architect Mode.
-        Builds a complete setup (e.g., PC + Monitor + Accessories) instead of just returning a single category.
-        """
-        StructuredLog.info("ecosystem_architect_triggered", user_id=request.user_id, query=request.message_text)
-        
-        # 1. Ask the LLM to break down the requested ecosystem into 3 distinct core components
-        planner_prompt = f"The user wants to build a: '{request.message_text}'. Break this down into 3 distinct core product types needed to complete this setup. Return ONLY a comma-separated list of these 3 product types (e.g., 'Gaming Laptop, 4K Monitor, Mechanical Keyboard')."
-        
-        try:
-            components_raw = await self.llm_service.generate_response(
-                prompt=planner_prompt,
-                system_role="You are an ecosystem planner. Output strictly 3 comma-separated product types.",
-                temperature=0.1,
-                max_tokens=50
-            )
-            components = [c.strip() for c in str(components_raw).split(',') if c.strip()][:3]
-        except Exception:
-            components = ["Main Device", "Essential Accessory", "Premium Add-on"]
-
-        # 2. Search for the best match for each component concurrently
-        search_tasks = []
-        for comp in components:
-            search_query = f"{comp} premium best rated"
-            search_tasks.append(self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=1))
-        
-        results = await asyncio.gather(*search_tasks, return_exceptions=True)
-        
-        ecosystem_products = []
-        for res in results:
-            if isinstance(res, list) and res:
-                ecosystem_products.append(res[0])
-                
-        ecosystem_products = _deduplicate_products(ecosystem_products)
-
-        if not ecosystem_products:
-            await self._send_to_ui(request.user_id, {"content": "I am currently analyzing global inventories to curate this full setup. Please hold on.", "type": UiPayloadType.TEXT.value}, ctx)
-            return
-
-        # 3. Present the Ecosystem
-        safe_products = [ProductAccess.dump(p) for p in ecosystem_products]
-        
-        system_instruction = (
-            "You are a visionary Tech/Lifestyle Architect. Present this curated collection of items as one unified ecosystem. "
-            "Explain briefly why they work perfectly together to fulfill the user's dream setup. "
-            "Keep it highly persuasive, elegant, and under 3 paragraphs. Use bullet points for the items."
-        )
-        
-        ecosystem_desc = await self.llm_service.generate_response(
-            prompt=f"User wanted: {request.message_text}. Products chosen: {[p.get('name') for p in safe_products]}",
-            system_role=system_instruction,
-            temperature=0.4,
-            max_tokens=500
-        )
-
-        payload = {
-            "content": str(ecosystem_desc).replace('"', ''),
-            "type": UiPayloadType.PRODUCT_CAROUSEL.value,
-            "products": safe_products,
-            "reason": "Architect Curated Ecosystem: A masterfully designed suite of products engineered to work in absolute harmony.",
-        }
-
-        await self._send_to_ui(request.user_id, payload, ctx)
-        self.tasks.create_task(self._save_conversation_turn(request.user_id, request.message_text, "Presented curated ecosystem."))
-
-
-     # -------------------------------------------------------------------------
-    # CANCEL / INTERNAL (Powered by v3 logic)
-    # -------------------------------------------------------------------------
-
-    async def _handle_cancel_intent(self, request: IncomingMessage, ctx: RequestContext) -> None:
-        cancel_data = request.raw_payload.get("message", {})
-        if isinstance(cancel_data, str):
-            try:
-                cancel_data = json.loads(cancel_data)
-            except Exception:
-                cancel_data = {}
-
-        await self.rabbitmq.publish(
-            {
-                "user_id": request.user_id,
-                "order_id": cancel_data.get("orderId"),
-                "reason": cancel_data.get("reason", "discarded"),
-            },
-            "airdeliver.ai.intent.cancel_order",
-        )
-
-        StructuredLog.info(
-            "cancel_intent_published",
-            correlation_id=ctx.correlation_id,
-            user_id=request.user_id,
-        )
-
-    async def _process_internal_command(self, user_id: int, command: str) -> None:
+    async def _legacy_pre_cart_only_process_internal_command(self, user_id: int, command: str) -> None:
         """
         Internal bus router with strict parsing and bounded side effects (from v3).
         """
@@ -3012,7 +2892,7 @@ class AINLUService:
                     "airdeliver.ai.cart.add",
                 )
 
-            
+
             except Exception as exc:
                 logger.error(
                     "internal_add_by_id_failed",
@@ -3137,6 +3017,503 @@ class AINLUService:
                 )
             return
 
+
+    async def _legacy_pre_cart_only_handle_text_commands(self, user_id: int, text: str, full_payload: dict) -> bool:
+        """
+        Enterprise-grade semantic command interceptor (from v3).
+        """
+        if not isinstance(user_id, int) or user_id <= 0:
+            raise ValueError("user_id must be a positive integer")
+
+        normalized_text = _sanitize_free_text(text)
+        if not normalized_text:
+            return False
+
+        checkout_triggers = ("checkout", "pay now", "confirm order", "finish order", "دفع")
+        clear_cart_triggers = ("clear cart", "empty cart", "delete cart", "مسح السلة")
+        add_triggers = (
+            "add to cart", "put in cart", "add this",
+            "ضيف للسلة", "حطه في السلة", "اضف الى السلة", "ضيفه للسلة"
+        )
+        reset_triggers = ("reset", "restart", "help")
+
+        if _contains_any(normalized_text, checkout_triggers):
+            logger.info(
+                "text_command_checkout_detected",
+                extra={"user_id": user_id, "command_text": normalized_text},
+            )
+            await self._safe_publish(
+                {
+                    "user_id": user_id,
+                    "type": "payment_intent",
+                    "timestamp": _utc_timestamp(),
+                    "source": "nlu_text_command",
+                },
+                "airdeliver.ai.order.confirm",
+            )
+            return True
+
+        if _contains_any(normalized_text, clear_cart_triggers):
+            logger.info(
+                "text_command_clear_cart_detected",
+                extra={"user_id": user_id, "command_text": normalized_text},
+            )
+            await self._safe_publish(
+                {
+                    "user_id": user_id,
+                    "notify_user": True,
+                    "source": "nlu_text_command",
+                },
+                "airdeliver.ai.cart.clear",
+            )
+            return True
+
+        if normalized_text in reset_triggers:
+            logger.info(
+                "text_command_reset_detected",
+                extra={"user_id": user_id, "command_text": normalized_text},
+            )
+            await self._process_internal_command(user_id, InternalCommand.RESET_SESSION.value)
+            return True
+
+        if _contains_any(normalized_text, add_triggers):
+            query_product = _strip_trigger_prefixes(normalized_text, add_triggers)
+
+            if len(query_product) <= 2:
+                logger.info(
+                    "text_command_add_skipped_query_too_short",
+                    extra={"user_id": user_id, "command_text": normalized_text},
+                )
+                return False
+
+            try:
+                candidates = await self._search_single_product(query_product, limit=1)
+            except Exception as exc:
+                logger.error(
+                    "text_command_add_search_failed",
+                    extra={"user_id": user_id, "query_product": query_product, "error": str(exc)},
+                )
+                return False
+
+            if not candidates:
+                logger.info(
+                    "text_command_add_no_candidate_found",
+                    extra={"user_id": user_id, "query_product": query_product},
+                )
+                return False
+
+            target = candidates[0]
+            target_id = _safe_product_get(target, "id", None)
+            target_name = str(_safe_product_get(target, "name", "item"))
+
+            if target_id is None:
+                logger.error(
+                    "text_command_add_candidate_missing_id",
+                    extra={"user_id": user_id, "query_product": query_product, "target_name": target_name},
+                )
+                return False
+
+            await self._safe_publish(
+                {
+                    "user_id": user_id,
+                    "product_id": target_id,
+                    "quantity": 1,
+                    "notify_user": True,
+                    "source": "nlu_text_command",
+                },
+                "airdeliver.ai.cart.add",
+            )
+
+            bundle = await self._safe_bundle_generation(target)
+            bundle = _deduplicate_products(bundle)
+
+            ui_message = f"Request to add {target_name} submitted. Wait for the updated cart to confirm."
+            reason = "Cart Action"
+            products_payload: List[Dict[str, Any]] = []
+
+            if bundle:
+                ui_message += "\n\nSmart suggestion: Complete the set with these related items."
+                reason = "Cart + Bundle"
+                products_payload = [_safe_product_dump(item) for item in bundle]
+
+            await self._safe_send_ui(
+                user_id,
+                {
+                    "content": ui_message,
+                    "type": "product_carousel",
+                    "products": products_payload,
+                    "reason": reason,
+                },
+            )
+            return True
+
+        return False
+
+
+    async def _prepare_cart_lifecycle(self,user_id,operation):
+        from app.services.neural_core_service import NeuralCoreService,RouterDecision
+        from types import SimpleNamespace
+        core=object.__new__(NeuralCoreService);core.cache=self.cache
+        response=await core._handle_cart_lifecycle_review(RouterDecision(intent='CART_CLEAR' if operation=='clear' else 'CART_SAVE'),SimpleNamespace(id=user_id))
+        await self._send_to_ui(user_id,{'type':'text','content':response.text,'action':response.action.model_dump(mode='json') if response.action else None},strict=True)
+
+    async def _handle_smart_cart_action(self, user_id: int, intent_payload: CommerceIntentPayload, ctx: RequestContext) -> bool:
+        """
+        AI Commerce OS Feature:
+        Executes cart operations globally based on the AI-extracted intent.
+        """
+        action_type = intent_payload.cart_action_type
+
+        if not action_type or action_type == CartActionType.UNKNOWN:
+            return False
+
+        if action_type == CartActionType.CHECKOUT:
+            StructuredLog.info("smart_cart_checkout", user_id=user_id)
+            await self._safe_publish(
+                {"user_id": user_id, "type": "payment_intent", "timestamp": _utc_timestamp(), "source": "ai_commerce_os"},
+                "airdeliver.ai.order.confirm",
+            )
+            return True
+
+        if action_type == CartActionType.CLEAR:
+            await self._prepare_cart_lifecycle(user_id,'clear')
+            return True
+
+        # For ADD and REMOVE, we need the product entity
+        if not intent_payload.target_products:
+            # If AI couldn't find the entity name, fallback to standard flow
+            return False
+
+        target_product_name = intent_payload.target_products[0].product_name
+        try:
+            # نبحث عن المنتج المقصود بسرعة
+            candidates = await self._search_single_product(target_product_name, limit=1)
+            if not candidates:
+
+                return False
+
+            target = candidates[0]
+            target_id = _safe_product_get(target, "id", None)
+            target_full_name = str(_safe_product_get(target, "name", "the item"))
+
+            if not target_id:
+                return False
+
+            if action_type == CartActionType.ADD:
+                await self._safe_publish(
+                    {"user_id": user_id, "product_id": target_id, "quantity": 1, "notify_user": True, "source": "ai_commerce_os"},
+                    "airdeliver.ai.cart.add",
+                )
+
+                # إنشاء رد ذكي يقرأ السلة وممكن يقترح Bundle (Cross-Selling)
+                bundle = await self._safe_bundle_generation(target)
+                bundle = _deduplicate_products(bundle)
+
+                ui_message = f"Your request to add **{target_full_name}** was submitted. Wait for the updated cart to confirm."
+                reason = "Cart Request Submitted"
+                products_payload = []
+
+                if bundle:
+                    ui_message += "\n\n*Smart OS Suggestion: Consider completing your setup with these related catalog items. Compatibility has not been verified.*"
+                    reason = "Cart + Smart Bundle"
+                    products_payload = [ProductAccess.dump(item) for item in bundle]
+
+                await self._send_to_ui(user_id, {
+                    "content": ui_message,
+                    "type": UiPayloadType.PRODUCT_CAROUSEL.value if bundle else UiPayloadType.TEXT.value,
+                    "products": products_payload,
+                    "reason": reason,
+                }, ctx)
+                return True
+
+            elif action_type == CartActionType.REMOVE:
+                await self._safe_publish(
+                    {"user_id": user_id, "product_id": target_id, "action": "remove_by_id", "notify_user": True, "source": "ai_commerce_os"},
+                    "airdeliver.ai.cart.remove",
+                )
+
+                await self._send_to_ui(user_id, {
+                    "content": f"Your request to remove **{target_full_name}** was submitted. Wait for the updated cart to confirm.",
+                    "type": UiPayloadType.TEXT.value
+                }, ctx)
+
+                # تشغيل نظام الـ Recovery لاسترجاع العميل ببدائل
+                self.tasks.create_task(self._perform_devilish_recovery(user_id, target_id))
+                return True
+
+        except Exception as exc:
+            StructuredLog.error("smart_cart_action_failed", user_id=user_id, error_type=type(exc).__name__)
+            await self._send_to_ui(user_id, {"content": "I could not confirm the cart request. Refresh your cart before trying again.", "type": UiPayloadType.TEXT.value}, ctx)
+            return True
+
+        return False
+
+    async def _handle_ecosystem_building(self, request: IncomingMessage, ctx: RequestContext, intent_payload: CommerceIntentPayload) -> None:
+        """Read-only bridge to shared reviewed setup, never old planner prose.
+
+        The original implementation stays below for source continuity. Neither
+        model plans nor caller intent fields supply commercial evidence.
+        """
+        from app.services.legacy_setup_boundary import reviewed_legacy_setup
+        try:
+            hints=await self._consented_shopping_hints(request.user_id)
+            async with asyncio.timeout(45):
+                response=await reviewed_legacy_setup(self.db,self.search_engine,self.cache,
+                    self.llm_service,request.message_text,
+                    customer_context=await self.memory.customer_context(request.user_id),
+                    saved_preferences=hints)
+                await self._recheck_shopping_hints(request.user_id,hints)
+            products=[card.model_dump(mode='json') for card in response.products]
+            await self._send_to_ui(request.user_id,{
+                'content':response.text,
+                'type':UiPayloadType.PRODUCT_CAROUSEL.value if products else UiPayloadType.TEXT.value,
+                'products':products,
+                'reason':'Read-only catalog component suggestions; completeness and compatibility are not verified.',
+            },ctx)
+        except asyncio.CancelledError:raise
+        except Exception as exc:
+            StructuredLog.error('legacy_setup_withheld',error_type=type(exc).__name__)
+            await self._send_to_ui(request.user_id,{'content':'I could not verify a current setup suggestion. Please clarify the main use, essential components and budget currency.','type':UiPayloadType.TEXT.value,'products':[]},ctx)
+
+    async def _handle_ecosystem_building_legacy_unreviewed(self, request: IncomingMessage, ctx: RequestContext, intent_payload: CommerceIntentPayload) -> None:
+        """
+        AI Commerce OS Feature: Ecosystem Architect Mode.
+        Builds a complete setup (e.g., PC + Monitor + Accessories) instead of just returning a single category.
+        """
+        StructuredLog.info("ecosystem_architect_triggered", user_id=request.user_id, query=request.message_text)
+
+        # 1. Ask the LLM to break down the requested ecosystem into 3 distinct core components
+        planner_prompt = f"The user wants to build a: '{request.message_text}'. Break this down into 3 distinct core product types needed to complete this setup. Return ONLY a comma-separated list of these 3 product types (e.g., 'Gaming Laptop, 4K Monitor, Mechanical Keyboard')."
+
+        try:
+            components_raw = await self.llm_service.generate_response(
+                prompt=planner_prompt,
+                system_role="You are an ecosystem planner. Output strictly 3 comma-separated product types.",
+                temperature=0.1,
+                max_tokens=50
+            )
+            components = [c.strip() for c in str(components_raw).split(',') if c.strip()][:3]
+        except Exception:
+            components = ["Main Device", "Essential Accessory", "Premium Add-on"]
+
+        # 2. Search for the best match for each component concurrently
+        search_tasks = []
+        for comp in components:
+            search_query = f"{comp} premium best rated"
+            search_tasks.append(self.search_engine.perform_hybrid_search_pure(self.db, search_query, limit=1))
+
+        results = await asyncio.gather(*search_tasks, return_exceptions=True)
+
+        ecosystem_products = []
+        for res in results:
+            if isinstance(res, list) and res:
+                ecosystem_products.append(res[0])
+
+        ecosystem_products = _deduplicate_products(ecosystem_products)
+
+        if not ecosystem_products:
+            await self._send_to_ui(request.user_id, {"content": "I am currently analyzing global inventories to curate this full setup. Please hold on.", "type": UiPayloadType.TEXT.value}, ctx)
+            return
+
+        # 3. Present the Ecosystem
+        safe_products = [ProductAccess.dump(p) for p in ecosystem_products]
+
+        system_instruction = (
+            "You are a visionary Tech/Lifestyle Architect. Present this curated collection of items as one unified ecosystem. "
+            "Explain briefly why they work perfectly together to fulfill the user's dream setup. "
+            "Keep it highly persuasive, elegant, and under 3 paragraphs. Use bullet points for the items."
+        )
+
+        ecosystem_desc = await self.llm_service.generate_response(
+            prompt=f"User wanted: {request.message_text}. Products chosen: {[p.get('name') for p in safe_products]}",
+            system_role=system_instruction,
+            temperature=0.4,
+            max_tokens=500
+        )
+
+        payload = {
+            "content": str(ecosystem_desc).replace('"', ''),
+            "type": UiPayloadType.PRODUCT_CAROUSEL.value,
+            "products": safe_products,
+            "reason": "Architect Curated Ecosystem: A masterfully designed suite of products engineered to work in absolute harmony.",
+        }
+
+        await self._send_to_ui(request.user_id, payload, ctx)
+        self.tasks.create_task(self._save_conversation_turn(request.user_id, request.message_text, "Presented curated ecosystem."))
+
+
+     # -------------------------------------------------------------------------
+    # CANCEL / INTERNAL (Powered by v3 logic)
+    # -------------------------------------------------------------------------
+
+    async def _handle_cancel_intent(self, request: IncomingMessage, ctx: RequestContext) -> None:
+        cancel_data = request.raw_payload.get("message", {})
+        if isinstance(cancel_data, str):
+            try:
+                cancel_data = json.loads(cancel_data)
+            except Exception:
+                cancel_data = {}
+
+        await self.rabbitmq.publish(
+            {
+                "user_id": request.user_id,
+                "order_id": cancel_data.get("orderId"),
+                "reason": cancel_data.get("reason", "discarded"),
+            },
+            "airdeliver.ai.intent.cancel_order",
+        )
+
+        StructuredLog.info(
+            "cancel_intent_published",
+            correlation_id=ctx.correlation_id,
+            user_id=request.user_id,
+        )
+
+    async def _process_internal_command(self, user_id: int, command: str) -> None:
+        """
+        Internal bus router with strict parsing and bounded side effects (from v3).
+        """
+        if not isinstance(user_id, int) or user_id <= 0:
+            raise ValueError("user_id must be a positive integer")
+
+        parsed = _parse_internal_command(command)
+        logger.info(
+            "internal_command_received",
+            extra={"user_id": user_id, "command": command, "parsed": parsed.name.value if parsed else None},
+        )
+
+        if parsed is None:
+            logger.warning(
+                "internal_command_unknown",
+                extra={"user_id": user_id, "command": command},
+            )
+            return
+
+        if parsed.name == InternalCommand.ADD_BY_ID:
+            try:
+                if parsed.argument is None:
+                    raise ValueError("Missing product id")
+                product_id = int(parsed.argument)
+
+                await self._safe_publish(
+                    {"user_id": user_id, "product_id": product_id, "quantity": 1, "source": "internal_command"},
+                    "airdeliver.ai.cart.add",
+                )
+
+
+            except Exception as exc:
+                logger.error(
+                    "internal_add_by_id_failed",
+                    extra={"user_id": user_id, "argument": parsed.argument, "error": str(exc)},
+                )
+            return
+
+        if parsed.name == InternalCommand.REMOVE_BY_ID:
+            try:
+                if parsed.argument is None:
+                    raise ValueError("Missing product id")
+                product_id = int(parsed.argument)
+
+                await self._safe_publish(
+                    {
+                        "user_id": user_id,
+                        "product_id": product_id,
+                        "action": "remove_by_id",
+                        "notify_user": False,
+                        "source": "internal_command",
+                    },
+                    "airdeliver.ai.cart.remove",
+                )
+
+                await self._perform_devilish_recovery(user_id, product_id)
+            except Exception as exc:
+                logger.error(
+                    "internal_remove_by_id_failed",
+                    extra={"user_id": user_id, "argument": parsed.argument, "error": str(exc)},
+                )
+            return
+
+        if parsed.name == InternalCommand.CLEAR_CART:
+            await self._prepare_cart_lifecycle(user_id,'clear')
+            return
+
+        if parsed.name == InternalCommand.CONFIRM_ORDER:
+            await self._safe_publish(
+                {
+                    "user_id": user_id,
+                    "type": "payment_intent",
+                    "timestamp": _utc_timestamp(),
+                    "source": "internal_command",
+                },
+                "airdeliver.ai.order.confirm",
+            )
+            return
+
+        if parsed.name == InternalCommand.SAVE_FOR_LATER:
+            await self._prepare_cart_lifecycle(user_id,'save')
+            return
+
+        if parsed.name == InternalCommand.GET_INITIAL_SUGGESTIONS:
+            # Fallback handling just in case the method exists dynamically or logic demands
+            if hasattr(self, "_handle_initial_suggestions"):
+                await self._handle_initial_suggestions(user_id)
+            return
+
+        if parsed.name == InternalCommand.RESET_SESSION:
+            context_key_getter = getattr(self, "_get_context_key", None)
+            seen_key_getter = getattr(self, "_get_seen_key", None)
+
+            cache_keys: List[str] = []
+            if callable(context_key_getter):
+                cache_keys.append(context_key_getter(user_id))
+            if callable(seen_key_getter):
+                cache_keys.append(seen_key_getter(user_id))
+
+            cache_keys.append(f"u:{user_id}:home_matrix_cache")
+
+            for key in cache_keys:
+                await self._safe_delete_cache_key(key)
+
+            await self._safe_publish(
+                {"user_id": user_id, "notify_user": False, "source": "internal_command"},
+                "airdeliver.ai.cart.clear",
+            )
+
+            await self._safe_send_ui(
+                user_id,
+                {
+                    "content": "Recent conversation reset requested. Saved shopping preferences are unchanged and order records are not erased. Cart clearing does not cancel pending orders. Check your cart state to confirm it is empty.",
+                    "type": "system",
+                },
+            )
+            return
+
+        if parsed.name == InternalCommand.SYNC_CART:
+            try:
+                cart_key = RedisKeys.cart(user_id)
+                cart_state = await self.cache.get_json(cart_key)
+
+                # Hydrate UI edge only if authoritative state contains valid items
+                if cart_state and cart_state.get("items"):
+                    await self._safe_send_ui(
+                        user_id,
+                        {
+                            "content": cart_state,
+                            "type": "cart_preview",
+                            "reason": "CONNECTION_STATE_RECONCILIATION"
+                        }
+                    )
+                    logger.info(
+                        "cart_state_reconciled",
+                        extra={"user_id": user_id, "item_count": len(cart_state["items"])}
+                    )
+            except Exception as exc:
+                logger.error(
+                    "cart_sync_critical_failure",
+                    extra={"user_id": user_id, "error": str(exc)}
+                )
+            return
+
     async def _matrix_stage(self, user_id: int, stage: str, operation):
         started = time.monotonic()
         StructuredLog.info("matrix_stage_started", user_id=user_id, stage=stage)
@@ -3184,7 +3561,7 @@ class AINLUService:
         """
         StructuredLog.info("matrix_generation_started", user_id=user_id)
         spending_tier = self.config.default_spending_tier
-        
+
         # 1. State Hydration
         global_seen_ids: Set[int] = set()
         try:
@@ -3313,7 +3690,7 @@ class AINLUService:
         for products, row_type, copy_result, apply_delay in stream_plan:
             if not products or copy_result is None or isinstance(copy_result, Exception):
                 continue
-            
+
             content, reason, snapshot = copy_result
             await self._matrix_stage(user_id, "stream_"+row_type, lambda: self._stream_row(user_id, content, row_type, products, reason, apply_delay=False, expected_cards=snapshot))
             streamed_any = True
@@ -3355,8 +3732,8 @@ class AINLUService:
             # rows are marked above; model failure must not hide unseen items.
             self.tasks.create_task(
                 self.freshness_repo.mark_products_as_seen(
-                    user_id=user_id, 
-                    product_ids=session_newly_seen_ids, 
+                    user_id=user_id,
+                    product_ids=session_newly_seen_ids,
                     ttl_seconds=43200
                 )
             )
@@ -3456,7 +3833,7 @@ class AINLUService:
         fallback_reason: str,
     ) -> Tuple[str, str]:
         MAX_CONTEXT_PRODUCTS: Final[int] = 3
-        
+
         # 1. زيادة سعة النصوص لتستوعب جملتين كاملتين بمعاني قوية
         MAX_CONTENT_LENGTH: Final[int] = 350
         MAX_REASON_LENGTH: Final[int] = 300
@@ -3483,7 +3860,7 @@ class AINLUService:
             parts = [p for p in [brand, name, f"[{category}]"] if p]
             return " ".join(parts) if parts else ""
 
-            
+
         def _extract_json_object(raw_response: Any) -> Dict[str, Any]:
             if isinstance(raw_response, dict):
                 return raw_response
@@ -3613,7 +3990,7 @@ class AINLUService:
             stmt = select(Product)
             if seen_ids:
                 stmt = stmt.where(Product.id.notin_(seen_ids))
-            
+
             # Fetch a large pool of high-rated items
             stmt = stmt.order_by(col(Product.rating).desc()).limit(self.config.trending_pool_limit)
             result = await self.db.execute(stmt)
@@ -3627,7 +4004,7 @@ class AINLUService:
             stmt = select(Product)
             if seen_ids:
                 stmt = stmt.where(Product.id.notin_(seen_ids))
-            
+
             # L8 FIX: Replaced ID DESC with a Velocity Heuristic (High Rating + Low Inventory implies high demand)
             # In a mature system, this should query a Redis Sorted Set updated by Kafka telemetry.
             stmt = stmt.order_by(col(Product.rating).desc(), col(Product.inventory).asc()).limit(self.config.trending_pool_limit)
@@ -3642,7 +4019,7 @@ class AINLUService:
             stmt = select(Product).where(Product.rating >= self.config.deals_min_rating)
             if seen_ids:
                 stmt = stmt.where(Product.id.notin_(seen_ids))
-            
+
             # Fetch affordable items with good ratings
             stmt = stmt.order_by(col(Product.price).asc()).limit(self.config.trending_pool_limit)
             result = await self.db.execute(stmt)
@@ -3772,31 +4149,31 @@ class AINLUService:
                     "Example 2: 'compare samsung s24 ultra and iphone 15' -> 'samsung s24 ultra iphone 15'\n"
                     "Example 3: 'I need a good gaming laptop' -> 'gaming laptop'"
                 )
-                
+
                 # استخدام generate_response بحرارة 0.0 لضمان الدقة المطلقة بدون أي هلوسة
                 optimized_raw = await _strict_model_text(self.llm_service,
                     prompt=json.dumps({"input": search_query, "conversation_history": conversation_context[-2000:]}, ensure_ascii=False),
                     system_role=system_prompt,
-                    temperature=0.0, 
+                    temperature=0.0,
                     max_tokens=2500
                 )
-                
+
                 # التنظيف النهائي للنتيجة من أي بقايا قد يضيفها النموذج
                 clean_result = str(optimized_raw).replace("Output:", "").replace('"', "").replace("'", "").strip()
-                
+
                 # التأكد من أن النتيجة منطقية وليست فارغة قبل اعتمادها
                 if clean_result and len(clean_result) > 2:
                     StructuredLog.info(
-                        "query_optimized_successfully", 
-                        original_query=search_query, 
+                        "query_optimized_successfully",
+                        original_query=search_query,
                         optimized_query=clean_result
                     )
                     return clean_result
-                    
+
             except Exception as exc:
                 StructuredLog.warning("query_optimizer_failed", error=str(exc))
                 return search_query
-                
+
         return search_query
     def _build_search_plan(
         self,
@@ -3914,7 +4291,7 @@ class AINLUService:
 
         deduped_candidates = _deduplicate_products(all_candidates)
         return deduped_candidates, fallback_triggered, ai_response_prefix
-    
+
     async def _execute_search(
         self,
         *,
@@ -3989,10 +4366,10 @@ class AINLUService:
         if plan.constraints.price_max and candidates:
             # الاستدعاء النظيف للدالة الجديدة
             price_filtered = self._filter_candidates_by_price(
-                candidates, 
+                candidates,
                 plan.constraints.price_max
             )
-        
+
 
             if not price_filtered:
                 StructuredLog.info(
@@ -4264,7 +4641,7 @@ class AINLUService:
     # -------------------------------------------------------------------------
     # RESPONSE SYNTHESIS
     # -------------------------------------------------------------------------
-    
+
     def _clamp_text(self, value: str, limit: int) -> str:
         return (value or "").strip()[:limit]
 
@@ -4319,7 +4696,7 @@ class AINLUService:
                 error=str(exc),
             )
             return ""
-    
+
     def _parse_price_value(self, raw_price: object) -> Decimal | None:
         if raw_price is None:
             return None
@@ -4470,12 +4847,12 @@ class AINLUService:
             if products:
                 # ✅ L9 Fix: تمرير قائمة المنتجات بالكامل لكسر عنق الزجاجة
                 available_items = []
-                for p in products[:3]: 
+                for p in products[:3]:
                     raw_name = str(ProductAccess.get(p, "name", "this item"))
                     p_name = " ".join(raw_name.split())
                     p_specs = str(ProductAccess.get(p, "description", ""))[:200]
                     available_items.append(f"- {p_name} (Specs: {p_specs})")
-                
+
                 joined_items = "\n".join(available_items)
                 inventory_context = (
                     f"CATALOG MATCHES: Availability is specified only by catalog_availability metadata:\n"
@@ -4536,12 +4913,12 @@ Your tone is unshakable, elegantly composed, and radically objective. NO retail 
 
 [ANTI-SYCOPHANCY & SPEC INTEGRITY - L9 GUARDRAIL]
 - ZERO COMPROMISE: If a user demands a specific specification (e.g., "Global Shutter", "V12 Engine", "Sapphire crystal", "Pure Oud", "Full-grain leather") and the verified inventory product DOES NOT possess it, you MUST explicitly state the truth.
-- NO SOFTENING: DO NOT invent marketing fluff like "delivers global-shutter-like performance," "mimics mechanical movement," or "feels like real leather." You serve the TRUTH, not the user's ego. Appeasing the user with bent facts is a critical system failure. 
+- NO SOFTENING: DO NOT invent marketing fluff like "delivers global-shutter-like performance," "mimics mechanical movement," or "feels like real leather." You serve the TRUTH, not the user's ego. Appeasing the user with bent facts is a critical system failure.
 - OBJECTIVE DECLARATION: State the actual verified attribute proudly and objectively (e.g., if it has a rolling shutter, state "Rolling Shutter"; if it is synthetic leather, state "Synthetic Leather"; if it is a Quartz movement, state "Quartz").
 
 [LEXICAL DISCIPLINE - OMNI-INDUSTRY NOMENCLATURE]
-- You MUST use strict, industry-standard nomenclature appropriate for the specific product category. 
-- NEVER invent, artificially expand, or creatively rephrase standard terms across ANY category. 
+- You MUST use strict, industry-standard nomenclature appropriate for the specific product category.
+- NEVER invent, artificially expand, or creatively rephrase standard terms across ANY category.
   * Tech: use "12K", NEVER "12 kilopixel"; use "RAW", NEVER "raw pipeline architecture".
   * Watches: use "Tourbillon", NEVER "spinning gravity compensator".
   * Fragrance/Fashion: use "Sillage", NEVER "scent trail radius"; use "Full-grain leather", NEVER "unaltered cowhide".
@@ -4740,7 +5117,7 @@ SCOPE & BEHAVIOR
                         "4. Use standard dashes (-) for the bulleted list."
                     )
 
-                    
+
                     user_prompt = (
                         f"{override_directive}\n\n"
                         f"{UNIVERSAL_4_PHASE_ARCHITECTURE}\n\n"
@@ -4834,7 +5211,7 @@ SCOPE & BEHAVIOR
 
                     # تجهيز السياق الدقيق جداً
                     precise_context = await self._enrich_specs_context(top_product, features_to_find)
-                    
+
                     inventory_count = product_payload.get("inventory", 1)
                     price_val = product_payload.get("price", "Price upon request")
 
@@ -5225,19 +5602,8 @@ Execute your response adhering strictly to this visual and structural blueprint:
             )
             return True
 
-        if _contains_any(normalized_text, clear_cart_triggers):
-            logger.info(
-                "text_command_clear_cart_detected",
-                extra={"user_id": user_id, "command_text": normalized_text},
-            )
-            await self._safe_publish(
-                {
-                    "user_id": user_id,
-                    "notify_user": True,
-                    "source": "nlu_text_command",
-                },
-                "airdeliver.ai.cart.clear",
-            )
+        if normalized_text in clear_cart_triggers:
+            await self._prepare_cart_lifecycle(user_id,'clear')
             return True
 
         if normalized_text in reset_triggers:
