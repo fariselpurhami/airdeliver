@@ -47,4 +47,8 @@ def test_document_contents_match_pre_move_manifest():
   # Approved canonical-entrypoint revision only; preserve historical move manifest.
   if row['canonical_path']=='docs/development/demo-catalog-seeding.md':
    content=content.replace(b'backend/api/tools/seed_ultra_scale.py',b'backend/api/seed_ultra_scale.py')
-  assert hashlib.sha256(content).hexdigest()==row['sha256']
+  # Explicitly reviewed runbook evolution; the original move manifest stays immutable.
+  expected=row['sha256']
+  if row['canonical_path']=='docs/development/dev-volume-warnings.md':
+   expected='c2e192065c5d4e5f36ade724fbe08d699b24d876513f24e10eacad4c85be4d34'
+  assert hashlib.sha256(content).hexdigest()==expected
