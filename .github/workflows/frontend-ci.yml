@@ -12,6 +12,7 @@ on:
       - 'apps/api/tests/test_whole_chain_capacity.py'
       - 'apps/api/app/services/admin_metrics.py'
       - '.github/workflows/secret-history-guard.yml'
+      - '.github/workflows/backend-ci.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/frontend-ci.yml'
@@ -24,6 +25,7 @@ on:
       - 'apps/api/tests/test_whole_chain_capacity.py'
       - 'apps/api/app/services/admin_metrics.py'
       - '.github/workflows/secret-history-guard.yml'
+      - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 
 jobs:

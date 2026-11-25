@@ -8,6 +8,8 @@ on:
     paths:
       - 'apps/api/**'
       - 'apps/web/components/admin/PaymentMetricsPanel.tsx'
+      - 'apps/web/app/(admin)/dashboard/**'
+      - 'apps/web/__tests__/PaymentMetricsPanel.test.tsx'
       - '.github/workflows/frontend-ci.yml'
       # Product-detail quantity/cart wiring must pass the real backend matrix.
       - 'apps/web/components/products/ProductDetailsCard.tsx'
@@ -30,6 +32,8 @@ on:
     paths:
       - 'apps/api/**'
       - 'apps/web/components/admin/PaymentMetricsPanel.tsx'
+      - 'apps/web/app/(admin)/dashboard/**'
+      - 'apps/web/__tests__/PaymentMetricsPanel.test.tsx'
       - '.github/workflows/frontend-ci.yml'
       # Product-detail quantity/cart wiring must pass the real backend matrix.
       - 'apps/web/components/products/ProductDetailsCard.tsx'
