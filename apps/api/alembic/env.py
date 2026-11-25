@@ -28,7 +28,9 @@ for _, module_name, _ in pkgutil.iter_modules([models_package_path]):
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Migration helpers can run in an existing process. Never silence its
+    # application diagnostics when Alembic configures its own loggers.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 DATABASE_URL = os.getenv("DATABASE_URI")
 if not DATABASE_URL:
