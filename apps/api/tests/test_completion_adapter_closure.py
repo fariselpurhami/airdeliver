@@ -132,3 +132,11 @@ async def test_consultation_orchestrator_exception_is_notice_without_unreviewed_
     result=await llm.handle_commerce_interaction('shirt',[dict(P)])
     assert result['products']==[] and result['text'].startswith('System notice:')
     assert 'strongest' not in result['text'] and 'private' not in result['text']
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('patch',[{'id':True},{'id':'7'},{'name':' '},{'is_active':'true'},{'is_active':1},{'inventory':True},{'inventory':'3'},{'inventory':-1}])
+async def test_malformed_complete_evidence_is_not_coerced_into_eligibility(patch):
+    llm=service();llm._chat_completion=AsyncMock()
+    result=await llm.filter_and_recommend('shirt',[{**P,**patch}])
+    assert result.selected_ids==[] and result.confidence_score==0
+    llm._chat_completion.assert_not_awaited()

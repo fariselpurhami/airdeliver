@@ -1955,6 +1955,10 @@ Output ONE line of search keywords only.
         from copy import deepcopy
         evidence_snapshot=deepcopy(products)
         try:
+            if any(type(p['id']) is not int or p['id']<=0 or not isinstance(p['name'],str) or not p['name'].strip()
+                   or type(p['is_active']) is not bool or type(p['inventory']) is not int or p['inventory']<0
+                   for p in evidence_snapshot):
+                raise ValueError('Invalid recommendation card evidence')
             cards = [catalog_result(SimpleNamespace(**p)) for p in evidence_snapshot]
             cards = [c for c in cards if c is not None and c.stock_status in {'local_in_stock','fixture_in_stock'}]
             if not cards:
