@@ -19,5 +19,5 @@ def test_every_original_category_has_a_valid_current_contract_and_explicit_limit
         assert row['boundary']
     assert data['whole_group_closed'] is False
     assert data['still_open'] and data['intentional_exclusions']
-    assert 'No direct five-label semantic equivalence claimed' in data['fields']['sentiment']
-    assert 'No separate ordinary competitor field' in data['fields']['competitor_mentioned']
+    assert 'Five original labels restored as tone-only metadata' in data['fields']['sentiment']
+    assert 'Literal current customer name' in data['fields']['competitor_mentioned']

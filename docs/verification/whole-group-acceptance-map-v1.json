@@ -48,18 +48,21 @@
       "id": "CAP-14",
       "capability": "Typed product-target array, occasion, sentiment, intent, cart action and deduplication contracts",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Separate literal targets; explicit price/negotiation/objection tasks; reviewed cart commands",
-      "next_code_or_boundary_acceptance": "Crosswalk original intent/occasion/sentiment fields to current caller semantics; mark intentional non-restoration separately",
+      "next_code_or_boundary_acceptance": "Typed original/current category-field crosswalk complete with literal tone evidence and competitor context; malformed target coercion removed. Exact-head CI and merge remain; actual interpretation accuracy and owner acceptance separate.",
       "quality_acceptance": "Actual router accuracy across dialects, paraphrases and multi-turn changes",
       "owner_acceptance": "Owner observation of full text route and useful replies",
       "evidence_leads": [
         "apps/api/tests/test_advisory_task_routing.py",
         "apps/api/tests/test_cart_lifecycle_review.py",
-        "apps/api/tests/test_staged_search_postgres.py"
+        "apps/api/tests/test_staged_search_postgres.py",
+        "docs/verification/cap14-code-acceptance-v1.md",
+        "apps/api/tests/test_intent_contract_closure.py",
+        "docs/verification/original-taxonomy-crosswalk-v1.json"
       ],
       "unresolved_test_leads": []
     },
@@ -408,6 +411,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 8,
-  "code_remaining_groups": 12
+  "code_complete_groups": 9,
+  "code_remaining_groups": 11
 }

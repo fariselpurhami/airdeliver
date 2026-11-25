@@ -271,6 +271,11 @@ class CommerceIntentPayload(BaseModel):
         raw_products = data.get("target_products")
         if not isinstance(raw_products, list) or not raw_products:
             return data
+        if len(raw_products)>20:raise ValueError('Too many original intent targets')
+        for product in raw_products:
+            if isinstance(product,dict):
+                if any(value is not None and not isinstance(value,str) for key,value in product.items() if key in {'product_name','domain_hint','raw_spec_context'}):
+                    raise ValueError('Target fields must be literal strings')
 
         def normalize_product(
             product: Any,
