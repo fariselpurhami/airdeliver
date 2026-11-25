@@ -58,3 +58,17 @@ async def test_reference_binding_keeps_independent_negative_review():
  with pytest.raises(ValueError,match='grounding_review_rejected'):
   await write_shopping_copy(infer,'x',[card],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'references_v1'})
  assert len(calls)==2
+
+@pytest.mark.asyncio
+async def test_reference_wire_contract_has_no_contradictory_object_output_instruction():
+ card=catalog_result(row());seen=[]
+ async def infer(messages):
+  seen.append(messages)
+  if len(seen)==1:return json.dumps({'text':'The requested detail is not listed.','product_ids':[],'claim_refs':[]})
+  return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
+ await write_shopping_copy(infer,'x',[card],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'references_v1'})
+ writer=seen[0][0]['content']
+ assert 'Return JSON{text,product_ids,claims}' not in writer
+ assert 'Copy needed claim objects' not in writer
+ assert 'Do not calculate differences' in writer
+ assert 'claim_reference_map' in writer

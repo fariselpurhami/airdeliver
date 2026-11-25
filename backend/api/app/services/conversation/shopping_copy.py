@@ -297,6 +297,11 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         from app.services.compact_copy_contracts import contracts
         writer_rules,review_rules=contracts(mode,context)
     if use_references:
+        writer_rules=writer_rules.replace('Return JSON{text,product_ids,claims}',
+            'Return JSON{text,product_ids,claim_refs}')
+        writer_rules=writer_rules.replace("Copy needed claim objects from each card's claim_options, including its name claim for every product mentioned; never shorten a spec.KEY field.",
+            'Select exact claim_reference_map keys for each stated fact and name; never invent a reference.')
+        writer_rules += ' Do not calculate differences, convert units or generate new numerical values. When comparing price or weight, use lower/higher/lighter/heavier only when exact listed values support it; no derived amounts. Include references and product_ids for every compared card, even when only one is the preferred pick. A preference is conditional when the decisive must-have is unknown. Keep unknown material performance unknown. '
         writer_rules += ' Wire format override: return text, product_ids, claim_refs only. Instead of claims objects, select exact keys from claim_reference_map for every stated fact. No unknown or duplicate references. All evidence and task requirements still apply. The application resolves references, then validates and independently reviews the complete claims.'
     writer_schema=ReferencedShoppingDraft if use_references else ShoppingDraft
     def parse_writer(raw):
