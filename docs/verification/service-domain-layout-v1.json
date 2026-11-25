@@ -1,0 +1,533 @@
+{
+  "baseline": "960796dec9fe2315d169cbd0cf15515d07e1c2a5",
+  "modules": [
+    {
+      "legacy_module": "app.services.ai_cart_service",
+      "canonical_module": "app.services.cart.ai_cart_service",
+      "path": "backend/api/app/services/cart/ai_cart_service.py",
+      "source_sha256": "77a7f17f9124775e34c4b6a8766626e02b1747205ac78873be65fe0776a8ed37",
+      "canonical_sha256": "77a7f17f9124775e34c4b6a8766626e02b1747205ac78873be65fe0776a8ed37",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.cart_import_service",
+      "canonical_module": "app.services.cart.cart_import_service",
+      "path": "backend/api/app/services/cart/cart_import_service.py",
+      "source_sha256": "62111eeeb22039a5f8408285c35bba262420fcdaec74291c738a1a8e104f36c3",
+      "canonical_sha256": "62111eeeb22039a5f8408285c35bba262420fcdaec74291c738a1a8e104f36c3",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.cart_journal_service",
+      "canonical_module": "app.services.cart.cart_journal_service",
+      "path": "backend/api/app/services/cart/cart_journal_service.py",
+      "source_sha256": "ae65f4d1af135189df3ba8b272f90d575f17d4723ebf7f5c9645c9dd39babcd0",
+      "canonical_sha256": "ae65f4d1af135189df3ba8b272f90d575f17d4723ebf7f5c9645c9dd39babcd0",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.cart_lifecycle_review",
+      "canonical_module": "app.services.cart.cart_lifecycle_review",
+      "path": "backend/api/app/services/cart/cart_lifecycle_review.py",
+      "source_sha256": "a5a2280c27563287cb93204ac61a97fe925d62a292c594c7f3da91f573ac71ba",
+      "canonical_sha256": "a5a2280c27563287cb93204ac61a97fe925d62a292c594c7f3da91f573ac71ba",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.cart_reconciliation_service",
+      "canonical_module": "app.services.cart.cart_reconciliation_service",
+      "path": "backend/api/app/services/cart/cart_reconciliation_service.py",
+      "source_sha256": "e19e50e716fc176d4ee7513348c71cdc80d8a3bb56c506dc50bff7116fe16fa6",
+      "canonical_sha256": "e19e50e716fc176d4ee7513348c71cdc80d8a3bb56c506dc50bff7116fe16fa6",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.cart_sales_service",
+      "canonical_module": "app.services.cart.cart_sales_service",
+      "path": "backend/api/app/services/cart/cart_sales_service.py",
+      "source_sha256": "92d7b8d9aa390924b230ba198a11772f21fbbd3e8448947cd7b26893e8e67ff7",
+      "canonical_sha256": "92d7b8d9aa390924b230ba198a11772f21fbbd3e8448947cd7b26893e8e67ff7",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.ai_checkout_service",
+      "canonical_module": "app.services.checkout.ai_checkout_service",
+      "path": "backend/api/app/services/checkout/ai_checkout_service.py",
+      "source_sha256": "079c48721a3bcb058ea804013377f4ed42ffd39fd9ff069458cdd8643191531d",
+      "canonical_sha256": "079c48721a3bcb058ea804013377f4ed42ffd39fd9ff069458cdd8643191531d",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.us_quote_policy",
+      "canonical_module": "app.services.checkout.us_quote_policy",
+      "path": "backend/api/app/services/checkout/us_quote_policy.py",
+      "source_sha256": "137334e053dceb47c9564f985de2a7c0898d8935a9d509d5bd13747e176b0804",
+      "canonical_sha256": "137334e053dceb47c9564f985de2a7c0898d8935a9d509d5bd13747e176b0804",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.payment_completion_service",
+      "canonical_module": "app.services.payments.payment_completion_service",
+      "path": "backend/api/app/services/payments/payment_completion_service.py",
+      "source_sha256": "a049c435defe1d52bbe4a9a554e8406986fa59c324eb0c2ff36d2e1725e81ff5",
+      "canonical_sha256": "3645beed5f936913bcab36ab4f425590aef2b637006e85a054539d53244d7814",
+      "byte_identical": false
+    },
+    {
+      "legacy_module": "app.services.payment_orchestrator",
+      "canonical_module": "app.services.payments.payment_orchestrator",
+      "path": "backend/api/app/services/payments/payment_orchestrator.py",
+      "source_sha256": "d922bbe8ce6c1a148a798dfa26b3351f38eae463fea044a2c583b24ee0b93007",
+      "canonical_sha256": "d922bbe8ce6c1a148a798dfa26b3351f38eae463fea044a2c583b24ee0b93007",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.payment_outbox_reconciler",
+      "canonical_module": "app.services.payments.payment_outbox_reconciler",
+      "path": "backend/api/app/services/payments/payment_outbox_reconciler.py",
+      "source_sha256": "fbb848bcdbf45e4fd4f9a6579459a24518612854fea8370800f5349f19b3a224",
+      "canonical_sha256": "fbb848bcdbf45e4fd4f9a6579459a24518612854fea8370800f5349f19b3a224",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.payment_outbox_service",
+      "canonical_module": "app.services.payments.payment_outbox_service",
+      "path": "backend/api/app/services/payments/payment_outbox_service.py",
+      "source_sha256": "171a77964f385eddab141e58fab88938e4aadf08a658a3a2a42519431c5d246b",
+      "canonical_sha256": "08d30e4804d35abebba8d18f57f7855112412b4cc3ad9c2d4488333a06bdf64d",
+      "byte_identical": false
+    },
+    {
+      "legacy_module": "app.services.ai_commerce_engine",
+      "canonical_module": "app.services.catalog.ai_commerce_engine",
+      "path": "backend/api/app/services/catalog/ai_commerce_engine.py",
+      "source_sha256": "23af2855e5ba37417fe75e41ea3c128f26c630819f5719ad24cfc8c93574148c",
+      "canonical_sha256": "23af2855e5ba37417fe75e41ea3c128f26c630819f5719ad24cfc8c93574148c",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.catalog_visibility",
+      "canonical_module": "app.services.catalog.catalog_visibility",
+      "path": "backend/api/app/services/catalog/catalog_visibility.py",
+      "source_sha256": "0b1c31d45b677da33c944bfdaad3775bd6b835dd479ea4e42b42c4614f6b1384",
+      "canonical_sha256": "0b1c31d45b677da33c944bfdaad3775bd6b835dd479ea4e42b42c4614f6b1384",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.product_serialization",
+      "canonical_module": "app.services.catalog.product_serialization",
+      "path": "backend/api/app/services/catalog/product_serialization.py",
+      "source_sha256": "d2b6e2762c027b2257cc340931e6597f171304a6280fdbe0acbf480eadeec181",
+      "canonical_sha256": "d2b6e2762c027b2257cc340931e6597f171304a6280fdbe0acbf480eadeec181",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.real_catalog_import",
+      "canonical_module": "app.services.catalog.real_catalog_import",
+      "path": "backend/api/app/services/catalog/real_catalog_import.py",
+      "source_sha256": "ad52cdae15628dc1280682f65a4c051f0253dc477d4ed19da2548726e6c338f9",
+      "canonical_sha256": "ad52cdae15628dc1280682f65a4c051f0253dc477d4ed19da2548726e6c338f9",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.customer_memory_service",
+      "canonical_module": "app.services.memory.customer_memory_service",
+      "path": "backend/api/app/services/memory/customer_memory_service.py",
+      "source_sha256": "8675a1f2a665b7d93d43ee8b86a633f3952e795268ba19dfc1fc56eed418cc37",
+      "canonical_sha256": "8675a1f2a665b7d93d43ee8b86a633f3952e795268ba19dfc1fc56eed418cc37",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.personalization_erasure",
+      "canonical_module": "app.services.memory.personalization_erasure",
+      "path": "backend/api/app/services/memory/personalization_erasure.py",
+      "source_sha256": "707c43f06806b40e7acf47411496bace5713e03a1741012670c536c09ed5ccdb",
+      "canonical_sha256": "707c43f06806b40e7acf47411496bace5713e03a1741012670c536c09ed5ccdb",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.personalization_fence",
+      "canonical_module": "app.services.memory.personalization_fence",
+      "path": "backend/api/app/services/memory/personalization_fence.py",
+      "source_sha256": "3d602e540e4977fb75a8cbb86e90d6d8a78571ed582d95cb3f581eecc855d3ec",
+      "canonical_sha256": "3d602e540e4977fb75a8cbb86e90d6d8a78571ed582d95cb3f581eecc855d3ec",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.shopping_memory_policy",
+      "canonical_module": "app.services.memory.shopping_memory_policy",
+      "path": "backend/api/app/services/memory/shopping_memory_policy.py",
+      "source_sha256": "74a0cfe811c3aef0868becee99d8562e1d7d36fc4699891970682c27eea57a02",
+      "canonical_sha256": "74a0cfe811c3aef0868becee99d8562e1d7d36fc4699891970682c27eea57a02",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.ai_behavior_engine",
+      "canonical_module": "app.services.behavior.ai_behavior_engine",
+      "path": "backend/api/app/services/behavior/ai_behavior_engine.py",
+      "source_sha256": "5621ddbd49a95a5a40a5f518e997a75eb17d7ed96891c99422dfdf4efb16e8e5",
+      "canonical_sha256": "5621ddbd49a95a5a40a5f518e997a75eb17d7ed96891c99422dfdf4efb16e8e5",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.behavior_checkpoint",
+      "canonical_module": "app.services.behavior.behavior_checkpoint",
+      "path": "backend/api/app/services/behavior/behavior_checkpoint.py",
+      "source_sha256": "56cc4f963e18d334571f1f28bb6994bfb981d6f4497f5a86c1af542c36018283",
+      "canonical_sha256": "56cc4f963e18d334571f1f28bb6994bfb981d6f4497f5a86c1af542c36018283",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.behavior_training",
+      "canonical_module": "app.services.behavior.behavior_training",
+      "path": "backend/api/app/services/behavior/behavior_training.py",
+      "source_sha256": "bf647ee041320075bc3eda6cd041b7f3b7efce0c945f411fc3d626d01f8118f9",
+      "canonical_sha256": "bf647ee041320075bc3eda6cd041b7f3b7efce0c945f411fc3d626d01f8118f9",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.experimentation_service",
+      "canonical_module": "app.services.behavior.experimentation_service",
+      "path": "backend/api/app/services/behavior/experimentation_service.py",
+      "source_sha256": "a6b0ce9d4044b4faada4e5d5d7e204e97c0dfea1c9f4ad2c5d74c63fd1b3282a",
+      "canonical_sha256": "a6b0ce9d4044b4faada4e5d5d7e204e97c0dfea1c9f4ad2c5d74c63fd1b3282a",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.feature_flags",
+      "canonical_module": "app.services.behavior.feature_flags",
+      "path": "backend/api/app/services/behavior/feature_flags.py",
+      "source_sha256": "899075534c42ad38a68dff14ac0682bda6ba95f1a4b1aca09e06988cdf919875",
+      "canonical_sha256": "899075534c42ad38a68dff14ac0682bda6ba95f1a4b1aca09e06988cdf919875",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.gamification_service",
+      "canonical_module": "app.services.behavior.gamification_service",
+      "path": "backend/api/app/services/behavior/gamification_service.py",
+      "source_sha256": "de34863a5a068474a4082d17583c115168aea99283175766a295208e1f151107",
+      "canonical_sha256": "20c5d577f5da110f8f97b411683a0672b1569b2e73c30316419c12d868efb81a",
+      "byte_identical": false
+    },
+    {
+      "legacy_module": "app.services.cache_service",
+      "canonical_module": "app.services.infrastructure.cache_service",
+      "path": "backend/api/app/services/infrastructure/cache_service.py",
+      "source_sha256": "f6c18c5a329ecc421d0b428e2087d92a557b008d56f2b86d2f95b71a73826abf",
+      "canonical_sha256": "08b2af563c29fbeb20ab5a373b647d399f06fd638a98df107349692d4102c56d",
+      "byte_identical": false
+    },
+    {
+      "legacy_module": "app.services.rabbitmq_service",
+      "canonical_module": "app.services.infrastructure.rabbitmq_service",
+      "path": "backend/api/app/services/infrastructure/rabbitmq_service.py",
+      "source_sha256": "94920456516b30eb2275ba58c223b0a73144eb52aee3a4ded751067ee913dfbd",
+      "canonical_sha256": "94920456516b30eb2275ba58c223b0a73144eb52aee3a4ded751067ee913dfbd",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.notification_service",
+      "canonical_module": "app.services.infrastructure.notification_service",
+      "path": "backend/api/app/services/infrastructure/notification_service.py",
+      "source_sha256": "91766ff4cd91d1bbec0de307474a6a4a34e37b48fcce7dc6c97041e12c4727bf",
+      "canonical_sha256": "97d0759d230e5aa6d0cb211835d61e89c2ded7f19f15a79fa9193368345b57ab",
+      "byte_identical": false
+    },
+    {
+      "legacy_module": "app.services.embedding_warmup",
+      "canonical_module": "app.services.retrieval.embedding_warmup",
+      "path": "backend/api/app/services/retrieval/embedding_warmup.py",
+      "source_sha256": "04fcc4f2c1c9f91312d7a7ee2fa32f65f87f030f7281e6dad6e562ee8845ee32",
+      "canonical_sha256": "369af29e068210e38fefaa26cfc0adb86999b2ac0c13b3192f706fd6f96657db",
+      "byte_identical": false
+    },
+    {
+      "legacy_module": "app.services.query_vector_cache",
+      "canonical_module": "app.services.retrieval.query_vector_cache",
+      "path": "backend/api/app/services/retrieval/query_vector_cache.py",
+      "source_sha256": "b52c3a7f7f8171a258620cdd8cf44e84b9d0e5a1d2e86c2ce135d4605d618d26",
+      "canonical_sha256": "b52c3a7f7f8171a258620cdd8cf44e84b9d0e5a1d2e86c2ce135d4605d618d26",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.staged_search_service",
+      "canonical_module": "app.services.retrieval.staged_search_service",
+      "path": "backend/api/app/services/retrieval/staged_search_service.py",
+      "source_sha256": "83d4f73d48aba203f33cbc5b9ded6712ce4199d34b5a1199da29e2997a95e89f",
+      "canonical_sha256": "83d4f73d48aba203f33cbc5b9ded6712ce4199d34b5a1199da29e2997a95e89f",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.product_knowledge_service",
+      "canonical_module": "app.services.research.product_knowledge_service",
+      "path": "backend/api/app/services/research/product_knowledge_service.py",
+      "source_sha256": "4b1fb8f4db31517b801beb8e96187bb229ca675f0d001c1ad6afcc398bad801a",
+      "canonical_sha256": "4b1fb8f4db31517b801beb8e96187bb229ca675f0d001c1ad6afcc398bad801a",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.research_evidence_budget",
+      "canonical_module": "app.services.research.research_evidence_budget",
+      "path": "backend/api/app/services/research/research_evidence_budget.py",
+      "source_sha256": "b9d3c402c69d942fadfc24e99812c4e75654e376f468190a0bfa40cbefde10b6",
+      "canonical_sha256": "b9d3c402c69d942fadfc24e99812c4e75654e376f468190a0bfa40cbefde10b6",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.tavily_boundary",
+      "canonical_module": "app.services.research.tavily_boundary",
+      "path": "backend/api/app/services/research/tavily_boundary.py",
+      "source_sha256": "8c4bd485ae6c6f14eca7d0555b9f8570768a3478b907d41f8a0fabcf722f2986",
+      "canonical_sha256": "8c4bd485ae6c6f14eca7d0555b9f8570768a3478b907d41f8a0fabcf722f2986",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.ai_adapters",
+      "canonical_module": "app.services.conversation.ai_adapters",
+      "path": "backend/api/app/services/conversation/ai_adapters.py",
+      "source_sha256": "5cadd5bc3b65fc56c71a3bd5bbec03ce1340be51e7ca1546388630775f485a59",
+      "canonical_sha256": "5cadd5bc3b65fc56c71a3bd5bbec03ce1340be51e7ca1546388630775f485a59",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.ai_meta_cognition",
+      "canonical_module": "app.services.conversation.ai_meta_cognition",
+      "path": "backend/api/app/services/conversation/ai_meta_cognition.py",
+      "source_sha256": "8501831de5a044a43f30b62284bd73beb0bc12c4e608068214461be6fdd6028d",
+      "canonical_sha256": "8501831de5a044a43f30b62284bd73beb0bc12c4e608068214461be6fdd6028d",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.ai_nlu_service",
+      "canonical_module": "app.services.conversation.ai_nlu_service",
+      "path": "backend/api/app/services/conversation/ai_nlu_service.py",
+      "source_sha256": "12c5e854a0a017b6dab05906e93be52759a07f78fffa4e6ed3d2a8d479b9184a",
+      "canonical_sha256": "12c5e854a0a017b6dab05906e93be52759a07f78fffa4e6ed3d2a8d479b9184a",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.compact_copy_contracts",
+      "canonical_module": "app.services.conversation.compact_copy_contracts",
+      "path": "backend/api/app/services/conversation/compact_copy_contracts.py",
+      "source_sha256": "02ebd2bdd1a7088032f8ee61141ffe130c381a47b0ac77a7c95916718e8c7a4b",
+      "canonical_sha256": "02ebd2bdd1a7088032f8ee61141ffe130c381a47b0ac77a7c95916718e8c7a4b",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.compact_router_contract",
+      "canonical_module": "app.services.conversation.compact_router_contract",
+      "path": "backend/api/app/services/conversation/compact_router_contract.py",
+      "source_sha256": "ebd3c17061f70e87282a3b677e49ccf08aa1142e20cc6bf60352c8f50dad1d7e",
+      "canonical_sha256": "ebd3c17061f70e87282a3b677e49ccf08aa1142e20cc6bf60352c8f50dad1d7e",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.complement_evidence",
+      "canonical_module": "app.services.conversation.complement_evidence",
+      "path": "backend/api/app/services/conversation/complement_evidence.py",
+      "source_sha256": "5d70bfb62503e99599b70ea6ecec4e92689630aac9d2ca62bd2161fff153a667",
+      "canonical_sha256": "5d70bfb62503e99599b70ea6ecec4e92689630aac9d2ca62bd2161fff153a667",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.constraint_continuity",
+      "canonical_module": "app.services.conversation.constraint_continuity",
+      "path": "backend/api/app/services/conversation/constraint_continuity.py",
+      "source_sha256": "24d4cc114822871a994a20ca093483071172f98641ee131c2b9ea444d8aecdfb",
+      "canonical_sha256": "24d4cc114822871a994a20ca093483071172f98641ee131c2b9ea444d8aecdfb",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.customer_status",
+      "canonical_module": "app.services.conversation.customer_status",
+      "path": "backend/api/app/services/conversation/customer_status.py",
+      "source_sha256": "92c632b990f56af8bc9a595c11871030af0dfa48de7165497a17df7e655a7e7f",
+      "canonical_sha256": "92c632b990f56af8bc9a595c11871030af0dfa48de7165497a17df7e655a7e7f",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.discovery_planner",
+      "canonical_module": "app.services.conversation.discovery_planner",
+      "path": "backend/api/app/services/conversation/discovery_planner.py",
+      "source_sha256": "27f7e23e66865fed5b4842f45042c84932b8f33ec22232fe60b67df6de737d7b",
+      "canonical_sha256": "27f7e23e66865fed5b4842f45042c84932b8f33ec22232fe60b67df6de737d7b",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.free_llm_service",
+      "canonical_module": "app.services.conversation.free_llm_service",
+      "path": "backend/api/app/services/conversation/free_llm_service.py",
+      "source_sha256": "99544bf1d3adf61dc45d6e6f62c4f6ef123508b44e213574ec7be0e12ec745ad",
+      "canonical_sha256": "99544bf1d3adf61dc45d6e6f62c4f6ef123508b44e213574ec7be0e12ec745ad",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.grounded_editorial",
+      "canonical_module": "app.services.conversation.grounded_editorial",
+      "path": "backend/api/app/services/conversation/grounded_editorial.py",
+      "source_sha256": "b0d102a6dbd747f3484de29d067ed51905c7bc4f858a19bd30ca73e599ef5ff7",
+      "canonical_sha256": "b0d102a6dbd747f3484de29d067ed51905c7bc4f858a19bd30ca73e599ef5ff7",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.image_hint_boundary",
+      "canonical_module": "app.services.conversation.image_hint_boundary",
+      "path": "backend/api/app/services/conversation/image_hint_boundary.py",
+      "source_sha256": "6c3ccc953d5590a161e66ffc28cbc545fa04c97aadc3e3e673595ec3eb360342",
+      "canonical_sha256": "6c3ccc953d5590a161e66ffc28cbc545fa04c97aadc3e3e673595ec3eb360342",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.legacy_prose_boundary",
+      "canonical_module": "app.services.conversation.legacy_prose_boundary",
+      "path": "backend/api/app/services/conversation/legacy_prose_boundary.py",
+      "source_sha256": "84f516985951f7252e8991ca1339e14ffbbbbd86344ae580474f2ee18bc446a8",
+      "canonical_sha256": "84f516985951f7252e8991ca1339e14ffbbbbd86344ae580474f2ee18bc446a8",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.legacy_setup_boundary",
+      "canonical_module": "app.services.conversation.legacy_setup_boundary",
+      "path": "backend/api/app/services/conversation/legacy_setup_boundary.py",
+      "source_sha256": "d5075fa7c01fecb2c89e209bb7166eaa70d79aec48d31642e2c644edb82a858a",
+      "canonical_sha256": "d5075fa7c01fecb2c89e209bb7166eaa70d79aec48d31642e2c644edb82a858a",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.literal_feature_evidence",
+      "canonical_module": "app.services.conversation.literal_feature_evidence",
+      "path": "backend/api/app/services/conversation/literal_feature_evidence.py",
+      "source_sha256": "71101519c9576e9a0d84953f64281ac1ee31babad9aeb535a64d80301211a429",
+      "canonical_sha256": "71101519c9576e9a0d84953f64281ac1ee31babad9aeb535a64d80301211a429",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.neural_core_service",
+      "canonical_module": "app.services.conversation.neural_core_service",
+      "path": "backend/api/app/services/conversation/neural_core_service.py",
+      "source_sha256": "19e79bdf0ee7487ad5a6342cc988b7ebfaf73f74110cba1a7469a1d598901c0c",
+      "canonical_sha256": "19e79bdf0ee7487ad5a6342cc988b7ebfaf73f74110cba1a7469a1d598901c0c",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.opening_admission",
+      "canonical_module": "app.services.conversation.opening_admission",
+      "path": "backend/api/app/services/conversation/opening_admission.py",
+      "source_sha256": "b9c5c11131edfb80c8d9ef83546cc30b03341e7e4e85d4e75b62ab9459d7addd",
+      "canonical_sha256": "b9c5c11131edfb80c8d9ef83546cc30b03341e7e4e85d4e75b62ab9459d7addd",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.opening_batch_copy",
+      "canonical_module": "app.services.conversation.opening_batch_copy",
+      "path": "backend/api/app/services/conversation/opening_batch_copy.py",
+      "source_sha256": "732d636bc0a0c6d9ef0a1b88d78e73185b5599fc7e03dba7fe77d0a91b3221e3",
+      "canonical_sha256": "732d636bc0a0c6d9ef0a1b88d78e73185b5599fc7e03dba7fe77d0a91b3221e3",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.opening_catalog_status",
+      "canonical_module": "app.services.conversation.opening_catalog_status",
+      "path": "backend/api/app/services/conversation/opening_catalog_status.py",
+      "source_sha256": "a0071ab9cdf9e7a958767a20f0f215af58ab0cb2360a971cb4fec22e66a0fb86",
+      "canonical_sha256": "a0071ab9cdf9e7a958767a20f0f215af58ab0cb2360a971cb4fec22e66a0fb86",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.opening_sales_service",
+      "canonical_module": "app.services.conversation.opening_sales_service",
+      "path": "backend/api/app/services/conversation/opening_sales_service.py",
+      "source_sha256": "08de5ff3d505a7d8937e2024882dc8c2822d57462f24900a8b54f72c466a718e",
+      "canonical_sha256": "08de5ff3d505a7d8937e2024882dc8c2822d57462f24900a8b54f72c466a718e",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.product_answer_policy",
+      "canonical_module": "app.services.conversation.product_answer_policy",
+      "path": "backend/api/app/services/conversation/product_answer_policy.py",
+      "source_sha256": "e73f40c263d4fa814afa69eadc1cbfaa798c6e502b5aaee1ad77f14d7254028d",
+      "canonical_sha256": "e73f40c263d4fa814afa69eadc1cbfaa798c6e502b5aaee1ad77f14d7254028d",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.query_rewrite",
+      "canonical_module": "app.services.conversation.query_rewrite",
+      "path": "backend/api/app/services/conversation/query_rewrite.py",
+      "source_sha256": "725c177ad2958890b44f0d2934425f6a7ba39f37998c8efbbbc782d8b138f4db",
+      "canonical_sha256": "725c177ad2958890b44f0d2934425f6a7ba39f37998c8efbbbc782d8b138f4db",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.recommendation_copy",
+      "canonical_module": "app.services.conversation.recommendation_copy",
+      "path": "backend/api/app/services/conversation/recommendation_copy.py",
+      "source_sha256": "8d7d0d917755a625626e2b464734070449b1b9b7e3da1a448924f1febf92f8ac",
+      "canonical_sha256": "8d7d0d917755a625626e2b464734070449b1b9b7e3da1a448924f1febf92f8ac",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.reviewed_recommendation",
+      "canonical_module": "app.services.conversation.reviewed_recommendation",
+      "path": "backend/api/app/services/conversation/reviewed_recommendation.py",
+      "source_sha256": "9df85f413f99b30ca37eacdcdcf4b492ccb020c869df9363b21e47fdb785acf4",
+      "canonical_sha256": "9df85f413f99b30ca37eacdcdcf4b492ccb020c869df9363b21e47fdb785acf4",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.sales_response_service",
+      "canonical_module": "app.services.conversation.sales_response_service",
+      "path": "backend/api/app/services/conversation/sales_response_service.py",
+      "source_sha256": "d2e21adfa25d81d76e990510ad00d3ff58d69b87be5eb16b21bd620d1cf006f9",
+      "canonical_sha256": "d2e21adfa25d81d76e990510ad00d3ff58d69b87be5eb16b21bd620d1cf006f9",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.shopping_copy",
+      "canonical_module": "app.services.conversation.shopping_copy",
+      "path": "backend/api/app/services/conversation/shopping_copy.py",
+      "source_sha256": "9d6962c29bc3464f005996d21733ecd2863e588b6577f6d4740fdf0fd00c6265",
+      "canonical_sha256": "9d6962c29bc3464f005996d21733ecd2863e588b6577f6d4740fdf0fd00c6265",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.shopping_discovery",
+      "canonical_module": "app.services.conversation.shopping_discovery",
+      "path": "backend/api/app/services/conversation/shopping_discovery.py",
+      "source_sha256": "87c798c0a0aaf21dc5dbd8ea0f09639055006a4d0f5047a71681ba48e3d58177",
+      "canonical_sha256": "87c798c0a0aaf21dc5dbd8ea0f09639055006a4d0f5047a71681ba48e3d58177",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.strict_planner_json",
+      "canonical_module": "app.services.conversation.strict_planner_json",
+      "path": "backend/api/app/services/conversation/strict_planner_json.py",
+      "source_sha256": "5f15f44dc552d9bc898cb4738027cbc10c9463c53fb0d08b179437d52a2eea81",
+      "canonical_sha256": "5f15f44dc552d9bc898cb4738027cbc10c9463c53fb0d08b179437d52a2eea81",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.structured_output",
+      "canonical_module": "app.services.conversation.structured_output",
+      "path": "backend/api/app/services/conversation/structured_output.py",
+      "source_sha256": "828261f0354b0e4bcdb8a56ed3586f28ee43fe2e5b800aba33cfd41b322f7616",
+      "canonical_sha256": "828261f0354b0e4bcdb8a56ed3586f28ee43fe2e5b800aba33cfd41b322f7616",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.target_constraint_scope",
+      "canonical_module": "app.services.conversation.target_constraint_scope",
+      "path": "backend/api/app/services/conversation/target_constraint_scope.py",
+      "source_sha256": "24bfd1383349c8cdc74c9f617c15ebd577925e55fcc4c50d24bca284baca2c52",
+      "canonical_sha256": "24bfd1383349c8cdc74c9f617c15ebd577925e55fcc4c50d24bca284baca2c52",
+      "byte_identical": true
+    },
+    {
+      "legacy_module": "app.services.admin_metrics",
+      "canonical_module": "app.services.observability.admin_metrics",
+      "path": "backend/api/app/services/observability/admin_metrics.py",
+      "source_sha256": "f2235b7738e8a8f9c43678ec508bd7ea712ca550a1bde0587022321ff5605c4b",
+      "canonical_sha256": "f2235b7738e8a8f9c43678ec508bd7ea712ca550a1bde0587022321ff5605c4b",
+      "byte_identical": true
+    }
+  ]
+}

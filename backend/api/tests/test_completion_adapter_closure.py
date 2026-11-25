@@ -117,7 +117,7 @@ def test_non_strict_calls_are_limited_to_explicit_compatibility_and_dormant_bodi
     assert found==allowed
     # The remaining nested removal copy cannot run: alternatives is literal []
     # and the only invocation sits inside the subsequent positive branch.
-    tree=ast.parse(Path('app/services/ai_cart_service.py').read_text())
+    tree=ast.parse(Path('app/services/cart/ai_cart_service.py').read_text())
     remove=next(n for n in ast.walk(tree) if isinstance(n,ast.AsyncFunctionDef) and n.name=='handle_remove_from_cart')
     assignments=[n for n in ast.walk(remove) if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='alternatives' for t in n.targets)]
     live=[n for n in assignments if isinstance(n.value,ast.List)]

@@ -16,7 +16,16 @@ def test_all_252_original_qualified_method_identities_retained():
     assert document['baseline']=='8b82cf3'
     assert document['total']==252==sum(len(v) for v in document['files'].values())
     for filename,original in document['files'].items():
-        path=ROOT/filename
+        # Preserve the historical inventory verbatim; resolve only its source location.
+        canonical=filename.replace('apps/api/','backend/api/')
+        manifests=['provider-capacity-layout-v1.json','service-domain-layout-v1.json']
+        for manifest_name in manifests:
+            manifest=json.loads((ROOT/'docs/verification'/manifest_name).read_text())
+            for row in manifest['modules']:
+                legacy=row.get('legacy_module',row.get('old_module',''))
+                previous='backend/api/'+legacy.replace('.','/')+'.py'
+                if canonical==previous:canonical=row['path']
+        path=ROOT/canonical
         assert path.is_file() and len(original)==len(set(original))
         assert set(original)<=identities(path), (filename,sorted(set(original)-identities(path)))
 

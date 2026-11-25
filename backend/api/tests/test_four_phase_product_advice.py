@@ -54,7 +54,7 @@ async def test_safe_strategy_crosswalk_uses_task_not_hidden_profile(task,goal,st
 def test_legacy_unsafe_policy_symbols_only_read_by_preserved_unreviewed_bodies():
     import ast
     from pathlib import Path
-    tree=ast.parse(Path('app/services/ai_nlu_service.py').read_text());reads=[]
+    tree=ast.parse(Path('app/services/conversation/ai_nlu_service.py').read_text());reads=[]
     tracked={'UNIVERSAL_4_PHASE_ARCHITECTURE','_build_retention_directive','_get_dynamic_prompt_policy','_resolve_retention_mode'}
     def visit(node,scope=()):
         if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)):scope=(*scope,node.name)
