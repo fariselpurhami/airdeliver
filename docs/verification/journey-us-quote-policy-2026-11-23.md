@@ -29,7 +29,7 @@ Current main checks catalog price/stock under product locks but does not reserve
 
 ## Product clarification received after the first draft
 
-Faris's November 23 clarification fixes US-only stores and inventory. Stores are the intended legal sellers via partner inventory APIs; purchase/delivery use the AirDeliver name and AirDeliver receives payment. The three-day delivery target starts at actual paid purchase. No carrier SLA, merchant-account model or marketplace-tax classification is inferred from that description.
+Faris's November 23 clarification fixes US-only stores and inventory. Stores are the intended legal sellers via partner inventory APIs; purchase/delivery use the airdeliver name and airdeliver receives payment. The three-day delivery target starts at actual paid purchase. No carrier SLA, merchant-account model or marketplace-tax classification is inferred from that description.
 
 The flat-fee contract above remains an offline policy building block, not the selected launch shipping model. A multi-store cart needs a server-derived shipment plan grouped by actual store/origin, package data and partner fulfillment capability. Quote each shipment, sum customer shipping with any explicit approved adjustment, and show separate shipments and combined total before payment. Do not apply one flat fee independently to every line or assume one warehouse. An aggregator can be evaluated without selecting its account or buying labels. Shippo first/EasyPost second and managed accounts per store are proposed research options, not an approved provider/account setup.
 

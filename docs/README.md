@@ -1,4 +1,4 @@
-# AirDeliver documentation
+# airdeliver documentation
 
 - [Architecture](architecture/): system behavior and storage choices.
 - [Development](development/): local setup, catalog fixtures and known dev limits.
