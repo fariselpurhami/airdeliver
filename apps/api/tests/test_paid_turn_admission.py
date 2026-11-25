@@ -112,3 +112,25 @@ async def test_actual_paid_free_llm_wait_for_transport_reuses_gate_without_deadl
  finally:_principal.reset(token)
  assert create.await_count==1
  assert not await cache.client.zcard('airdeliver:paid-turn:v1:{organization}:active')
+
+@pytest.mark.asyncio
+async def test_pool_exhaustion_is_typed_capacity_not_raw_backend_failure():
+ from redis.exceptions import MaxConnectionsError
+ from app.services.shared_provider_admission import SharedProviderBudgetError
+ class Exhausted:
+  async def eval(self,*args):raise MaxConnectionsError('private backend details')
+ with pytest.raises(SharedProviderBudgetError,match='shared_admission_unavailable'):
+  async with paid_turn_slot('user',client=Exhausted(),settings=config()):pytest.fail('must withhold')
+
+@pytest.mark.asyncio
+async def test_cleanup_backend_failure_does_not_mask_accepted_result(caplog):
+ from redis.exceptions import ConnectionError
+ class LostAfterAcquire:
+  def __init__(self):self.count=0
+  async def eval(self,*args):
+   self.count+=1
+   if self.count==1:return 1
+   raise ConnectionError('private backend details')
+ async with paid_turn_slot('user',client=LostAfterAcquire(),settings=config()):value='accepted'
+ assert value=='accepted' and 'private backend details' not in caplog.text
+ assert 'provider.admission_cleanup_unavailable' in caplog.text
