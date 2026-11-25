@@ -90,6 +90,15 @@ async def test_real_consolidation_creates_finite_nonfallback_ghost(monkeypatch):
     monkeypatch.setattr(module, "OmniNetConfig", tiny_config)
     cache = DecodingCache()
     engine = BehaviorEngine(cache, allow_untrained_inference=True)
+    from unittest.mock import AsyncMock
+    engine._learning_generation=AsyncMock(return_value=('consent','0'))
+    async def commit(uid,authorized,commands):
+        for command in commands:
+            name,*args=command
+            if name=='SET':await cache.set(args[0],args[1],ex=args[3])
+            else:await getattr(cache,name.lower())(*args)
+        return True
+    engine._commit_learning=commit
     await engine.start()
     for index in range(3):
         await engine.track_interaction(7, "view", {"vec": np.linspace(0.01, 1, 384).tolist(), "id": index + 1, "price": 20})

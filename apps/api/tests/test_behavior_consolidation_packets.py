@@ -11,12 +11,17 @@ def engine_for(cache):
     engine=object.__new__(BehaviorEngine);engine.cache=cache
     engine.net_config=SimpleNamespace(supported_dims={'dim_4':4})
     engine.embedding_sources={'dim_4':'test-source'};engine._background_tasks=set()
+    engine._learning_generation=AsyncMock(return_value=('consent','0'))
+    async def commit(uid,authorized,commands):
+        from app.services.personalization_fence import write
+        return await write(cache,uid,commands,authorized[1])
+    engine._commit_learning=commit
     engine._dream_future=AsyncMock()
     return engine
 
 
 def packet():
-    return dict(u=7,d=4,a=ACTION_MAP['view'],v=[.1,.2,.3,.4],ts=time.time(),price=20.,item_id=11)
+    return dict(privacy=('consent','0'),u=7,d=4,a=ACTION_MAP['view'],v=[.1,.2,.3,.4],ts=time.time(),price=20.,item_id=11)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('field,value',[

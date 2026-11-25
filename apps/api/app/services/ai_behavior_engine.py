@@ -445,6 +445,28 @@ class BehaviorEngine:
 
     # --- 📡 EVENT TRACKING ---
 
+    async def _learning_generation(self,user_id):
+        from app.db.session import AsyncSessionFactory
+        from app.services.customer_memory_service import CustomerMemoryService
+        from app.services.personalization_fence import generation
+        async with AsyncSessionFactory() as db:
+            service=CustomerMemoryService(db)
+            if not await service.enabled(user_id):return None
+            from app.models.customer_memory import CustomerMemoryConsent
+            consent=await db.get(CustomerMemoryConsent,user_id,populate_existing=True)
+            return (consent.changed_at.isoformat(),await generation(self.cache,user_id))
+
+    async def _commit_learning(self,user_id,authorized,commands):
+        from app.db.session import AsyncSessionFactory
+        from app.models.customer_memory import CustomerMemoryConsent
+        from app.services.customer_memory_service import POLICY_VERSION
+        from app.services.personalization_fence import write
+        from sqlalchemy import select
+        async with AsyncSessionFactory() as db:
+            consent=(await db.execute(select(CustomerMemoryConsent).where(CustomerMemoryConsent.user_id==user_id).with_for_update())).scalar_one_or_none()
+            if not get_core_settings().CUSTOMER_MEMORY_ENABLED or not consent or not consent.enabled or consent.policy_version!=POLICY_VERSION or consent.changed_at.isoformat()!=authorized[0]:return False
+            return await write(self.cache,user_id,commands,authorized[1])
+
     async def register_interaction(self, user_id: int, signal: str, weight: float = 1.0) -> None:
         """Seam adapter: accepts the NLU service's text signals and converts them
         into neural events the OmniNet can learn from.
@@ -464,6 +486,9 @@ class BehaviorEngine:
             return
         signal = signal.strip()
         try:
+            authorized=await self._learning_generation(user_id)
+            if not authorized:return
+
             from app.services.ai_commerce_engine import ModelRegistry
 
             model = ModelRegistry().get_text_model()
@@ -474,6 +499,7 @@ class BehaviorEngine:
             return
 
         interaction_type = ActionType.SEARCH_HIT.value if weight >= 2.0 else ActionType.VIEW.value
+        if await self._learning_generation(user_id)!=authorized:return
         await self.track_interaction(user_id, interaction_type, {"vec": vec_list})
 
     async def track_interaction(self, user_id: int, interaction_type: str, raw_metadata: Dict[str, Any]) -> None:
@@ -488,27 +514,16 @@ class BehaviorEngine:
             logger.warning("Invalid interaction metadata payload", extra={"error_type": type(e).__name__})
             return
 
-        # Parallel fire-and-forget state updates
-        if meta.price is not None:
-            task = asyncio.create_task(
-                self._update_price_history(user_id, meta.price),
-                name=f"update_price_history:{user_id}",
-            )
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
-            task.add_done_callback(self._handle_background_task_result)
-
-        if meta.id is not None:
-            task = asyncio.create_task(
-                self._update_seen_history(user_id, meta.id),
-                name=f"update_seen_history:{user_id}",
-            )
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
-            task.add_done_callback(self._handle_background_task_result)
-        
+        try:authorized=await self._learning_generation(user_id)
+        except Exception:return
+        if not authorized:return
         vector = meta.get_active_vector()
         if not vector:
+            from app.services.personalization_fence import write
+            commands=[]
+            if meta.price is not None:commands.extend([['LPUSH',self._key_price_hist(user_id),str(meta.price)],['LTRIM',self._key_price_hist(user_id),0,19]])
+            if meta.id is not None:commands.extend([['SADD',self._key_seen_24h(user_id),str(meta.id)],['EXPIRE',self._key_seen_24h(user_id),86400]])
+            await self._commit_learning(user_id,authorized,commands)
             return
 
         dim = len(vector)
@@ -517,12 +532,13 @@ class BehaviorEngine:
 
         packet = {
             "u": user_id,
+            "privacy": authorized,
             "a": ACTION_MAP[interaction_type],
             "v": vector,
             "d": dim,
             "ts": time.time(),
             "price": meta.price,
-            "item_id": meta.id   
+            "item_id": meta.id
         }
 
         try:
@@ -532,26 +548,25 @@ class BehaviorEngine:
 
     async def _update_price_history(self, user_id: int, price: float) -> None:
         key = self._key_price_hist(user_id)
-        await self.cache.client.lpush(key, str(price))
-        await self.cache.client.ltrim(key, 0, 19)
+        authorized=await self._learning_generation(user_id)
+        if authorized:await self._commit_learning(user_id,authorized,[['LPUSH',key,str(price)],['LTRIM',key,0,19]])
 
     async def record_product_exposure(self,user_id:int,product_ids) -> None:
         """Observed display only. Never embeds text or infers shopping traits."""
         if type(user_id) is not int or user_id<=0:return
         ids={pid for pid in list(product_ids)[:20] if type(pid) is int and 0<pid<=2147483647}
         if not ids:return
+        from app.services.personalization_fence import snapshot,write
+        expected=await snapshot(self.cache,user_id)
         from app.services.ai_nlu_service import RedisProductFreshnessRepository
         await RedisProductFreshnessRepository(self.cache).mark_products_as_seen(user_id,ids,86400)
-        pipe=self.cache.client.pipeline()
-        pipe.sadd(self._key_seen_24h(user_id),*[str(pid) for pid in ids])
-        pipe.expire(self._key_seen_24h(user_id),86400)
-        await pipe.execute()
+        await write(self.cache,user_id,[['SADD',self._key_seen_24h(user_id),*[str(pid) for pid in ids]],['EXPIRE',self._key_seen_24h(user_id),86400]],expected)
 
     async def _update_seen_history(self, user_id: int, item_id: int) -> None:
         key = self._key_seen_24h(user_id)
-        await self.cache.sadd(key, str(item_id))
-        await self.cache.expire(key, 86400)
-    
+        authorized=await self._learning_generation(user_id)
+        if authorized:await self._commit_learning(user_id,authorized,[['SADD',key,str(item_id)],['EXPIRE',key,86400]])
+
     def _handle_background_task_result(self, task: asyncio.Task) -> None:
         try:
             task.result()
@@ -584,6 +599,329 @@ class BehaviorEngine:
             await self._consolidate_memory(batch)
 
     async def _consolidate_memory(self, batch: List[Dict[str, Any]]) -> None:
+        try:
+            users_to_update = set()
+            stream_ttl_seconds = 86400
+            stream_max_len = 64
+            price_history_max_len = 20
+            header_struct = struct.Struct("di")
+
+            for event in batch:
+                if not isinstance(event,dict):
+                    continue
+                uid = event.get("u")
+                dim = event.get("d")
+                ts = event.get("ts")
+                action = event.get("a")
+                vector = event.get("v")
+
+                # Validate again at the drained queue boundary. Never derive a
+                # Redis namespace or inference work from coerced packet fields.
+                if type(uid) is not int or not 0<uid<=2147483647:
+                    continue
+                if type(dim) is not int or f"dim_{dim}" not in self.net_config.supported_dims or f"dim_{dim}" not in self.embedding_sources:
+                    continue
+                if type(action) is not int or not 0<=action<len(ACTION_MAP):
+                    continue
+                if type(ts) not in (int,float) or not math.isfinite(ts) or not 0<ts<=time.time()+60 or time.time()-ts>86400:
+                    continue
+                if not isinstance(vector,(list,tuple)) or len(vector)!=dim:
+                    continue
+                if not all(type(value) in (int,float) and math.isfinite(value) and abs(value)<=3.4028234663852886e38 for value in vector):
+                    continue
+                price=event.get("price");item_id=event.get("item_id")
+                if price is not None and (type(price) not in (int,float) or not math.isfinite(price) or price<0):
+                    continue
+                if item_id is not None and (type(item_id) is not int or not 0<item_id<=2147483647):
+                    continue
+                stream_key = self.stream_key(uid, dim)
+                active_dim_key = self._key_active_dim(uid)
+                try:
+                    payload = header_struct.pack(ts, action) + struct.pack(f"{dim}f", *vector)
+                except (struct.error,OverflowError):
+                    continue
+                authorized=await self._learning_generation(uid)
+                if not authorized or tuple(event.get('privacy',()))!=authorized:continue
+                commands=[]
+
+                # This cache uses decode_responses=True. Persist ASCII rather
+                # than arbitrary binary which Redis cannot decode as UTF-8.
+                commands.append(['RPUSH',stream_key,'b64:'+base64.b64encode(payload).decode('ascii')])
+                commands.append(['LTRIM',stream_key,-stream_max_len,-1])
+                commands.append(['EXPIRE',stream_key,stream_ttl_seconds])
+                commands.append(['SET',active_dim_key,str(dim),'EX',stream_ttl_seconds])
+
+                price = event.get("price")
+                if price is not None:
+                    price_history_key = self._key_price_hist(uid)
+                    commands.append(['LPUSH',price_history_key,str(price)])
+                    commands.append(['LTRIM',price_history_key,0,price_history_max_len-1])
+
+                item_id = event.get("item_id")
+                if item_id is not None:
+                    seen_key = self._key_seen_24h(uid)
+                    commands.append(['SADD',seen_key,str(item_id)])
+                    commands.append(['EXPIRE',seen_key,stream_ttl_seconds])
+
+                from app.services.personalization_fence import write
+                if await self._commit_learning(uid,authorized,commands):users_to_update.add(uid)
+
+            # تشغيل معالجة أحلام الذكاء الاصطناعي في الخلفية للمستخدمين المحدثين
+            for uid in users_to_update:
+                task = asyncio.create_task(self._dream_future(uid), name=f"behavior-inference:{uid}")
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
+                task.add_done_callback(self._handle_background_task_result)
+
+        except Exception as e:
+            logger.error("Memory consolidation pipeline failure", extra={"error": str(e)})
+
+    # --- 🔮 NEURAL INFERENCE ---
+
+    async def _dream_future(self, user_id: int) -> None:
+        """Re-evaluates the user's temporal embedding sequence to compute their current 'Ghost'."""
+        if self.brain is None:
+            return
+        try:
+            authorized=await self._learning_generation(user_id)
+            if not authorized:return
+            active_dim_str = await self.cache.get(self._key_active_dim(user_id))
+            target_dim = int(active_dim_str) if active_dim_str else self.net_config.internal_dim
+            if target_dim not in self._trained_dims:
+                return
+            key = self.stream_key(user_id, target_dim)
+
+            raw_data = await self.cache.client.lrange(key, 0, -1)
+            if len(raw_data) < 3:
+                return
+
+            vectors, actions, times = [], [], []
+            now = time.time()
+            expected_len = 12 + (target_dim * 4)
+
+            for blob in raw_data:
+                if isinstance(blob, str):
+                    if not blob.startswith("b64:"):
+                        continue
+                    try:
+                        blob = base64.b64decode(blob[4:], validate=True)
+                    except (ValueError, TypeError):
+                        continue
+                if len(blob) != expected_len:
+                    continue  # Protect against memory corruption or dimension shifts
+
+                ts, act = struct.unpack("di", blob[:12])
+                vec = struct.unpack(f"{target_dim}f", blob[12:])
+                if not 0 <= act < len(ACTION_MAP) or not all(math.isfinite(value) for value in vec):
+                    continue
+                vectors.append(vec)
+                actions.append(act)
+                times.append(max(0.0, now - ts))
+
+            if not vectors:
+                return
+
+            def infer():
+                v_t = torch.tensor([vectors], dtype=torch.float32, device=self.device)
+                a_t = torch.tensor([actions], dtype=torch.long, device=self.device)
+                t_t = torch.tensor([times], dtype=torch.float32, device=self.device)
+                with torch.no_grad():
+                    return self.brain(v_t, a_t, t_t, input_dim=target_dim)
+
+            # Keep CPU/GPU inference off the async message-processing loop and
+            # bound simultaneous access to this shared model instance.
+            async with self._inference_lock:
+                pos_ghost, neg_ghost = await asyncio.to_thread(infer)
+
+            if pos_ghost is None or neg_ghost is None:
+                return
+
+            ghost_data = {
+                "pos": pos_ghost.cpu().numpy().tolist()[0],
+                "neg": neg_ghost.cpu().numpy().tolist()[0],
+                "src_dim": target_dim,
+                "model_id": self._model_namespace,
+                "ts": now
+            }
+            if await self._learning_generation(user_id)!=authorized:return
+            from app.services.personalization_fence import write
+            await self._commit_learning(user_id,authorized,[['SET',self.ghost_key(user_id),json.dumps(ghost_data),'EX',3600]])
+
+        except Exception as e:
+            logger.error("Ghost sequence generation failed", extra={"user_id": user_id, "error": str(e)})
+
+    async def collapse_wavefunction(self, user_id: int, candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Re-ranks inventory candidates based on semantic distance to the user's current Ghost vector.
+        Operates strictly in batch mode to maximize GPU/MPS throughput.
+        """
+        if self.brain is None:
+            return candidates
+        ghost = await self.get_ghost_profile(user_id)
+        if not ghost:
+            return candidates
+
+        try:
+            pos_vec = torch.tensor(ghost['pos'], device=self.device)
+            neg_vec = torch.tensor(ghost['neg'], device=self.device)
+
+            valid_cands, cand_vectors = [], []
+
+            for i, p in enumerate(candidates):
+                v = p.get('vector') or p.get('image_vector') or p.get('embedding')
+                if not v:
+                    continue
+
+                v_dim = len(v)
+                if v_dim not in self._trained_dims:
+                    continue
+                adapter_key = f"dim_{v_dim}"
+
+                if v_dim == self.net_config.internal_dim:
+                    cand_vectors.append(v)
+                    valid_cands.append(i)
+                elif adapter_key in self.brain.input_adapters:
+                    with torch.no_grad():
+                        v_t = torch.tensor(v, dtype=torch.float32, device=self.device)
+                        v_adapted = self.brain.input_adapters[adapter_key](v_t)
+                        v_adapted = F.layer_norm(v_adapted, (self.net_config.internal_dim,), eps=self.net_config.layer_norm_eps)
+                        cand_vectors.append(v_adapted.cpu().tolist())
+                        valid_cands.append(i)
+
+            if not cand_vectors:
+                return candidates
+
+            c_t = torch.tensor(cand_vectors, device=self.device)
+            desire = F.cosine_similarity(pos_vec.unsqueeze(0), c_t)
+            aversion = F.cosine_similarity(neg_vec.unsqueeze(0), c_t)
+            scores = (desire - (aversion * 0.4)).tolist()
+
+            for list_idx, original_idx in enumerate(valid_cands):
+                score = scores[list_idx]
+                candidates[original_idx]['_ai_score'] = score
+                if score > 0.6:
+                    candidates[original_idx]['_ai_badge'] = "Best Match"
+                elif score > 0.4:
+                    candidates[original_idx]['_ai_badge'] = "Recommended"
+
+            # In-place sorting to maintain references for the orchestrating caller
+            candidates.sort(key=lambda x: x.get('_ai_score', -1.0), reverse=True)
+            return candidates
+
+        except Exception as e:
+            logger.error("Wavefunction collapse failed", extra={"user_id": user_id, "error": str(e)})
+            return candidates
+
+
+    # Original source retained dormant; customer traffic uses fenced methods.
+    async def _legacy_pre_privacy_fence_register_interaction(self, user_id: int, signal: str, weight: float = 1.0) -> None:
+        """Seam adapter: accepts the NLU service's text signals and converts them
+        into neural events the OmniNet can learn from.
+
+        The NLU has always called this method (guarded by hasattr), but it never
+        existed, so conversational behavioral signals were silently dropped.
+        The signal text is embedded with the shared 1536-dim product text model
+        (the OmniNet's native internal dimension, Identity adapter) and staged
+        through the standard track_interaction path.
+        """
+        # Validate before native embedding work, not only in track_interaction.
+        if type(user_id) is not int or not 0<user_id<=2147483647:
+            return
+        if not isinstance(signal,str) or not 1<=len(signal.strip())<=4000:
+            return
+        if isinstance(weight,bool) or not isinstance(weight,(int,float)) or not math.isfinite(weight) or weight<=0:
+            return
+        signal = signal.strip()
+        try:
+            from app.services.ai_commerce_engine import ModelRegistry
+
+            model = ModelRegistry().get_text_model()
+            vector = await asyncio.to_thread(model.encode, signal, convert_to_numpy=True)
+            vec_list = vector.tolist()
+        except Exception as exc:
+            logger.warning("register_interaction embedding failed", extra={"user_id": user_id, "error_type": type(exc).__name__})
+            return
+
+        interaction_type = ActionType.SEARCH_HIT.value if weight >= 2.0 else ActionType.VIEW.value
+        await self.track_interaction(user_id, interaction_type, {"vec": vec_list})
+
+    async def _legacy_pre_privacy_fence_track_interaction(self, user_id: int, interaction_type: str, raw_metadata: Dict[str, Any]) -> None:
+        """Asynchronously stages an interaction event into the neural buffer."""
+        if type(user_id) is not int or user_id<=0 or interaction_type not in ACTION_MAP:
+            return
+        if not isinstance(raw_metadata,dict):return
+
+        try:
+            meta = TrackInteractionPayload(**raw_metadata)
+        except ValidationError as e:
+            logger.warning("Invalid interaction metadata payload", extra={"error_type": type(e).__name__})
+            return
+
+        # Parallel fire-and-forget state updates
+        if meta.price is not None:
+            task = asyncio.create_task(
+                self._update_price_history(user_id, meta.price),
+                name=f"update_price_history:{user_id}",
+            )
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+            task.add_done_callback(self._handle_background_task_result)
+
+        if meta.id is not None:
+            task = asyncio.create_task(
+                self._update_seen_history(user_id, meta.id),
+                name=f"update_seen_history:{user_id}",
+            )
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+            task.add_done_callback(self._handle_background_task_result)
+
+        vector = meta.get_active_vector()
+        if not vector:
+            return
+
+        dim = len(vector)
+        if f"dim_{dim}" not in self.net_config.supported_dims or f"dim_{dim}" not in self.embedding_sources:
+            return
+
+        packet = {
+            "u": user_id,
+            "a": ACTION_MAP[interaction_type],
+            "v": vector,
+            "d": dim,
+            "ts": time.time(),
+            "price": meta.price,
+            "item_id": meta.id
+        }
+
+        try:
+            self.synaptic_buffer.put_nowait(packet)
+        except asyncio.QueueFull:
+            logger.warning("Synaptic buffer saturation. Dropping event.", extra={"user_id": user_id})
+
+    async def _legacy_pre_privacy_fence_update_price_history(self, user_id: int, price: float) -> None:
+        key = self._key_price_hist(user_id)
+        await self.cache.client.lpush(key, str(price))
+        await self.cache.client.ltrim(key, 0, 19)
+
+    async def _legacy_pre_privacy_fence_record_product_exposure(self,user_id:int,product_ids) -> None:
+        """Observed display only. Never embeds text or infers shopping traits."""
+        if type(user_id) is not int or user_id<=0:return
+        ids={pid for pid in list(product_ids)[:20] if type(pid) is int and 0<pid<=2147483647}
+        if not ids:return
+        from app.services.ai_nlu_service import RedisProductFreshnessRepository
+        await RedisProductFreshnessRepository(self.cache).mark_products_as_seen(user_id,ids,86400)
+        pipe=self.cache.client.pipeline()
+        pipe.sadd(self._key_seen_24h(user_id),*[str(pid) for pid in ids])
+        pipe.expire(self._key_seen_24h(user_id),86400)
+        await pipe.execute()
+
+    async def _legacy_pre_privacy_fence_update_seen_history(self, user_id: int, item_id: int) -> None:
+        key = self._key_seen_24h(user_id)
+        await self.cache.sadd(key, str(item_id))
+        await self.cache.expire(key, 86400)
+
+    async def _legacy_pre_privacy_fence_consolidate_memory(self, batch: List[Dict[str, Any]]) -> None:
         try:
             pipe = self.cache.client.pipeline()
             users_to_update = set()
@@ -660,9 +998,7 @@ class BehaviorEngine:
         except Exception as e:
             logger.error("Memory consolidation pipeline failure", extra={"error": str(e)})
 
-    # --- 🔮 NEURAL INFERENCE ---
-
-    async def _dream_future(self, user_id: int) -> None:
+    async def _legacy_pre_privacy_fence_dream_future(self, user_id: int) -> None:
         """Re-evaluates the user's temporal embedding sequence to compute their current 'Ghost'."""
         if self.brain is None:
             return
@@ -729,65 +1065,3 @@ class BehaviorEngine:
 
         except Exception as e:
             logger.error("Ghost sequence generation failed", extra={"user_id": user_id, "error": str(e)})
-
-    async def collapse_wavefunction(self, user_id: int, candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Re-ranks inventory candidates based on semantic distance to the user's current Ghost vector.
-        Operates strictly in batch mode to maximize GPU/MPS throughput.
-        """
-        if self.brain is None:
-            return candidates
-        ghost = await self.get_ghost_profile(user_id)
-        if not ghost:
-            return candidates
-
-        try:
-            pos_vec = torch.tensor(ghost['pos'], device=self.device)
-            neg_vec = torch.tensor(ghost['neg'], device=self.device)
-
-            valid_cands, cand_vectors = [], []
-
-            for i, p in enumerate(candidates):
-                v = p.get('vector') or p.get('image_vector') or p.get('embedding')
-                if not v:
-                    continue
-
-                v_dim = len(v)
-                if v_dim not in self._trained_dims:
-                    continue
-                adapter_key = f"dim_{v_dim}"
-
-                if v_dim == self.net_config.internal_dim:
-                    cand_vectors.append(v)
-                    valid_cands.append(i)
-                elif adapter_key in self.brain.input_adapters:
-                    with torch.no_grad():
-                        v_t = torch.tensor(v, dtype=torch.float32, device=self.device)
-                        v_adapted = self.brain.input_adapters[adapter_key](v_t)
-                        v_adapted = F.layer_norm(v_adapted, (self.net_config.internal_dim,), eps=self.net_config.layer_norm_eps)
-                        cand_vectors.append(v_adapted.cpu().tolist())
-                        valid_cands.append(i)
-
-            if not cand_vectors:
-                return candidates
-
-            c_t = torch.tensor(cand_vectors, device=self.device)
-            desire = F.cosine_similarity(pos_vec.unsqueeze(0), c_t)
-            aversion = F.cosine_similarity(neg_vec.unsqueeze(0), c_t)
-            scores = (desire - (aversion * 0.4)).tolist()
-
-            for list_idx, original_idx in enumerate(valid_cands):
-                score = scores[list_idx]
-                candidates[original_idx]['_ai_score'] = score
-                if score > 0.6:
-                    candidates[original_idx]['_ai_badge'] = "Best Match"
-                elif score > 0.4:
-                    candidates[original_idx]['_ai_badge'] = "Recommended"
-
-            # In-place sorting to maintain references for the orchestrating caller
-            candidates.sort(key=lambda x: x.get('_ai_score', -1.0), reverse=True)
-            return candidates
-
-        except Exception as e:
-            logger.error("Wavefunction collapse failed", extra={"user_id": user_id, "error": str(e)})
-            return candidates

@@ -73,14 +73,14 @@ async def test_http_current_customer_preference_collection_preserves_consent_and
         return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
     svc._execute_llm_inference=infer
     calls=[]
-    async def extract(self,statement):
+    async def extract(self,statement,catalog):
         calls.append(statement)
         if mode=='provider_failure':raise ConnectionError('controlled preference extraction outage')
         if mode=='revoked_during_extract':
             async with sessions() as db:await CustomerMemoryService(db).erase_preferences(uid)
         return {'category':'color','value':'blue','evidence':'I prefer blue'}
     from app.services.free_llm_service import FreeLLMService
-    monkeypatch.setattr(FreeLLMService,'extract_shopping_preferences',extract)
+    monkeypatch.setattr(FreeLLMService,'extract_shopping_preferences_batch',extract)
     from app.main import app
     from app.api import deps
     from app.db.session import get_async_session

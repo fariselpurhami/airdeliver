@@ -26,10 +26,12 @@ async def test_invalid_telemetry_never_queues_or_starts_history_updates(uid,meta
 @pytest.mark.asyncio
 async def test_valid_same_source_vector_keeps_existing_staging_contract():
     engine=object.__new__(BehaviorEngine);engine._background_tasks=set();engine.synaptic_buffer=asyncio.Queue()
+    engine._learning_generation=AsyncMock(return_value=('consent','0'))
     engine.net_config=SimpleNamespace(supported_dims={'dim_384':384});engine.embedding_sources={'dim_384':'test-source'}
     engine._update_price_history=AsyncMock();engine._update_seen_history=AsyncMock()
     await engine.track_interaction(7,'view',{'id':1,'price':0.0,'vec':[0.1]*384,'action':'add'})
     packet=engine.synaptic_buffer.get_nowait()
     assert packet['u']==7 and packet['item_id']==1 and packet['price']==0 and packet['d']==384
-    await asyncio.gather(*list(engine._background_tasks))
-    engine._update_price_history.assert_awaited_once_with(7,0.0);engine._update_seen_history.assert_awaited_once_with(7,1)
+    assert packet['privacy']==('consent','0')
+    # Histories now commit only with the stamped packet at queue drain.
+    engine._update_price_history.assert_not_awaited();engine._update_seen_history.assert_not_awaited()

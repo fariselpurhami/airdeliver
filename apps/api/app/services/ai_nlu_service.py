@@ -1605,11 +1605,8 @@ class MemoryStore:
     async def append(self, user_id: int, event: MemoryEvent) -> None:
         key = RedisKeys.chat_history(user_id)
         try:
-            pipeline = self._cache.client.pipeline()
-            pipeline.lpush(key, event.to_json())
-            pipeline.ltrim(key, 0, self._config.chat_history_limit - 1)
-            pipeline.expire(key, self._config.chat_history_ttl_sec)
-            await pipeline.execute()
+            from app.services.personalization_fence import write
+            await write(self._cache,user_id,[['LPUSH',key,event.to_json()],['LTRIM',key,0,self._config.chat_history_limit-1],['EXPIRE',key,self._config.chat_history_ttl_sec]])
         except Exception as exc:
             StructuredLog.error("memory_append_failed", user_id=user_id, error=str(exc))
 
@@ -1641,6 +1638,20 @@ class MemoryStore:
         except Exception as exc:
             StructuredLog.warning("memory_recall_failed", user_id=user_id, error=str(exc))
             return ""
+
+
+    # Original source retained dormant; customer traffic uses fenced methods.
+    async def _legacy_pre_privacy_fence_append(self, user_id: int, event: MemoryEvent) -> None:
+        key = RedisKeys.chat_history(user_id)
+        try:
+            pipeline = self._cache.client.pipeline()
+            pipeline.lpush(key, event.to_json())
+            pipeline.ltrim(key, 0, self._config.chat_history_limit - 1)
+            pipeline.expire(key, self._config.chat_history_ttl_sec)
+            await pipeline.execute()
+        except Exception as exc:
+            StructuredLog.error("memory_append_failed", user_id=user_id, error=str(exc))
+
 
 
 class UiGateway:
@@ -1693,6 +1704,50 @@ class UserDnaStore:
         default = UserDNA()
 
         try:
+            from app.services.personalization_fence import snapshot,write
+            expected=await snapshot(self._cache,user_id)
+            if not self._behavior_engine or not hasattr(self._behavior_engine, "get_user_profile"):
+                return default
+
+            profile = await asyncio.wait_for(
+                self._behavior_engine.get_user_profile(user_id),
+                timeout=self._config.behavior_timeout_sec,
+            )
+
+            if isinstance(profile, Mapping):
+                data = dict(profile)
+                data["source"] = "engine"
+                try:
+                    if hasattr(self._cache, "set_json"):
+                        await write(self._cache,user_id,[['SET',cache_key,json.dumps(data),'EX',self._config.user_dna_ttl_sec]],expected)
+                except Exception:
+                    pass
+                return UserDNA.from_dict(data)
+
+        except asyncio.TimeoutError:
+            StructuredLog.warning("user_dna_timeout", user_id=user_id)
+        except Exception as exc:
+            StructuredLog.error("user_dna_failure", user_id=user_id, error=str(exc))
+
+        return default
+
+
+    # Original source retained dormant; customer traffic uses fenced methods.
+    async def _legacy_pre_privacy_fence_get(self, user_id: int) -> UserDNA:
+        model_version = self._behavior_engine.model_status().get("sha256") if self._behavior_engine else None
+        cache_key = f"{RedisKeys.user_dna(user_id)}:{model_version or 'untrained'}"
+
+        try:
+            if hasattr(self._cache, "get_json"):
+                cached = await self._cache.get_json(cache_key)
+                if cached:
+                    return UserDNA.from_dict(cached)
+        except Exception:
+            pass
+
+        default = UserDNA()
+
+        try:
             if not self._behavior_engine or not hasattr(self._behavior_engine, "get_user_profile"):
                 return default
 
@@ -1717,6 +1772,7 @@ class UserDnaStore:
             StructuredLog.error("user_dna_failure", user_id=user_id, error=str(exc))
 
         return default
+
 
 
 # --- أضف الكود التالي تحت كلاس UserDnaStore ---
@@ -1757,6 +1813,23 @@ class RedisProductFreshnessRepository(IProductFreshnessRepository):
             return
         key = self._build_key(user_id)
         try:
+            from app.services.personalization_fence import write
+            from app.core.config import get_core_settings
+            now=self._clock();retention=max(ttl_seconds,get_core_settings().OPENING_PRODUCT_COOLDOWN_SECONDS)
+            commands=[['SADD',key,*[str(pid) for pid in product_ids]],['EXPIRE',key,ttl_seconds],
+                ['ZADD',key+':shown_at',*[item for pid in product_ids for item in [now,str(pid)]]],
+                ['ZREMRANGEBYSCORE',key+':shown_at','-inf',now-retention],['EXPIRE',key+':shown_at',retention]]
+            await write(self._cache,user_id,commands)
+        except Exception as exc:
+            StructuredLog.warning("freshness_cache_write_failed", user_id=user_id, error=type(exc).__name__)
+
+
+    # Original source retained dormant; customer traffic uses fenced methods.
+    async def _legacy_pre_privacy_fence_mark_products_as_seen(self, user_id: int, product_ids: Set[int], ttl_seconds: int = 43200) -> None:
+        if not product_ids:
+            return
+        key = self._build_key(user_id)
+        try:
             client = getattr(self._cache, "client", self._cache)
             if hasattr(client, "pipeline"):
                 pipeline = client.pipeline()
@@ -1774,6 +1847,7 @@ class RedisProductFreshnessRepository(IProductFreshnessRepository):
                 await self._cache.expire(key, ttl_seconds)
         except Exception as exc:
             StructuredLog.warning("freshness_cache_write_failed", user_id=user_id, error=type(exc).__name__)
+
 
 # =============================================================================
 # DOMAIN COMPONENTS
@@ -2221,6 +2295,7 @@ class AINLUService:
     # [L9 MUTEX WRAPPER: Safe Lock Acquisition & Release]
     # =====================================================================
     @budgeted_turn
+    @__import__('app.services.personalization_fence',fromlist=['guarded_turn']).guarded_turn(lambda a,k:(k.get('message_payload',a[0] if a else {}).get('user_id')))
     async def process_message(self, message_payload: dict) -> None:
         request = self._parse_incoming_message(message_payload)
         ctx = RequestContext(
@@ -2712,6 +2787,8 @@ class AINLUService:
 
     async def _send_to_ui(self, user_id: int, payload: Dict[str, Any], ctx: Optional[RequestContext] = None, *, strict: bool = False) -> None:
         try:
+            from app.services.personalization_fence import can_publish
+            if not await can_publish(getattr(self,'cache',None),user_id):raise RuntimeError('Personalization changed before publication')
             correlation_id = ctx.correlation_id if ctx else f"ui-send-{user_id}-{int(time.time())}"
             publisher = getattr(self.ui, "publish_required", self.ui.publish) if strict else self.ui.publish
             await publisher(user_id, payload, correlation_id)
@@ -3554,6 +3631,7 @@ class AINLUService:
             except Exception as notify_exc:
                 StructuredLog.error("matrix_error_delivery_failed", user_id=user_id, error_type=type(notify_exc).__name__)
 
+    @__import__('app.services.personalization_fence',fromlist=['guarded_turn']).guarded_turn(lambda a,k:k.get('user_id',a[0] if a else None))
     async def _handle_initial_suggestions_bounded(self, user_id: int) -> bool:
         """
         L8 Architecture: Hybrid concurrency model.
@@ -5694,7 +5772,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
         from app.services.customer_memory_service import CustomerMemoryService
         try:
             async with asyncio.timeout(4.0):
-                await CustomerMemoryService(self.db).collect(user_id, text, self.llm_service)
+                await CustomerMemoryService(self.db,cache=self.cache).collect(user_id, text, self.llm_service)
         except Exception as exc:
             logger.warning("customer memory collection unavailable", extra={"error_type": type(exc).__name__})
             try:
@@ -5789,8 +5867,8 @@ Execute your response adhering strictly to this visual and structural blueprint:
                 if value is not None:
                     ids.append(str(value))
             if ids:
-                await self.cache.sadd(key, *ids)
-                await self.cache.expire(key, self.config.seen_cache_ttl_sec)
+                from app.services.personalization_fence import write
+                await write(self.cache,user_id,[['SADD',key,*ids],['EXPIRE',key,self.config.seen_cache_ttl_sec]])
         except Exception as exc:
             StructuredLog.warning("mark_products_seen_failed", user_id=user_id, error=str(exc))
 
@@ -6333,6 +6411,25 @@ Structure:
 
         except Exception as exc:
             StructuredLog.error("devilish_recovery_failed", user_id=user_id, removed_pid=removed_pid, error=str(exc))
+
+
+    # Original source retained dormant; customer traffic uses fenced methods.
+    async def _legacy_pre_privacy_fence_mark_products_as_seen_legacy_set(self, user_id: int, products: Sequence[ProductLike]) -> None:
+        if not products:
+            return
+        try:
+            key = RedisKeys.seen_products(user_id)
+            ids: List[str] = []
+            for product in products:
+                value = ProductAccess.get(product, "id", None)
+                if value is not None:
+                    ids.append(str(value))
+            if ids:
+                await self.cache.sadd(key, *ids)
+                await self.cache.expire(key, self.config.seen_cache_ttl_sec)
+        except Exception as exc:
+            StructuredLog.warning("mark_products_seen_failed", user_id=user_id, error=str(exc))
+
 
 
 # =============================================================================

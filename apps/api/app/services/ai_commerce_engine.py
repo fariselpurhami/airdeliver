@@ -1657,7 +1657,10 @@ class AICommerceEngine:
             logger.exception("opensearch index ensure failed", extra={"index": index_name})
             raise BootstrapError(f"failed to ensure opensearch index {index_name}") from exc
 
-    async def remember_user_fact(self, user_id: int, fact_text: str) -> None:
+    async def remember_user_fact(self,user_id:int,fact_text:str) -> None:
+        raise ValidationError('Use canonical consented SQL shopping memory; legacy inferred vector writes are disabled')
+
+    async def _legacy_unconsented_remember_user_fact(self, user_id: int, fact_text: str) -> None:
         await self.bootstrap()
 
         if user_id <= 0:
@@ -1690,7 +1693,11 @@ class AICommerceEngine:
         except Exception:
             logger.exception("memory anchoring failed", extra={"user_id": user_id})
 
-    async def recall_relevant_facts(self, user_id: int, query: str, limit: int = 5) -> List[str]:
+    async def recall_relevant_facts(self,user_id:int,query:str,limit:int=5) -> List[str]:
+        # Legacy vectors are never authoritative customer facts.
+        return []
+
+    async def _legacy_unconsented_recall_relevant_facts(self, user_id: int, query: str, limit: int = 5) -> List[str]:
         await self.bootstrap()
 
         if user_id <= 0 or limit <= 0:

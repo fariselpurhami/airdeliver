@@ -298,11 +298,13 @@ class NeuralCoreService:
             return
         key = self._get_session_key(session_id)
         try:
-            await self.cache.set_json(
-                key, 
-                memory.model_dump(mode="json"), 
-                ttl=NeuralCoreConfig.SESSION_TTL_SEC
-            )
+            import json
+            from app.services.personalization_fence import write
+            if session_id.startswith('owner:') and hasattr(self.cache,'client'):
+                uid=int(session_id.split(':')[1])
+                await write(self.cache,uid,[['SET',key,json.dumps(memory.model_dump(mode='json')),'EX',NeuralCoreConfig.SESSION_TTL_SEC]])
+            else:
+                await self.cache.set_json(key,memory.model_dump(mode='json'),ttl=NeuralCoreConfig.SESSION_TTL_SEC)
         except Exception as exc:
             logger.error("neural_core.session.persist_failed", extra={"error_type": type(exc).__name__})
 
@@ -817,6 +819,7 @@ class NeuralCoreService:
 
     # --- PUBLIC ORCHESTRATOR -------------------------------------------------
 
+    @__import__('app.services.personalization_fence',fromlist=['guarded_turn']).guarded_turn(lambda a,k:getattr(k.get('user',a[2] if len(a)>2 else None),'id',None))
     async def handle_message(self,db,message,user,session_id,image_base64=None):
         """Request-local consented recall, never cached into chat history.
 
@@ -855,6 +858,9 @@ class NeuralCoreService:
                         telemetry={'intent':'CONTEXT_REVALIDATION','entities':[],'turn':0})
             _deferred_memory.reset(memory_token)
             memory_token=None
+            from app.services.personalization_fence import can_publish
+            if user is not None and type(getattr(user,'id',None)) is int and not await can_publish(self.cache,user.id):
+                return NeuralCoreResponse(text='Personalization was reset during this reply. Please retry.',response_kind='system_notice',confidence=0,explain='Personalization reset',telemetry={'intent':'CONTEXT_REVALIDATION','entities':[],'turn':0})
             for key,memory in deferred:
                 await self._persist_session(key,memory)
             # Explicit opt-in collection uses only the current customer's text,
@@ -865,7 +871,7 @@ class NeuralCoreService:
                 try:
                     from app.services.free_llm_service import FreeLLMService
                     async with asyncio.timeout(3):
-                        await CustomerMemoryService(db).collect(user.id,message,FreeLLMService())
+                        await CustomerMemoryService(db,cache=self.cache).collect(user.id,message,FreeLLMService())
                 except asyncio.CancelledError:raise
                 except Exception as exc:
                     _log_inference_failure('neural_core.preference_collection_unavailable',exc)

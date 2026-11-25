@@ -9,7 +9,7 @@ it('is off until explicit enable, and explains the actual limited scope', async 
     render(<CustomerMemoryControls />);
     const enable=await screen.findByRole('button',{name:'Enable shopping learning'});
     expect(api.put).not.toHaveBeenCalled();
-    expect(screen.getByText(/color, material and style/)).toBeInTheDocument();
+    expect(screen.getByText(/20 shopping categories/)).toBeInTheDocument();
     expect(screen.getByText(/long-term/)).toBeInTheDocument();
     jest.mocked(api.put).mockResolvedValue({data:{enabled:true}});
     jest.mocked(api.get).mockResolvedValue({data:{...off,enabled:true}});
@@ -62,4 +62,16 @@ it('turning learning off preserves preferences and does not call erase', async (
     fireEvent.click(await screen.findByRole('button',{name:'Turn learning off'}));
     await waitFor(() => expect(api.put).toHaveBeenCalledWith('/users/me/memory/consent',{enabled:false}));
     expect(api.delete).not.toHaveBeenCalled();
+});
+
+
+it('full reset names its scope, requires confirmation and rejects partial cleanup', async () => {
+    render(<CustomerMemoryControls />);
+    fireEvent.click(await screen.findByRole('button',{name:'Erase all personalization'}));
+    expect(api.delete).not.toHaveBeenCalled();
+    expect(screen.getByText(/Account, cart and orders stay unchanged/)).toBeInTheDocument();
+    jest.mocked(api.delete).mockResolvedValue({data:{deleted:false,incomplete_stores:['legacy']}});
+    fireEvent.click(screen.getByRole('button',{name:'Confirm erase all'}));
+    expect(await screen.findByRole('alert')).toHaveTextContent('not confirmed');
+    expect(api.delete).toHaveBeenCalledWith('/users/me/memory/personalization');
 });

@@ -36,6 +36,8 @@ async def test_register_interaction_maps_weight_and_embeds(monkeypatch):
     monkeypatch.setattr(commerce, "ModelRegistry", _FakeRegistry)
 
     engine = BehaviorEngine(_FakeCache())
+    from unittest.mock import AsyncMock
+    engine._learning_generation=AsyncMock(return_value=('consent','0'))
     calls = []
 
     async def _capture(user_id, interaction_type, metadata):
@@ -62,6 +64,8 @@ async def test_register_interaction_survives_model_failure(monkeypatch):
 
     monkeypatch.setattr(commerce, "ModelRegistry", _BoomRegistry)
     engine = BehaviorEngine(_FakeCache())
+    from unittest.mock import AsyncMock
+    engine._learning_generation=AsyncMock(return_value=('consent','0'))
     # Must not raise: behavioral learning degrades silently, never breaks chat.
     await engine.register_interaction(7, "anything", weight=1.0)
 

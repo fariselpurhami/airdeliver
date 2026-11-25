@@ -13,11 +13,11 @@ def test_acceptance_map_exactly_tracks_partial_groups_and_existing_evidence_lead
     assert {r['id'] for r in document['rows']}==expected
     assert document['closed_partial_groups']==0 and document['remaining_partial_groups']==20
     assert document['canonical_group_count']==55
-    assert document['code_complete_groups']==19 and document['code_remaining_groups']==1
+    assert document['code_complete_groups']==20 and document['code_remaining_groups']==0
     assert re.fullmatch('[0-9a-f]{40}',document['source_revision'])
     for row in document['rows']:
         assert row['whole_group_closed'] is False
-        assert row['code_status']==('complete_subject_to_release_gate' if row['id'] in {'CAP-44','CAP-50','CAP-49','CAP-29','CAP-32','CAP-51','CAP-28','CAP-15','CAP-14','CAP-20','CAP-23','CAP-26','CAP-13','CAP-25','CAP-07','CAP-24','CAP-43','CAP-22','CAP-18'} else 'review_required')
+        assert row['code_status']==('complete_subject_to_release_gate' if row['id'] in {'CAP-44','CAP-50','CAP-49','CAP-29','CAP-32','CAP-51','CAP-28','CAP-15','CAP-14','CAP-20','CAP-23','CAP-26','CAP-13','CAP-25','CAP-07','CAP-24','CAP-43','CAP-22','CAP-18','CAP-30'} else 'review_required')
         assert row['quality_status']==row['owner_status']=='unverified'
         assert row['evidence_leads'] and not row['unresolved_test_leads']
         assert all((ROOT/p).is_file() for p in row['evidence_leads'])

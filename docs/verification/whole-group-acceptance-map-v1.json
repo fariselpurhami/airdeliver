@@ -286,12 +286,12 @@
       "id": "CAP-30",
       "capability": "Consent-aware memory collection and seen-product persistence",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Canonical consented shopping collection and confirmed display-only exposure",
-      "next_code_or_boundary_acceptance": "Audit remaining separate legacy collection/seen/history lifecycle without enabling hidden inferred traits",
+      "next_code_or_boundary_acceptance": "Broader20-category explicit policy collection and owner-bound full-reset storage/race contract audited; exact-head release gate required. Real multilingual extraction and owner store execution remain unverified.",
       "quality_acceptance": "Actual extraction precision for affirmative customer-owned shopping preferences",
       "owner_acceptance": "Feature flag and explicit retention/deletion scope acceptance",
       "evidence_leads": [
@@ -300,7 +300,8 @@
         "apps/api/tests/test_search_seen_recency.py",
         "apps/api/tests/test_behavior_consolidation_packets.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap30-code-acceptance-v1.md"
     },
     {
       "id": "CAP-32",
@@ -432,6 +433,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 19,
-  "code_remaining_groups": 1
+  "code_complete_groups": 20,
+  "code_remaining_groups": 0
 }

@@ -35,7 +35,7 @@ from tests.test_customer_memory_postgres import memory_db
 @pytest.mark.parametrize('mode',['failure','empty','candidate','cancel'])
 async def test_actual_strict_adapter_real_sql_collection_does_not_commit_failure(memory_db,mode):
     sessions,(uid,other)=memory_db;llm=service()
-    llm._chat_completion=AsyncMock(return_value=completion(json.dumps({} if mode=='empty' else {'category':'color','value':'blue','evidence':'I prefer blue'})))
+    llm._chat_completion=AsyncMock(return_value=completion(json.dumps({'preferences':[] if mode=='empty' else [{'category':'color','value':'blue','evidence':'I prefer blue'}]})))
     if mode=='failure':llm._chat_completion.side_effect=ConnectionError('private-failure')
     if mode=='cancel':llm._chat_completion.side_effect=asyncio.CancelledError()
     async with sessions() as db:
