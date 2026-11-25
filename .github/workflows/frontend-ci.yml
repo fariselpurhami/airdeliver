@@ -14,6 +14,8 @@ on:
       - 'apps/api/app/services/payment_outbox_reconciler.py'
       - 'apps/api/app/core/config.py'
       - 'scripts/safe_provider_trace.py'
+      - 'apps/api/app/services/shared_provider_admission.py'
+      - 'apps/api/app/services/paid_turn_admission.py'
       - '.github/workflows/secret-history-guard.yml'
       - '.github/workflows/backend-ci.yml'
       - 'pnpm-lock.yaml'
@@ -30,6 +32,8 @@ on:
       - 'apps/api/app/services/payment_outbox_reconciler.py'
       - 'apps/api/app/core/config.py'
       - 'scripts/safe_provider_trace.py'
+      - 'apps/api/app/services/shared_provider_admission.py'
+      - 'apps/api/app/services/paid_turn_admission.py'
       - '.github/workflows/secret-history-guard.yml'
       - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
