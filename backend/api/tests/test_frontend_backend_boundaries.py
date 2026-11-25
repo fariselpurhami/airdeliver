@@ -23,7 +23,7 @@ def test_workspace_discovers_each_package_once_not_through_aliases():
 
 def test_build_and_development_interfaces_preserve_container_paths():
     docker=(ROOT/'frontend/web/Dockerfile').read_text()
-    assert 'WORKDIR /app' in docker and 'WORKDIR /app/frontend/web' in docker
+    assert 'WORKDIR /workspace/frontend/web' in docker and 'WORKDIR /app/frontend/web' in docker
     assert '/workspace/frontend/web/.next/standalone' in docker
     ignore=(ROOT/'frontend/web/Dockerfile.dockerignore').read_text()
     assert '!frontend/' in ignore and '!frontend/web/**' in ignore
@@ -32,7 +32,7 @@ def test_build_and_development_interfaces_preserve_container_paths():
         s=(ROOT/name).read_text()
         assert 'context: ./backend/api' in s
         assert 'dockerfile: frontend/web/Dockerfile' in s
-    assert './frontend/web:/app:delegated' in (ROOT/'docker-compose.dev.yml').read_text()
+    assert './frontend/web:/workspace/frontend/web:delegated' in (ROOT/'docker-compose.dev.yml').read_text()
 
 
 def test_old_directory_cli_resolves_the_same_sources_without_copying():

@@ -12,14 +12,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isDevelopment = process.env.NODE_ENV === 'development';
-// Workspace builds trace the repository. The /app development container resolves
-// its pnpm virtual store from /node_modules, so it must trace their shared root.
+// Both tools must share the bounded workspace containing source and pnpm links.
+// A standalone checkout without a workspace manifest uses its own directory.
 const workspaceRoot = path.resolve(__dirname, '..', '..');
 const tracingRoot = fs.existsSync(path.join(workspaceRoot, 'pnpm-workspace.yaml'))
-  ? workspaceRoot
-  : fs.existsSync(path.resolve(__dirname, '..', 'node_modules', '.pnpm'))
-    ? path.resolve(__dirname, '..')
-    : __dirname;
+  ? workspaceRoot : __dirname;
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://api:8000';
 
 /** @type {import('next').NextConfig} */

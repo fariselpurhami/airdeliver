@@ -22,10 +22,10 @@ def test_docker_uses_root_graph_frozen_install_and_existing_dev_path():
     assert 'COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs ./' in docker
     assert 'pnpm install --frozen-lockfile --ignore-scripts' in docker
     assert '--no-frozen-lockfile' not in docker
-    assert 'WORKDIR /app' in docker and 'COPY --from=deps /workspace/node_modules /node_modules' in docker
+    assert 'WORKDIR /workspace/frontend/web' in docker and 'COPY --from=deps /workspace/node_modules /workspace/node_modules' in docker
     for name in ['docker-compose.yml','docker-compose.dev.yml']:
         assert 'context: .\n      dockerfile: frontend/web/Dockerfile' in (ROOT/name).read_text()
-    assert './frontend/web:/app:delegated' in (ROOT/'docker-compose.dev.yml').read_text()
+    assert './frontend/web:/workspace/frontend/web:delegated' in (ROOT/'docker-compose.dev.yml').read_text()
 
 
 def test_root_docker_context_is_default_deny_with_web_secret_exclusions():

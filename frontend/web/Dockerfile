@@ -10,13 +10,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs ./
 COPY frontend/web/package.json frontend/web/.npmrc ./frontend/web/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --ignore-scripts --config.minimum-release-age=0
-# Resolve the same application dependencies from the existing dev mount path.
+# Keep development inside the bounded workspace, including its pnpm store.
 FROM base AS development
-WORKDIR /app
+WORKDIR /workspace/frontend/web
 ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
-COPY --from=deps /workspace/node_modules /node_modules
+COPY --from=deps /workspace/node_modules /workspace/node_modules
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs /workspace/
 COPY --from=deps /workspace/frontend/web/node_modules ./node_modules
 COPY frontend/web/ ./
 EXPOSE 3000

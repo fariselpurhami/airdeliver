@@ -557,10 +557,10 @@ services:
      - PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
      - NPM_CONFIG_MINIMUM_RELEASE_AGE=0
     volumes:
-      - ./frontend/web:/app:delegated
+      - ./frontend/web:/workspace/frontend/web:delegated
       - pnpm-store:/pnpm
-      - /app/node_modules
-      - /app/.next
+      - /workspace/frontend/web/node_modules
+      - /workspace/frontend/web/.next
     depends_on:
       api:
         condition: service_healthy

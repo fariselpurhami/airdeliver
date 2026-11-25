@@ -35,4 +35,5 @@ server.on('upgrade',(req,socket,head)=>{
 server.headersTimeout=30000;server.requestTimeout=120000;
 server.listen(port,'0.0.0.0',()=>console.log(`LAN dev on port ${port}; localhost and RFC1918 IPv4 only. Open this Mac's current LAN IP.`));
 let stopping=false;function stop(){if(stopping)return;stopping=true;server.close();child.kill('SIGTERM');setTimeout(()=>process.exit(),500).unref();}
-for(const signal of ['SIGINT','SIGTERM'])process.on(signal,stop);child.on('exit',()=>{server.close();if(!stopping)process.exit(1);});
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,stop);child.on('exit',(code,signal)=>{server.close();if(!stopping){console.error(`Next dev exited: code=${code} signal=${signal}`);process.exit(code||1);}});
+child.on('error',(error)=>{console.error('Next dev failed to start:',error.message);server.close();process.exit(1);});

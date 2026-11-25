@@ -7,9 +7,9 @@ import {pathToFileURL} from 'node:url';
 const source=await fs.readFile(new URL('../next.config.mjs',import.meta.url),'utf8');
 async function fixture(kind){
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'adl-tracing-'));
- const app=kind==='workspace'?path.join(root,'frontend','web'):path.join(root,'app');
+ const app=kind!=='standalone'?path.join(root,'frontend','web'):path.join(root,'app');
  await fs.mkdir(app,{recursive:true});
- if(kind==='workspace')await fs.writeFile(path.join(root,'pnpm-workspace.yaml'),'packages: []\n');
+ if(kind!=='standalone')await fs.writeFile(path.join(root,'pnpm-workspace.yaml'),'packages: []\n');
  if(kind==='container')await fs.mkdir(path.join(root,'node_modules','.pnpm'),{recursive:true});
  const config=path.join(app,'next.config.mjs');await fs.writeFile(config,source);
  try{

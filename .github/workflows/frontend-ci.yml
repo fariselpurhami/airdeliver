@@ -102,6 +102,9 @@ jobs:
       - name: Workspace and mounted development tracing roots
         run: node --test frontend/web/scripts/check-tracing-root.mjs
 
+      - name: Development tracing root contracts
+        run: node --test frontend/web/scripts/check-tracing-root.mjs
+
       - name: Scoped security dependency contracts
         run: pnpm --filter airdeliver/apps/web exec node scripts/check-security-dependency-contracts.cjs
 
@@ -140,8 +143,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build existing development interface from canonical workspace
         run: docker build -f frontend/web/Dockerfile --target development -t airdeliver-web-dev-ci .
-      - name: Resolve locked dependencies from the existing dev mount path
+      - name: Resolve locked dependencies from the bounded development workspace
         run: docker run --rm --entrypoint node airdeliver-web-dev-ci -e "for (const name of ['next','react','next-auth','sharp']) console.log(name, require.resolve(name));"
+      - name: Test tracing roots
+        run: node --test frontend/web/scripts/check-tracing-root.mjs
       - name: Compile the real development home route through its LAN gateway
         shell: bash
         run: |
