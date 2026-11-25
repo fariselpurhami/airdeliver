@@ -38,8 +38,8 @@ No zero-defect, deadline, full-feature or production-ready guarantee is implied.
 
 ## Code-first checkpoint
 
-CAP-44 has its active caller inventory and controlled boundary code acceptance
-complete, subject to the exact-head CI/fast-forward release gate. Code scope is
-1complete/19remaining. This separate count does not change whole-group0/20 or
-canonical55. The JSON row and CAP44 code-acceptance document identify the finite
-scope, retained dormant bodies, test evidence and parked live/owner checks.
+Eleven finite code/boundary audits are complete, subject to their exact-head
+CI and fast-forward release gates:44,50,49,29,32,51,28,15,14,20,23.
+Nine remain. Individual code-acceptance documents and JSON rows record scope,
+actual test evidence and parked live/owner work. This separate code count does
+not change whole-group0/20 or canonical55. No live provider runs are authorized.

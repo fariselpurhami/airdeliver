@@ -575,14 +575,12 @@ class NeuralCoreService:
                         if pos<len(group) and group[pos].id not in seen:
                             candidates.append(group[pos]);seen.add(group[pos].id)
                 candidates=candidates[:5]
-                if decision.shopping_task=='setup' and brief.budget_max is not None:
-                    # Collection budget is one cap, never one cap per item.
-                    from decimal import Decimal
-                    selected=[];remaining=Decimal(brief.budget_max)
-                    for candidate in candidates:
-                        if candidate.currency==brief.budget_currency and Decimal(str(candidate.price))<=remaining:
-                            selected.append(candidate);remaining-=Decimal(str(candidate.price))
-                    candidates=selected
+                setup_evidence={}
+                if decision.shopping_task=='setup':
+                    from app.services.discovery_planner import select_setup_candidates
+                    candidates,coverage=select_setup_candidates(groups,[t.product_name for t in decision.targets],brief)
+                    setup_evidence={'component_selection':coverage,'selection_scope':'One suggestion per planned component, greedy retrieval order; not an optimized or complete bundle.',
+                        'completeness_verified':False,'compatibility_verified':False}
                 stage='catalog_copy'
                 response=await self._catalog_response(db,candidates,'PRODUCT_SEARCH',
                     brief=brief,customer_message=message,
@@ -590,7 +588,7 @@ class NeuralCoreService:
                     search_evidence={'shopping_task':decision.shopping_task,'advice_goal':decision.advice_goal,
                         'customer_signal':decision.customer_signal,'exact_customer_question':message,'target_searches':trace,
                         'sentiment':decision.sentiment,'sentiment_evidence':decision.sentiment_evidence,'competitor_mentioned':decision.competitor_mentioned,
-                        'missing_target_evidence_is_unknown':True,'external_web_evidence':False})
+                        'missing_target_evidence_is_unknown':True,'external_web_evidence':False,**setup_evidence})
                 stage='postcopy_revalidation'
                 if response.products:
                     ids=[c.id for c in response.products]

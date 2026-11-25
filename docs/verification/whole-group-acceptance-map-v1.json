@@ -152,20 +152,22 @@
       "id": "CAP-23",
       "capability": "Ecosystem planner, component searches and collection prose/cards",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Reviewed component plan, per-component hard scope and aggregate budget",
-      "next_code_or_boundary_acceptance": "Audit completeness/compatibility evidence coverage and every retained setup caller failure path",
+      "next_code_or_boundary_acceptance": "Finite caller/plan/selection and real SQL failure audit complete; exact-head release gate required. Live semantic/compatibility acceptance remains unverified.",
       "quality_acceptance": "Actual-model component planning and honest incomplete setup behavior",
       "owner_acceptance": "Merchant facts sufficient for any physical compatibility claim",
       "evidence_leads": [
         "apps/api/tests/test_legacy_ecosystem_postgres.py",
         "apps/api/tests/test_discovery_planner.py",
-        "apps/api/tests/test_arabic_target_scope_postgres.py"
+        "apps/api/tests/test_arabic_target_scope_postgres.py",
+        "apps/api/tests/test_setup_code_closure.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap23-code-acceptance-v1.md"
     },
     {
       "id": "CAP-24",
@@ -414,6 +416,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 10,
-  "code_remaining_groups": 10
+  "code_complete_groups": 11,
+  "code_remaining_groups": 9
 }

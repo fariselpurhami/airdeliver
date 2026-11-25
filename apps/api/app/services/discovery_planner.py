@@ -34,7 +34,11 @@ def parse_setup(raw):
             entries=getattr(wire,key)
             if len({e.component for e in entries})!=len(entries):raise ValueError("Duplicate component assignment")
             value[key]={e.component:e.features for e in entries}
-    return SetupPlan.model_validate(value)
+    plan=SetupPlan.model_validate(value)
+    identities=[' '.join(c.casefold().split()) for c in plan.components]
+    if len(set(identities))!=len(identities):
+        raise ValueError('Duplicate component identity')
+    return plan
 
 
 class SetupReview(BaseModel):
@@ -58,3 +62,28 @@ async def plan_setup(infer,question,*,timeout=8,customer_context=(),saved_prefer
         if set(verdict)!={'appropriate','no_invented_products'} or not all(v is True for v in verdict.values()):raise ValueError('Component plan rejected')
         plan.components=list(dict.fromkeys(c.strip() for c in plan.components))
         return plan if detailed else plan.components
+
+
+def select_setup_candidates(groups,components,brief):
+    """One current suggestion per planned component, not a bundle guarantee.
+
+    Retrieval order is preserved. This is a bounded greedy selection, not an
+    optimizer or evidence of physical compatibility/completeness.
+    """
+    from decimal import Decimal
+    if len(groups)!=len(components):raise ValueError('Component evidence mismatch')
+    remaining=Decimal(brief.budget_max) if brief.budget_max is not None else None
+    selected=[];seen=set();coverage=[]
+    for component,rows in zip(components,groups,strict=True):
+        chosen=None
+        for row in rows:
+            if row.id in seen:continue
+            amount=Decimal(str(row.price))
+            if remaining is not None and (row.currency!=brief.budget_currency or amount>remaining):continue
+            chosen=row;break
+        if chosen is not None:
+            selected.append(chosen);seen.add(chosen.id)
+            if remaining is not None:remaining-=Decimal(str(chosen.price))
+        coverage.append({'component':component,'selected_ids':[chosen.id] if chosen is not None else [],
+            'status':'current_candidate' if chosen is not None else 'no_candidate_selected_under_constraints'})
+    return selected,coverage

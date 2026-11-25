@@ -12,17 +12,20 @@ from app.services.ai_nlu_service import AINLUService,CommerceIntentPayload,Inten
 pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='disposable migrated PostgreSQL required')
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mode',['ok','changed','demo','plan_reject','budget_invented','budget_omitted','writer_outage','cancel','review_number','out_of_stock','over_budget'])
+@pytest.mark.parametrize('mode',['ok','changed','demo','plan_reject','budget_invented','budget_omitted','writer_outage','cancel','review_number','out_of_stock','over_budget','missing_component','duplicate_component','target_timeout','writer_cancel','review_reject','many_first_component'])
 async def test_original_ecosystem_shared_current_evidence(mode):
     engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
             assert (await db.execute(text('SELECT current_database()'))).scalar_one().startswith('airdeliver_test_')
             rows=[Product(sku=('ADL-DEMO-v1-' if mode=='demo' else '')+uuid4().hex,name=n,description='',category=n,price=200 if mode=='over_budget' else 20,inventory=0 if mode=='out_of_stock' else 3,currency='USD',attributes={}) for n in ['desk','chair']]
+            if mode=='many_first_component':rows.insert(1,Product(sku=uuid4().hex,name='desk',description='',category='desk',price=70,inventory=3,currency='USD',attributes={}))
             db.add_all(rows);await db.commit();ids=[r.id for r in rows]
-        queries=[];calls=[]
+        queries=[];calls=[];writer_evidence=[]
         async def search(db,query,**kwargs):
             queries.append(query)
+            if mode=='target_timeout' and query=='chair':raise TimeoutError('controlled')
+            if mode=='missing_component' and query=='chair':return []
             return (await db.execute(select(Product).where(Product.id.in_(ids),Product.name==query))).scalars().all()
         async def infer(messages):
             policy=messages[0]['content'];calls.append(policy)
@@ -30,32 +33,40 @@ async def test_original_ecosystem_shared_current_evidence(mode):
                 if mode=='cancel':raise asyncio.CancelledError()
                 return json.dumps({'budget':'USD 100' if mode!='budget_invented' else 'USD 1000','budget_max':'100' if mode!='budget_invented' else '1000','budget_currency':'USD'}) if mode!='budget_omitted' else '{}'
             if 'Review extracted setup' in policy:return json.dumps({'faithful':1 if mode=='review_number' else mode!='budget_omitted'})
-            if 'Plan generic' in policy:return json.dumps({'components':['desk','chair']})
+            if 'Plan generic' in policy:return json.dumps({'components':['desk','DESK'] if mode=='duplicate_component' else ['desk','chair']})
             if 'Review a generic' in policy:return json.dumps({'appropriate':mode!='plan_reject','no_invented_products':True})
             payload=json.loads(messages[1]['content'])
             if 'catalog_evidence' in payload:
+                writer_evidence.append(payload)
+                if mode=='writer_cancel':raise asyncio.CancelledError()
                 if mode=='writer_outage':raise ConnectionError('private sentinel')
                 if mode=='changed':
                     async with sessions() as writer:
                         await writer.execute(update(Product).where(Product.id==ids[0]).values(price=999));await writer.commit()
                 return json.dumps({'text':'Possible components are shown in the cards. Compatibility and completeness are not verified.','product_ids':[],'claims':[]})
-            return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
+            return json.dumps(dict(supported=mode!='review_reject',all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
         llm=SimpleNamespace(infer_sales_json=AsyncMock(side_effect=infer))
         async with sessions() as db:
             svc=AINLUService(db,SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=search)),SimpleNamespace(publish=AsyncMock()),SimpleNamespace(),llm)
             svc._send_to_ui=AsyncMock();svc._save_conversation_turn=AsyncMock()
             request=svc._parse_incoming_message({'user_id':17,'message':'Build a desk and chair setup under USD 100'})
             intent=CommerceIntentPayload(category=IntentCategory.ECOSYSTEM_BUILDER,is_chitchat=False,budget_max=99999)
-            if mode=='cancel':
+            if mode in {'cancel','writer_cancel'}:
                 with pytest.raises(asyncio.CancelledError):await svc._handle_ecosystem_building(request,RequestContext(17,'test',0),intent)
                 svc._send_to_ui.assert_not_awaited()
             else:
                 await svc._handle_ecosystem_building(request,RequestContext(17,'test',0),intent)
                 payload=svc._send_to_ui.await_args.args[1]
                 if mode=='ok':assert {p['id'] for p in payload['products']}==set(ids)
+                elif mode=='many_first_component':assert {p['id'] for p in payload['products']}=={ids[1],ids[2]}
+                elif mode=='missing_component':
+                    assert [p['id'] for p in payload['products']]==[ids[0]]
+                    evidence=writer_evidence[0]['request_evidence']
+                    assert evidence['component_selection'][1]['selected_ids']==[]
+                    assert evidence['completeness_verified'] is False and evidence['compatibility_verified'] is False
                 else:assert payload.get('products',[])==[]
             svc.rabbitmq.publish.assert_not_awaited();svc._save_conversation_turn.assert_not_awaited()
-            if mode in ['plan_reject','budget_invented','budget_omitted','cancel','review_number']:assert queries==[]
+            if mode in ['plan_reject','budget_invented','budget_omitted','cancel','review_number','duplicate_component']:assert queries==[]
     finally:
         async with sessions() as db:
             if ids:await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
