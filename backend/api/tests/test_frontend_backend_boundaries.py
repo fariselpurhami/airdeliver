@@ -40,3 +40,12 @@ def test_old_directory_cli_resolves_the_same_sources_without_copying():
     assert (ROOT/'apps/web/package.json').samefile(ROOT/'frontend/web/package.json')
     result=subprocess.run(['make','--dry-run','up'],cwd=ROOT,text=True,capture_output=True,check=True)
     assert 'docker-compose.yml -f docker-compose.dev.yml' in result.stdout
+
+
+def test_historical_fixture_bindings_and_scan_fingerprints_keep_original_paths():
+    # The cleanup manifest proves historical deletions, not current ownership.
+    manifest=(ROOT/'docs/verification/generated-cache-cleanup-v1.json').read_text()
+    assert 'apps/api/hf_cache' in manifest
+    fingerprints=(ROOT/'.gitleaksignore').read_text()
+    assert ':apps/api/' in fingerprints
+    assert ':backend/api/' not in fingerprints
