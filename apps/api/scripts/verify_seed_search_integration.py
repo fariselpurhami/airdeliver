@@ -37,6 +37,12 @@ def main():
         def port(service,number):
             output=subprocess.check_output([*compose,'port',service,str(number)],text=True).strip()
             return int(output.rsplit(':',1)[1])
+        # Cluster health is not proof of an available data volume. Preserve the
+        # actual isolated Seaweed topology before learned search writes begin.
+        if backend == 'seaweed':
+            topology = subprocess.check_output([*compose, 'exec', '-T', 'minio',
+                'wget', '-q', '-O', '-', 'http://localhost:9333/dir/status'], text=True)
+            print('SEAWEED_CI_TOPOLOGY ' + topology, flush=True)
         model=snapshot_download('sentence-transformers/all-MiniLM-L6-v2',revision='1110a243fdf4706b3f48f1d95db1a4f5529b4d41',token=False,
              allow_patterns=['*.json','model.safetensors','vocab.txt','*/config.json'])
         values=seed.Settings(_env_file=None,DATABASE_URI=dsn,APP_ENV='development',

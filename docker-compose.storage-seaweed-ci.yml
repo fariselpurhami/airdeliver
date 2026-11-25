@@ -9,6 +9,7 @@ services:
       WEED_JWT_FILER_SIGNING_KEY: disposable-ci-only-signing-key-not-a-user-secret
     volumes:
       - object-trial-data:/data
+      - ./infra/storage-ci/seaweed-master.toml:/etc/seaweedfs/master.toml:ro
       - ./infra/storage-ci/seaweed-s3.json:/etc/seaweed-s3-ci.json:ro
     ports:
       - '127.0.0.1::9000'
