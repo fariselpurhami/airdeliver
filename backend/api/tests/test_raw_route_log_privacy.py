@@ -103,3 +103,60 @@ async def test_client_selected_socket_command_type_is_not_a_log_field(monkeypatc
     await ai_ordering.handle_chat_websocket(ws,"synthetic",AsyncMock(),AsyncMock(),cache)
     assert ws.send_json.await_args.args[0]["code"]=="UNSUPPORTED_CHANNEL"
     assert_clean(caplog)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phase", ["setup", "listener", "receive", "cancel"])
+async def test_socket_failure_phases_and_cancellation_keep_private_data_out(monkeypatch,caplog,phase):
+    import asyncio
+    caplog.set_level(logging.INFO)
+    monkeypatch.setattr(ai_ordering.deps,"get_current_active_user_ws_ticket",AsyncMock(return_value=SimpleNamespace(id=7)))
+    manager=SimpleNamespace(connect=AsyncMock(),disconnect=AsyncMock())
+    monkeypatch.setattr(ai_ordering.deps,"get_websocket_manager",lambda:manager)
+    async def listen():
+        raise RuntimeError(PRIVATE)
+        yield
+    pubsub=SimpleNamespace(listen=listen,close=AsyncMock())
+    cache=SimpleNamespace(subscribe=AsyncMock(side_effect=RuntimeError(PRIVATE) if phase=="setup" else None,return_value=pubsub))
+    async def receive():
+        await asyncio.sleep(0)
+        if phase=="cancel": raise asyncio.CancelledError()
+        if phase=="receive": raise RuntimeError(PRIVATE)
+        raise WebSocketDisconnect(code=1000)
+    ws=SimpleNamespace(client_state=WebSocketState.CONNECTED,accept=AsyncMock(),close=AsyncMock(),receive_text=receive)
+    if phase=="cancel":
+        with pytest.raises(asyncio.CancelledError):
+            await ai_ordering.handle_chat_websocket(ws,"synthetic",AsyncMock(),AsyncMock(),cache)
+    else:
+        await ai_ordering.handle_chat_websocket(ws,"synthetic",AsyncMock(),AsyncMock(),cache)
+    assert_clean(caplog)
+
+
+@pytest.mark.asyncio
+async def test_redis_bridge_retries_then_propagates_without_traceback(monkeypatch,caplog):
+    from app import main
+    from redis.exceptions import ConnectionError
+    caplog.set_level(logging.INFO)
+    monkeypatch.setattr(main.asyncio,"sleep",AsyncMock())
+    class Process:
+        async def __aenter__(self): pass
+        async def __aexit__(self,kind,*args): assert kind is ConnectionError
+    cache=SimpleNamespace(publish_required=AsyncMock(side_effect=ConnectionError(PRIVATE)))
+    message=SimpleNamespace(body=b'{"user_id":7}',process=lambda **kwargs:Process())
+    with pytest.raises(ConnectionError):
+        await main.relay_response_message(message,AsyncMock(),cache)
+    assert cache.publish_required.await_count==3
+    assert_clean(caplog)
+
+
+@pytest.mark.asyncio
+async def test_voice_orchestrator_failure_keeps_cleanup_and_no_traceback(monkeypatch,caplog):
+    caplog.set_level(logging.INFO)
+    orchestrator=SimpleNamespace(process_voice_session=AsyncMock(side_effect=RuntimeError(PRIVATE)))
+    monkeypatch.setattr(ai_ordering,"AIVoiceOrchestrator",lambda **kwargs:orchestrator)
+    cache=SimpleNamespace(get=AsyncMock(side_effect=["7",None]),set=AsyncMock(),delete=AsyncMock())
+    ws=SimpleNamespace(close=AsyncMock())
+    await ai_ordering.handle_voice_stream(ws,"synthetic",AsyncMock(),object(),object(),AsyncMock(),cache)
+    ws.close.assert_awaited_once_with(code=1011)
+    assert cache.delete.await_count==2
+    assert_clean(caplog)
