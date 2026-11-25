@@ -11,7 +11,11 @@
     "backend/api/nuke_milvus_v2.py",
     "backend/api/reset_db.py",
     "backend/api/seed_ultra_scale.py",
-    "backend/api/sync_search.py",
-    "backend/api/debian.sources"
-  ]
+    "backend/api/sync_search.py"
+  ],
+  "retained_unique_config": {
+    "path": "backend/api/debian.sources",
+    "source_commit": "70d1f66cc28fbe7acd4eca4d3220ae56527d2aa4",
+    "sha256": "f1a23558f669496cf17770a2b9401fa5794daea04ec607e98eca26e8ca4b2252"
+  }
 }

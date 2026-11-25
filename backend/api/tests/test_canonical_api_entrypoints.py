@@ -9,6 +9,8 @@ def test_worker_is_byte_identical_at_owner_selected_services_domain():
  assert hashlib.sha256((ROOT/manifest['worker_path']).read_bytes()).hexdigest()==manifest['worker_sha256']
  assert not (ROOT/'backend/api/worker_entrypoint.py').exists()
  for old in manifest['removed']:assert not (ROOT/old).exists()
+ config=manifest['retained_unique_config']
+ assert hashlib.sha256((ROOT/config['path']).read_bytes()).hexdigest()==config['sha256']
 
 
 def test_compose_and_kubernetes_invoke_canonical_worker_and_seed_modules():

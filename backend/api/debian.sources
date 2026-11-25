@@ -1,0 +1,9 @@
+Types: deb
+URIs: http://ftp.de.debian.org/debian
+Suites: bookworm bookworm-updates
+Components: main contrib non-free non-free-firmware
+
+Types: deb
+URIs: http://security.debian.org/debian-security
+Suites: bookworm-security
+Components: main contrib non-free non-free-firmware

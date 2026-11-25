@@ -19,4 +19,4 @@ These names document entrypoints, not approval to execute them. Some helpers are
 
 Compose and Kubernetes invoke the worker module directly. The worker implementation is byte-identical to its previous root path. The immutable move manifests remain unchanged; tests account only for the reviewed canonical seeder import and documentation path changes.
 
-`debian.sources` was removed because the tracked repository, Dockerfiles and CI had no consumer. No maintenance implementation, model, migration, data fixture, certificate or requirements export was deleted in this step.
+`debian.sources` is retained. It is unique APT configuration: absence of tracked consumers does not establish that manual use is absent. No maintenance implementation, model, migration, data fixture, certificate or requirements export was deleted in this step.
