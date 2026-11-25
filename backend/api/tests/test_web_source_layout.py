@@ -7,10 +7,12 @@ WEB=ROOT/'frontend/web'
 
 def test_source_manifest_preserves_every_pre_move_byte():
  manifest=json.loads((ROOT/'docs/verification/web-source-layout-v1.json').read_text())
+ evolution=json.loads((ROOT/'docs/verification/web-source-evolution-v1.json').read_text())
+ assert set(evolution)=={'frontend/web/src/app/globals.css','frontend/web/src/app/(main)/_components/LandingClient.tsx','frontend/web/src/components/layout/Header.tsx','frontend/web/src/components/ai/Chatbot.tsx'}
  assert len(manifest['files'])>100
  for row in manifest['files']:
   assert not (ROOT/row['previous_path']).exists()
-  assert hashlib.sha256((ROOT/row['canonical_path']).read_bytes()).hexdigest()==row['sha256']
+  assert hashlib.sha256((ROOT/row['canonical_path']).read_bytes()).hexdigest()==evolution.get(row['canonical_path'],row['sha256'])
 
 
 def test_next_source_has_one_app_and_proxy_boundary_not_duplicate_route_symlinks():
@@ -27,3 +29,13 @@ def test_source_aliases_shadcn_and_coverage_point_at_canonical_source():
  jest=(WEB/'jest.config.mjs').read_text()
  for folder in ['app','components','lib']:assert "'src/"+folder+"/**/*" in jest
  assert './src/**/*' in (WEB/'tailwind.config.ts').read_text()
+
+
+def test_reviewed_source_evolution_does_not_rewrite_historical_move_manifest():
+ manifest=json.loads((ROOT/'docs/verification/web-source-layout-v1.json').read_text())
+ evolution=json.loads((ROOT/'docs/verification/web-source-evolution-v1.json').read_text())
+ historical={row['canonical_path']:row['sha256'] for row in manifest['files']}
+ for name,digest in evolution.items():
+  assert name in historical and digest!=historical[name]
+  assert len(digest)==64
+  assert hashlib.sha256((ROOT/name).read_bytes()).hexdigest()==digest
