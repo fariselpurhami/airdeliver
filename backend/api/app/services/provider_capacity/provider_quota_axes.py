@@ -77,6 +77,7 @@ async def reconcile_axes(reservation):
     script="""
 local score=redis.call('ZSCORE',KEYS[1],ARGV[1])
 if score then
+ if not redis.call('GET',KEYS[2]) then return -1 end
  redis.call('ZREM',KEYS[1],ARGV[1]);redis.call('ZADD',KEYS[1],score,ARGV[2])
  redis.call('INCRBY',KEYS[2],tonumber(ARGV[4])-tonumber(ARGV[3]))
 end

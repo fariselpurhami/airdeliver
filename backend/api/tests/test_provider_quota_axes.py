@@ -179,3 +179,17 @@ def test_non_integer_settings_are_rejected(value):
     from app.core.config import CoreSettings
     from pydantic import ValidationError
     with pytest.raises(ValidationError):CoreSettings(_env_file=None,PROVIDER_RPM_BUDGET=value)
+
+
+@pytest.mark.asyncio
+async def test_accumulator_evicted_during_provider_call_cannot_be_recreated_as_negative(real_cache,monkeypatch):
+    cache,_=real_cache;model='offline-eviction-inflight';p=prefix(model)
+    monkeypatch.setattr('app.core.config.get_core_settings',lambda:config(PROVIDER_TPD_BUDGET=1000))
+    async with shared_provider_slot(model,[],{},20,client=cache.client,limit=5000) as r:
+        await cache.client.delete(p+':axis:tpd:total')
+        r.observe(SimpleNamespace(usage=SimpleNamespace(total_tokens=1)))
+    assert await cache.client.get(p+':axis:tpd:total') is None
+    for _ in range(2):
+        with pytest.raises(SharedProviderBudgetError):
+            async with shared_provider_slot(model,[],{},1,client=cache.client,limit=5000):pytest.fail('reconciliation eviction bypass')
+    assert await cache.client.zcard(p+':axis:tpd')==1
