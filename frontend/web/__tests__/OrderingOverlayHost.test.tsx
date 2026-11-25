@@ -31,9 +31,9 @@ it('keeps site chrome and content available after closing',()=>{
  expect(view.container.querySelector('header')!.parentElement).not.toHaveAttribute('hidden');
 });
 it('does not tile full-page color gradients and pauses hidden canvas work',()=>{
- const css=fs.readFileSync('app/globals.css','utf8');
+ const css=fs.readFileSync('src/app/globals.css','utf8');
  expect(css).toContain('background-repeat: no-repeat,no-repeat,repeat');
- const home=fs.readFileSync('app/(main)/_components/LandingClient.tsx','utf8');
+ const home=fs.readFileSync('src/app/(main)/_components/LandingClient.tsx','utf8');
  expect(home).toContain('if (orderingOpen) return;');
  expect(home).toContain('[prefersReducedMotion, orderingOpen]');
 });

@@ -23,7 +23,7 @@ it('known demo templates without approved photo use neutral art, not unverified 
  expect(screen.getByText(/DEMO ILLUSTRATION/)).toBeInTheDocument();
 });
 it('all required catalog surfaces carry image identity and visible attribution',()=>{
- for(const path of ['app/(main)/products/page.tsx','components/products/ProductCard.tsx','components/products/ProductDetailsCard.tsx','components/ai/AIChatOverlay.tsx']){
+ for(const path of ['src/app/(main)/products/page.tsx','src/components/products/ProductCard.tsx','src/components/products/ProductDetailsCard.tsx','src/components/ai/AIChatOverlay.tsx']){
   const source=fs.readFileSync(path,'utf8');expect(source).toContain('product={product}');expect(source).toContain('DemoImageAttribution');
  }
 });

@@ -6,7 +6,7 @@ from app.services.ai_nlu_service import MatrixConfig
 
 def test_opening_http_budget_outlasts_backend_matrix_without_changing_cart_budget():
     root=Path(__file__).resolve().parents[3]
-    source=(root/'frontend/web/hooks/useAIOrderingStore.ts').read_text()
+    source=(root/'frontend/web/src/hooks/useAIOrderingStore.ts').read_text()
     match=re.search(r"path === '/session/suggestions' \? (\d+) : (\d+)",source)
     assert match, 'Opening needs an explicit separate bounded HTTP deadline'
     opening,cart=map(int,match.groups())

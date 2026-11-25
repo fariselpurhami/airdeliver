@@ -1,0 +1,515 @@
+{
+  "baseline": "06428b5751673b4a5f1fed213c1a0b7c82af7b44",
+  "files": [
+    {
+      "previous_path": "frontend/web/app/(admin)/dashboard/fulfillment/page.tsx",
+      "canonical_path": "frontend/web/src/app/(admin)/dashboard/fulfillment/page.tsx",
+      "sha256": "87828a697d1465fbefa0dd3005ac7cc1fcd6d03fc453c86600cb665c0efa74f4"
+    },
+    {
+      "previous_path": "frontend/web/app/(admin)/dashboard/page.tsx",
+      "canonical_path": "frontend/web/src/app/(admin)/dashboard/page.tsx",
+      "sha256": "b6468915891d38ddded6b3c0879f36f99bec429c2da1e293620d25a6a2ebf4ca"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/_components/LandingClient.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/_components/LandingClient.tsx",
+      "sha256": "d0ffdf171c4058b0966b6e4fa0ddc68bd9cd4667a42dfd81ec478bd80217c7b8"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/about/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/about/page.tsx",
+      "sha256": "77d42f861ea18adee1cfd73e0dffea4f0ee50a69c0dc7c33569ad60f48dcf9c6"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/cart/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/cart/page.tsx",
+      "sha256": "e8942b3b06b2cda4f7d6fdac3c508b2bdbfab3d7e4b08049cf9c08eb3fb0ac61"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/checkout/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/checkout/page.tsx",
+      "sha256": "6d5b82f3bba8629b551e35f98ed7ef187f7e86022565d7cd6fec656fca1d1e7c"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/checkout/paypal/cancel/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/checkout/paypal/cancel/page.tsx",
+      "sha256": "8cd12cf7e7405026205d6a281a3ed679b6f3f8e5911aca95ea5eea38b3003bc0"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/checkout/paypal/return/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/checkout/paypal/return/page.tsx",
+      "sha256": "f25a0f3f61a89cc0e03c206f1d485a6a93c63b1545ae51deb086a465596aa4e7"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/layout.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/layout.tsx",
+      "sha256": "4fa3aba0ef01c25a2ae060ef75c6ef1e5220b00e0ac974d606c58e76cfda39c9"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/login/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/login/page.tsx",
+      "sha256": "434e55fce6252d03c963108066b9d232855d7a7027555ad565268cd82ad83f95"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/notifications/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/notifications/page.tsx",
+      "sha256": "b06c52af1c964d424600ecf29d8e96076b122fbc8951f89d3a80280c0b16b5fd"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/page.tsx",
+      "sha256": "b2e6230918c5f7a041d63b54d87b2d6b4a622cdd67d7f1a101ac6ef689bef8ac"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/products/layout.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/products/layout.tsx",
+      "sha256": "fa571f6afc1aa55258b0a0666e0c5c2224cb6fb4a7e1d77637e9cc3ae71be511"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/products/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/products/page.tsx",
+      "sha256": "435d61502fae9e66c375f4b9fe3aa7e6a7c3e591269a74dbbe59c94bcd80c343"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/profile/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/profile/page.tsx",
+      "sha256": "ccbb18a45673ab02f91af14b9bf7cd34f5bfb0b80cc312942a0f9baa402fa3b3"
+    },
+    {
+      "previous_path": "frontend/web/app/(main)/tracking/[orderId]/page.tsx",
+      "canonical_path": "frontend/web/src/app/(main)/tracking/[orderId]/page.tsx",
+      "sha256": "2a7e96ee5486115494aea6364c622b6d77878b600508ea8d476066f5b5d549db"
+    },
+    {
+      "previous_path": "frontend/web/app/admin/AnalyticsCharts.tsx",
+      "canonical_path": "frontend/web/src/app/admin/AnalyticsCharts.tsx",
+      "sha256": "0a2b62fbb4d9810e6b957f6127441c6af59c1c3fe11792b5563953c2c2834053"
+    },
+    {
+      "previous_path": "frontend/web/app/api/auth/[...nextauth]/route.ts",
+      "canonical_path": "frontend/web/src/app/api/auth/[...nextauth]/route.ts",
+      "sha256": "9b4a5be4b2f70c402e8471bb776d05eca657f3c32ffe7430372f8e9348eeb9f2"
+    },
+    {
+      "previous_path": "frontend/web/app/globals.css",
+      "canonical_path": "frontend/web/src/app/globals.css",
+      "sha256": "c10a0ac252fcc090199456e9e479708a06fd494b3a862298b674e16cb6090193"
+    },
+    {
+      "previous_path": "frontend/web/app/help/page.tsx",
+      "canonical_path": "frontend/web/src/app/help/page.tsx",
+      "sha256": "70499e517a754ef92593bd84a727e04daf4e6acafeb2d34b417882443f17d4f9"
+    },
+    {
+      "previous_path": "frontend/web/app/layout.tsx",
+      "canonical_path": "frontend/web/src/app/layout.tsx",
+      "sha256": "0bd6528ce0b55281ec1766d2b60f7490bd295d7201bb285a7219c1ea0d229ac2"
+    },
+    {
+      "previous_path": "frontend/web/app/legal/layout.tsx",
+      "canonical_path": "frontend/web/src/app/legal/layout.tsx",
+      "sha256": "404dc78aad337574671c09ebb477d97d7dc096baf148e9c0d66545c394a8e9f3"
+    },
+    {
+      "previous_path": "frontend/web/app/legal/privacy-policy/page.tsx",
+      "canonical_path": "frontend/web/src/app/legal/privacy-policy/page.tsx",
+      "sha256": "d4265b5d2ceb497595d6d57c8bd43acdd374f1dd325aaf4ca7afdd71e25879d1"
+    },
+    {
+      "previous_path": "frontend/web/app/legal/terms-of-service/page.tsx",
+      "canonical_path": "frontend/web/src/app/legal/terms-of-service/page.tsx",
+      "sha256": "cfb48c3f1e5611e26bc4777031cfe57c7a378334fac172a47b2b2065b7227a9a"
+    },
+    {
+      "previous_path": "frontend/web/auth.ts",
+      "canonical_path": "frontend/web/src/auth.ts",
+      "sha256": "41d49c8ca3d35c86569bb000d416e07da5ac30ba80afe65ca32ee50358d8feb1"
+    },
+    {
+      "previous_path": "frontend/web/components/ClientOnly.tsx",
+      "canonical_path": "frontend/web/src/components/ClientOnly.tsx",
+      "sha256": "665d6db7b3e22b87258782f5d6bc25a7b364057e2404247dc9ca90b99ff18cc0"
+    },
+    {
+      "previous_path": "frontend/web/components/admin/AnalyticsCharts.tsx",
+      "canonical_path": "frontend/web/src/components/admin/AnalyticsCharts.tsx",
+      "sha256": "d4c0c5a14be0efd629e9fc777d239c6e228d9cfee3fa1580321511fcc231f84a"
+    },
+    {
+      "previous_path": "frontend/web/components/admin/PaymentMetricsPanel.tsx",
+      "canonical_path": "frontend/web/src/components/admin/PaymentMetricsPanel.tsx",
+      "sha256": "da48c5de786a16349d13135d2761a054612c350b638380124d583a3445d77fd1"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/AIChatOverlay.tsx",
+      "canonical_path": "frontend/web/src/components/ai/AIChatOverlay.tsx",
+      "sha256": "36aba3dd09c59fb678abbdf79f223dc37916f6d701f54cb4085586a5b26b0fa1"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/AIOrderingBar.tsx",
+      "canonical_path": "frontend/web/src/components/ai/AIOrderingBar.tsx",
+      "sha256": "74d32e58cf87eff67e5a82f95d4a6d898b132f027fd36171bb9913af898ff64a"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/AIPaymentForm.tsx",
+      "canonical_path": "frontend/web/src/components/ai/AIPaymentForm.tsx",
+      "sha256": "040d67d48138abeac04b60cf9dfc7f6f72aea2011246f3e3217298c4dae98a51"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/AISupportButton.tsx",
+      "canonical_path": "frontend/web/src/components/ai/AISupportButton.tsx",
+      "sha256": "ea4ecb20451fafd5508e09d07b770938753de7052a094223148406ba07ec4fe6"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/AIVoiceOverlay.tsx",
+      "canonical_path": "frontend/web/src/components/ai/AIVoiceOverlay.tsx",
+      "sha256": "f68d8c2a7f0107f6260ea308dfad36c83d536bd860a7b8aead942871152e1c29"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/AssistantAction.tsx",
+      "canonical_path": "frontend/web/src/components/ai/AssistantAction.tsx",
+      "sha256": "8396180c9cbec0747678bdaa27a4a5e009b92c8a433fb11a0a873a36085d0bde"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/AssistantStatus.tsx",
+      "canonical_path": "frontend/web/src/components/ai/AssistantStatus.tsx",
+      "sha256": "bb7ff0a88f2375abb4114543a489f9ccf270a8a0ef43ddfd6e969b84422e2db5"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/CartLifecycleReview.tsx",
+      "canonical_path": "frontend/web/src/components/ai/CartLifecycleReview.tsx",
+      "sha256": "839c44aa9deb9ef897f7d2451f6b7873aa3dbc4be6dc84f66da36c2ebc29e310"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/CatalogEvidence.tsx",
+      "canonical_path": "frontend/web/src/components/ai/CatalogEvidence.tsx",
+      "sha256": "20a7bd2e74efeac1a1d5a027a84ac87f6317c491109f6bd99ce6b1f2d6393d18"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/CatalogPrice.tsx",
+      "canonical_path": "frontend/web/src/components/ai/CatalogPrice.tsx",
+      "sha256": "75f49a84f48ffee51799b6fd386d99ebd0e58b5b78987855ad161bdf6644c484"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/Chatbot.tsx",
+      "canonical_path": "frontend/web/src/components/ai/Chatbot.tsx",
+      "sha256": "86b4db7b8039b1f21a28fb41e544865a0aff7fdb4d20c32824f982f8b11fbcf2"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/CinematicLoader.tsx",
+      "canonical_path": "frontend/web/src/components/ai/CinematicLoader.tsx",
+      "sha256": "61ec7f0ac03fc5fb1c2bdc89f3567049c551260c4f0f735f271fe784e723fdf1"
+    },
+    {
+      "previous_path": "frontend/web/components/ai/OrderingOverlayHostContext.ts",
+      "canonical_path": "frontend/web/src/components/ai/OrderingOverlayHostContext.ts",
+      "sha256": "ee54e7e1e425aa80d3b1aa622be7c9992418f4f000d8598bcfd7d9638579caaa"
+    },
+    {
+      "previous_path": "frontend/web/components/checkout/CheckoutForm.tsx",
+      "canonical_path": "frontend/web/src/components/checkout/CheckoutForm.tsx",
+      "sha256": "47bde2b95c4249ed004f83328e8fecfa26425c668b941cf8edb95b1ff617559d"
+    },
+    {
+      "previous_path": "frontend/web/components/checkout/CheckoutStart.tsx",
+      "canonical_path": "frontend/web/src/components/checkout/CheckoutStart.tsx",
+      "sha256": "825f6e044186103676211eec36c78679d2fb6ffe159dfaeefe3d03bba647b7b7"
+    },
+    {
+      "previous_path": "frontend/web/components/checkout/PayPalApproval.tsx",
+      "canonical_path": "frontend/web/src/components/checkout/PayPalApproval.tsx",
+      "sha256": "0ac26f00b0c0935052ce2a5310d37965a5b8449c8ab184292398804b9ef4e4c4"
+    },
+    {
+      "previous_path": "frontend/web/components/checkout/ShippingAddressForm.tsx",
+      "canonical_path": "frontend/web/src/components/checkout/ShippingAddressForm.tsx",
+      "sha256": "6a854dfac4228529d1ebe93721aa48fcfc7ccffa5a512e145553ddb051b85519"
+    },
+    {
+      "previous_path": "frontend/web/components/hero/AISecuredOrdersBadge.tsx",
+      "canonical_path": "frontend/web/src/components/hero/AISecuredOrdersBadge.tsx",
+      "sha256": "05f4c1d80e3a6416517f73953394cf7f58a3cde6a981a3f3c6f968709b21eeaa"
+    },
+    {
+      "previous_path": "frontend/web/components/hero/FloatingHeroCards.tsx",
+      "canonical_path": "frontend/web/src/components/hero/FloatingHeroCards.tsx",
+      "sha256": "c404adabe0f9451880994375e6f743843466f289a13f9cf5fda53e91f999c3c1"
+    },
+    {
+      "previous_path": "frontend/web/components/hero/MobileHomeFloatingCards.tsx",
+      "canonical_path": "frontend/web/src/components/hero/MobileHomeFloatingCards.tsx",
+      "sha256": "f244045cc64eb0dae428f4eec9df49b261bfbfde1ba8b24e865ba34d932291da"
+    },
+    {
+      "previous_path": "frontend/web/components/home/MobileLandingView.tsx",
+      "canonical_path": "frontend/web/src/components/home/MobileLandingView.tsx",
+      "sha256": "1c491183354b0209bf303a500fcc288d6e59c27c619b10fb9ca8a9527ae8cea2"
+    },
+    {
+      "previous_path": "frontend/web/components/home/TestimonialCarousel.tsx",
+      "canonical_path": "frontend/web/src/components/home/TestimonialCarousel.tsx",
+      "sha256": "e8f44d54b1c9b3f22a02d10229535f87f92901e274264cac9d4f3ce326b10f51"
+    },
+    {
+      "previous_path": "frontend/web/components/layout/AppShell.tsx",
+      "canonical_path": "frontend/web/src/components/layout/AppShell.tsx",
+      "sha256": "d72d182f1af0e14a1789cdff21b85b892c7a0298fbc8999579dabf2885d18182"
+    },
+    {
+      "previous_path": "frontend/web/components/layout/Footer.tsx",
+      "canonical_path": "frontend/web/src/components/layout/Footer.tsx",
+      "sha256": "b6148604bc8a6bd3eba127a8e526b4e016d4e0b42222a4df0999b947d98c6697"
+    },
+    {
+      "previous_path": "frontend/web/components/layout/Header.tsx",
+      "canonical_path": "frontend/web/src/components/layout/Header.tsx",
+      "sha256": "0a8f74f339a1b18f1d3104c741a5a5985e438d6a47c3a2ee3acaa19abd2988c8"
+    },
+    {
+      "previous_path": "frontend/web/components/layout/PWAGuard.tsx",
+      "canonical_path": "frontend/web/src/components/layout/PWAGuard.tsx",
+      "sha256": "0aaacce2415fde04045256ddef7050b2f0a8cba6d9150e452b27927aa5fdad34"
+    },
+    {
+      "previous_path": "frontend/web/components/layout/ViewportEnforcer.tsx",
+      "canonical_path": "frontend/web/src/components/layout/ViewportEnforcer.tsx",
+      "sha256": "634dd1f5750a7f64ca1f576654f04e3286a791554fb53a950b21f35df2583d69"
+    },
+    {
+      "previous_path": "frontend/web/components/notifications/CinematicEmptyState.tsx",
+      "canonical_path": "frontend/web/src/components/notifications/CinematicEmptyState.tsx",
+      "sha256": "41f5afc4b8cd1f7e074c8876baccf81c834a5f8d1ebbbe97e3e12cfb8321bee1"
+    },
+    {
+      "previous_path": "frontend/web/components/notifications/ControlBar.tsx",
+      "canonical_path": "frontend/web/src/components/notifications/ControlBar.tsx",
+      "sha256": "f0d4023217bab1dad16a38a2541cb3240eb0c0b0b5caef7a2e810eee1267dee9"
+    },
+    {
+      "previous_path": "frontend/web/components/notifications/FocusPanel.tsx",
+      "canonical_path": "frontend/web/src/components/notifications/FocusPanel.tsx",
+      "sha256": "450474d9dad45a0e7d9f52067e4535ef89a8146dfb1f1a0a347e59d7de6f0fa8"
+    },
+    {
+      "previous_path": "frontend/web/components/notifications/NotificationItem.tsx",
+      "canonical_path": "frontend/web/src/components/notifications/NotificationItem.tsx",
+      "sha256": "76a9e370b376d3cdbb409672b30a5418ed3ab9503dea6e0fb9cc7167c74d3eb4"
+    },
+    {
+      "previous_path": "frontend/web/components/notifications/UndoToast.tsx",
+      "canonical_path": "frontend/web/src/components/notifications/UndoToast.tsx",
+      "sha256": "913209f4cc8455e570ceb82adecffbff161c11f73e4cb0843017882095653f00"
+    },
+    {
+      "previous_path": "frontend/web/components/products/CatalogImage.tsx",
+      "canonical_path": "frontend/web/src/components/products/CatalogImage.tsx",
+      "sha256": "9c706a264157472d340c336321c3e8d4f4bd1bb3234ef5077fa6dd5ec3d2994c"
+    },
+    {
+      "previous_path": "frontend/web/components/products/DemoImageAttribution.tsx",
+      "canonical_path": "frontend/web/src/components/products/DemoImageAttribution.tsx",
+      "sha256": "a9220edb8fc9cc66acc383949bd506ca9c5057985ac21ca148893976ad30f64d"
+    },
+    {
+      "previous_path": "frontend/web/components/products/DemoImageReview.tsx",
+      "canonical_path": "frontend/web/src/components/products/DemoImageReview.tsx",
+      "sha256": "144eb54f173f1f48bf5582f53c6205e722dc9b7f7e4373b34a5a2a08cc3760e3"
+    },
+    {
+      "previous_path": "frontend/web/components/products/ProductCard.tsx",
+      "canonical_path": "frontend/web/src/components/products/ProductCard.tsx",
+      "sha256": "114a949fe9ca7e829f430d9d02adc4a7ccb72b59ad3ecb416a91b050783807a1"
+    },
+    {
+      "previous_path": "frontend/web/components/products/ProductDetailsCard.tsx",
+      "canonical_path": "frontend/web/src/components/products/ProductDetailsCard.tsx",
+      "sha256": "30f0a0f3a1ec53a46f43f71b2e70d4e45eaa6c921f23b5bd27af701ab73b8f63"
+    },
+    {
+      "previous_path": "frontend/web/components/products/ProductList.tsx",
+      "canonical_path": "frontend/web/src/components/products/ProductList.tsx",
+      "sha256": "4afaa6fbe051850b2f365a72773cd3afd7e7b2db54f1561c13316e18aa1212cc"
+    },
+    {
+      "previous_path": "frontend/web/components/products/ProductOverlay.tsx",
+      "canonical_path": "frontend/web/src/components/products/ProductOverlay.tsx",
+      "sha256": "b9d8a2cb41a1d241cdd202c2fe79daa51448fc248c30f9b9e522a4b4bfe9cb1b"
+    },
+    {
+      "previous_path": "frontend/web/components/profile/CustomerMemoryControls.tsx",
+      "canonical_path": "frontend/web/src/components/profile/CustomerMemoryControls.tsx",
+      "sha256": "65f7a9547b5ed2456d432c93908f57ca3703bb44a04d7dd964e64ef10aec029e"
+    },
+    {
+      "previous_path": "frontend/web/components/profile/EditProfileModal.tsx",
+      "canonical_path": "frontend/web/src/components/profile/EditProfileModal.tsx",
+      "sha256": "08af4b65aa016dd107b8c7fa73b7e85843199e9beacb7d382eb4d6d2be0cc903"
+    },
+    {
+      "previous_path": "frontend/web/components/profile/ProfileModals.tsx",
+      "canonical_path": "frontend/web/src/components/profile/ProfileModals.tsx",
+      "sha256": "5398e26d09080809b86b8c0284c08d38a3e96674dc94df45d422f8a74069f24b"
+    },
+    {
+      "previous_path": "frontend/web/components/pwa/IOSInstallPrompt.tsx",
+      "canonical_path": "frontend/web/src/components/pwa/IOSInstallPrompt.tsx",
+      "sha256": "ca7c87253870bf8bd4001cf2fcfb27dfc3fbd1424ec321814638f16f75c23d25"
+    },
+    {
+      "previous_path": "frontend/web/components/ui/Button.tsx",
+      "canonical_path": "frontend/web/src/components/ui/Button.tsx",
+      "sha256": "3a1d06f1805f8dc8d962a69030238e6038dbabe07c2574c2b2e1b46ff2691e86"
+    },
+    {
+      "previous_path": "frontend/web/components/ui/CinematicBackground.tsx",
+      "canonical_path": "frontend/web/src/components/ui/CinematicBackground.tsx",
+      "sha256": "07903023e991dd71ec248992ed180d6cfeae1c823fbfba3486fdcd808e9dd405"
+    },
+    {
+      "previous_path": "frontend/web/components/ui/ThemeToggle.tsx",
+      "canonical_path": "frontend/web/src/components/ui/ThemeToggle.tsx",
+      "sha256": "a2e217288f701fef861db800f182df2cc08f1a8a379d1a65cb23bf72e8cf2d12"
+    },
+    {
+      "previous_path": "frontend/web/components/ui/input.tsx",
+      "canonical_path": "frontend/web/src/components/ui/input.tsx",
+      "sha256": "6299a6a387dc55e528aec4342deaea0b83f1ea3a365c135a31a18ee55334f441"
+    },
+    {
+      "previous_path": "frontend/web/hooks/useAIOrderingStore.ts",
+      "canonical_path": "frontend/web/src/hooks/useAIOrderingStore.ts",
+      "sha256": "0b4535cf86b285fe735c3e8bdf3d4932312645f6dda21c0302914538f46db02c"
+    },
+    {
+      "previous_path": "frontend/web/hooks/useAISupportStore.ts",
+      "canonical_path": "frontend/web/src/hooks/useAISupportStore.ts",
+      "sha256": "07bc301a13a1ffc87174c092f074aec3091dc473b37117918e172b59b7ed90d7"
+    },
+    {
+      "previous_path": "frontend/web/hooks/useBodyScrollLock.ts",
+      "canonical_path": "frontend/web/src/hooks/useBodyScrollLock.ts",
+      "sha256": "515580c9cea3b4b7ba30ba467e3b0763c25159ef1936261c61daa661f4b5e6ee"
+    },
+    {
+      "previous_path": "frontend/web/hooks/useCartStore.ts",
+      "canonical_path": "frontend/web/src/hooks/useCartStore.ts",
+      "sha256": "cf3d49209168d424bd8d3d72c216a9263680d700ea4bc9a607260f5201e6fe22"
+    },
+    {
+      "previous_path": "frontend/web/hooks/usePWAInstall.ts",
+      "canonical_path": "frontend/web/src/hooks/usePWAInstall.ts",
+      "sha256": "d50a6b3cda4ee29449a17002d0a1ffec790b019691a6db69c61910cf9f2a0b0d"
+    },
+    {
+      "previous_path": "frontend/web/hooks/useSpeech.ts",
+      "canonical_path": "frontend/web/src/hooks/useSpeech.ts",
+      "sha256": "c32348fa996a1165fe789ce2e97748ceb82279edae421a0fbab70b7dc58216e5"
+    },
+    {
+      "previous_path": "frontend/web/hooks/useUIStore.ts",
+      "canonical_path": "frontend/web/src/hooks/useUIStore.ts",
+      "sha256": "28fa7ff8e8812e5ccbacf7b21f80b68ab376b134f4b049ef6fbd15608d980599"
+    },
+    {
+      "previous_path": "frontend/web/lib/api.ts",
+      "canonical_path": "frontend/web/src/lib/api.ts",
+      "sha256": "2838deb9d23c1422c08ab41a3edc85b88e671eb6915893febb1e7c7ee629dafe"
+    },
+    {
+      "previous_path": "frontend/web/lib/auth-flow.ts",
+      "canonical_path": "frontend/web/src/lib/auth-flow.ts",
+      "sha256": "aa6f1722606e7616a76e7c7246d094deb87a08af431a6bedfbce7197f44417db"
+    },
+    {
+      "previous_path": "frontend/web/lib/cart-snapshot.ts",
+      "canonical_path": "frontend/web/src/lib/cart-snapshot.ts",
+      "sha256": "1c008d65265cd33e8b4377dea30511f4c3123a2bae3116cbf806c42be273e3c0"
+    },
+    {
+      "previous_path": "frontend/web/lib/catalog/demo-images.json",
+      "canonical_path": "frontend/web/src/lib/catalog/demo-images.json",
+      "sha256": "b53b2cc47b3d0b6b48b96eb57fe5c2d51410fd260ed6d2ccb9df472297f760ed"
+    },
+    {
+      "previous_path": "frontend/web/lib/catalog/demoImages.ts",
+      "canonical_path": "frontend/web/src/lib/catalog/demoImages.ts",
+      "sha256": "b8f22dc68cb40cf1c4e60d3a82ade30d0a50ff5b17fddb52875a237095e551c9"
+    },
+    {
+      "previous_path": "frontend/web/lib/checkout-request.ts",
+      "canonical_path": "frontend/web/src/lib/checkout-request.ts",
+      "sha256": "08384e2c876693efb0903af9fbcc031edb0838db174e603a8499c9929643748d"
+    },
+    {
+      "previous_path": "frontend/web/lib/commerce.ts",
+      "canonical_path": "frontend/web/src/lib/commerce.ts",
+      "sha256": "750c0e483cd2b10be53ae0be65c7754830e290f2218d0eabbcfda80092392372"
+    },
+    {
+      "previous_path": "frontend/web/lib/fetcher.ts",
+      "canonical_path": "frontend/web/src/lib/fetcher.ts",
+      "sha256": "34e12fccbd4f0b185d9e20db6556d366a758e42c993cf1b41533e163653303ac"
+    },
+    {
+      "previous_path": "frontend/web/lib/order-display.ts",
+      "canonical_path": "frontend/web/src/lib/order-display.ts",
+      "sha256": "6f05f4bbd5e6de33e402671a8197fb957a03e169963373f1f1cf044ac1482da6"
+    },
+    {
+      "previous_path": "frontend/web/lib/providers.tsx",
+      "canonical_path": "frontend/web/src/lib/providers.tsx",
+      "sha256": "eb881242599ac3c385901e6da6d4ad2756639bedd295ce8c97da6f673df8a43d"
+    },
+    {
+      "previous_path": "frontend/web/lib/push-notifications.ts",
+      "canonical_path": "frontend/web/src/lib/push-notifications.ts",
+      "sha256": "2792f209307efdb569fbdaa132cdf95789d06103c6dd89fa76c8484f2573c642"
+    },
+    {
+      "previous_path": "frontend/web/lib/random-id.ts",
+      "canonical_path": "frontend/web/src/lib/random-id.ts",
+      "sha256": "99df9c1d1ae497a1810deab57c3251fc5aa0b47df67959dae398ebdae85ba4e0"
+    },
+    {
+      "previous_path": "frontend/web/lib/support-catalog-reply.ts",
+      "canonical_path": "frontend/web/src/lib/support-catalog-reply.ts",
+      "sha256": "8f904f9771dbf84bd8aab5568b8acba4b9d5dd423783a49c69f47f7e3b751164"
+    },
+    {
+      "previous_path": "frontend/web/lib/utils.ts",
+      "canonical_path": "frontend/web/src/lib/utils.ts",
+      "sha256": "7c8c3dfc0cdd370d44932828eb067ef771c8fe7996693221d5d4b90af6d54f2d"
+    },
+    {
+      "previous_path": "frontend/web/proxy.ts",
+      "canonical_path": "frontend/web/src/proxy.ts",
+      "sha256": "8327c98391bdec857dcbd8a3836fec849532760175500c44edd706d72b3aa5ed"
+    },
+    {
+      "previous_path": "frontend/web/types/framer-motion.d.ts",
+      "canonical_path": "frontend/web/src/types/framer-motion.d.ts",
+      "sha256": "6d70d5c4ad36174b1947ec4d3c52f05c7c0c0e67c16256948762d4473f7472cb"
+    },
+    {
+      "previous_path": "frontend/web/types/index.ts",
+      "canonical_path": "frontend/web/src/types/index.ts",
+      "sha256": "fec3cad4f92a91b2eef434e490cf5f721922fd6faa1ed9f0b676d2f5713b112c"
+    },
+    {
+      "previous_path": "frontend/web/types/jest-globals.d.ts",
+      "canonical_path": "frontend/web/src/types/jest-globals.d.ts",
+      "sha256": "154625058641121925d5ad2caa05bc46c8b9f148a6ea00e9f78a3d92c85ee90c"
+    },
+    {
+      "previous_path": "frontend/web/types/next-auth.d.ts",
+      "canonical_path": "frontend/web/src/types/next-auth.d.ts",
+      "sha256": "194bfe1d01f0310631573cc28dcb8a6438903753bd7788748c6020dc323ebbb7"
+    },
+    {
+      "previous_path": "frontend/web/types/ui-contracts.ts",
+      "canonical_path": "frontend/web/src/types/ui-contracts.ts",
+      "sha256": "7720fd2fc3003e441b25c7e04119f3b5928330ee4f2c815f7c8eeba466039955"
+    }
+  ]
+}

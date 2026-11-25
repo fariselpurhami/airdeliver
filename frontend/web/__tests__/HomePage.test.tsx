@@ -8,7 +8,7 @@ import fs from 'fs';
 import type * as JestGlobals from '@jest/globals';
 import '@testing-library/jest-dom/jest-globals';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { LandingClient } from '../app/(main)/_components/LandingClient';
+import { LandingClient } from '../src/app/(main)/_components/LandingClient';
 import { useAIOrderingStore } from '@/hooks/useAIOrderingStore';
 import { useUIStore } from '@/hooks/useUIStore';
 

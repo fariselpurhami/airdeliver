@@ -26,7 +26,7 @@ for(const parent of ['jest-runtime','jest-config','@jest/reporters','test-exclud
 }
 const {minimatch}=dependency('test-exclude','minimatch');
 assert.equal(minimatch('components/Card.tsx','**/*.tsx',{dot:true}),true);
-const TestExclude=require(packageEntry('test-exclude'));const exclude=new TestExclude({cwd:path.join(__dirname,'..'),include:['components/**/*.tsx'],exclude:['**/node_modules/**']});
-assert.equal(exclude.shouldInstrument(path.join(__dirname,'..','components','products','ProductCard.tsx')),true);
+const TestExclude=require(packageEntry('test-exclude'));const exclude=new TestExclude({cwd:path.join(__dirname,'..'),include:['src/components/**/*.tsx'],exclude:['**/node_modules/**']});
+assert.equal(exclude.shouldInstrument(path.join(__dirname,'..','src','components','products','ProductCard.tsx')),true);
 assert.ok(exclude.globSync().some(p=>p.includes('ProductCard.tsx')));
 exclude.glob().then(files=>{assert.ok(files.some(p=>p.includes('ProductCard.tsx')));console.log('Scoped dependency API contracts passed');}).catch(error=>{console.error(error);process.exitCode=1;});

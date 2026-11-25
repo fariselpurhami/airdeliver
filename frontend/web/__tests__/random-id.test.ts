@@ -18,7 +18,7 @@ it('fails closed when no cryptographic entropy exists',()=>{
  Object.defineProperty(globalThis,'crypto',{value:undefined,configurable:true});expect(()=>randomId()).toThrow('Secure random');
 });
 it('all application UUID call sites use the shared helper',()=>{
- for(const file of ['app/(main)/_components/LandingClient.tsx','app/(main)/page.tsx','app/layout.tsx','lib/checkout-request.ts','hooks/useAIOrderingStore.ts']){
+ for(const file of ['src/app/(main)/_components/LandingClient.tsx','src/app/(main)/page.tsx','src/app/layout.tsx','src/lib/checkout-request.ts','src/hooks/useAIOrderingStore.ts']){
   const source=fs.readFileSync(file,'utf8');expect(source).not.toContain('crypto.randomUUID');expect(source).toContain('randomId');
  }
 });
