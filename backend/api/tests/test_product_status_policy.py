@@ -52,3 +52,12 @@ def test_no_evidence_shape_can_claim_global_nonexistence():
 
 def test_unverified_source_cannot_self_upgrade_with_official_looking_url():
     assert resolve([change(official_binding=False,source_url='https://maker.example/official-release')]).state=='unverified'
+
+
+def test_future_discontinuation_notice_is_not_currently_discontinued():
+ result=resolve([change(assertion='discontinued',effective_at=NOW+timedelta(days=1))])
+ assert result.state=='scheduled_discontinuation'
+
+
+def test_future_announced_effective_instant_cannot_prove_current_announcement():
+ assert resolve([change(assertion='announced',effective_at=NOW+timedelta(days=1))]).state=='unverified'

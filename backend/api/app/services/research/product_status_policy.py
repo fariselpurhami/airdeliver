@@ -58,7 +58,9 @@ def resolve_status(model_key,evidence,*,now,region,max_age):
     for row in rows:
         if row.assertion=='scheduled_release':
             state='scheduled' if row.effective_at>now else 'schedule_elapsed_unconfirmed'
-        elif row.assertion=='released' and row.effective_at>now:
+        elif row.assertion=='discontinued' and row.effective_at>now:
+            state='scheduled_discontinuation'
+        elif row.assertion in {'released','announced'} and row.effective_at>now:
             state='unverified'
         else:state=row.assertion
         statuses.add((state,row.effective_at))
@@ -66,6 +68,6 @@ def resolve_status(model_key,evidence,*,now,region,max_age):
     # Different effective dates matter for schedules, not independent reports of
     # an already confirmed release. No inferred nonexistence state is possible.
     states={s for s,_ in statuses}
-    if len(states)>1 or ('scheduled' in states and len(statuses)>1):return ProductStatus('conflicting',sources)
+    if len(states)>1 or (states & {'scheduled','scheduled_discontinuation'} and len(statuses)>1):return ProductStatus('conflicting',sources)
     state=next(iter(states));effective=min(r.effective_at for r in rows)
     return ProductStatus(state,sources,effective)
