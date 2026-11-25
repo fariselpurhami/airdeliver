@@ -167,7 +167,7 @@ const StatCard = ({ title, value, icon: Icon, color = "cyan", delay = 0 }: any) 
 
         <div className="relative z-10">
             <h3 className="text-3xl font-black text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                {typeof value === 'number' ? <AnimatedCounter value={value} /> : value}
+                {typeof value === 'number' ? Intl.NumberFormat('en-US').format(value) : value}
             </h3>
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{title}</p>
         </div>
