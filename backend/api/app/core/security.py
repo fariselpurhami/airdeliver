@@ -84,7 +84,8 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Opti
 def verify_refresh_token(token: str) -> Optional[Dict[str, Any]]:
     try:
         payload = jwt.decode(
-            token, settings.REFRESH_SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM]
+            token, settings.REFRESH_SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM],
+            options={"require": ["exp", "sub"]}
         )
 
         if payload.get("sub") is None:

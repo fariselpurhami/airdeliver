@@ -123,3 +123,10 @@ async def test_optional_current_user_hides_inactive_user():
     token = security.create_access_token({"sub": "u@example.com"})
     result = await deps.get_optional_current_user(settings=settings, session=FakeSession(user), token=token)
     assert result is None
+
+
+@pytest.mark.parametrize('claims',[{'sub':'user@example.test'},{'exp':4102444800},{'sub':'user@example.test','exp':None}])
+def test_access_requires_expiration_and_subject(claims):
+    import jwt
+    token=jwt.encode(claims,settings.SECRET_KEY.get_secret_value(),algorithm='HS256')
+    with pytest.raises(HTTPException):deps._decode_token_subject(token,settings)

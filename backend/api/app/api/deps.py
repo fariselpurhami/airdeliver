@@ -66,6 +66,7 @@ def _decode_token_subject(token: str, settings: CoreSettings) -> str:
             token,
             _get_secret_key_value(settings),
             algorithms=[security.ALGORITHM],
+            options={"require": ["exp", "sub"]},
         )
         token_data = schemas.TokenPayload(**payload)
     except (JWTError, ValidationError) as exc:

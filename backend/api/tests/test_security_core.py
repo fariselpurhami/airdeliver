@@ -71,3 +71,9 @@ def test_verify_password_supports_legacy_bcrypt():
     legacy = bcrypt.hashpw(b"oldpass", bcrypt.gensalt()).decode()
     assert security.verify_password("oldpass", legacy)
     assert not security.verify_password("nope", legacy)
+
+
+@pytest.mark.parametrize('claims',[{'sub':'user@example.test'},{'exp':4102444800},{'sub':'user@example.test','exp':None}])
+def test_refresh_requires_expiration_and_subject(claims):
+    token=jwt.encode(claims,settings.REFRESH_SECRET_KEY.get_secret_value(),algorithm='HS256')
+    assert security.verify_refresh_token(token) is None
