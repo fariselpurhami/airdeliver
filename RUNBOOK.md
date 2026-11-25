@@ -11,8 +11,8 @@ This guide is intended for developers, DevOps engineers, and operators managing,
 
 ### Core Components
 
-* **`apps/web`** – Next.js frontend for the user-facing eCommerce experience.
-* **`apps/api`** – Primary FastAPI backend managing users, orders, products, payments, and AI order flow.
+* **`frontend/web`** – Next.js frontend for the user-facing eCommerce experience.
+* **`backend/api`** – Primary FastAPI backend managing users, orders, products, payments, and AI order flow.
 * **`infra/`** – Infrastructure-as-code assets, including Kubernetes manifests, monitoring, and Grafana dashboards.
 * **`docs/`** – High-level operational and recovery documentation.
 
@@ -42,7 +42,7 @@ cd airdeliver
 #### 2. Install Frontend Dependencies
 
 ```bash
-cd apps/web
+cd frontend/web
 pnpm install
 cd ../..
 ```
@@ -50,20 +50,20 @@ cd ../..
 #### 3. Install Backend Dependencies
 
 ```bash
-cd apps/api && poetry install && cd ../..
+cd backend/api && poetry install && cd ../..
 ```
 
 #### 4. Configure Environment Variables
 
 Create the necessary environment files for local development:
 
-* **Frontend (`apps/web/.env.local`)**
+* **Frontend (`frontend/web/.env.local`)**
 
   ```
   NEXTAUTH_SECRET=your-secret
   NEXTAUTH_URL=http://localhost:3000
   ```
-* **Backend (`apps/api/.env`)**
+* **Backend (`backend/api/.env`)**
   Preconfigured to work seamlessly with Docker Compose defaults.
 
 #### 5. Run the Full Stack
@@ -88,7 +88,7 @@ docker-compose up --build
 Run the eCommerce API test suite:
 
 ```bash
-cd apps/api
+cd backend/api
 poetry run pytest
 ```
 
@@ -97,7 +97,7 @@ poetry run pytest
 Execute unit and integration tests using Jest and React Testing Library:
 
 ```bash
-cd apps/web
+cd frontend/web
 pnpm test
 ```
 

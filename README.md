@@ -21,8 +21,8 @@
 **airdeliver** is built to orchestrate the entire lifecycle of an order—from cognitive AI-driven user interactions to payment and fulfillment with local partner stores.
 
 The system is decoupled into two primary pillars within a **pnpm Monorepo**:
-1. **The Neural Commerce Engine (`apps/api`):** The AI brain featuring NLU (Natural Language Understanding) and Vector Search (Milvus/PgVector) to process multimodal inputs (Voice, Vision, Text).
-2. **The Immersive Client (`apps/web`):** A Next.js 14 App Router frontend with physics-based animations (Framer Motion) and a cinematic checkout experience.
+1. **The Neural Commerce Engine (`backend/api`):** The AI brain featuring NLU (Natural Language Understanding) and Vector Search (Milvus/PgVector) to process multimodal inputs (Voice, Vision, Text).
+2. **The Immersive Client (`frontend/web`):** A Next.js 14 App Router frontend with physics-based animations (Framer Motion) and a cinematic checkout experience.
 
 ---
 
@@ -95,7 +95,7 @@ cd airdeliver
 pnpm install
 
 # Install backend dependencies
-cd apps/api && poetry install
+cd backend/api && poetry install
 
 ```
 
@@ -103,8 +103,8 @@ cd apps/api && poetry install
 
 Create local environment files. See `docs/` for necessary keys (Stripe, NextAuth, DB URLs).
 
-* Frontend: `apps/web/.env.local`
-* Backend/AI: `apps/api/.env`
+* Frontend: `frontend/web/.env.local`
+* Backend/AI: `backend/api/.env`
 
 ### 3. Ignite the Cluster
 

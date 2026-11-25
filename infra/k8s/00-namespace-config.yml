@@ -1,5 +1,5 @@
 # infra/k8s/00-namespace-config.yml
-# Namespace, shared ConfigMap (non-secret env consumed by apps/api/app/core/config.py),
+# Namespace, shared ConfigMap (non-secret env consumed by backend/api/app/core/config.py),
 # and the Secret template. Replace every CHANGE_ME before applying
 # (or create the secret out-of-band with `kubectl create secret generic airdeliver-secrets ...`).
 
@@ -53,7 +53,7 @@ metadata:
   namespace: airdeliver
 type: Opaque
 stringData:
-  # All keys map 1:1 to the aliases in apps/api/app/core/config.py.
+  # All keys map 1:1 to the aliases in backend/api/app/core/config.py.
   SECRET_KEY: "CHANGE_ME_min_32_chars"
   REFRESH_SECRET_KEY: "CHANGE_ME_min_32_chars"
   INTERNAL_API_TOKEN: "CHANGE_ME"

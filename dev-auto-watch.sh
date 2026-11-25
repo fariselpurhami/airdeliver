@@ -10,12 +10,12 @@ fi
 WATCH_PATHS=(
     "docker-compose.yml"
     "docker-compose.dev.yml"
-    "./apps/web/package.json"
+    "./frontend/web/package.json"
     "./pnpm-lock.yaml"
-    "./apps/web/Dockerfile"
-    "./apps/web/entrypoint.sh"
-    "./apps/api/pyproject.toml"
-    "./apps/api/Dockerfile"
+    "./frontend/web/Dockerfile"
+    "./frontend/web/entrypoint.sh"
+    "./backend/api/pyproject.toml"
+    "./backend/api/Dockerfile"
 )
 
 WATCH_STRING=$(IFS=','; echo "${WATCH_PATHS[*]}")

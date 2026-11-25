@@ -60,7 +60,7 @@ def batches(components):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--lock', default='apps/api/poetry.lock')
+    parser.add_argument('--lock', default='backend/api/poetry.lock')
     parser.add_argument('--output-dir', required=True)
     args = parser.parse_args()
     output = Path(args.output_dir)

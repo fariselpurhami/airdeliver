@@ -1,7 +1,7 @@
 # Key Rotation & Secrets Remediation Runbook
 
-Committed secrets were found in the repository history (`.env`, `apps/api/.env`,
-`apps/web/.env.local`, `secrets/*`). Treat every value in those files as compromised.
+Committed secrets were found in the repository history (`.env`, `backend/api/.env`,
+`frontend/web/.env.local`, `secrets/*`). Treat every value in those files as compromised.
 
 ## Step 1 - Rotate every key at its provider (do these FIRST)
 
@@ -27,7 +27,7 @@ Committed secrets were found in the repository history (`.env`, `apps/api/.env`,
 ## Step 2 - Verify git no longer tracks secret files
 
 ```
-git rm --cached .env apps/api/.env apps/web/.env.local
+git rm --cached .env backend/api/.env frontend/web/.env.local
 git rm -r --cached secrets/
 ```
 
@@ -43,8 +43,8 @@ git clone --mirror <repo-url> airdeliver-mirror
 cd airdeliver-mirror
 git filter-repo --invert-paths \
   --path .env \
-  --path apps/api/.env \
-  --path apps/web/.env.local \
+  --path backend/api/.env \
+  --path frontend/web/.env.local \
   --path secrets
 # then force-push the rewritten mirror back and have every clone re-clone:
 git push --force --all

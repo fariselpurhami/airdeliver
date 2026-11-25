@@ -6,7 +6,7 @@ on:
   push:
     branches: ["main", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api", "hardening/dev-proxy-routes", "hardening/meta-confidence-boundaries", "hardening/feature-assignment-contracts", "hardening/bounded-text-inference", "hardening/notification-results", "hardening/notification-endpoints", "hardening/support-session-isolation", "hardening/support-action-truth", "hardening/support-inference-deadline", "hardening/behavior-offline-training", "hardening/push-subscription-contract", "hardening/ci-search-disk-budget", "hardening/cache-failure-privacy", "hardening/voice-real-transport", "hardening/remove-orphan-drone-compliance", "hardening/voice-command-truth", "hardening/root-entrypoints", "hardening/remove-root-editor-artifacts", "hardening/remove-stale-schema-dumps", "hardening/milvus-schema-diagnostics", "hardening/empty-milvus-rating-repair"]
     paths:
-      - 'apps/api/**'
+      - 'backend/api/**'
       - 'Makefile'
       - 'dev-auto-watch.sh'
       - 'scripts/configure_dev_env.py'
@@ -23,7 +23,7 @@ on:
   pull_request:
     branches: ["main"]
     paths:
-      - 'apps/api/**'
+      - 'backend/api/**'
       - 'Makefile'
       - 'dev-auto-watch.sh'
       - 'scripts/configure_dev_env.py'
@@ -77,14 +77,14 @@ jobs:
         uses: snok/install-poetry@v1
 
       - name: Install dependencies
-        working-directory: apps/api
+        working-directory: backend/api
         run: poetry install
 
       - name: Build PostgreSQL 19 backup and restore image
         run: docker build -t airdeliver-postgres-backup:ci infra/postgres-backup
 
       - name: Migrate PostgreSQL 19 and run tests
-        working-directory: apps/api
+        working-directory: backend/api
         env:
           TEST_PG_BACKUP_IMAGE: airdeliver-postgres-backup:ci
           AIRDELIVER_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
@@ -111,7 +111,7 @@ jobs:
           df -h /
 
       - name: Verify seeder with real search services and learned embeddings
-        working-directory: apps/api
+        working-directory: backend/api
         timeout-minutes: 10
         run: |
           sudo sysctl -w vm.max_map_count=262144

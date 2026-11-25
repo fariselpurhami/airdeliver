@@ -1,0 +1,16 @@
+# frontend/web/.gitignore
+
+.git
+.gitignore
+
+node_modules
+.npm
+
+.next
+dist
+build
+
+.DS_Store
+Thumbs.db
+
+.env*

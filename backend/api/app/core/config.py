@@ -1,0 +1,251 @@
+# backend/api/app/core/config.py
+
+import functools
+import os
+from pathlib import Path
+import urllib.parse
+from typing import List, Literal, Optional
+
+from pydantic import AnyHttpUrl, Field, SecretStr, computed_field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class BaseAppConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings,
+                                   dotenv_settings, file_secret_settings):
+        def mounted_files():
+            values = {}
+            for name, field in settings_cls.model_fields.items():
+                alias = field.alias or name
+                path = os.environ.get(f"{alias}_FILE")
+                if not path:
+                    continue
+                source = Path(path)
+                if source.stat().st_size > 65536:
+                    raise ValueError(f"Mounted setting {alias} exceeds the size limit")
+                value = source.read_text(encoding="utf-8").rstrip("\r\n")
+                if not value:
+                    raise ValueError(f"Mounted setting {alias} is empty")
+                values[alias] = value
+            return values
+        # An explicitly configured mounted secret takes precedence over stale
+        # plaintext environment/.env copies. Missing/empty files fail closed.
+        return init_settings, mounted_files, env_settings, dotenv_settings, file_secret_settings
+
+
+class CoreSettings(BaseAppConfig):
+    APP_ENV: Literal["development", "staging", "production"] = Field("production", alias="APP_ENV")
+    AIRDELIVER_DEV_FIXTURES: bool = False
+
+    @model_validator(mode='after')
+    def fixture_environment(self):
+        if self.AIRDELIVER_DEV_FIXTURES and (self.APP_ENV!='development' or any(os.environ.get(k,'').lower() in {'prod','production','staging'} for k in ('ENVIRONMENT','NODE_ENV','ENV'))):
+            raise ValueError('Dev fixtures are forbidden outside development')
+        return self
+
+    LOG_FORMAT: Literal["json", "text"] = "json"
+    APP_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    MANUAL_FULFILLMENT_ENABLED: bool = False
+    CUSTOMER_MEMORY_ENABLED: bool = False
+    OPENING_PRODUCT_COOLDOWN_SECONDS: int = Field(default=86400, ge=60, le=604800)
+    API_V1_STR: str = "/api/v1"
+    API_BASE_URL: AnyHttpUrl = Field(..., alias="API_BASE_URL")
+    
+    SECRET_KEY: SecretStr = Field(..., alias="SECRET_KEY", min_length=32)
+    REFRESH_SECRET_KEY: SecretStr = Field(..., alias="REFRESH_SECRET_KEY", min_length=32)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(11520, ge=1)
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = Field(10080, ge=1)
+    ALGORITHM: str = Field(..., alias="ALGORITHM")
+    COOKIES_SECURE: bool = Field(default=True, alias="COOKIES_SECURE")
+    
+    INTERNAL_API_TOKEN: SecretStr = Field(..., alias="INTERNAL_API_TOKEN")
+    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = Field(
+        default_factory=lambda: ["http://localhost:3000"],
+        alias="BACKEND_CORS_ORIGINS"
+    )
+
+    POSTGRES_SERVER: str = Field(..., alias="POSTGRES_SERVER")
+    POSTGRES_USER: str = Field(..., alias="POSTGRES_USER")
+    POSTGRES_PASSWORD: SecretStr = Field(..., alias="POSTGRES_PASSWORD")
+    POSTGRES_DB: str = Field(..., alias="POSTGRES_DB")
+    DB_POOL_SIZE: int = Field(default=10, alias="DB_POOL_SIZE", ge=1)
+    DB_MAX_OVERFLOW: int = Field(default=20, alias="DB_MAX_OVERFLOW", ge=0)
+
+    RATE_LIMIT_DEFAULT: str = "100/minute"
+
+    USE_REDIS: bool = Field(default=False, alias="USE_REDIS")
+    REDIS_HOST: str = Field(default="redis", alias="REDIS_HOST")
+    REDIS_PORT: int = Field(default=6379, alias="REDIS_PORT", ge=1, le=65535)
+    REDIS_PASSWORD: Optional[SecretStr] = Field(default=None, alias="REDIS_PASSWORD")
+    REDIS_DB: int = Field(default=0, alias="REDIS_DB", ge=0)
+
+    FIRST_SUPERUSER: str = Field(..., alias="FIRST_SUPERUSER")
+    FIRST_SUPERUSER_PASSWORD: SecretStr = Field(..., alias="FIRST_SUPERUSER_PASSWORD", min_length=8)
+    
+    RABBITMQ_USER: str = Field(..., alias="RABBITMQ_USER")
+    RABBITMQ_PASS: SecretStr = Field(..., alias="RABBITMQ_PASS")
+    RABBITMQ_HOST: str = Field(..., alias="RABBITMQ_HOST")
+    RABBITMQ_PORT: int = Field(5672, alias="RABBITMQ_PORT", ge=1, le=65535)
+    
+    
+    QUEUE_TELEMETRY: str = "api.telemetry.processor"
+    QUEUE_EVENTS: str = "api.events.processor"
+    
+    VAPID_PUBLIC_KEY: str = Field(..., alias="VAPID_PUBLIC_KEY")
+    VAPID_PRIVATE_KEY: SecretStr = Field(..., alias="VAPID_PRIVATE_KEY")
+    
+    AI_CHAT_STATE_TTL_SECONDS: int = Field(900, ge=60)
+    # Local guard only, never upgrades an account or authorizes paid traffic.
+    PROVIDER_CAPACITY_PLAN: Literal['free','developer','custom'] = 'free'
+    PROVIDER_PLAN_TPM_LIMIT: Optional[int] = Field(None,ge=1000,le=1000000)
+    PROVIDER_TPM_HEADROOM_PERCENT: int = Field(10,ge=0,le=50)
+    PROVIDER_TPM_BUDGET: Optional[int] = Field(None,ge=1000,le=1000000)
+    # Optional estimated rates for this configured model family, never billing.
+    PROVIDER_COST_MODEL: Optional[str] = Field(None,max_length=200)
+    PROVIDER_INPUT_MICRO_USD_PER_MILLION: Optional[int] = Field(None,ge=0,le=1000000000)
+    PROVIDER_OUTPUT_MICRO_USD_PER_MILLION: Optional[int] = Field(None,ge=0,le=1000000000)
+    PROVIDER_MAX_ACTIVE_TURNS: int = Field(8,ge=1,le=256)
+    PROVIDER_MAX_QUEUED_TURNS: int = Field(64,ge=1,le=4096)
+    PROVIDER_TURN_QUEUE_SECONDS: float = Field(2.0,gt=0,le=10)
+    PROVIDER_TURN_LEASE_SECONDS: int = Field(120,ge=15,le=300)
+
+    @model_validator(mode='after')
+    def provider_capacity(self):
+        defaults={'free':8000,'developer':250000}
+        limit=self.PROVIDER_PLAN_TPM_LIMIT
+        if limit is None:
+            if self.PROVIDER_CAPACITY_PLAN=='custom':
+                raise ValueError('custom capacity requires PROVIDER_PLAN_TPM_LIMIT')
+            limit=defaults[self.PROVIDER_CAPACITY_PLAN]
+        if self.PROVIDER_CAPACITY_PLAN=='free' and limit>8000:
+            raise ValueError('free capacity cannot exceed8000; select verified plan explicitly')
+        safe=limit*(100-self.PROVIDER_TPM_HEADROOM_PERCENT)//100
+        budget=self.PROVIDER_TPM_BUDGET if self.PROVIDER_TPM_BUDGET is not None else safe
+        if budget>safe or budget<1000:
+            raise ValueError('local TPM budget must fit plan limit with configured headroom')
+        self.PROVIDER_PLAN_TPM_LIMIT=limit
+        self.PROVIDER_TPM_BUDGET=budget
+        return self
+    SEARCH_EMBEDDING_BUDGET_SECONDS: float = Field(1.5, gt=0, le=3, allow_inf_nan=False)
+    TEXT_WARMUP_BUDGET_SECONDS: float = Field(240, gt=0, le=3600, allow_inf_nan=False)
+    TEXT_WARMUP_SAMPLE_MAX_SECONDS: float = Field(5, gt=0, le=25, allow_inf_nan=False)
+    TEXT_STARTUP_BUDGET_SECONDS: float = Field(360, gt=0, le=7200, allow_inf_nan=False)
+    AI_RECOVERY_INTERVAL_SECONDS: float = Field(30, ge=1, le=600, allow_inf_nan=False)
+    EMBEDDING_MODEL_PATH: str = Field("all-MiniLM-L6-v2", alias="EMBEDDING_MODEL_PATH")
+
+    BEHAVIOR_CHECKPOINT_PATH: Optional[str] = None
+    BEHAVIOR_CHECKPOINT_SHA256: Optional[str] = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
+    PRODUCT_TEXT_MODEL_REVISION: Optional[str] = None
+    PRODUCT_VISION_MODEL_REVISION: Optional[str] = None
+
+    @field_validator("BEHAVIOR_CHECKPOINT_PATH", "BEHAVIOR_CHECKPOINT_SHA256", "PRODUCT_TEXT_MODEL_REVISION", "PRODUCT_VISION_MODEL_REVISION", mode="before")
+    @classmethod
+    def blank_optional_model_settings(cls, value):
+        return None if value == "" else value
+
+    @field_validator("BACKEND_CORS_ORIGINS")
+    @classmethod
+    def require_cors_origins_not_paths(cls, origins):
+        for origin in origins:
+            if (origin.path not in {"", "/", None} or origin.query or origin.fragment
+                    or origin.username or origin.password):
+                raise ValueError("CORS entries must be origins without a path or credentials")
+        return origins
+
+    OPENSEARCH_HOST: str = Field("opensearch", alias="OPENSEARCH_HOST")
+    OPENSEARCH_PORT: int = Field(9200, alias="OPENSEARCH_PORT", ge=1, le=65535)
+    OPENSEARCH_USE_SSL: bool = Field(False, alias="OPENSEARCH_USE_SSL")
+    OPENSEARCH_VERIFY_CERTS: bool = Field(False, alias="OPENSEARCH_VERIFY_CERTS")
+    OPENSEARCH_USER: Optional[str] = Field(default=None, alias="OPENSEARCH_USER")
+    OPENSEARCH_PASS: Optional[SecretStr] = Field(default=None, alias="OPENSEARCH_PASS")
+
+    MILVUS_URI: AnyHttpUrl = Field(default=AnyHttpUrl("http://milvus:19530"), alias="MILVUS_URI")
+    MILVUS_TOKEN: Optional[SecretStr] = Field(default=None, alias="MILVUS_TOKEN")
+
+    @computed_field
+    @property
+    def DATABASE_URI(self) -> str:
+        password = urllib.parse.quote(self.POSTGRES_PASSWORD.get_secret_value(), safe="")
+        user = urllib.parse.quote(self.POSTGRES_USER, safe="")
+        database = urllib.parse.quote(self.POSTGRES_DB, safe="")
+        return f"postgresql+asyncpg://{user}:{password}@{self.POSTGRES_SERVER}:5432/{database}"
+
+    @computed_field
+    @property
+    def RABBITMQ_URL(self) -> str:
+        password = urllib.parse.quote(self.RABBITMQ_PASS.get_secret_value(), safe="")
+        return f"amqp://{self.RABBITMQ_USER}:{password}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/"
+
+    @computed_field
+    @property
+    def REDIS_URL(self) -> Optional[str]:
+        if not self.USE_REDIS:
+            return None
+        
+        auth_part = ""
+        if self.REDIS_PASSWORD:
+            password = urllib.parse.quote(self.REDIS_PASSWORD.get_secret_value(), safe="")
+            auth_part = f":{password}@"
+            
+        return f"redis://{auth_part}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+
+class StripeSettings(BaseAppConfig):
+    STRIPE_SECRET_KEY: SecretStr = Field(..., alias="STRIPE_SECRET_KEY", min_length=1)
+    STRIPE_WEBHOOK_SECRET: SecretStr = Field(..., alias="STRIPE_WEBHOOK_SECRET", min_length=1)
+    STRIPE_PUBLISHABLE_KEY: str = Field(..., alias="STRIPE_PUBLISHABLE_KEY", min_length=1)
+    api_version: str = Field(default="2026-06-24.dahlia")    
+
+class PayPalSettings(BaseAppConfig):
+    PAYPAL_CHECKOUT_ORIGIN: Optional[str] = Field(default=None, max_length=2048)
+    PAYPAL_WEBHOOK_ID: Optional[str] = Field(default=None, alias="PAYPAL_WEBHOOK_ID", max_length=50)
+    PAYPAL_CLIENT_ID: str = Field(..., alias="PAYPAL_CLIENT_ID", min_length=1)
+    PAYPAL_CLIENT_SECRET: SecretStr = Field(..., alias="PAYPAL_CLIENT_SECRET", min_length=1)
+    PAYPAL_API_BASE_URL: AnyHttpUrl = Field(
+        default=AnyHttpUrl("https://api-m.sandbox.paypal.com"),
+        alias="PAYPAL_API_BASE_URL"
+    )
+
+
+class MpesaSettings(BaseAppConfig):
+    MPESA_SIMULATION_ENABLED: bool = Field(False, alias="MPESA_SIMULATION_ENABLED")
+    MPESA_CONSUMER_KEY: str = Field(..., alias="MPESA_CONSUMER_KEY")
+    MPESA_CONSUMER_SECRET: SecretStr = Field(..., alias="MPESA_CONSUMER_SECRET")
+    MPESA_API_BASE_URL: AnyHttpUrl = Field(
+        default=AnyHttpUrl("https://sandbox.safaricom.co.ke"),
+        alias="MPESA_API_BASE_URL"
+    )
+    MPESA_SHORTCODE: str = Field(..., alias="MPESA_SHORTCODE")
+    MPESA_PASSKEY: SecretStr = Field(..., alias="MPESA_PASSKEY")
+    MPESA_CALLBACK_URL: AnyHttpUrl = Field(..., alias="MPESA_CALLBACK_URL")
+
+
+@functools.lru_cache()
+def get_core_settings() -> CoreSettings:
+    return CoreSettings()
+
+
+@functools.lru_cache()
+def get_stripe_settings() -> StripeSettings:
+    return StripeSettings()
+
+
+@functools.lru_cache()
+def get_paypal_settings() -> PayPalSettings:
+    return PayPalSettings()
+
+
+@functools.lru_cache()
+def get_mpesa_settings() -> MpesaSettings:
+    return MpesaSettings()
+
+
+settings = get_core_settings()

@@ -372,7 +372,7 @@ services:
   api-migrator:
     container_name: airdeliver-api-migrator
     build:
-      context: ./apps/api
+      context: ./backend/api
       dockerfile: Dockerfile
     environment:
       <<: *runtime-environment
@@ -408,7 +408,7 @@ services:
   api:
     container_name: airdeliver-api
     build:
-      context: ./apps/api
+      context: ./backend/api
       dockerfile: Dockerfile
     restart: always
     stop_grace_period: 125s
@@ -500,7 +500,7 @@ services:
   api-worker:
     container_name: airdeliver-api-worker
     build:
-      context: ./apps/api
+      context: ./backend/api
       dockerfile: Dockerfile
     user: airdeliver
     # Override API image's localhost:8000 health probe for the worker server.
@@ -565,7 +565,7 @@ services:
     container_name: airdeliver-web
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: frontend/web/Dockerfile
       target: runner
       args:
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}

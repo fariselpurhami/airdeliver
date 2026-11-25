@@ -176,7 +176,7 @@ importers:
 
   .: {}
 
-  apps/web:
+  frontend/web:
     dependencies:
       '@headlessui/react':
         specifier: ^2.2.10

@@ -4,31 +4,35 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["refactor/infra-layout-stage", "build/canonical-workspace-lock", "chore/generated-cache-cleanup", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
+    branches: ["refactor/frontend-backend-boundaries", "refactor/infra-layout-stage", "build/canonical-workspace-lock", "chore/generated-cache-cleanup", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
     paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'apps/api'
+      - 'apps/web'
       - 'infra/observability/**'
       - 'infra/database/**'
-      - 'apps/api/tests/test_infra_layout_paths.py'
+      - 'backend/api/tests/test_infra_layout_paths.py'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'docker-compose*.yml'
-      - 'apps/api/tests/test_canonical_web_workspace.py'
+      - 'backend/api/tests/test_canonical_web_workspace.py'
       - 'docs/verification/generated-cache-cleanup-v1*'
-      - 'apps/api/tests/test_generated_cache_hygiene.py'
-      - 'apps/web/**'
-      - 'apps/api/app/services/compact_copy_contracts.py'
-      - 'apps/api/app/services/compact_router_contract.py'
-      - 'apps/api/tests/test_whole_chain_capacity.py'
-      - 'apps/api/app/services/admin_metrics.py'
-      - 'apps/api/app/services/payment_outbox_reconciler.py'
-      - 'apps/api/app/core/config.py'
+      - 'backend/api/tests/test_generated_cache_hygiene.py'
+      - 'frontend/web/**'
+      - 'backend/api/app/services/compact_copy_contracts.py'
+      - 'backend/api/app/services/compact_router_contract.py'
+      - 'backend/api/tests/test_whole_chain_capacity.py'
+      - 'backend/api/app/services/admin_metrics.py'
+      - 'backend/api/app/services/payment_outbox_reconciler.py'
+      - 'backend/api/app/core/config.py'
       - 'scripts/safe_provider_trace.py'
-      - 'apps/api/app/services/shared_provider_admission.py'
-      - 'apps/api/app/services/paid_turn_admission.py'
-      - 'apps/api/app/services/provider_response_observation.py'
-      - 'apps/api/app/services/provider_usage_meter.py'
-      - 'apps/api/app/services/provider_capacity_snapshot.py'
-      - 'apps/api/tests/test_paid_capacity_burst_faults.py'
+      - 'backend/api/app/services/shared_provider_admission.py'
+      - 'backend/api/app/services/paid_turn_admission.py'
+      - 'backend/api/app/services/provider_response_observation.py'
+      - 'backend/api/app/services/provider_usage_meter.py'
+      - 'backend/api/app/services/provider_capacity_snapshot.py'
+      - 'backend/api/tests/test_paid_capacity_burst_faults.py'
       - '.github/workflows/secret-history-guard.yml'
       - '.github/workflows/backend-ci.yml'
       - 'pnpm-lock.yaml'
@@ -37,29 +41,33 @@ on:
   pull_request:
     branches: ["main"]
     paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'apps/api'
+      - 'apps/web'
       - 'infra/observability/**'
       - 'infra/database/**'
-      - 'apps/api/tests/test_infra_layout_paths.py'
+      - 'backend/api/tests/test_infra_layout_paths.py'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'docker-compose*.yml'
-      - 'apps/api/tests/test_canonical_web_workspace.py'
+      - 'backend/api/tests/test_canonical_web_workspace.py'
       - 'docs/verification/generated-cache-cleanup-v1*'
-      - 'apps/api/tests/test_generated_cache_hygiene.py'
-      - 'apps/web/**'
-      - 'apps/api/app/services/compact_copy_contracts.py'
-      - 'apps/api/app/services/compact_router_contract.py'
-      - 'apps/api/tests/test_whole_chain_capacity.py'
-      - 'apps/api/app/services/admin_metrics.py'
-      - 'apps/api/app/services/payment_outbox_reconciler.py'
-      - 'apps/api/app/core/config.py'
+      - 'backend/api/tests/test_generated_cache_hygiene.py'
+      - 'frontend/web/**'
+      - 'backend/api/app/services/compact_copy_contracts.py'
+      - 'backend/api/app/services/compact_router_contract.py'
+      - 'backend/api/tests/test_whole_chain_capacity.py'
+      - 'backend/api/app/services/admin_metrics.py'
+      - 'backend/api/app/services/payment_outbox_reconciler.py'
+      - 'backend/api/app/core/config.py'
       - 'scripts/safe_provider_trace.py'
-      - 'apps/api/app/services/shared_provider_admission.py'
-      - 'apps/api/app/services/paid_turn_admission.py'
-      - 'apps/api/app/services/provider_response_observation.py'
-      - 'apps/api/app/services/provider_usage_meter.py'
-      - 'apps/api/app/services/provider_capacity_snapshot.py'
-      - 'apps/api/tests/test_paid_capacity_burst_faults.py'
+      - 'backend/api/app/services/shared_provider_admission.py'
+      - 'backend/api/app/services/paid_turn_admission.py'
+      - 'backend/api/app/services/provider_response_observation.py'
+      - 'backend/api/app/services/provider_usage_meter.py'
+      - 'backend/api/app/services/provider_capacity_snapshot.py'
+      - 'backend/api/tests/test_paid_capacity_burst_faults.py'
       - '.github/workflows/secret-history-guard.yml'
       - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
@@ -87,7 +95,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Private LAN development policy
-        run: node --test apps/web/scripts/check-dev-lan-policy.mjs
+        run: node --test frontend/web/scripts/check-dev-lan-policy.mjs
 
       - name: Scoped security dependency contracts
         run: pnpm --filter airdeliver/apps/web exec node scripts/check-security-dependency-contracts.cjs
@@ -110,9 +118,9 @@ jobs:
         timeout-minutes: 12
         run: |
           standalone=$(mktemp -d)
-          mkdir -p "$standalone/apps/web"
+          mkdir -p "$standalone/frontend/web"
           cp package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs "$standalone/"
-          tar -C apps/web --exclude=node_modules --exclude=.next --exclude=tsconfig.tsbuildinfo -cf - . | tar -C "$standalone/apps/web" -xf -
+          tar -C frontend/web --exclude=node_modules --exclude=.next --exclude=tsconfig.tsbuildinfo -cf - . | tar -C "$standalone/frontend/web" -xf -
           cd "$standalone"
           pnpm install --frozen-lockfile
           pnpm --filter airdeliver/apps/web exec node scripts/check-security-dependency-contracts.cjs
@@ -126,11 +134,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build existing development interface from canonical workspace
-        run: docker build -f apps/web/Dockerfile --target development -t airdeliver-web-dev-ci .
+        run: docker build -f frontend/web/Dockerfile --target development -t airdeliver-web-dev-ci .
       - name: Resolve locked dependencies from the existing dev mount path
         run: docker run --rm --entrypoint node airdeliver-web-dev-ci -e "for (const name of ['next','react','next-auth','sharp']) console.log(name, require.resolve(name));"
       - name: Build standalone production runner from same frozen graph
-        run: docker build -f apps/web/Dockerfile --target runner -t airdeliver-web-run-ci .
+        run: docker build -f frontend/web/Dockerfile --target runner -t airdeliver-web-run-ci .
       - name: Verify standalone runner without API or provider traffic
         shell: bash
         run: |

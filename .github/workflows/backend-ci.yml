@@ -4,33 +4,37 @@ name: Backend CI
 
 on:
   push:
-    branches: ["refactor/infra-layout-stage", "build/canonical-workspace-lock", "chore/generated-cache-cleanup", "design/home-free-secured-label", "design/profile-approved-glass", "design/assistant-dark-glass", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/lowercase-brand-copy", "hardening/recommendation-factual-copy", "hardening/product-image-contract", "hardening/async-redis-limiter", "hardening/seventh-request-token-headroom", "hardening/structured-logging-boundary", "hardening/shared-rate-limit-boundary", "hardening/sixth-request-diagnostic", "hardening/groq-safe-completion-errors", "hardening/ai-profile-registry", "hardening/fifth-request-completion", "hardening/fourth-request-corrected-route", "hardening/groq-sdk-route-prefix", "hardening/third-request-diagnostic", "hardening/complement-evidence-boundary", "hardening/safe-provider-error-metadata", "hardening/groq-budget-reconciliation", "hardening/bounded-dev-cart-acceptance", "hardening/dev-startup-diagnostics", "hardening/offline-gte-evaluation", "hardening/probe-path-timeouts", "hardening/cart-recommendation-freshness", "hardening/read-only-stack-probe", "hardening/memory-schema-compatibility", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api", "hardening/dev-proxy-routes", "hardening/meta-confidence-boundaries", "hardening/feature-assignment-contracts", "hardening/bounded-text-inference", "hardening/notification-results", "hardening/notification-endpoints", "hardening/support-session-isolation", "hardening/support-action-truth", "hardening/support-inference-deadline", "hardening/behavior-offline-training", "hardening/push-subscription-contract", "hardening/ci-search-disk-budget", "hardening/cache-failure-privacy", "hardening/voice-real-transport", "hardening/remove-orphan-drone-compliance", "hardening/voice-command-truth", "hardening/root-entrypoints", "hardening/remove-root-editor-artifacts", "hardening/remove-stale-schema-dumps", "hardening/milvus-schema-diagnostics", "hardening/empty-milvus-rating-repair", "hardening/seeder-explicit-cache", "hardening/embedding-startup-readiness", "hardening/recommendation-live-facts", "hardening/cart-command-invariants", "hardening/cart-persistence-outcomes", "hardening/conversation-role-boundary", "hardening/ai-log-data-minimization", "hardening/http-cart-recommendation-wiring", "hardening/conversation-followup-context", "hardening/customer-memory-consent", "hardening/cart-ui-mutation-outcomes", "hardening/special-answer-history", "hardening/cart-recommendation-broker-acceptance", "hardening/answer-availability-grounding", "hardening/answer-context-budget", "hardening/nlu-cart-execution-truth", "hardening/session-reset-scope", "hardening/saved-cart-cleanup-truth", "hardening/memory-export-cache-control", "hardening/cart-compare-and-set", "hardening/checkout-cart-refresh-cas", "hardening/legacy-payment-result-truth", "hardening/payment-cart-snapshot-cleanup", "hardening/cart-worker-no-blind-replay", "hardening/cart-worker-broker-acceptance", "hardening/cart-save-http-outcome", "hardening/payment-test-environment-guard", "hardening/cart-cached-value-invariants", "hardening/cart-derived-total-truth", "hardening/cart-line-identity", "hardening/checkout-strict-identifiers", "hardening/cart-catalog-currency", "hardening/checkout-provider-result-binding", "hardening/cart-prewrite-validation", "hardening/payment-finite-minimum", "hardening/payment-cancellation-drain", "hardening/paypal-capture-identity", "hardening/recommendation-role-boundary", "hardening/recommendation-reasoning-scope", "hardening/catalog-numeric-sanitization", "hardening/cart-mutation-receipts", "hardening/durable-cart-journal", "hardening/saved-list-journal", "hardening/explicit-unknown-price", "hardening/revisioned-cart-ui", "hardening/cart-cache-reconciliation", "hardening/cart-receipt-read-race", "hardening/cart-clear-concurrency", "hardening/journal-clear-transaction", "hardening/journal-product-mutations", "hardening/journal-line-order", "design/header-expand-navigation", "design/account-dialog-interiors"]
+    branches: ["refactor/frontend-backend-boundaries", "refactor/infra-layout-stage", "build/canonical-workspace-lock", "chore/generated-cache-cleanup", "design/home-free-secured-label", "design/profile-approved-glass", "design/assistant-dark-glass", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/lowercase-brand-copy", "hardening/recommendation-factual-copy", "hardening/product-image-contract", "hardening/async-redis-limiter", "hardening/seventh-request-token-headroom", "hardening/structured-logging-boundary", "hardening/shared-rate-limit-boundary", "hardening/sixth-request-diagnostic", "hardening/groq-safe-completion-errors", "hardening/ai-profile-registry", "hardening/fifth-request-completion", "hardening/fourth-request-corrected-route", "hardening/groq-sdk-route-prefix", "hardening/third-request-diagnostic", "hardening/complement-evidence-boundary", "hardening/safe-provider-error-metadata", "hardening/groq-budget-reconciliation", "hardening/bounded-dev-cart-acceptance", "hardening/dev-startup-diagnostics", "hardening/offline-gte-evaluation", "hardening/probe-path-timeouts", "hardening/cart-recommendation-freshness", "hardening/read-only-stack-probe", "hardening/memory-schema-compatibility", "hardening/pg19-dev-bootstrap", "research/object-storage-trial", "hardening/traefik-docker-api", "hardening/dev-proxy-routes", "hardening/meta-confidence-boundaries", "hardening/feature-assignment-contracts", "hardening/bounded-text-inference", "hardening/notification-results", "hardening/notification-endpoints", "hardening/support-session-isolation", "hardening/support-action-truth", "hardening/support-inference-deadline", "hardening/behavior-offline-training", "hardening/push-subscription-contract", "hardening/ci-search-disk-budget", "hardening/cache-failure-privacy", "hardening/voice-real-transport", "hardening/remove-orphan-drone-compliance", "hardening/voice-command-truth", "hardening/root-entrypoints", "hardening/remove-root-editor-artifacts", "hardening/remove-stale-schema-dumps", "hardening/milvus-schema-diagnostics", "hardening/empty-milvus-rating-repair", "hardening/seeder-explicit-cache", "hardening/embedding-startup-readiness", "hardening/recommendation-live-facts", "hardening/cart-command-invariants", "hardening/cart-persistence-outcomes", "hardening/conversation-role-boundary", "hardening/ai-log-data-minimization", "hardening/http-cart-recommendation-wiring", "hardening/conversation-followup-context", "hardening/customer-memory-consent", "hardening/cart-ui-mutation-outcomes", "hardening/special-answer-history", "hardening/cart-recommendation-broker-acceptance", "hardening/answer-availability-grounding", "hardening/answer-context-budget", "hardening/nlu-cart-execution-truth", "hardening/session-reset-scope", "hardening/saved-cart-cleanup-truth", "hardening/memory-export-cache-control", "hardening/cart-compare-and-set", "hardening/checkout-cart-refresh-cas", "hardening/legacy-payment-result-truth", "hardening/payment-cart-snapshot-cleanup", "hardening/cart-worker-no-blind-replay", "hardening/cart-worker-broker-acceptance", "hardening/cart-save-http-outcome", "hardening/payment-test-environment-guard", "hardening/cart-cached-value-invariants", "hardening/cart-derived-total-truth", "hardening/cart-line-identity", "hardening/checkout-strict-identifiers", "hardening/cart-catalog-currency", "hardening/checkout-provider-result-binding", "hardening/cart-prewrite-validation", "hardening/payment-finite-minimum", "hardening/payment-cancellation-drain", "hardening/paypal-capture-identity", "hardening/recommendation-role-boundary", "hardening/recommendation-reasoning-scope", "hardening/catalog-numeric-sanitization", "hardening/cart-mutation-receipts", "hardening/durable-cart-journal", "hardening/saved-list-journal", "hardening/explicit-unknown-price", "hardening/revisioned-cart-ui", "hardening/cart-cache-reconciliation", "hardening/cart-receipt-read-race", "hardening/cart-clear-concurrency", "hardening/journal-clear-transaction", "hardening/journal-product-mutations", "hardening/journal-line-order", "design/header-expand-navigation", "design/account-dialog-interiors"]
     paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'apps/api'
+      - 'apps/web'
       - 'infra/observability/**'
       - 'infra/database/**'
-      - 'apps/api/tests/test_infra_layout_paths.py'
+      - 'backend/api/tests/test_infra_layout_paths.py'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'docker-compose*.yml'
-      - 'apps/api/tests/test_canonical_web_workspace.py'
+      - 'backend/api/tests/test_canonical_web_workspace.py'
       - 'docs/verification/generated-cache-cleanup-v1*'
-      - 'apps/api/tests/test_generated_cache_hygiene.py'
-      - 'apps/api/**'
-      - 'apps/web/components/hero/AISecuredOrdersBadge.tsx'
-      - 'apps/web/app/(main)/_components/LandingClient.tsx'
-      - 'apps/web/__tests__/AISecuredOrdersBadge.test.tsx'
-      - 'apps/web/components/profile/**'
-      - 'apps/web/app/(main)/profile/**'
-      - 'apps/web/__tests__/CustomerMemoryControls.test.tsx'
-      - 'apps/web/__tests__/ProfileAccountDesign.test.tsx'
-      - 'apps/web/components/ai/Chatbot.tsx'
-      - 'apps/web/__tests__/ChatbotVisualContract.test.tsx'
-      - 'apps/web/components/admin/PaymentMetricsPanel.tsx'
-      - 'apps/web/app/(admin)/dashboard/**'
-      - 'apps/web/__tests__/PaymentMetricsPanel.test.tsx'
+      - 'backend/api/tests/test_generated_cache_hygiene.py'
+      - 'backend/api/**'
+      - 'frontend/web/components/hero/AISecuredOrdersBadge.tsx'
+      - 'frontend/web/app/(main)/_components/LandingClient.tsx'
+      - 'frontend/web/__tests__/AISecuredOrdersBadge.test.tsx'
+      - 'frontend/web/components/profile/**'
+      - 'frontend/web/app/(main)/profile/**'
+      - 'frontend/web/__tests__/CustomerMemoryControls.test.tsx'
+      - 'frontend/web/__tests__/ProfileAccountDesign.test.tsx'
+      - 'frontend/web/components/ai/Chatbot.tsx'
+      - 'frontend/web/__tests__/ChatbotVisualContract.test.tsx'
+      - 'frontend/web/components/admin/PaymentMetricsPanel.tsx'
+      - 'frontend/web/app/(admin)/dashboard/**'
+      - 'frontend/web/__tests__/PaymentMetricsPanel.test.tsx'
       - '.github/workflows/frontend-ci.yml'
-      - 'apps/web/components/products/ProductDetailsCard.tsx'
-      - 'apps/web/__tests__/ProductDetailsDesign.test.tsx'
+      - 'frontend/web/components/products/ProductDetailsCard.tsx'
+      - 'frontend/web/__tests__/ProductDetailsDesign.test.tsx'
       - 'Makefile'
       - 'dev-auto-watch.sh'
       - 'scripts/configure_dev_env.py'
@@ -46,36 +50,40 @@ on:
       - 'infra/s3/**'
       - 'infra/k8s/10-milvus.yml'
       - '.github/workflows/backend-ci.yml'
-      - 'apps/web/components/layout/Header.tsx'
-      - 'apps/web/__tests__/HeaderNavigation.test.tsx'
+      - 'frontend/web/components/layout/Header.tsx'
+      - 'frontend/web/__tests__/HeaderNavigation.test.tsx'
   pull_request:
     branches: ["main"]
     paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'apps/api'
+      - 'apps/web'
       - 'infra/observability/**'
       - 'infra/database/**'
-      - 'apps/api/tests/test_infra_layout_paths.py'
+      - 'backend/api/tests/test_infra_layout_paths.py'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'docker-compose*.yml'
-      - 'apps/api/tests/test_canonical_web_workspace.py'
+      - 'backend/api/tests/test_canonical_web_workspace.py'
       - 'docs/verification/generated-cache-cleanup-v1*'
-      - 'apps/api/tests/test_generated_cache_hygiene.py'
-      - 'apps/api/**'
-      - 'apps/web/components/hero/AISecuredOrdersBadge.tsx'
-      - 'apps/web/app/(main)/_components/LandingClient.tsx'
-      - 'apps/web/__tests__/AISecuredOrdersBadge.test.tsx'
-      - 'apps/web/components/profile/**'
-      - 'apps/web/app/(main)/profile/**'
-      - 'apps/web/__tests__/CustomerMemoryControls.test.tsx'
-      - 'apps/web/__tests__/ProfileAccountDesign.test.tsx'
-      - 'apps/web/components/ai/Chatbot.tsx'
-      - 'apps/web/__tests__/ChatbotVisualContract.test.tsx'
-      - 'apps/web/components/admin/PaymentMetricsPanel.tsx'
-      - 'apps/web/app/(admin)/dashboard/**'
-      - 'apps/web/__tests__/PaymentMetricsPanel.test.tsx'
+      - 'backend/api/tests/test_generated_cache_hygiene.py'
+      - 'backend/api/**'
+      - 'frontend/web/components/hero/AISecuredOrdersBadge.tsx'
+      - 'frontend/web/app/(main)/_components/LandingClient.tsx'
+      - 'frontend/web/__tests__/AISecuredOrdersBadge.test.tsx'
+      - 'frontend/web/components/profile/**'
+      - 'frontend/web/app/(main)/profile/**'
+      - 'frontend/web/__tests__/CustomerMemoryControls.test.tsx'
+      - 'frontend/web/__tests__/ProfileAccountDesign.test.tsx'
+      - 'frontend/web/components/ai/Chatbot.tsx'
+      - 'frontend/web/__tests__/ChatbotVisualContract.test.tsx'
+      - 'frontend/web/components/admin/PaymentMetricsPanel.tsx'
+      - 'frontend/web/app/(admin)/dashboard/**'
+      - 'frontend/web/__tests__/PaymentMetricsPanel.test.tsx'
       - '.github/workflows/frontend-ci.yml'
-      - 'apps/web/components/products/ProductDetailsCard.tsx'
-      - 'apps/web/__tests__/ProductDetailsDesign.test.tsx'
+      - 'frontend/web/components/products/ProductDetailsCard.tsx'
+      - 'frontend/web/__tests__/ProductDetailsDesign.test.tsx'
       - 'Makefile'
       - 'dev-auto-watch.sh'
       - 'scripts/configure_dev_env.py'
@@ -91,8 +99,8 @@ on:
       - 'infra/s3/**'
       - 'infra/k8s/10-milvus.yml'
       - '.github/workflows/backend-ci.yml'
-      - 'apps/web/components/layout/Header.tsx'
-      - 'apps/web/__tests__/HeaderNavigation.test.tsx'
+      - 'frontend/web/components/layout/Header.tsx'
+      - 'frontend/web/__tests__/HeaderNavigation.test.tsx'
   workflow_dispatch:
 
 jobs:
@@ -146,7 +154,7 @@ jobs:
         uses: snok/install-poetry@v1
 
       - name: Install dependencies
-        working-directory: apps/api
+        working-directory: backend/api
         run: poetry install
 
       - name: Build PostgreSQL 19 backup and restore image
@@ -161,13 +169,13 @@ jobs:
           echo "TEST_REDIS_SERVER_BIN=/tmp/redis-7.4.2/src/redis-server" >> "$GITHUB_ENV"
 
       - name: Required isolated Redis admission and heartbeat benchmark
-        working-directory: apps/api
+        working-directory: backend/api
         env:
           AIRDELIVER_ISOLATED_ADMISSION_BENCHMARK: '1'
         run: poetry run pytest -q tests/test_async_limiter_load.py -k 'concurrent_admission_and_event_loop_latency or repeated_cold_redis_bursts'
 
       - name: Migrate PostgreSQL 19 and run tests
-        working-directory: apps/api
+        working-directory: backend/api
         env:
           TEST_PG_BACKUP_IMAGE: airdeliver-postgres-backup:ci
           AIRDELIVER_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
@@ -194,7 +202,7 @@ jobs:
           df -h /
 
       - name: Verify seeder with real search services and learned embeddings
-        working-directory: apps/api
+        working-directory: backend/api
         timeout-minutes: 10
         run: |
           sudo sysctl -w vm.max_map_count=262144

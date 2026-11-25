@@ -1,6 +1,6 @@
 # infra/k8s/04-web.yml
 # Next.js frontend. NEXT_PUBLIC_* values are baked in at image build time
-# (see apps/web/Dockerfile build args); runtime env here covers NextAuth only.
+# (see frontend/web/Dockerfile build args); runtime env here covers NextAuth only.
 
 apiVersion: apps/v1
 kind: Deployment

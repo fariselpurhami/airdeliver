@@ -273,7 +273,7 @@ services:
   api-migrator:
     container_name: airdeliver-api-migrator
     build:
-      context: ./apps/api
+      context: ./backend/api
       dockerfile: Dockerfile
     env_file: ${AIRDELIVER_ENV_FILE:-.env}
     environment:
@@ -295,7 +295,7 @@ services:
   api:
     container_name: airdeliver-api
     build:
-      context: ./apps/api
+      context: ./backend/api
       dockerfile: Dockerfile
     env_file: ${AIRDELIVER_ENV_FILE:-.env}
     restart: always
@@ -340,7 +340,7 @@ services:
       - HF_HUB_DISABLE_DOWNLOAD_PROGRESS=1
 
     volumes:
-      - ./apps/api:/app:delegated
+      - ./backend/api:/app:delegated
       - api-static-data:/app/static
       - ${PWD}/data/storage:/data/storage
     depends_on:
@@ -379,7 +379,7 @@ services:
   api-worker:
     container_name: airdeliver-api-worker
     build:
-      context: ./apps/api
+      context: ./backend/api
       dockerfile: Dockerfile
     dns:
       - 8.8.8.8
@@ -433,7 +433,7 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - ./apps/api:/app:delegated
+      - ./backend/api:/app:delegated
       - ${PWD}/data/storage:/data/storage
     depends_on:
       api:
@@ -460,7 +460,7 @@ services:
 
   api-seeder:
     build:
-      context: ./apps/api
+      context: ./backend/api
       dockerfile: Dockerfile
       target: production
     container_name: airdeliver-seeder
@@ -497,7 +497,7 @@ services:
       - SENTENCE_TRANSFORMERS_HOME=/data/storage/models_cache/sentence_transformers
       - HF_HUB_CACHE=/data/storage/models_cache/huggingface/hub
     volumes:
-      - ./apps/api:/app:delegated
+      - ./backend/api:/app:delegated
       - ${PWD}/data/storage:/data/storage
     networks:
       - global-net
@@ -530,7 +530,7 @@ services:
     container_name: airdeliver-web
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: frontend/web/Dockerfile
       target: development
       args:
         - NEXT_PUBLIC_API_URL=http://${HOST_IP}/api
@@ -557,7 +557,7 @@ services:
      - PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
      - NPM_CONFIG_MINIMUM_RELEASE_AGE=0
     volumes:
-      - ./apps/web:/app:delegated
+      - ./frontend/web:/app:delegated
       - pnpm-store:/pnpm
       - /app/node_modules
       - /app/.next

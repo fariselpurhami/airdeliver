@@ -11,17 +11,17 @@ secrets/
 __pycache__/
 *.py[cod]
 .venv/
-apps/api/.venv
-apps/api/hf_cache/
+backend/api/.venv
+backend/api/hf_cache/
 
 # --- Node / Next.js ---
-apps/web/node_modules
-apps/web/.next
+frontend/web/node_modules
+frontend/web/.next
 node_modules/
 
 # --- Model caches & data volumes ---
 data/storage/models_cache/
-apps/api/storage/models_cache/
+backend/api/storage/models_cache/
 data/
 huggingface_cache/
 *.pth
@@ -38,3 +38,9 @@ huggingface_cache/
 
 # Local database archives can contain private data.
 backups/
+
+# Compatibility aliases resolve to canonical app trees.
+apps/api/hf_cache/
+apps/api/.venv/
+apps/web/node_modules/
+apps/web/.next/

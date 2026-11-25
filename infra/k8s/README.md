@@ -2,7 +2,7 @@
 
 Production manifests for the full airdeliver stack. These mirror
 `docker-compose.yml` service-for-service and use the same env contract as
-`apps/api/app/core/config.py`.
+`backend/api/app/core/config.py`.
 
 ## Prerequisites
 - A cluster with an Ingress controller: **Traefik** (same edge proxy as the
@@ -10,8 +10,8 @@ Production manifests for the full airdeliver stack. These mirror
 - A default StorageClass for RWO volumes, plus an RWX-capable class for the
   shared model cache (see `12-storage.yml` for the fallback).
 - Container images pushed to a registry:
-  - `apps/api` -> `yourregistry/airdeliver-api:latest`
-  - `apps/web` -> `yourregistry/airdeliver-web:latest` (build args
+  - `backend/api` -> `yourregistry/airdeliver-api:latest`
+  - `frontend/web` -> `yourregistry/airdeliver-web:latest` (build args
     `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` are baked in
     at build time).
 
