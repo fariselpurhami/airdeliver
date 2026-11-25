@@ -73,10 +73,10 @@ async def test_refresh_real_postgres_http_issues_subject_and_database_role(refre
     assert response.json()["token_type"] == "bearer"
     from app.api.deps import _decode_token_subject
     from app.core.config import settings
-    from jose import jwt
+    import jwt
     access = response.json()["access_token"]
     assert _decode_token_subject(access, settings) == email
-    payload = jwt.decode(access, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    payload = jwt.decode(access, settings.SECRET_KEY.get_secret_value(), algorithms=[settings.ALGORITHM])
     assert payload["role"] == UserRole.ADMIN.value
 
 
