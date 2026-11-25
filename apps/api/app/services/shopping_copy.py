@@ -260,6 +260,9 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         review_rules+=' '+FOUR_PHASE_REVIEW
     from app.services.product_answer_policy import HUMAN_REPLY_VOICE
     if not no_match:writer_rules+=' '+HUMAN_REPLY_VOICE
+    if not no_match:
+        from app.services.compact_copy_contracts import contracts
+        writer_rules,review_rules=contracts(mode,context)
     # One total budget covers writer, review and all inference retry backoff.
     stage='writer_provider'
     try:

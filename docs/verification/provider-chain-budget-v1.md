@@ -26,3 +26,11 @@ Remove image, SKU and duplicated seed marker attributes from writer/reviewer mod
 - A whole-turn preflight must not simply reject turns whose reserved caps exceed7200, since reconciliation may make the real sequence fit. It needs an honest design and offline failure tests before use.
 
 No production, throughput, quota or provider-adherence certification is made by these fixtures.
+
+## Task-scoped contract pass
+
+The next pass keeps the broad original prompt constants in source and uses versioned mode-specific contracts for non-no-match writer/reviewer calls. Shared evidence requirements are stated once per call; separate reviewer rejection authority remains. Four-phase and human voice requirements are integrated rather than appended as overlapping blocks. No-match keeps its existing compact path. An explicit obligation matrix in test_compact_copy_contracts covers source/injection, exact claims, stock/synthetic, no side effects, hard constraints, privacy/tone, alternatives, task attribution, reply style and exceptions. This tests contract presence, not model understanding.
+
+Same one-card fixture writer2580+review2075=4655, down from5952 before prose projection and contract compaction. Router3528 makes whole turn8183; immediate next router11711. The remaining rolling-budget issue is not closed, and live quality/variety must still be evaluated with owner-approved provider runs. No instruction authorizes a claim that more prompt text alone means stronger behavior.
+
+Local regression detail:166 focused tests passed with actual disposable Redis and migrated PostgreSQL19, including staged HTTP/history, gifts, cart follow-ups, provider errors and logging. Split-file regression second partition1272passed/22skipped. First partition1154passed/6skipped/23failures, all23 log-capture assertions empty; the same provider/router/source logging files passed50/50 separately and in the166 boundary run. This indicates order-dependent logger/test interaction, not a certified clean full run. Exact complete CI remains mandatory; no failing log assertions were removed or weakened.
