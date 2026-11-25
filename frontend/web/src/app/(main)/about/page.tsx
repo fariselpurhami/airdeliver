@@ -8,7 +8,7 @@ import { Stars } from '@react-three/drei';
 import { motion, useScroll, useTransform, useMotionValue, useSpring, useInView } from 'framer-motion';
 import { Cpu, Leaf, ChevronRight, Target, Zap, Shield, Globe, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import Image from 'next/image';
+import { CatalogImage as Image } from '@/components/products/CatalogImage';
 import * as THREE from 'three';
 
 // ============================================================================

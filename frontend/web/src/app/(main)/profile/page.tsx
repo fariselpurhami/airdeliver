@@ -5,7 +5,7 @@
 import React, { useMemo, useRef, useEffect, useState, Suspense, memo } from 'react';
 import { useSession, signOut } from "next-auth/react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import Image from 'next/image';
+import { CatalogImage as Image } from '@/components/products/CatalogImage';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
 import CustomerMemoryControls from '@/components/profile/CustomerMemoryControls';

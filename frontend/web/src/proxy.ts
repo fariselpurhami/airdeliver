@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { documentPolicy } from '@/lib/document-security';
 import { auth } from '@/auth'; // استيراد الدالة القياسية لـ NextAuth بدلاً من getToken
 
 const PUBLIC_EXACT_ROUTES = new Set([
@@ -46,7 +47,7 @@ function isPublicRoute(pathname: string): boolean {
   }
   for (let i = 0; i < PUBLIC_PREFIX_ROUTES.length; i++) {
     const prefix = PUBLIC_PREFIX_ROUTES[i];
-    if (prefix && pathname.startsWith(prefix)) {
+    if (prefix && (pathname === prefix || pathname.startsWith(prefix + '/'))) {
       return true;
     }
   }
@@ -70,15 +71,24 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
 }
 
 export async function proxy(req: NextRequest) {
-  if (req.headers.get('x-middleware-prefetch')) {
-    return NextResponse.next();
-  }
+  const nonce = btoa(crypto.randomUUID());
+  const csp = documentPolicy(nonce, process.env.NODE_ENV === 'development');
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', csp);
+  const next = () => NextResponse.next({ request: { headers: requestHeaders } });
+  const secure = (response: NextResponse) => {
+    applySecurityHeaders(response);
+    response.headers.set('Content-Security-Policy', csp);
+    response.headers.set('Cache-Control', 'private, no-store');
+    return response;
+  };
 
   const { pathname } = req.nextUrl;
   const isPublic = isPublicRoute(pathname);
 
   if (isPublic) {
-    return applySecurityHeaders(NextResponse.next());
+    return secure(next());
   }
 
   try {
@@ -88,20 +98,20 @@ export async function proxy(req: NextRequest) {
     // إذا لم تكن هناك جلسة صالحة، قم بالتوجيه لصفحة الدخول
     if (!session || !session.user) {
       console.log("🚨 MIDDLEWARE BLOCKED: Unauthorized or no session found!");
-      return createLoginRedirect(req, pathname);
+      return secure(createLoginRedirect(req, pathname));
     }
 
-    const requiresAdmin = ADMIN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+    const requiresAdmin = ADMIN_PREFIXES.some((prefix) => (pathname === prefix || pathname.startsWith(prefix + '/')));
     const role = session.user.role;
 
     if (requiresAdmin && (!role || !ADMIN_ROLES.has(role))) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return secure(NextResponse.redirect(new URL("/", req.url)));
     }
 
-    return applySecurityHeaders(NextResponse.next());
+    return secure(next());
   } catch (error) {
-    console.error("🚨 MIDDLEWARE ERROR:", error);
-    return createLoginRedirect(req, pathname);
+    console.error("proxy.authentication_failed");
+    return secure(createLoginRedirect(req, pathname));
   }
 }
 

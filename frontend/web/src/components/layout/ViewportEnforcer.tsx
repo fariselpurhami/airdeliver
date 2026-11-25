@@ -11,7 +11,7 @@ const NARROW_VIEWPORT = `width=${MIN_WIDTH}, maximum-scale=1, user-scalable=no, 
 const getViewportContent = (width: number): string =>
   width > 0 && width < MIN_WIDTH ? NARROW_VIEWPORT : DEFAULT_VIEWPORT;
 
-export function ViewportEnforcer() {
+export function ViewportEnforcer({ nonce }: { nonce?: string }) {
   const pathname = usePathname();
   
   // Isolate mutable state outside the React render cycle
@@ -76,7 +76,7 @@ export function ViewportEnforcer() {
 
   // 4. SSR Blocking Script: Minified IIFE to prevent FCP layout shift before React boots
   return (
-    <script
+    <script nonce={nonce}
       dangerouslySetInnerHTML={{
         __html: `!function(){var e=window.screen.width;if(e>0&&e<${MIN_WIDTH}){var t=document.querySelector('meta[name="viewport"]');t||(t=document.createElement("meta"),t.name="viewport",document.head.appendChild(t)),t.setAttribute("content","${NARROW_VIEWPORT}")}}();`
       }}

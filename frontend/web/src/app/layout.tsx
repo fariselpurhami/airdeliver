@@ -117,7 +117,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
         <meta name="x-trace-id" content={traceId} />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased no-scrollbar selection:bg-primary/20 selection:text-primary">
-        <ViewportEnforcer />
+        <ViewportEnforcer nonce={nonce} />
         
         {/* Pass nonce and traceId into providers to enforce CSP across dynamic Client Components */}
         <Providers nonce={nonce} traceId={traceId}>

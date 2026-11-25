@@ -14,6 +14,7 @@ const createJestConfig = nextJest({
 });
 
 const config = {
+  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/ProxySecurity.test.ts$', '/scripts/security-config.test.mjs$'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
   // next-auth v5 ships ESM only; let the next/jest transform compile it.

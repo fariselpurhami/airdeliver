@@ -4,7 +4,7 @@ import { proxy } from '@/proxy';
 import { auth } from '@/auth';
 jest.mock('@/auth',()=>({auth:jest.fn()}));
 
-const session=jest.mocked(auth) as unknown as jest.Mock;
+const session=jest.mocked(auth) as unknown as ReturnType<typeof jest.fn>;
 
 beforeEach(()=>{session.mockReset();session.mockResolvedValue(null);});
 

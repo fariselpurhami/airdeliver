@@ -108,6 +108,13 @@ jobs:
       - name: Scoped security dependency contracts
         run: pnpm --filter airdeliver/apps/web exec node scripts/check-security-dependency-contracts.cjs
 
+      - name: Document proxy and optimizer security boundaries
+        env:
+          NODE_ENV: production
+        run: |
+          pnpm --filter airdeliver/apps/web exec node --test scripts/security-config.test.mjs
+          pnpm --filter airdeliver/apps/web exec jest --config scripts/jest-security.config.mjs --runInBand
+
       - name: Typecheck
         run: pnpm --filter airdeliver/apps/web exec tsc --noEmit
 

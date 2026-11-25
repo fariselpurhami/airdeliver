@@ -15,7 +15,7 @@ import {
     Activity, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock, Eye, ShieldCheck
 } from 'lucide-react';
 import { useAIOrderingStore, Message, ORDERING_INTRO } from '../../hooks/useAIOrderingStore';
-import Image from 'next/image';
+import { CatalogImage as Image } from '@/components/products/CatalogImage';
 import { DemoImageAttribution } from '@/components/products/DemoImageAttribution';
 import { CatalogImage } from '@/components/products/CatalogImage';
 import useEmblaCarousel from 'embla-carousel-react';

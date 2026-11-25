@@ -25,7 +25,7 @@ const nextConfig = {
   allowedDevOrigins: isDevelopment ? ["127.0.0.1"] : [],
   turbopack: { root: tracingRoot },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   output: 'standalone',
   outputFileTracingRoot: tracingRoot,
@@ -65,18 +65,18 @@ const nextConfig = {
   },
   logging: {
     fetches: {
-      fullUrl: true,
+      fullUrl: false,
     },
   },
   images: {
     qualities: [75, 90],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 31536000,
-    dangerouslyAllowSVG: true,
+    dangerouslyAllowSVG: false,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
-      { protocol: 'http', hostname: '**' },
-      { protocol: 'https', hostname: '**' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'ui-avatars.com' },
     ],
   },
   webpack: (config, { isServer, dev }) => {

@@ -9,7 +9,7 @@ import {
     CloudSun, Route, ShieldCheck, Box, Barcode, Plane 
 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { CatalogImage as Image } from '@/components/products/CatalogImage';
 import { useCartStore, type CartItem } from '@/hooks/useCartStore';
 import { api } from '@/lib/api';
 import { parseCartItems } from '@/lib/cart-snapshot';
