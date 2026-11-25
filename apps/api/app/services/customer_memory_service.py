@@ -4,7 +4,7 @@ No inferred personality, financial tier, health, identity or life-event records.
 """
 import hashlib
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -137,3 +137,26 @@ class CustomerMemoryService:
         rows=(await self.db.execute(select(CustomerShoppingMemory).where(CustomerShoppingMemory.user_id==user_id,CustomerShoppingMemory.expires_at>datetime.now(timezone.utc)))).scalars().all()
         return {'policy_version':POLICY_VERSION,'enabled':bool(consent and consent.enabled),'retention_days':RETENTION_DAYS,
                 'preferences':[{'category':r.category,'value':r.value,'created_at':r.created_at.isoformat(),'expires_at':r.expires_at.isoformat()} for r in rows]}
+
+    async def _legacy_90_day_collect(self,user_id,text,llm):
+        if not await self.enabled(user_id):return False
+        initial=await self.db.get(CustomerMemoryConsent,user_id,populate_existing=True)
+        if not initial or not initial.enabled or initial.policy_version!=POLICY_VERSION:return False
+        consent_generation=initial.changed_at
+        # Provider extraction happens only after consent and never during opt-out.
+        if not re.search(r"\b(i prefer|i like|i always choose|my favorite|my favourite)\b",text,flags=re.IGNORECASE):
+            return False
+        raw=await llm.extract_shopping_preferences(text)
+        candidate=valid_candidate(raw,text)
+        if not candidate:return False
+        category,value=candidate
+        fingerprint=hashlib.sha256(f'{category}:{value}'.encode()).hexdigest()
+        now=datetime.now(timezone.utc)
+        # Lock consent row so revocation cannot race with a late memory commit.
+        consent=(await self.db.execute(select(CustomerMemoryConsent).where(CustomerMemoryConsent.user_id==user_id).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
+        if not consent or not consent.enabled or consent.policy_version!=POLICY_VERSION or consent.changed_at!=consent_generation:return False
+        await self.db.execute(delete(CustomerShoppingMemory).where(CustomerShoppingMemory.user_id==user_id,CustomerShoppingMemory.expires_at<=now))
+        statement=insert(CustomerShoppingMemory).values(user_id=user_id,category=category,value=value,fingerprint=fingerprint,created_at=now,expires_at=now+timedelta(days=RETENTION_DAYS))
+        await self.db.execute(statement.on_conflict_do_update(constraint='uq_customer_memory_fact',set_={'expires_at':now+timedelta(days=RETENTION_DAYS)}))
+        await self.db.commit()
+        return True
