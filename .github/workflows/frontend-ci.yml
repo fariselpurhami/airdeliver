@@ -4,10 +4,11 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
+    branches: ["perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
     paths:
       - 'apps/web/**'
       - 'apps/api/app/services/compact_copy_contracts.py'
+      - 'apps/api/app/services/compact_router_contract.py'
       - '.github/workflows/secret-history-guard.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'apps/web/**'
       - 'apps/api/app/services/compact_copy_contracts.py'
+      - 'apps/api/app/services/compact_router_contract.py'
       - '.github/workflows/secret-history-guard.yml'
   workflow_dispatch:
 
