@@ -27,3 +27,9 @@ Total30 of50 authorized free-tier HTTP attempts used,20 remain. Provider executi
 - Test real rendered output at phone/desktop, not string markers alone. Current captures reuse the app ReactMarkdown branch/styles but omit product-card and end-to-end UI acceptance.
 - Product-status evidence work remains on a separate branch, not yet integrated. Source dating and official model identity are not solved by a prompt.
 - Before PR/merge, run complete exact-head CI and add separate source-evolution receipts for changed historical modules, never overwrite immutable move manifests. Preserve the owner's merge gates.
+
+## Opt-in exact claim references, offline preparation
+
+The actual-path failures repeatedly included retyped claim keys/values despite adequate source cards. An opt-in `claim_binding=references_v1` transport now offers a closed map of exact claim references. It resolves those references into the existing ShoppingDraft before the unchanged evidence validator and full independent GroundingReview. Unknown and duplicate references fail closed. Numeric evidence and negative review still reject the response. The default/active writer format remains unchanged; no caller enables this experiment.
+
+Test-first receipt: the first functional boundary test failed with missing `claim_reference_map` before implementation. After implementation, six new cases pass, including unknown/duplicate references, missing numeric support and an independent negative verdict. The focused compatibility run passes 116 tests. This is not a model quality result, production activation, complete CI result or customer acceptance. No new provider attempts were used. Full application/HTTP cases, a bounded model evaluation if justified, and rendered conversation inspection remain necessary before enabling this transport.

@@ -24,6 +24,24 @@ class ShoppingDraft(BaseModel):
     claims: list[Claim] = Field(default_factory=list,max_length=50)
 
 
+class ReferencedShoppingDraft(BaseModel):
+    """Opt-in wire format. References resolve before the existing evidence gate."""
+    model_config=ConfigDict(extra='forbid')
+    text: StrictStr = Field(min_length=1,max_length=2000)
+    product_ids: list[StrictInt] = Field(default_factory=list,max_length=10)
+    claim_refs: list[StrictStr] = Field(default_factory=list,max_length=50)
+
+
+def resolve_claim_references(raw, reference_map):
+    draft=ReferencedShoppingDraft.model_validate_json(raw)
+    if len(set(draft.claim_refs)) != len(draft.claim_refs):
+        raise ValueError('duplicate_claim_reference')
+    if any(ref not in reference_map for ref in draft.claim_refs):
+        raise ValueError('unknown_claim_reference')
+    return ShoppingDraft(text=draft.text,product_ids=draft.product_ids,
+        claims=[reference_map[ref] for ref in draft.claim_refs])
+
+
 class GroundingReview(BaseModel):
     model_config=ConfigDict(extra='forbid')
     supported: StrictBool
@@ -254,6 +272,15 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     if no_match:
         payload={'task':'no_match','customer_message':message,'customer_brief':brief,'catalog_evidence':[],
                  'scope':'No eligible current retrieved catalog cards; not exhaustive inventory'}
+    reference_map={}
+    use_references=(not no_match and (context or {}).get('product_answer_shape')=='adaptive'
+        and (context or {}).get('claim_binding')=='references_v1')
+    if use_references:
+        for card in evidence:
+            options=card.pop('claim_options',[])
+            for option in options:
+                reference_map['c'+str(len(reference_map))]=option
+        payload['claim_reference_map']=reference_map
     writer_rules=NO_MATCH_WRITER_RULES if no_match else WRITER_RULES
     review_rules=NO_MATCH_REVIEW_RULES if no_match else REVIEW_RULES
     from app.services.product_answer_policy import SAFE_ADVISORY_STRATEGY
@@ -269,15 +296,20 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     if not no_match:
         from app.services.compact_copy_contracts import contracts
         writer_rules,review_rules=contracts(mode,context)
+    if use_references:
+        writer_rules += ' Wire format override: return text, product_ids, claim_refs only. Instead of claims objects, select exact keys from claim_reference_map for every stated fact. No unknown or duplicate references. All evidence and task requirements still apply. The application resolves references, then validates and independently reviews the complete claims.'
+    writer_schema=ReferencedShoppingDraft if use_references else ShoppingDraft
+    def parse_writer(raw):
+        return resolve_claim_references(raw,reference_map) if use_references else ShoppingDraft.model_validate_json(raw)
     # One total budget covers writer, review and all inference retry backoff.
     stage='writer_provider'
     try:
         with anyio.fail_after(timeout):
             from app.services.structured_output import infer_schema
             raw=await infer_schema(infer,[{'role':'system','content':writer_rules},
-                             {'role':'user','content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))}],ShoppingDraft)
+                             {'role':'user','content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))}],writer_schema)
             stage='writer_schema'
-            draft=ShoppingDraft.model_validate_json(raw)
+            draft=parse_writer(raw)
             stage='writer_evidence'
             try:
                 validate_draft(draft,cards,context,brief)
@@ -292,9 +324,9 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
                     if repair_fields else
                     'Previous draft failed the no-card numeric/link contract. Write an honest current-results no-match response without any numerals, URLs, product recommendations or invented facts. Say your stated budget instead of repeating an amount. Return empty product_ids and claims.')
                 raw=await infer_schema(infer,[{'role':'system','content':writer_rules},
-                    {'role':'user','content':json.dumps(repair,ensure_ascii=False,separators=(',',':'))}],ShoppingDraft)
+                    {'role':'user','content':json.dumps(repair,ensure_ascii=False,separators=(',',':'))}],writer_schema)
                 stage='writer_repair_schema'
-                draft=ShoppingDraft.model_validate_json(raw)
+                draft=parse_writer(raw)
                 stage='writer_evidence'
                 validate_draft(draft,cards,context,brief)
             stage='review_provider'
