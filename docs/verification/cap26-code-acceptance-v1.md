@@ -4,6 +4,8 @@ Active ordinary HTTP targets and setup components use shared staged_search.
 Retained NLU informational/universal paths use _execute_strategic_search, which
 uses that same service. _execute_search and _legacy_execute_strategic_search
 remain source-preserved dormant implementations, not active safe alternatives.
+The pre-validation shared function body is retained as
+_legacy_staged_search_unvalidated with no active callers.
 The former's historical budget-relaxation branch is not wired to production.
 Published products still require current SQL cards, full hard brief, independent
 writer/review and post-copy freshness. Target queries and tier labels are not
