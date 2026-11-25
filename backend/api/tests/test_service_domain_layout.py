@@ -23,6 +23,10 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
  assert set(evolution)=={'backend/api/app/services/conversation/free_llm_service.py'}
  logging_evolution=json.loads((ROOT/'docs/verification/raw-logging-source-evolution-v1.json').read_text())['modules']
  expected=logging_evolution[row['path']]['current_sha256'] if row['path'] in logging_evolution else evolution.get(row['path'],row['canonical_sha256'])
+ quality=json.loads((ROOT/'docs/verification/shopping-quality-source-evolution-v1.json').read_text())['modules']
+ if row['path'] in quality:
+  assert quality[row['path']]['previous_sha256']==expected
+  expected=quality[row['path']]['current_sha256']
  assert hashlib.sha256(source).hexdigest()==expected
 
 
