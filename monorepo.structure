@@ -5,7 +5,8 @@ airdeliver/
 │   └── api/                    # FastAPI commerce engine
 │       ├── app/                # API routers, core, models, schemas, services, websockets
 │       ├── alembic/versions/   # Existing migrations, unchanged
-│       ├── tests/              # Backend contracts and integration tests
+│       ├── scripts/                    # dev, ops, ci owners plus legacy command aliases
+├── tests/              # Backend contracts and integration tests
 │       ├── worker_entrypoint.py
 │       ├── Dockerfile
 │       └── pyproject.toml
@@ -19,6 +20,7 @@ airdeliver/
 │   └── observability/          # Prometheus, Promtail and Grafana
 ├── docs/                       # architecture, development, runbooks, decisions, security
 │                               # verification, catalog and compatibility doc aliases
+├── scripts/                    # dev, ops, ci owners plus legacy command aliases
 ├── tests/                      # integration tests (require live stack)
 ├── docker-compose.yml          # full stack
 ├── docker-compose.dev.yml      # local dev stack

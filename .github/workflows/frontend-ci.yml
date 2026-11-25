@@ -4,8 +4,9 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["refactor/docs-ownership", "refactor/frontend-backend-boundaries", "refactor/infra-layout-stage", "build/canonical-workspace-lock", "chore/generated-cache-cleanup", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
+    branches: ["refactor/script-ownership", "refactor/docs-ownership", "refactor/frontend-backend-boundaries", "refactor/infra-layout-stage", "build/canonical-workspace-lock", "chore/generated-cache-cleanup", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
     paths:
+      - 'scripts/**'
       - 'frontend/**'
       - 'backend/**'
       - 'apps/api'
@@ -26,7 +27,7 @@ on:
       - 'backend/api/app/services/admin_metrics.py'
       - 'backend/api/app/services/payment_outbox_reconciler.py'
       - 'backend/api/app/core/config.py'
-      - 'scripts/safe_provider_trace.py'
+      - 'scripts/ops/safe_provider_trace.py'
       - 'backend/api/app/services/shared_provider_admission.py'
       - 'backend/api/app/services/paid_turn_admission.py'
       - 'backend/api/app/services/provider_response_observation.py'
@@ -41,6 +42,7 @@ on:
   pull_request:
     branches: ["main"]
     paths:
+      - 'scripts/**'
       - 'frontend/**'
       - 'backend/**'
       - 'apps/api'
@@ -61,7 +63,7 @@ on:
       - 'backend/api/app/services/admin_metrics.py'
       - 'backend/api/app/services/payment_outbox_reconciler.py'
       - 'backend/api/app/core/config.py'
-      - 'scripts/safe_provider_trace.py'
+      - 'scripts/ops/safe_provider_trace.py'
       - 'backend/api/app/services/shared_provider_admission.py'
       - 'backend/api/app/services/paid_turn_admission.py'
       - 'backend/api/app/services/provider_response_observation.py'
