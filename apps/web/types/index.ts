@@ -2,6 +2,9 @@
 
 export interface Product {
   sku?: string;
+  currency?: string;
+  rating?: number | null;
+  is_active?: boolean;
   attributes?: Record<string, unknown>;
     price_status?: 'listed' | 'unknown';
   id: number;

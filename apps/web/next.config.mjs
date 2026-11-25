@@ -16,6 +16,7 @@ const API_BASE_URL = process.env.BACKEND_API_URL || 'http://api:8000';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  devIndicators: false,
   allowedDevOrigins: isDevelopment ? ["127.0.0.1"] : [],
   turbopack: {
     // In the pnpm workspace, `next` is hoisted to the repo-root node_modules,

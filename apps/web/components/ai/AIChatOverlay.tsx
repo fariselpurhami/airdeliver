@@ -1394,7 +1394,7 @@ function OrderingOverlaySession({ isOpen, onClose }: { isOpen: boolean; onClose:
                                 className="fixed inset-0 z-[100] bg-black/65 flex items-center justify-center p-4 transform-gpu"
                                 onClick={() => setDetailProduct(null)}
                             >
-                                <div onClick={(e) => e.stopPropagation()} className="w-full h-full max-w-[460px] max-h-[1050px] md:max-h-[90vh]">
+                                <div onClick={(e) => e.stopPropagation()} className="w-full flex items-center justify-center">
                                     <ProductDetailsCard product={detailProduct} onClose={() => setDetailProduct(null)} />
                                 </div>
                             </motion.div>
