@@ -21,7 +21,7 @@ it('never mutates on model response and submits exact reviewed target only on ex
 it('keeps uncertain operation locked and offers authoritative cart review, not blind retry',async()=>{
  jest.mocked(api.post).mockRejectedValue(new Error('timeout'));render(<AssistantAction action={action}/>);
  fireEvent.click(screen.getByRole('button',{name:'Confirm add to cart'}));
- expect(await screen.findByRole('alert')).toHaveTextContent('Do not submit');
+ expect(await screen.findByRole('alert')).toHaveTextContent('Check the current result');
  expect(screen.queryByRole('button')).not.toBeInTheDocument();expect(api.post).toHaveBeenCalledTimes(1);
 });
 it('opens tracking only for a safe literal owned-order route',()=>{
@@ -49,7 +49,7 @@ it('locks uncertain lifecycle results with no retry button',async()=>{
  jest.mocked(api.post).mockRejectedValue(new Error('unconfirmed'));
  render(<AssistantAction action={{action:'review_cart_lifecycle',payload:{review_id:action.payload.review_id,operation:'clear',item_count:2}}}/>);
  fireEvent.click(screen.getByRole('button',{name:'Confirm clear active cart'}));
- expect(await screen.findByRole('alert')).toHaveTextContent('Do not retry blindly');expect(screen.queryByRole('button')).not.toBeInTheDocument();
+ expect(await screen.findByRole('alert')).toHaveTextContent('Check the current result');expect(screen.queryByRole('button')).not.toBeInTheDocument();
 });
 it('shows exact reviewed reason and sends it only on customer remove confirmation',async()=>{
  jest.mocked(api.post).mockResolvedValue({});jest.mocked(api.get).mockResolvedValue({data:{items:[]}});

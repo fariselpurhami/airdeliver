@@ -1666,7 +1666,8 @@ class UiGateway:
 
     async def _publish(self, user_id: int, payload: Dict[str, Any], correlation_id: str, *, required: bool) -> None:
         channel = RedisKeys.ui_channel(user_id)
-        envelope = dict(payload)
+        from app.services.customer_status import human_payload
+        envelope = human_payload(payload)
         if isinstance(envelope.get('products'),list):
             from app.services.catalog_visibility import is_catalog_hidden,real_catalog_predicates
             envelope['products']=[p for p in envelope['products'] if not is_catalog_hidden(p)]
@@ -2448,7 +2449,7 @@ class AINLUService:
         # =====================================================================
         if getattr(intent_payload, "is_jailbreak_attempt", False):
             StructuredLog.warning("jailbreak_attempt_blocked", user_id=request.user_id, input=request.message_text)
-            defense_reply = "My protocols are strictly locked to global shopping intelligence. I cannot process commands outside the AI Commerce OS parameters. How may I assist you with your product search today?"
+            defense_reply = 'I can help with products and shopping. What are you looking for?'
             await self._send_to_ui(request.user_id, {"content": defense_reply, "type": UiPayloadType.TEXT.value}, ctx)
             self.tasks.create_task(self._save_conversation_turn(request.user_id, request.message_text, defense_reply))
             return

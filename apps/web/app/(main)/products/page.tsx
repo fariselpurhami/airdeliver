@@ -414,7 +414,7 @@ export default function ProductsPage() {
                     {error ? (
                         <div className="text-center py-12 md:py-20 flex flex-col items-center justify-center">
                             <AlertTriangle className="text-red-500 mb-3 md:mb-4 w-8 h-8 md:w-12 md:h-12" />
-                            <p className="text-red-400 font-mono text-xs md:text-sm uppercase tracking-widest">Network Error: Unable to sync with warehouse</p>
+                            <p className="text-red-400 font-mono text-xs md:text-sm uppercase tracking-widest">Products could not be loaded. Please check your connection and try again.</p>
                         </div>
                     ) : isLoading && !productsData ? (
                         <div className="flex justify-center py-12 md:py-20"><div className="w-6 h-6 md:w-8 md:h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" /></div>
@@ -425,7 +425,7 @@ export default function ProductsPage() {
                         </>
                     ) : (
                         <div className="text-center py-20 md:py-32 border border-white/5 rounded-2xl md:rounded-3xl bg-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                            <p className="text-gray-500 font-mono uppercase tracking-widest text-xs md:text-sm">Inventory Depleted in this Sector.</p>
+                            <p className="text-gray-500 font-mono uppercase tracking-widest text-xs md:text-sm">No products matched this view. Try a different search or filter.</p>
                         </div>
                     )}
                 </div>

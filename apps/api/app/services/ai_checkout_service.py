@@ -165,7 +165,7 @@ class AICheckoutService:
             payload = ConfirmOrderPayload(**raw_payload)
         except ValidationError as e:
             logger.warning("Invalid checkout payload boundary", extra={"error_count": e.error_count()})
-            await self._send_error(raw_payload.get("user_id", 0), "Invalid checkout data provided.")
+            await self._send_error(raw_payload.get("user_id", 0), 'Please check your cart, delivery address and payment choice before continuing.')
             return
 
         fingerprint = sha256(json.dumps(payload.model_dump(mode="json", include={"shipping_address", "payment_provider"}),
@@ -346,7 +346,7 @@ class AICheckoutService:
                 "Order creation rejected due to validation failure",
                 extra={"user_id": payload.user_id, "reason": str(ve)}
             )
-            await self._send_error(payload.user_id, "Invalid order details provided. Please verify your cart.")
+            await self._send_error(payload.user_id, "I couldn't use the current order details. Review your cart and delivery address before continuing.")
             return
 
         except IntegrityError:
@@ -367,7 +367,7 @@ class AICheckoutService:
                 exc_info=True, # 🔴 L9 Rule: دائمًا مرر الـ Stack Trace في الـ APM
                 extra={"user_id": payload.user_id}
             )
-            await self._send_error(payload.user_id, "System error processing your order. Please try again.")
+            await self._send_error(payload.user_id, "I couldn't finish creating this order. Check your orders before starting another checkout.")
             return
 
         except Exception as e:
@@ -385,7 +385,7 @@ class AICheckoutService:
                     "cart_preview": safe_cart_summary
                 }
             )
-            await self._send_error(payload.user_id, "A critical system error occurred. Our team has been notified.")
+            await self._send_error(payload.user_id, "I couldn't confirm this checkout. Check your orders before trying again so you don't start a duplicate payment.")
             return
 
         return await self._resume_checkout(new_order, fingerprint)

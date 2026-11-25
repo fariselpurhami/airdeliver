@@ -41,7 +41,7 @@ export default function AssistantAction({action}:{action:unknown}) {
   {state==='idle' && <button type="button" onClick={()=>void submit()} className={button}>{operation==='add'?'Confirm add to cart':'Confirm remove from cart'}</button>}
   {state==='pending' && <p role="status">Submitting and checking your cart...</p>}
   {state==='checked' && <p role="status">Request processed. Review your refreshed cart for the current quantities and price. Unavailable items may not have been added.</p>}
-  {state==='uncertain' && <p role="alert">The change could not be confirmed. Do not submit it again blindly. Open your cart and refresh before deciding what to do next.</p>}
+  {state==='uncertain' && <p role="alert">The change could not be confirmed. Check the current result before trying again. Open your cart and refresh before deciding what to do next.</p>}
   <Link href="/cart" className="flex min-h-11 w-fit items-center underline text-cyan-200">Review cart</Link>
  </section>;
 }

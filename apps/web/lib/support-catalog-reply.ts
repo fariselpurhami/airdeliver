@@ -1,7 +1,7 @@
 /** HTTP assistant boundary. A malformed evidence/card contract never falls back
  * to displaying potentially unsupported sales prose without its cards. */
 export function parseSupportReply(input: unknown): {
-  text: string; action?: unknown; response_kind?: string; products: Record<string, unknown>[];
+  text: string; action?: unknown; response_kind?: string; status_code?:string; recovery?:'retry_chat'|'retry_opening'|'browse'; products: Record<string, unknown>[];
 } {
   if (!input || typeof input !== 'object') throw new Error('Invalid assistant response');
   const data = input as Record<string, unknown>;
@@ -21,5 +21,5 @@ export function parseSupportReply(input: unknown): {
     } else if (card.price_status !== 'unknown' || card.price !== null || card.currency !== null) throw new Error('Invalid unknown price');
     return card;
   });
-  return { text: data.text, action: data.action, response_kind: typeof data.response_kind === 'string' ? data.response_kind : undefined, products };
+  return { text: data.text, action: data.action, response_kind: typeof data.response_kind === 'string' ? data.response_kind : undefined, products, status_code:typeof data.status_code==='string' && /^[a-z_]{1,80}$/.test(data.status_code)?data.status_code:undefined, recovery:['retry_chat','retry_opening','browse'].includes(String(data.recovery))?data.recovery as 'retry_chat'|'retry_opening'|'browse':undefined };
 }

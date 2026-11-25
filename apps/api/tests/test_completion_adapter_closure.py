@@ -20,7 +20,7 @@ def test_mounted_http_incomplete_cards_never_reach_legacy_or_provider(missing):
         response=client.get('/recommendation')
     assert response.status_code==200
     assert response.json()['selected_ids']==[] and response.json()['reasoning']=={}
-    assert response.json()['intro_message'].startswith('System notice:')
+    assert response.json()['intro_message']==__import__('app.services.customer_status',fromlist=['STATUSES']).STATUSES['catalog_unverified'].text
     llm._chat_completion.assert_not_awaited();llm._filter_and_recommend_legacy_unreviewed.assert_not_awaited()
 
 @pytest.mark.asyncio
@@ -130,7 +130,7 @@ async def test_consultation_orchestrator_exception_is_notice_without_unreviewed_
     llm=service();llm.strategize_search=AsyncMock(return_value=SearchStrategy(is_direct_product_request=False))
     llm.extract_search_terms=AsyncMock(return_value='shirt');llm.consult_on_product=AsyncMock(side_effect=ConnectionError('private'))
     result=await llm.handle_commerce_interaction('shirt',[dict(P)])
-    assert result['products']==[] and result['text'].startswith('System notice:')
+    assert result['products']==[] and result['text']==__import__('app.services.customer_status',fromlist=['STATUSES']).STATUSES['reply_unverified'].text
     assert 'strongest' not in result['text'] and 'private' not in result['text']
 
 @pytest.mark.asyncio

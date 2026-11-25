@@ -150,7 +150,8 @@ async def test_all_gateways_slow_returns_latency_failure():
     orch.GLOBAL_TIMEOUT_SECONDS = 1.0
     resp = await orch.process_payment(make_request(region="EG"), "corr-7")
     assert resp.status == PaymentStatus.FAILURE
-    assert "latency" in resp.error_message.lower()
+    assert "didn't finish in time" in resp.error_message.lower()
+    assert "existing order" in resp.error_message.lower()
 
 
 @pytest.mark.asyncio

@@ -341,7 +341,7 @@ const SignInForm = memo(({ onSwitch }: { onSwitch: () => void }) => {
                 router.push(safeCallbackPath(searchParams.get('callbackUrl')));
             }
         } catch (err) {
-            setError('An unexpected error occurred. Please try again.');
+            setError("Sign-in didn't finish. Please check your connection and try again.");
         } finally {
             busy.current = false;
             setIsLoading(false);

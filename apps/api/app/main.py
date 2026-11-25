@@ -149,7 +149,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
         return JSONResponse(
             status_code=500,
-            content={"message": "Internal Server Error"},
+            content={"message": "This request could not be completed. Please check the current page before trying again.", "status_code": "request_unconfirmed"},
         )
 
 

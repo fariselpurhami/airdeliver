@@ -32,6 +32,7 @@ import { CatalogPrice, listedCatalogPrice } from './CatalogPrice';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AssistantAction from './AssistantAction';
+import AssistantStatus from './AssistantStatus';
 import { CatalogEvidence } from './CatalogEvidence';
 
 // --- ENTERPRISE CONTRACT DEFINITIONS ---
@@ -62,6 +63,8 @@ export interface ExtendedMessage {
     contentType: 'text' | 'image_user_upload' | 'error' | 'info' | 'success_text' | 'confirmation_prompt' | 'product_carousel' | 'proactive_suggestion' | 'recovery_prompt' | 'cart_preview' | 'typing' | 'payment_intent' | 'ORDER_CANCELLED';
     content: string | { items: AIProduct[]; total: number };
     action?: unknown;
+    status_code?: string;
+    recovery?: 'retry_chat'|'retry_opening'|'browse';
     imageUrl?: string;
     options?: string[];
     products?: AIProduct[];
@@ -409,6 +412,7 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
     const isAI = message.sender === 'ai';
 
     const renderContent = () => {
+        if (isAI && message.status_code && typeof message.content==='string') return <AssistantStatus messageId={message.id} code={message.status_code} recovery={message.recovery} text={message.content}/>;
         switch (message.contentType) {
             case 'image_user_upload': {
                 const hasCaption = typeof message.content === 'string' && message.content.trim().length > 0 &&
@@ -625,6 +629,8 @@ const ChatMessage = React.memo(({ message, onSend, onViewDetails, isActiveAction
 }, (prevProps, nextProps) => {
     return prevProps.message.id === nextProps.message.id &&
            prevProps.message.content === nextProps.message.content &&
+           prevProps.message.status_code === nextProps.message.status_code &&
+           prevProps.message.recovery === nextProps.message.recovery &&
            prevProps.isActiveAction === nextProps.isActiveAction;
 });
 ChatMessage.displayName = 'ChatMessage';

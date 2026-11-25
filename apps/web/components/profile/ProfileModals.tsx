@@ -257,14 +257,14 @@ export const ViewOrdersModal = memo(
           {error && (
             <div className="flex min-h-[300px] flex-1 flex-col items-center justify-center text-center">
               <AlertCircle className="mb-4 h-12 w-12 text-red-400" />
-              <p className="text-sm font-semibold tracking-widest text-red-300">DATA RETRIEVAL FAILED</p>
+              <p className="text-sm font-semibold tracking-widest text-red-300">Order history is unavailable</p>
               <p className="mt-2 text-xs text-red-400/70">Order history could not be loaded. Please try again.</p>
             </div>
           )}
 
           {data?.orders?.length === 0 && (
             <div className="flex min-h-[300px] flex-1 items-center justify-center text-sm tracking-widest text-white/40 uppercase">
-              No transmission history found.
+              You have no orders yet.
             </div>
           )}
 
@@ -354,7 +354,7 @@ export const EditProfileModal = memo(
         await onSave(fieldName, value);
         onClose();
       } catch (err: any) {
-        setError(err.message || 'Transmission failed. Try again.');
+        setError("Your changes couldn't be saved. Please check the current details before trying again.");
       } finally {
         setIsLoading(false);
       }
@@ -442,7 +442,7 @@ export const EditProfileDetailsModal = memo(
         await onSave(updatedData);
         onClose();
       } catch (err: any) {
-        setError(err.message || 'System integrity check failed. Try again.');
+        setError("This change couldn't be confirmed. Please check your account before trying again.");
       } finally {
         setIsLoading(false);
       }
@@ -527,11 +527,11 @@ export const ChangePasswordModal = memo(
 
     const handleSave = useCallback(async () => {
       if (passwords.new !== passwords.confirm) {
-        setError('Security keys do not match.');
+        setError('The passwords do not match.');
         return;
       }
       if (passwords.new.length < 8) {
-        setError('Key strength insufficient (min 8 characters).');
+        setError('Use a password with at least 8 characters.');
         return;
       }
 
@@ -541,7 +541,7 @@ export const ChangePasswordModal = memo(
         await onSave(passwords.current, passwords.new);
         onClose();
       } catch (err: any) {
-        setError(err.message || 'Authorization failed.');
+        setError("Your password couldn't be changed. Please check your current password and try again.");
       } finally {
         setIsLoading(false);
       }

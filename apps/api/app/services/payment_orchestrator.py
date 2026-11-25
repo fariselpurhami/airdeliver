@@ -717,7 +717,7 @@ class PaymentOrchestrator:
             logger.error("Global processing failure: All targeted gateways failed or timed out.")
             return OrchestrationResponse(
                 status=PaymentStatus.FAILURE,
-                error_message="Payment systems are currently experiencing high latency. Please try again."
+                error_message="Payment setup didn't finish in time. Check the existing order before trying again."
             )
 
         # Deterministic sorting matching the fallback routing preference priority

@@ -96,7 +96,7 @@ async def read_my_orders(
         # Enforce secure error boundary: Never leak infrastructure internals to the caller
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An internal infrastructure error occurred while processing your request.",
+            detail="Your order history isn't available right now. Please try loading it again.",
         ) from None
 
     except Exception as e:
@@ -110,7 +110,7 @@ async def read_my_orders(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected system error occurred.",
+            detail="I couldn't load your orders. Please try again in a moment.",
         ) from None
 
 

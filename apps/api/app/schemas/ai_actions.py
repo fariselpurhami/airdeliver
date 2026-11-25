@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Literal, Optional, Union, Annotated
 
 import orjson
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
-from pydantic import field_validator
+from pydantic import field_validator, field_serializer, model_serializer
 
 
 def _orjson_dumps(value: Any, *, default: Any) -> str:
@@ -278,6 +278,24 @@ class NeuralCoreResponse(SchemaBaseModel):
     explain: StrictStr = Field(..., min_length=1, max_length=10_000)
     confidence: float = Field(..., ge=0.0, le=1.0)
     telemetry: Optional[Telemetry] = None
+
+    status_code: Optional[str] = Field(default=None,max_length=80)
+    recovery: Optional[Literal['retry_chat','retry_opening','browse']] = None
+
+    @model_serializer(mode='wrap')
+    def customer_envelope(self,handler):
+        from app.services.customer_status import customer_status
+        result=handler(self)
+        status=customer_status(self.text)
+        if status:
+            result['status_code']=status.code
+            result['recovery']=status.recovery
+        return result
+
+    @field_serializer('text')
+    def customer_facing_text(self, value):
+        from app.services.customer_status import human_text
+        return human_text(value)
 
     @field_validator("text", "explain")
     @classmethod

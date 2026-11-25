@@ -24,7 +24,7 @@ export default function CartLifecycleReview({payload}:{payload:Record<string,unk
   {state==='idle'&&<button type="button" onClick={()=>void submit()} className="inline-flex min-h-11 items-center rounded-xl border border-cyan-300/25 px-4 py-2 text-cyan-100">{operation==='clear'?'Confirm clear active cart':'Confirm save list and clear cart'}</button>}
   {state==='pending'&&<p role="status">Submitting and checking your cart...</p>}
   {state==='checked'&&<p role="status">Request confirmed. Your refreshed cart is ready to review.</p>}
-  {state==='uncertain'&&<p role="alert">This change could not be confirmed. Do not retry blindly. Refresh your cart and check saved lists before requesting another review.</p>}
+  {state==='uncertain'&&<p role="alert">This change could not be confirmed. Check the current result before trying again. Refresh your cart and check saved lists before requesting another review.</p>}
   <Link href="/cart" className="flex min-h-11 w-fit items-center underline text-cyan-200">Open cart</Link>
  </section>;
 }

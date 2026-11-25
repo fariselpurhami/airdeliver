@@ -19,7 +19,7 @@ from typing import Any, Awaitable, Callable, Dict, Iterable, List, Literal, Mapp
 from groq import AsyncGroq, APIConnectionError, APIStatusError
 from app.core.ai_profile import get_ai_profile
 from app.services.ai_adapters import GroqAdapter
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, field_serializer
 from tavily import TavilyClient
 
 logger = logging.getLogger("airdeliver.services.cognitive_core")
@@ -121,6 +121,11 @@ class CognitiveResponse(BaseModel):
     intro_message: str = Field(default="I found a strong set of matches for you.")
     confidence_score: float = Field(default=0.5)
 
+    @field_serializer('intro_message')
+    def customer_intro(self,value):
+        from app.services.customer_status import human_text
+        return human_text(value)
+
     @field_validator("selected_ids")
     @classmethod
     def validate_selected_ids(cls, value: List[int]) -> List[int]:
@@ -154,6 +159,11 @@ class CommerceInteractionResponse(BaseModel):
     products: List[Dict[str, Any]] = Field(default_factory=list)
     search_terms: str = ""
     intent_metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_serializer('text','intro')
+    def customer_copy(self,value):
+        from app.services.customer_status import human_text
+        return human_text(value)
 
 
 @dataclass(frozen=True)
@@ -1275,7 +1285,7 @@ Output ONE line of search keywords only.
         return await asyncio.wait_for(asyncio.to_thread(_execute), timeout=self.limits.tavily_timeout_seconds)
 
     async def _perform_web_search(self, query: str) -> str:
-        if not self._tavily_api_key or not str(self._tavily_api_key).strip():return 'Global search unavailable.'
+        if not self._tavily_api_key or not str(self._tavily_api_key).strip():return "Product research isn't available right now. Please try again later."
         from app.services.tavily_boundary import search,source_rows
         try:
             result=await search(_build_clean_web_query(query)[:350],self._tavily_api_key,
@@ -1284,14 +1294,14 @@ Output ONE line of search keywords only.
         except asyncio.CancelledError:raise
         except Exception as exc:
             logger.warning('web_search.withheld error_type=%s',type(exc).__name__)
-            return 'Global search could not verify source data.'
+            return "I couldn't confirm reliable product information from this search."
         if not rows:return 'Global search yielded no confirmed data.'
         return 'Untrusted search excerpts. These do not establish product identity, availability or independent factual verification.\n'+ '\n'.join(
             'Source: '+row['url']+' | Excerpt: '+row['text'] for row in rows)
 
     async def _perform_web_search_legacy_unreviewed(self, query: str) -> str:
         if not self._tavily_api_key or not str(self._tavily_api_key).strip():
-            return "Global search unavailable."
+            return "Product research isn't available right now. Please try again later."
 
         clean_query = _build_clean_web_query(query)
 
@@ -1326,7 +1336,7 @@ Output ONE line of search keywords only.
                 extra={"clean_query": clean_query[:200], "error": str(exc)},
                 exc_info=True,
             )
-            return "Connection to global knowledge grid failed."
+            return "I couldn't check product information right now. Please try again later."
 
         parts: List[str] = []
 

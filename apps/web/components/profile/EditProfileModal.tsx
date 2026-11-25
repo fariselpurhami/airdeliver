@@ -41,7 +41,7 @@ export default function EditProfileModal({
             await onSave(fieldName, value);
             onClose(); // Close modal on successful save
         } catch (err: any) {
-            setError(err.message || 'Failed to save. Please try again.');
+            setError("Your changes could not be saved. Check the current details before trying again.");
         } finally {
             setIsLoading(false);
         }

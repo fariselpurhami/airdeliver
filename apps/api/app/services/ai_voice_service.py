@@ -256,7 +256,7 @@ class AIVoiceOrchestrator:
                 )
             except Exception as e:
                 _structured_log("upstream_connection_failed", logging.ERROR, error=str(e), session_id=session_id)
-                await self._send_client_error(client_ws, "Voice Neural Net temporarily offline.")
+                await self._send_client_error(client_ws, "Voice chat isn't available right now. You can keep shopping by typing your question.")
                 return
 
             # 2. Inject Dynamic Context (User DNA & Memory)

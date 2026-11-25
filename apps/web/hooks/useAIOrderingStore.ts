@@ -84,6 +84,8 @@ export interface Message {
   imageUrl?: string;
   content: unknown;
   action?: unknown;
+  status_code?: string;
+  recovery?: 'retry_chat'|'retry_opening'|'browse';
   options?: string[];
   products?: Record<string, unknown>[];
   secondary_suggestions?: Record<string, unknown>[];
@@ -581,7 +583,9 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         reason: response.reason as string,
         ai_notes: response.ai_notes as string,
         timestamp: Date.now(),
-        action: response.action
+        action: response.action,
+        status_code: typeof response.status_code==='string'?response.status_code:undefined,
+        recovery: ['retry_chat','retry_opening','browse'].includes(String(response.recovery))?response.recovery as Message['recovery']:undefined
       };
 
       // Flow specific states
@@ -786,7 +790,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         }));
       }
 
-      get().addSocketAIMessage({ type: data.products.length ? 'product_carousel' : data.response_kind === 'system_notice' ? 'info' : 'text', content: data.text, action: data.action, products: data.products });
+      get().addSocketAIMessage({ type: data.products.length ? 'product_carousel' : data.response_kind === 'system_notice' ? 'info' : 'text', content: data.text, action: data.action, products: data.products, status_code:data.status_code, recovery:data.recovery });
     } catch (error) {
       if (msgId) {
         const ackTimeout = get().ackTimeouts[msgId];
