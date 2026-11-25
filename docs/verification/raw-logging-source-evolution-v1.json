@@ -1,0 +1,107 @@
+{
+  "baseline_commit": "366ce6c52b733df241d2399c07121f01c615c2d6",
+  "scope": "S07 diagnostic source calls only; immutable move manifests retained",
+  "modules": {
+    "backend/api/app/api/deps.py": {
+      "baseline_source_sha256": "5dd2262c80b683efdfa328e3e3b7f68513f75739232fef58d92ef891ee4fbf5f",
+      "baseline_business_sha256": "60e603d62bae1ed9add82fec8ff34e8363a75c8343002671873dbb3f67a8f6c6",
+      "current_sha256": "a6e3fbc356095602c00eecd46e399bfb4dafd0dbb5d5e70236a8b45de56b3c49"
+    },
+    "backend/api/app/api/v1/endpoints/ai_ordering.py": {
+      "baseline_source_sha256": "34bf0f566e66f93f17fe40cc07b5220a828616568d6143f33fca25743425e38c",
+      "baseline_business_sha256": "0c7b77e5c246e773e060b728258dc9a92fb563a98510a48ac77d6afbfda11579",
+      "current_sha256": "757b789f2b00390d417a8bd83c50934623cdf6c607b0955bcf43dbe442c0c33b"
+    },
+    "backend/api/app/api/v1/endpoints/health.py": {
+      "baseline_source_sha256": "9fd082b87803feaf99156039777ca91dd037de78b461c1a21cf716820ec0d067",
+      "baseline_business_sha256": "6f2c2e2b004d0f3df11e0ba1a84d730626fd4318817347c8d0e2304e637052b8",
+      "current_sha256": "2e8fb8afc36e69969680180b6b96e05f8dac41a599029450601157a59d66b060"
+    },
+    "backend/api/app/api/v1/endpoints/orders.py": {
+      "baseline_source_sha256": "86b7e405e8b0d1b0c51363fed8664f59b1fba5b97f01ce308bcac5268448aef2",
+      "baseline_business_sha256": "8bfddf2f013cfee43ce43e28a72c4e616a71b4de57f61159624b4c95b7e38649",
+      "current_sha256": "aad95abbccf171917072503485d5dd2c4b611179a15ccd7469056e7791709efd"
+    },
+    "backend/api/app/api/v1/endpoints/users.py": {
+      "baseline_source_sha256": "d8fc608cb4b2c6be8f0c64e5e1ffc4f0e8468494d13b22029985ef737bdb99ef",
+      "baseline_business_sha256": "e3b46cfe463be6f4d8ae624c7f584e97ffa876e9ed36f9635919e08266914fd2",
+      "current_sha256": "f7f37fe2e83dedc3e5224d7b24e91123a97fbd07cae227734b582c4bee413f59"
+    },
+    "backend/api/app/api/v1/endpoints/webhooks.py": {
+      "baseline_source_sha256": "bd954b846337d8c81514c73831951c2c512aa456fea72965a69d910323211ce6",
+      "baseline_business_sha256": "be2a159523e07b6bb0c1a9e06052914dd277270edd9f18420230e0269dd03d07",
+      "current_sha256": "6f1edd4c62592d918b1697b98a5fa4f8888e3c1aabae736e9c60d111d456e464"
+    },
+    "backend/api/app/core/router_config.py": {
+      "baseline_source_sha256": "57f5e66fdb897ac00ea72a40d7d5c1e5a130e7a2c06a157df0f2fa9437338c66",
+      "baseline_business_sha256": "072530fc778e69443f2e2764b12da4672e72586d7f168c066a6c900e8ca95996",
+      "current_sha256": "f8de3f875e7af5a2c886731254c3ec69d85f4913c2ad0284fefa95ac784f781a"
+    },
+    "backend/api/app/db/initial_data.py": {
+      "baseline_source_sha256": "0e4b795e68b3563ae3b57ccb46e4b9f45dacb063d47ea5418013fe369f9a9eb4",
+      "baseline_business_sha256": "94277ce2b923c81085c361a270b47f01a53f7b7a0a314a97d116adf5c094dec3",
+      "current_sha256": "1f747067a881b79185facfdee73e1c59d3df11236f8f66857fca7b8a92c9f26a"
+    },
+    "backend/api/app/main.py": {
+      "baseline_source_sha256": "533f637070f75c9e2cab8104565ac1ffac4393d0c39788595a965a986930b4ff",
+      "baseline_business_sha256": "7ba40814111a821180cabc59707a2dc7e8b5f808027fcf0497de46431a73e36d",
+      "current_sha256": "d03bba446c199a2a78ac9e99a8c05dab597d30f163abdc658679921327b6dce6"
+    },
+    "backend/api/app/services/behavior/ai_behavior_engine.py": {
+      "baseline_source_sha256": "5621ddbd49a95a5a40a5f518e997a75eb17d7ed96891c99422dfdf4efb16e8e5",
+      "baseline_business_sha256": "99fd14e4955769503cb05b1f2736b788407c7025b5051463b334d3d5fe25c0c4",
+      "current_sha256": "2da8b670d6e5a42572509c9d498fbc6171c6a15c6ee5b432427903cc10b4c17f"
+    },
+    "backend/api/app/services/cart/ai_cart_service.py": {
+      "baseline_source_sha256": "77a7f17f9124775e34c4b6a8766626e02b1747205ac78873be65fe0776a8ed37",
+      "baseline_business_sha256": "1fa069c436cb909a9f8427f35eeb5c635f7202ec21dc0b74d0705e68fa42f32e",
+      "current_sha256": "9c37b5db755fb00c5a891812565860ae2be070360aaea76cba023b3b1db752fb"
+    },
+    "backend/api/app/services/catalog/ai_commerce_engine.py": {
+      "baseline_source_sha256": "23af2855e5ba37417fe75e41ea3c128f26c630819f5719ad24cfc8c93574148c",
+      "baseline_business_sha256": "8ed9753b3d9ef37881f56037a1dc68e04839051d68b3ca9c74a9ff1556b80358",
+      "current_sha256": "53d84833d0c37fc23d2b1ade269328323e0f1731f659731f6f0d81f101c46690"
+    },
+    "backend/api/app/services/checkout/ai_checkout_service.py": {
+      "baseline_source_sha256": "079c48721a3bcb058ea804013377f4ed42ffd39fd9ff069458cdd8643191531d",
+      "baseline_business_sha256": "1ef3a5d054176459b188049ea3c22d069fc197a1039c1dd783a721609e126f91",
+      "current_sha256": "f1ff218eeafbc5064395f8bb9c013a3770c7f01f07db2af872324ac41625d090"
+    },
+    "backend/api/app/services/conversation/ai_nlu_service.py": {
+      "baseline_source_sha256": "12c5e854a0a017b6dab05906e93be52759a07f78fffa4e6ed3d2a8d479b9184a",
+      "baseline_business_sha256": "7f8cf30da3f8232ffe4b3c905942e236383408f964e3122825cdedcbf3a6f03c",
+      "current_sha256": "fc3401ffacd646cddcdc762dc9bdb5fb7c88a7a41dcd2dde27609114c935bfd2"
+    },
+    "backend/api/app/services/conversation/free_llm_service.py": {
+      "baseline_source_sha256": "058e9524af5400e7dcf17088b82160017fb0c7076ece9f6bcae645da08dca5da",
+      "baseline_business_sha256": "afe30d4c4b0c9b447a5ab228cf0482219e0bc73d41846eed7f298b82e734f61e",
+      "current_sha256": "3a497c57c1c779477d376dd414f9e39a89c25156425389134e0c04b6a2be72b2"
+    },
+    "backend/api/app/services/infrastructure/rabbitmq_service.py": {
+      "baseline_source_sha256": "94920456516b30eb2275ba58c223b0a73144eb52aee3a4ded751067ee913dfbd",
+      "baseline_business_sha256": "641c8bb543b101683c2cabf02de068e379140d757cbf55cfe31ada5524fae69a",
+      "current_sha256": "59010ddfbc2dbeffb758cd9f21fabc8ede5ec7143789255efbc0552ecfcdeef9"
+    },
+    "backend/api/app/services/orchestration/worker_entrypoint.py": {
+      "baseline_source_sha256": "36a4b94cdf85a94271d3b98b4c7372a0c53416083128e4be51875a4d53de79c9",
+      "baseline_business_sha256": "294cb718f6d1ad60fb198dfc8e4d53ad7502d026b959468c840668ccff8680b4",
+      "current_sha256": "0b6a585607fba5e2ca5778fb07cfed8ca2b0c0491b587876e3ff5f2b5c32666c"
+    },
+    "backend/api/app/services/payments/payment_completion_service.py": {
+      "baseline_source_sha256": "3645beed5f936913bcab36ab4f425590aef2b637006e85a054539d53244d7814",
+      "baseline_business_sha256": "c0c85be69a90fb8abb7e34c83b471cc43a4dd2969ffa66dbd176c0765bb5aed2",
+      "current_sha256": "57bcf1a17dc4fd3821017921de59d1c8fb238a6497a2116df445e4995a2e5412"
+    },
+    "backend/api/app/services/payments/payment_orchestrator.py": {
+      "baseline_source_sha256": "d922bbe8ce6c1a148a798dfa26b3351f38eae463fea044a2c583b24ee0b93007",
+      "baseline_business_sha256": "99a22bfb3ca47c35d194264b2c9d552ee7cba47e3b92c400ab934495c397e6cc",
+      "current_sha256": "a8392a10bd16896d43639a187f1e66e9237def96bb8d3e38690897066b35716f"
+    },
+    "backend/api/app/websockets/voice_ws.py": {
+      "baseline_source_sha256": "1641f632b8c596a40e77464c5c7ea9307cf108fed433be79d7d65f95eaf8ad4c",
+      "baseline_business_sha256": "a537f580cc4c525e36e078d36d0d9f8c838ca649fddd297cacffd43987a44a6b",
+      "current_sha256": "54d0da5ec9935ffc44aac62676fae8974686b4f40206c2649ab924b77b27239c"
+    }
+  },
+  "syntax_runtime": "Python 3.13"
+}

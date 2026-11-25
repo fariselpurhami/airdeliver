@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.requests import Request
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 from app.api.v1.endpoints import orders, webhooks, ai_ordering
+from app.main import register_exception_handlers
 from tests.test_webhook_security import request_for, signed_header, settings as stripe_settings
 
 PRIVATE = "PRIVATE_RAW_RECORD_MARKER"

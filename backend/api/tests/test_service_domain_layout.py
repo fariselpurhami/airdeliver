@@ -21,7 +21,9 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
   source=source.replace(b'from tools.seed_ultra_scale import ProductVector',b'from seed_ultra_scale import ProductVector')
  evolution=json.loads((ROOT/'docs/verification/conversation-security-evolution-v1.json').read_text())
  assert set(evolution)=={'backend/api/app/services/conversation/free_llm_service.py'}
- assert hashlib.sha256(source).hexdigest()==evolution.get(row['path'],row['canonical_sha256'])
+ logging_evolution=json.loads((ROOT/'docs/verification/raw-logging-source-evolution-v1.json').read_text())['modules']
+ expected=logging_evolution[row['path']]['current_sha256'] if row['path'] in logging_evolution else evolution.get(row['path'],row['canonical_sha256'])
+ assert hashlib.sha256(source).hexdigest()==expected
 
 
 def test_voice_foundation_stays_at_its_existing_path():

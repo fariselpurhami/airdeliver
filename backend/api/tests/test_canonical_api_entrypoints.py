@@ -6,7 +6,10 @@ ROOT=Path(__file__).resolve().parents[3]
 
 def test_worker_is_byte_identical_at_owner_selected_services_domain():
  manifest=json.loads((ROOT/'docs/verification/canonical-api-entrypoints-v1.json').read_text())
- assert hashlib.sha256((ROOT/manifest['worker_path']).read_bytes()).hexdigest()==manifest['worker_sha256']
+ evolution=json.loads((ROOT/'docs/verification/raw-logging-source-evolution-v1.json').read_text())['modules']
+ worker=evolution[manifest['worker_path']]
+ assert worker['baseline_source_sha256']==manifest['worker_sha256']
+ assert hashlib.sha256((ROOT/manifest['worker_path']).read_bytes()).hexdigest()==worker['current_sha256']
  assert not (ROOT/'backend/api/worker_entrypoint.py').exists()
  for old in manifest['removed']:assert not (ROOT/old).exists()
  config=manifest['retained_unique_config']
