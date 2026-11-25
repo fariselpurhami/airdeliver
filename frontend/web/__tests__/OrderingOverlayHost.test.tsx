@@ -32,7 +32,7 @@ it('keeps site chrome and content available after closing',()=>{
 });
 it('does not tile full-page color gradients and pauses hidden canvas work',()=>{
  const css=fs.readFileSync('src/app/globals.css','utf8');
- expect(css).toContain('background-repeat: no-repeat,no-repeat,repeat');
+ expect(css).toContain('background-repeat: no-repeat,no-repeat;');
  const home=fs.readFileSync('src/app/(main)/_components/LandingClient.tsx','utf8');
  expect(home).toContain('if (orderingOpen) return;');
  expect(home).toContain('[prefersReducedMotion, orderingOpen]');

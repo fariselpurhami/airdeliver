@@ -175,7 +175,7 @@ export default function Header() {
         ref={floatingBarRef}
         data-scrolled="false"
         aria-label="Quick navigation"
-        className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-[#0A0A0A]/85 p-1.5 backdrop-blur-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] translate-y-[100px] opacity-0 scale-95 pointer-events-none data-[scrolled=true]:translate-y-0 data-[scrolled=true]:opacity-100 data-[scrolled=true]:scale-100 data-[scrolled=true]:pointer-events-auto transform-gpu will-change-transform"
+        className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1.5 rounded-[28px] border border-white/15 bg-gradient-to-b from-[#161d2a]/95 to-[#080c14]/95 p-2 backdrop-blur-2xl shadow-[0_12px_36px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] translate-y-[100px] opacity-0 scale-95 pointer-events-none data-[scrolled=true]:translate-y-0 data-[scrolled=true]:opacity-100 data-[scrolled=true]:scale-100 data-[scrolled=true]:pointer-events-auto transform-gpu will-change-transform"
       >
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -187,9 +187,9 @@ export default function Header() {
               onClick={(e) => handleProtectedRouting(e, item)}
               aria-label={item.label}
               aria-current={isActive ? "page" : undefined}
-              className={`relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+              className={`relative flex items-center justify-center w-12 h-12 rounded-[20px] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                 isActive
-                  ? "bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] scale-105"
+                  ? "bg-gradient-to-b from-cyan-50 to-white text-[#07101a] shadow-[0_2px_10px_rgba(103,232,249,0.16)]"
                   : "text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95"
               }`}
             >

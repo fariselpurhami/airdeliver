@@ -786,7 +786,7 @@ const HolographicStepCard = memo(({ item, isLast }: { readonly item: StepItem; r
           className="z-10 flex h-14 w-14 md:h-20 md:w-20 items-center justify-center rounded-2xl border border-cyan-400/40 bg-black/50 shadow-[0_0_30px_rgba(6,182,212,0.3)] backdrop-blur-md rotate-45 transform-gpu"
         >
           <div className="-rotate-45 flex flex-col items-center">
-            <span className="font-mono text-sm md:text-lg font-black text-cyan-300 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]">{item.step}</span>
+            <span className="font-mono text-[15px] md:text-lg font-black text-cyan-300 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]">{item.step}</span>
           </div>
         </motion.div>
 
@@ -813,10 +813,10 @@ const HolographicStepCard = memo(({ item, isLast }: { readonly item: StepItem; r
             </div>
 
             <div>
-              <h3 className="mb-3 text-2xl md:text-4xl font-bold tracking-tight text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all duration-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+              <h3 className="mb-3 text-2xl md:text-4xl font-bold tracking-tight text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all duration-500">
                 <span className="sr-only">Step {item.step}: </span>{item.title}
               </h3>
-              <p className="text-sm md:text-lg font-light leading-relaxed text-gray-400 group-hover:text-gray-300 transition-colors duration-500">
+              <p className="text-[15px] md:text-lg font-normal leading-[1.75] text-zinc-300 group-hover:text-gray-300 transition-colors duration-500">
                 {item.description}
               </p>
             </div>
@@ -842,7 +842,6 @@ const HowItWorksSection = memo(() => {
           <div className="absolute top-[10%] left-[-20%] w-[60%] h-[60%] rounded-full bg-cyan-600/[0.04] blur-[80px] mix-blend-screen transform-gpu" />
           <div className="absolute bottom-[10%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-600/[0.04] blur-[80px] mix-blend-screen transform-gpu" />
           
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_10%,transparent_100%)] opacity-30" />
         </motion.div>
       </div>
 
@@ -860,17 +859,17 @@ const HowItWorksSection = memo(() => {
           <motion.h2
             id="how-it-works-heading"
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1, duration: 0.8 }}
-            className="text-5xl md:text-7xl lg:text-8xl font-black leading-[0.9] tracking-tighter text-white drop-shadow-2xl transform-gpu"
+            className="text-5xl md:text-7xl lg:text-8xl font-semibold leading-[1.05] tracking-tight text-white drop-shadow-2xl transform-gpu"
           >
-            <span style={{ fontFamily: "'Orbitron', sans-serif" }}>HOW IT</span> <br className="md:hidden" />
-            <span className="bg-gradient-to-r from-cyan-400 via-white to-purple-500 bg-clip-text text-transparent px-2" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            <span>HOW IT</span> <br className="md:hidden" />
+            <span className="bg-gradient-to-r from-cyan-400 via-white to-purple-500 bg-clip-text text-transparent px-2">
               WORKS
             </span>
           </motion.h2>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.8 }}
-            className="mt-8 max-w-2xl text-lg md:text-xl font-light leading-relaxed text-zinc-400 transform-gpu"
+            className="mt-8 max-w-2xl text-lg md:text-xl font-normal leading-[1.75] text-zinc-300 transform-gpu"
           >
             Watch how our neural network translates your thoughts into a verified, checkout-ready product in seconds.
           </motion.p>
@@ -894,7 +893,6 @@ HowItWorksSection.displayName = 'HowItWorksSection';
 const FinalCTA = memo(() => (
   <section className="relative w-full py-32 overflow-hidden bg-transparent flex items-center justify-center border-t border-white/5 isolate" style={{ contain: 'layout paint' }} aria-labelledby="cta-heading">
     <div className="absolute inset-0 z-0 pointer-events-none transform-gpu" style={{ contain: 'strict' }} aria-hidden="true">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-20" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[100px] transform-gpu" />
     </div>
 
@@ -908,14 +906,14 @@ const FinalCTA = memo(() => (
           <span className="text-xs font-mono text-cyan-300 uppercase tracking-widest">Next-Gen Shopping Experience</span>
         </div>
 
-        <h2 id="cta-heading" className="text-3xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-[0.9]" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+        <h2 id="cta-heading" className="text-4xl md:text-7xl font-semibold text-white mb-8 tracking-tight leading-[1.1]">
           Future of Commerce:<br />
           <span className="text-purple-400 drop-shadow-[0_0_40px_rgba(192,132,252,0.5)]">
             Powered by AI.
           </span>
         </h2>
 
-        <p className="text-[14px] md:text-2xl text-zinc-400 max-w-2xl mx-auto mb-12 font-light leading-relaxed">
+        <p className="text-base md:text-2xl text-zinc-300 max-w-2xl mx-auto mb-12 font-normal leading-[1.75]">
           Don't search. Just ask. Shop thousands of curated products with our intelligent multimodal AI.
         </p>
 

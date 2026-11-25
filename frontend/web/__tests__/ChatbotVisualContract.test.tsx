@@ -21,12 +21,14 @@ it('keeps assistant identity, responsive dialog and existing send/close wiring',
  expect(screen.getByText('How can I help?')).toBeVisible();
 });
 
-it('keeps the dark-glass launcher accessible and opens the same assistant',()=>{
+it('keeps the unframed launcher accessible and opens the same assistant',()=>{
  mockIsOpen=false;
  render(<Chatbot/>);
  const button=screen.getByRole('button',{name:'Open Air Assistant'});
  expect(button).toHaveClass('focus-visible:ring-2');
- expect(button.querySelector('div')).toHaveClass('text-cyan-200');
+ expect(button).toHaveClass('bg-transparent','border-0','shadow-none');
+ expect(button.querySelector('div')).toHaveClass('text-cyan-100','bg-transparent');
+ expect(button.querySelector('div')).not.toHaveClass('rounded-full','border','backdrop-blur-xl');
  expect(button.querySelector('div')).not.toHaveClass('bg-white');
  fireEvent.click(button);expect(setIsOpen).toHaveBeenCalledWith(true);
  mockIsOpen=true;
