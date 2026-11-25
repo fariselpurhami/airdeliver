@@ -37,3 +37,7 @@ Test-first receipt: the first functional boundary test failed with missing `clai
 ## Controlled actual consultation transport check
 
 Three additional tests exercise FreeLLMService.consult_catalog through its real SalesResponseService and structured provider adapter with controlled completions. Opt-in references resolve before review, a negative independent review withholds cards, and the default remains ShoppingDraft rather than silently enabling the experiment. Writer1200/reviewer256 budgets and low reviewer reasoning stay unchanged. Combined with reference/shape cases:17 pass. No provider calls or rendered/model-quality claim follows from these controlled completions. Initial test harness method/signature mistakes were corrected; they were not application failures.
+
+## Mounted HTTP shared-path review matrix, awaiting CI
+
+Five new controlled cases use mounted ai-support/chat with real disposable PostgreSQL and Redis to test adaptive shape propagation and each independent negative grounding verdict before publication. They are authored as integration checks and skip locally without the disposable PostgreSQL DSN. Local combined check:3 consultation transport cases pass,5 HTTP cases skip. These tests do not measure real-model writing quality or source entailment; they make the actual publish/withhold boundary explicit. Full exact-head CI must establish them before relying on the new coverage.
