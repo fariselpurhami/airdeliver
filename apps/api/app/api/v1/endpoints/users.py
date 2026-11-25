@@ -10,7 +10,7 @@ from pathlib import Path
 import stripe
 import logging
 from app import models
-from app.schemas.user import UserRead, UserCreate, UserUpdate, PublicRegistration
+from app.schemas.user import UserRead, UserCreate, UserUpdate, PublicRegistration, SelfProfileUpdate
 from sqlalchemy.exc import IntegrityError
 from app.schemas.msg import Msg
 from app.core.limiter import limiter
@@ -176,7 +176,7 @@ async def delete_account(
 async def update_user_me(
     *,
     session: AsyncSession = Depends(get_async_session),
-    user_in: UserUpdate,
+    user_in: SelfProfileUpdate,
     current_user: models.User = Depends(deps.get_current_active_user),
 ):
     update_data = user_in.model_dump(exclude_unset=True)

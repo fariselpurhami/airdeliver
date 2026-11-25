@@ -52,3 +52,12 @@ class PublicRegistration(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     full_name: Optional[str] = Field(default=None, max_length=100)
+
+
+class SelfProfileUpdate(BaseModel):
+    """Public self-service fields; privileged and password changes use other routes."""
+    model_config = ConfigDict(extra="forbid")
+    full_name: Optional[str] = Field(default=None, max_length=100)
+    phone_number: Optional[str] = Field(default=None, max_length=40)
+    address: Optional[str] = Field(default=None, max_length=2000)
+    avatar_url: Optional[str] = Field(default=None, max_length=2048)
