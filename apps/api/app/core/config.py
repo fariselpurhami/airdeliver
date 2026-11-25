@@ -103,7 +103,29 @@ class CoreSettings(BaseAppConfig):
     VAPID_PRIVATE_KEY: SecretStr = Field(..., alias="VAPID_PRIVATE_KEY")
     
     AI_CHAT_STATE_TTL_SECONDS: int = Field(900, ge=60)
-    PROVIDER_TPM_BUDGET: int = Field(7200,ge=1000,le=1000000)
+    # Local guard only, never upgrades an account or authorizes paid traffic.
+    PROVIDER_CAPACITY_PLAN: Literal['free','developer','custom'] = 'free'
+    PROVIDER_PLAN_TPM_LIMIT: Optional[int] = Field(None,ge=1000,le=1000000)
+    PROVIDER_TPM_HEADROOM_PERCENT: int = Field(10,ge=0,le=50)
+    PROVIDER_TPM_BUDGET: Optional[int] = Field(None,ge=1000,le=1000000)
+
+    @model_validator(mode='after')
+    def provider_capacity(self):
+        defaults={'free':8000,'developer':250000}
+        limit=self.PROVIDER_PLAN_TPM_LIMIT
+        if limit is None:
+            if self.PROVIDER_CAPACITY_PLAN=='custom':
+                raise ValueError('custom capacity requires PROVIDER_PLAN_TPM_LIMIT')
+            limit=defaults[self.PROVIDER_CAPACITY_PLAN]
+        if self.PROVIDER_CAPACITY_PLAN=='free' and limit>8000:
+            raise ValueError('free capacity cannot exceed8000; select verified plan explicitly')
+        safe=limit*(100-self.PROVIDER_TPM_HEADROOM_PERCENT)//100
+        budget=self.PROVIDER_TPM_BUDGET if self.PROVIDER_TPM_BUDGET is not None else safe
+        if budget>safe or budget<1000:
+            raise ValueError('local TPM budget must fit plan limit with configured headroom')
+        self.PROVIDER_PLAN_TPM_LIMIT=limit
+        self.PROVIDER_TPM_BUDGET=budget
+        return self
     SEARCH_EMBEDDING_BUDGET_SECONDS: float = Field(1.5, gt=0, le=3, allow_inf_nan=False)
     TEXT_WARMUP_BUDGET_SECONDS: float = Field(240, gt=0, le=3600, allow_inf_nan=False)
     TEXT_WARMUP_SAMPLE_MAX_SECONDS: float = Field(5, gt=0, le=25, allow_inf_nan=False)
