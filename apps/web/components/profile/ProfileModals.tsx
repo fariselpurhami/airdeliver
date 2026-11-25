@@ -70,7 +70,7 @@ const ModalWrapper = memo(
     title,
     icon: Icon,
     children,
-    maxWidth = 'max-w-lg',
+    maxWidth = 'max-w-md',
   }: {
     isOpen: boolean;
     onClose: () => void;
@@ -98,19 +98,19 @@ const ModalWrapper = memo(
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-2xl"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md"
             onClick={onClose}
           >
             <motion.div
               {...ANIMATION_CONFIG}
               onClick={(e) => e.stopPropagation()}
-              className={`relative flex w-full flex-col overflow-hidden rounded-[28px] bg-black/70 text-white shadow-[0_32px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl ${maxWidth}`}
+              className={`relative flex w-full flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 text-white shadow-2xl ${maxWidth}`}
               style={{ maxHeight: 'min(90vh, 850px)' }}
             >
               {/* Sci-Fi Atmospheric Glows */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2rem]">
-                <div className="absolute left-[-10%] top-[-10%] h-40 w-40 rounded-full bg-white/[0.035] blur-3xl" />
-                <div className="absolute bottom-[-12%] right-[-8%] h-52 w-52 rounded-full bg-white/[0.02] blur-3xl" />
+                <div className="absolute left-[-10%] top-[-10%] h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
+                <div className="absolute bottom-[-12%] right-[-8%] h-52 w-52 rounded-full bg-fuchsia-500/10 blur-3xl" />
               </div>
 
               {/* Close Button */}
@@ -118,15 +118,15 @@ const ModalWrapper = memo(
                 type="button"
                 aria-label="Close modal"
                 onClick={onClose}
-                className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.04] text-white/60 backdrop-blur-md transition hover:bg-black/55 active:scale-[0.98]"
+                className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white backdrop-blur-md transition hover:bg-black/55 active:scale-[0.98]"
               >
                 <X className="h-5 w-5" />
               </button>
 
               {/* Header */}
-              <header className="relative z-10 flex items-center gap-3 pb-3 pl-6 pr-20 pt-8 sm:pl-8 sm:pt-9">
-                {Icon && <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/[0.05]"><Icon className="h-5 w-5 text-white/65" /></span>}
-                <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+              <header className="relative z-10 flex items-center gap-3 border-b border-white/10 px-6 py-5">
+                {Icon && <Icon className="h-5 w-5 text-cyan-400" />}
+                <h2 className="text-lg font-semibold tracking-wide">{title}</h2>
               </header>
 
               {/* Content Area */}
@@ -155,7 +155,7 @@ const SciFiInput = memo(
     <div className="space-y-2">
       <label
         htmlFor={id}
-        className="text-xs font-medium tracking-wide text-white/55"
+        className="text-xs font-semibold uppercase tracking-[0.16em] text-white/55"
       >
         {label}
       </label>
@@ -163,10 +163,10 @@ const SciFiInput = memo(
         <Component
           id={id}
           type={type}
-          className={`w-full rounded-2xl border-0 bg-white/[0.055] px-4 py-3.5 text-sm text-white placeholder-white/20 transition-all focus:bg-white/[0.05] focus:outline-none focus:ring-1 ${
+          className={`w-full rounded-2xl border bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-white/20 transition-all focus:bg-white/[0.05] focus:outline-none focus:ring-1 ${
             error
               ? 'border-red-400/50 focus:border-red-400/50 focus:ring-red-400/50'
-              : 'border-white/10 focus:border-cyan-400/50 focus:ring-white/40'
+              : 'border-white/10 focus:border-cyan-400/50 focus:ring-cyan-400/50'
           } ${rightElement ? 'pr-12' : ''}`}
           {...props}
         />
@@ -185,13 +185,13 @@ SciFiInput.displayName = 'SciFiInput';
 const SciFiButton = memo(
   ({ children, variant = 'primary', isLoading, ...props }: any) => {
     const baseStyle =
-      'inline-flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50';
+      'inline-flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-semibold tracking-[0.16em] uppercase transition active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50';
     
     const variants = {
       primary:
-        'bg-white text-black hover:bg-white/85',
+        'border-cyan-400/20 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/15',
       secondary:
-        'bg-white/[0.055] text-white/70 hover:bg-white/10 hover:text-white',
+        'border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.08] hover:text-white',
     };
 
     return (
@@ -213,7 +213,7 @@ const OrderRow = memo(({ order }: { order: Order }) => {
 
   return (
     <tr className="border-b border-white/5 transition-colors hover:bg-white/[0.02]">
-      <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-white/90">
+      <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-cyan-300">
         <Link href={`/tracking/${order.id}`} className="underline py-2 inline-block" aria-label={`View order ${order.id}`}>#{order.id.toString().padStart(6, '0')}</Link>
       </td>
       <td className="whitespace-nowrap px-6 py-4 text-sm text-white/70">
@@ -246,8 +246,8 @@ export const ViewOrdersModal = memo(
     const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
     return (
-      <ModalWrapper isOpen={isOpen} onClose={onClose} title="Your orders" icon={Package} maxWidth="max-w-4xl">
-        <div className="flex flex-1 flex-col px-6 pb-7 pt-3 sm:px-8">
+      <ModalWrapper isOpen={isOpen} onClose={onClose} title="SYSTEM LOG: ORDERS" icon={Package} maxWidth="max-w-4xl">
+        <div className="flex flex-1 flex-col p-2">
           {isLoading && !data && (
             <div className="flex min-h-[300px] flex-1 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
@@ -263,16 +263,15 @@ export const ViewOrdersModal = memo(
           )}
 
           {data?.orders?.length === 0 && (
-            <div className="flex min-h-[280px] flex-1 flex-col items-center justify-center gap-4 text-sm text-white/50">
-              <Package aria-hidden="true" className="h-9 w-9 text-white/25" />
+            <div className="flex min-h-[300px] flex-1 items-center justify-center text-sm tracking-widest text-white/40 uppercase">
               You have no orders yet.
             </div>
           )}
 
           {(data?.orders?.length ?? 0) > 0 && (
-            <div className="w-full overflow-x-auto rounded-2xl bg-white/[0.025]">
+            <div className="w-full overflow-x-auto rounded-xl border border-white/10 bg-white/[0.02]">
               <table className="min-w-full divide-y divide-white/10 text-left">
-                <thead className="bg-black/40 text-xs font-medium tracking-wide text-white/55">
+                <thead className="bg-black/40 text-xs font-semibold uppercase tracking-[0.16em] text-white/55">
                   <tr>
                     <th scope="col" className="px-6 py-4">ID</th>
                     <th scope="col" className="px-6 py-4">Date</th>
@@ -363,7 +362,7 @@ export const EditProfileModal = memo(
 
     return (
       <ModalWrapper isOpen={isOpen} onClose={onClose} title={`UPDATE ${label.toUpperCase()}`} icon={User}>
-        <div className="flex flex-col gap-6 p-6 sm:px-8">
+        <div className="flex flex-col gap-6 p-6">
           <SciFiInput
             label={label}
             id={fieldName}
@@ -375,9 +374,9 @@ export const EditProfileModal = memo(
             placeholder={`Enter ${label.toLowerCase()}...`}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3 bg-transparent px-6 pb-7 pt-2 sm:px-8">
+        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-black/20 p-6">
           <SciFiButton variant="secondary" onClick={onClose} disabled={isLoading}>
-            Cancel
+            Abort
           </SciFiButton>
           <SciFiButton variant="primary" onClick={handleSave} isLoading={isLoading}>
             <Save className="h-4 w-4" /> Save
@@ -456,8 +455,8 @@ export const EditProfileDetailsModal = memo(
     }, []);
 
     return (
-      <ModalWrapper isOpen={isOpen} onClose={onClose} title="Edit profile" icon={User}>
-        <div className="flex flex-col gap-5 p-6 sm:px-8">
+      <ModalWrapper isOpen={isOpen} onClose={onClose} title="IDENTITY CONFIG" icon={User}>
+        <div className="flex flex-col gap-5 p-6">
           <SciFiInput
             label="Full Name"
             id="full_name"
@@ -481,13 +480,13 @@ export const EditProfileDetailsModal = memo(
             value={formData.address}
             onChange={handleChange('address')}
             disabled={isLoading}
-            className="w-full resize-none rounded-2xl border-0 bg-white/[0.055] px-4 py-3.5 text-sm text-white transition focus:bg-white/[0.07] focus:outline-none focus:ring-1 focus:ring-white/40"
+            className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white transition focus:border-cyan-400/50 focus:bg-white/[0.05] focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
           />
           {error && <p className="text-xs font-medium text-red-400">{error}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-3 bg-transparent px-6 pb-7 pt-2 sm:px-8">
+        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-black/20 p-6">
           <SciFiButton variant="secondary" onClick={onClose} disabled={isLoading}>
-            Cancel
+            Abort
           </SciFiButton>
           <SciFiButton variant="primary" onClick={handleSave} isLoading={isLoading}>
             <Save className="h-4 w-4" /> Save
@@ -570,10 +569,10 @@ export const ChangePasswordModal = memo(
     );
 
     return (
-      <ModalWrapper isOpen={isOpen} onClose={onClose} title="Security" icon={KeyRound}>
-        <div className="flex flex-col gap-5 p-6 sm:px-8">
+      <ModalWrapper isOpen={isOpen} onClose={onClose} title="SECURITY PROTOCOL" icon={KeyRound}>
+        <div className="flex flex-col gap-5 p-6">
           <SciFiInput
-            label="Current password"
+            label="Current Key"
             id="current_pwd"
             type={shows.current ? 'text' : 'password'}
             value={passwords.current}
@@ -582,7 +581,7 @@ export const ChangePasswordModal = memo(
             rightElement={<PasswordToggle field="current" />}
           />
           <SciFiInput
-            label="New password"
+            label="New Key"
             id="new_pwd"
             type={shows.new ? 'text' : 'password'}
             value={passwords.new}
@@ -591,7 +590,7 @@ export const ChangePasswordModal = memo(
             rightElement={<PasswordToggle field="new" />}
           />
           <SciFiInput
-            label="Confirm new password"
+            label="Confirm New Key"
             id="confirm_pwd"
             type={shows.confirm ? 'text' : 'password'}
             value={passwords.confirm}
@@ -601,9 +600,9 @@ export const ChangePasswordModal = memo(
           />
           {error && <p className="text-xs font-medium text-red-400">{error}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-3 bg-transparent px-6 pb-7 pt-2 sm:px-8">
+        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-black/20 p-6">
           <SciFiButton variant="secondary" onClick={onClose} disabled={isLoading}>
-            Cancel
+            Abort
           </SciFiButton>
           <SciFiButton variant="primary" onClick={handleSave} isLoading={isLoading}>
             <KeyRound className="h-4 w-4" /> Update
