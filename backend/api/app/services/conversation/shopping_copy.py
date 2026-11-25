@@ -56,6 +56,11 @@ def resolve_template_claims(raw,reference_map):
     if any(ref not in reference_map for ref in references):raise ValueError('unknown_claim_reference')
     refs=list(dict.fromkeys(references))
     claims=[reference_map[ref] for ref in refs]
+    # Exact literal full names are the same evidence as their name placeholder.
+    # Do not infer aliases, shortened names or identity from semantic similarity.
+    for claim in reference_map.values():
+        if claim['field']=='name' and claim['value'].casefold() in template.casefold() and claim not in claims:
+            claims.append(claim)
     identities=list(dict.fromkeys(claim['product_id'] for claim in claims))
     # Every cited card needs its exact name, even a comparison-only card.
     for identity in identities:

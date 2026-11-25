@@ -48,3 +48,17 @@ async def test_grounded_customer_budget_remains_allowed_by_existing_numeric_vali
  infer=AsyncMock(side_effect=[json.dumps({'text_template':'Your $80 budget is a limit, not proof of fit.'}),json.dumps(V)])
  text=await write_shopping_copy(infer,'budget $80',[catalog_result(row())],{'budget_max':'80'},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'template_v1'})
  assert '$80 budget' in text and infer.await_count==2
+
+@pytest.mark.asyncio
+async def test_literal_exact_catalog_name_binds_name_claim_without_rewriting_prose():
+ card=catalog_result(row());calls=[]
+ async def infer(messages):
+  calls.append(messages)
+  if len(calls)==1:
+   refs=json.loads(messages[1]['content'])['claim_reference_map']
+   price=next(k for k,v in refs.items() if v['field']=='price')
+   return json.dumps({'text_template':card.name+' is listed at {{'+price+'}}.'})
+  draft=json.loads(messages[1]['content'])['draft']
+  assert {'product_id':card.id,'field':'name','value':card.name} in draft['claims']
+  return json.dumps(V)
+ assert await write_shopping_copy(infer,'x',[card],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'template_v1'})==card.name+' is listed at '+card.price+'.'
