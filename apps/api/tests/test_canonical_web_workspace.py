@@ -34,3 +34,12 @@ def test_root_docker_context_is_default_deny_with_web_secret_exclusions():
     for name in ['apps/web/node_modules','apps/web/.next','apps/web/.env*','apps/web/.git','apps/web/.vercel']:
         assert name in ignore
     assert '!apps/api/**' not in ignore and '!secrets/**' not in ignore
+
+
+def test_isolated_ci_fixture_keeps_all_assertions_with_canonical_workspace_inputs():
+    ci=(ROOT/'.github/workflows/frontend-ci.yml').read_text()
+    assert 'mkdir -p "$standalone/apps/web"' in ci
+    assert 'cp package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs' in ci
+    for gate in ['pnpm install --frozen-lockfile','exec node scripts/check-security-dependency-contracts.cjs','exec tsc --noEmit','exec jest --coverage=false --runInBand','pnpm --filter airdeliver/apps/web build']:
+        assert gate in ci
+    assert 'docker build -f apps/web/Dockerfile --target runner' in ci

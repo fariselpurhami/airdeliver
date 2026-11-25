@@ -100,17 +100,19 @@ jobs:
           AUTH_SECRET: ci-build-dummy-secret-not-used-at-runtime
         run: pnpm --filter airdeliver/apps/web build
 
-      - name: Verify standalone Docker-context lock and install
+      - name: Verify isolated canonical workspace lock and install
         timeout-minutes: 12
         run: |
           standalone=$(mktemp -d)
-          tar -C apps/web --exclude=node_modules --exclude=.next --exclude=tsconfig.tsbuildinfo -cf - . | tar -C "$standalone" -xf -
+          mkdir -p "$standalone/apps/web"
+          cp package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs "$standalone/"
+          tar -C apps/web --exclude=node_modules --exclude=.next --exclude=tsconfig.tsbuildinfo -cf - . | tar -C "$standalone/apps/web" -xf -
           cd "$standalone"
           pnpm install --frozen-lockfile
-          node scripts/check-security-dependency-contracts.cjs
-          pnpm exec tsc --noEmit
-          pnpm exec jest --coverage=false --runInBand
-          AUTH_SECRET=ci-build-dummy-secret-not-runtime pnpm build
+          pnpm --filter airdeliver/apps/web exec node scripts/check-security-dependency-contracts.cjs
+          pnpm --filter airdeliver/apps/web exec tsc --noEmit
+          pnpm --filter airdeliver/apps/web exec jest --coverage=false --runInBand
+          AUTH_SECRET=ci-build-dummy-secret-not-runtime pnpm --filter airdeliver/apps/web build
 
   docker-workspace-smoke:
     runs-on: ubuntu-latest
