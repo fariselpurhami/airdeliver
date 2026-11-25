@@ -81,9 +81,9 @@ def test_sync_tavily_sdk_only_remains_inside_preserved_legacy_bodies():
     import ast
     from pathlib import Path
     found=[]
-    def visit(node,scope=''):
-        if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)):scope=node.name
-        if isinstance(node,ast.Call) and isinstance(node.func,ast.Name) and node.func.id=='TavilyClient':found.append(scope)
+    def visit(node,scope=()):
+        if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)):scope=(*scope,node.name)
+        if isinstance(node,ast.Call) and isinstance(node.func,ast.Name) and node.func.id=='TavilyClient':found.append(scope[0])
         for child in ast.iter_child_nodes(node):visit(child,scope)
     visit(ast.parse(Path('app/services/free_llm_service.py').read_text()))
     assert set(found)=={'_perform_tavily_title_lookup_legacy_unreviewed','_perform_web_search_legacy_unreviewed'}
