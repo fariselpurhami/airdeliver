@@ -1,6 +1,6 @@
 {
   "frontend/web/src/app/globals.css": "93ad8c8ac11df474e5c8868abdeb290d195d5bf075d338411742939940e29e7b",
   "frontend/web/src/app/(main)/_components/LandingClient.tsx": "56c1bfbed6e2a8350970797360f8a66a9548d16c22c8e79fab3443898605bbc1",
-  "frontend/web/src/components/layout/Header.tsx": "434e38842122273502e322ea6e47ecfd0cdd12c873aea9ac7d8218b73267feef",
+  "frontend/web/src/components/layout/Header.tsx": "96bb11b2b595e428751ce5dcd1ee862deb3b78d1d20d4f9f14df8ca37f426e42",
   "frontend/web/src/components/ai/Chatbot.tsx": "8af53208ff3034127b28a9ce9a1897bdaffa107d0c6ea65ea6f0fb49acea16de"
 }
