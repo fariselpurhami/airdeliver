@@ -96,3 +96,18 @@ async def test_recommendation_query_and_catalog_remain_user_data_not_system_poli
     data=json.loads(messages[1]['content'])
     assert data['customer_query']=='CUSTOMER_QUERY_MARKER'
     assert data['products'][0]['name']=='CATALOG_MARKER'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('strict',[False,True])
+@pytest.mark.parametrize('context',[{'source':'REFERENCE_SENTINEL'},['REFERENCE_SENTINEL'],'REFERENCE_SENTINEL'])
+async def test_generate_response_context_never_promoted_to_privileged_role(strict,context):
+    svc=service();svc._chat_completion=AsyncMock(return_value=completion('safe response'))
+    assert await svc.generate_response('CUSTOMER_SENTINEL',system_role='Trusted shopping policy',context=context,raise_on_failure=strict)=='safe response'
+    messages=svc._chat_completion.await_args.kwargs['messages']
+    assert [m['role'] for m in messages]==['system','user']
+    assert 'REFERENCE_SENTINEL' not in messages[0]['content']
+    assert 'CUSTOMER_SENTINEL' not in messages[0]['content']
+    payload=json.loads(messages[1]['content'])
+    assert payload['customer_prompt']=='CUSTOMER_SENTINEL'
+    assert 'REFERENCE_SENTINEL' in payload['referenced_context']

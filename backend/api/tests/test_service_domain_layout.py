@@ -19,7 +19,9 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
  if row['canonical_module']=='app.services.catalog.real_catalog_import':
   assert b'from tools.seed_ultra_scale import ProductVector' in source
   source=source.replace(b'from tools.seed_ultra_scale import ProductVector',b'from seed_ultra_scale import ProductVector')
- assert hashlib.sha256(source).hexdigest()==row['canonical_sha256']
+ evolution=json.loads((ROOT/'docs/verification/conversation-security-evolution-v1.json').read_text())
+ assert set(evolution)=={'backend/api/app/services/conversation/free_llm_service.py'}
+ assert hashlib.sha256(source).hexdigest()==evolution.get(row['path'],row['canonical_sha256'])
 
 
 def test_voice_foundation_stays_at_its_existing_path():
