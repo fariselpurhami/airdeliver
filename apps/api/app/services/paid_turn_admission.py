@@ -41,7 +41,8 @@ redis.call('ZREM',KEYS[1],ARGV[1]);redis.call('ZREM',KEYS[2],ARGV[1]);redis.call
 if redis.call('GET',KEYS[3])==ARGV[1] then redis.call('DEL',KEYS[3]) end
 return 1
 """
-class PaidTurnAdmissionError(RuntimeError):pass
+from app.services.shared_provider_admission import SharedProviderBudgetError
+class PaidTurnAdmissionError(SharedProviderBudgetError):pass
 
 @asynccontextmanager
 async def paid_turn_slot(principal,*,client=None,settings=None):
