@@ -10,9 +10,11 @@ def test_source_manifest_preserves_every_pre_move_byte():
  evolution=json.loads((ROOT/'docs/verification/web-source-evolution-v1.json').read_text())
  assert set(evolution)=={'frontend/web/src/app/globals.css','frontend/web/src/app/(main)/_components/LandingClient.tsx','frontend/web/src/components/layout/Header.tsx','frontend/web/src/components/ai/Chatbot.tsx','frontend/web/src/app/(main)/products/page.tsx'}
  assert len(manifest['files'])>100
+ security=json.loads((ROOT/'docs/verification/next-security-source-evolution-v1.json').read_text())
  for row in manifest['files']:
   assert not (ROOT/row['previous_path']).exists()
-  assert hashlib.sha256((ROOT/row['canonical_path']).read_bytes()).hexdigest()==evolution.get(row['canonical_path'],row['sha256'])
+  expected=security[row['canonical_path']]['current_sha256'] if row['canonical_path'] in security else evolution.get(row['canonical_path'],row['sha256'])
+  assert hashlib.sha256((ROOT/row['canonical_path']).read_bytes()).hexdigest()==expected
 
 
 def test_next_source_has_one_app_and_proxy_boundary_not_duplicate_route_symlinks():
@@ -39,3 +41,11 @@ def test_reviewed_source_evolution_does_not_rewrite_historical_move_manifest():
   assert name in historical and digest!=historical[name]
   assert len(digest)==64
   assert hashlib.sha256((ROOT/name).read_bytes()).hexdigest()==digest
+
+
+def test_next_security_evolution_has_exact_current_hashes_and_keeps_move_receipts():
+ security=json.loads((ROOT/'docs/verification/next-security-source-evolution-v1.json').read_text())
+ assert len(security)==9
+ for path,row in security.items():
+  assert hashlib.sha256((ROOT/path).read_bytes()).hexdigest()==row['current_sha256']
+  assert row['baseline_sha256'] is None or len(row['baseline_sha256'])==64

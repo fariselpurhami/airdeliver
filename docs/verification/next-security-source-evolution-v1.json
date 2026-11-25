@@ -1,0 +1,38 @@
+{
+  "frontend/web/src/app/(main)/about/page.tsx": {
+    "baseline_sha256": "77d42f861ea18adee1cfd73e0dffea4f0ee50a69c0dc7c33569ad60f48dcf9c6",
+    "current_sha256": "345ae0d19db1faf155b2e1240b0076064b433d3eefd7a5d385d9118db1ce7d95"
+  },
+  "frontend/web/src/app/(main)/cart/page.tsx": {
+    "baseline_sha256": "e8942b3b06b2cda4f7d6fdac3c508b2bdbfab3d7e4b08049cf9c08eb3fb0ac61",
+    "current_sha256": "d1a289803e68d72c3a88bbce9fbd72440e5caad41860a16cf7de643e20f80b31"
+  },
+  "frontend/web/src/app/(main)/profile/page.tsx": {
+    "baseline_sha256": "ccbb18a45673ab02f91af14b9bf7cd34f5bfb0b80cc312942a0f9baa402fa3b3",
+    "current_sha256": "99273a2c955b1b9e5f8863b3322ed6afb4e9ca1fce16850a9646781e9f667ab4"
+  },
+  "frontend/web/src/app/layout.tsx": {
+    "baseline_sha256": "0bd6528ce0b55281ec1766d2b60f7490bd295d7201bb285a7219c1ea0d229ac2",
+    "current_sha256": "4abf7a2ebdf27c7c16d7f87f80acec011c16c30438c7960b267f7f209c49337c"
+  },
+  "frontend/web/src/components/ai/AIChatOverlay.tsx": {
+    "baseline_sha256": "36aba3dd09c59fb678abbdf79f223dc37916f6d701f54cb4085586a5b26b0fa1",
+    "current_sha256": "cd4e19e78639aae33c3c3482aeae9ca5c1127649e3b5b1fda8ceffffec8978e8"
+  },
+  "frontend/web/src/components/layout/ViewportEnforcer.tsx": {
+    "baseline_sha256": "634dd1f5750a7f64ca1f576654f04e3286a791554fb53a950b21f35df2583d69",
+    "current_sha256": "80e32d175dda8e2a6c9d5f9a454dcbcac4465c433e2bf501eb571ad60927bb71"
+  },
+  "frontend/web/src/components/products/CatalogImage.tsx": {
+    "baseline_sha256": "9c706a264157472d340c336321c3e8d4f4bd1bb3234ef5077fa6dd5ec3d2994c",
+    "current_sha256": "aaa44ac8a153b13ff87492a5b2e8a6a0829c6a5d06fed7a59161b0b7af95354a"
+  },
+  "frontend/web/src/lib/document-security.ts": {
+    "baseline_sha256": null,
+    "current_sha256": "4cc54bf56baaeb8096dd7f560fa4e9cb10920100a5b2398a75555d2349e3e4f6"
+  },
+  "frontend/web/src/proxy.ts": {
+    "baseline_sha256": "8327c98391bdec857dcbd8a3836fec849532760175500c44edd706d72b3aa5ed",
+    "current_sha256": "578de947f679f7775e98dace5208a1bc94b085c674e9a0d1792fa4dbf13d5280"
+  }
+}
