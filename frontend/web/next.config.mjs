@@ -12,25 +12,26 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const isDevelopment = process.env.NODE_ENV === 'development';
+// Workspace builds trace the repository. The /app development container resolves
+// its pnpm virtual store from /node_modules, so it must trace their shared root.
+const workspaceRoot = path.resolve(__dirname, '..', '..');
+const tracingRoot = fs.existsSync(path.join(workspaceRoot, 'pnpm-workspace.yaml'))
+  ? workspaceRoot
+  : fs.existsSync(path.resolve(__dirname, '..', 'node_modules', '.pnpm'))
+    ? path.resolve(__dirname, '..')
+    : __dirname;
 const API_BASE_URL = process.env.BACKEND_API_URL || 'http://api:8000';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   devIndicators: false,
   allowedDevOrigins: isDevelopment ? ["127.0.0.1"] : [],
-  turbopack: {
-    // In the pnpm workspace, `next` is hoisted to the repo-root node_modules,
-    // so the workspace root must be the repo root. In the standalone Docker
-    // build the app owns its node_modules and is its own root.
-    root: fs.existsSync(path.resolve(__dirname, '..', '..', 'pnpm-workspace.yaml'))
-      ? path.resolve(__dirname, '..', '..')
-      : __dirname,
-  },
+  turbopack: { root: tracingRoot },
   typescript: {
     ignoreBuildErrors: true,
   },
   output: 'standalone',
-  outputFileTracingRoot: path.resolve(__dirname, '..', '..'),
+  outputFileTracingRoot: tracingRoot,
   reactStrictMode: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,

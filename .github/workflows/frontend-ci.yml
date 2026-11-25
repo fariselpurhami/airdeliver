@@ -4,7 +4,7 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["fix/api-tools-production-package", "refactor/api-tool-ownership", "refactor/web-source-boundary", "refactor/service-domain-ownership", "refactor/provider-capacity-domain", "refactor/script-ownership", "refactor/docs-ownership", "refactor/frontend-backend-boundaries", "refactor/infra-layout-stage", "build/canonical-workspace-lock", "chore/generated-cache-cleanup", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
+    branches: ["fix/web-dev-tracing-root", "fix/api-tools-production-package", "refactor/api-tool-ownership", "refactor/web-source-boundary", "refactor/service-domain-ownership", "refactor/provider-capacity-domain", "refactor/script-ownership", "refactor/docs-ownership", "refactor/frontend-backend-boundaries", "refactor/infra-layout-stage", "build/canonical-workspace-lock", "chore/generated-cache-cleanup", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
     paths:
       - 'scripts/**'
       - 'frontend/**'
@@ -99,6 +99,9 @@ jobs:
       - name: Private LAN development policy
         run: node --test frontend/web/scripts/check-dev-lan-policy.mjs
 
+      - name: Workspace and mounted development tracing roots
+        run: node --test frontend/web/scripts/check-tracing-root.mjs
+
       - name: Scoped security dependency contracts
         run: pnpm --filter airdeliver/apps/web exec node scripts/check-security-dependency-contracts.cjs
 
@@ -139,6 +142,20 @@ jobs:
         run: docker build -f frontend/web/Dockerfile --target development -t airdeliver-web-dev-ci .
       - name: Resolve locked dependencies from the existing dev mount path
         run: docker run --rm --entrypoint node airdeliver-web-dev-ci -e "for (const name of ['next','react','next-auth','sharp']) console.log(name, require.resolve(name));"
+      - name: Compile the real development home route through its LAN gateway
+        shell: bash
+        run: |
+          docker run -d --name airdeliver-web-dev-route -p 127.0.0.1:3000:3000 -e AUTH_SECRET=ci-dev-route-secret --entrypoint node airdeliver-web-dev-ci scripts/dev-lan.mjs
+          trap 'docker logs airdeliver-web-dev-route; docker rm -f airdeliver-web-dev-route' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --max-time 5 -fsS http://127.0.0.1:3000/ -o /tmp/airdeliver-dev-home.html; then
+              grep -qi '<html' /tmp/airdeliver-dev-home.html
+              exit 0
+            fi
+            test "$(docker inspect -f '{{.State.Running}}' airdeliver-web-dev-route)" = true
+            sleep 2
+          done
+          exit 1
       - name: Build standalone production runner from same frozen graph
         run: docker build -f frontend/web/Dockerfile --target runner -t airdeliver-web-run-ci .
       - name: Verify standalone runner without API or provider traffic
