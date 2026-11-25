@@ -43,3 +43,12 @@ def test_gate_is_dev_only_and_requires_explicit_environment_forwarding():
     production=(ROOT/'docker-compose.yml').read_text()
     assert 'AIRDELIVER_DEV_ALLOW_MIGRATIONS' not in production
     assert 'alembic upgrade head &&' in production
+
+
+def test_dev_migrator_reads_current_checkout_read_only_not_baked_revision_copy():
+    source=(ROOT/'docker-compose.dev.yml').read_text()
+    block=source.split('  api-migrator:',1)[1].split('\n  api:',1)[0]
+    assert './backend/api:/app:ro' in block
+    assert 'target: production' in block
+    assert (ROOT/'backend/api/alembic/versions/0a7cd546f987_customer_memory_consent.py').is_file()
+    assert 'WORKDIR /app' in (ROOT/'backend/api/Dockerfile').read_text()

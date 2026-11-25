@@ -67,6 +67,8 @@ def test_combined_dev_preserves_volume_credentials_and_disables_unconfigured_pay
         assert values['LEGACY_TIMESTAMP_TIMEZONE']==''
         assert values['DATABASE_URI'].startswith('postgresql+asyncpg://')
     migrator = services['api-migrator']
+    assert migrator['build']['target'] == 'production'
+    assert any(v['type']=='bind' and v['target']=='/app' and v.get('read_only') and v['source'].endswith('/backend/api') for v in migrator['volumes'])
     assert migrator['environment']['AIRDELIVER_DEV_ALLOW_MIGRATIONS'] == '0'
     assert migrator['command'][:2] == ['sh', '-ec']
     assert 'migration and seed skipped' in migrator['command'][2]
