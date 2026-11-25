@@ -6,6 +6,7 @@ one caller cannot occupy the queue. Deadlines and cancellation remove leases.
 import asyncio
 import hashlib
 import uuid
+from redis.exceptions import RedisError
 from contextvars import ContextVar
 
 _paid_active=ContextVar('paid_provider_active',default=False)
@@ -77,7 +78,10 @@ async def paid_turn_slot(principal,*,client=None,settings=None,reuse=False):
         try:
             async with asyncio.timeout(wait):
                 while True:
-                    status=await client.eval(ENTER,5,*keys,owner,settings.PROVIDER_MAX_ACTIVE_TURNS,settings.PROVIDER_MAX_QUEUED_TURNS,lease*1000)
+                    try:
+                        status=await client.eval(ENTER,5,*keys,owner,settings.PROVIDER_MAX_ACTIVE_TURNS,settings.PROVIDER_MAX_QUEUED_TURNS,lease*1000)
+                    except RedisError as failure:
+                        raise PaidTurnAdmissionError('shared_admission_unavailable') from failure
                     if status==1:break
                     if status in {-1,-2}:raise PaidTurnAdmissionError('queue_full' if status==-1 else 'principal_already_active')
                     await asyncio.sleep(.05)
@@ -88,7 +92,13 @@ async def paid_turn_slot(principal,*,client=None,settings=None,reuse=False):
             async with asyncio.timeout(lease-wait):yield
         finally:_paid_active.reset(active_token)
     finally:
-        try:await asyncio.shield(client.eval(LEAVE,5,*keys,owner))
+        try:
+            try:await asyncio.shield(client.eval(LEAVE,5,*keys,owner))
+            except RedisError as failure:
+                # Never replace a typed capacity outcome or a reviewed result
+                # with raw backend failure. The hard lease remains the bound.
+                import logging
+                logging.getLogger('airdeliver.provider_budget').warning('provider.admission_cleanup_unavailable error_type=%s',type(failure).__name__)
         finally:
             if own:await client.aclose()
 

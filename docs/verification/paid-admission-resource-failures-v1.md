@@ -1,0 +1,5 @@
+# Typed local resource failures
+
+Paid distributed admission maps Redis failures, including client pool exhaustion, to the existing SharedProviderBudgetError family so the current human capacity fallback applies. No raw backend detail reaches the customer. No request is issued when admission cannot be verified. Gate cleanup failure logs its class only and does not replace an accepted result or typed original failure; the existing hard lease/TTL bounds retained active state. Cancellation still propagates. This does not make Redis unavailable operation safe to proceed or remove the need for operational pool sizing.
+
+14real Redis/disposable PostgreSQL plus injected exact Redis-error tests pass:128caller bounds, same-principal floods, expired crash cleanup, deadlines/cancellation, actual cognitive paid transport, pool exhaustion typed withholding and cleanup failure not masking accepted result/private text. No real provider traffic, paid activation, deployment, migration or cap/review changes. Exact full CI required. No claim of whole-chain capacity or production throughput closure.
