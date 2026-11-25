@@ -68,6 +68,7 @@ class SpecDraft(BaseModel):
 
 
 def allowed_url(url,domains=None):
+    if not isinstance(url,str) or not url or len(url)>2048:return False
     import ipaddress
     try:
         parsed=urlsplit(url)
@@ -148,7 +149,12 @@ async def answer_product_question(infer,question,*,lookup=None,timeout=12,cards=
                     try:
                         result=await search(query)
                         if not isinstance(result,list) or len(result)>3:raise ValueError('invalid_sources')
-                        return result
+                        checked=[]
+                        for source in result:
+                            if not isinstance(source,dict) or not allowed_url(source.get('url')) or not isinstance(source.get('text'),str) or not 0<len(source['text'])<=6000:
+                                raise SourceFailure('source_policy')
+                            checked.append({'url':source['url'],'text':source['text']})
+                        return checked
                     except asyncio.CancelledError:raise
                     except SourceFailure as exc:failures.append(exc.cause);return []
                     except Exception:failures.append('research_failed');return []

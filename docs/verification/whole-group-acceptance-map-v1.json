@@ -219,19 +219,22 @@
       "id": "CAP-28",
       "capability": "Informational web/spec/comparison synthesis, targeted specs, main product prose, missing-product recovery",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Source quote/type/coverage gates and original prose/synthesis bridges",
-      "next_code_or_boundary_acceptance": "Audit all informational and incomplete-card legacy callers against exact failure contract",
+      "next_code_or_boundary_acceptance": "No known remaining in-scope active source/prose boundary gap after per-target malformed-source isolation audit. Exact-head CI and merge remain; actual entailment/quality and owner acceptance separate.",
       "quality_acceptance": "Actual source entailment, exact product identity and useful synthesis",
       "owner_acceptance": "Bounded provider/source execution with authoritative live receipts",
       "evidence_leads": [
         "apps/api/tests/test_research_fact_types.py",
         "apps/api/tests/test_legacy_synthesis_strict.py",
         "apps/api/tests/test_legacy_prose_postgres.py",
-        "apps/api/tests/test_reviewed_consultation.py"
+        "apps/api/tests/test_reviewed_consultation.py",
+        "docs/verification/cap28-code-acceptance-v1.md",
+        "apps/api/tests/test_product_research_boundary_closure.py",
+        "apps/api/tests/test_research_fallback_scope_http.py"
       ],
       "unresolved_test_leads": []
     },
@@ -403,6 +406,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 6,
-  "code_remaining_groups": 14
+  "code_complete_groups": 7,
+  "code_remaining_groups": 13
 }
