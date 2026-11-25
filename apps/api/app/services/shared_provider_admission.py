@@ -163,6 +163,6 @@ def budgeted_turn(function):
 async def shared_provider_slot(model,messages,response_format,output,timeout=30,*,client=None,limit=None):
     # Admission surrounds provider calls only, never deterministic cart actions.
     from app.services.paid_turn_admission import paid_turn_slot
-    async with paid_turn_slot(_principal.get() if _principal.get() is not None else 'internal-provider-work'):
+    async with paid_turn_slot(_principal.get() if _principal.get() is not None else 'internal-provider-work',reuse=True):
         async with _shared_provider_slot(model,messages,response_format,output,timeout,client=client,limit=limit) as reservation:
             yield reservation

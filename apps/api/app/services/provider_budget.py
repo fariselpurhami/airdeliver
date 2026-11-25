@@ -83,6 +83,9 @@ def log_usage(response,model,stage,messages,output):
     values={k:v for k,v in values.items() if type(v) is int and v>=0}
     logger.info('provider.usage model=%s stage=%s input_bytes_upper=%d output_cap=%d usage=%s',model,stage,token_upper_bound(messages),output,values)
 
+from app.services.paid_turn_admission import paid_provider_call
+
+@paid_provider_call
 async def complete(create, *, model, messages, response_format, timeout, stage='inference'):
     output = {'SpecDraft': 1200, 'SourceReview': 1200,'GroundingReview':256,'ShoppingDraft':640,'RouterDecision':768}.get(stage, 2048)
     estimate = token_upper_bound({'messages': messages, 'response_format': response_format})

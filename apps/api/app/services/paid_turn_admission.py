@@ -6,6 +6,9 @@ one caller cannot occupy the queue. Deadlines and cancellation remove leases.
 import asyncio
 import hashlib
 import uuid
+from contextvars import ContextVar
+
+_paid_active=ContextVar('paid_provider_active',default=False)
 from contextlib import asynccontextmanager
 
 ENTER="""
@@ -45,7 +48,10 @@ from app.services.shared_provider_admission import SharedProviderBudgetError
 class PaidTurnAdmissionError(SharedProviderBudgetError):pass
 
 @asynccontextmanager
-async def paid_turn_slot(principal,*,client=None,settings=None):
+async def paid_turn_slot(principal,*,client=None,settings=None,reuse=False):
+    active=_paid_active.get()
+    if reuse and active and active[0] is asyncio.current_task() and active[1]==principal:
+        yield;return
     if settings is None:
         from app.core.config import get_core_settings
         settings=get_core_settings()
@@ -77,8 +83,31 @@ async def paid_turn_slot(principal,*,client=None,settings=None):
                     await asyncio.sleep(.05)
         except TimeoutError as exc:raise PaidTurnAdmissionError('queue_deadline') from exc
         # Hard lease bound prevents expired turns continuing beside new owners.
-        async with asyncio.timeout(lease-wait):yield
+        active_token=_paid_active.set((asyncio.current_task(),principal))
+        try:
+            async with asyncio.timeout(lease-wait):yield
+        finally:_paid_active.reset(active_token)
     finally:
         try:await asyncio.shield(client.eval(LEAVE,5,*keys,owner))
         finally:
             if own:await client.aclose()
+
+
+def paid_provider_call(function):
+    """Queue before any local semaphore/lock. Preserve outer timeout budget."""
+    from functools import wraps
+    import inspect
+    @wraps(function)
+    async def wrapped(*args,**kwargs):
+        from app.services.shared_provider_admission import _principal
+        from app.core.config import get_core_settings
+        settings=get_core_settings()
+        if getattr(settings,'PROVIDER_CAPACITY_PLAN','free')=='free':return await function(*args,**kwargs)
+        bound=inspect.signature(function).bind(*args,**kwargs)
+        duration=bound.arguments.get('timeout') or bound.arguments.get('timeout_seconds')
+        if duration is None:
+            duration=bound.arguments['self'].limits.llm_timeout_seconds
+        async with asyncio.timeout(duration):
+            async with paid_turn_slot(_principal.get() if _principal.get() is not None else 'internal-provider-work',settings=settings):
+                return await function(*args,**kwargs)
+    return wrapped
