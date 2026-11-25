@@ -540,7 +540,8 @@ class FreeLLMService:
                     from app.services.shared_provider_admission import shared_provider_slot
                     async with shared_provider_slot(model,messages,response_format,max_tokens,timeout_budget) as reservation:
                         try:
-                            response=await client.chat.completions.create(**kwargs_to_send)
+                            from app.services.provider_response_observation import observed_create
+                            response=await observed_create(client.chat.completions.create,reservation,**kwargs_to_send)
                             reservation.observe(response)
                         except APIStatusError as failure:
                             if failure.status_code==429:

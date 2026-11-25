@@ -105,7 +105,8 @@ async def complete(create, *, model, messages, response_format, timeout, stage='
                     from app.services.shared_provider_admission import shared_provider_slot
                     async with shared_provider_slot(model,messages,response_format,output,max(.001,deadline-loop.time())) as reservation:
                         try:
-                            response=await create(model=model, messages=messages, temperature=0.0,
+                            from app.services.provider_response_observation import observed_create
+                            response=await observed_create(create,reservation,model=model, messages=messages, temperature=0.0,
                                                 response_format=response_format, max_tokens=output,
                                                 **({'reasoning_effort':'low'} if model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and stage in {'RouterDecision','ShoppingDraft','GroundingReview'} else {}))
                             reservation.observe(response)

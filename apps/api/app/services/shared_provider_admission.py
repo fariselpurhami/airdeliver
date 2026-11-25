@@ -41,6 +41,9 @@ if redis.call('EXISTS',KEYS[1])==1 then return 0 end
 local total=0
 for _,v in ipairs(redis.call('ZRANGE',KEYS[2],0,-1)) do total=total+tonumber(string.match(v,':(%d+)$')) end
 if total+tonumber(ARGV[3])>tonumber(ARGV[4]) then return -1 end
+local observed=redis.call('GET',KEYS[4])
+if observed and tonumber(observed)<tonumber(ARGV[3]) then return -1 end
+if observed then redis.call('DECRBY',KEYS[4],ARGV[3]) end
 redis.call('SET',KEYS[1],ARGV[1],'PX',ARGV[5])
 redis.call('ZADD',KEYS[2],now,ARGV[2]);redis.call('EXPIRE',KEYS[2],120)
 return 1
@@ -70,10 +73,12 @@ def estimated_tokens(messages,response_format=None):
 
 class Reservation:
     def __init__(self,client,keys,owner,member):
-        self.client=client;self.keys=keys;self.owner=owner;self.member=member;self.actual=None
+        self.client=client;self.keys=keys;self.owner=owner;self.member=member;self.actual=None;self.headers={};self.usage={};self.model=None
     def observe(self,response):
         value=getattr(getattr(response,'usage',None),'total_tokens',None)
         if type(value) is int and value>=0:self.actual=value
+        usage=getattr(response,'usage',None)
+        self.usage={k:getattr(usage,k) for k in ('prompt_tokens','completion_tokens','total_tokens') if type(getattr(usage,k,None)) is int and 0<=getattr(usage,k)<=10**9}
     async def quota(self,delay):
         if self.client:
             await self.client.eval(COOLDOWN,1,self.keys[2],max(1,math.ceil(delay*1000)))
@@ -106,11 +111,11 @@ async def _shared_provider_slot(model,messages,response_format,output,timeout=30
     prefix='airdeliver:provider:v1:{'+hashlib.sha256(model.encode()).hexdigest()[:24]+'}'
     keys=[prefix+':lock',prefix+':usage',prefix+':cooldown']
     owner=uuid.uuid4().hex;member=owner+':'+str(estimate);acquired=False
-    reservation=Reservation(client,keys,owner,member)
+    reservation=Reservation(client,keys,owner,member);reservation.model=model
     try:
         async with asyncio.timeout(timeout):
             while True:
-                status=await client.eval(RESERVE,3,*keys,owner,member,estimate,limit,math.ceil((timeout+5)*1000))
+                status=await client.eval(RESERVE,4,*keys,prefix+':observed_tokens',owner,member,estimate,limit,math.ceil((timeout+5)*1000))
                 if status==1:acquired=True;break
                 if status in {-1,-2}:
                     logger.warning('provider.input_withheld stage=shared_admission reason=rolling_budget_or_cooldown_exhausted estimated_tokens=%d limit=%d',estimate,limit)
@@ -122,7 +127,14 @@ async def _shared_provider_slot(model,messages,response_format,output,timeout=30
             actual='' if reservation.actual is None else owner+':'+str(reservation.actual)
             # Cancellation must release the lock, but its reservation remains.
             try:
-                await asyncio.shield(client.eval(FINISH,2,*keys[:2],owner,member,actual))
+                from app.services.provider_response_observation import observe_headers
+                # Apply observed headroom before admitting the next owner.
+                try:await observe_headers(reservation)
+                finally:await asyncio.shield(client.eval(FINISH,2,*keys[:2],owner,member,actual))
+                from app.services.provider_usage_meter import meter
+                try:await meter(reservation,estimate,limit)
+                except Exception as metric_error:
+                    logger.warning('provider.meter_unavailable error_type=%s',type(metric_error).__name__)
             finally:
                 if owns_client:await client.aclose()
         elif owns_client:await client.aclose()

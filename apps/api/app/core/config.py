@@ -108,6 +108,10 @@ class CoreSettings(BaseAppConfig):
     PROVIDER_PLAN_TPM_LIMIT: Optional[int] = Field(None,ge=1000,le=1000000)
     PROVIDER_TPM_HEADROOM_PERCENT: int = Field(10,ge=0,le=50)
     PROVIDER_TPM_BUDGET: Optional[int] = Field(None,ge=1000,le=1000000)
+    # Optional estimated rates for this configured model family, never billing.
+    PROVIDER_COST_MODEL: Optional[str] = Field(None,max_length=200)
+    PROVIDER_INPUT_MICRO_USD_PER_MILLION: Optional[int] = Field(None,ge=0,le=1000000000)
+    PROVIDER_OUTPUT_MICRO_USD_PER_MILLION: Optional[int] = Field(None,ge=0,le=1000000000)
     PROVIDER_MAX_ACTIVE_TURNS: int = Field(8,ge=1,le=256)
     PROVIDER_MAX_QUEUED_TURNS: int = Field(64,ge=1,le=4096)
     PROVIDER_TURN_QUEUE_SECONDS: float = Field(2.0,gt=0,le=10)
