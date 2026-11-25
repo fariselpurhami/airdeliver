@@ -1,9 +1,9 @@
 # backend/api/app/api/v1/endpoints/products.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from typing import List, Dict, Any, Optional
+from typing import Annotated, List, Dict, Any, Optional
 from app import models, schemas
 from app.db.session import get_async_session
 from app.api import deps
@@ -18,15 +18,17 @@ router = APIRouter()
 @router.get("/", response_model=List[Dict[str, Any]])
 async def read_products(
     db: AsyncSession = Depends(get_async_session),
-    skip: int = 0,
-    limit: int = 100,
-    page: Optional[int] = None,
+    skip: Annotated[int, Query(ge=0, le=100000)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    page: Annotated[Optional[int], Query(ge=1, le=100001)] = None,
     category: Optional[str] = None,
 ):
     # The storefront sends page/limit/category; honor page (1-based) as an
     # alias for skip and apply the category filter when provided.
-    if page is not None and page > 1:
+    if page is not None:
         skip = (page - 1) * limit
+    if skip > 100000:
+        raise HTTPException(status_code=422, detail="Pagination offset exceeds the supported window")
 
     stmt = select(models.Product).where(models.Product.is_active.is_(True),*real_catalog_predicates(models.Product))
     if category:
