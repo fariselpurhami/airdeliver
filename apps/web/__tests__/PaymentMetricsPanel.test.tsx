@@ -24,3 +24,9 @@ test('empty is not proof of no payments, invalid timestamps do not crash',()=>{
 test('never guesses currency or displays nonfinite amount',()=>{
  expect(formatRecordedAmount(10,'EUR')).toBe('EUR 10.00');expect(formatRecordedAmount('NaN','USD')).toBe('Amount unavailable');expect(formatRecordedAmount(10,'???')).toBe('Amount unavailable');
 });
+
+test('failed refresh never presents an empty previous snapshot as current',()=>{
+ render(<Panel {...props} error data={{...data,currencies:[]}}/>);
+ expect(screen.getByText(/last successful snapshot had no timestamped/)).toBeInTheDocument();
+ expect(screen.queryByText(/^No timestamped paid orders in this window/)).not.toBeInTheDocument();
+});

@@ -166,7 +166,7 @@ const StatCard = ({ title, value, icon: Icon, color = "cyan", delay = 0 }: any) 
         </div>
 
         <div className="relative z-10">
-            <h3 className="text-3xl font-black text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+            <h3 className="text-3xl font-bold text-white mb-1 tabular-nums font-sans">
                 {typeof value === 'number' ? Intl.NumberFormat('en-US').format(value) : value}
             </h3>
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{title}</p>

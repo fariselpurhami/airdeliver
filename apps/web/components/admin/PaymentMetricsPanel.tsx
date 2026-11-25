@@ -34,7 +34,7 @@ export default function PaymentMetricsPanel({ data, loading, error, range, onRan
         <p className="mt-1 text-sm text-slate-400">{group.order_count} paid {group.order_count === 1 ? 'order' : 'orders'} in this window</p>
         <details className="mt-4 text-sm"><summary className="cursor-pointer text-slate-300">View UTC time buckets</summary><ul className="mt-3 max-h-56 overflow-auto space-y-2">{group.buckets.map(bucket => <li key={bucket.starts_at} className="flex flex-wrap justify-between gap-2 text-xs text-slate-400"><span>{new Date(bucket.starts_at).toISOString().slice(0,16).replace('T',' ')}</span><span>{formatRecordedAmount(bucket.amount, group.currency)} · {bucket.order_count}</span></li>)}</ul></details>
       </article>)}</div>
-      {data.currencies.length === 0 ? <p className="mt-6 text-slate-300">No timestamped paid orders in this window. This does not prove no payments occurred.</p> : null}
+      {data.currencies.length === 0 ? <p className="mt-6 text-slate-300">{error || stale ? 'The last successful snapshot had no timestamped paid orders in this window. Current payment data could not be confirmed.' : 'No timestamped paid orders in this window. This does not prove no payments occurred.'}</p> : null}
       {(data.paid_without_timestamp > 0 || data.paid_invalid_amount_or_currency > 0) ? <p className="mt-5 text-sm text-amber-200">Excluded from totals: {data.paid_without_timestamp} paid records without a payment timestamp (all time), {data.paid_invalid_amount_or_currency} records outside supported amount or currency limits in this window.</p> : null}
       <p className="mt-5 text-xs text-slate-500">Historical order amounts used float storage. These grouped records are not a financial statement.</p>
     </> : null}
