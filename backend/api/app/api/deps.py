@@ -203,10 +203,7 @@ class WebSocketManager:
                 stale_connections.append(websocket)
             except Exception:
                 stale_connections.append(websocket)
-                logger.exception(
-                    "Unexpected WebSocket send failure.",
-                    extra={"user_id": user_id},
-                )
+                logger.error('Unexpected WebSocket send failure.', extra={'user_id': user_id})
 
         if stale_connections:
             async with self._lock:

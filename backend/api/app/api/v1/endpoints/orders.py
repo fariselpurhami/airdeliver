@@ -89,9 +89,7 @@ async def read_my_orders(
                 "user_id": current_user.id,
                 "page": page,
                 "limit": limit,
-                "error_details": str(e),
             },
-            exc_info=True
         )
         # Enforce secure error boundary: Never leak infrastructure internals to the caller
         raise HTTPException(
@@ -106,7 +104,6 @@ async def read_my_orders(
             extra={
                 "user_id": current_user.id,
             },
-            exc_info=True
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

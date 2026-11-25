@@ -272,14 +272,14 @@ class StripeGateway(IPaymentGateway):
                 error_message=e.user_message or "Card declined.",
             )
         except stripe.error.StripeError as e:
-            logger.error(f"Stripe API fault: {str(e)}", exc_info=True)
+            logger.error(f'Stripe API fault: [failure]')
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.FAILURE,
                 error_message="Payment processing is temporarily unavailable.",
             )
         except Exception as e:
-            logger.critical(f"Critical local failure in Stripe integration: {str(e)}", exc_info=True)
+            logger.critical(f'Critical local failure in Stripe integration: [failure]')
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.FAILURE,
@@ -334,7 +334,7 @@ class PayPalGateway(IPaymentGateway):
             if cached:
                 return cached
         except Exception as exc:
-            logger.warning("PayPal token cache read failed; fetching fresh token", extra={"error": str(exc)})
+            logger.warning('PayPal token cache read failed; fetching fresh token', extra={})
 
         response = await self._http_client.post(
             f"{self._base_url()}/v1/oauth2/token",
@@ -352,7 +352,7 @@ class PayPalGateway(IPaymentGateway):
         try:
             await self._cache.set(token_cache_key, token, ttl=ttl)
         except Exception as exc:
-            logger.warning("PayPal token cache write failed", extra={"error": str(exc)})
+            logger.warning('PayPal token cache write failed', extra={})
         return token
 
     async def create_payment_intent(self, request: PaymentRequest) -> GatewayResult:
@@ -421,18 +421,14 @@ class PayPalGateway(IPaymentGateway):
             )
 
         except httpx.HTTPStatusError as e:
-            logger.error(
-                "PayPal API rejected the request",
-                extra={"status_code": e.response.status_code, "order_id": request.order_id},
-                exc_info=True,
-            )
+            logger.error('PayPal API rejected the request', extra={'status_code': e.response.status_code, 'order_id': request.order_id})
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.FAILURE,
                 error_message="PayPal rejected the payment request.",
             )
         except httpx.RequestError as e:
-            logger.error(f"PayPal Network unreachable: {str(e)}", exc_info=True)
+            logger.error(f'PayPal Network unreachable: [failure]')
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.FAILURE,
@@ -608,7 +604,7 @@ class MpesaGateway(IPaymentGateway):
                 raw_response={"simulated": True, "message": "Simulation only: no STK push was sent."}
             )
         except Exception as e:
-            logger.error(f"Mpesa Init Failed: {str(e)}", exc_info=True)
+            logger.error(f'Mpesa Init Failed: [failure]')
             return GatewayResult(
                 provider=self.provider,
                 status=PaymentStatus.FAILURE,
@@ -711,7 +707,7 @@ class PaymentOrchestrator:
                 if result.status != PaymentStatus.FAILURE:
                     successful_results.append(result)
             except Exception as e:
-                logger.critical(f"Unexpected orchestrator thread panic: {str(e)}", exc_info=True)
+                logger.critical(f'Unexpected orchestrator thread panic: [failure]')
 
         if not successful_results:
             logger.error("Global processing failure: All targeted gateways failed or timed out.")
@@ -739,7 +735,7 @@ class PaymentOrchestrator:
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            logger.error(f"Catastrophic trap in gateway {gateway.provider.value}: {str(e)}", exc_info=True)
+            logger.error(f'Catastrophic trap in gateway {gateway.provider.value}: [failure]')
             return GatewayResult(
                 provider=gateway.provider,
                 status=PaymentStatus.FAILURE,

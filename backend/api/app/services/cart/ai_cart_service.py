@@ -115,10 +115,7 @@ class AICartService:
         try:
             payload = CartOperationPayload(**raw_payload)
         except ValidationError as exc:
-            logger.warning(
-                "cart_sync_payload_invalid",
-                extra={"error": exc.errors(), "user_id": raw_payload.get("user_id")}
-            )
+            logger.warning('cart_sync_payload_invalid', extra={'boundary': 'invalid_payload'})
             return
 
         try:
@@ -140,11 +137,7 @@ class AICartService:
         except CartPersistenceError:
             raise
         except Exception as exc:
-            logger.error(
-                "cart_sync_critical_failure",
-                extra={"user_id": payload.user_id, "error": str(exc)},
-                exc_info=True
-            )
+            logger.error('cart_sync_critical_failure', extra={'user_id': payload.user_id})
 
     async def _send_to_ui(self, user_id: int, payload: Dict[str, Any]) -> None:
         """
@@ -168,10 +161,7 @@ class AICartService:
             message = json.dumps(payload, default=_strict_serializer)
             await self.cache.publish(channel, message)
         except Exception as e:
-            logger.error(
-                "UI delivery pipeline failure",
-                extra={"user_id": user_id, "error": str(e)}
-            )
+            logger.error('UI delivery pipeline failure', extra={'user_id': user_id})
 
     # --- 🛠️ STATE MANAGEMENT ---
     def _get_cart_key(self, user_id: int) -> str:
@@ -274,7 +264,7 @@ class AICartService:
         try:
             payload = CartOperationPayload(**raw_payload)
         except ValidationError as e:
-            logger.warning("Malformed add-to-cart payload", extra={"error": str(e)})
+            logger.warning('Malformed add-to-cart payload', extra={})
             return
 
         if not payload.product_id:
@@ -438,61 +428,27 @@ class AICartService:
            return _truncate(candidate, MAX_DYNAMIC_COPY_LENGTH)
 
         try:
-            logger.info(
-                "intelligent_bundling_started",
-                extra={
-                    "user_id": user_id,
-                    "product_name": _safe_product_name(product),
-                },
-            )
+            logger.info('intelligent_bundling_started', extra={'user_id': user_id})
 
             try:
                 async with asyncio.timeout(BUNDLE_FETCH_TIMEOUT_SECONDS):
                     bundle_items = await self.commerce_engine.generate_perfect_bundle(self.db, product)
             except TimeoutError:
-                logger.warning(
-                    "intelligent_bundling_bundle_fetch_timed_out",
-                    extra={
-                        "user_id": user_id,
-                        "product_name": _safe_product_name(product),
-                        "timeout_seconds": BUNDLE_FETCH_TIMEOUT_SECONDS,
-                    },
-                )
+                logger.warning('intelligent_bundling_bundle_fetch_timed_out', extra={'user_id': user_id, 'timeout_seconds': BUNDLE_FETCH_TIMEOUT_SECONDS})
                 return
 
             if not bundle_items:
-                logger.info(
-                    "intelligent_bundling_no_candidates",
-                    extra={
-                        "user_id": user_id,
-                        "product_name": _safe_product_name(product),
-                    },
-                )
+                logger.info('intelligent_bundling_no_candidates', extra={'user_id': user_id})
                 return
 
             try:
                 async with asyncio.timeout(COPY_GENERATION_TIMEOUT_SECONDS):
                     dynamic_ai_copy = await _generate_bundle_copy(bundle_items)
             except TimeoutError:
-                logger.warning(
-                    "intelligent_bundling_copy_generation_timed_out",
-                    extra={
-                        "user_id": user_id,
-                        "product_name": _safe_product_name(product),
-                        "timeout_seconds": COPY_GENERATION_TIMEOUT_SECONDS,
-                    },
-                )
+                logger.warning('intelligent_bundling_copy_generation_timed_out', extra={'user_id': user_id, 'timeout_seconds': COPY_GENERATION_TIMEOUT_SECONDS})
                 dynamic_ai_copy = _fallback_copy()
             except Exception as exc:
-                logger.warning(
-                    "intelligent_bundling_copy_generation_failed",
-                    extra={
-                        "user_id": user_id,
-                        "product_name": _safe_product_name(product),
-                        "error": str(exc),
-                    },
-                    exc_info=True,
-                )
+                logger.warning('intelligent_bundling_copy_generation_failed', extra={'user_id': user_id})
                 dynamic_ai_copy = _fallback_copy()
 
             payload = {
@@ -505,34 +461,14 @@ class AICartService:
 
             await self._send_to_ui(user_id, payload)
 
-            logger.info(
-                "intelligent_bundling_completed",
-                extra={
-                    "user_id": user_id,
-                    "product_name": _safe_product_name(product),
-                    "bundle_size": len(bundle_items),
-                },
-            )
+            logger.info('intelligent_bundling_completed', extra={'user_id': user_id, 'bundle_size': len(bundle_items)})
 
         except asyncio.CancelledError:
-            logger.info(
-                "intelligent_bundling_cancelled",
-                extra={
-                    "user_id": user_id,
-                    "product_name": _safe_product_name(product),
-                },
-            )
+            logger.info('intelligent_bundling_cancelled', extra={'user_id': user_id})
             raise
 
         except Exception as exc:
-            logger.exception(
-                "intelligent_bundling_failed",
-                extra={
-                    "user_id": user_id,
-                    "product_name": _safe_product_name(product),
-                    "error": str(exc),
-                },
-            )
+            logger.error('intelligent_bundling_failed', extra={'user_id': user_id})
 
     # --- 💾 COMMAND: SAVE CART ---
     async def handle_save_cart(self, raw_payload: dict) -> dict:
@@ -595,7 +531,7 @@ class AICartService:
 
         except Exception as e:
             await self.db.rollback()
-            logger.error("Database transaction failed during cart save", extra={"user_id": payload.user_id, "error": str(e)})
+            logger.error('Database transaction failed during cart save', extra={'user_id': payload.user_id})
             await self._send_to_ui(payload.user_id, {"content": "Saving your list could not be confirmed. Check your saved lists before saving again.", "type": "error"})
             return {"status": "save_unconfirmed"}
 
@@ -679,15 +615,7 @@ class AICartService:
                 )
                 return []
             except Exception as exc:
-                logger.warning(
-                    "genius_alternatives_search_failed",
-                    extra={
-                        "user_id": payload.user_id,
-                        "product_id": payload.product_id,
-                        "error": str(exc),
-                    },
-                    exc_info=True,
-                )
+                logger.warning('genius_alternatives_search_failed', extra={'user_id': payload.user_id, 'product_id': payload.product_id})
                 return []
 
         async def _generate_recovery_copy(
@@ -737,15 +665,7 @@ class AICartService:
                 )
                 return fallback_message
             except Exception as exc:
-                logger.warning(
-                    "recovery_copy_generation_failed",
-                    extra={
-                        "user_id": payload.user_id,
-                        "product_id": payload.product_id,
-                        "error": str(exc),
-                    },
-                    exc_info=True,
-                )
+                logger.warning('recovery_copy_generation_failed', extra={'user_id': payload.user_id, 'product_id': payload.product_id})
                 return fallback_message
 
             candidate = _normalize_text(raw_response).strip(' "\'')
@@ -902,12 +822,7 @@ class AICartService:
         except CartPersistenceError:
             raise
         except Exception as exc:
-            logger.exception(
-                "remove_from_cart_failed",
-                extra={
-                    "error": str(exc),
-                },
-            )
+            logger.error('remove_from_cart_failed', extra={})
     def _emit_analytics_event(self, user_id: int, product_id: int, action: str) -> None:
         """Fire-and-forget background analytics emission."""
         async def _publish() -> None:
@@ -922,7 +837,7 @@ class AICartService:
                     "airdeliver.ai.intent.removal_recovery"
                 )
             except Exception as e:
-                logger.error("Analytics emission failed", extra={"error": str(e)})
+                logger.error('Analytics emission failed', extra={})
 
         asyncio.create_task(_publish())
 
@@ -969,7 +884,7 @@ class AICartService:
                 logger.info("Pending orders cancelled", extra={"user_id": payload.user_id, "count": len(results)})
         except Exception as e:
             await self.db.rollback()
-            logger.error("Order database cleanup failure", extra={"user_id": payload.user_id, "error": str(e)})
+            logger.error('Order database cleanup failure', extra={'user_id': payload.user_id})
 
         # DB cleanup may take time; sync current cart instead of pushing an
         # unconditional empty snapshot over an item added after the clear.

@@ -631,17 +631,7 @@ class FreeLLMService:
             if safe_code=='json_validate_failed':
                 from app.services.provider_json_diagnostics import failed_json_diagnostics
                 logger.warning('llm_provider_json_diagnostics metadata=%s',failed_json_diagnostics(exc,response_format,max_tokens))
-            logger.error(
-                "llm_chat_completion_failure model=%s error_type=%s status_code=%s",
-                safe_model, type(exc).__name__, getattr(exc, "status_code", None) if type(getattr(exc, "status_code", None)) is int else None,
-                extra={
-                    "error_type": type(exc).__name__,
-                    
-                    "model": model,
-                    "correlation_id": correlation_id,
-                },
-                exc_info=False,
-            )
+            logger.error('llm_chat_completion_failure model=%s error_type=%s status_code=%s', safe_model, type(exc).__name__, getattr(exc, 'status_code', None) if type(getattr(exc, 'status_code', None)) is int else None, extra={'error_type': type(exc).__name__, 'model': model, 'correlation_id': correlation_id})
             raise
 
     async def infer_sales_json(self, messages: List[Dict[str, str]], *, response_schema=None) -> str:
@@ -724,15 +714,7 @@ class FreeLLMService:
                     context_str = _truncate(str(context), self.limits.max_context_json_chars)
             except Exception as ctx_exc:
                 # لا نسمح لسقوط الـ JSON أن يُسقط المكالمة نفسها
-                logger.warning(
-                    "llm_context_serialization_failed",
-                    extra={
-                        "error_type": type(ctx_exc).__name__,
-                        
-                        "correlation_id": correlation_id,
-                    },
-                    exc_info=False,
-                )
+                logger.warning('llm_context_serialization_failed', extra={'error_type': type(ctx_exc).__name__, 'correlation_id': correlation_id})
                 context_str = ""
 
         system_content = system_role.strip()
@@ -805,17 +787,7 @@ class FreeLLMService:
 
         except Exception as exc:
             # 8. High-signal structured logging + deterministic fallback behavior
-            logger.error(
-                "llm_generate_response_critical_failure",
-                extra={
-                    "error_type": type(exc).__name__,
-                    
-                    "correlation_id": correlation_id,
-                    "json_mode": json_mode,
-                    "model": model_name,
-                },
-                exc_info=False,
-            )
+            logger.error('llm_generate_response_critical_failure', extra={'error_type': type(exc).__name__, 'correlation_id': correlation_id, 'json_mode': json_mode, 'model': model_name})
          # في هذا المستوى، نرجع نصاً فارغاً بدلاً من رفع الاستثناء حتى لا نكسر الـ pipeline.
          # يمكن بناء طبقة أعلى للتعامل مع هذا كسيناريو “LLM unavailable”.
             if raise_on_failure:
@@ -976,7 +948,7 @@ class FreeLLMService:
                 hooks = fallback_hooks
             hooks = [_truncate(_normalize_whitespace(str(h)), 80) for h in hooks[:4]]
         except Exception:
-            logger.warning("generate_lifestyle_matrix fallback engaged", exc_info=True)
+            logger.warning('generate_lifestyle_matrix fallback engaged')
             hooks = fallback_hooks
 
         kinds = ["trend", "deal", "luxury", "discovery"]
@@ -1099,7 +1071,7 @@ class FreeLLMService:
                 return None
             return _truncate(result, 220)
         except Exception:
-            logger.warning("extract_memory_worthy_facts failed", exc_info=True)
+            logger.warning('extract_memory_worthy_facts failed')
             return None
 
     async def analyze_visual_context(self, base64_image: str, user_prompt: str = "") -> str:
@@ -1334,20 +1306,10 @@ Output ONE line of search keywords only.
                 timeout=float(self.limits.tavily_timeout_seconds),
             )
         except asyncio.TimeoutError:
-            logger.warning(
-                "web_search_timeout",
-                extra={
-                    "clean_query": clean_query[:200],
-                    "timeout_seconds": self.limits.tavily_timeout_seconds,
-                },
-            )
+            logger.warning('web_search_timeout', extra={'timeout_seconds': self.limits.tavily_timeout_seconds})
             return "Global search timed out before reliable data could be retrieved."
         except Exception as exc:
-            logger.error(
-                "web_search_bridge_failure",
-                extra={"clean_query": clean_query[:200], "error": str(exc)},
-                exc_info=True,
-            )
+            logger.error('web_search_bridge_failure', extra={})
             return "I couldn't check product information right now. Please try again later."
 
         parts: List[str] = []
@@ -1377,10 +1339,7 @@ Output ONE line of search keywords only.
             parts.append(segment)
 
         if not parts:
-            logger.info(
-                "web_search_empty_results",
-                extra={"clean_query": clean_query[:200]},
-            )
+            logger.info('web_search_empty_results', extra={})
             return "Global search yielded no confirmed data."
 
         return "\n".join(parts)
@@ -1431,7 +1390,7 @@ Output ONE line of search keywords only.
         try:
             external_knowledge = await self._perform_web_search(f"{sanitized_product.get('name', '')} {sanitized_question}")
         except Exception:
-            logger.warning("consult_on_product web search bypassed", exc_info=True)
+            logger.warning('consult_on_product web search bypassed')
 
         clean_data = {
             key: value
@@ -1565,7 +1524,7 @@ Output ONE line of search keywords only.
             )
             return _normalize_whitespace(completion.choices[0].message.content or "")
         except Exception:
-            logger.error("consult_on_product failed", exc_info=True)
+            logger.error('consult_on_product failed')
             return (
                 f"I could not assess this question right now. The catalog lists "
                 f"{sanitized_product.get('name') or 'this item'} in "
@@ -1771,7 +1730,7 @@ Output ONE line of search keywords only.
             strategy = _parse_json_model(SearchStrategy, completion.choices[0].message.content or "")
             return strategy
         except Exception:
-            logger.warning("strategize_search fallback engaged", exc_info=True)
+            logger.warning('strategize_search fallback engaged')
             return fallback
 
     def _deterministic_strategy_fallback(self, user_query: str) -> SearchStrategy:
@@ -1941,7 +1900,7 @@ Output ONE line of search keywords only.
             tokens = optimized.split()
             return " ".join(tokens[: self.limits.max_search_terms_words])
         except Exception:
-            logger.error("extract_search_terms failed", exc_info=True)
+            logger.error('extract_search_terms failed')
             return sanitized_query
 
     def _rank_products_by_relevance(self, query: str, products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -2259,7 +2218,7 @@ Output ONE line of search keywords only.
                 )
             return parsed
         except Exception:
-            logger.error("filter_and_recommend failed", exc_info=True)
+            logger.error('filter_and_recommend failed')
             if not fallback_ids:
                 return None
             return CognitiveResponse(
@@ -2307,7 +2266,7 @@ Output ONE line of search keywords only.
             search_terms_task = asyncio.create_task(self.extract_search_terms(sanitized_query))
             strategy, clean_terms = await asyncio.gather(strategy_task, search_terms_task)
         except Exception:
-            logger.warning("parallel orchestration branch degraded", exc_info=True)
+            logger.warning('parallel orchestration branch degraded')
             strategy = self._deterministic_strategy_fallback(sanitized_query)
             clean_terms = sanitized_query
 
@@ -2350,7 +2309,7 @@ Output ONE line of search keywords only.
                     chat_history=safe_history,
                 )
             except Exception:
-                logger.error("consultation route failed", exc_info=True)
+                logger.error('consultation route failed')
                 consultation_text = "System notice: a grounded consultation could not be verified. No product recommendation or reservation was made."
 
             from app.services.shopping_discovery import catalog_result

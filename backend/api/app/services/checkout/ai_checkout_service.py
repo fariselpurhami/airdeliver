@@ -148,7 +148,7 @@ class AICheckoutService:
             message = json.dumps(payload, default=_strict_serializer)
             await self.cache.publish(channel, message)
         except Exception as e:
-            logger.error("UI Delivery pipeline failure", extra={"user_id": user_id, "error": str(e)})
+            logger.error('UI Delivery pipeline failure', extra={'user_id': user_id})
 
     def _get_cart_key(self, user_id: int) -> str:
         return f"{self.CACHE_CART_PREFIX}{user_id}"
@@ -356,17 +356,13 @@ class AICheckoutService:
             existing = await self._find_checkout(payload.user_id, str(payload.checkout_request_id))
             if existing is not None:
                 return await self._resume_checkout(existing, fingerprint)
-            logger.exception("Checkout integrity failure unrelated to request replay")
+            logger.error('Checkout integrity failure unrelated to request replay')
             return {"status": "pending", "message": "Checkout could not be reconciled."}
 
         except SQLAlchemyError as sqle:
             # Infrastructure Errors (Database Constraints, Connectivity)
             await self.db.rollback()
-            logger.error(
-                "Database transaction aborted during order creation",
-                exc_info=True, # 🔴 L9 Rule: دائمًا مرر الـ Stack Trace في الـ APM
-                extra={"user_id": payload.user_id}
-            )
+            logger.error('Database transaction aborted during order creation', extra={'user_id': payload.user_id})
             await self._send_error(payload.user_id, "I couldn't finish creating this order. Check your orders before starting another checkout.")
             return
 
@@ -377,14 +373,7 @@ class AICheckoutService:
             # بدلاً من str(cart)[:200] العشوائية، نقوم ببناء ملخص آمن ونظيف
             safe_cart_summary = [{"id": i.get("id"), "qty": i.get("quantity")} for i in cart.get("items", [])][:5]
             
-            logger.critical(
-                "Unexpected critical failure during order creation", 
-                exc_info=True,
-                extra={
-                    "user_id": payload.user_id, 
-                    "cart_preview": safe_cart_summary
-                }
-            )
+            logger.critical('Unexpected critical failure during order creation', extra={'user_id': payload.user_id})
             await self._send_error(payload.user_id, "I couldn't confirm this checkout. Check your orders before trying again so you don't start a duplicate payment.")
             return
 
@@ -503,7 +492,7 @@ class AICheckoutService:
         try:
             payload = PaymentSuccessPayload(**raw_payload)
         except ValidationError as e:
-            logger.error("Invalid payment success payload", extra={"error": str(e)})
+            logger.error('Invalid payment success payload', extra={})
             return
 
         try:
@@ -541,7 +530,7 @@ class AICheckoutService:
 
         except Exception as e:
             await self.db.rollback()
-            logger.critical("Critical failure in payment success handler", extra={"order_id": payload.order_id, "error": str(e)})
+            logger.critical('Critical failure in payment success handler', extra={'order_id': payload.order_id})
             await self._send_to_ui(payload.user_id, {
                 "content": "Payment status could not be confirmed here. Check your existing order before paying again.",
                 "type": "error",
@@ -564,7 +553,7 @@ class AICheckoutService:
             })
         except Exception as e:
             await self.db.rollback()
-            logger.error("Failed handling failed payment fallback", extra={"order_id": order.id, "error": str(e)})
+            logger.error('Failed handling failed payment fallback', extra={'order_id': order.id})
 
     async def handle_cancel_order(self, raw_payload: Dict[str, Any]) -> Dict[str, Any]:
         """Cancel a specific local unpaid draft, never erase an unrelated cart.
@@ -620,6 +609,6 @@ class AICheckoutService:
             try:
                 await self.rabbitmq.publish(payload, routing_key)
             except Exception as e:
-                logger.error("Failed to emit analytics event", extra={"routing_key": routing_key, "error": str(e)})
+                logger.error('Failed to emit analytics event', extra={'routing_key': routing_key})
         
         asyncio.create_task(_publish())

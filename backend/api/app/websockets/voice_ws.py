@@ -63,26 +63,16 @@ async def voice_stream_endpoint(
     )
 
     try:
-        logger.info("Initializing voice session.", extra={"session_id": session_id, "user_id": user_id})
+        logger.info('Initializing voice session.', extra={'user_id': user_id})
         await orchestrator.process_voice_session(websocket, user_id=user_id)
 
     except WebSocketDisconnect as exc:
-        logger.info(
-            "Voice client disconnected gracefully.",
-            extra={"session_id": session_id, "code": exc.code}
-        )
+        logger.info('Voice client disconnected gracefully.', extra={'code': exc.code})
     except Exception as exc:
-        logger.error(
-            "Critical failure in voice orchestrator lifecycle.",
-            extra={"session_id": session_id, "error_type": type(exc).__name__, "error": str(exc)},
-            exc_info=True
-        )
+        logger.error('Critical failure in voice orchestrator lifecycle.', extra={'error_type': type(exc).__name__})
     finally:
         if websocket.client_state == WebSocketState.CONNECTED:
             try:
                 await websocket.close(code=1011)
             except Exception as close_exc:
-                logger.warning(
-                    "Failed to close websocket deterministically.",
-                    extra={"session_id": session_id, "error": str(close_exc)}
-                )
+                logger.warning('Failed to close websocket deterministically.', extra={})

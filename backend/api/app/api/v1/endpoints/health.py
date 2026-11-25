@@ -38,7 +38,7 @@ async def health_check(
         await db.execute(text("SELECT 1"))
         database_status = "connected"
     except Exception:
-        logger.exception("Database readiness check failed.")
+        logger.error('Database readiness check failed.')
         database_status = "disconnected"
         overall_status = "error"
 
@@ -52,7 +52,7 @@ async def health_check(
                 overall_status = "error"
                 logger.error("Redis readiness check returned an unhealthy ping result.")
         except Exception:
-            logger.exception("Redis readiness check failed.")
+            logger.error('Redis readiness check failed.')
             redis_status = "error"
             overall_status = "error"
 

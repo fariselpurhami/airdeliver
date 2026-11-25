@@ -131,7 +131,7 @@ async def upload_user_avatar(
             img = img.convert("RGB")
         img.save(file_path, format=image_format.upper() if image_format != "jpeg" else "JPEG")
     except Exception as e:
-        logger.error(f"Failed to save avatar file for user {current_user.id}: {e}")
+        logger.error(f'Failed to save avatar file for user {current_user.id}: [failure]')
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Your profile photo couldn't be saved. Please try the upload again.",
@@ -235,13 +235,13 @@ def get_default_payment_method(
         return DefaultPaymentMethod()
 
     except stripe.error.StripeError as e:
-        logger.warning(f"Stripe service error for user {current_user.id}: {e}")
+        logger.warning(f'Stripe service error for user {current_user.id}: [failure]')
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Your saved payment details aren't available right now. Please check again later.",
         )
     except Exception as e:
-        logger.error(f"Unhandled error fetching payment method for user {current_user.id}: {e}")
+        logger.error(f'Unhandled error fetching payment method for user {current_user.id}: [failure]')
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="I couldn't load your saved payment details. Please try again later.",

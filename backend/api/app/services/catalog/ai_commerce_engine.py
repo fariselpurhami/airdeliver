@@ -452,7 +452,7 @@ class ModelRegistry:
                 return model
             except BaseException:
                 self._text_warmup_status = {"state": "failed", "error": "warmup_failed"}
-                logger.exception("text embedding startup failed; model not published")
+                logger.error('text embedding startup failed; model not published')
                 raise
             finally:
                 timer.cancel()
@@ -641,7 +641,7 @@ class AICommerceEngine:
                     raise BootstrapError(f"unsupported collection type: {key}")
 
             except Exception as exc:
-                logger.exception("milvus collection bootstrap failed", extra={"collection": spec.name, "kind": key})
+                logger.error('milvus collection bootstrap failed', extra={'collection': spec.name, 'kind': key})
                 raise BootstrapError(f"failed to initialize collection {spec.name}") from exc
 
     def _create_product_collection(self, name: str, dim: int) -> None:
@@ -950,7 +950,7 @@ class AICommerceEngine:
             return final_result
 
         except Exception:
-            logger.exception("bundle generation failed", extra={"anchor_id": str(getattr(anchor, "id", "unknown"))})
+            logger.error('bundle generation failed', extra={'anchor_id': str(getattr(anchor, 'id', 'unknown'))})
             return []
 
     async def _get_emergency_fallback(
@@ -1064,7 +1064,7 @@ class AICommerceEngine:
             return fresh_products
 
         except Exception:
-            logger.exception("homepage matrix generation failed", extra={"user_id": user_id, "tier": tier.value})
+            logger.error('homepage matrix generation failed', extra={'user_id': user_id, 'tier': tier.value})
             return []
 
     async def find_genius_alternatives(self, db: AsyncSession, removed_id: int, limit: int = 3) -> List[Product]:
@@ -1122,7 +1122,7 @@ class AICommerceEngine:
                         alternatives = self._filter_products(
                             await self._fetch_products_from_db_by_ids(db, ids), alternative_filter)
             except Exception:
-                logger.warning("vector alternative search failed", extra={"removed_id": removed_id}, exc_info=True)
+                logger.warning('vector alternative search failed', extra={'removed_id': removed_id})
 
             if not alternatives:
                 query = f"best quality alternative to {removed_item.name} {removed_item.category or ''}"
@@ -1148,7 +1148,7 @@ class AICommerceEngine:
             return self._filter_products(alternatives, alternative_filter)[:limit]
 
         except Exception:
-            logger.exception("alternative discovery failed", extra={"removed_id": removed_id, "limit": limit})
+            logger.error('alternative discovery failed', extra={'removed_id': removed_id, 'limit': limit})
             return []
 
     async def perform_hybrid_search_pure(
@@ -1184,7 +1184,7 @@ class AICommerceEngine:
                     products = await self._fetch_products_from_db_by_ids(db, [int(item) for item in cached_ids])
                     return self._filter_products(products, filter_obj)[:safe_limit]
             except Exception:
-                logger.warning("search cache read failed", extra={"query": sanitized_query})
+                logger.warning('search cache read failed', extra={})
 
         async def semantic_search():
             try:
@@ -1229,7 +1229,7 @@ class AICommerceEngine:
         sorted_ids = sorted(reranked_scores.keys(), key=lambda document_id: reranked_scores[document_id], reverse=True)[:safe_limit]
 
         if not sorted_ids:
-            logger.info("hybrid search returned no vector/keyword results; using sql fallback", extra={"query": sanitized_query})
+            logger.info('hybrid search returned no vector/keyword results; using sql fallback', extra={})
             return await self._fallback_sql_search(db, sanitized_query, safe_limit, filter_obj)
 
         try:
@@ -1244,12 +1244,12 @@ class AICommerceEngine:
                         ttl=self.limits.cache_ttl_search_seconds,
                     )
                 except Exception:
-                    logger.warning("search cache write failed", extra={"query": sanitized_query})
+                    logger.warning('search cache write failed', extra={})
 
             return products
 
         except Exception:
-            logger.exception("failed to fetch ranked products from database", extra={"query": sanitized_query})
+            logger.error('failed to fetch ranked products from database', extra={})
             return await self._fallback_sql_search(db, sanitized_query, safe_limit, filter_obj)
 
     async def _search_opensearch(
@@ -1299,7 +1299,7 @@ class AICommerceEngine:
                 if "_id" in hit
             ]
         except Exception as exc:
-            logger.warning("opensearch search failed", extra={"query": query, "limit": limit}, exc_info=True)
+            logger.warning('opensearch search failed', extra={'limit': limit})
             if isinstance(exc, asyncio.CancelledError):
                 raise
             return []
@@ -1365,7 +1365,7 @@ class AICommerceEngine:
                 search_params={"metric_type": "COSINE", "params": {"ef": 64}},
             )
         except Exception:
-            logger.warning("milvus text search failed", extra={"limit": limit, "filter": filter_str}, exc_info=True)
+            logger.warning('milvus text search failed', extra={'limit': limit})
             return []
 
         if not response or not response[0]:
@@ -1416,7 +1416,7 @@ class AICommerceEngine:
             return await self._fetch_products_by_ids(ids)
 
         except Exception:
-            logger.exception("visual search failed", extra={"limit": safe_limit})
+            logger.error('visual search failed', extra={'limit': safe_limit})
             return []
 
     def _decode_image_bounded(self, image_input: str) -> Image.Image:
@@ -1550,7 +1550,7 @@ class AICommerceEngine:
                 )
                 product_map[str(product.id)] = product
             except Exception:
-                logger.warning("failed to materialize product from opensearch source", extra={"id": str(doc.get("_id"))}, exc_info=True)
+                logger.warning('failed to materialize product from opensearch source', extra={'id': str(doc.get('_id'))})
 
         return [product_map[document_id] for document_id in ids_str if document_id in product_map]
 
@@ -1610,7 +1610,7 @@ class AICommerceEngine:
                 statement = statement.where(col(Product.id).notin_(filters.excluded_ids))
             return list((await db.execute(statement)).scalars().all())
         except Exception:
-            logger.exception("sql fallback search failed", extra={"query": clean_query, "limit": limit})
+            logger.error('sql fallback search failed', extra={'limit': limit})
             return []
 
     async def ensure_opensearch_index(self) -> None:
@@ -1654,7 +1654,7 @@ class AICommerceEngine:
             logger.info("opensearch index created", extra={"index": index_name})
 
         except Exception as exc:
-            logger.exception("opensearch index ensure failed", extra={"index": index_name})
+            logger.error('opensearch index ensure failed', extra={'index': index_name})
             raise BootstrapError(f"failed to ensure opensearch index {index_name}") from exc
 
     async def remember_user_fact(self,user_id:int,fact_text:str) -> None:
@@ -1691,7 +1691,7 @@ class AICommerceEngine:
             logger.info("user fact remembered", extra={"user_id": user_id})
 
         except Exception:
-            logger.exception("memory anchoring failed", extra={"user_id": user_id})
+            logger.error('memory anchoring failed', extra={'user_id': user_id})
 
     async def recall_relevant_facts(self,user_id:int,query:str,limit:int=5) -> List[str]:
         # Legacy vectors are never authoritative customer facts.
@@ -1737,7 +1737,7 @@ class AICommerceEngine:
             return facts
 
         except Exception:
-            logger.exception("memory recall failed", extra={"user_id": user_id})
+            logger.error('memory recall failed', extra={'user_id': user_id})
             return []
 
 
@@ -1844,15 +1844,7 @@ def connect_milvus_with_retry(
             last_error = exc
 
             if not _is_retryable_milvus_error(exc) or attempt == policy.max_attempts:
-                logger.exception(
-                    "Milvus connection failed.",
-                    extra={
-                        "component": "milvus",
-                        "attempt": attempt,
-                        "max_attempts": policy.max_attempts,
-                        "retryable": _is_retryable_milvus_error(exc),
-                    },
-                )
+                logger.error('Milvus connection failed.', extra={'component': 'milvus', 'attempt': attempt, 'max_attempts': policy.max_attempts, 'retryable': _is_retryable_milvus_error(exc)})
                 break
 
             delay = _compute_backoff_delay(attempt=attempt, policy=policy)

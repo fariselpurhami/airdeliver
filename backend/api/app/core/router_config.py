@@ -40,7 +40,8 @@ def log_router_configuration(environ=None):
     try:
         config=get_router_config(environ)
     except RouterConfigurationError as exc:
-        logger.error('neural_core.config.invalid reason=%s',str(exc))
+        reason = 'invalid_native_sdk_base_url' if exc.args == ('invalid_native_sdk_base_url',) else 'invalid_profile_or_model'
+        logger.error('neural_core.config.invalid reason=%s', reason)
         return None
     logger.info('neural_core.config.validated provider=groq model=%s endpoint_kind=%s validation=offline_only',
                 config.model,'groq_native' if config.base_url==DEFAULT_GROQ_BASE_URL else 'custom_native_root')

@@ -382,7 +382,7 @@ class BehaviorEngine:
             if avg_price < 150.0: return FinancialTier.LOW
             return FinancialTier.MEDIUM
         except Exception as e:
-            logger.warning("Financial DNA fallback triggered.", extra={"user_id": user_id, "error": str(e)})
+            logger.warning('Financial DNA fallback triggered.', extra={'user_id': user_id})
             return FinancialTier.MEDIUM
 
     async def analyze_financial_dna(self, user_id: int) -> FinancialTier:
@@ -433,7 +433,7 @@ class BehaviorEngine:
             return profile.model_dump()
 
         except Exception as e:
-            logger.error("Critical failure resolving profile. Emitting fallback.", exc_info=True, extra={"user_id": user_id})
+            logger.error('Critical failure resolving profile. Emitting fallback.', extra={'user_id': user_id})
             return UserProfileResult(
                 user_id=user_id,
                 tier=FinancialTier.MEDIUM,
@@ -573,10 +573,7 @@ class BehaviorEngine:
         except asyncio.CancelledError:
             pass  # Task was cancelled, perfectly fine
         except Exception as e:
-            logger.error(
-                "Background task failed",
-                extra={"task_name": task.get_name(), "error": str(e)}
-            )
+            logger.error('Background task failed', extra={'task_name': task.get_name()})
     # --- 🔄 BACKGROUND CONSOLIDATION ---
 
     async def _synaptic_loop(self) -> None:
@@ -674,7 +671,7 @@ class BehaviorEngine:
                 task.add_done_callback(self._handle_background_task_result)
 
         except Exception as e:
-            logger.error("Memory consolidation pipeline failure", extra={"error": str(e)})
+            logger.error('Memory consolidation pipeline failure', extra={})
 
     # --- 🔮 NEURAL INFERENCE ---
 
@@ -748,7 +745,7 @@ class BehaviorEngine:
             await self._commit_learning(user_id,authorized,[['SET',self.ghost_key(user_id),json.dumps(ghost_data),'EX',3600]])
 
         except Exception as e:
-            logger.error("Ghost sequence generation failed", extra={"user_id": user_id, "error": str(e)})
+            logger.error('Ghost sequence generation failed', extra={'user_id': user_id})
 
     async def collapse_wavefunction(self, user_id: int, candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -809,7 +806,7 @@ class BehaviorEngine:
             return candidates
 
         except Exception as e:
-            logger.error("Wavefunction collapse failed", extra={"user_id": user_id, "error": str(e)})
+            logger.error('Wavefunction collapse failed', extra={'user_id': user_id})
             return candidates
 
 
@@ -996,7 +993,7 @@ class BehaviorEngine:
                 task.add_done_callback(self._handle_background_task_result)
 
         except Exception as e:
-            logger.error("Memory consolidation pipeline failure", extra={"error": str(e)})
+            logger.error('Memory consolidation pipeline failure', extra={})
 
     async def _legacy_pre_privacy_fence_dream_future(self, user_id: int) -> None:
         """Re-evaluates the user's temporal embedding sequence to compute their current 'Ghost'."""
@@ -1064,4 +1061,4 @@ class BehaviorEngine:
             await self.cache.set(self.ghost_key(user_id), json.dumps(ghost_data), ttl=3600)
 
         except Exception as e:
-            logger.error("Ghost sequence generation failed", extra={"user_id": user_id, "error": str(e)})
+            logger.error('Ghost sequence generation failed', extra={'user_id': user_id})

@@ -69,7 +69,7 @@ async def stripe_webhook(
         logger.warning("stripe_webhook_order_verification_failed")
         raise HTTPException(status_code=400, detail="Payment does not match the local order")
     except Exception:
-        logger.error("stripe_webhook_processing_failed", exc_info=True)
+        logger.error("stripe_webhook_processing_failed")
         raise HTTPException(status_code=503, detail="Payment processing temporarily unavailable")
     return {"status": "success"}
 
@@ -155,6 +155,6 @@ async def paypal_webhook(
         logger.warning("paypal_webhook_order_verification_failed")
         raise HTTPException(status_code=400, detail="Payment does not match the local order")
     except Exception:
-        logger.error("paypal_webhook_processing_failed", exc_info=True)
+        logger.error("paypal_webhook_processing_failed")
         raise HTTPException(status_code=503, detail="Payment processing temporarily unavailable")
     return {"status": "success"}

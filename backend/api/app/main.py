@@ -140,11 +140,11 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        logger.exception(
+        logger.error(
             "Unhandled application exception.",
             extra={
                 "method": request.method,
-                "path": request.url.path,
+                "route": getattr(request.scope.get("route"), "path", "unmatched"),
             },
         )
         return JSONResponse(
@@ -215,10 +215,7 @@ async def relay_response_message(
             payload = decode_message_body(message.body)
             user_id = extract_user_id(payload)
         except InvalidMessageError as exc:
-            logger.warning(
-                "Dropping invalid AI response message.",
-                extra={"reason": str(exc)},
-            )
+            logger.warning('Dropping invalid AI response message.', extra={'reason': 'invalid_message'})
             return
 
         message_type = payload.get("type", "unknown")
@@ -236,7 +233,7 @@ async def relay_response_message(
                     break
                 except (RedisConnectionError, RedisTimeoutError, OSError, asyncio.TimeoutError):
                     if attempt == 2:
-                        logger.exception("Response Redis bridge unavailable; broker delivery will requeue")
+                        logger.error("Response Redis bridge unavailable; broker delivery will requeue")
                         raise
                     await asyncio.sleep(2 ** attempt)
         else:

@@ -1177,14 +1177,7 @@ class StructuredLog:
             if value is not None
         }
 
-        logger.log(
-            level,
-            "%s | %s",
-            event.strip(),
-            SafeJson.dumps(payload),
-            stacklevel=stacklevel,
-            exc_info=exc_info,
-        )
+        StructuredLog._emit(level, event, stacklevel=stacklevel, exc_info=exc_info, **fields)
 
     @staticmethod
     def debug(event: str, **fields: Any) -> None:
@@ -1340,14 +1333,7 @@ class GlobalCommerceIntentEngine:
             error_type = type(exc).__name__
 
             # تسجيل الخطأ بتفاصيل دقيقة مع تضمين مسار الخطأ (Stack Trace) للتحليل اللاحق
-            logger.error(
-                "global_intent_engine_critical_failure",
-                extra={
-                    "error_type": error_type,
-                    "fallback_triggered": True
-                },
-                exc_info=False
-            )
+            logger.error('global_intent_engine_critical_failure', extra={'error_type': error_type, 'fallback_triggered': True})
 
             # 2. Deterministic Heuristic Fallback (الانحدار للتحليل الحتمي)
             # إذا مات الـ LLM، نستعين بقواعد برمجية فائقة السرعة لتخمين النية
@@ -1445,10 +1431,7 @@ class DistributedLockManager:
             released = bool(result)
 
             if not released and self._logger:
-                self._logger.warning(
-                    "Lock release skipped: ownership mismatch or lock already expired",
-                    extra={"lock_key": handle.key},
-                )
+                self._logger.warning('Lock release skipped: ownership mismatch or lock already expired', extra={})
 
             if strict and not released:
                 raise LockReleaseError(
@@ -1461,10 +1444,7 @@ class DistributedLockManager:
             raise
         except Exception as exc:
             if self._logger:
-                self._logger.exception(
-                    "Unexpected failure during lock release",
-                    extra={"lock_key": handle.key},
-                )
+                self._logger.error('Unexpected failure during lock release', extra={})
             raise LockReleaseError(
                 f"Failed to release lock for key={handle.key!r}"
             ) from exc
@@ -2834,14 +2814,14 @@ class AINLUService:
                 return []
             return list(bundle)
         except Exception as exc:
-            logger.warning("bundle_generation_failed", extra={"error": str(exc)})
+            logger.warning('bundle_generation_failed', extra={})
             return []
 
     async def _safe_delete_cache_key(self, key: str) -> None:
         try:
             await self.cache.delete(key)
         except Exception as exc:
-            logger.warning("cache_delete_failed", extra={"key": key, "error": str(exc)})
+            logger.warning('cache_delete_failed', extra={})
 
     async def _legacy_pre_cart_only_handle_smart_cart_action(self, user_id: int, intent_payload: CommerceIntentPayload, ctx: RequestContext) -> bool:
         """
@@ -2972,10 +2952,7 @@ class AINLUService:
 
 
             except Exception as exc:
-                logger.error(
-                    "internal_add_by_id_failed",
-                    extra={"user_id": user_id, "argument": parsed.argument, "error": str(exc)},
-                )
+                logger.error('internal_add_by_id_failed', extra={'user_id': user_id})
             return
 
         if parsed.name == InternalCommand.REMOVE_BY_ID:
@@ -2997,10 +2974,7 @@ class AINLUService:
 
                 await self._perform_devilish_recovery(user_id, product_id)
             except Exception as exc:
-                logger.error(
-                    "internal_remove_by_id_failed",
-                    extra={"user_id": user_id, "argument": parsed.argument, "error": str(exc)},
-                )
+                logger.error('internal_remove_by_id_failed', extra={'user_id': user_id})
             return
 
         if parsed.name == InternalCommand.CLEAR_CART:
@@ -3089,10 +3063,7 @@ class AINLUService:
                         extra={"user_id": user_id, "item_count": len(cart_state["items"])}
                     )
             except Exception as exc:
-                logger.error(
-                    "cart_sync_critical_failure",
-                    extra={"user_id": user_id, "error": str(exc)}
-                )
+                logger.error('cart_sync_critical_failure', extra={'user_id': user_id})
             return
 
 
@@ -3116,10 +3087,7 @@ class AINLUService:
         reset_triggers = ("reset", "restart", "help")
 
         if _contains_any(normalized_text, checkout_triggers):
-            logger.info(
-                "text_command_checkout_detected",
-                extra={"user_id": user_id, "command_text": normalized_text},
-            )
+            logger.info('text_command_checkout_detected', extra={'user_id': user_id})
             await self._safe_publish(
                 {
                     "user_id": user_id,
@@ -3132,10 +3100,7 @@ class AINLUService:
             return True
 
         if _contains_any(normalized_text, clear_cart_triggers):
-            logger.info(
-                "text_command_clear_cart_detected",
-                extra={"user_id": user_id, "command_text": normalized_text},
-            )
+            logger.info('text_command_clear_cart_detected', extra={'user_id': user_id})
             await self._safe_publish(
                 {
                     "user_id": user_id,
@@ -3147,10 +3112,7 @@ class AINLUService:
             return True
 
         if normalized_text in reset_triggers:
-            logger.info(
-                "text_command_reset_detected",
-                extra={"user_id": user_id, "command_text": normalized_text},
-            )
+            logger.info('text_command_reset_detected', extra={'user_id': user_id})
             await self._process_internal_command(user_id, InternalCommand.RESET_SESSION.value)
             return True
 
@@ -3158,26 +3120,17 @@ class AINLUService:
             query_product = _strip_trigger_prefixes(normalized_text, add_triggers)
 
             if len(query_product) <= 2:
-                logger.info(
-                    "text_command_add_skipped_query_too_short",
-                    extra={"user_id": user_id, "command_text": normalized_text},
-                )
+                logger.info('text_command_add_skipped_query_too_short', extra={'user_id': user_id})
                 return False
 
             try:
                 candidates = await self._search_single_product(query_product, limit=1)
             except Exception as exc:
-                logger.error(
-                    "text_command_add_search_failed",
-                    extra={"user_id": user_id, "query_product": query_product, "error": str(exc)},
-                )
+                logger.error('text_command_add_search_failed', extra={'user_id': user_id})
                 return False
 
             if not candidates:
-                logger.info(
-                    "text_command_add_no_candidate_found",
-                    extra={"user_id": user_id, "query_product": query_product},
-                )
+                logger.info('text_command_add_no_candidate_found', extra={'user_id': user_id})
                 return False
 
             target = candidates[0]
@@ -3185,10 +3138,7 @@ class AINLUService:
             target_name = str(_safe_product_get(target, "name", "item"))
 
             if target_id is None:
-                logger.error(
-                    "text_command_add_candidate_missing_id",
-                    extra={"user_id": user_id, "query_product": query_product, "target_name": target_name},
-                )
+                logger.error('text_command_add_candidate_missing_id', extra={'user_id': user_id, 'target_name': target_name})
                 return False
 
             await self._safe_publish(
@@ -3480,10 +3430,7 @@ class AINLUService:
 
 
             except Exception as exc:
-                logger.error(
-                    "internal_add_by_id_failed",
-                    extra={"user_id": user_id, "argument": parsed.argument, "error": str(exc)},
-                )
+                logger.error('internal_add_by_id_failed', extra={'user_id': user_id})
             return
 
         if parsed.name == InternalCommand.REMOVE_BY_ID:
@@ -3505,10 +3452,7 @@ class AINLUService:
 
                 await self._perform_devilish_recovery(user_id, product_id)
             except Exception as exc:
-                logger.error(
-                    "internal_remove_by_id_failed",
-                    extra={"user_id": user_id, "argument": parsed.argument, "error": str(exc)},
-                )
+                logger.error('internal_remove_by_id_failed', extra={'user_id': user_id})
             return
 
         if parsed.name == InternalCommand.CLEAR_CART:
@@ -3586,10 +3530,7 @@ class AINLUService:
                         extra={"user_id": user_id, "item_count": len(cart_state["items"])}
                     )
             except Exception as exc:
-                logger.error(
-                    "cart_sync_critical_failure",
-                    extra={"user_id": user_id, "error": str(exc)}
-                )
+                logger.error('cart_sync_critical_failure', extra={'user_id': user_id})
             return
 
     async def _matrix_stage(self, user_id: int, stage: str, operation):
@@ -3878,18 +3819,7 @@ class AINLUService:
             raise
 
         except Exception:
-            logger.error(
-                "stream_row_transport_failure",
-                exc_info=True,
-                extra={
-                    "user_id": user_id,
-                    "ui_type": ui_type,
-                    "product_count": product_count,
-                    "reason": reason,
-                    "content_preview": content[:160] if content else "",
-                    "apply_delay": apply_delay,
-                },
-            )
+            logger.error('stream_row_transport_failure', extra={'user_id': user_id, 'ui_type': ui_type, 'product_count': product_count, 'reason': reason, 'apply_delay': apply_delay})
             raise
 
     async def _generate_dynamic_row_copy(
@@ -4332,38 +4262,16 @@ class AINLUService:
                 )
             except asyncio.TimeoutError:
                 fallback_triggered = True
-                logger.warning(
-                    "Strategic search timed out",
-                    extra={
-                        "user_id": user_id,
-                        "product_name": product_name,
-                        "timeout_sec": timeout_sec,
-                        "domain_hint": item.domain_hint,
-                    },
-                )
+                logger.warning('Strategic search timed out', extra={'user_id': user_id, 'timeout_sec': timeout_sec, 'domain_hint': item.domain_hint})
                 return [], True, ""
             except Exception:
                 fallback_triggered = True
-                logger.exception(
-                    "Strategic search failed",
-                    extra={
-                        "user_id": user_id,
-                        "product_name": product_name,
-                        "domain_hint": item.domain_hint,
-                    },
-                )
+                logger.error('Strategic search failed', extra={'user_id': user_id, 'domain_hint': item.domain_hint})
                 return [], True, ""
 
             if not result:
                 fallback_triggered = True
-                logger.info(
-                    "Product not found in local inventory",
-                    extra={
-                        "user_id": user_id,
-                        "product_name": product_name,
-                        "domain_hint": item.domain_hint,
-                    },
-                )
+                logger.info('Product not found in local inventory', extra={'user_id': user_id, 'domain_hint': item.domain_hint})
                 continue
 
             all_candidates.extend(result)
@@ -4498,15 +4406,7 @@ class AINLUService:
         core_query = _normalize_search_text(search_queries[0] if search_queries else normalized_query)
         strict_filters = {"category": category_filter} if category_filter else None
 
-        logger.info(
-            "strategic_search_started",
-            extra={
-                "user_id": user_id,
-                "original_query": normalized_query,
-                "core_query": core_query,
-                "category_filter": category_filter,
-            },
-        )
+        logger.info('strategic_search_started', extra={'user_id': user_id})
 
         high_tier = await self.search_engine.perform_hybrid_search_pure(
             self.db,
@@ -4570,10 +4470,7 @@ class AINLUService:
         )
         broad_results = _deduplicate_products(broad_results)
 
-        logger.info(
-            "strategic_search_tier_hit",
-            extra={"user_id": user_id, "tier": "broad_fallback", "count": len(broad_results), "broad_query": broad_query},
-        )
+        logger.info('strategic_search_tier_hit', extra={'user_id': user_id, 'tier': 'broad_fallback', 'count': len(broad_results)})
         return broad_results
 
     async def _find_smart_alternatives(self, original_query: str, strategy: Any) -> List[Any]:
@@ -4587,10 +4484,7 @@ class AINLUService:
         category_filter = getattr(strategy, "category_filter", None) if strategy is not None else None
 
         if category_filter:
-            logger.info(
-                "smart_alternatives_category_fallback",
-                extra={"query": normalized_query, "category_filter": category_filter},
-            )
+            logger.info('smart_alternatives_category_fallback', extra={})
             results = await self.search_engine.perform_hybrid_search_pure(
                 self.db,
                 normalized_query,
@@ -4607,10 +4501,7 @@ class AINLUService:
         )
         clean_query = re.sub(r"\s+", " ", clean_query).strip() or normalized_query
 
-        logger.info(
-            "smart_alternatives_generic_fallback",
-            extra={"original_query": normalized_query, "clean_query": clean_query},
-        )
+        logger.info('smart_alternatives_generic_fallback', extra={})
         results = await self.search_engine.perform_hybrid_search_pure(
             self.db,
             clean_query,
@@ -5666,10 +5557,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
         reset_triggers = ("reset", "restart", "help")
 
         if _contains_any(normalized_text, checkout_triggers):
-            logger.info(
-                "text_command_checkout_detected",
-                extra={"user_id": user_id, "command_text": normalized_text},
-            )
+            logger.info('text_command_checkout_detected', extra={'user_id': user_id})
             await self._safe_publish(
                 {
                     "user_id": user_id,
@@ -5686,10 +5574,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
             return True
 
         if normalized_text in reset_triggers:
-            logger.info(
-                "text_command_reset_detected",
-                extra={"user_id": user_id, "command_text": normalized_text},
-            )
+            logger.info('text_command_reset_detected', extra={'user_id': user_id})
             await self._process_internal_command(user_id, InternalCommand.RESET_SESSION.value)
             return True
 
@@ -5697,26 +5582,17 @@ Execute your response adhering strictly to this visual and structural blueprint:
             query_product = _strip_trigger_prefixes(normalized_text, add_triggers)
 
             if len(query_product) <= 2:
-                logger.info(
-                    "text_command_add_skipped_query_too_short",
-                    extra={"user_id": user_id, "command_text": normalized_text},
-                )
+                logger.info('text_command_add_skipped_query_too_short', extra={'user_id': user_id})
                 return False
 
             try:
                 candidates = await self._search_single_product(query_product, limit=1)
             except Exception as exc:
-                logger.error(
-                    "text_command_add_search_failed",
-                    extra={"user_id": user_id, "query_product": query_product, "error": str(exc)},
-                )
+                logger.error('text_command_add_search_failed', extra={'user_id': user_id})
                 return False
 
             if not candidates:
-                logger.info(
-                    "text_command_add_no_candidate_found",
-                    extra={"user_id": user_id, "query_product": query_product},
-                )
+                logger.info('text_command_add_no_candidate_found', extra={'user_id': user_id})
                 return False
 
             target = candidates[0]
@@ -5724,10 +5600,7 @@ Execute your response adhering strictly to this visual and structural blueprint:
             target_name = str(_safe_product_get(target, "name", "item"))
 
             if target_id is None:
-                logger.error(
-                    "text_command_add_candidate_missing_id",
-                    extra={"user_id": user_id, "query_product": query_product, "target_name": target_name},
-                )
+                logger.error('text_command_add_candidate_missing_id', extra={'user_id': user_id, 'target_name': target_name})
                 return False
 
             await self._safe_publish(

@@ -129,23 +129,10 @@ class RabbitMQService:
                         CONNECT_BASE_DELAY_SEC * (1.5 ** (attempt - 1)),
                         CONNECT_MAX_DELAY_SEC,
                     )
-                    logger.warning(
-                        "rabbitmq.connect.retry",
-                        extra={
-                            "attempt": attempt,
-                            "retry_in_sec": round(delay, 2),
-                            "error": str(exc),
-                        },
-                    )
+                    logger.warning('rabbitmq.connect.retry', extra={'attempt': attempt, 'retry_in_sec': round(delay, 2)})
                     await asyncio.sleep(delay)
 
-            logger.critical(
-                "rabbitmq.connect.failed",
-                extra={
-                    "attempts": MAX_CONNECT_RETRIES,
-                    "error": str(last_exc),
-                },
-            )
+            logger.critical('rabbitmq.connect.failed', extra={'attempts': MAX_CONNECT_RETRIES})
             raise last_exc
 
     async def close(self) -> None:
@@ -162,20 +149,14 @@ class RabbitMQService:
             if not topology.channel.is_closed:
                 await topology.channel.close()
         except Exception as exc:
-            logger.warning(
-                "rabbitmq.close.channel_error",
-                extra={"error": str(exc)},
-            )
+            logger.warning('rabbitmq.close.channel_error', extra={})
 
         try:
             if not topology.connection.is_closed:
                 await topology.connection.close()
             logger.info("rabbitmq.close.success")
         except Exception as exc:
-            logger.error(
-                "rabbitmq.close.connection_error",
-                extra={"error": str(exc)},
-            )
+            logger.error('rabbitmq.close.connection_error', extra={})
 
     async def publish(
         self,
@@ -198,14 +179,7 @@ class RabbitMQService:
         try:
             payload = json.dumps(body, default=str).encode("utf-8")
         except (TypeError, ValueError) as exc:
-            logger.error(
-                "rabbitmq.publish.serialization_error",
-                extra={
-                    "routing_key": routing_key,
-                    "correlation_id": cid,
-                    "error": str(exc),
-                },
-            )
+            logger.error('rabbitmq.publish.serialization_error', extra={'routing_key': routing_key, 'correlation_id': cid})
             return PublishOutcome(
                 result=PublishResult.SERIALIZATION_ERROR,
                 routing_key=routing_key,
@@ -276,32 +250,14 @@ class RabbitMQService:
 
             except (AMQPError, asyncio.TimeoutError, ConnectionError, OSError) as exc:
                 last_exc = exc
-                logger.warning(
-                    "rabbitmq.publish.retry",
-                    extra={
-                        "routing_key": routing_key,
-                        "correlation_id": cid,
-                        "attempt": attempt,
-                        "max_retries": max_retries,
-                        "error": str(exc),
-                    },
-                )
+                logger.warning('rabbitmq.publish.retry', extra={'routing_key': routing_key, 'correlation_id': cid, 'attempt': attempt, 'max_retries': max_retries})
                 self._topology = None
 
                 if attempt < max_retries:
                     await asyncio.sleep(PUBLISH_RETRY_BASE_SEC * attempt)
 
         elapsed_ms = self._elapsed_ms(started_at)
-        logger.error(
-            "rabbitmq.publish.exhausted",
-            extra={
-                "routing_key": routing_key,
-                "correlation_id": cid,
-                "attempts": max_retries,
-                "elapsed_ms": elapsed_ms,
-                "error": str(last_exc) if last_exc else None,
-            },
-        )
+        logger.error('rabbitmq.publish.exhausted', extra={'routing_key': routing_key, 'correlation_id': cid, 'attempts': max_retries, 'elapsed_ms': elapsed_ms})
         return PublishOutcome(
             result=PublishResult.EXHAUSTED,
             routing_key=routing_key,

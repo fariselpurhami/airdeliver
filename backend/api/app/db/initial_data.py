@@ -42,7 +42,7 @@ def create_superuser(session: Session, settings: Any) -> None:
             logger.info("✅ Superuser verification passed (Already exists).")
             return
 
-        logger.info(f"🆕 Provisioning System Administrator: {admin_email}")
+        logger.info("Provisioning system administrator")
         user = models.User(
             email=admin_email,
             full_name="Admin",
@@ -58,14 +58,14 @@ def create_superuser(session: Session, settings: Any) -> None:
 
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"❌ Database error during superuser creation: {str(e)}")
+        logger.error(f'❌ Database error during superuser creation: [failure]')
         raise
 
 
 def load_seed_data(file_path: Path) -> List[Dict[str, Any]]:
     """Deterministically loads and parses seed data."""
     if not file_path.exists():
-        logger.warning(f"⚠️ Seed file '{file_path}' not found. Skipping base inventory sync.")
+        logger.warning('Seed file missing; skipping base inventory sync')
         return []
 
     try:
@@ -73,7 +73,7 @@ def load_seed_data(file_path: Path) -> List[Dict[str, Any]]:
             data = json.load(f)
             return data.get("products", [])
     except json.JSONDecodeError as e:
-        logger.error(f"❌ FATAL: JSON decoding failed for '{file_path}': {str(e)}")
+        logger.error('Seed file JSON decoding failed')
         raise
 
 
@@ -120,7 +120,7 @@ def seed_products(session: Session, products_data: List[Dict[str, Any]]) -> None
 
     except SQLAlchemyError as e:
         session.rollback()
-        logger.error(f"❌ Database error during product synchronization: {str(e)}")
+        logger.error(f'❌ Database error during product synchronization: [failure]')
         raise
 
 
@@ -141,7 +141,7 @@ def init_db() -> None:
         logger.info("--- ✅ SYSTEM BOOTSTRAP COMPLETE ---")
         
     except Exception as e:
-        logger.error(f"💥 FATAL: System bootstrap failed: {str(e)}")
+        logger.error(f'💥 FATAL: System bootstrap failed: [failure]')
         raise SystemExit(1)
 
 

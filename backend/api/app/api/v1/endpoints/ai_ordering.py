@@ -94,7 +94,7 @@ async def check_rate_limit(user_id: int, cache: IAsyncCacheClient) -> bool:
             return False
         return True
     except Exception as e:
-        logger.warning(f"Rate limit check failed (Fail-Open Policy): {e}")
+        logger.warning("ordering.rate_limit_cache_unavailable policy=fail_open")
         return True
 
 # --- 🛒 SECTION 1B: HTTP CART & CHECKOUT COMMANDS ---
@@ -401,7 +401,7 @@ async def capture_paypal_order(
     try:
         gateway = PayPalGateway(get_paypal_settings(), cache, httpx.AsyncClient(timeout=httpx.Timeout(5.0)))
     except Exception as exc:
-        logger.error("PayPal gateway unavailable for capture: %s", exc)
+        logger.error("ordering.paypal_capture_gateway_unavailable")
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="PayPal unavailable")
 
     try:
@@ -469,7 +469,7 @@ async def handle_chat_websocket(
             cache=cache
         )
     except Exception as e:
-        logger.error(f"❌ WebSocket Auth Failed: {e}")
+        logger.error("ordering.socket_auth_failed")
         if websocket.client_state != WebSocketState.DISCONNECTED:
              await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
@@ -508,7 +508,7 @@ async def handle_chat_websocket(
                 except asyncio.CancelledError:
                     pass # Task cancelled gracefully
                 except Exception as e:
-                    logger.error(f"Redis Listener Error for User {current_user.id}: {e}")
+                    logger.error("ordering.socket_listener_failed")
 
             # Start Listener
             listener_task = asyncio.create_task(listen_for_ai_responses())
@@ -517,7 +517,7 @@ async def handle_chat_websocket(
             logger.warning("⚠️ Cache client does not support subscription. Real-time responses may fail.")
 
     except Exception as e:
-        logger.error(f"Failed to setup Redis Listener: {e}")
+        logger.error("ordering.socket_listener_setup_failed")
 
     # --- 📨 3. MESSAGE RECEIVE LOOP ---
     try:
@@ -549,7 +549,7 @@ async def handle_chat_websocket(
             # which silently dropped every command. Fail honestly instead.
             logger.warning(
                 "Inbound command on receive-only socket rejected",
-                extra={"user_id": current_user.id, "type": message_data.get("type")},
+                extra={"user_id": current_user.id, "command_rejected": True},
             )
             await websocket.send_json({
                 "type": "ERROR",
@@ -561,7 +561,7 @@ async def handle_chat_websocket(
     except WebSocketDisconnect as exc:
         # No payload/ticket or arbitrary close reason in diagnostics.
         logger.info("ordering.socket_closed user_id=%s connection=%s code=%s duration_ms=%s",
-                    current_user.id, connection_id[:8], exc.code,
+                    current_user.id, connection_id[:8], exc.code if type(exc.code) is int else 1006,
                     round((__import__("time").monotonic()-connected_at)*1000))
 
         if listener_task: listener_task.cancel()
@@ -570,7 +570,7 @@ async def handle_chat_websocket(
         await connection_manager.disconnect(current_user.id, websocket)
 
     except Exception as e:
-        logger.error(f"🔥 Critical WebSocket Crash User {current_user.id}: {e}", exc_info=True)
+        logger.error("ordering.socket_receive_failed")
 
         if listener_task: listener_task.cancel()
         if pubsub: await pubsub.close()
@@ -600,7 +600,7 @@ async def handle_voice_stream(
     # 1. 🎫 FAST AUTH & TICKET VALIDATION
     user_id_str = await cache.get(f"ws_ticket:{ticket}")
     if not user_id_str:
-        logger.warning(f"⛔ Voice Access Denied: Invalid Ticket {ticket}")
+        logger.warning("ordering.voice_ticket_rejected")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
@@ -636,7 +636,7 @@ async def handle_voice_stream(
         await orchestrator.process_voice_session(websocket, str(user_id))
 
     except Exception as e:
-        logger.error(f"🔥 Critical Voice Crash User {user_id}: {e}", exc_info=True)
+        logger.error("ordering.voice_session_failed")
         try:
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
         except: pass

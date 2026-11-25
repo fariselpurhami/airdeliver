@@ -197,7 +197,7 @@ class WorkerRuntime:
             with suppress(asyncio.CancelledError):
                 exc = completed.exception()
                 if exc is not None:
-                    logger.error("Background task failed: %s", name, exc_info=exc)
+                    logger.error('Background task failed: %s', name)
 
         task.add_done_callback(_cleanup)
         return task
@@ -399,7 +399,7 @@ class WorkerRuntime:
                     index_params=visual_index_params,
                 )
         except Exception:
-            logger.exception("Milvus schema initialization failed")
+            logger.error('Milvus schema initialization failed')
             raise
 
     async def lazy_load_voice_brain(self) -> None:
@@ -457,7 +457,7 @@ class WorkerRuntime:
             except Exception as exc:
                 self.voice_brain.ready = False
                 self.voice_brain.error = str(exc)
-                logger.warning("Voice brain initialization attempt %s failed", attempt, exc_info=exc)
+                logger.warning('Voice brain initialization attempt %s failed', attempt)
                 if attempt >= VOICE_LOAD_MAX_RETRIES:
                     break
                 await asyncio.sleep(2 ** attempt)
@@ -810,13 +810,7 @@ class WorkerRuntime:
         """Preserved original capped startup retry policy, not current dispatch."""
         if self.is_message_startup_dependent(payload) and startup_retry_count < STARTUP_RETRY_MAX_ATTEMPTS:
             backoff_time = min(2 ** startup_retry_count, 10.0)
-            logger.warning(
-                "Startup dependency unavailable: %s. retry=%s/%s backoff=%.2fs",
-                exc,
-                startup_retry_count + 1,
-                STARTUP_RETRY_MAX_ATTEMPTS,
-                backoff_time,
-            )
+            logger.warning('Startup dependency unavailable: %s. retry=%s/%s backoff=%.2fs', type(exc).__name__, startup_retry_count + 1, STARTUP_RETRY_MAX_ATTEMPTS, backoff_time)
             await asyncio.sleep(backoff_time)
             headers["x-startup-retry-count"] = startup_retry_count + 1
             await self.republish_with_headers(
@@ -828,7 +822,7 @@ class WorkerRuntime:
             await message.ack()
             return
 
-        logger.error("Startup dependency unavailable; message rejected without requeue: %s", exc)
+        logger.error('Startup dependency unavailable; message rejected without requeue: %s', type(exc).__name__)
         await message.reject(requeue=False)
         return
 
@@ -1000,7 +994,7 @@ class WorkerRuntime:
                 raise
             except Exception as exc:
                 self.payment_outbox_status = {"state": "error", "error_type": type(exc).__name__}
-                logger.exception("Payment outbox scan failed")
+                logger.error('Payment outbox scan failed')
             try:
                 await asyncio.wait_for(self.shutdown_event.wait(), timeout=10.0)
             except asyncio.TimeoutError:
@@ -1108,7 +1102,7 @@ class WorkerRuntime:
             if not isinstance(payload, dict):
                 raise MalformedMessageError("JSON payload must be an object")
         except (json.JSONDecodeError, UnicodeDecodeError, MalformedMessageError) as exc:
-            logger.error("Malformed message rejected: %s", exc)
+            logger.error('Malformed message rejected: %s', type(exc).__name__)
             await message.reject(requeue=False)
             return
 
@@ -1143,12 +1137,12 @@ class WorkerRuntime:
                 return
 
             except PermanentProcessingError as exc:
-                logger.error("Permanent processing error; message rejected: %s", exc)
+                logger.error('Permanent processing error; message rejected: %s', type(exc).__name__)
                 await message.reject(requeue=False)
                 return
 
             except (ValueError, KeyError, TypeError) as exc:
-                logger.error("Terminal logic error; message rejected: %s", exc)
+                logger.error('Terminal logic error; message rejected: %s', type(exc).__name__)
                 await message.reject(requeue=False)
                 return
 
@@ -1171,14 +1165,7 @@ class WorkerRuntime:
                         (2 ** transient_retry_count) + random.uniform(0.1, 1.0),
                         MAX_RETRY_BACKOFF_SECONDS,
                     )
-                    logger.warning(
-                        "Transient processing failure: %s. retry=%s/%s backoff=%.2fs",
-                        type(exc).__name__,
-                        transient_retry_count + 1,
-                        TRANSIENT_RETRY_MAX_ATTEMPTS,
-                        backoff_time,
-                        exc_info=exc,
-                    )
+                    logger.warning('Transient processing failure: %s. retry=%s/%s backoff=%.2fs', type(exc).__name__, transient_retry_count + 1, TRANSIENT_RETRY_MAX_ATTEMPTS, backoff_time)
                     await asyncio.sleep(backoff_time)
                     headers["x-transient-retry-count"] = transient_retry_count + 1
                     await self.republish_with_headers(
@@ -1190,7 +1177,7 @@ class WorkerRuntime:
                     await message.ack()
                     return
 
-                logger.critical("Message dropped after max retries: %s", exc, exc_info=exc)
+                logger.critical('Message dropped after max retries: %s', type(exc).__name__)
                 await message.reject(requeue=False)
 
     async def main(self) -> None:
@@ -1204,7 +1191,7 @@ class WorkerRuntime:
             logger.info("Infrastructure initialized")
         except Exception as exc:
             self.services.startup_error = "INFRASTRUCTURE_INIT_FAILED"
-            logger.critical("Infrastructure initialization failed", exc_info=exc)
+            logger.critical('Infrastructure initialization failed')
             raise
 
         try:
@@ -1214,14 +1201,14 @@ class WorkerRuntime:
             self.services.ai_ready = False
             self.services.ai_degraded = True
             self.services.startup_error = "AI_INIT_DEGRADED"
-            logger.error("AI initialization failed; worker continues in degraded mode", exc_info=exc)
+            logger.error('AI initialization failed; worker continues in degraded mode')
 
         try:
             self.initialize_payment(cache_client)
             logger.info("Payment orchestration initialized")
         except Exception as exc:
             self.services.startup_error = "PAYMENT_INIT_FAILED"
-            logger.critical("Payment initialization failed", exc_info=exc)
+            logger.critical('Payment initialization failed')
             raise
 
         try:
@@ -1229,7 +1216,7 @@ class WorkerRuntime:
             logger.info("RabbitMQ consumers initialized")
         except Exception as exc:
             self.services.startup_error = "RABBITMQ_CONSUMER_INIT_FAILED"
-            logger.critical("RabbitMQ consumer initialization failed", exc_info=exc)
+            logger.critical('RabbitMQ consumer initialization failed')
             raise
 
         if not self.services.ai_ready:
@@ -1267,7 +1254,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("Worker stopped by keyboard interrupt")
     except Exception as exc:
-        logger.critical("Worker terminated due to fatal error", exc_info=exc)
+        logger.critical('Worker terminated due to fatal error')
         sys.exit(1)
     finally:
         try:

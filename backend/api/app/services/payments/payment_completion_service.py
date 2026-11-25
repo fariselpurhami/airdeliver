@@ -62,7 +62,7 @@ class PaymentCompletionService:
             await self.db.commit()
         except Exception:
             await self.db.rollback()
-            logger.exception("Payment state/outbox transaction failed", extra={"order_id": order_id})
+            logger.error('Payment state/outbox transaction failed', extra={'order_id': order_id})
             raise
 
         # These existing features are best effort, not covered by the event
