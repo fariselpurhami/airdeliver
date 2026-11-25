@@ -1314,8 +1314,24 @@ class GlobalCommerceIntentEngine:
             elif clean_json.startswith("```"):
                 clean_json = clean_json[3:-3].strip()
                 
-            parsed_data = json.loads(clean_json)
-            return CommerceIntentPayload(**parsed_data)
+            from app.services.strict_planner_json import planner_object
+            parsed_data = planner_object(clean_json)
+            result=CommerceIntentPayload(**parsed_data)
+            context=' '.join((str(chat_history)+' '+str(user_text)).casefold().split())
+            current=' '.join(str(user_text).casefold().split())
+            if len(result.target_products)>3 or any(' '.join(target.product_name.casefold().split()) not in context for target in result.target_products):
+                raise ValueError('Unresolved original target identity')
+            for target in result.target_products:
+                if target.raw_spec_context and ' '.join(target.raw_spec_context.casefold().split()) not in context:
+                    raise ValueError('Ungrounded original target constraints')
+            if any(not isinstance(feature,str) or ' '.join(feature.casefold().split()) not in context for feature in result.required_features):
+                raise ValueError('Ungrounded original features')
+            for field in ('detected_occasion','competitor_mentioned'):
+                value=getattr(result,field)
+                if value and ' '.join(value.casefold().split()) not in current:setattr(result,field,None)
+            # A heuristic/model cart category is not an executable action. The
+            # downstream exact current command review still owns all mutations.
+            return result
 
         except Exception as exc:
             # 1. High-Resolution Telemetry & Log Safety

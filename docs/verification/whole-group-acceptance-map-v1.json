@@ -111,18 +111,21 @@
       "id": "CAP-20",
       "capability": "Global model intent router with heuristic failure route",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Typed ordinary router and legacy category bridges, safe unsupported route",
-      "next_code_or_boundary_acceptance": "Crosswalk original category success/error callers including richer fields; no heuristic replacement for model understanding",
+      "next_code_or_boundary_acceptance": "Active ordinary/original model router caller and failure boundary audit complete; successful original fields grounded and ambiguous JSON rejected. Exact-head CI and merge remain; actual model taxonomy quality and owner evidence separate.",
       "quality_acceptance": "Held-out actual-model taxonomy accuracy and safe failure rate",
       "owner_acceptance": "Provider quota/profile receipts for routed conversation",
       "evidence_leads": [
         "apps/api/tests/test_advisory_task_routing.py",
         "apps/api/tests/test_strict_legacy_routing.py",
-        "apps/api/tests/test_product_domain_routing.py"
+        "apps/api/tests/test_product_domain_routing.py",
+        "docs/verification/cap20-code-acceptance-v1.md",
+        "apps/api/tests/test_global_router_code_closure.py",
+        "apps/api/tests/test_strict_legacy_routing.py"
       ],
       "unresolved_test_leads": []
     },
@@ -411,6 +414,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 9,
-  "code_remaining_groups": 11
+  "code_complete_groups": 10,
+  "code_remaining_groups": 10
 }
