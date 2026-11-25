@@ -24,3 +24,4 @@
 - Eight product design tests cover fixture restrictions, request quantity/double clicks, uncertain results, eligibility guards, supplied rating/currency/detail, explicit assistant action, keyboard focus/Escape and product change reset.
 - Actual React component rendered with compiled Tailwind CSS at 390x844, 1440x1000 and 320x568. Both standard sizes inspected. Small phone scroll path inspected separately. Cards/panels have no decorative borders.
 - This does not claim a real merchant checkout, live provider quality, owner-device browser acceptance, or whole-platform production readiness. No live provider or payment called. No migration or held PR activated.
+- Backend CI path filters now include shared product detail/cart wiring and its test. This prevents a UI-only commerce mutation change from skipping the required rustfs/seaweed matrix.
