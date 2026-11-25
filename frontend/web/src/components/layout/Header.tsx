@@ -189,11 +189,12 @@ export default function Header() {
               aria-current={isActive ? "page" : undefined}
               className={`relative flex items-center justify-center w-11 h-11 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                 isActive
-                  ? "bg-gradient-to-b from-white/20 to-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+                  ? "text-white"
                   : "text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95"
               }`}
             >
-              <item.icon size={19} strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />
+              {isActive && <span aria-hidden="true" className="pointer-events-none absolute inset-1 rounded-full bg-gradient-to-b from-white/20 to-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]" />}
+              <item.icon className="relative z-10" size={19} strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />
             </Link>
           );
         })}
