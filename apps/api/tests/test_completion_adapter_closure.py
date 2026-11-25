@@ -123,3 +123,12 @@ def test_non_strict_calls_are_limited_to_explicit_compatibility_and_dormant_bodi
     live=[n for n in assignments if isinstance(n.value,ast.List)]
     assert len(live)==1 and not live[0].value.elts
     assert all(n.lineno < live[0].lineno for n in assignments if n not in live)
+
+@pytest.mark.asyncio
+async def test_consultation_orchestrator_exception_is_notice_without_unreviewed_cards():
+    from app.services.free_llm_service import SearchStrategy
+    llm=service();llm.strategize_search=AsyncMock(return_value=SearchStrategy(is_direct_product_request=False))
+    llm.extract_search_terms=AsyncMock(return_value='shirt');llm.consult_on_product=AsyncMock(side_effect=ConnectionError('private'))
+    result=await llm.handle_commerce_interaction('shirt',[dict(P)])
+    assert result['products']==[] and result['text'].startswith('System notice:')
+    assert 'strongest' not in result['text'] and 'private' not in result['text']

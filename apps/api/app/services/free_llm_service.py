@@ -2273,7 +2273,7 @@ Output ONE line of search keywords only.
                 )
             except Exception:
                 logger.error("consultation route failed", exc_info=True)
-                consultation_text = "Here are the strongest options and the most practical angle for your request."
+                consultation_text = "System notice: a grounded consultation could not be verified. No product recommendation or reservation was made."
 
             from app.services.shopping_discovery import catalog_result
             from types import SimpleNamespace
