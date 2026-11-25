@@ -239,17 +239,20 @@
       "id": "CAP-29",
       "capability": "Multi-target extraction versus informational query concatenation",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Separate bounded source acquisition per literal target and explicit missing coverage",
-      "next_code_or_boundary_acceptance": "Audit multi-target malformed/duplicate identity and partial source attribution across callers",
+      "next_code_or_boundary_acceptance": "No known remaining in-scope code gap after literal target/source attribution audit; exact-head CI and merge remain. Actual target interpretation, source entailment and owner evidence remain separate.",
       "quality_acceptance": "Actual target extraction/coverage and source quality under multilingual queries",
       "owner_acceptance": "Provider/source credentials and request budget receipts",
       "evidence_leads": [
         "apps/api/tests/test_staged_search_postgres.py",
-        "apps/api/tests/test_specification_service.py"
+        "apps/api/tests/test_specification_service.py",
+        "docs/verification/cap29-code-acceptance-v1.md",
+        "apps/api/tests/test_multitarget_source_attribution.py",
+        "apps/api/tests/test_research_fallback_scope_http.py"
       ],
       "unresolved_test_leads": []
     },
@@ -393,6 +396,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 3,
-  "code_remaining_groups": 17
+  "code_complete_groups": 4,
+  "code_remaining_groups": 16
 }

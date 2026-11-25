@@ -120,7 +120,7 @@ async def test_each_target_gets_own_bounded_source_lookup_and_third_source_index
         payload=json.loads(messages[-1]['content'])
         if 'Extract source-backed' in messages[0]['content']:
             assert len(payload['untrusted_sources'])==9
-            return json.dumps({'covered_targets':['Alpha','Beta','Gamma'],'facts':[
+            return json.dumps({'covered_targets':['Gamma'],'facts':[
                 {'label':'Gamma','quote':'Gamma feature 2.','source':8}]})
         return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
     result=await answer_product_question(infer,'compare',targets=('Alpha','Beta','Gamma'),lookup=lookup)

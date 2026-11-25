@@ -39,7 +39,7 @@ async def test_research_catalog_fallback_retains_scope_after_empty_sources(real_
                 return json.dumps(dict(intent='PRODUCT_SEARCH',query=names[0],search_subject=names[0],shopping_task=task,targets=[{'product_name':n} for n in names]))
             data=json.loads(messages[1]['content'])
             if 'Extract source-backed' in policy:
-                return json.dumps({'covered_targets':names,'facts':[{'label':'Connection','quote':'Atlas laptop has a wired connection.','source':0}]})
+                return json.dumps({'covered_targets':['Atlas laptop'],'facts':[{'label':'Connection','quote':'Atlas laptop has a wired connection.','source':0}]})
             if 'untrusted_sources' in data.get('input',data) or 'product_information_only' in policy:
                 return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
             if 'Assign existing hard features' in policy:return '{"assignments":[]}'
@@ -69,6 +69,7 @@ async def test_research_catalog_fallback_retains_scope_after_empty_sources(real_
             if mode=='source_success':
                 assert result['response_kind']=='text' and result['products']==[]
                 assert 'wired connection' in result['text']
+                assert 'not verified for: Atlas chair' in result['text']
                 svc.ai_engine.perform_hybrid_search_pure.assert_not_awaited()
             elif mode=='identity_change':
                 assert result['response_kind']=='clarification' and result['products']==[] and not seen
