@@ -4,13 +4,15 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
+    branches: ["fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
     paths:
       - 'apps/web/**'
       - 'apps/api/app/services/compact_copy_contracts.py'
       - 'apps/api/app/services/compact_router_contract.py'
       - 'apps/api/tests/test_whole_chain_capacity.py'
+      - 'apps/api/app/services/admin_metrics.py'
       - '.github/workflows/secret-history-guard.yml'
+      - '.github/workflows/backend-ci.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/frontend-ci.yml'
@@ -21,7 +23,9 @@ on:
       - 'apps/api/app/services/compact_copy_contracts.py'
       - 'apps/api/app/services/compact_router_contract.py'
       - 'apps/api/tests/test_whole_chain_capacity.py'
+      - 'apps/api/app/services/admin_metrics.py'
       - '.github/workflows/secret-history-guard.yml'
+      - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 
 jobs:

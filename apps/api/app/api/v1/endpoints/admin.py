@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, func
 from typing import List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, ConfigDict, field_validator
 import random
 from app.api import deps
@@ -75,7 +75,7 @@ async def get_admin_stats(db: AsyncSession = Depends(deps.get_async_session)):
         )
     ).scalar() or 0
 
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     active_users_today = (
         await db.execute(
             select(func.count(func.distinct(models.Order.user_id))).where(
@@ -191,3 +191,11 @@ async def update_manual_fulfillment(
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(status_code=503,detail='Fulfillment update could not be confirmed. Refresh the order before retrying.') from None
+
+
+from app.services.admin_metrics import PaymentMetrics,Range,payment_metrics
+
+@router.get('/payment-metrics',response_model=PaymentMetrics,dependencies=[Depends(get_current_admin_user)])
+async def get_payment_metrics(response:Response,range:Range=Query('24H'),db:AsyncSession=Depends(deps.get_async_session)):
+    response.headers['Cache-Control']='no-store'
+    return await payment_metrics(db,range)

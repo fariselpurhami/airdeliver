@@ -3,6 +3,7 @@
 'use client';
 
 import Link from 'next/link';
+import PaymentMetricsPanel, { PaymentMetrics, MetricRange, formatRecordedAmount } from '@/components/admin/PaymentMetricsPanel';
 import CinematicBackground from '@/components/ui/CinematicBackground';
 import React, { useEffect, useMemo, useRef, Suspense, useState } from 'react';
 import { useSession } from 'next-auth/react';
@@ -40,6 +41,8 @@ interface Order {
     user_id: number;
     status: string;
     total_price: number;
+    currency: string;
+    is_paid: boolean;
     created_at: string;
 }
 interface PaginatedOrdersResponse {
@@ -158,13 +161,13 @@ const StatCard = ({ title, value, icon: Icon, color = "cyan", delay = 0 }: any) 
             </div>
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 border border-white/5">
                 <span className={`w-1.5 h-1.5 rounded-full bg-${color}-400 animate-pulse`} />
-                <span className="text-[9px] text-gray-400 font-mono uppercase tracking-wider">Live</span>
+                <span className="text-[9px] text-gray-400 font-mono uppercase tracking-wider">Snapshot</span>
             </div>
         </div>
 
         <div className="relative z-10">
             <h3 className="text-3xl font-black text-white mb-1" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                <AnimatedCounter value={value} prefix={title.includes('Revenue') ? '$' : ''} />
+                {typeof value === 'number' ? Intl.NumberFormat('en-US').format(value) : value}
             </h3>
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{title}</p>
         </div>
@@ -244,18 +247,18 @@ const ActivityTimeline = ({ events }: { events: ActivityEvent[] }) => {
 };
 
 function DashboardContent() {
-    const { data: statsData } = useSWR<Stats>('/admin/stats', fetcher);
-    const { data: ordersData } = useSWR<PaginatedOrdersResponse>('/admin/orders?limit=100', fetcher);
+    const { data: statsData, error: statsError } = useSWR<Stats>('/admin/stats', fetcher);
+    const { data: ordersData, error: ordersError } = useSWR<PaginatedOrdersResponse>('/admin/orders?limit=100', fetcher);
     const [chartRange, setChartRange] = useState<ChartRange>('24H');
 
     const stats = statsData || null;
     const orders = ordersData?.orders || [];
 
-    const revenueSeries = useMemo(() => buildRevenueSeries(orders, chartRange), [orders, chartRange]);
+    const { data: paymentData, error: paymentError, isLoading: paymentLoading, mutate: refreshPayments } = useSWR<PaymentMetrics>(`/admin/payment-metrics?range=${chartRange}`, fetcher, { refreshInterval: 60000 });
     const activityEvents: ActivityEvent[] = useMemo(() => orders.slice(0, 8).map(order => ({
         id: String(order.id),
         icon: <Package size={14} />,
-        description: `Order #${order.id} ${order.status} - $${Number(order.total_price).toFixed(2)}`,
+        description: `Order #${order.id} ${order.status} - ${formatRecordedAmount(order.total_price, order.currency)}`,
         time: relativeTime(order.created_at),
         color: 'text-cyan-400',
     })), [orders]);
@@ -281,12 +284,12 @@ function DashboardContent() {
                     <Link href="/dashboard/fulfillment" className="inline-flex rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-200">Manual fulfillment workspace</Link>
                 </div>
                 <div className="flex items-center gap-4 text-xs font-mono text-gray-500 bg-white/5 border border-white/5 px-4 py-2 rounded-full backdrop-blur-md">
-                    <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> ONLINE</span>
+                    <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> {statsError || ordersError || paymentError ? "DATA UNAVAILABLE OR STALE" : "ORDER DATA SNAPSHOT"}</span>
                 </div>
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Total Revenue" value={stats ? stats.total_revenue : '—'} icon={DollarSign} color="cyan" delay={0.1} />
+                <StatCard title="Ordering users today (UTC)" value={stats ? stats.active_users_today : '—'} icon={Users} color="cyan" delay={0.1} />
                 <StatCard title="Products" value={stats ? stats.total_products : '—'} icon={HardDrive} color="purple" delay={0.2} />
                 <StatCard title="Total Orders" value={stats ? stats.total_orders : '—'} icon={Package} color="blue" delay={0.3} />
                 <StatCard title="Pending Deliveries" value={stats ? stats.pending_deliveries : '—'} icon={Truck} color="yellow" delay={0.4} />
@@ -294,39 +297,7 @@ function DashboardContent() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="lg:col-span-2 min-h-[400px] rounded-[40px] bg-black/40 backdrop-blur-xl border border-white/10 p-8 shadow-2xl relative overflow-hidden"
-                >
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500/50 to-transparent opacity-50" />
-                    <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                            <BarChart2 className="text-cyan-400" /> Revenue Stream
-                        </h2>
-                        <div className="flex gap-2">
-                            {(['1H', '24H', '7D', '30D'] as ChartRange[]).map(range => (
-                                <button
-                                    key={range}
-                                    onClick={() => setChartRange(range)}
-                                    className={`px-3 py-1 text-[10px] font-bold rounded-lg border transition-all ${range === chartRange ? 'bg-cyan-500 text-black border-cyan-500' : 'bg-transparent text-gray-500 border-white/10 hover:border-white/20'}`}
-                                >
-                                    {range}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="h-[300px]">
-                        {revenueSeries.length > 0 ? (
-                            <RevenueChart data={revenueSeries} />
-                        ) : (
-                            <div className="h-full flex items-center justify-center text-sm text-gray-500">
-                                No orders in this range yet.
-                            </div>
-                        )}
-                    </div>
-                </motion.div>
+                <div className="lg:col-span-2"><PaymentMetricsPanel data={paymentData} loading={paymentLoading} error={Boolean(paymentError)} range={chartRange} onRange={setChartRange} onRetry={() => { void refreshPayments(); }} /></div>
 
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -336,12 +307,12 @@ function DashboardContent() {
                 >
                     <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-l from-purple-500/50 to-transparent opacity-50" />
                     <h2 className="text-xl font-bold text-white mb-8 flex items-center gap-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
-                        <Clock className="text-purple-400" /> Recent Orders
+                        <Clock className="text-purple-400" /> Recent Orders (latest page)
                     </h2>
                     {activityEvents.length > 0 ? (
                         <ActivityTimeline events={activityEvents} />
                     ) : (
-                        <p className="text-sm text-gray-500">No recent orders.</p>
+                        <p className="text-sm text-gray-500">{ordersError ? "Recent orders could not be loaded." : "No recent orders in this page."}</p>
                     )}
 
                 </motion.div>
