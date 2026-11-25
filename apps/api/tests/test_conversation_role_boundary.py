@@ -88,7 +88,7 @@ async def test_actual_groq_sdk_serializes_isolated_roles_over_loopback_http():
 async def test_recommendation_query_and_catalog_remain_user_data_not_system_policy():
     svc=service()
     svc._chat_completion=AsyncMock(return_value=completion(json.dumps({'selected_ids':[7], 'reasoning':{'7':'Listed item'}, 'intro_message':'One listed match','confidence_score':0.5})))
-    result=await svc.filter_and_recommend('CUSTOMER_QUERY_MARKER', [{'id':7,'name':'CATALOG_MARKER','price':10,'rating':4,'category':'shoes'}])
+    result=await svc._filter_and_recommend_legacy_unreviewed('CUSTOMER_QUERY_MARKER', [{'id':7,'name':'CATALOG_MARKER','price':10,'rating':4,'category':'shoes'}])
     assert result.selected_ids==[7]
     messages=svc._chat_completion.await_args.kwargs['messages']
     assert 'CUSTOMER_QUERY_MARKER' not in messages[0]['content']

@@ -48,7 +48,7 @@ async def test_production_recommendation_wire_and_safe_failure(tmp_path, monkeyp
     ledger=Ledger(tmp_path/'one.json')
     try:
         bounded=make_bounded_service(ledger,exact_output_tokens=cap)
-        await bounded.filter_and_recommend('Alternative to first product',[{'id':1,'name':'shoe','category':'shoes'},
+        await bounded._filter_and_recommend_legacy_unreviewed('Alternative to first product',[{'id':1,'name':'shoe','category':'shoes'},
                                                                          {'id':2,'name':'other shoe','category':'shoes'}])
         assert len(sent)==1 and ledger.state['calls_reserved']==1
         wire=sent[0]

@@ -57,7 +57,7 @@ async def test_valid_selection_passes_through():
         "intro_message": "Top picks for you.",
         "confidence_score": 0.9,
     })
-    result = await svc.filter_and_recommend("phone", _products())
+    result = await svc._filter_and_recommend_legacy_unreviewed("phone", _products())
     assert result.selected_ids == [1, 2]
     assert set(result.reasoning)=={"1","2"}
     assert 'Catalog category: "phones".' in result.reasoning["1"]
@@ -71,7 +71,7 @@ async def test_hallucinated_ids_are_dropped():
         "intro_message": "Top picks.",
         "confidence_score": 0.9,
     })
-    result = await svc.filter_and_recommend("phone", _products())
+    result = await svc._filter_and_recommend_legacy_unreviewed("phone", _products())
     # 999/1000 were never in the candidate set: dropped before reaching the user
     assert result.selected_ids == [1]
     # reasoning contract preserved: keys match surviving selections
@@ -87,7 +87,7 @@ async def test_all_hallucinated_ids_fall_back_to_real_products():
         "intro_message": "Top picks.",
         "confidence_score": 0.9,
     })
-    result = await svc.filter_and_recommend("phone", _products())
+    result = await svc._filter_and_recommend_legacy_unreviewed("phone", _products())
     # grounding empties the selection -> existing fallback to top real candidates
     assert result.selected_ids != []
     assert set(result.selected_ids) <= {1, 2, 3, 4}
@@ -101,7 +101,7 @@ async def test_empty_selection_uses_fallback():
         "intro_message": "Nothing.",
         "confidence_score": 0.1,
     })
-    result = await svc.filter_and_recommend("phone", _products())
+    result = await svc._filter_and_recommend_legacy_unreviewed("phone", _products())
     assert result.selected_ids  # non-empty, drawn from real candidates
     assert set(result.selected_ids) <= {1, 2, 3, 4}
 
@@ -109,14 +109,14 @@ async def test_empty_selection_uses_fallback():
 @pytest.mark.anyio
 async def test_no_products_returns_none():
     svc = _service_returning({})
-    assert await svc.filter_and_recommend("phone", []) is None
+    assert await svc._filter_and_recommend_legacy_unreviewed("phone", []) is None
 
 
 @pytest.mark.anyio
 async def test_valid_selected_ids_do_not_allow_reasoning_for_unselected_or_invented_products():
     svc=_service_returning({'selected_ids':[1], 'reasoning':{'1':'Listed selection','2':'Not selected','999':'Not in catalog'},
         'intro_message':'Listed option','confidence_score':0.5})
-    result=await svc.filter_and_recommend('phone',_products())
+    result=await svc._filter_and_recommend_legacy_unreviewed('phone',_products())
     assert result.selected_ids==[1]
     assert set(result.reasoning)=={'1'}
     assert 'Not selected' not in str(result.reasoning)
@@ -156,7 +156,7 @@ async def test_model_receives_unknown_price_not_zero_fallback():
         captured.append(kwargs)
         return _completion_with({'selected_ids':[7],'reasoning':{'7':'Listed item'}})
     svc._chat_completion=completion
-    await svc.filter_and_recommend('shoes',[{'id':7,'name':'Shoes'}])
+    await svc._filter_and_recommend_legacy_unreviewed('shoes',[{'id':7,'name':'Shoes'}])
     data=json.loads(captured[0]['messages'][1]['content'])
     assert data['products'][0]['price'] is None
     assert data['products'][0]['price_status']=='unknown'

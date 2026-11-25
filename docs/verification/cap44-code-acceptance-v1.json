@@ -1,0 +1,42 @@
+{
+  "capability": "CAP-44",
+  "name": "generate_response plain/JSON/context adapter",
+  "code_status": "implemented_pending_exact_head_ci_and_merge",
+  "whole_group_closed": false,
+  "quality_status": "live_model_acceptance_parked_by_owner",
+  "owner_status": "not_executed",
+  "active_contracts": [
+    "generate_response_strict delegates to original method with typed failure enabled; legacy behavior remains available",
+    "Strict plain text rejects non-string, empty and truncated content; strict JSON rejects non-object, duplicate-key, nonfinite, malformed or oversized payloads",
+    "Strict referenced context enters the user data payload, never privileged policy; original non-strict context contract retained",
+    "Global router, query optimizer and recovery use strict adapter; old injected compatibility adapters explicitly supported",
+    "Substantive synthesis, setup, consultations and cart followup use current-card structured writer and independent review",
+    "filter_and_recommend requires explicit identity/name/activity/inventory/currency/price evidence, then the shared independently reviewed recommendation contract",
+    "Incomplete/mixed evidence cannot call model, legacy recommendation or become orchestrator carousel/consultation offers",
+    "Current mutable evidence is snapshotted and checked before recommendation publication",
+    "Cancellation propagates; failure never repopulates rejected recommendation IDs"
+  ],
+  "retained_dormant_bodies": [
+    "FreeLLMService._filter_and_recommend_legacy_unreviewed",
+    "FreeLLMService._legacy_consult_on_product",
+    "AINLUService._handle_ecosystem_building_legacy_unreviewed",
+    "AINLUService._synthesize_response_legacy_unreviewed and its _generate_genius_response_legacy_unreviewed call",
+    "AICartService._trigger_intelligent_bundling_legacy_unreviewed",
+    "AICartService.handle_remove_from_cart nested recovery writer: alternatives is reset to empty before its call branch"
+  ],
+  "test_evidence": [
+    "tests/test_completion_adapter_closure.py: actual mounted HTTP incomplete-field cases, mixed pool, orchestrator exclusion, strict types/context, real Groq SDK against loopback HTTP, cancellation and AST caller tripwires",
+    "tests/test_reviewed_recommendation.py: success, reject, missing/duplicate/borrowed claims, changed evidence, stock/activity/fixture eligibility, error and cancel",
+    "tests/test_strict_adapter_json_boundary.py",
+    "tests/test_strict_completion_truncation.py",
+    "tests/test_llm_execution_limits.py",
+    "tests/test_strict_legacy_routing.py",
+    "tests/test_legacy_recovery_strict.py"
+  ],
+  "historical_test_scope": "Old incomplete-dictionary tests explicitly target the preserved legacy body. They do not certify the active adapter.",
+  "residual_limits": [
+    "Controlled provider responses and loopback transport do not prove real model understanding or prose quality",
+    "No live provider calls, owner-machine commands, deployment or production-quality certification",
+    "Canonical55 and twenty whole partial-group labels unchanged"
+  ]
+}

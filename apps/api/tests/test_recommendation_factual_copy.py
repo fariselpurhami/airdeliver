@@ -50,7 +50,7 @@ def test_actual_method_http_payload_covers_intro_reason_and_fallback(mode,monkey
     service._chat_completion=completion
     app=FastAPI()
     @app.get('/recommendation')
-    async def route():return await service.filter_and_recommend('shoe',[P])
+    async def route():return await service._filter_and_recommend_legacy_unreviewed('shoe',[P])
     with TestClient(app) as c:
         response=c.get('/recommendation');assert response.status_code==200
         row=response.json()
