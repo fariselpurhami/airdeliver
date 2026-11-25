@@ -18,7 +18,7 @@ async def test_malformed_top_level_never_becomes_source(monkeypatch,payload):
 def test_source_policy_and_duplicate_shape(url):
     result={'answer':'unsupported answer','results':[None,{'url':url,'content':'Source evidence'},{'url':url,'content':'Duplicate'}]}
     rows=boundary.source_rows(result)
-    assert rows==([{'url':url,'text':'Source evidence'}] if url=='https://maker.example/spec' else [])
+    assert [{k:r[k] for k in ('url','text')} for r in rows]==([{'url':url,'text':'Source evidence'}] if url=='https://maker.example/spec' else [])
 
 @pytest.mark.asyncio
 async def test_request_is_fixed_bounded_no_synthetic_answer_and_sources_preserved(monkeypatch):
@@ -98,3 +98,18 @@ async def test_own_transport_deadline_closes_stream(monkeypatch):
     monkeypatch.setattr(boundary.httpx,'AsyncClient',lambda **kw:real(transport=httpx.MockTransport(lambda req:httpx.Response(200,stream=stream)),**kw))
     with pytest.raises(TimeoutError):await boundary.search('product','test-only-key',timeout=.02)
     assert stream.closed
+
+def test_source_timestamp_is_observed_locally_and_publisher_date_remains_unverified():
+    from datetime import datetime,timezone
+    result={'results':[{'url':'https://maker.example/spec','content':'Model X was announced.','published_date':'2026-11-25','official':True,'checked_at':'2099-01-01'}]}
+    before=datetime.now(timezone.utc)
+    row=boundary.source_rows(result)[0]
+    after=datetime.now(timezone.utc)
+    assert before<=datetime.fromisoformat(row['observed_at'])<=after
+    assert row['source_published_at_unverified']=='2026-11-25'
+    assert 'official' not in row and 'official_binding' not in row
+
+@pytest.mark.parametrize('date',[None,42,'x'*81,{'date':'2026-11-25'}])
+def test_bad_publisher_date_is_not_promoted_to_metadata(date):
+    row=boundary.source_rows({'results':[{'url':'https://maker.example/x','content':'Model X','published_date':date}]})[0]
+    assert 'source_published_at_unverified' not in row

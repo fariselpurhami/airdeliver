@@ -83,7 +83,8 @@ async def test_tavily_source_transport_is_fixed_url_and_preserves_provenance(mon
     monkeypatch.setenv('TAVILY_API_KEY','test-placeholder-not-a-real-key')
     monkeypatch.setattr(module.httpx,'AsyncClient',lambda **kw:real_client(transport=httpx.MockTransport(handler),**kw))
     result=await module.lookup_product_sources('grinder specs')
-    assert result==[{'url':'https://maker.example/spec','text':'Actual source excerpt'}]
+    assert [{k:r[k] for k in ('url','text')} for r in result]==[{'url':'https://maker.example/spec','text':'Actual source excerpt'}]
+    assert result[0]['observed_at']
     assert str(seen[0].url)=='https://api.tavily.com/search'
     assert json.loads(seen[0].content)['include_answer'] is False
 
@@ -236,3 +237,16 @@ async def test_extraction_exact_generated_schema_safe_fields_and_harmless_nulls(
     calls=0
     result=await answer_product_question(valid,'Alpha',lookup=lookup,targets=('Alpha',))
     assert result.text==SOURCE_NOTICES['quote_rejected']
+
+@pytest.mark.asyncio
+async def test_source_time_survives_normalization_and_review_without_claiming_official_identity():
+    from unittest.mock import AsyncMock
+    lookup=AsyncMock(return_value=[{'url':'https://maker.example/x','text':'Model X uses wood.','observed_at':'2026-11-25T20:00:00+00:00','source_published_at_unverified':'2026-11-25','official_binding':True}])
+    infer=AsyncMock(side_effect=[json.dumps({'facts':[{'label':'Material','quote':'Model X uses wood.','source':0}]}),json.dumps({'supported':True,'exact_model':True,'product_information_only':True})])
+    await answer_product_question(infer,'Model X material',lookup=lookup)
+    for call in infer.await_args_list:
+        payload=json.loads(call.args[0][1]['content']);payload=payload.get('input',payload)
+        source=payload['untrusted_sources'][0]
+        assert source['observed_at']=='2026-11-25T20:00:00+00:00'
+        assert source['source_published_at_unverified']=='2026-11-25'
+        assert 'official_binding' not in source

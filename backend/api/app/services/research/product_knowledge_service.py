@@ -153,7 +153,19 @@ async def answer_product_question(infer,question,*,lookup=None,timeout=12,cards=
                         for source in result:
                             if not isinstance(source,dict) or not allowed_url(source.get('url')) or not isinstance(source.get('text'),str) or not 0<len(source['text'])<=6000:
                                 raise SourceFailure('source_policy')
-                            checked.append({'url':source['url'],'text':source['text']})
+                            checked_source={'url':source['url'],'text':source['text']}
+                            observed=source.get('observed_at')
+                            if isinstance(observed,str) and len(observed)<=80:
+                                from datetime import datetime
+                                try:
+                                    instant=datetime.fromisoformat(observed)
+                                    if instant.tzinfo is not None and instant.utcoffset() is not None:
+                                        checked_source['observed_at']=instant.isoformat()
+                                except ValueError:pass
+                            published=source.get('source_published_at_unverified')
+                            if isinstance(published,str) and 0<len(published)<=80:
+                                checked_source['source_published_at_unverified']=published
+                            checked.append(checked_source)
                         return checked
                     except asyncio.CancelledError:raise
                     except SourceFailure as exc:failures.append(exc.cause);return []

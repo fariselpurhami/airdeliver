@@ -37,5 +37,12 @@ def source_rows(result, *, limit=3, text_limit=6000):
         if not isinstance(url,str) or not allowed_url(url) or url in seen:continue
         if not isinstance(text,str) or not text.strip():continue
         seen.add(url)
-        rows.append({'url':url,'text':' '.join(text.split())[:text_limit]})
+        from datetime import datetime,timezone
+        row={'url':url,'text':' '.join(text.split())[:text_limit],
+             'observed_at':datetime.now(timezone.utc).isoformat()}
+        # Search-provider publication metadata is not a verified source date.
+        date=item.get('published_date')
+        if isinstance(date,str) and 0<len(date)<=80:
+            row['source_published_at_unverified']=date
+        rows.append(row)
     return rows
