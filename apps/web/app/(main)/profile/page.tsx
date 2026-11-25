@@ -323,7 +323,7 @@ export default function ProfilePage() {
             <div className="container mx-auto px-5 sm:px-6 lg:px-12 relative z-10 h-full flex flex-col items-center justify-center min-h-[100svh]">
                 
                 {/* --- CENTRAL PROFILE CONTENT --- */}
-                <div className="flex flex-col items-center text-center w-full max-w-sm relative z-30 pointer-events-auto py-12">
+                <div className="flex flex-col items-center text-center w-full max-w-[600px] relative z-30 pointer-events-auto pb-16 pt-28 sm:pt-24">
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }} 
                         animate={{ opacity: 1, y: 0 }} 
@@ -360,7 +360,7 @@ export default function ProfilePage() {
                         </div>
 
                         {/* Action Bar */}
-                        <div className="flex items-center justify-center gap-5">
+                        <div className="flex items-center justify-center gap-3 sm:gap-5">
                             <IconButton 
                                 icon={Package} 
                                 label="View Orders" 
@@ -396,7 +396,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Floating Product Decor */}
-                <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center perspective-1000">
+                <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center perspective-1000 opacity-25 sm:opacity-100">
                     <motion.div
                         initial={{ opacity: 0 }} 
                         animate={{ opacity: 1 }} 

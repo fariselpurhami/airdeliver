@@ -10,7 +10,7 @@ it('is off until explicit enable, and explains the actual limited scope', async 
     const enable=await screen.findByRole('button',{name:'Enable shopping learning'});
     expect(api.put).not.toHaveBeenCalled();
     expect(screen.getByText(/20 shopping categories/)).toBeInTheDocument();
-    expect(screen.getByText(/long-term/)).toBeInTheDocument();
+    expect(screen.getByText(/Newly enabled memory is long-term/)).toBeInTheDocument();
     jest.mocked(api.put).mockResolvedValue({data:{enabled:true}});
     jest.mocked(api.get).mockResolvedValue({data:{...off,enabled:true}});
     fireEvent.click(enable);
@@ -74,4 +74,23 @@ it('full reset names its scope, requires confirmation and rejects partial cleanu
     fireEvent.click(screen.getByRole('button',{name:'Confirm erase all'}));
     expect(await screen.findByRole('alert')).toHaveTextContent('not confirmed');
     expect(api.delete).toHaveBeenCalledWith('/users/me/memory/personalization');
+});
+
+
+it('shows the complete storage disclosure before enabling learning', async () => {
+    render(<CustomerMemoryControls />);
+    await screen.findByRole('button', {name:'Enable shopping learning'});
+    const summary=screen.getByText('What is saved and how it is used');
+    expect(summary.closest('details')).toHaveAttribute('open');
+    expect(screen.getByText(/20 shopping categories/)).toBeInTheDocument();
+    expect(api.put).not.toHaveBeenCalled();
+});
+
+it('keeps the disclosure available when existing learning is enabled', async () => {
+    jest.mocked(api.get).mockResolvedValue({data:{...off,enabled:true}});
+    render(<CustomerMemoryControls />);
+    await screen.findByText(/Shopping learning is on/);
+    const summary=screen.getByText('What is saved and how it is used');
+    expect(summary.closest('details')).not.toHaveAttribute('open');
+    expect(screen.getByText(/No sensitive traits/)).toBeInTheDocument();
 });
