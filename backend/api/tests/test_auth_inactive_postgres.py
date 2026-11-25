@@ -25,7 +25,7 @@ async def test_inactive_account_rejected_at_http_with_real_postgres(refresh_http
         response = await client.post("/auth/token", data={"username": email, "password": "synthetic-correct"})
     else:
         response = await client.post("/auth/refresh", headers={"Authorization": "Bearer " + security.create_refresh_token({"sub": email})})
-    assert response.status_code == 401, response.text
+    assert response.status_code == 401
     assert "access_token" not in response.json()
     assert "refresh_token" not in response.json()
     assert "set-cookie" not in response.headers
@@ -50,7 +50,7 @@ async def test_active_account_login_stays_available_with_valid_password(refresh_
     client, _, email, _ = refresh_http
     monkeypatch.setattr(security, "verify_password", lambda plain, hashed: True)
     response = await client.post("/auth/token", data={"username": email, "password": "synthetic-correct"})
-    assert response.status_code == 200, response.text
+    assert response.status_code == 200
     assert _decode_token_subject(response.json()["access_token"], settings) == email
     assert security.verify_refresh_token(response.json()["refresh_token"])["sub"] == email
     assert "httponly" in response.headers["set-cookie"].lower()

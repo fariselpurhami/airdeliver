@@ -119,7 +119,7 @@ async def refresh_access_token(
     user = (
         await db.execute(select(models.User).where(models.User.email == user_email))
     ).scalars().first()
-    if not user:
+    if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive",

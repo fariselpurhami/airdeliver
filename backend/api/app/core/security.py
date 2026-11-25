@@ -75,7 +75,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Opti
     result = await db.execute(select(models.User).where(models.User.email == email))
     user = result.scalars().first()
 
-    if not user:
+    if not user or not user.is_active:
         return None
     if not user.hashed_password or not verify_password(password, user.hashed_password):
         return None
