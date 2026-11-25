@@ -4,155 +4,20 @@
   "baseline_commit": "0dae8849b415bf2e4da4ff0ca0eaac15f2e60d60",
   "goal": "Evidence-gated production readiness, not a guarantee of no defects or a fixed deadline",
   "release_accepted": false,
-  "rules": [
-    "Additive changes preserve existing foundations",
-    "No live capability is accepted from CI alone",
-    "Owner-controlled spending, deployment, secret rotation, migration and external execution retain their separate gates",
-    "Text first, voice last",
-    "Every closure needs the tested boundary, exact revision, result, remaining limits and rollout evidence"
-  ],
+  "rules": ["Additive changes preserve existing foundations", "No live capability is accepted from CI alone", "Owner-controlled spending, deployment, secret rotation, migration and external execution retain their separate gates", "Text first, voice last", "Every closure needs the tested boundary, exact revision, result, remaining limits and rollout evidence"],
   "gaps": [
-    {
-      "id": "SEC-ROTATION",
-      "priority": 1,
-      "state": "owner_evidence_needed",
-      "acceptance": "Exposed credential inventory reconciled to provider revocation/rotation, dependent services verified and old access rejected without revealing secret values",
-      "evidence": [
-        "docs/security/KEY_ROTATION.md",
-        "docs/verification/secret-history-rewrite-2026-11-23.md"
-      ],
-      "remaining": "History cleanup is documented and scan passes. Full provider-by-provider rotation proof is not established by the repository. Old clones/caches/forks cannot be declared purged."
-    },
-    {
-      "id": "SEC-AUTH-INPUT",
-      "priority": 1,
-      "state": "partial",
-      "acceptance": "Actual mounted-route cross-user/anonymous-session and hostile-input matrix passes for all exposed routes; independent review of residual risks",
-      "evidence": [
-        "docs/verification/commerce-threat-model-2026-11-23.md"
-      ],
-      "remaining": "Anonymous session boundary, alternate routes, image/native resource limits and full privacy/prompt-injection coverage require audit. No penetration-test certification."
-    },
-    {
-      "id": "AI-LIVE",
-      "priority": 2,
-      "state": "owner_evidence_needed",
-      "acceptance": "Owner observes bounded real-provider routing, extraction and review success with correct source entailment and truthful failure behavior under account quotas",
-      "evidence": [
-        "docs/verification/research-provider-budget-v1.md"
-      ],
-      "remaining": "129/130 strict schemas and132 cooldown are offline tested. Latest owner attempt reached source lookup then429. Live completion and multilingual semantics remain unproven."
-    },
-    {
-      "id": "AI-QUOTA",
-      "priority": 2,
-      "state": "partial",
-      "acceptance": "Measured token accounting and coordinated cross-worker/provider admission meet verified organization limits with bounded cost/latency and reset handling",
-      "evidence": [
-        "apps/api/app/services/provider_budget.py",
-        "apps/api/tests/test_research_provider_budget.py"
-      ],
-      "remaining": "Process-local cooldown is not a distributed organization quota reservation; byte upper bound is not measured tokenizer usage; whole-turn quota remains unproven."
-    },
-    {
-      "id": "RETRIEVAL-QUALITY",
-      "priority": 3,
-      "state": "partial",
-      "acceptance": "Human-adjudicated held-out query set, exact-model/runtime provenance, BM25/dense/fusion ablations, relevant Arabic/constraint/no-match quality and latency/memory thresholds agreed and passed",
-      "evidence": [
-        "docs/verification/offline-retrieval-benchmark-v1.md",
-        "apps/api/fixtures/retrieval_eval/queries_v1.json"
-      ],
-      "remaining": "140 assistant-authored draft labels, not human acceptance. Actual store exporter, measured model runs and quality adjudication remain. No model switch approved."
-    },
-    {
-      "id": "MERCHANT-DATA",
-      "priority": 3,
-      "state": "owner_dependency_needed",
-      "acceptance": "Authorized merchant feed with provenance, stable identity, prices/currency/stock freshness, reservation contract and conflicting/stale-data tests",
-      "evidence": [
-        "docs/verification/dev-fixture-generation-basis-v1.md",
-        "docs/verification/opening-fixture-optin-v1.md"
-      ],
-      "remaining": "1000 indexed development fixtures are synthetic. No supplier agreement/feed or real inventory guarantee established. Development fixture opt-in never authorizes payment."
-    },
-    {
-      "id": "COMMERCE-E2E",
-      "priority": 4,
-      "state": "partial",
-      "acceptance": "Authenticated full order/payment/webhook/inventory/cancel/refund lifecycle passes idempotency, concurrency, uncertainty and recovery cases in supported test environment, then owner rollout canaries",
-      "evidence": [
-        "docs/verification/commerce-capability-scoreboard.json",
-        "docs/verification/reviewed-cart-lifecycle-2026-11-24.md"
-      ],
-      "remaining": "Existing tested boundaries are not an end-to-end commercial certification. Held cart runtime/migration and inventory integration decisions remain held. Real payment effects require separate owner approval."
-    },
-    {
-      "id": "DR-RELEASE",
-      "priority": 4,
-      "state": "owner_evidence_needed",
-      "acceptance": "Off-host encrypted backup, isolated full restore, schema/data provenance reconciliation, measured RPO/RTO and rollback/cutover drill with signed release evidence",
-      "evidence": [
-        "docs/verification/demo-quarantine-owner-procedure-2026-11-24.md",
-        "docs/DISASTER_RECOVERY.md"
-      ],
-      "remaining": "Historical DR document describes objectives, not evidence of deployed multi-AZ/PITR. No production cluster, full restore acceptance or release rollback accepted here."
-    },
-    {
-      "id": "PERF-SCALE",
-      "priority": 5,
-      "state": "partial",
-      "acceptance": "Actual full application mixed-load p50/p95/p99/max/error rates, RAM/swap/CPU, cold/steady model startup and remote Redis measured against agreed workload and capacity limits",
-      "evidence": [
-        "docs/verification/commerce-threat-model-2026-11-23.md"
-      ],
-      "remaining": "Synthetic process/Redis measurements do not establish owner Intel Mac production capacity. Model-heavy stack cold start and query latency remain limiting; no concurrent-user claim."
-    },
-    {
-      "id": "SUPPLY-CHAIN",
-      "priority": 1,
-      "state": "partial",
-      "acceptance": "Exact Python/frontend/image/action/model inventory, repeatable advisory gate, reviewed exceptions with owner/expiry, immutable sources and runtime SBOM evidence",
-      "evidence": [
-        "docs/verification/dependency-audit-checkpoint-2026-11-24.md",
-        "scripts/python_lock_inventory.py"
-      ],
-      "remaining": "Registry audit is point-in-time, not exploitability/pentest proof. CPU vendor builds lack exact PyPI audit records. Images, actions, OS/native packages and models need separate audit; no blanket clean claim."
-    },
-    {
-      "id": "IP-LICENSE",
-      "priority": 5,
-      "state": "partial",
-      "acceptance": "Third-party component/model/asset notices and commercial obligations mapped to exact versions, original-code ownership claims separated, qualified legal review for any remaining ambiguity",
-      "evidence": [
-        "LICENSE.txt",
-        "apps/web/public/images/demo-v1/LICENSE.md",
-        "docs/verification/dependency-audit-checkpoint-2026-11-24.md"
-      ],
-      "remaining": "No full license/provenance clearance. Qwen code, libraries/models and CC-BY-SA photos are third-party. Registration status is unverified. Owner keeps repo public until work ends; do not change visibility."
-    },
-    {
-      "id": "VOICE-VISION",
-      "priority": 5,
-      "state": "partial",
-      "acceptance": "Real supported-device/provider vision and voice quality, interruptions, ownership, limits, privacy, cart-action safety and latency tested after text acceptance",
-      "evidence": [
-        "docs/verification/commerce-capability-scoreboard.json",
-        "docs/verification/commerce-threat-model-2026-11-23.md"
-      ],
-      "remaining": "Controlled transport/native-admission tests do not prove image ranking, real speech quality or physical compatibility. Voice remains last; paid features need approval."
-    },
-    {
-      "id": "S02-REFRESH-ORM",
-      "priority": 0,
-      "state": "fix_ci_pending",
-      "acceptance": "Actual auth HTTP refresh succeeds against PostgreSQL for valid header/cookie tokens with database role; invalid/missing/expired/unknown/access tokens rejected; cancellation/outage fail closed; exact-head complete CI and postmerge verified",
-      "evidence": [
-        "docs/verification/refresh-http-postgres-v1.md",
-        "backend/api/tests/test_auth_refresh_postgres.py",
-        "https://github.com/fariselpurhami/airdeliver/actions/runs/45670689669/job/139404830391"
-      ],
-      "remaining": "Red HTTP/PostgreSQL CI verified at862af0c2. Minimal scalar fix awaits full CI/postmerge. S03 inactive-account and C01 stateful rotation/replay policy remain separate."
-    }
+    {"id":"SEC-ROTATION","priority":1,"state":"owner_evidence_needed","acceptance":"Exposed credential inventory reconciled to provider revocation/rotation, dependent services verified and old access rejected without revealing secret values","evidence":["docs/security/KEY_ROTATION.md","docs/verification/secret-history-rewrite-2026-11-23.md"],"remaining":"History cleanup is documented and scan passes. Full provider-by-provider rotation proof is not established by the repository. Old clones/caches/forks cannot be declared purged."},
+    {"id":"SEC-AUTH-INPUT","priority":1,"state":"partial","acceptance":"Actual mounted-route cross-user/anonymous-session and hostile-input matrix passes for all exposed routes; independent review of residual risks","evidence":["docs/verification/commerce-threat-model-2026-11-23.md"],"remaining":"Anonymous session boundary, alternate routes, image/native resource limits and full privacy/prompt-injection coverage require audit. No penetration-test certification."},
+    {"id":"AI-LIVE","priority":2,"state":"owner_evidence_needed","acceptance":"Owner observes bounded real-provider routing, extraction and review success with correct source entailment and truthful failure behavior under account quotas","evidence":["docs/verification/research-provider-budget-v1.md"],"remaining":"129/130 strict schemas and132 cooldown are offline tested. Latest owner attempt reached source lookup then429. Live completion and multilingual semantics remain unproven."},
+    {"id":"AI-QUOTA","priority":2,"state":"partial","acceptance":"Measured token accounting and coordinated cross-worker/provider admission meet verified organization limits with bounded cost/latency and reset handling","evidence":["apps/api/app/services/provider_budget.py","apps/api/tests/test_research_provider_budget.py"],"remaining":"Process-local cooldown is not a distributed organization quota reservation; byte upper bound is not measured tokenizer usage; whole-turn quota remains unproven."},
+    {"id":"RETRIEVAL-QUALITY","priority":3,"state":"partial","acceptance":"Human-adjudicated held-out query set, exact-model/runtime provenance, BM25/dense/fusion ablations, relevant Arabic/constraint/no-match quality and latency/memory thresholds agreed and passed","evidence":["docs/verification/offline-retrieval-benchmark-v1.md","apps/api/fixtures/retrieval_eval/queries_v1.json"],"remaining":"140 assistant-authored draft labels, not human acceptance. Actual store exporter, measured model runs and quality adjudication remain. No model switch approved."},
+    {"id":"MERCHANT-DATA","priority":3,"state":"owner_dependency_needed","acceptance":"Authorized merchant feed with provenance, stable identity, prices/currency/stock freshness, reservation contract and conflicting/stale-data tests","evidence":["docs/verification/dev-fixture-generation-basis-v1.md","docs/verification/opening-fixture-optin-v1.md"],"remaining":"1000 indexed development fixtures are synthetic. No supplier agreement/feed or real inventory guarantee established. Development fixture opt-in never authorizes payment."},
+    {"id":"COMMERCE-E2E","priority":4,"state":"partial","acceptance":"Authenticated full order/payment/webhook/inventory/cancel/refund lifecycle passes idempotency, concurrency, uncertainty and recovery cases in supported test environment, then owner rollout canaries","evidence":["docs/verification/commerce-capability-scoreboard.json","docs/verification/reviewed-cart-lifecycle-2026-11-24.md"],"remaining":"Existing tested boundaries are not an end-to-end commercial certification. Held cart runtime/migration and inventory integration decisions remain held. Real payment effects require separate owner approval."},
+    {"id":"DR-RELEASE","priority":4,"state":"owner_evidence_needed","acceptance":"Off-host encrypted backup, isolated full restore, schema/data provenance reconciliation, measured RPO/RTO and rollback/cutover drill with signed release evidence","evidence":["docs/verification/demo-quarantine-owner-procedure-2026-11-24.md","docs/DISASTER_RECOVERY.md"],"remaining":"Historical DR document describes objectives, not evidence of deployed multi-AZ/PITR. No production cluster, full restore acceptance or release rollback accepted here."},
+    {"id":"PERF-SCALE","priority":5,"state":"partial","acceptance":"Actual full application mixed-load p50/p95/p99/max/error rates, RAM/swap/CPU, cold/steady model startup and remote Redis measured against agreed workload and capacity limits","evidence":["docs/verification/commerce-threat-model-2026-11-23.md"],"remaining":"Synthetic process/Redis measurements do not establish owner Intel Mac production capacity. Model-heavy stack cold start and query latency remain limiting; no concurrent-user claim."},
+    {"id":"SUPPLY-CHAIN","priority":1,"state":"partial","acceptance":"Exact Python/frontend/image/action/model inventory, repeatable advisory gate, reviewed exceptions with owner/expiry, immutable sources and runtime SBOM evidence","evidence":["docs/verification/dependency-audit-checkpoint-2026-11-24.md","scripts/python_lock_inventory.py"],"remaining":"Registry audit is point-in-time, not exploitability/pentest proof. CPU vendor builds lack exact PyPI audit records. Images, actions, OS/native packages and models need separate audit; no blanket clean claim."},
+    {"id":"IP-LICENSE","priority":5,"state":"partial","acceptance":"Third-party component/model/asset notices and commercial obligations mapped to exact versions, original-code ownership claims separated, qualified legal review for any remaining ambiguity","evidence":["LICENSE.txt","apps/web/public/images/demo-v1/LICENSE.md","docs/verification/dependency-audit-checkpoint-2026-11-24.md"],"remaining":"No full license/provenance clearance. Qwen code, libraries/models and CC-BY-SA photos are third-party. Registration status is unverified. Owner keeps repo public until work ends; do not change visibility."},
+    {"id":"VOICE-VISION","priority":5,"state":"partial","acceptance":"Real supported-device/provider vision and voice quality, interruptions, ownership, limits, privacy, cart-action safety and latency tested after text acceptance","evidence":["docs/verification/commerce-capability-scoreboard.json","docs/verification/commerce-threat-model-2026-11-23.md"],"remaining":"Controlled transport/native-admission tests do not prove image ranking, real speech quality or physical compatibility. Voice remains last; paid features need approval."},
+    {"id":"S02-REFRESH-ORM","priority":0,"state":"fix_ci_pending","acceptance":"Actual auth HTTP refresh succeeds against PostgreSQL for valid header/cookie tokens with database role; invalid/missing/expired/unknown/access tokens rejected; cancellation/outage fail closed; exact-head complete CI and postmerge verified","evidence":["docs/verification/refresh-http-postgres-v1.md","backend/api/tests/test_auth_refresh_postgres.py","https://github.com/fariselpurhami/airdeliver/actions/runs/45670689669/job/139404830391"],"remaining":"Red HTTP/PostgreSQL CI verified at862af0c2. Minimal scalar fix awaits full CI/postmerge. S03 inactive-account and C01 stateful rotation/replay policy remain separate."}
   ]
 }
