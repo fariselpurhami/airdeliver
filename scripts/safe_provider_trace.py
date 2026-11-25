@@ -34,7 +34,7 @@ def event(row):
         m=re.fullmatch(r'provider.usage model=([^\s]{1,128}) stage=([A-Za-z_]{1,64}) input_bytes_upper=(\d{1,12}) output_cap=(\d{1,12}) usage=(\{.*\})',msg)
         if m:
             # Never emit an unknown model/stage supplied by log input.
-            stage=m[2] if m[2] in {'inference','RouterDecision','ShoppingDraft','GroundingReview','SpecDraft','SourceReview','cognitive_core'} else 'other'
+            stage=m[2] if m[2] in {'inference','RouterDecision','ShoppingDraft','GroundingReview','SpecDraft','SourceReview','cognitive_core','free_llm'} else 'other'
             return {'event':'provider.usage','stage':stage,'input_bytes_upper':int(m[3]),'output_cap':int(m[4]),'usage':metadata(m[5])}
         m=re.fullmatch(r'provider.input_withheld stage=[A-Za-z_]{1,64}(?: reason=([a-z_]{1,80}))? (?:estimated_tokens|input_token_upper)=(\d{1,12}) (?:limit|output_cap)=(\d{1,12})',msg)
         if m:return {'event':'provider.input_withheld','reason':m[1] if m[1] in {'single_request_reservation_exceeds_budget','rolling_budget_or_cooldown_exhausted'} else 'other','estimated_tokens':int(m[2]),'bound':int(m[3])}
