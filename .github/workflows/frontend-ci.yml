@@ -4,7 +4,7 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
+    branches: ["feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
     paths:
       - 'apps/web/**'
       - 'apps/api/app/services/compact_copy_contracts.py'
@@ -14,6 +14,8 @@ on:
       - 'apps/api/app/services/payment_outbox_reconciler.py'
       - 'apps/api/app/core/config.py'
       - 'scripts/safe_provider_trace.py'
+      - 'apps/api/app/services/shared_provider_admission.py'
+      - 'apps/api/app/services/paid_turn_admission.py'
       - '.github/workflows/secret-history-guard.yml'
       - '.github/workflows/backend-ci.yml'
       - 'pnpm-lock.yaml'
@@ -30,6 +32,8 @@ on:
       - 'apps/api/app/services/payment_outbox_reconciler.py'
       - 'apps/api/app/core/config.py'
       - 'scripts/safe_provider_trace.py'
+      - 'apps/api/app/services/shared_provider_admission.py'
+      - 'apps/api/app/services/paid_turn_admission.py'
       - '.github/workflows/secret-history-guard.yml'
       - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
