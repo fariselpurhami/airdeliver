@@ -43,3 +43,16 @@ def test_isolated_ci_fixture_keeps_all_assertions_with_canonical_workspace_input
     for gate in ['pnpm install --frozen-lockfile','exec node scripts/check-security-dependency-contracts.cjs','exec tsc --noEmit','exec jest --coverage=false --runInBand','pnpm --filter airdeliver/apps/web build']:
         assert gate in ci
     assert 'docker build -f frontend/web/Dockerfile --target runner' in ci
+
+
+def test_dev_compile_uses_real_mount_and_existing_memory_budget():
+    ci=(ROOT/'.github/workflows/frontend-ci.yml').read_text()
+    assert '--memory=3g --memory-swap=3g' in ci
+    assert '$PWD/frontend/web:/workspace/frontend/web:ro' in ci
+    assert 'scripts/dev-healthcheck.mjs' in ci
+    dev=(ROOT/'docker-compose.dev.yml').read_text().split('  web:\n',1)[1]
+    assert 'NODE_OPTIONS=--max-old-space-size=2048' in dev
+    assert 'start_period: 180s' in dev
+    assert '"/usr/local/bin/node"' in dev
+    check=(ROOT/'frontend/web/scripts/dev-healthcheck.mjs').read_text()
+    assert '/logo.png' in check and 'AbortSignal.timeout(5000)' in check

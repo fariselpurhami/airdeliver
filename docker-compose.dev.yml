@@ -546,6 +546,7 @@ services:
      - NODE_ENV=development
      - HOSTNAME=0.0.0.0
      - NEXT_TELEMETRY_DISABLED=1
+     - NODE_OPTIONS=--max-old-space-size=2048
      - PNPM_HOME=/pnpm
      - PATH=/pnpm:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
      - WATCHPACK_POLLING=true
@@ -573,14 +574,13 @@ services:
       test:
         [
           "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+          "/usr/local/bin/node",
+          "scripts/dev-healthcheck.mjs"
         ]
       interval: 15s
       timeout: 10s
       retries: 10
-      start_period: 60s
+      start_period: 180s
     logging:
       driver: "json-file"
       options:

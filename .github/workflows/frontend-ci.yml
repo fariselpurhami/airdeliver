@@ -150,11 +150,14 @@ jobs:
       - name: Compile the real development home route through its LAN gateway
         shell: bash
         run: |
-          docker run -d --name airdeliver-web-dev-route -p 127.0.0.1:3000:3000 -e AUTH_SECRET=ci-dev-route-secret --entrypoint node airdeliver-web-dev-ci scripts/dev-lan.mjs
+          docker run -d --name airdeliver-web-dev-route --memory=3g --memory-swap=3g -p 127.0.0.1:3000:3000 -e AUTH_SECRET=ci-dev-route-secret -e NODE_OPTIONS=--max-old-space-size=2048 -v "$PWD/frontend/web:/workspace/frontend/web:ro" -v /workspace/frontend/web/node_modules -v /workspace/frontend/web/.next --entrypoint node airdeliver-web-dev-ci scripts/dev-lan.mjs
           trap 'docker logs airdeliver-web-dev-route; docker rm -f airdeliver-web-dev-route' EXIT
           for attempt in $(seq 1 60); do
             if curl --max-time 5 -fsS http://127.0.0.1:3000/ -o /tmp/airdeliver-dev-home.html; then
               grep -qi '<html' /tmp/airdeliver-dev-home.html
+              docker exec airdeliver-web-dev-route /usr/local/bin/node scripts/dev-healthcheck.mjs
+              docker exec airdeliver-web-dev-route sh -c 'cat /sys/fs/cgroup/memory.events; cat /sys/fs/cgroup/memory.peak'
+              test "$(docker inspect -f '{{.RestartCount}}' airdeliver-web-dev-route)" = 0
               exit 0
             fi
             test "$(docker inspect -f '{{.State.Running}}' airdeliver-web-dev-route)" = true
