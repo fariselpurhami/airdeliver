@@ -50,5 +50,5 @@ def test_document_contents_match_pre_move_manifest():
   # Explicitly reviewed runbook evolution; the original move manifest stays immutable.
   expected=row['sha256']
   if row['canonical_path']=='docs/development/dev-volume-warnings.md':
-   expected='7bb93196172c2bbbafc955a7b3c22a708f48cc8f05e7774d688976b567f19aae'
+   expected='b1d37364dcdad92b763a63331426282440d368acdcbdf1d85e9b1f40068a8dfc'
   assert hashlib.sha256(content).hexdigest()==expected
