@@ -130,8 +130,8 @@ docker-compose up --build
 For production deployments, disaster recovery, and architecture testing, please refer to our internal documentation:
 
 * 📖 **[RUNBOOK.md](./RUNBOOK.md)** - System operations, scaling metrics, and SLOs.
-* 🚨 **[INCIDENT_RESPONSE.md](./docs/INCIDENT_RESPONSE.md)** - Outage mitigation and failover strategies.
-* 🧠 **[AI_ORDERING_AGENT.md](https://www.google.com/search?q=./docs/AI_ORDERING_AGENT.md)** - Behavior trees and prompt engineering architecture.
+* 🚨 **[INCIDENT_RESPONSE.md](./docs/runbooks/incident-response.md)** - Outage mitigation and failover strategies.
+* 🧠 **[AI_ORDERING_AGENT.md](https://www.google.com/search?q=./docs/architecture/ai-ordering-agent.md)** - Behavior trees and prompt engineering architecture.
 * 🔒 **[SECURITY.md](https://www.google.com/search?q=./SECURITY.md)** - Payload encryption and vulnerability protocols.
 
 ---
@@ -146,5 +146,5 @@ This project is proprietary and licensed under the conditions outlined in [LICEN
 
 Use the combined base+dev Compose stack: pinned RustFS1.0.6 locally, Amazon S3
 as the future production target. No AWS spending or account setup occurs locally.
-See [exact commands, data boundaries and IAM example](docs/object-storage.md).
+See [exact commands, data boundaries and IAM example](docs/architecture/object-storage.md).
 Older MinIO instructions below/elsewhere are historical, not the active path.

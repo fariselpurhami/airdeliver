@@ -17,7 +17,8 @@ airdeliver/
 │   ├── k8s/                    # Kubernetes manifests (+ _legacy/)
 │   ├── database/init/          # PostgreSQL init SQL
 │   └── observability/          # Prometheus, Promtail and Grafana
-├── docs/                       # ops docs (security/, INCIDENT_RESPONSE.md, ...)
+├── docs/                       # architecture, development, runbooks, decisions, security
+│                               # verification, catalog and compatibility doc aliases
 ├── tests/                      # integration tests (require live stack)
 ├── docker-compose.yml          # full stack
 ├── docker-compose.dev.yml      # local dev stack

@@ -1,0 +1,65 @@
+{
+  "baseline": "6dafd6e3a9f6fdf3ab451c0ee0049f4f6c0ca39f",
+  "documents": [
+    {
+      "previous_path": "docs/AI_ORDERING_AGENT.md",
+      "canonical_path": "docs/architecture/ai-ordering-agent.md",
+      "sha256": "5c35aac5641ba32056e6a8838a0a03faf594989573d9b1e09100639f2fd4715e"
+    },
+    {
+      "previous_path": "docs/demo-catalog-seeding.md",
+      "canonical_path": "docs/development/demo-catalog-seeding.md",
+      "sha256": "2c205364c87de8fcfb5358da4f71427615e74250aeb18eb85a74d3ed9e8985cd"
+    },
+    {
+      "previous_path": "docs/service-seam-hardening-2026-11-22.md",
+      "canonical_path": "docs/decisions/service-seam-hardening-2026-11-22.md",
+      "sha256": "729e6dd7ae420cdf67686761b11b0ed60a82df98582857b62976ed7f566f8a3c"
+    },
+    {
+      "previous_path": "docs/traefik-docker-api.md",
+      "canonical_path": "docs/runbooks/traefik-docker-api.md",
+      "sha256": "ca587aefdd934d1dbc7a782d8cfe31658394b4a20e29b2aee2424d7ae670ceab"
+    },
+    {
+      "previous_path": "docs/dev-volume-warnings.md",
+      "canonical_path": "docs/development/dev-volume-warnings.md",
+      "sha256": "4290cde607a99244d375753e8c60c4f120d0ab012a0efd7e72cbbcde474ef4c8"
+    },
+    {
+      "previous_path": "docs/minio-ce-dev-limitations.md",
+      "canonical_path": "docs/development/minio-ce-dev-limitations.md",
+      "sha256": "1d55eb003c81073b795024b67c90cb6ef8615ca0e44cf005272469472828fb56"
+    },
+    {
+      "previous_path": "docs/checkout-journal-postgresql19-2026-11-22.md",
+      "canonical_path": "docs/decisions/checkout-journal-postgresql19-2026-11-22.md",
+      "sha256": "9ff3df91aaf915c478209e7990a1e5dce3c1a10f7ee75523edef9922273536ae"
+    },
+    {
+      "previous_path": "docs/INCIDENT_RESPONSE.md",
+      "canonical_path": "docs/runbooks/incident-response.md",
+      "sha256": "5169d2fab8d3ebb6593b970dffe28ef2ad270887fcf86e8df8c2653bb7246380"
+    },
+    {
+      "previous_path": "docs/dependency-upgrade-2026-11-22.md",
+      "canonical_path": "docs/decisions/dependency-upgrade-2026-11-22.md",
+      "sha256": "0e91a7ed76e5903905edb12a6cc4b442908f6f39578b8d2f83733acfc0c422fe"
+    },
+    {
+      "previous_path": "docs/object-storage.md",
+      "canonical_path": "docs/architecture/object-storage.md",
+      "sha256": "b54145598759c403bde0608a0a4482897d2a7468e8077c409dfe3456dab2fc0c"
+    },
+    {
+      "previous_path": "docs/postgresql19-dev-and-backup.md",
+      "canonical_path": "docs/runbooks/postgresql19-dev-and-backup.md",
+      "sha256": "b6bbe1497a4cafddad3d2928f1040e5bf5afb633d2c175059e2f3c62854bb6b8"
+    },
+    {
+      "previous_path": "docs/DISASTER_RECOVERY.md",
+      "canonical_path": "docs/runbooks/disaster-recovery.md",
+      "sha256": "ce16f27857340a572ef438618d7a27d66781bcf7d831a85974032e6de94e2a13"
+    }
+  ]
+}
