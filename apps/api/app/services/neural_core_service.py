@@ -342,8 +342,8 @@ class NeuralCoreService:
         if not self.is_healthy:
             return RouterDecision(intent="SOCIAL_CHAT", social_reply="Chat assistance is not configured right now. Please use the catalog or support page.")
 
-        messages = [{"role": "system", "content": SYSTEM_ROUTING_PROMPT+
-            "\nUse the authoritative response schema; every required property must be present, irrelevant nullable values null, unused arrays empty. quantity is an integer, default1. brief is an object, targets an array."}]
+        from app.services.compact_router_contract import ROUTER_CONTRACT
+        messages = [{"role": "system", "content": ROUTER_CONTRACT}]
         from app.services.structured_output import STRICT_MODELS
         profile=getattr(self,'profile',None)
         if profile and getattr(profile,'support_model',None) not in STRICT_MODELS:
