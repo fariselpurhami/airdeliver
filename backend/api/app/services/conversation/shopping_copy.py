@@ -337,6 +337,9 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         writer_rules=writer_rules.split(' Wire format override:')[0]
         writer_rules=writer_rules.replace('Return JSON{text,product_ids,claim_refs}', 'Return JSON{text_template}')
         writer_rules += ' Final wire format: return ONLY text_template. Write your own natural answer, but insert every product name, price, currency and factual value as {{cN}} using exact claim_reference_map keys. No product_ids or claim_refs properties. No invented digits, calculations or braces outside placeholders. An explicitly labelled customer budget may repeat the supplied grounded budget; it remains subject to the unchanged numeric validator. Every card with any referenced fact must also have its name placeholder. The application substitutes exact values and builds claims before unchanged validation and independent review. This is evidence substitution, not permission to invent implications, suitability or unknown facts.'
+    if use_template:
+        writer_rules += ' Do not type a literal product name beside its name placeholder: the placeholder already renders that exact name. Lead with the answer. Separate decision and decisive check into short paragraphs when useful; no mandatory headings. Avoid repeating card prices unless needed for the customer question.'
+        review_rules += ' A decisive unverified requirement prevents a proven suitability claim. Require conditional preference or no pick with the specific unresolved check. Reject a duplicated full product name immediately repeated in parentheses, repetitive price recap or filler. A simple factual answer needs no forced pitch or question.'
     writer_schema=TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
     def parse_writer(raw):
         if use_template:return resolve_template_claims(raw,reference_map)

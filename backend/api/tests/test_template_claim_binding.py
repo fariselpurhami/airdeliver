@@ -62,3 +62,14 @@ async def test_literal_exact_catalog_name_binds_name_claim_without_rewriting_pro
   assert {'product_id':card.id,'field':'name','value':card.name} in draft['claims']
   return json.dumps(V)
  assert await write_shopping_copy(infer,'x',[card],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'template_v1'})==card.name+' is listed at '+card.price+'.'
+
+@pytest.mark.asyncio
+async def test_template_contract_avoids_literal_placeholder_duplication_and_reviews_decisive_unknown():
+ calls=[]
+ async def infer(messages):
+  calls.append(messages)
+  if len(calls)==1:return json.dumps({'text_template':'Water resistance is not listed; no rain-safe choice is established.'})
+  return json.dumps(V)
+ await write_shopping_copy(infer,'rain safe',[catalog_result(row())],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'template_v1'})
+ assert 'Do not type a literal product name beside its name placeholder' in calls[0][0]['content']
+ assert 'A decisive unverified requirement prevents a proven suitability claim' in calls[1][0]['content']
