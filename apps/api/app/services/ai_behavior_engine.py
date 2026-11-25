@@ -367,13 +367,16 @@ class BehaviorEngine:
     # --- 🧬 IDENTITY RESOLUTION ---
 
     async def _analyze_financial_dna(self, user_id: int) -> FinancialTier:
+        if type(user_id) is not int or not 0<user_id<=2147483647:return FinancialTier.MEDIUM
         try:
-            prices_raw = await self.cache.client.lrange(self._key_price_hist(user_id), 0, -1)
+            prices_raw = await self.cache.client.lrange(self._key_price_hist(user_id), 0, 19)
             if not prices_raw:
                 return FinancialTier.MEDIUM
 
             prices = [float(p) for p in prices_raw]
+            if any(not math.isfinite(p) or p<0 for p in prices):return FinancialTier.MEDIUM
             avg_price = sum(prices) / len(prices)
+            if not math.isfinite(avg_price):return FinancialTier.MEDIUM
 
             if avg_price > 800.0: return FinancialTier.HIGH
             if avg_price < 150.0: return FinancialTier.LOW
