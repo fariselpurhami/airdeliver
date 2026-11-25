@@ -1,7 +1,7 @@
 // apps/web/components/profile/ProfileModals.tsx
 'use client';
 
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState, useRef, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -68,49 +68,64 @@ const ModalWrapper = memo(
     isOpen,
     onClose,
     title,
+    description,
     icon: Icon,
     children,
-    maxWidth = 'max-w-md',
+    maxWidth = 'max-w-2xl',
   }: {
     isOpen: boolean;
     onClose: () => void;
     title: string;
+    description?: string;
     icon?: LucideIcon;
     children: React.ReactNode;
     maxWidth?: string;
   }) => {
-    // Lock body scroll when modal is open
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const headingId = useId();
+    const descriptionId = useId();
     useEffect(() => {
-      if (isOpen) document.body.style.overflow = 'hidden';
-      else document.body.style.overflow = 'unset';
-      return () => {
-        document.body.style.overflow = 'unset';
+      if (!isOpen) return;
+      const previous = document.activeElement as HTMLElement | null;
+      const overflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const frame = requestAnimationFrame(() => dialogRef.current?.focus());
+      const onKey = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+        if (event.key !== 'Tab' || !dialogRef.current) return;
+        const nodes = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), [tabindex="0"]')).filter(node => node.getAttribute('aria-hidden') !== 'true');
+        if (!nodes.length) { event.preventDefault(); dialogRef.current.focus(); return; }
+        const first = nodes[0], last = nodes[nodes.length - 1];
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first?.focus(); }
       };
-    }, [isOpen]);
+      document.addEventListener('keydown', onKey);
+      return () => { cancelAnimationFrame(frame); document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; if (previous?.isConnected) previous.focus(); };
+    }, [isOpen, onClose]);
 
     return (
       <AnimatePresence mode="wait">
         {isOpen && (
           <motion.div
-            role="dialog"
-            aria-modal="true"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-2xl"
             onClick={onClose}
           >
             <motion.div
+              ref={dialogRef}
+              role="dialog" aria-modal="true" aria-labelledby={headingId} aria-describedby={description ? descriptionId : undefined} tabIndex={-1}
               {...ANIMATION_CONFIG}
               onClick={(e) => e.stopPropagation()}
-              className={`relative flex w-full flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 text-white shadow-2xl ${maxWidth}`}
-              style={{ maxHeight: 'min(90vh, 850px)' }}
+              className={`relative flex w-full flex-col overflow-hidden rounded-[32px] bg-black/65 text-white outline-none shadow-[0_32px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl ${maxWidth}`}
+              style={{ maxHeight: 'min(92svh, 900px)' }}
             >
               {/* Sci-Fi Atmospheric Glows */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[2rem]">
-                <div className="absolute left-[-10%] top-[-10%] h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
-                <div className="absolute bottom-[-12%] right-[-8%] h-52 w-52 rounded-full bg-fuchsia-500/10 blur-3xl" />
+                <div className="absolute left-[-10%] top-[-10%] h-40 w-40 rounded-full bg-white/[0.035] blur-3xl" />
+                <div className="absolute bottom-[-12%] right-[-8%] h-52 w-52 rounded-full bg-white/[0.02] blur-3xl" />
               </div>
 
               {/* Close Button */}
@@ -118,15 +133,15 @@ const ModalWrapper = memo(
                 type="button"
                 aria-label="Close modal"
                 onClick={onClose}
-                className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white backdrop-blur-md transition hover:bg-black/55 active:scale-[0.98]"
+                className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.04] text-white/60 backdrop-blur-md transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200 active:scale-[0.98]"
               >
                 <X className="h-5 w-5" />
               </button>
 
               {/* Header */}
-              <header className="relative z-10 flex items-center gap-3 border-b border-white/10 px-6 py-5">
-                {Icon && <Icon className="h-5 w-5 text-cyan-400" />}
-                <h2 className="text-lg font-semibold tracking-wide">{title}</h2>
+              <header className="relative z-10 flex items-start gap-4 pb-4 pl-6 pr-20 pt-8 sm:pl-10 sm:pt-10">
+                {Icon && <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/[0.045]"><Icon className="h-5 w-5 text-cyan-100/80" /></span>}
+                <div><p className="mb-2 text-[10px] font-medium uppercase tracking-[0.22em] text-white/35">Your account</p><h2 id={headingId} className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>{description && <p id={descriptionId} className="mt-3 max-w-md text-sm leading-6 text-white/50">{description}</p>}</div>
               </header>
 
               {/* Content Area */}
@@ -155,7 +170,7 @@ const SciFiInput = memo(
     <div className="space-y-2">
       <label
         htmlFor={id}
-        className="text-xs font-semibold uppercase tracking-[0.16em] text-white/55"
+        className="text-xs font-medium tracking-wide text-white/55"
       >
         {label}
       </label>
@@ -163,15 +178,15 @@ const SciFiInput = memo(
         <Component
           id={id}
           type={type}
-          className={`w-full rounded-2xl border bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-white/20 transition-all focus:bg-white/[0.05] focus:outline-none focus:ring-1 ${
+          className={`w-full rounded-2xl border-0 bg-white/[0.055] px-4 py-4 text-sm text-white placeholder-white/20 transition-all focus:bg-white/[0.05] focus:outline-none focus:ring-1 ${
             error
               ? 'border-red-400/50 focus:border-red-400/50 focus:ring-red-400/50'
-              : 'border-white/10 focus:border-cyan-400/50 focus:ring-cyan-400/50'
+              : 'border-white/10 focus:border-cyan-400/50 focus:ring-white/40'
           } ${rightElement ? 'pr-12' : ''}`}
           {...props}
         />
         {rightElement && (
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+          <div className="absolute inset-y-0 right-0 flex items-center pr-1">
             {rightElement}
           </div>
         )}
@@ -185,17 +200,17 @@ SciFiInput.displayName = 'SciFiInput';
 const SciFiButton = memo(
   ({ children, variant = 'primary', isLoading, ...props }: any) => {
     const baseStyle =
-      'inline-flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl border px-4 text-sm font-semibold tracking-[0.16em] uppercase transition active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50';
+      'inline-flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-200 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50';
     
     const variants = {
       primary:
-        'border-cyan-400/20 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/15',
+        'bg-white text-black hover:bg-white/85',
       secondary:
-        'border-white/10 bg-white/[0.03] text-white/70 hover:bg-white/[0.08] hover:text-white',
+        'bg-white/[0.055] text-white/70 hover:bg-white/10 hover:text-white',
     };
 
     return (
-      <button className={`${baseStyle} ${variants[variant as keyof typeof variants]}`} {...props}>
+      <button {...props} disabled={isLoading || props.disabled} aria-busy={isLoading || undefined} className={`${baseStyle} ${variants[variant as keyof typeof variants]}`}>
         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : children}
       </button>
     );
@@ -213,7 +228,7 @@ const OrderRow = memo(({ order }: { order: Order }) => {
 
   return (
     <tr className="border-b border-white/5 transition-colors hover:bg-white/[0.02]">
-      <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-cyan-300">
+      <td className="whitespace-nowrap px-6 py-4 text-sm font-mono text-white/90">
         <Link href={`/tracking/${order.id}`} className="underline py-2 inline-block" aria-label={`View order ${order.id}`}>#{order.id.toString().padStart(6, '0')}</Link>
       </td>
       <td className="whitespace-nowrap px-6 py-4 text-sm text-white/70">
@@ -246,8 +261,8 @@ export const ViewOrdersModal = memo(
     const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
     return (
-      <ModalWrapper isOpen={isOpen} onClose={onClose} title="SYSTEM LOG: ORDERS" icon={Package} maxWidth="max-w-4xl">
-        <div className="flex flex-1 flex-col p-2">
+      <ModalWrapper isOpen={isOpen} onClose={onClose} title="Your orders" description="Your order history, totals and delivery status, in one place." icon={Package} maxWidth="max-w-5xl">
+        <div className="flex flex-1 flex-col px-6 pb-8 pt-4 sm:px-10 sm:pb-10">
           {isLoading && !data && (
             <div className="flex min-h-[300px] flex-1 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
@@ -262,16 +277,17 @@ export const ViewOrdersModal = memo(
             </div>
           )}
 
-          {data?.orders?.length === 0 && (
-            <div className="flex min-h-[300px] flex-1 items-center justify-center text-sm tracking-widest text-white/40 uppercase">
+          {!error && !isLoading && data?.orders?.length === 0 && (
+            <div className="flex min-h-[320px] flex-1 flex-col items-center justify-center gap-4 text-sm text-white/50">
+              <Package aria-hidden="true" className="h-10 w-10 text-white/25" />
               You have no orders yet.
             </div>
           )}
 
           {(data?.orders?.length ?? 0) > 0 && (
-            <div className="w-full overflow-x-auto rounded-xl border border-white/10 bg-white/[0.02]">
+            <div className="w-full overflow-x-auto rounded-2xl bg-white/[0.025]">
               <table className="min-w-full divide-y divide-white/10 text-left">
-                <thead className="bg-black/40 text-xs font-semibold uppercase tracking-[0.16em] text-white/55">
+                <thead className="bg-black/40 text-xs font-medium tracking-wide text-white/55">
                   <tr>
                     <th scope="col" className="px-6 py-4">ID</th>
                     <th scope="col" className="px-6 py-4">Date</th>
@@ -362,7 +378,7 @@ export const EditProfileModal = memo(
 
     return (
       <ModalWrapper isOpen={isOpen} onClose={onClose} title={`UPDATE ${label.toUpperCase()}`} icon={User}>
-        <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-col gap-6 p-6 sm:px-8">
           <SciFiInput
             label={label}
             id={fieldName}
@@ -374,9 +390,9 @@ export const EditProfileModal = memo(
             placeholder={`Enter ${label.toLowerCase()}...`}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-black/20 p-6">
+        <div className="grid grid-cols-1 gap-3 bg-transparent min-[400px]:grid-cols-2 px-6 pb-8 pt-2 sm:px-10 sm:pb-10">
           <SciFiButton variant="secondary" onClick={onClose} disabled={isLoading}>
-            Abort
+            Cancel
           </SciFiButton>
           <SciFiButton variant="primary" onClick={handleSave} isLoading={isLoading}>
             <Save className="h-4 w-4" /> Save
@@ -455,8 +471,8 @@ export const EditProfileDetailsModal = memo(
     }, []);
 
     return (
-      <ModalWrapper isOpen={isOpen} onClose={onClose} title="IDENTITY CONFIG" icon={User}>
-        <div className="flex flex-col gap-5 p-6">
+      <ModalWrapper isOpen={isOpen} onClose={onClose} title="Edit profile" description="Keep your name, phone number and delivery address up to date." icon={User}>
+        <div className="flex flex-col gap-6 px-6 pb-7 pt-4 sm:px-10 sm:pt-6">
           <SciFiInput
             label="Full Name"
             id="full_name"
@@ -480,13 +496,13 @@ export const EditProfileDetailsModal = memo(
             value={formData.address}
             onChange={handleChange('address')}
             disabled={isLoading}
-            className="w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white transition focus:border-cyan-400/50 focus:bg-white/[0.05] focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+            className="w-full resize-none rounded-2xl border-0 bg-white/[0.055] px-4 py-4 text-sm text-white transition focus:bg-white/[0.07] focus:outline-none focus:ring-1 focus:ring-white/40"
           />
-          {error && <p className="text-xs font-medium text-red-400">{error}</p>}
+          {error && <p role="alert" className="rounded-2xl bg-red-400/10 px-4 py-3 text-sm leading-6 text-red-200">{error}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-black/20 p-6">
+        <div className="grid grid-cols-1 gap-3 bg-transparent min-[400px]:grid-cols-2 px-6 pb-8 pt-2 sm:px-10 sm:pb-10">
           <SciFiButton variant="secondary" onClick={onClose} disabled={isLoading}>
-            Abort
+            Cancel
           </SciFiButton>
           <SciFiButton variant="primary" onClick={handleSave} isLoading={isLoading}>
             <Save className="h-4 w-4" /> Save
@@ -561,7 +577,7 @@ export const ChangePasswordModal = memo(
       <button
         type="button"
         onClick={() => toggleShow(field)}
-        className="text-white/40 transition hover:text-cyan-400"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-white/60 transition hover:text-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200"
         aria-label={shows[field] ? 'Hide password' : 'Show password'}
       >
         {shows[field] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -569,10 +585,11 @@ export const ChangePasswordModal = memo(
     );
 
     return (
-      <ModalWrapper isOpen={isOpen} onClose={onClose} title="SECURITY PROTOCOL" icon={KeyRound}>
-        <div className="flex flex-col gap-5 p-6">
+      <ModalWrapper isOpen={isOpen} onClose={onClose} title="Change your password" description="Enter your current password, then choose a new one with at least 8 characters." icon={KeyRound}>
+        <div className="flex flex-col gap-6 px-6 pb-7 pt-4 sm:px-10 sm:pt-6">
           <SciFiInput
-            label="Current Key"
+            autoComplete="current-password"
+            label="Current password"
             id="current_pwd"
             type={shows.current ? 'text' : 'password'}
             value={passwords.current}
@@ -581,7 +598,8 @@ export const ChangePasswordModal = memo(
             rightElement={<PasswordToggle field="current" />}
           />
           <SciFiInput
-            label="New Key"
+            autoComplete="new-password"
+            label="New password"
             id="new_pwd"
             type={shows.new ? 'text' : 'password'}
             value={passwords.new}
@@ -590,7 +608,8 @@ export const ChangePasswordModal = memo(
             rightElement={<PasswordToggle field="new" />}
           />
           <SciFiInput
-            label="Confirm New Key"
+            autoComplete="new-password"
+            label="Confirm new password"
             id="confirm_pwd"
             type={shows.confirm ? 'text' : 'password'}
             value={passwords.confirm}
@@ -598,14 +617,14 @@ export const ChangePasswordModal = memo(
             disabled={isLoading}
             rightElement={<PasswordToggle field="confirm" />}
           />
-          {error && <p className="text-xs font-medium text-red-400">{error}</p>}
+          {error && <p role="alert" className="rounded-2xl bg-red-400/10 px-4 py-3 text-sm leading-6 text-red-200">{error}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-black/20 p-6">
+        <div className="grid grid-cols-1 gap-3 bg-transparent min-[400px]:grid-cols-2 px-6 pb-8 pt-2 sm:px-10 sm:pb-10">
           <SciFiButton variant="secondary" onClick={onClose} disabled={isLoading}>
-            Abort
+            Cancel
           </SciFiButton>
           <SciFiButton variant="primary" onClick={handleSave} isLoading={isLoading}>
-            <KeyRound className="h-4 w-4" /> Update
+            <KeyRound className="h-4 w-4" /> Change password
           </SciFiButton>
         </div>
       </ModalWrapper>
