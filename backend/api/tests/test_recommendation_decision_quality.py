@@ -21,6 +21,7 @@ async def test_writer_and_reviewer_receive_decision_contract_before_publishing()
     assert len(calls)==2
     writer=' '.join(m['content'] for m in calls[0]['messages'])
     reviewer=' '.join(m['content'] for m in calls[1]['messages'])
+    assert 'Write JSON {text,product_ids,claims}' not in writer
     assert 'DECISION VALUE' in writer
     assert 'do not turn every answer into a question' in writer
     assert calls[1]['response_format']['json_schema']['name']=='RecommendationReview'
@@ -38,3 +39,16 @@ async def test_quality_rejection_withholds_without_fallback_cards(field):
     assert result.selected_ids==[]
     assert result.reasoning=={}
     assert result.intro_message.startswith('System notice:')
+
+@pytest.mark.asyncio
+async def test_decisive_missing_evidence_can_return_useful_no_pick_after_full_review():
+    llm=service()
+    draft={'intro':'Neither listing confirms the laptop compartment dimensions. Check the internal sleeve dimensions against your laptop before choosing. Material alone does not settle fit.','reasons':[],'claims':[]}
+    async def respond(**kwargs):
+        schema=kwargs['response_format']['json_schema']['name']
+        return completion(json.dumps({**V,**QUALITY} if schema=='RecommendationReview' else draft))
+    llm._chat_completion=AsyncMock(side_effect=respond)
+    result=await llm.filter_and_recommend('Which fits my laptop?',[deepcopy(P)])
+    assert result.intro_message==draft['intro']
+    assert result.selected_ids==[]
+    assert llm._chat_completion.await_count==2

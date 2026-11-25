@@ -6,7 +6,7 @@ from tests.test_llm_execution_limits import service,completion
 
 P={'id':7,'name':'Cotton Shirt','price':'24.00','currency':'USD','inventory':3,'is_active':True,'attributes':{'material':'cotton'},'category':'Shirts'}
 D={'intro':'Explore this listed option and decide what matters to you.','reasons':[{'product_id':7,'text':'Cotton Shirt lists cotton material; fit details remain unknown.'}],'claims':[{'product_id':7,'field':'name','value':'Cotton Shirt'},{'product_id':7,'field':'spec.material','value':'cotton'}]}
-V={k:True for k in ['supported','all_product_mentions_declared','no_unsupported_commercial_claims','fulfills_discovery_task']}
+V={k:True for k in ['supported','all_product_mentions_declared','no_unsupported_commercial_claims','fulfills_discovery_task','answers_actual_decision','respects_requested_selection','handles_decisive_unknowns','useful_next_step']}
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mode',['ok','reject','invented_id','wrong_field','numeric','missing_name','duplicate','failure','cancel','changed'])
@@ -22,7 +22,7 @@ async def test_actual_strict_adapter_preserves_reviewed_prose_or_withholds(mode)
         if mode=='failure':raise ConnectionError('private-failure')
         if mode=='cancel':raise asyncio.CancelledError()
         schema=kwargs['response_format'].get('json_schema',{}).get('name')
-        if schema=='GroundingReview':
+        if schema=='RecommendationReview':
             if mode=='changed':products[0]['price']='99.00'
             return completion(json.dumps(verdict))
         return completion(json.dumps(draft))
