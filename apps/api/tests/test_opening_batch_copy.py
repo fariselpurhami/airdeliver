@@ -34,7 +34,7 @@ async def test_batch_actual_writer_validator_and_independent_reviewer(failure):
         result=await write_batch(llm,groups)
         assert len(result)==4 and infer.await_count==2
         payload=json.loads(infer.await_args_list[0].args[0][1]['content'])
-        assert len(payload['rows'])==4 and all(len(x['cards'])==1 for x in payload['rows'])
+        assert len(payload['rows'])==4 and all(len(x['card_ids'])==1 for x in payload['rows'])
         assert len(RULES)<2000 and len(REVIEW)<1200
 
 @pytest.mark.asyncio
@@ -51,7 +51,7 @@ async def test_four_ten_card_rows_all_reach_writer_and_review_once():
         if 'rows' in payload:return json.dumps(drafts)
         return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
     await write_batch(SimpleNamespace(infer_sales_json=infer),groups)
-    assert len(seen)==2 and all(len(r['cards'])==10 for r in seen[0]['rows'])
+    assert len(seen)==2 and all(len(r['card_ids'])==10 for r in seen[0]['rows'])
     assert seen[1]['input']==seen[0]
 
 @pytest.mark.asyncio

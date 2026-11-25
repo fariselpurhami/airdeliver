@@ -102,3 +102,20 @@ def failed_json_diagnostics(exc, wire_format, output_cap):
     result['schema'] = 'violation' if categories else 'no_detected_violation'
     result['categories'] = sorted(categories)
     return result
+
+
+def provider_error_shape(exc):
+    """Bounded structure, never arbitrary keys, provider prose or failed output."""
+    body=getattr(exc,'body',None)
+    error=body.get('error',body) if isinstance(body,dict) else None
+    allowed={'json_validate_failed','model_decommissioned','model_not_found',
+             'rate_limit_exceeded','context_length_exceeded','invalid_request_error','invalid_api_key'}
+    result={'body_type':type(body).__name__ if type(body) in (dict,list,str,type(None)) else 'other',
+            'nested_error':isinstance(body,dict) and isinstance(body.get('error'),dict)}
+    if isinstance(error,dict):
+        result['has_code']=isinstance(error.get('code'),str)
+        result['has_type']=isinstance(error.get('type'),str)
+        result['has_generation']=isinstance(error.get('failed_generation'),str)
+        for field in ('code','type'):
+            if isinstance(error.get(field),str) and error[field] in allowed:result[field]=error[field]
+    return result

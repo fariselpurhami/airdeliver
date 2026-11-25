@@ -24,6 +24,7 @@ def strict_schema(model):
     def visit(node):
         if isinstance(node, dict):
             node.pop('default', None)
+            node.pop('title', None)  # Annotation only, never a validation/field description.
             if node.get('type') == 'object':
                 if node.get('additionalProperties') not in (None, False):
                     raise ValueError('Open dictionary cannot be provider constrained')
