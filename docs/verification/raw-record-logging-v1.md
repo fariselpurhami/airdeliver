@@ -16,7 +16,7 @@ Actual focused command: `python -m pytest -q tests/test_raw_logging_source_guard
 
 Result: 110 passed, one existing Pydantic configuration warning. Runtime cases include database/cache outages, payment callback retryable status, Redis bridge three retries and propagation, socket auth/setup/listener/receive faults, cancellation propagation, voice ticket rejection and failure cleanup. Voice coverage is logging-only with a controlled orchestrator, not live voice acceptance.
 
-Full CI at43c82dbd reported10 historical source-provenance digest failures,2778 passed/3 skipped. A separate S07 source-evolution receipt now records baseline and current source hashes and Python3.13 non-diagnostic AST digests, leaving the original move manifests unchanged. Exact-source and non-diagnostic equivalence remain checked. Fresh full exact-head CI and postmerge are pending.
+Full CI at43c82dbd reported10 historical source-provenance digest failures,2778 passed/3 skipped. A separate S07 source-evolution receipt now records baseline and current source hashes and Python3.13 non-diagnostic AST digests, leaving the original move manifests unchanged. Exact-source and non-diagnostic equivalence remain checked. Full exact-head CI passed at09a8663c, including both PostgreSQL/storage jobs, frontend/typecheck/build/tests, Docker smoke and secret scan. Evidence: https://github.com/fariselpurhami/airdeliver/actions/runs/45690129603/job/139473067794 . Final documentation-head CI and postmerge remain pending.
 
 ## Limits
 
