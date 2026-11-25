@@ -67,17 +67,19 @@
       "id": "CAP-15",
       "capability": "Persona, retention modes, four-phase response policies and sanitizer",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Explicit current customer concern and shared consultative writer/review policy",
-      "next_code_or_boundary_acceptance": "Crosswalk original four phases/retention strategies to safe current response paths; hidden persona/wealth and fabricated urgency excluded",
+      "next_code_or_boundary_acceptance": "Safe original strategy and owner-selected four-phase crosswalk complete; unsafe hidden profiling/fabricated urgency intentionally excluded. Exact-head CI and merge remain; live usefulness/tone and owner evidence separate.",
       "quality_acceptance": "Human-rated usefulness, faithful tone and honest persuasion across languages",
       "owner_acceptance": "Approve realistic evaluation rubric and held-out examples",
       "evidence_leads": [
         "apps/api/tests/test_sales_response_service.py",
-        "apps/api/tests/test_legacy_advisory_task_continuity.py"
+        "apps/api/tests/test_legacy_advisory_task_continuity.py",
+        "docs/verification/cap15-code-acceptance-v1.md",
+        "apps/api/tests/test_four_phase_product_advice.py"
       ],
       "unresolved_test_leads": []
     },
@@ -406,6 +408,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 7,
-  "code_remaining_groups": 13
+  "code_complete_groups": 8,
+  "code_remaining_groups": 12
 }

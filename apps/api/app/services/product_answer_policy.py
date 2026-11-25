@@ -12,3 +12,15 @@ def answer_shape(mode, cards, evidence):
     if evidence.get('shopping_task') == 'price_inquiry':
         return 'short'
     return 'four_phase'
+
+
+def advisory_strategy(mode,cards,evidence):
+    """Explicit task/evidence only, never legacy hidden-persona retention modes."""
+    if mode!='catalog_results' or not cards:return 'scope_and_clarify'
+    task=evidence.get('shopping_task')
+    if task=='price_inquiry':return 'listed_price_only'
+    if task in {'objection','negotiation'} or evidence.get('advice_goal') in {'price_objection','hesitation'}:
+        return 'explicit_concern_and_evidenced_options'
+    return 'evidence_and_unknowns'
+
+SAFE_ADVISORY_STRATEGY='''advisory_strategy is application task metadata, not product proof or a hidden customer profile. scope_and_clarify: explain the current results scope, ask only a useful unresolved question, never infer fraud/nonexistence from absent results. listed_price_only: answer only listed price/currency or unknown, no negotiation or merchant offer. explicit_concern_and_evidenced_options: acknowledge only the customer's explicit words, discuss real listed tradeoffs or a within-constraint alternative; allow decline. evidence_and_unknowns: helpful advice from supplied facts with uncertainty and low-pressure closure. No strategy authorizes superiority, threat/debunk claims without evidence, urgency, external competition suppression, procurement or commitment.'''

@@ -35,3 +35,32 @@ async def test_reviewer_can_withhold_bad_shape_without_repair_or_extra_calls():
     infer=AsyncMock(side_effect=[json.dumps(dict(text=TEXT,product_ids=[],claims=[])),json.dumps({**V,'fulfills_discovery_task':False})])
     result=await SalesResponseService(infer,provider_ready=True,timeout=1).respond(request())
     assert result.response_kind=='system_notice' and result.products==[] and infer.await_count==2
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('task,goal,strategy',[
+ ('search',None,'evidence_and_unknowns'),('price_inquiry',None,'listed_price_only'),
+ ('objection',None,'explicit_concern_and_evidenced_options'),('negotiation',None,'explicit_concern_and_evidenced_options'),
+ ('search','hesitation','explicit_concern_and_evidenced_options')])
+async def test_safe_strategy_crosswalk_uses_task_not_hidden_profile(task,goal,strategy):
+    infer=AsyncMock(side_effect=[json.dumps(dict(text=TEXT,product_ids=[],claims=[])),json.dumps(V)])
+    result=await SalesResponseService(infer,provider_ready=True,timeout=1).respond(request(evidence={'shopping_task':task,'advice_goal':goal}))
+    assert result.text==TEXT
+    payload=json.loads(infer.await_args_list[0].args[0][1]['content'])
+    assert payload['request_evidence']['advisory_strategy']==strategy
+    for call in infer.await_args_list:
+        assert 'never infer fraud/nonexistence from absent results' in call.args[0][0]['content']
+
+
+def test_legacy_unsafe_policy_symbols_only_read_by_preserved_unreviewed_bodies():
+    import ast
+    from pathlib import Path
+    tree=ast.parse(Path('app/services/ai_nlu_service.py').read_text());reads=[]
+    tracked={'UNIVERSAL_4_PHASE_ARCHITECTURE','_build_retention_directive','_get_dynamic_prompt_policy','_resolve_retention_mode'}
+    def visit(node,scope=()):
+        if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)):scope=(*scope,node.name)
+        if isinstance(node,ast.Name) and isinstance(node.ctx,ast.Load) and node.id in tracked and scope:
+            reads.append((scope[0],node.id))
+        for child in ast.iter_child_nodes(node):visit(child,scope)
+    visit(tree)
+    assert reads
+    assert all(name.endswith('_legacy_unreviewed') for name,symbol in reads),reads

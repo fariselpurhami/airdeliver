@@ -248,6 +248,10 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
                  'scope':'No eligible current retrieved catalog cards; not exhaustive inventory'}
     writer_rules=NO_MATCH_WRITER_RULES if no_match else WRITER_RULES
     review_rules=NO_MATCH_REVIEW_RULES if no_match else REVIEW_RULES
+    from app.services.product_answer_policy import SAFE_ADVISORY_STRATEGY
+    if not no_match:
+        writer_rules+=' '+SAFE_ADVISORY_STRATEGY
+        review_rules+=' '+SAFE_ADVISORY_STRATEGY
     if (context or {}).get('product_answer_shape')=='four_phase':
         from app.services.product_answer_policy import FOUR_PHASE_POLICY,FOUR_PHASE_REVIEW
         writer_rules=writer_rules.replace('at most100words','at most 160 words')+' '+FOUR_PHASE_POLICY

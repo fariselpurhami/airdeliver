@@ -49,9 +49,10 @@ class SalesResponseService:
         brief=request.brief.model_copy(deep=True)
         try:
             if not self.provider_ready:raise RuntimeError('provider_unavailable')
-            from app.services.product_answer_policy import answer_shape
+            from app.services.product_answer_policy import answer_shape,advisory_strategy
             evidence=deepcopy(request.evidence)
             evidence['product_answer_shape']=answer_shape(request.mode,cards,evidence)
+            evidence['advisory_strategy']=advisory_strategy(request.mode,cards,evidence)
             text=await write_shopping_copy(self.infer,request.message,cards,brief.model_dump(),
                 request.mode,self.timeout,evidence)
             kind=request.mode
