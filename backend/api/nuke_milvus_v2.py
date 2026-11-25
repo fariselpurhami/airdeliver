@@ -1,34 +1,9 @@
-# backend/api/nuke_milvus_v2.py
-from pymilvus import MilvusClient
-from app.core.config import settings
+"""Historical maintenance entrypoint. Operational approval requirements unchanged."""
+from importlib import import_module as _import_module
+import runpy as _runpy
+import sys as _sys
 
-def nuke_it_all():
-    print("☢️  STARTING DEEP CLEAN PROTOCOL...")
-    client = MilvusClient(uri=settings.MILVUS_URI)
-    
-    # 1. List EVERYTHING currently in DB
-    existing_collections = client.list_collections()
-    print(f"🧐 Found Collections in DB: {existing_collections}")
-    
-    # 2. List of targets to destroy
-    targets = [
-        "airdeliver_visual_large_v1", 
-        "airdeliver_products_sota_v2",
-        "airdeliver_intents_sota_v2",
-        "airdeliver_memory_sota_v2",
-        # القديم أيضاً للاحتياط
-        "airdeliver_visual_sota_v1",
-        "airdeliver_visual_sota_v2" 
-    ]
-    
-    for col in targets:
-        if col in existing_collections:
-            print(f"💣 DROPPING: {col}")
-            client.drop_collection(col)
-        else:
-            print(f"⚪ Clean: {col} not found.")
-            
-    print("✅ MILVUS WIPED CLEAN.")
-
-if __name__ == "__main__":
-    nuke_it_all()
+if __name__ == '__main__':
+    _runpy.run_module('tools.nuke_milvus_v2', run_name='__main__')
+else:
+    _sys.modules[__name__] = _import_module('tools.nuke_milvus_v2')

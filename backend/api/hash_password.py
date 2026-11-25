@@ -1,24 +1,9 @@
-# backend/api/hash_password.py
+"""Historical maintenance entrypoint. Operational approval requirements unchanged."""
+from importlib import import_module as _import_module
+import runpy as _runpy
+import sys as _sys
 
-import sys
-from app.core.security import get_password_hash
-
-def hash_my_password(password_to_hash):
-    """
-    Script to generate a secure password hash.
-    """
-    if not password_to_hash:
-        print("Error: Please provide a password.")
-        print("Usage: poetry run python hash_password.py 'your_new_password_here'")
-        return
-
-    hashed_password = get_password_hash(password_to_hash)
-    print("--- Your Hashed Password ---")
-    print(hashed_password)
-    print("------------------------------")
-    print("Copy the hash above (starting with $2b$...) and paste it in your database.")
-
-if __name__ == "__main__":
-
-    password = sys.argv[1] if len(sys.argv) > 1 else None
-    hash_my_password(password)
+if __name__ == '__main__':
+    _runpy.run_module('tools.hash_password', run_name='__main__')
+else:
+    _sys.modules[__name__] = _import_module('tools.hash_password')

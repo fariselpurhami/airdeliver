@@ -1,28 +1,33 @@
 airdeliver/
-├── frontend/
-│   └── web/                    # Next.js UI, auth routes, components, tests, Dockerfile
-├── backend/
-│   └── api/                    # FastAPI commerce engine
-│       ├── app/                # API routers, core, models, schemas, services, websockets
-│       ├── alembic/versions/   # Existing migrations, unchanged
-│       ├── scripts/                    # dev, ops, ci owners plus legacy command aliases
-├── tests/              # Backend contracts and integration tests
-│       ├── worker_entrypoint.py
-│       ├── Dockerfile
-│       └── pyproject.toml
-├── apps/                       # Relative compatibility aliases only
+├── frontend/web/
+│   ├── src/                    # app, components, hooks, lib, types, auth, proxy
+│   ├── public/                 # static assets
+│   ├── __tests__/              # web behavior and source contracts
+│   └── Dockerfile / framework configuration
+├── backend/api/
+│   ├── app/
+│   │   ├── api/v1/             # HTTP routes
+│   │   ├── services/           # domain owners plus legacy import entrypoints
+│   │   │   ├── conversation/ / catalog/ / cart/ / checkout/ / payments/
+│   │   │   ├── memory/ / behavior/ / retrieval/ / research/
+│   │   │   └── provider_capacity/ / infrastructure/ / observability/
+│   │   └── core/ / crud/ / db/ / models/ / schemas/ / websockets/
+│   ├── tools/                  # original maintenance helpers, approval required
+│   ├── scripts/                # API-specific validation and evaluation commands
+│   ├── tests/ / fixtures/ / evaluation/
+│   ├── alembic/versions/       # immutable migration history
+│   └── worker_entrypoint.py / Dockerfile / pyproject.toml / poetry.lock
+├── apps/                       # relative compatibility aliases, not duplicate apps
 │   ├── web -> ../frontend/web
 │   └── api -> ../backend/api
-│
 ├── infra/
-│   ├── k8s/                    # Kubernetes manifests (+ _legacy/)
-│   ├── database/init/          # PostgreSQL init SQL
-│   └── observability/          # Prometheus, Promtail and Grafana
-├── docs/                       # architecture, development, runbooks, decisions, security
-│                               # verification, catalog and compatibility doc aliases
-├── scripts/                    # dev, ops, ci owners plus legacy command aliases
-├── tests/                      # integration tests (require live stack)
-├── docker-compose.yml          # full stack
-├── docker-compose.dev.yml      # local dev stack
-├── package.json / pnpm-workspace.yaml / pnpm-lock.yaml # Canonical JS workspace
-└── README.md / RUNBOOK.md
+│   ├── database/init/ / observability/ / k8s/
+│   └── minio-ce/ / s3/ / storage-ci/ / postgres-backup/
+├── scripts/                    # dev/ / ops/ / ci/ and legacy command aliases
+├── docs/                       # architecture/ / development/ / runbooks/
+│                               # decisions/ / security/ / engineering/
+│                               # verification/ / catalog/ and legacy doc aliases
+├── tests/load/                 # stack/load harness, not production evidence
+├── docker-compose*.yml         # stable root orchestration entrypoints
+├── package.json / pnpm-workspace.yaml / pnpm-lock.yaml
+└── README.md / RUNBOOK.md / SECURITY.md / LICENSE.txt

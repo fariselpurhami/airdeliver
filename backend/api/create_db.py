@@ -1,18 +1,9 @@
-# backend/api/create_db.py
+"""Historical maintenance entrypoint. Operational approval requirements unchanged."""
+from importlib import import_module as _import_module
+import runpy as _runpy
+import sys as _sys
 
-import os
-import sys
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from app.db.session import engine
-from app.db.base_class import Base  
-from app import models  
-
-def create_database():
-    print("Creating all database tables...")
-    Base.metadata.create_all(bind=engine)
-    print("Database tables created successfully.")
-
-if __name__ == "__main__":
-    create_database()
+if __name__ == '__main__':
+    _runpy.run_module('tools.create_db', run_name='__main__')
+else:
+    _sys.modules[__name__] = _import_module('tools.create_db')

@@ -1,0 +1,68 @@
+{
+  "baseline": "ef997d7d41b575f4447e64ce34115fbe1964162a",
+  "tools": [
+    {
+      "legacy_path": "backend/api/create_db.py",
+      "canonical_path": "backend/api/tools/create_db.py",
+      "source_sha256": "c135c3b3fd1b103aca605fdc20cb1731e8fa9831186291876f9954deddf8bb7c",
+      "canonical_sha256": "ac5c93d5734cacee4727b6b1874ec8d9fa76b32084198c71a7aaaa66f7174c0e",
+      "byte_identical": false
+    },
+    {
+      "legacy_path": "backend/api/create_db_and_tables.py",
+      "canonical_path": "backend/api/tools/create_db_and_tables.py",
+      "source_sha256": "1a728d20cb6d34877b7c4c724359450ba72c7aa7ed3c4637d33cc1304f523c11",
+      "canonical_sha256": "f320556f0932a6c077dac89ce617eff770ad0a547789418fcc292318f7e47805",
+      "byte_identical": false
+    },
+    {
+      "legacy_path": "backend/api/fix_milvus.py",
+      "canonical_path": "backend/api/tools/fix_milvus.py",
+      "source_sha256": "afc0e7320bba9941f9ae592fd211606076322ae80af4b28c6e2c39656a088de8",
+      "canonical_sha256": "afc0e7320bba9941f9ae592fd211606076322ae80af4b28c6e2c39656a088de8",
+      "byte_identical": true
+    },
+    {
+      "legacy_path": "backend/api/hash_password.py",
+      "canonical_path": "backend/api/tools/hash_password.py",
+      "source_sha256": "e36a53ea763af9363913bf9c485e8dbaccfc7bdd58969f290eeedd56e89e8a64",
+      "canonical_sha256": "e36a53ea763af9363913bf9c485e8dbaccfc7bdd58969f290eeedd56e89e8a64",
+      "byte_identical": true
+    },
+    {
+      "legacy_path": "backend/api/init_data.py",
+      "canonical_path": "backend/api/tools/init_data.py",
+      "source_sha256": "e59bb680b9068df97d1b04007b980cf93cc2bf9569b1e1578abb6ac82fc89b28",
+      "canonical_sha256": "e59bb680b9068df97d1b04007b980cf93cc2bf9569b1e1578abb6ac82fc89b28",
+      "byte_identical": true
+    },
+    {
+      "legacy_path": "backend/api/nuke_milvus_v2.py",
+      "canonical_path": "backend/api/tools/nuke_milvus_v2.py",
+      "source_sha256": "fca3464afdb34e63bd9b25f58b5047cdb580448dd37cc47e033f69bfd94697d7",
+      "canonical_sha256": "fca3464afdb34e63bd9b25f58b5047cdb580448dd37cc47e033f69bfd94697d7",
+      "byte_identical": true
+    },
+    {
+      "legacy_path": "backend/api/reset_db.py",
+      "canonical_path": "backend/api/tools/reset_db.py",
+      "source_sha256": "078569a20b7eadbc190de21defa52bcb570f4df7c1971bf3e0ffdb71c9d899ba",
+      "canonical_sha256": "078569a20b7eadbc190de21defa52bcb570f4df7c1971bf3e0ffdb71c9d899ba",
+      "byte_identical": true
+    },
+    {
+      "legacy_path": "backend/api/seed_ultra_scale.py",
+      "canonical_path": "backend/api/tools/seed_ultra_scale.py",
+      "source_sha256": "dc657a054859ab90a0f47d56b44074318464320ebcc05becb8fad9355f7c7898",
+      "canonical_sha256": "8ccfc2c6574b35d9a2e9fa25eb7c181ff66fe21b02a3bacef3e96daf50201b5f",
+      "byte_identical": false
+    },
+    {
+      "legacy_path": "backend/api/sync_search.py",
+      "canonical_path": "backend/api/tools/sync_search.py",
+      "source_sha256": "2723a49769b74bb02503c7c132980f663f3b557e00c6589b64edb718afc72a39",
+      "canonical_sha256": "2723a49769b74bb02503c7c132980f663f3b557e00c6589b64edb718afc72a39",
+      "byte_identical": true
+    }
+  ]
+}
