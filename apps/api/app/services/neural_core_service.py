@@ -750,6 +750,13 @@ class NeuralCoreService:
             mode=mode,intent=intent,evidence=evidence or {}))
 
     async def _handle_visual_search(self, image_base64: str, caption: str = "", db=None,brief=None) -> NeuralCoreResponse:
+        try:
+            with anyio.fail_after(40):
+                return await self._handle_visual_search_bounded(image_base64,caption,db,brief)
+        except TimeoutError:
+            return NeuralCoreResponse(text='System notice: visual product evidence could not be checked in time. Please retry.',response_kind='system_notice',confidence=0,explain='Visual search deadline',telemetry={'intent':'VISUAL_SEARCH','entities':[],'turn':0})
+
+    async def _handle_visual_search_bounded(self, image_base64: str, caption: str = "", db=None,brief=None) -> NeuralCoreResponse:
         """Visual candidates are revalidated against current DB rows, then
         supplied as bounded evidence to the model writer and review boundary."""
         try:

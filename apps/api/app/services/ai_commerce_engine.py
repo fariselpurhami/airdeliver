@@ -1361,6 +1361,10 @@ class AICommerceEngine:
             else:
                 raise ValidationError("image_input must be base64 string or list[float]")
 
+            if isinstance(image_input,list) and any(type(value) is bool for value in image_input):
+                raise ValidationError('Boolean image vector value')
+            if any(not math.isfinite(value) for value in vector):
+                raise ValidationError('Nonfinite image vector')
             if len(vector) != PRODUCT_VISION_MODEL.dimension:
                 raise ValidationError(
                     f"image vector dimension mismatch: expected {PRODUCT_VISION_MODEL.dimension}, got {len(vector)}"

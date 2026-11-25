@@ -194,19 +194,23 @@
       "id": "CAP-25",
       "capability": "Vision identification and query optimizer with recent-context references",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Bounded vision identity/title retrieval hints, current SQL card gate",
-      "next_code_or_boundary_acceptance": "Audit image hint caller cancellation/native lifetime and stale paths across supported ingress",
+      "next_code_or_boundary_acceptance": "Finite image/native/query-hint caller and stale/deadline audit complete; release gate required. Actual vision identity remains unverified.",
       "quality_acceptance": "Actual image identity/ranking under wrong-model/adversarial/multi-item inputs",
       "owner_acceptance": "Real image assets, model profile and supported-device receipts",
       "evidence_leads": [
         "apps/api/tests/test_neural_core_visual.py",
-        "apps/api/tests/test_bounded_image_decode.py"
+        "apps/api/tests/test_bounded_image_decode.py",
+        "apps/api/tests/test_visual_code_closure.py",
+        "apps/api/tests/test_vision_native_admission.py",
+        "apps/api/tests/test_direct_catalog_currentness.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap25-code-acceptance-v1.md"
     },
     {
       "id": "CAP-26",
@@ -420,6 +424,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 13,
-  "code_remaining_groups": 7
+  "code_complete_groups": 14,
+  "code_remaining_groups": 6
 }
