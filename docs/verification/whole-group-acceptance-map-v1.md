@@ -38,8 +38,8 @@ No zero-defect, deadline, full-feature or production-ready guarantee is implied.
 
 ## Code-first checkpoint
 
-Eleven finite code/boundary audits are complete, subject to their exact-head
-CI and fast-forward release gates:44,50,49,29,32,51,28,15,14,20,23.
-Nine remain. Individual code-acceptance documents and JSON rows record scope,
+Twelve finite code/boundary audits are complete, subject to their exact-head
+CI and fast-forward release gates:44,50,49,29,32,51,28,15,14,20,23,26.
+Eight remain. Individual code-acceptance documents and JSON rows record scope,
 actual test evidence and parked live/owner work. This separate code count does
 not change whole-group0/20 or canonical55. No live provider runs are authorized.

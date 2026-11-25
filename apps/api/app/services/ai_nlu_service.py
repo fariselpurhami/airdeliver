@@ -3775,7 +3775,7 @@ class AINLUService:
                         "domain_hint": item.domain_hint,
                     },
                 )
-                continue
+                return [], True, ""
             except Exception:
                 fallback_triggered = True
                 logger.exception(
@@ -3786,7 +3786,7 @@ class AINLUService:
                         "domain_hint": item.domain_hint,
                     },
                 )
-                continue
+                return [], True, ""
 
             if not result:
                 fallback_triggered = True
@@ -3908,6 +3908,8 @@ class AINLUService:
         if type(user_id) is not int or user_id<=0:
             raise ValueError('user_id must be a positive integer')
         queries=getattr(strategy,'search_queries',None) or [original_query]
+        if not isinstance(queries,(list,tuple)) or not 1<=len(queries)<=3 or any(not isinstance(q,str) or not q.strip() or len(q)>256 for q in queries):
+            raise ValueError('Invalid strategic query list')
         result=await staged_search(self.search_engine,self.db,queries[0],
             category=getattr(strategy,'category_filter',None),rank=self.ranker.rerank,
             broaden=_build_broad_query,timeout=min(15.0,self.config.search_timeout_sec))

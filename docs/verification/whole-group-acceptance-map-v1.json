@@ -210,20 +210,22 @@
       "id": "CAP-26",
       "capability": "Universal per-target search; strategic exact/ranked/mid/broad search; ranking/alignment",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Staged per-target exact/ranked/broad search and hard-scope continuity",
-      "next_code_or_boundary_acceptance": "Audit all target/capacity/non-capacity entrypoints and retrieval tier fallback semantics",
+      "next_code_or_boundary_acceptance": "Finite staged/current/original caller inventory and transport failure audit complete; release gate required, live relevance remains unverified.",
       "quality_acceptance": "Held-out retrieval relevance and multilingual constraint assignment",
       "owner_acceptance": "Current real catalog/index alignment and model provenance",
       "evidence_leads": [
         "apps/api/tests/test_staged_search_contract.py",
         "apps/api/tests/test_staged_search_postgres.py",
-        "apps/api/tests/test_arabic_target_scope_postgres.py"
+        "apps/api/tests/test_arabic_target_scope_postgres.py",
+        "apps/api/tests/test_search_code_closure.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap26-code-acceptance-v1.md"
     },
     {
       "id": "CAP-28",
@@ -416,6 +418,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 11,
-  "code_remaining_groups": 9
+  "code_complete_groups": 12,
+  "code_remaining_groups": 8
 }
