@@ -42,6 +42,29 @@ def resolve_claim_references(raw, reference_map):
         claims=[reference_map[ref] for ref in draft.claim_refs])
 
 
+class TemplateShoppingDraft(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    text_template: StrictStr = Field(min_length=1,max_length=2000)
+
+
+def resolve_template_claims(raw,reference_map):
+    template=TemplateShoppingDraft.model_validate_json(raw).text_template
+    references=re.findall(r'\{\{(c[0-9]+)\}\}',template)
+    remaining=re.sub(r'\{\{c[0-9]+\}\}','',template)
+    if any(mark in remaining for mark in '{}') or re.search(r'\d',remaining):
+        raise ValueError('unsupported_template_literal')
+    if any(ref not in reference_map for ref in references):raise ValueError('unknown_claim_reference')
+    refs=list(dict.fromkeys(references))
+    claims=[reference_map[ref] for ref in refs]
+    identities=list(dict.fromkeys(claim['product_id'] for claim in claims))
+    # Every cited card needs its exact name, even a comparison-only card.
+    for identity in identities:
+        if not any(c['product_id']==identity and c['field']=='name' for c in claims):
+            raise ValueError('undeclared_product_mention')
+    text=re.sub(r'\{\{(c[0-9]+)\}\}',lambda match:reference_map[match.group(1)]['value'],template)
+    return ShoppingDraft(text=text,product_ids=identities,claims=claims)
+
+
 class GroundingReview(BaseModel):
     model_config=ConfigDict(extra='forbid')
     supported: StrictBool
@@ -273,8 +296,10 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         payload={'task':'no_match','customer_message':message,'customer_brief':brief,'catalog_evidence':[],
                  'scope':'No eligible current retrieved catalog cards; not exhaustive inventory'}
     reference_map={}
+    use_template=(context or {}).get('claim_binding')=='template_v1'
     use_references=(not no_match and (context or {}).get('product_answer_shape')=='adaptive'
-        and (context or {}).get('claim_binding')=='references_v1')
+        and (context or {}).get('claim_binding') in {'references_v1','template_v1'})
+    use_template=use_template and use_references
     if use_references:
         for card in evidence:
             options=card.pop('claim_options',[])
@@ -303,8 +328,13 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
             'Select exact claim_reference_map keys for each stated fact and name; never invent a reference.')
         writer_rules += ' Do not calculate differences, convert units or generate new numerical values. When comparing price or weight, use lower/higher/lighter/heavier only when exact listed values support it; no derived amounts. Include references and product_ids for every compared card, even when only one is the preferred pick. A preference is conditional when the decisive must-have is unknown. Keep unknown material performance unknown. '
         writer_rules += ' Wire format override: return text, product_ids, claim_refs only. Instead of claims objects, select exact keys from claim_reference_map for every stated fact. No unknown or duplicate references. All evidence and task requirements still apply. The application resolves references, then validates and independently reviews the complete claims.'
-    writer_schema=ReferencedShoppingDraft if use_references else ShoppingDraft
+    if use_template:
+        writer_rules=writer_rules.split(' Wire format override:')[0]
+        writer_rules=writer_rules.replace('Return JSON{text,product_ids,claim_refs}', 'Return JSON{text_template}')
+        writer_rules += ' Final wire format: return ONLY text_template. Write your own natural answer, but insert every product name, price, currency and factual value as {{cN}} using exact claim_reference_map keys. No product_ids or claim_refs properties. No literal digits, calculations or braces outside placeholders. Every card with any referenced fact must also have its name placeholder. The application substitutes exact values and builds claims before unchanged validation and independent review. This is evidence substitution, not permission to invent implications, suitability or unknown facts.'
+    writer_schema=TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
     def parse_writer(raw):
+        if use_template:return resolve_template_claims(raw,reference_map)
         return resolve_claim_references(raw,reference_map) if use_references else ShoppingDraft.model_validate_json(raw)
     # One total budget covers writer, review and all inference retry backoff.
     stage='writer_provider'
