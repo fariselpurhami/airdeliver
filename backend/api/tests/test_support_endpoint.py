@@ -148,3 +148,35 @@ class TestSupportEndpoint:
             json={"message": "hi", "session_id": "bad session!"},
         )
         assert resp.status_code == 422
+
+
+async def test_rate_limit_failures_never_log_private_cache_payload_or_session(caplog):
+    import json,logging
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    caplog.set_level(logging.INFO)
+    cache=SimpleNamespace(incr=AsyncMock(side_effect=RuntimeError('PRIVATE_FAILURE_BODY')))
+    assert await check_support_rate_limit('PRIVATE_SESSION_KEY',cache)
+    cache.incr=AsyncMock(return_value=RATE_LIMIT_MAX_MESSAGES+1)
+    assert not await check_support_rate_limit('PRIVATE_SESSION_KEY',cache)
+    records=json.dumps([vars(r) for r in caplog.records],default=str)
+    assert 'PRIVATE_' not in records
+    assert all(r.exc_info is None for r in caplog.records)
+
+
+async def test_support_route_hard_fault_keeps_private_data_out_of_raw_log_records(caplog):
+    import json,logging
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    caplog.set_level(logging.INFO)
+    cache=SimpleNamespace(incr=AsyncMock(return_value=1),expire=AsyncMock())
+    svc=SimpleNamespace(handle_message=AsyncMock(side_effect=RuntimeError('PRIVATE_PROVIDER_BODY')))
+    response=await ai_support.handle_support_chat(
+        request=SimpleNamespace(state=SimpleNamespace(correlation_id='safe-request')),
+        payload=ai_support.SupportRequestPayload(message='PRIVATE_CUSTOMER_TEXT',session_id='PRIVATE_SESSION_KEY',image_base64='PRIVATE_IMAGE'),
+        db=None,current_user=None,neural_service=svc,cache=cache)
+    records=json.dumps([vars(r) for r in caplog.records],default=str)
+    assert 'PRIVATE_' not in records
+    assert all(r.exc_info is None for r in caplog.records)
+    assert 'PRIVATE_' not in response.model_dump_json()
+    assert response.confidence==0

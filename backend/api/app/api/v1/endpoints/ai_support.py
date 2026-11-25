@@ -47,11 +47,11 @@ async def check_support_rate_limit(client_key: str, cache: IAsyncCacheClient) ->
         if current_count == 1:
             await cache.expire(key, RATE_LIMIT_WINDOW_SEC)
         if current_count > RATE_LIMIT_MAX_MESSAGES:
-            logger.warning("support_chat.rate_limited", extra={"client_key": client_key})
+            logger.warning("support_chat.rate_limited", extra={"limit": RATE_LIMIT_MAX_MESSAGES})
             return False
         return True
     except Exception as exc:
-        logger.warning("support_chat.rate_limit_fail_open", extra={"error": str(exc)})
+        logger.warning("support_chat.rate_limit_fail_open", extra={"error_type": type(exc).__name__})
         return True
 
 # -----------------------------------------------------------------------------
@@ -139,7 +139,6 @@ async def handle_support_chat(
         "Initiating Neural Core processing",
         extra={
             "correlation_id": correlation_id,
-            "session_id": payload.session_id,
             "user_id": user_id,
             "message_length": len(clean_message),
         }
@@ -170,12 +169,9 @@ async def handle_support_chat(
             "NEURAL_CORE_HARD_FAULT",
             extra={
                 "correlation_id": correlation_id,
-                "session_id": payload.session_id,
                 "user_id": user_id,
                 "error_type": error_type,
-                "error_message": str(e),
             },
-            exc_info=True,
         )
 
         return NeuralCoreResponse(
