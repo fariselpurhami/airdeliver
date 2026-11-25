@@ -11,7 +11,7 @@ def answer_shape(mode, cards, evidence):
         return 'opening_two_paragraph'
     if evidence.get('shopping_task') == 'price_inquiry':
         return 'short'
-    return 'four_phase'
+    return 'adaptive'
 
 
 def advisory_strategy(mode,cards,evidence):

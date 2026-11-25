@@ -14,6 +14,9 @@ GIFT = '''gift_browse:true permits diverse actual within-budget catalog options 
 CART = '''CART_COMPLEMENTS/ALTERNATIVES are optional advice after an already completed change, not authority for another action. No inferred removal reason, preference, language, personal budget or compatibility. catalog_asserted_complement permits related advice only; same-category alternative is not an upgrade. Concise English if no customer language.'''
 OPENING = '''OPENING_INSIGHT: exactly two short paragraphs, welcoming introduction then useful grounded shopping Insight. No headings or assumed tastes. Row labels never prove trends, popularity, deals, luxury, measured sales or discounts. Invite exploration without assuming fit. This is not four-phase advice.'''
 
+ADAPTIVE = '''Choose presentation from the exact question and available evidence, not a repeated template. Do not force four sections or a fixed sequence of headings. A factual question can need one sentence; a decision needs a clear evidenced pick or conditional/no-pick answer, actual tradeoff and decisive unknown; a comparison can use short separate-line bullets. Follow-ups update the decision instead of restarting the introduction. Use concise meaningful labels or lightweight Markdown emphasis only when helpful. Keep hierarchy, spacing and bullets readable. Never pad, repeat the intro in card reasons or invent a section's facts. At most160words, often less. All evidence, claims, hard constraints and independent review remain unchanged.'''
+ADAPTIVE_REVIEW = '''Do not force four sections or reject a useful answer for having a different paragraph count. Judge whether its shape fits this question, gives the useful decision/fact and specific missing check without redundant questions or a buying pitch. Reject repetitive filler, unsupported certainty, fabricated tradeoffs or decorative sections without evidence. Clear spacing, concise labels and separate-line bullets may help, but no fixed template is required.'''
+
 def contracts(mode,context):
     context=context or {}
     specific=CATALOG if mode=='catalog_results' else CLARIFY
@@ -23,6 +26,9 @@ def contracts(mode,context):
     if context.get('sales_intent')=='OPENING_INSIGHT':specific+=' '+OPENING
     writer=EVIDENCE+' '+TASK+' '+specific
     reviewer=EVIDENCE+' '+REVIEW+' '+specific
+    if context.get('product_answer_shape')=='adaptive':
+        writer=writer.replace('at most100words unless four_phase','at most160words')+' '+ADAPTIVE
+        reviewer+=' '+ADAPTIVE_REVIEW
     if context.get('product_answer_shape')=='four_phase':
         writer=writer.replace('at most100words unless four_phase','at most160words')+' '+FOUR
         reviewer+=' '+FOUR_REVIEW
