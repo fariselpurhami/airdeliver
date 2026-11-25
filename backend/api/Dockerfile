@@ -81,6 +81,7 @@ COPY --chown=$APP_UID:$APP_GID alembic ./alembic
 COPY --chown=$APP_UID:$APP_GID seed_data.json .
 COPY --chown=$APP_UID:$APP_GID app ./app
 COPY --chown=$APP_UID:$APP_GID *.py .
+COPY --chown=$APP_UID:$APP_GID tools ./tools
 
 USER $APP_USER
 EXPOSE 8000
