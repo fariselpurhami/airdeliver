@@ -546,7 +546,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
         <div className="w-full flex flex-col items-center justify-center relative">
           
           <div className="flex flex-col items-center text-center max-w-3xl w-full relative z-30 pointer-events-auto">
-            <AISecuredOrdersBadge />
+            <AISecuredOrdersBadge unframed />
             <motion.h1
               id={titleId}
               initial="hidden" animate="visible" variants={fadeUpVariant}
@@ -669,7 +669,7 @@ const MobileHomeHeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectio
         <div className="w-full flex flex-col items-center justify-center relative h-full min-h-[600px]">
           
           <div className="flex flex-col items-center text-center max-w-3xl w-full relative z-30 pointer-events-auto">
-            <AISecuredOrdersBadge />
+            <AISecuredOrdersBadge unframed />
             <motion.h1
               id={titleId}
               initial="hidden" animate="visible" variants={fadeUpVariant}
