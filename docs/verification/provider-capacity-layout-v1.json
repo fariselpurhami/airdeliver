@@ -1,0 +1,53 @@
+{
+  "baseline": "22e4352e47cdfeaa5d87bbc197dd25e854dd097e",
+  "modules": [
+    {
+      "old_module": "app.services.provider_budget",
+      "canonical_module": "app.services.provider_capacity.provider_budget",
+      "path": "backend/api/app/services/provider_capacity/provider_budget.py",
+      "sha256": "c946ef9936ba51e54c1f379a1863b94a437489da0638f8c6915313dff327c4c2"
+    },
+    {
+      "old_module": "app.services.provider_capacity_snapshot",
+      "canonical_module": "app.services.provider_capacity.provider_capacity_snapshot",
+      "path": "backend/api/app/services/provider_capacity/provider_capacity_snapshot.py",
+      "sha256": "f92850abeac2ddc10849740ca5d83bd06b0a6dc72e67ba187de554d66962843b"
+    },
+    {
+      "old_module": "app.services.provider_json_diagnostics",
+      "canonical_module": "app.services.provider_capacity.provider_json_diagnostics",
+      "path": "backend/api/app/services/provider_capacity/provider_json_diagnostics.py",
+      "sha256": "92ed7160e87f534b0687a6b958dd729366880d5af28942cb9fda68adeb549fec"
+    },
+    {
+      "old_module": "app.services.provider_response_observation",
+      "canonical_module": "app.services.provider_capacity.provider_response_observation",
+      "path": "backend/api/app/services/provider_capacity/provider_response_observation.py",
+      "sha256": "4ebf2b816c774da4ad159cd82dd6fe62ee28b997e87c40e7177742e9ac04b288"
+    },
+    {
+      "old_module": "app.services.provider_usage_meter",
+      "canonical_module": "app.services.provider_capacity.provider_usage_meter",
+      "path": "backend/api/app/services/provider_capacity/provider_usage_meter.py",
+      "sha256": "f04fb71648c253218e87e23b54584d501a703436ede80e5b86956c38ca7685ff"
+    },
+    {
+      "old_module": "app.services.shared_provider_admission",
+      "canonical_module": "app.services.provider_capacity.shared_provider_admission",
+      "path": "backend/api/app/services/provider_capacity/shared_provider_admission.py",
+      "sha256": "078935dfa21cf3a2cd6bf9ebf55eff4d2494f47779702fd5733b373308d3c6a3"
+    },
+    {
+      "old_module": "app.services.paid_turn_admission",
+      "canonical_module": "app.services.provider_capacity.paid_turn_admission",
+      "path": "backend/api/app/services/provider_capacity/paid_turn_admission.py",
+      "sha256": "d85408178f12b0b4dd6e92c937e75b3af55e5f41628f7a6a5451e6c85102fefb"
+    },
+    {
+      "old_module": "app.services.capacity_evidence",
+      "canonical_module": "app.services.provider_capacity.capacity_evidence",
+      "path": "backend/api/app/services/provider_capacity/capacity_evidence.py",
+      "sha256": "7fe84079204c9aab900cf6a83a233bd89546658654f1a946af4e79ba64cb4e44"
+    }
+  ]
+}
