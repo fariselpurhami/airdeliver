@@ -46,7 +46,7 @@ services:
     # Replace the old mount list, never attach a PG16 data directory to PG19.
     volumes: !override
       - postgres19-data:/var/lib/postgresql
-      - ./db_init/01-enable-vector.sql:/docker-entrypoint-initdb.d/01-enable-vector.sql:ro
+      - ./infra/database/init/01-enable-vector.sql:/docker-entrypoint-initdb.d/01-enable-vector.sql:ro
     command: postgres -c shared_buffers=256MB -c effective_cache_size=1536MB -c work_mem=16MB -c maintenance_work_mem=128MB
     ports:
       - "5432:5432"

@@ -1,0 +1,13 @@
+# Monorepo layout, infrastructure slice
+
+Four byte-for-byte configuration moves: PostgreSQL init SQL toinfra/database/init;
+Prometheus/Promtail/Grafana toinfra/observability. Exact old/newpaths andSHA256
+recorded beside thisfile. Combinedbase/devCompose mountsourcesupdatedtogether;
+containertargets,readonlyflags,project/service/volume namesandruntimecommands
+unchanged. No SQLexecuted,nomigration,noconfigsemanticchange.
+
+Historicalverificationdocsretainoldpathsasdatedevidence. CurrentREADME/map
+updated;brokenGoogle-searchrunbooklinksrepaired. ActualComposeconfigtestsand
+fullexactheadmatrixincludingDockerrequired. Movingconfigurationfilesisnot
+proofmonitoringalertdeliveryorproductionreadiness. Otherdocs/scripts/API/web
+movesremainlaterstages,noblindreorganization.

@@ -53,7 +53,7 @@ Our workspace is structured for enterprise scalability and strict separation of 
 ├── infra/                   # Infrastructure-as-Code
 │   ├── k8s/                 # Kubernetes Manifests (Deployments, Ingress, Services)
 │   └── grafana/             # Observability Dashboards
-├── monitoring/              # Prometheus Configurations & Promtail Logs
+├── infra/observability/     # Prometheus, Promtail and Grafana config
 ├── data/                    # HuggingFace Model Caches & Persistent Volumes
 ├── tests/                   # End-to-End, Integration, and Global Architecture Tests
 └── docs/                    # Architectural Decision Records (ADRs) & Runbooks
@@ -129,8 +129,8 @@ docker-compose up --build
 
 For production deployments, disaster recovery, and architecture testing, please refer to our internal documentation:
 
-* 📖 **[RUNBOOK.md](https://www.google.com/search?q=./RUNBOOK.md)** - System operations, scaling metrics, and SLOs.
-* 🚨 **[INCIDENT_RESPONSE.md](https://www.google.com/search?q=./docs/INCIDENT_RESPONSE.md)** - Outage mitigation and failover strategies.
+* 📖 **[RUNBOOK.md](./RUNBOOK.md)** - System operations, scaling metrics, and SLOs.
+* 🚨 **[INCIDENT_RESPONSE.md](./docs/INCIDENT_RESPONSE.md)** - Outage mitigation and failover strategies.
 * 🧠 **[AI_ORDERING_AGENT.md](https://www.google.com/search?q=./docs/AI_ORDERING_AGENT.md)** - Behavior trees and prompt engineering architecture.
 * 🔒 **[SECURITY.md](https://www.google.com/search?q=./SECURITY.md)** - Payload encryption and vulnerability protocols.
 

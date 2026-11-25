@@ -1,0 +1,22 @@
+[
+  {
+    "from": "db_init/01-enable-vector.sql",
+    "to": "infra/database/init/01-enable-vector.sql",
+    "sha256": "9e9b2cfec47519f49ee73cb533c459e22f8ca54fe5ba1cbec59f3d5883fe191c"
+  },
+  {
+    "from": "monitoring/prometheus.yml",
+    "to": "infra/observability/prometheus/prometheus.yml",
+    "sha256": "56e40eddafc2b19b8dd468cd8bda8d46d0854a74c6df42e6ca05b77fb821adba"
+  },
+  {
+    "from": "monitoring/promtail.yaml",
+    "to": "infra/observability/promtail/promtail.yaml",
+    "sha256": "03cfdd3f3ba6de0a1d1680c785c06995d3d7ead323f16d3f8d7210d7b1f66782"
+  },
+  {
+    "from": "infra/grafana/api_dashboard.json",
+    "to": "infra/observability/grafana/api_dashboard.json",
+    "sha256": "ff6c44f0e7f188e14a78c6d9ede554511d49bf795d7fcbe6a1572b78999bff77"
+  }
+]

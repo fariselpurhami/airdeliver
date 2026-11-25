@@ -30,8 +30,8 @@ airdeliver/
 │
 ├── infra/
 │   ├── k8s/                    # Kubernetes manifests (+ _legacy/)
-│   └── grafana/                # Dashboard JSON
-├── monitoring/                 # prometheus.yml, promtail.yaml
+│   ├── database/init/          # PostgreSQL init SQL
+│   └── observability/          # Prometheus, Promtail and Grafana
 ├── docs/                       # ops docs (security/, INCIDENT_RESPONSE.md, ...)
 ├── tests/                      # integration tests (require live stack)
 ├── docker-compose.yml          # full stack
