@@ -14,7 +14,7 @@ Command: `poetry run python scripts/verify_postgres_integration.py`.
 
 Five new HTTP/PostgreSQL tests cover inactive login, inactive refresh, disable after token issuance, active login continuity and bad/unknown credentials. The password-validity branch is controlled in these policy tests; actual Argon2/bcrypt/password behavior is covered separately. Synthetic fixture writes are limited to disposable GitHub Actions.
 
-Verified after fix locally: `python -m pytest -q tests/test_security_core.py tests/test_deps_auth.py`, 27 passed, one existing test-only short-key warning. Full fix-head CI and postmerge results remain pending, not claimed here.
+Verified after fix locally: `python -m pytest -q tests/test_security_core.py tests/test_deps_auth.py`, 27 passed, one existing test-only short-key warning. Full fix-head CI at78d0c0b6dc439f321835391c478b868d57a7951b passed all five checks, including both PostgreSQL storage jobs, frontend build/typecheck/tests, Docker smoke and secret scan. Evidence: https://github.com/fariselpurhami/airdeliver/actions/runs/45679845200/job/139437151469 . Documentation-update-head CI and postmerge results remain pending, not claimed here.
 
 ## Remaining limits
 
