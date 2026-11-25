@@ -34,3 +34,7 @@ No whole-group/model-quality/owner-runtime acceptance is earned by code tests.
 preview inspected at 430px: wrapped copy, separate controls, disabled uncertain
 mutations, readable no-overflow panel. Full backend and exact-head CI release
 receipts are required before merge. No live owner/provider calls were made.
+
+First exact-head CI on151d6a44 ran2290pass3skip on each storage backend but
+failed only the stale acceptance-map checkpoint assertion18 instead of19.
+Checkpoint test updated with CAP18 explicitly; no product failure hidden.
