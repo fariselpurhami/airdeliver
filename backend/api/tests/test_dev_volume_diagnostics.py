@@ -53,3 +53,13 @@ def test_inventory_reads_all_containers_and_never_prints_resolved_secrets(monkey
     assert 'current_volume' in out and 'stopped-db [exited]' in out and '13MB' in out
     assert 'PRIVATE_SECRET' not in out
     assert all(not any(word in args for word in ['rm','prune','up','down','run','exec']) for args in calls)
+
+
+def test_reconciliation_plan_never_equates_unused_with_disposable():
+    classify=INSPECT['classify_volume']
+    v={'Labels':{'com.docker.compose.project':'airdeliver_dev'}}
+    assert classify('current',v,{'current'},[])[0]=='PROTECTED_CURRENT_CONFIG'
+    c=[{'Name':'/old-db','State':{'Status':'exited'},'Mounts':[{'Type':'volume','Name':'old'}]}]
+    assert classify('old',v,{'current'},c)[0]=='PROTECTED_CONTAINER_REFERENCE'
+    assert classify('old',v,{'current'},[])[0]=='STALE_PROJECT_VOLUME_REVIEW_REQUIRED'
+    assert classify('other',{},set(),[])[0]=='UNMANAGED_REVIEW_REQUIRED'

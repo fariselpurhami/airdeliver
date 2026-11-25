@@ -10,7 +10,36 @@ python3 scripts/inspect_dev_volumes.py
 
 It prints resolved Compose volume names/mounts, all matching project volumes, references from running and stopped containers, and Docker's size/refcount table. It does not print resolved service environments. Keep the output private because infrastructure names are included. Size reporting can be slow or unavailable with some volume drivers; missing size is not zero. No reference does not prove data is unwanted or authorize deletion.
 
-## Hide only the known mismatch warning
+## Correct the cause, not only the output
+
+Compose reports old project-labelled volumes whose physical names no longer
+match the current declared volume name. Its reconciler deliberately leaves
+these data-bearing orphans untouched. Source:
+https://github.com/docker/compose/blob/v5.8.0/pkg/compose/reconcile.go
+
+The inventory classifies current-config volumes and volumes referenced by any
+running or stopped container as protected. An unreferenced stale volume is only
+a review candidate, never disposable by default.
+
+Before any owner-machine mutation:
+1. Capture the inventory and the current resolved mount list.
+2. Identify each old volume's data and retention need with the owner.
+3. If retention is needed, choose a driver-supported export and restore route.
+   Prove the restored archive before removing the original; live databases need
+   application-consistent backups. Check free disk before copying.
+4. Present the exact old-volume list, archive/backup destination, downtime and
+   rollback route for explicit approval. Recheck all container references just
+   before any approved removal.
+5. Leave active volume names and service mounts unchanged. Verify ordinary
+   Compose no longer reports the exact stale-label warning afterward.
+
+Do not repoint services to old data, alter Compose project identity, or mark
+volumes external merely to make output quiet. No prune or down-v. Docker local
+volumes do not provide an in-place rename/relabel operation, so archiving under
+a new name or removing the old volume is a real data operation, not metadata
+housekeeping.
+
+## Optional warning filter, not a repair
 
 Use this wrapper instead of the same `docker compose` command. It supplies the existing combined dev files, `.env.dev` and project name. Pass the remaining Compose arguments unchanged:
 
