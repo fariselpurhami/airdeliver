@@ -60,3 +60,8 @@ Do not map old data volumes back into services solely to silence warnings. That 
 ## Deletion is separate and not authorized
 
 No prune, `down -v`, removal list or backup claim is supplied here. Before proposing removal: inspect actual references (including stopped containers), identify the data and retention need, prepare an export route for that driver, verify the backup and restore process, and obtain explicit approval for the exact volume list. A live database needs an application-consistent backup, not a claim that copying changing files is sufficient. None of these owner-machine checks has been performed by this change.
+
+
+## Owner execution receipt, November25,2026
+
+At18:23 Cairo, the owner supplied output of the separately approved guarded removal command. It listed the seven stale volumes and verified all seven absent. The command used no force, prune, down or other volume removal. This is owner-supplied execution evidence, not a Docker session operated by this repository change. The other five historical volumes and current mounts were outside the approved removal scope. Size was not established and no archive was requested. Ordinary combined Compose health output and absence of the stale-label warning remain a separate follow-up until received. Do not repeat deletion or treat this historical approval as authority for any future volume.
