@@ -315,19 +315,21 @@
       "id": "CAP-44",
       "capability": "generate_response plain/JSON/context adapter",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Strict adapter and retained success/failure bridges with safe diagnostics",
-      "next_code_or_boundary_acceptance": "Enumerate remaining generate_response callers, separate dormant unreviewed bodies from active callers, cover incomplete-card compatibility",
+      "next_code_or_boundary_acceptance": "No known remaining in-scope code gap after active caller audit; exact-head scan, both backend storage jobs and fast-forward merge remain the release gate. Live model and owner acceptance are separate.",
       "quality_acceptance": "Actual model quality remains separate from typed adapter success",
       "owner_acceptance": "Model/profile/configuration and deployed error receipts",
       "evidence_leads": [
         "apps/api/tests/test_strict_adapter_json_boundary.py",
         "apps/api/tests/test_strict_legacy_routing.py",
         "apps/api/tests/test_legacy_synthesis_strict.py",
-        "apps/api/tests/test_legacy_recovery_strict.py"
+        "apps/api/tests/test_legacy_recovery_strict.py",
+        "docs/verification/cap44-code-acceptance-v1.json",
+        "apps/api/tests/test_completion_adapter_closure.py"
       ],
       "unresolved_test_leads": []
     },
@@ -386,5 +388,7 @@
       ],
       "unresolved_test_leads": []
     }
-  ]
+  ],
+  "code_complete_groups": 1,
+  "code_remaining_groups": 19
 }

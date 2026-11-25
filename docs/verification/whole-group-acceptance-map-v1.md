@@ -35,3 +35,11 @@ Opening/source/image/cart groups keep their own gates. A final combined release
 also needs the independent production gap register, not merely these twenty rows.
 
 No zero-defect, deadline, full-feature or production-ready guarantee is implied.
+
+## Code-first checkpoint
+
+CAP-44 has its active caller inventory and controlled boundary code acceptance
+complete, subject to the exact-head CI/fast-forward release gate. Code scope is
+1complete/19remaining. This separate count does not change whole-group0/20 or
+canonical55. The JSON row and CAP44 code-acceptance document identify the finite
+scope, retained dormant bodies, test evidence and parked live/owner checks.

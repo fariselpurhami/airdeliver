@@ -1,7 +1,7 @@
 {
   "capability": "CAP-44",
   "name": "generate_response plain/JSON/context adapter",
-  "code_status": "implemented_pending_exact_head_ci_and_merge",
+  "code_status": "complete_subject_to_release_gate",
   "whole_group_closed": false,
   "quality_status": "live_model_acceptance_parked_by_owner",
   "owner_status": "not_executed",
