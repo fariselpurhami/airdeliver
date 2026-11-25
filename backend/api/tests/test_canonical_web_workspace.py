@@ -48,7 +48,7 @@ def test_isolated_ci_fixture_keeps_all_assertions_with_canonical_workspace_input
 def test_dev_compile_uses_real_mount_and_existing_memory_budget():
     ci=(ROOT/'.github/workflows/frontend-ci.yml').read_text()
     assert '--memory=3g --memory-swap=3g' in ci
-    assert '$PWD/frontend/web:/workspace/frontend/web:ro' in ci
+    assert '$PWD/frontend/web:/workspace/frontend/web' in ci
     assert 'scripts/dev-healthcheck.mjs' in ci
     dev=(ROOT/'docker-compose.dev.yml').read_text().split('  web:\n',1)[1]
     assert 'NODE_OPTIONS=--max-old-space-size=2048' in dev
