@@ -280,17 +280,20 @@
       "id": "CAP-32",
       "capability": "Removal recovery alternatives and optional confirmation prompt",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Confirmed removal reason reaches optional read-only reviewed alternatives",
-      "next_code_or_boundary_acceptance": "Audit retained fallback branch success/error/cancel behavior and catalog changes without automatic re-add",
+      "next_code_or_boundary_acceptance": "No remaining code gap found in active persistence/optional-worker/current-evidence audit; expanded actual-storage failure/cancellation acceptance passes. Exact-head CI and merge remain; semantic quality and owner acceptance separate.",
       "quality_acceptance": "Actual concern interpretation and alternative usefulness",
       "owner_acceptance": "Owner observation after confirmed removal, not before persistence",
       "evidence_leads": [
         "apps/api/tests/test_cart_sales_postgres.py",
-        "apps/api/tests/test_legacy_recovery_strict.py"
+        "apps/api/tests/test_legacy_recovery_strict.py",
+        "docs/verification/cap32-code-acceptance-v1.md",
+        "apps/api/tests/test_cart_sales_transport.py",
+        "apps/api/tests/test_cart_persistence_outcomes.py"
       ],
       "unresolved_test_leads": []
     },
@@ -396,6 +399,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 4,
-  "code_remaining_groups": 16
+  "code_complete_groups": 5,
+  "code_remaining_groups": 15
 }

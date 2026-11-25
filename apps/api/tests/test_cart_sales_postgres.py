@@ -68,38 +68,45 @@ async def test_real_worker_model_cards_current_rows_and_no_cart_mutation(real_ca
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('change', ['price','stock','inactive','relation','deleted','cart','rejected','offline','timeout'])
-async def test_inflight_change_or_provider_failure_withholds_optional_advice(real_cache, change):
+@pytest.mark.parametrize('operation',['added','removed'])
+@pytest.mark.parametrize('change', ['price','stock','inactive','relation','deleted','cart','rejected','offline','timeout','cancel'])
+async def test_inflight_change_or_provider_failure_withholds_optional_advice(real_cache, change,operation):
     cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
     try:
         async with sessions() as db:
             anchor=Product(description="",sku=uuid4().hex,name='Anchor',category='devices',price=100,inventory=10,currency='USD')
-            candidate=Product(description="",sku=uuid4().hex,name='Case',category='devices',price=20,inventory=8,currency='USD',attributes={'complement_for_skus':json.dumps([anchor.sku])})
+            candidate=Product(description="",sku=uuid4().hex,name='Case',category='devices',price=100 if operation=='removed' else 20,inventory=8,currency='USD',attributes={'complement_for_skus':json.dumps([anchor.sku])})
             db.add_all([anchor,candidate]);await db.commit();ids=[anchor.id,candidate.id]
-        await cache.set_json_required('ai_cart:72',{'items':[{'product_id':anchor.id,'name':'Anchor','price':'100','quantity':1}]})
+        await cache.set_json_required('ai_cart:72',{'items':[{'product_id':anchor.id,'name':'Anchor','price':'100','quantity':1}] if operation=='added' else []})
         published=[]
         async def capture(channel,payload):published.append(json.loads(payload))
         cache.publish=capture
         async def hook():
             if change=='cart':
-                await cache.set_json_required('ai_cart:72',{'items':[]});return
+                await cache.set_json_required('ai_cart:72',{'items':[] if operation=='added' else [{'product_id':anchor.id,'name':'Anchor','price':'100','quantity':1}]});return
+            if change=='cancel':
+                import asyncio
+                raise asyncio.CancelledError()
             if change=='timeout':
                 raise TimeoutError('controlled provider deadline')
             if change in {'rejected','offline'}:return
             async with sessions() as db:
                 if change=='deleted':await db.execute(delete(Product).where(Product.id==candidate.id))
                 else:
-                    values={'price':{'price':21},'stock':{'inventory':0},'inactive':{'is_active':False},'relation':{'attributes':{}}}[change]
+                    values={'price':{'price':21},'stock':{'inventory':0},'inactive':{'is_active':False},'relation':{'category':'unrelated'} if operation=='removed' else {'attributes':{}}}[change]
                     await db.execute(update(Product).where(Product.id==candidate.id).values(**values))
                 await db.commit()
         llm,calls=model_transport(hook,rejected=change=='rejected')
         if change=='offline':llm.infer_sales_json=AsyncMock(side_effect=ConnectionError('provider unavailable'))
         runtime=WorkerRuntime.__new__(WorkerRuntime);runtime.wait_for_readiness=AsyncMock()
-        runtime.services=SimpleNamespace(session_maker=sessions,cache=cache,rabbitmq=object(),commerce=SimpleNamespace(generate_perfect_bundle=AsyncMock(return_value=[candidate])),llm=llm)
-        await runtime.cart_recommendation_handler_impl({'user_id':72,'product_id':anchor.id,'operation':'added'})
+        runtime.services=SimpleNamespace(session_maker=sessions,cache=cache,rabbitmq=object(),commerce=SimpleNamespace(generate_perfect_bundle=AsyncMock(return_value=[candidate]),find_genius_alternatives=AsyncMock(return_value=[candidate])),llm=llm)
+        if change=='cancel':
+            import asyncio
+            with pytest.raises(asyncio.CancelledError):await runtime.cart_recommendation_handler_impl({'user_id':72,'product_id':anchor.id,'operation':operation})
+        else:await runtime.cart_recommendation_handler_impl({'user_id':72,'product_id':anchor.id,'operation':operation})
         assert published==[]
         cart=await cache.get_json_required('ai_cart:72')
-        assert len(cart['items'])==(0 if change=='cart' else 1)
+        assert len(cart['items'])==((0 if operation=='added' else 1) if change=='cart' else (1 if operation=='added' else 0))
     finally:
         async with sessions() as db:
             await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
@@ -131,3 +138,34 @@ async def test_add_optional_event_preserves_legacy_shape_without_null_reason():
         published.append(payload);return SimpleNamespace(is_success=True)
     await AICartService(None,None,SimpleNamespace(publish=publish))._request_optional_recommendations(17,7,'added','must be stripped')
     assert published==[{'version':1,'user_id':17,'product_id':7,'operation':'added'}]
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change',['excluded','anchor_deleted','anchor_category','anchor_price','currency'])
+async def test_removed_recovery_current_anchor_and_owner_cart_exclusions(real_cache,change):
+    cache,_=real_cache;engine=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(engine,expire_on_commit=False);ids=[]
+    try:
+        async with sessions() as db:
+            anchor=Product(description='',sku=uuid4().hex,name='Removed',category='devices',price=100,inventory=0,currency='USD')
+            candidate=Product(description='',sku=uuid4().hex,name='Alternative',category='devices',price=100,inventory=4,currency='USD')
+            db.add_all([anchor,candidate]);await db.commit();ids=[anchor.id,candidate.id]
+        items=[{'product_id':candidate.id,'name':'Alternative','price':'100','quantity':1}] if change=='excluded' else []
+        await cache.set_json_required('ai_cart:77',{'items':items});before=await cache.get_json_required('ai_cart:77');published=[]
+        async def publish(channel,payload):published.append(json.loads(payload))
+        cache.publish=publish
+        async def hook():
+            async with sessions() as db:
+                if change=='anchor_deleted':await db.execute(delete(Product).where(Product.id==anchor.id))
+                elif change=='anchor_category':await db.execute(update(Product).where(Product.id==anchor.id).values(category='unrelated'))
+                elif change=='anchor_price':await db.execute(update(Product).where(Product.id==anchor.id).values(price=10))
+                elif change=='currency':await db.execute(update(Product).where(Product.id==candidate.id).values(currency='EUR'))
+                await db.commit()
+        llm,calls=model_transport(hook)
+        runtime=WorkerRuntime.__new__(WorkerRuntime);runtime.wait_for_readiness=AsyncMock()
+        runtime.services=SimpleNamespace(session_maker=sessions,cache=cache,rabbitmq=object(),commerce=SimpleNamespace(find_genius_alternatives=AsyncMock(return_value=[candidate])),llm=llm)
+        await runtime.cart_recommendation_handler_impl({'user_id':77,'product_id':anchor.id,'operation':'removed'})
+        assert published==[] and await cache.get_json_required('ai_cart:77')==before
+        if change=='excluded':assert not calls
+    finally:
+        async with sessions() as db:
+            if ids:await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
+        await engine.dispose()
