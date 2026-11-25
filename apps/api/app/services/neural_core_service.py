@@ -70,7 +70,7 @@ class SessionMemory(BaseModel):
     target_requirements: dict[Annotated[str,Field(min_length=1,max_length=256)],ScopedFeatures] = Field(default_factory=dict,max_length=3)
     target_exclusions: dict[Annotated[str,Field(min_length=1,max_length=256)],ScopedFeatures] = Field(default_factory=dict,max_length=3)
     history: List[ChatMessage] = Field(default_factory=list, max_length=10)
-    
+
     def append_turn(self, user_msg: str, ai_msg: str, max_turns: int = 5) -> None:
         """Appends a conversation turn and securely truncates to maintain context limits."""
         if type(max_turns) is not int or not 1 <= max_turns <= 5:
@@ -79,7 +79,7 @@ class SessionMemory(BaseModel):
         self.history = self.history[-(max_turns - 1) * 2:] if max_turns > 1 else []
         self.history.append(ChatMessage(role="user", content=user_msg))
         self.history.append(ChatMessage(role="assistant", content=ai_msg))
-        
+
         # Keep only the last N turns (N * 2 messages) to bound memory usage
         max_messages = max_turns * 2
         if len(self.history) > max_messages:
@@ -121,7 +121,7 @@ class RouterDecision(BaseModel):
 
 LEGACY_SYSTEM_ROUTING_PROMPT: Final[str] = """
 You are the primary cognitive routing layer for 'air assistance', an elite shopping concierge.
-Analyze the user's message and the conversation history. 
+Analyze the user's message and the conversation history.
 
 You MUST output a valid JSON object strictly matching this schema:
 {
@@ -244,7 +244,7 @@ def _log_inference_failure(event: str, exc: Exception) -> None:
 class NeuralCoreService:
     """
     Enterprise-Grade Neural Core Service (Llama 3.x via Native Groq).
-    
+
     Architectural characteristics:
     - Deterministic JSON-schema enforcement via Pydantic.
     - Fault-tolerant API execution with exponential backoff and hard timeouts.
@@ -255,12 +255,12 @@ class NeuralCoreService:
     def __init__(self, ai_engine: AICommerceEngine, cache: IAsyncCacheClient) -> None:
         self.ai_engine = ai_engine
         self.cache = cache
-        
+
         api_key = os.getenv("GROQ_API_KEY")
         router_config = log_router_configuration()
         self.configuration_error = router_config is None
         self.is_healthy = bool(api_key) and not self.configuration_error
-        
+
         self.profile = get_ai_profile() if router_config else None
         self.client: Optional[AsyncGroq] = GroqAdapter(self.profile, AsyncGroq).create_client(
             api_key=api_key,
@@ -287,7 +287,7 @@ class NeuralCoreService:
         except (ValidationError, TypeError, ValueError) as exc:
             logger.warning("neural_core.session.corrupted_state", extra={"error_type": type(exc).__name__})
             # State corrupted or schema changed; graceful fallback to fresh session
-            
+
         return SessionMemory(user_name=user_name)
 
     async def _persist_session(self, session_id: str, memory: SessionMemory) -> None:
@@ -433,7 +433,7 @@ class NeuralCoreService:
             return RouterDecision(intent="SOCIAL_CHAT",social_reply=_router_failure_notice(exc))
 
         return RouterDecision(
-            intent="SOCIAL_CHAT", 
+            intent="SOCIAL_CHAT",
             social_reply="Chat assistance is temporarily unavailable. Please try again or use the catalog or support page."
         )
 
@@ -892,12 +892,12 @@ class NeuralCoreService:
         image_base64: Optional[str] = None,
     ) -> NeuralCoreResponse:
         """
-        Main entrypoint. Orchestrates memory hydration, LLM inference, 
+        Main entrypoint. Orchestrates memory hydration, LLM inference,
         domain action dispatching, and memory persistence safely.
         """
         start_time = time.monotonic()
         user_name = user.full_name if user and getattr(user, "full_name", None) else "Client"
-        
+
         # Browser session IDs are caller-controlled. Bind authenticated history
         # to the authenticated owner, never client-provided user IDs or names.
         if user is not None:
@@ -922,7 +922,7 @@ class NeuralCoreService:
             return response
 
         decision = await self._analyze_intent(message, memory)
-        
+
         logger.info("neural_core.request_routed intent=%s targets=%d task=%s",
                     decision.intent,len(decision.targets),decision.shopping_task)
 
@@ -988,13 +988,13 @@ class NeuralCoreService:
                         response = await self._handle_staged_product_search(db,decision,memory.shopping_brief,message,memory=memory)
                 else:
                     response = await self._handle_product_search(db, query, memory.shopping_brief, message, decision)
-        
+
         elif decision.intent == "TRACK_ORDER":
             response = self._handle_order_tracking(decision.order_id)
-            
+
         elif decision.intent == "SUPPORT_HANDOFF":
             response = self._handle_support_handoff()
-            
+
         else:  # SOCIAL_CHAT
             if not decision.social_reply or decision.social_reply.startswith("Chat assistance"):
                 response=NeuralCoreResponse(text="System notice: "+(decision.social_reply or "Chat assistance is temporarily unavailable."),
@@ -1004,18 +1004,36 @@ class NeuralCoreService:
 
         # Memory Commit
         turn_count = len(memory.history) // 2
-        
+
         response.enrich_telemetry(turn=turn_count)
         memory.append_turn(message, response.text, max_turns=NeuralCoreConfig.MAX_CONTEXT_TURNS)
-        
-        # Async persistence off critical path could be done here via BackgroundTasks, 
+
+        # Async persistence off critical path could be done here via BackgroundTasks,
         # but awaiting ensures consistency for rapid follow-up messages.
         await self._persist_session(session_id, memory)
-        
+
         elapsed_ms = round((time.monotonic() - start_time) * 1000, 2)
         logger.info("neural_core.request_completed intent=%s latency_ms=%s",decision.intent,elapsed_ms)
-        
+
         return response
+
+
+    # Original pre-expansion source retained dormant.
+    async def _legacy_pre_broad_persist_session(self, session_id: str, memory: SessionMemory) -> None:
+        """Persists validated session state atomically."""
+        deferred=_deferred_memory.get()
+        if deferred is not None:
+            deferred.append((session_id,memory.model_copy(deep=True)))
+            return
+        key = self._get_session_key(session_id)
+        try:
+            await self.cache.set_json(
+                key,
+                memory.model_dump(mode="json"),
+                ttl=NeuralCoreConfig.SESSION_TTL_SEC
+            )
+        except Exception as exc:
+            logger.error("neural_core.session.persist_failed", extra={"error_type": type(exc).__name__})
 
 
 # =============================================================================
@@ -1031,4 +1049,3 @@ async def get_neural_core_service(
     try:yield service
     finally:
         if service.client is not None:await service.client.close()
-

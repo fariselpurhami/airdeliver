@@ -203,3 +203,31 @@ class CustomerMemoryService:
         await self.db.execute(statement.on_conflict_do_update(constraint='uq_customer_memory_fact',set_={'expires_at':LONG_TERM_EXPIRY}))
         await self.db.commit()
         return True
+
+
+    # Original pre-expansion source retained dormant.
+    async def _legacy_pre_broad_recall(self,user_id,limit=5):
+        if not get_core_settings().CUSTOMER_MEMORY_ENABLED:return []
+        now=datetime.now(timezone.utc)
+        # Expired rows are never eligible, even before physical purge.
+        rows=(await self.db.execute(select(CustomerShoppingMemory).join(CustomerMemoryConsent,CustomerMemoryConsent.user_id==CustomerShoppingMemory.user_id).where(CustomerShoppingMemory.user_id==user_id,CustomerShoppingMemory.expires_at>now,CustomerMemoryConsent.policy_version.in_(READ_POLICIES)).order_by(CustomerShoppingMemory.created_at.desc()).limit(min(max(limit,0),20)))).scalars().all()
+        return [f'Customer explicitly prefers {row.category}: {row.value}' for row in rows if row.value in VALUES.get(row.category,set())]
+
+
+def _legacy_three_category_valid_candidate(raw, source):
+    try:
+        item=PreferenceCandidate.model_validate(raw)
+    except Exception:
+        return None
+    value=item.value.casefold().strip()
+    evidence=item.evidence.casefold().strip()
+    if value not in VALUES[item.category] or evidence not in source.casefold():
+        return None
+    # Exact affirmative statement only; generated inference is not durable fact.
+    if not re.search(r'\b(i prefer|i like|i always choose|my favorite|my favourite)\b', evidence):
+        return None
+    if re.search(r'\b(not|never|don.t|avoid|hate|dislike)\b', evidence):
+        return None
+    if not re.search(r'\b'+re.escape(value)+r'\b',evidence):
+        return None
+    return item.category,value
