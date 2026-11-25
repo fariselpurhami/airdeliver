@@ -33,6 +33,10 @@ class ScopeReview(BaseModel):
 
 async def assign_target_scope(infer,message,targets,features,customer_context=(),*,timeout=5,kind='required_features'):
     if kind not in {'required_features','excluded_terms'}:raise ValueError('Invalid scope kind')
+    if not isinstance(targets,(list,tuple)) or not 1<=len(targets)<=3 or any(not isinstance(t,str) or not 1<=len(t)<=256 for t in targets):raise ValueError('Invalid scope targets')
+    if len({' '.join(t.casefold().split()) for t in targets})!=len(targets):raise ValueError('Duplicate scope targets')
+    if not isinstance(features,(list,tuple)) or len(features)>8 or any(not isinstance(f,str) or not 1<len(f)<=128 for f in features):raise ValueError('Invalid scope features')
+
     async with asyncio.timeout(timeout):
         payload={'current_customer_message':message,'customer_only_context':list(customer_context)[-5:],
                  'literal_targets':targets,'existing_hard_features':features,'constraint_kind':kind}

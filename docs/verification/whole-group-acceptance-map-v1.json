@@ -29,20 +29,22 @@
       "id": "CAP-13",
       "capability": "RAM/storage extraction, broad-query cleanup, search constraints",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Typed capacity family conversion and explicit prefix/suffix bounds, scoped hard constraints",
-      "next_code_or_boundary_acceptance": "Inventory all supported non-capacity attributes and verify exact target assignment; do not guess locale or physical units",
+      "next_code_or_boundary_acceptance": "Finite typed capacity and isolated literal non-capacity vocabulary contract plus exact target assignment audited; release gate required. No general semantic/unit interpretation claim.",
       "quality_acceptance": "Held-out multilingual extraction and correction meaning",
       "owner_acceptance": "Real merchant attribute vocabulary and provenance",
       "evidence_leads": [
         "apps/api/tests/test_capacity_suffix_bounds.py",
         "apps/api/tests/test_arabic_target_scope_postgres.py",
-        "apps/api/tests/test_explicit_capacity_conversion.py"
+        "apps/api/tests/test_explicit_capacity_conversion.py",
+        "apps/api/tests/test_constraint_code_closure.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap13-code-acceptance-v1.md"
     },
     {
       "id": "CAP-14",
@@ -418,6 +420,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 12,
-  "code_remaining_groups": 8
+  "code_complete_groups": 13,
+  "code_remaining_groups": 7
 }

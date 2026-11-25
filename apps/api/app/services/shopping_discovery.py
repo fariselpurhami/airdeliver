@@ -42,6 +42,22 @@ class ShoppingBrief(BaseModel):
         return ShoppingBrief(**fields)
 
     def permits(self,card: CatalogResult) -> bool:
+        from app.services.capacity_evidence import supported_capacity
+        from app.services.literal_feature_evidence import literal_present
+        def present(term):
+            capacity=supported_capacity(term,card.catalog_specs,card.name)
+            if capacity is not None:return capacity
+            return literal_present(term,card.catalog_specs,card.name,card.category or '')
+        if any(present(term) for term in self.excluded_terms):return False
+        if any(not present(term) for term in self.required_features):return False
+        if self.budget_max is None:return True
+        try:
+            cap=Decimal(self.budget_max)
+            cost=Decimal(card.price) if card.price is not None else None
+            return bool(cap.is_finite() and cap>0 and cost is not None and cost.is_finite() and cost>=0 and card.currency==self.budget_currency and cost<=cap)
+        except (InvalidOperation,TypeError,ValueError):return False
+
+    def _legacy_permits_flattened(self,card: CatalogResult) -> bool:
         import re
         # Allow typographic spaces between literal characters, but require
         # lexical boundaries. 'red' is not 'infrared',16GB is not116GB.
