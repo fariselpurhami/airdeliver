@@ -14,7 +14,8 @@ Evidence: https://github.com/fariselpurhami/airdeliver/actions/runs/45670689669/
 
 - Verified locally after fix: `python -m pytest -q tests/test_security_core.py tests/test_deps_auth.py`, 27 passed, one existing test-only short-key warning.
 - Verified locally: 10 HTTP/PostgreSQL cases collected. These fixtures refuse writes outside GitHub Actions or a named `airdeliver_test_*` PostgreSQL database.
-- Pending: full exact-head CI after fix, green HTTP/PostgreSQL outcomes and postmerge checks. This note does not claim those results before they run.
+- Verified at revision481e66f4249f70c85c3030f3423f53a49fa7c836: all five full CI checks passed, including both PostgreSQL storage-matrix jobs, frontend typecheck/tests/build, Docker workspace smoke and secret scan. Evidence: https://github.com/fariselpurhami/airdeliver/actions/runs/45674351482/job/139417769055 .
+- Pending: the documentation-update head must pass fresh full CI and postmerge checks. No owner deployment acceptance is claimed.
 - Controlled outage and cancellation use injected sessions at the HTTP dependency boundary. This is not a live database/network fault-injection certification.
 - The tests mount the actual auth router. Whole-application ingress/middleware and owner deployment acceptance remain separate.
 
