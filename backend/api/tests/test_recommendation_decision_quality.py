@@ -67,3 +67,15 @@ async def test_adaptive_presentation_is_task_shaped_not_a_repeated_template():
     assert 'ADAPTIVE PRESENTATION' in writer
     assert 'Do not reuse a fixed sequence of headings' in writer
     assert 'Prices already appear on the cards' in writer
+
+@pytest.mark.asyncio
+async def test_intro_and_card_reason_have_complementary_jobs():
+    llm=service()
+    async def respond(**kwargs):
+        schema=kwargs['response_format']['json_schema']['name']
+        return completion(json.dumps(V if schema=='RecommendationReview' else D))
+    llm._chat_completion=AsyncMock(side_effect=respond)
+    await llm.filter_and_recommend('Choose one and explain the tradeoff',[deepcopy(P)])
+    writer=llm._chat_completion.await_args_list[0].kwargs['messages'][0]['content']
+    assert 'Do not repeat the same conclusion in intro and reasons' in writer
+    assert 'intro carries the decision and decisive unknown' in writer
