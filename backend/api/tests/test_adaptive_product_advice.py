@@ -30,3 +30,13 @@ async def test_adaptive_shape_does_not_bypass_review_failure():
  infer=AsyncMock(side_effect=[json.dumps(dict(text='A concise answer.',product_ids=[],claims=[])),json.dumps({**V,'fulfills_discovery_task':False})])
  result=await SalesResponseService(infer,provider_ready=True,timeout=1).respond(request())
  assert result.response_kind=='system_notice' and result.products==[] and infer.await_count==2
+
+@pytest.mark.asyncio
+async def test_material_does_not_prove_weather_performance_and_prose_has_no_ids():
+ infer=AsyncMock(side_effect=[json.dumps(dict(text='Water resistance is not listed; check it before choosing.',product_ids=[],claims=[])),json.dumps(V)])
+ await SalesResponseService(infer,provider_ready=True,timeout=1).respond(request())
+ for call in infer.await_args_list:
+  rules=call.args[0][0]['content']
+  assert 'Material alone does not prove water resistance' in rules
+  assert 'Do not print internal product IDs' in rules
+  assert 'exact full product name' in rules
