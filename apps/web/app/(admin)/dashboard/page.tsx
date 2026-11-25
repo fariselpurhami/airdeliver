@@ -276,12 +276,12 @@ function DashboardContent() {
                         <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
                             <Activity size={18} className="text-cyan-400" />
                         </div>
-                        <span className="text-xs font-mono text-cyan-400/70 uppercase tracking-[0.3em]">Command Center</span>
+                        <span className="text-xs font-mono text-cyan-400/70 uppercase tracking-[0.3em]">Store operations</span>
                     </div>
                     <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight" style={{ fontFamily: "'Orbitron', sans-serif" }}>
                         SYSTEM OVERVIEW
                     </h1>
-                    <Link href="/dashboard/fulfillment" className="inline-flex rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-200">Manual fulfillment workspace</Link>
+                    <Link href="/dashboard/fulfillment" className="inline-flex rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-200">Order fulfillment</Link>
                 </div>
                 <div className="flex items-center gap-4 text-xs font-mono text-gray-500 bg-white/5 border border-white/5 px-4 py-2 rounded-full backdrop-blur-md">
                     <span className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> {statsError || ordersError || paymentError ? "DATA UNAVAILABLE OR STALE" : "ORDER DATA SNAPSHOT"}</span>
