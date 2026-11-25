@@ -383,22 +383,26 @@
       "id": "CAP-51",
       "capability": "Product consultation with web/context/history",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Consultation independent of inventory with canonical consented hints across retained paths",
-      "next_code_or_boundary_acceptance": "Audit every consultation adapter/context lifecycle and no-source catalog fallback boundary",
+      "next_code_or_boundary_acceptance": "No known remaining in-scope consultation caller/history/fallback gap after retained-bridge consent recheck. Exact-head CI and merge remain; source/model usefulness and owner acceptance separate.",
       "quality_acceptance": "Actual source-backed usefulness, language and no invented availability",
       "owner_acceptance": "Provider, real source and owner delivery receipts",
       "evidence_leads": [
         "apps/api/tests/test_legacy_consented_hint_continuity.py",
         "apps/api/tests/test_reviewed_consultation.py",
-        "apps/api/tests/test_research_fact_types.py"
+        "apps/api/tests/test_research_fact_types.py",
+        "docs/verification/cap51-code-acceptance-v1.md",
+        "apps/api/tests/test_legacy_consultation_revocation.py",
+        "apps/api/tests/test_research_fallback_scope_http.py",
+        "apps/api/tests/test_consented_http_context.py"
       ],
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 5,
-  "code_remaining_groups": 15
+  "code_complete_groups": 6,
+  "code_remaining_groups": 14
 }

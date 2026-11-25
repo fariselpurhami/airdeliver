@@ -2660,6 +2660,12 @@ class AINLUService:
             await self.db.rollback()
             return ()
 
+    async def _recheck_shopping_hints(self,user_id,initial):
+        if not initial:return
+        from app.services.customer_memory_service import CustomerMemoryService
+        current=tuple(await CustomerMemoryService(self.db).recall(user_id))
+        if current!=initial:raise ValueError('Shopping hints changed during answer')
+
     async def _get_conversation_context(self, user_id: int, limit: Optional[int] = None) -> str:
         recent = await self.memory.get_context(user_id, limit or self.config.context_window_size)
         from app.services.customer_memory_service import CustomerMemoryService
@@ -2839,11 +2845,13 @@ class AINLUService:
         """
         from app.services.legacy_setup_boundary import reviewed_legacy_setup
         try:
+            hints=await self._consented_shopping_hints(request.user_id)
             async with asyncio.timeout(45):
                 response=await reviewed_legacy_setup(self.db,self.search_engine,self.cache,
                     self.llm_service,request.message_text,
                     customer_context=await self.memory.customer_context(request.user_id),
-                    saved_preferences=await self._consented_shopping_hints(request.user_id))
+                    saved_preferences=hints)
+                await self._recheck_shopping_hints(request.user_id,hints)
             products=[card.model_dump(mode='json') for card in response.products]
             await self._send_to_ui(request.user_id,{
                 'content':response.text,
@@ -4240,11 +4248,13 @@ class AINLUService:
         """Reviewed current evidence, never legacy unreviewed prose/prefix."""
         from app.services.legacy_prose_boundary import reviewed_legacy_answer
         try:
+            hints=await self._consented_shopping_hints(request.user_id)
             async with asyncio.timeout(40):
                 response=await reviewed_legacy_answer(self.db,self.search_engine,self.cache,
                     self.llm_service,request.message_text,final_products,intent_payload,plan.is_specs_query,
                     customer_context=await self.memory.customer_context(request.user_id),
-                    saved_preferences=await self._consented_shopping_hints(request.user_id))
+                    saved_preferences=hints)
+                await self._recheck_shopping_hints(request.user_id,hints)
             products=tuple(card.model_dump(mode='json') for card in response.products)
             return LlmDecision(response_text=response.text,products=products,
                 response_type=UiPayloadType.PRODUCT_CAROUSEL if products else UiPayloadType.TEXT,
@@ -5404,11 +5414,13 @@ Execute your response adhering strictly to this visual and structural blueprint:
         """Legacy text contract, current evidence and reviewed prose only."""
         from app.services.legacy_prose_boundary import reviewed_legacy_answer
         try:
+            hints=await self._consented_shopping_hints(user_id)
             async with asyncio.timeout(40):
                 response=await reviewed_legacy_answer(self.db,self.search_engine,self.cache,
                     self.llm_service,user_query,[product],intent_payload,
                     customer_context=await self.memory.customer_context(user_id),
-                    saved_preferences=await self._consented_shopping_hints(user_id))
+                    saved_preferences=hints)
+                await self._recheck_shopping_hints(user_id,hints)
             return response.text
         except asyncio.CancelledError:raise
         except Exception as exc:
