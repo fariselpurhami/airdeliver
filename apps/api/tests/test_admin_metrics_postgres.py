@@ -34,7 +34,10 @@ async def test_complete_currency_aware_paid_timestamp_window_and_permissions():
      Order(user_id=user_id,total_price=-1,currency='USD',is_paid=True,paid_at=now-timedelta(minutes=3)),
      Order(user_id=user_id,total_price=float('inf'),currency='USD',is_paid=True,paid_at=now-timedelta(minutes=3))]
    db.add_all(orders);await db.commit()
-   metrics=await payment_metrics(db,'24H',now=now)
+   from unittest.mock import patch
+   with patch.object(db,'execute',wraps=db.execute) as executed:
+    metrics=await payment_metrics(db,'24H',now=now)
+    assert executed.await_count==1  # Amounts and exclusions share one MVCC snapshot.
    by={c.currency:c for c in metrics.currencies}
    assert by['USD'].amount=='15.10' and by['USD'].order_count==151
    assert by['EUR'].amount=='0.20' and by['EUR'].order_count==1
