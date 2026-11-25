@@ -83,6 +83,9 @@ def log_usage(response,model,stage,messages,output):
     values={k:v for k,v in values.items() if type(v) is int and v>=0}
     logger.info('provider.usage model=%s stage=%s input_bytes_upper=%d output_cap=%d usage=%s',model,stage,token_upper_bound(messages),output,values)
 
+from app.services.paid_turn_admission import paid_provider_call
+
+@paid_provider_call
 async def complete(create, *, model, messages, response_format, timeout, stage='inference'):
     output = {'SpecDraft': 1200, 'SourceReview': 1200,'GroundingReview':256,'ShoppingDraft':640,'RouterDecision':768}.get(stage, 2048)
     estimate = token_upper_bound({'messages': messages, 'response_format': response_format})
@@ -105,7 +108,8 @@ async def complete(create, *, model, messages, response_format, timeout, stage='
                     from app.services.shared_provider_admission import shared_provider_slot
                     async with shared_provider_slot(model,messages,response_format,output,max(.001,deadline-loop.time())) as reservation:
                         try:
-                            response=await create(model=model, messages=messages, temperature=0.0,
+                            from app.services.provider_response_observation import observed_create
+                            response=await observed_create(create,reservation,model=model, messages=messages, temperature=0.0,
                                                 response_format=response_format, max_tokens=output,
                                                 **({'reasoning_effort':'low'} if model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and stage in {'RouterDecision','ShoppingDraft','GroundingReview'} else {}))
                             reservation.observe(response)

@@ -518,6 +518,13 @@ class FreeLLMService:
         safe_kwargs: Dict[str, Any] = {k: v for k, v in kwargs.items() if k in allowed_keys}
 
         async def _invoke() -> Any:
+            from app.services.paid_turn_admission import paid_turn_slot
+            from app.services.shared_provider_admission import _principal
+            principal=_principal.get() if _principal.get() is not None else 'internal-provider-work'
+            async with paid_turn_slot(principal):
+                return await _invoke_bounded()
+
+        async def _invoke_bounded() -> Any:
             kwargs_to_send: Dict[str, Any] = {
                 "messages": messages,
                 "model": model,
@@ -540,7 +547,8 @@ class FreeLLMService:
                     from app.services.shared_provider_admission import shared_provider_slot
                     async with shared_provider_slot(model,messages,response_format,max_tokens,timeout_budget) as reservation:
                         try:
-                            response=await client.chat.completions.create(**kwargs_to_send)
+                            from app.services.provider_response_observation import observed_create
+                            response=await observed_create(client.chat.completions.create,reservation,**kwargs_to_send)
                             reservation.observe(response)
                         except APIStatusError as failure:
                             if failure.status_code==429:

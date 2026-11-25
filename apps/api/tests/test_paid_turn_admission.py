@@ -71,3 +71,44 @@ async def test_request_identity_context_covers_both_entrypoint_shapes(monkeypatc
   async def initial(self,user_id):seen.append(_principal.get())
  svc=Service();await svc.process({'user_id':7});await svc.initial(user_id=9)
  assert seen==[7,9] and _principal.get() is None
+
+@pytest.mark.asyncio
+async def test_queue_precedes_process_lock_and_preserves_outer_deadline(real_cache,monkeypatch):
+ from app.services.paid_turn_admission import paid_provider_call
+ from app.services.shared_provider_admission import _principal
+ cache,_=real_cache;s=config();s.REDIS_URL=f"redis://127.0.0.1:{cache.client.connection_pool.connection_kwargs['port']}/0";s.PROVIDER_MAX_ACTIVE_TURNS=1;s.PROVIDER_MAX_QUEUED_TURNS=1;s.PROVIDER_TURN_QUEUE_SECONDS=.5
+ monkeypatch.setattr('app.core.config.get_core_settings',lambda:s)
+ lock=asyncio.Lock();entered=[]
+ @paid_provider_call
+ async def infer(*,timeout):
+  async with lock:entered.append(1);await asyncio.sleep(.08)
+ async def invoke(user):
+  token=_principal.set(user)
+  try:await infer(timeout=.2)
+  finally:_principal.reset(token)
+ first=asyncio.create_task(invoke('first'));await asyncio.sleep(.02)
+ second=asyncio.create_task(invoke('second'));await asyncio.sleep(.02)
+ with pytest.raises(PaidTurnAdmissionError,match='queue_full'):await invoke('third')
+ await asyncio.gather(first,second)
+ assert len(entered)==2
+ # Timeout covers queue + execution together, not another full budget after wait.
+ @paid_provider_call
+ async def slow(*,timeout):await asyncio.sleep(.2)
+ with pytest.raises(TimeoutError):await slow(timeout=.03)
+ assert not await cache.client.zcard('airdeliver:paid-turn:v1:{organization}:active')
+
+@pytest.mark.asyncio
+async def test_actual_paid_free_llm_wait_for_transport_reuses_gate_without_deadlock(real_cache,monkeypatch):
+ from app.services.free_llm_service import FreeLLMService
+ from app.services.shared_provider_admission import _principal
+ from unittest.mock import AsyncMock
+ cache,_=real_cache;s=config();s.REDIS_URL=f"redis://127.0.0.1:{cache.client.connection_pool.connection_kwargs['port']}/0";s.PROVIDER_TPM_BUDGET=225000
+ monkeypatch.setattr('app.core.config.get_core_settings',lambda:s)
+ svc=object.__new__(FreeLLMService);svc.__init__()
+ create=AsyncMock(return_value=SimpleNamespace(usage=SimpleNamespace(total_tokens=100),choices=[]))
+ svc._get_client=AsyncMock(return_value=SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create))))
+ token=_principal.set(42)
+ try:await svc._chat_completion(model='offline-paid-native',messages=[{'role':'user','content':'private'}],timeout_seconds=.5)
+ finally:_principal.reset(token)
+ assert create.await_count==1
+ assert not await cache.client.zcard('airdeliver:paid-turn:v1:{organization}:active')

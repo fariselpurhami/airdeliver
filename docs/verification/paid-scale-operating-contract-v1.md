@@ -27,3 +27,7 @@ Paid profiles now wrap each provider invocation in a shared bounded active/queue
 This gate is per provider invocation, not a durable full-turn reservation or a fair scheduler across a user's multi-stage chain. Existing shared per-model serialization still limits provider throughput. Neither is hidden as solved scale. Further work must address whole-chain atomic capacity, observed headroom and model-concurrency safety without relaxing review/caps. The opening/chat synchronous contract is unchanged.
 
 64focused real Redis/PostgreSQL and transport/profile/formatter tests pass at this checkpoint, including8distinct concurrent users, same-principal overlap, queue overflow, cancellation/deadline cleanup, outage fail-closed and identity-context propagation. These do not simulate millions of active requests or certify latency.
+
+### Queue ordering follow-up
+
+Transport gate now precedes process-local locks and semaphores, so same-process waiters are included in the shared bound. Cognitive transport acquires inside its existing wait_for task to avoid inherited-context bypass/deadlock; typed transport decorator encloses its existing deadline. Reuse is explicit and limited to the same task+principal. Full deadline covers waiting and execution.58focused tests pass including actual paid-profile FreeLLMService path, same-task nesting/child-task isolation, global bound and overflow before local lock. This is still per-invocation, not whole-turn reserved capacity. Full regression/CI rerun required.
