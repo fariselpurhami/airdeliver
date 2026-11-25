@@ -54,3 +54,16 @@ async def test_decisive_missing_evidence_can_return_useful_no_pick_after_full_re
     assert result.intro_message==draft['intro']
     assert result.selected_ids==[]
     assert llm._chat_completion.await_count==2
+
+@pytest.mark.asyncio
+async def test_adaptive_presentation_is_task_shaped_not_a_repeated_template():
+    llm=service()
+    async def respond(**kwargs):
+        schema=kwargs['response_format']['json_schema']['name']
+        return completion(json.dumps(V if schema=='RecommendationReview' else D))
+    llm._chat_completion=AsyncMock(side_effect=respond)
+    await llm.filter_and_recommend('What material is listed?',[deepcopy(P)])
+    writer=llm._chat_completion.await_args_list[0].kwargs['messages'][0]['content']
+    assert 'ADAPTIVE PRESENTATION' in writer
+    assert 'Do not reuse a fixed sequence of headings' in writer
+    assert 'Prices already appear on the cards' in writer
