@@ -51,7 +51,7 @@ def resolve_template_claims(raw,reference_map):
     template=TemplateShoppingDraft.model_validate_json(raw).text_template
     references=re.findall(r'\{\{(c[0-9]+)\}\}',template)
     remaining=re.sub(r'\{\{c[0-9]+\}\}','',template)
-    if any(mark in remaining for mark in '{}') or re.search(r'\d',remaining):
+    if any(mark in remaining for mark in '{}'):
         raise ValueError('unsupported_template_literal')
     if any(ref not in reference_map for ref in references):raise ValueError('unknown_claim_reference')
     refs=list(dict.fromkeys(references))
@@ -331,7 +331,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     if use_template:
         writer_rules=writer_rules.split(' Wire format override:')[0]
         writer_rules=writer_rules.replace('Return JSON{text,product_ids,claim_refs}', 'Return JSON{text_template}')
-        writer_rules += ' Final wire format: return ONLY text_template. Write your own natural answer, but insert every product name, price, currency and factual value as {{cN}} using exact claim_reference_map keys. No product_ids or claim_refs properties. No literal digits, calculations or braces outside placeholders. Every card with any referenced fact must also have its name placeholder. The application substitutes exact values and builds claims before unchanged validation and independent review. This is evidence substitution, not permission to invent implications, suitability or unknown facts.'
+        writer_rules += ' Final wire format: return ONLY text_template. Write your own natural answer, but insert every product name, price, currency and factual value as {{cN}} using exact claim_reference_map keys. No product_ids or claim_refs properties. No invented digits, calculations or braces outside placeholders. An explicitly labelled customer budget may repeat the supplied grounded budget; it remains subject to the unchanged numeric validator. Every card with any referenced fact must also have its name placeholder. The application substitutes exact values and builds claims before unchanged validation and independent review. This is evidence substitution, not permission to invent implications, suitability or unknown facts.'
     writer_schema=TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
     def parse_writer(raw):
         if use_template:return resolve_template_claims(raw,reference_map)

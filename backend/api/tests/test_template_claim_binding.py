@@ -42,3 +42,9 @@ async def test_compiled_template_still_requires_independent_positive_review():
  with pytest.raises(ValueError,match='grounding_review_rejected'):
   await write_shopping_copy(infer,'x',[catalog_result(row())],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'template_v1'})
  assert infer.await_count==2
+
+@pytest.mark.asyncio
+async def test_grounded_customer_budget_remains_allowed_by_existing_numeric_validator():
+ infer=AsyncMock(side_effect=[json.dumps({'text_template':'Your $80 budget is a limit, not proof of fit.'}),json.dumps(V)])
+ text=await write_shopping_copy(infer,'budget $80',[catalog_result(row())],{'budget_max':'80'},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'template_v1'})
+ assert '$80 budget' in text and infer.await_count==2
