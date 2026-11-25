@@ -92,6 +92,8 @@ async def _shared_provider_slot(model,messages,response_format,output,timeout=30
     amount=estimated_tokens(messages,response_format)+output
     turn=_turn_budget.get()
     if turn is not None:turn.take(amount)
+    from app.services.provider_capacity.provider_quota_axes import AXES,axis_arguments,reservation_script
+    axis_args=axis_arguments(settings,estimated_tokens(messages,response_format),output)
     owns_client=False
     if client is None and uri:
         from redis.asyncio import Redis
@@ -101,6 +103,7 @@ async def _shared_provider_slot(model,messages,response_format,output,timeout=30
         owns_client=True
     reservation=Reservation(None,[],None,None)
     if client is None:
+        if any(axis_args[::3]):raise SharedProviderBudgetError('quota_axes_require_shared_ledger')
         yield reservation
         return
     estimate=estimated_tokens(messages,response_format)+output
@@ -112,10 +115,13 @@ async def _shared_provider_slot(model,messages,response_format,output,timeout=30
     keys=[prefix+':lock',prefix+':usage',prefix+':cooldown']
     owner=uuid.uuid4().hex;member=owner+':'+str(estimate);acquired=False
     reservation=Reservation(client,keys,owner,member);reservation.model=model
+    axis_keys=[prefix+':axis:'+axis.lower() for axis,_,_ in AXES]
+    reservation.axis_keys=[key if axis_args[i*3] else None for i,key in enumerate(axis_keys)]
+    reservation.axis_estimates=axis_args[2::3]
     try:
         async with asyncio.timeout(timeout):
             while True:
-                status=await client.eval(RESERVE,4,*keys,prefix+':observed_tokens',owner,member,estimate,limit,math.ceil((timeout+5)*1000))
+                status=await client.eval(reservation_script(RESERVE),15,*keys,prefix+':observed_tokens',prefix+':observed_requests',*axis_keys,*[k+':total' for k in axis_keys],owner,member,estimate,limit,math.ceil((timeout+5)*1000),*axis_args)
                 if status==1:acquired=True;break
                 if status in {-1,-2}:
                     logger.warning('provider.input_withheld stage=shared_admission reason=rolling_budget_or_cooldown_exhausted estimated_tokens=%d limit=%d',estimate,limit)
@@ -129,7 +135,10 @@ async def _shared_provider_slot(model,messages,response_format,output,timeout=30
             try:
                 from app.services.provider_response_observation import observe_headers
                 # Apply observed headroom before admitting the next owner.
-                try:await observe_headers(reservation)
+                try:
+                    await observe_headers(reservation)
+                    from app.services.provider_capacity.provider_quota_axes import reconcile_axes
+                    await reconcile_axes(reservation)
                 finally:await asyncio.shield(client.eval(FINISH,2,*keys[:2],owner,member,actual))
                 from app.services.provider_usage_meter import meter
                 try:await meter(reservation,estimate,limit)

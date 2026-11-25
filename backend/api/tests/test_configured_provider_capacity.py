@@ -49,7 +49,8 @@ async def test_plan_budget_reaches_actual_shared_ledger_without_live_provider(se
  async def offline_fairness(*args,**kwargs):yield
  monkeypatch.setattr('app.services.paid_turn_admission.paid_turn_slot',offline_fairness)
  async with shared_provider_slot('offline-plan',[],{},8000,client=client):pass
- assert client.calls[0][-2]==225000
+ assert client.calls[0][1]==15
+ assert client.calls[0][20]==225000
  # Changing plan never expands the independent six-call/16000turn bound.
  client.calls.clear()
  async with provider_turn_budget():

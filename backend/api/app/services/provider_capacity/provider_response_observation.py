@@ -40,6 +40,10 @@ async def observe_headers(reservation):
     if 'remaining-tokens' in values:
         ttl=max(60000,int(values.get('reset-tokens',60)*1000))
         await reservation.client.eval(HEADER_LIMIT,1,reservation.keys[0].rsplit(':',1)[0]+':observed_tokens',values['remaining-tokens'],ttl)
+    if 'remaining-requests' in values:
+        # Groq request headers are daily requests, a distinct counter from TPM.
+        ttl=max(60000,int(values.get('reset-requests',86400)*1000))
+        await reservation.client.eval(HEADER_LIMIT,1,reservation.keys[0].rsplit(':',1)[0]+':observed_requests',values['remaining-requests'],ttl)
     if values.get('remaining-requests')==0:
         # Groq request headers refer to daily requests, never reinterpret as RPM.
         await reservation.quota(values.get('reset-requests',86400))

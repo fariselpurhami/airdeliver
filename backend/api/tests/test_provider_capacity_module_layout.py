@@ -28,5 +28,8 @@ def test_domain_implementation_bytes_match_pre_move_manifest():
  root=Path(__file__).resolve().parents[3]
  manifest=json.loads((root/'docs/verification/provider-capacity-layout-v1.json').read_text())
  assert len(manifest['modules'])==len(MODULES)
+ evolution=json.loads((root/'docs/verification/provider-capacity-evolution-v1.json').read_text())
  for row in manifest['modules']:
-  assert hashlib.sha256((root/row['path']).read_bytes()).hexdigest()==row['sha256']
+  # Current reviewed changes are pinned separately; never rewrite move provenance.
+  expected=evolution.get(row['path'],row['sha256'])
+  assert hashlib.sha256((root/row['path']).read_bytes()).hexdigest()==expected
