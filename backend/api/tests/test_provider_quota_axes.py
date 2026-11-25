@@ -165,3 +165,17 @@ async def test_evicted_accumulator_cannot_grant_fresh_allowance(real_cache,monke
     with pytest.raises(SharedProviderBudgetError):
         async with shared_provider_slot(model,[],{},1,client=cache.client,limit=5000):pytest.fail('eviction bypass')
     assert await cache.client.zcard(p+':axis:rpd')==1
+
+
+@pytest.mark.parametrize('axis',['RPM','RPD','TPD','ITPM','OTPM'])
+def test_real_environment_integer_configuration_is_supported(monkeypatch,axis):
+    from app.core.config import CoreSettings
+    key='PROVIDER_'+axis+'_BUDGET'
+    monkeypatch.setenv(key,'1234')
+    assert getattr(CoreSettings(_env_file=None),key)==1234
+
+@pytest.mark.parametrize('value',[True,1.5,'1.5','-1','garbage'])
+def test_non_integer_settings_are_rejected(value):
+    from app.core.config import CoreSettings
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):CoreSettings(_env_file=None,PROVIDER_RPM_BUDGET=value)
