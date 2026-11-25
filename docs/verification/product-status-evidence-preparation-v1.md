@@ -48,3 +48,9 @@ This is the registry mechanism, not a verified real-world registry or active sta
 ## Future-effective status correction
 
 Two additional test-first failures showed that the inactive resolver treated a future discontinuation as already discontinued and a future-effective announcement as current. It now returns scheduled_discontinuation for the first and unverified for the second. Differing effective schedules conflict rather than silently choosing a date. This does not activate the resolver or establish source authenticity. It keeps the evidence contract honest before wiring it to answers.
+
+## Trusted metadata to typed status binding, offline integration step
+
+`status_claim_binding.py` now joins a reviewed extracted status to the exact source quote, configured publisher host, trusted exact-model binding, source-adapter region and verified publication/observation times. It never accepts publisher identity, region or publication date from the extracted object. The effective ISO instant must occur verbatim in the exact quote; natural-language date interpretation is deliberately not implemented. The result feeds the existing temporal resolver. Eleven new binding cases plus temporal/publisher cases pass54offline tests, including forged quotes/dates, wrong host/model/region, missing typed source metadata, absent review and freshly fetched old publications.
+
+This remains inactive preparation. The reviewed flag is an internal caller prerequisite, not proof supplied by a source. Trusted source metadata must come from a verified adapter, which is not implemented for real publishers here. A positive model review is not mathematical entailment, and configured origin does not establish assertion meaning by itself. No real registry entry, fetch, Tavily/provider call, semantic launch routing or HTTP/UI status publication has been activated. These tests were added alongside this new adapter, not claimed as a prior failing implementation reproduction.
