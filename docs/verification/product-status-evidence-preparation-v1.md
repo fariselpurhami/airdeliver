@@ -1,0 +1,40 @@
+# Product identity and release-status truth, preparation v1
+25 November 2026
+
+## Why the current path is not enough
+The active research method validates exact quotes and exact-model coverage, then independently reviews them. This is stronger than model memory, but its normalized source rows contain URL and text only. A stale page can be quoted exactly and still mislead about a release today. No active release-status policy currently separates announcement, planned release, actual release, regional availability and merchant stock.
+
+The old unreviewed methods remain preserved under their explicit legacy names. Their product-reality prose is not a source of truth, and active reviewed wrappers do not call them for final answers. No old file or logic was deleted in this work.
+
+## Required distinctions
+- Canonical model and variant identity, including manufacturer, region and edition. Similar names are not interchangeable.
+- Catalog presence means only that a local row exists. It does not establish real-world identity or current merchant stock.
+- Source-backed announcement is not a release. A future dated schedule is planned, not guaranteed. A passed planned date without actual confirmation remains unconfirmed.
+- A recent source fetch is not a recent assertion. Preserve publication/update time and the effective date, with timezone and region. A search snippet's claimed date is untrusted metadata, not verified source dating.
+- No results means unverified, never nonexistent, fake, impossible or unreleased. Fiction may be explored as fiction only when the premise is explicitly hypothetical or supported by evidence, not guessed from an unfamiliar name.
+- Manufacturer identity binding must come from a verified publisher registry or approved canonical source, not a page's self-description, a familiar hostname substring or a model verdict.
+- Conflicting current official sources remain conflicting unless an explicit, verified supersession relation settles them. Never silently choose whichever search result ranks first.
+- Release truth is distinct from preorder, shipping date, buyable region, seller availability and warehouse quantity.
+
+## Added offline preparation contract
+`product_status_policy.py` accepts trusted normalized evidence, with exact identity, publisher binding, observed/published/effective instants, region and typed assertion. It returns only evidence-bounded states. There is no nonexistent state and it never returns confirmed merchant stock. All18 offline temporal/identity/source tests pass after an initial missing-module red.
+
+This resolver is deliberately not active yet. Its boolean identity/official fields must never be filled directly from source prose or an LLM. A typed model cannot authenticate its own inputs. The sample six-hour freshness window in tests is an explicit test policy, not an accepted production SLA. Old, stable historical evidence needs separate support for historical claims; current launch claims need current confirmation. No Tavily or provider call was made for these tests.
+
+## Integration work still required
+1. Preserve raw source identifiers, fetched time, verified publication/update time, redirected canonical URL and region from the source adapter. Do not invent missing dates.
+2. Establish publisher identity and exact model binding independently, including official announcements/support pages and explicit linked press materials. Unverified social/review pages can be attributed but cannot establish official status.
+3. Extend structured fact extraction with typed status assertions and date/region/source references, exact quote validation, and an independent temporal/status review. Prevent ordinary specification facts from smuggling in global existence or current-release claims.
+4. Route launch/existence questions from current semantic intent. No brittle product-name blacklist, no static list of future models, no provider/model knowledge substituted for source evidence.
+5. Render replies by question and evidence state: lead with the useful answer or precise uncertainty, dated source-qualified support, what it means for the customer's choice, and one relevant next step. No repeated boilerplate, fictional supply-chain stories, false fraud alarms or forced alternative sale.
+6. Test active HTTP/orchestrator research paths with controlled sources: newly released today, yesterday, tomorrow schedule, canceled launch, region mismatch, same-name variants, old page freshly fetched, source disagreement, source outage, fictional user premise and malicious page instructions. Then bounded approved live probes and actual UI renders.
+
+## Example meaning, not an approved fixed template
+A failed search can support: no reliable confirmation was found in that search, and the exact model/manufacturer link is the next useful check. It cannot support: this product does not exist or has not launched.
+
+An official scheduled launch can support: the manufacturer lists a planned release on a specific date in a specific region, checked at a stated time. It cannot support: shipping now or guaranteed available tomorrow.
+
+A dated official launch page can support actual release status for its exact model/region. It cannot establish stock at a selected merchant.
+
+## Acceptance still open
+No claim of zero hallucinations, superiority over other AI, completed active integration, live research certification or user-approved final answer quality. The owner specifically requires further work beyond the first correct-but-repetitive backpack result. Preserve that bar.
