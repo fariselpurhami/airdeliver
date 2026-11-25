@@ -66,6 +66,11 @@ def test_combined_dev_preserves_volume_credentials_and_disables_unconfigured_pay
         assert values['APP_ENV']=='development'
         assert values['LEGACY_TIMESTAMP_TIMEZONE']==''
         assert values['DATABASE_URI'].startswith('postgresql+asyncpg://')
+    migrator = services['api-migrator']
+    assert migrator['environment']['AIRDELIVER_DEV_ALLOW_MIGRATIONS'] == '0'
+    assert migrator['command'][:2] == ['sh', '-ec']
+    assert 'migration and seed skipped' in migrator['command'][2]
+    assert migrator['command'][2].index('exit 0') < migrator['command'][2].index('alembic upgrade head')
     values = services['api']['environment']
     assert values['STRIPE_SECRET_KEY']=='' and values['STRIPE_PUBLISHABLE_KEY']==''
     from app.core.config import CoreSettings
