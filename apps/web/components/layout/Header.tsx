@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useEffect, useCallback, useRef } from "react";
+import React, { useEffect, useCallback, useRef, useState, useId } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -31,6 +31,18 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { status } = useSession();
+
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const navigationRef = useRef<HTMLDivElement>(null);
+  const navigationId = useId();
+  useEffect(() => { setNavigationOpen(false); }, [pathname]);
+  useEffect(() => {
+    const close = (event: PointerEvent) => {
+      if (!navigationRef.current?.contains(event.target as Node)) setNavigationOpen(false);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, []);
 
   const headerRef = useRef<HTMLElement>(null);
   const floatingBarRef = useRef<HTMLDivElement>(null);
@@ -97,7 +109,7 @@ export default function Header() {
                   width={120}
                   height={22}
                   priority
-                  className="object-contain transition-opacity duration-500 group-hover:opacity-80 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)] transform-gpu"
+                  className="max-[360px]:w-[96px] object-contain transition-opacity duration-500 group-hover:opacity-80 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)] transform-gpu"
                 />
                 <Image
                   src="/logo.png"
@@ -106,15 +118,25 @@ export default function Header() {
                   height={22}
                   priority
                   decoding="async"
-                  className="absolute top-0 left-0 object-contain opacity-0 group-hover:opacity-40 blur-md transition-opacity duration-300 transform-gpu will-change-opacity"
+                  className="max-[360px]:w-[96px] absolute top-0 left-0 object-contain opacity-0 group-hover:opacity-40 blur-md transition-opacity duration-300 transform-gpu will-change-opacity"
                   aria-hidden="true"
                 />
               </div>
             </Link>
           </div>
 
-          {/* Inline Navigation (Replaces Hamburger) */}
-          <nav className="relative z-10 pointer-events-auto flex items-center gap-1 sm:gap-2">
+          <div
+            ref={navigationRef}
+            className="relative z-10 pointer-events-auto flex items-center gap-1 sm:gap-2"
+            onPointerEnter={(event) => { if (event.pointerType === 'mouse') setNavigationOpen(true); }}
+            onPointerLeave={(event) => { if (event.pointerType === 'mouse' && !navigationRef.current?.contains(document.activeElement)) setNavigationOpen(false); }}
+            onFocus={(event) => { if (event.target.matches(':focus-visible')) setNavigationOpen(true); }}
+            onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setNavigationOpen(false); }}
+            onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); navigationRef.current?.querySelector('button')?.focus(); setNavigationOpen(false); } }}
+          >
+            <nav id={navigationId} aria-label="Main navigation" aria-hidden={!navigationOpen} inert={!navigationOpen}
+              className={`grid transition-[grid-template-columns,opacity,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${navigationOpen ? 'grid-cols-[1fr] translate-x-0 opacity-100' : 'grid-cols-[0fr] translate-x-2 opacity-0 pointer-events-none'}`}>
+              <div className="flex min-w-0 items-center gap-1 overflow-hidden sm:gap-2">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -122,10 +144,10 @@ export default function Header() {
                   key={`top-${item.href}`}
                   href={item.href}
                   prefetch={true}
-                  onClick={(e) => handleProtectedRouting(e, item)}
+                  onClick={(e) => { handleProtectedRouting(e, item); setNavigationOpen(false); }}
                   aria-label={item.label}
                   aria-current={isActive ? "page" : undefined}
-                  className={`relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                  className={`relative flex items-center justify-center w-10 h-10 max-[360px]:w-9 sm:w-11 sm:h-11 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
                     isActive
                       ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
                       : "text-zinc-400 hover:text-white hover:bg-white/5"
@@ -135,7 +157,16 @@ export default function Header() {
                 </Link>
               );
             })}
-          </nav>
+              </div>
+            </nav>
+            <button type="button" aria-label="Toggle navigation" aria-expanded={navigationOpen} aria-controls={navigationId}
+              onClick={() => setNavigationOpen(open => !open)}
+              className="flex h-11 w-11 max-[360px]:w-10 shrink-0 flex-col items-end justify-center gap-[5px] rounded-full px-2.5 text-white/90 transition hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 motion-reduce:transition-none">
+              <span aria-hidden="true" className="h-[2px] w-6 rounded-full bg-current" />
+              <span aria-hidden="true" className="h-[2px] w-4 rounded-full bg-current" />
+              <span aria-hidden="true" className="h-[2px] w-2 rounded-full bg-current" />
+            </button>
+          </div>
         </div>
       </header>
 
