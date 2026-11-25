@@ -176,12 +176,12 @@
       "id": "CAP-24",
       "capability": "Opening matrix: personal/bestseller/trending/deal pools, diversity, freshness, stages and streaming",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Four ordered independently selected opening roles, reviewed copy/current SQL publication",
-      "next_code_or_boundary_acceptance": "Audit full catalog sort bounds, empty-role/partial-publication and latest client delivery boundary; labels are not sales/trend/discount proof",
+      "next_code_or_boundary_acceptance": "Finite four-role selection/publication/current-card/cancel audit complete; full nonce sort removed, live load/client receipts remain unverified.",
       "quality_acceptance": "Real opening copy/ranking and quota behavior under mixed load",
       "owner_acceptance": "Owner browser observation with real current data",
       "evidence_leads": [
@@ -189,7 +189,8 @@
         "apps/api/tests/test_opening_batch_copy.py",
         "apps/api/tests/test_opening_provider_diagnostics.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap24-code-acceptance-v1.md"
     },
     {
       "id": "CAP-25",
@@ -425,6 +426,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 15,
-  "code_remaining_groups": 5
+  "code_complete_groups": 16,
+  "code_remaining_groups": 4
 }

@@ -3312,10 +3312,14 @@ class AINLUService:
                 continue
             
             content, reason, snapshot = copy_result
-            await self._matrix_stage(user_id, "stream_"+row_type, lambda: self._stream_row(user_id, content, row_type, products, reason, apply_delay=apply_delay, expected_cards=snapshot))
+            await self._matrix_stage(user_id, "stream_"+row_type, lambda: self._stream_row(user_id, content, row_type, products, reason, apply_delay=False, expected_cards=snapshot))
             streamed_any = True
             streamed_seen_ids = {p.id for p in products}
             self.tasks.create_task(self.freshness_repo.mark_products_as_seen(user_id=user_id, product_ids=streamed_seen_ids, ttl_seconds=43200))
+            # Publication already succeeded. Record exposure before optional
+            # pacing so cancellation in the delay cannot lose displayed IDs.
+            if apply_delay and self.config.stream_delay_sec:
+                await asyncio.sleep(max(0.0,float(self.config.stream_delay_sec)))
 
         if not streamed_any:
             has_eligible = any((personal_products, bestsellers_products, trending_products, deals_products))
@@ -3539,6 +3543,35 @@ class AINLUService:
             return []
 
     async def _eligible_opening_pool(self, seen_ids, *, order_by, min_rating=None):
+        """Apply eligibility before LIMIT, not after an ineligible top pool."""
+        from sqlalchemy import func
+        from app.services.catalog_visibility import real_catalog_predicates
+        statement = select(Product).where(
+            Product.is_active.is_(True), Product.inventory > 0,
+            Product.price >= 0, Product.currency.op("~")("^[A-Z]{3}$"),
+            *real_catalog_predicates(Product), func.length(func.trim(Product.name)) > 0,
+        )
+        if seen_ids:
+            statement = statement.where(Product.id.notin_(seen_ids))
+        if min_rating is not None:
+            from app.services.catalog_visibility import fixtures_enabled,FIXTURE_DATASET
+            from sqlalchemy import or_
+            rating_rule=Product.rating >= min_rating
+            if fixtures_enabled():rating_rule=or_(rating_rule,Product.attributes.op('->>')('_seed_dataset')==FIXTURE_DATASET)
+            statement=statement.where(rating_rule)
+        # Rotate within a bounded candidate pool instead of repeating a fixed
+        # top100 forever. Ranking still supplies half the pool; the other half
+        # explores eligible catalog rows using a fresh server-side nonce.
+        ranked = list((await self.db.execute(statement.order_by(*order_by).limit(max(1,self.config.trending_pool_limit//2)))).scalars().all())
+        # One exact filtered count and indexed-ID page replaces a nonce sort
+        # over every eligible row. The sampled result remains bounded.
+        total=(await self.db.execute(select(func.count()).select_from(statement.order_by(None).subquery()))).scalar_one()
+        width=max(1,self.config.trending_pool_limit//2)
+        offset=int(hashlib.sha256(uuid.uuid4().hex.encode()).hexdigest(),16)%max(1,total-width+1)
+        rotating=list((await self.db.execute(statement.order_by(Product.id).offset(offset).limit(width))).scalars().all())
+        return list({p.id:p for p in ranked+rotating}.values())
+
+    async def _legacy_eligible_opening_pool_fullsort(self, seen_ids, *, order_by, min_rating=None):
         """Apply eligibility before LIMIT, not after an ineligible top pool."""
         from sqlalchemy import func, String
         from app.services.catalog_visibility import real_catalog_predicates

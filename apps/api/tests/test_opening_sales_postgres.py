@@ -173,3 +173,22 @@ async def test_original_four_role_stack_order_no_crossrole_backfill(real_cache,e
         async with sessions() as db:
             if ids:await db.execute(delete(Product).where(Product.id.in_(ids)));await db.commit()
         await engine.dispose()
+
+@pytest.mark.asyncio
+async def test_published_row_exposure_survives_cancel_during_pacing(real_cache,monkeypatch):
+    cache,_=real_cache
+    import app.services.ai_nlu_service as module
+    from types import SimpleNamespace
+    svc=AINLUService(object(),SimpleNamespace(),SimpleNamespace(),cache,SimpleNamespace())
+    svc.config=MatrixConfig(stream_delay_sec=.01)
+    row=SimpleNamespace(id=777,name='Published',sku='real',price=20,currency='USD',inventory=3,is_active=True,category='audio',attributes={},brand='brand')
+    svc.freshness_repo=SimpleNamespace(get_recent_product_ids=AsyncMock(return_value=set()),mark_products_as_seen=AsyncMock())
+    for name in ['personal','bestsellers','trending','deals']:setattr(svc,'_fetch_'+name,AsyncMock(return_value=[row] if name=='personal' else []))
+    svc._generate_dynamic_row_copy=AsyncMock(return_value=('Model introduction','Model insight'))
+    svc._stream_row=AsyncMock()
+    async def cancel_delay(*args):raise asyncio.CancelledError()
+    monkeypatch.setattr(module.asyncio,'sleep',cancel_delay)
+    with pytest.raises(asyncio.CancelledError):await svc._handle_initial_suggestions_bounded(17)
+    if svc.tasks._tasks:await asyncio.gather(*tuple(svc.tasks._tasks))
+    svc._stream_row.assert_awaited_once()
+    svc.freshness_repo.mark_products_as_seen.assert_awaited_once_with(user_id=17,product_ids={777},ttl_seconds=43200)
