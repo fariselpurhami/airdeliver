@@ -1,0 +1,7 @@
+# Offline128-caller admission burst
+
+Real disposable Redis, no provider traffic, no throughput or production certification.128distinct concurrent callers are held at the invocation gate:8active,64queued,56typed queue-full rejections. Releasing active work drains72accepted callers without exceeding8active and cleans both active/queue sets.64same-user concurrent duplicates fail without filling the queue while another user enters. Artificial already-expired crash entries are pruned and do not block a new principal.
+
+The load fixture explicitly permits160Redisconnections and8second queue wait with15second hard lease. These differ from production defaults and are part of the test, not an implicit rollout tuning. The first attempt incorrectly assumed the fixture could open128connections. Inspection showed MaxConnectionsError rather than admission starvation; after making the test pool's intended capacity explicit,12burst+existing admission tests pass. Short fixture socket timeouts were also excluded as a confounder. This proves bounded behavior under the stated offline setup only, not a latency SLO or a paid plan's capacity.
+
+Production clients still need explicit connection-pool sizing and fail-closed typed outage handling across all local resource ceilings. Existing shared per-model serialization and non-atomic complete-chain capacity remain open. This test does not justify raising quotas, removing review or enabling spend. Full exact CI remains required.
