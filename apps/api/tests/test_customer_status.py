@@ -57,3 +57,11 @@ def test_shared_voice_is_added_without_removing_four_phase_policy():
     assert 'four-phase' in HUMAN_REPLY_VOICE and 'four logical phases' in FOUR_PHASE_POLICY
     assert 'never invented certainty' in HUMAN_REPLY_VOICE
     assert 'hard constraints' in HUMAN_REPLY_VOICE
+
+@pytest.mark.parametrize('old',list(ALIASES))
+def test_session_history_records_customer_visible_status_not_internal_alias(old):
+    from app.services.neural_core_service import SessionMemory
+    memory=SessionMemory(user_name='Customer')
+    memory.append_turn('current question',old)
+    assert memory.history[-1].content==human_text(old)
+    assert memory.history[-2].content=='current question'

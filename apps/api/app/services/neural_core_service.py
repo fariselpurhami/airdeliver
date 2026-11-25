@@ -78,7 +78,8 @@ class SessionMemory(BaseModel):
         # Trim before mutation so subsequent validated hydration always stays bounded.
         self.history = self.history[-(max_turns - 1) * 2:] if max_turns > 1 else []
         self.history.append(ChatMessage(role="user", content=user_msg))
-        self.history.append(ChatMessage(role="assistant", content=ai_msg))
+        from app.services.customer_status import human_text
+        self.history.append(ChatMessage(role="assistant", content=human_text(ai_msg)))
 
         # Keep only the last N turns (N * 2 messages) to bound memory usage
         max_messages = max_turns * 2
