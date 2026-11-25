@@ -1016,10 +1016,13 @@ class NeuralCoreService:
 # DEPENDENCY INJECTION
 # =============================================================================
 
-def get_neural_core_service(
+async def get_neural_core_service(
     ai_engine: AICommerceEngine = Depends(get_ai_commerce_engine),
     cache: IAsyncCacheClient = Depends(get_cache_from_request)
-) -> NeuralCoreService:
+):
     """FastAPI Dependency Provider."""
-    return NeuralCoreService(ai_engine, cache)
+    service=NeuralCoreService(ai_engine,cache)
+    try:yield service
+    finally:
+        if service.client is not None:await service.client.close()
 

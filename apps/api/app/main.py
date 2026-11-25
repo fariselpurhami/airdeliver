@@ -326,6 +326,10 @@ async def startup_resources(app: FastAPI, settings: CoreSettings) -> Application
 
 
 async def shutdown_resources(resources: ApplicationResources) -> None:
+    from app.services.free_llm_service import FreeLLMService
+    existing=FreeLLMService._instance
+    if existing is not None:
+        with contextlib.suppress(Exception):await existing.aclose()
     if resources.behavior is not None:
         await resources.behavior.stop()
     if resources.response_consumer_task is not None:

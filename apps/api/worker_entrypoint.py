@@ -254,6 +254,11 @@ class WorkerRuntime:
             with suppress(Exception):
                 await self.services.behavior.stop()
 
+        if self.services.llm is not None:
+            close=getattr(self.services.llm,'aclose',None)
+            if callable(close):
+                with suppress(Exception):await close()
+
         if self.services.cache is not None:
             close_method = getattr(self.services.cache, "disconnect", None) or getattr(self.services.cache, "close", None)
             if callable(close_method):

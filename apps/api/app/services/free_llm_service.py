@@ -437,6 +437,13 @@ class FreeLLMService:
         if not self._groq_api_key:
             logger.error("⛔ GROQ_API_KEY missing. Cognitive Core is OFFLINE.")
 
+    async def aclose(self):
+        """Close only an existing provider client, never initialize on shutdown."""
+        async with self._client_lock:
+            client=self._client
+            self._client=None
+            if client is not None:await client.close()
+
     async def _get_client(self) -> AsyncGroq:
         if self._client is not None:
             return self._client

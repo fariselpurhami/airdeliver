@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.services.shared_provider_admission import budgeted_turn
 
 from pydantic import BaseModel, Field, ConfigDict, StringConstraints, field_validator, model_validator
 import collections
@@ -2219,6 +2220,7 @@ class AINLUService:
     # =====================================================================
     # [L9 MUTEX WRAPPER: Safe Lock Acquisition & Release]
     # =====================================================================
+    @budgeted_turn
     async def process_message(self, message_payload: dict) -> None:
         request = self._parse_incoming_message(message_payload)
         ctx = RequestContext(
@@ -3149,6 +3151,7 @@ class AINLUService:
                            elapsed_ms=round((time.monotonic()-started)*1000))
         return result
 
+    @budgeted_turn
     async def _handle_initial_suggestions(self, user_id: int) -> None:
         try:
             from app.services.opening_admission import opening_generation

@@ -324,21 +324,24 @@
       "id": "CAP-43",
       "capability": "Singleton/client lifecycle, configured models, admission, deadlines, retries and completion transport",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Deadlines/retries, shared admission and isolated quota/heartbeat gates",
-      "next_code_or_boundary_acceptance": "Audit native/model/client lifetime plus whole-turn distributed quota behavior; preserve synchronous review",
+      "next_code_or_boundary_acceptance": "Finite client/native/admission/retry lifecycle audit complete; actual NLU entrypoints share turn budget, release gate required. Full-app distributed SLO remains unverified.",
       "quality_acceptance": "Full-app mixed-load latency/error/recovery, not microbenchmarks",
       "owner_acceptance": "Agreed workload/SLO, remote dependencies and owner hardware measurements",
       "evidence_leads": [
         "apps/api/tests/test_llm_execution_limits.py",
         "apps/api/tests/test_async_limiter_load.py",
         "apps/api/tests/test_search_client_lifecycle.py",
-        "apps/api/tests/test_opening_shared_admission.py"
+        "apps/api/tests/test_opening_shared_admission.py",
+        "apps/api/tests/test_lifecycle_code_closure.py",
+        "apps/api/tests/test_compact_query_resilience.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap43-code-acceptance-v1.md"
     },
     {
       "id": "CAP-44",
@@ -426,6 +429,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 16,
-  "code_remaining_groups": 4
+  "code_complete_groups": 17,
+  "code_remaining_groups": 3
 }

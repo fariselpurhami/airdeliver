@@ -125,3 +125,13 @@ async def shared_provider_slot(model,messages,response_format,output,timeout=30,
             finally:
                 if owns_client:await client.aclose()
         elif owns_client:await client.aclose()
+
+
+def budgeted_turn(function):
+    """Reuse nested request budget; independent turns never share counters."""
+    from functools import wraps
+    @wraps(function)
+    async def wrapped(*args,**kwargs):
+        if _turn_budget.get() is not None:return await function(*args,**kwargs)
+        async with provider_turn_budget():return await function(*args,**kwargs)
+    return wrapped
