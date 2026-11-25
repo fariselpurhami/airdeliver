@@ -4,7 +4,7 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
+    branches: ["feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
     paths:
       - 'apps/web/**'
       - 'pnpm-lock.yaml'
