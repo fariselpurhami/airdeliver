@@ -28,7 +28,7 @@ async def test_writer_and_reviewer_receive_decision_contract_before_publishing()
     assert 'requested selection' in reviewer
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('field',list(QUALITY))
+@pytest.mark.parametrize('field',list(V))
 async def test_quality_rejection_withholds_without_fallback_cards(field):
     llm=service()
     async def respond(**kwargs):
@@ -39,6 +39,8 @@ async def test_quality_rejection_withholds_without_fallback_cards(field):
     assert result.selected_ids==[]
     assert result.reasoning=={}
     assert result.intro_message.startswith('System notice:')
+    assert llm._chat_completion.await_count==2
+    assert llm._chat_completion.await_args_list[1].kwargs['response_format']['json_schema']['name']=='RecommendationReview'
 
 @pytest.mark.asyncio
 async def test_decisive_missing_evidence_can_return_useful_no_pick_after_full_review():
