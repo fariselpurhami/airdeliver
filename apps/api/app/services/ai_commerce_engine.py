@@ -963,7 +963,38 @@ class AICommerceEngine:
         query = f"best rated accessories for {keyword}"
         return await self.perform_hybrid_search_pure(db, query, limit=6, filters=filter_obj.to_cache_dict())
 
-    async def get_fresh_homepage_matrix(
+    async def get_fresh_homepage_matrix(self,db,user_id,seen_ids,spending_tier="MEDIUM"):
+        """Bounded current-row selection. Tier is a sort hint, not a claim."""
+        from app.services.catalog_visibility import real_catalog_predicates,opening_card_eligible
+        from app.services.shopping_discovery import catalog_result
+        if type(user_id) is not int or user_id<=0:raise ValidationError('Invalid homepage owner')
+        if not isinstance(seen_ids,(list,tuple,set)) or len(seen_ids)>10000 or any(type(i) is not int or i<=0 for i in seen_ids):raise ValidationError('Invalid seen identities')
+        seen=set(seen_ids)
+        try:tier=SpendingTier(spending_tier.upper())
+        except (ValueError,AttributeError):tier=SpendingTier.MEDIUM
+        await self.bootstrap()
+        try:
+            async with asyncio.timeout(self.limits.vector_search_timeout_seconds+10):
+                candidates=await self.perform_hybrid_search_pure(db,'featured products',limit=min(self.limits.max_homepage_candidates,60),filters={})
+                candidate_ids=list(dict.fromkeys(getattr(p,'id',None) for p in candidates if type(getattr(p,'id',None)) is int and p.id>0 and p.id not in seen))[:60]
+                predicates=(Product.is_active.is_(True),Product.inventory>0,Product.price>=0,*real_catalog_predicates(Product))
+                rows=(await db.execute(select(Product).where(Product.id.in_(candidate_ids),*predicates).execution_options(populate_existing=True))).scalars().all() if candidate_ids else []
+                current={p.id:p for p in rows if opening_card_eligible(catalog_result(p))}
+                fresh=[current[i] for i in candidate_ids if i in current][:8]
+                if len(fresh)<8:
+                    statement=select(Product).where(*predicates,Product.id.notin_(seen|{p.id for p in fresh}))
+                    order=Product.price.desc() if tier==SpendingTier.HIGH else Product.price.asc() if tier==SpendingTier.LOW else Product.rating.desc()
+                    rows=(await db.execute(statement.order_by(order,Product.id).limit(60).execution_options(populate_existing=True))).scalars().all()
+                    fresh.extend(p for p in rows if opening_card_eligible(catalog_result(p)))
+                result=fresh[:8]
+                random.Random(hashlib.sha256(f'{user_id}:{tier.value}:{len(seen)}'.encode()).hexdigest()).shuffle(result)
+                return result
+        except asyncio.CancelledError:raise
+        except Exception as exc:
+            logger.warning('homepage_selection_withheld error_type=%s',type(exc).__name__)
+            return []
+
+    async def _legacy_get_fresh_homepage_matrix(
         self,
         db: AsyncSession,
         user_id: int,

@@ -11,19 +11,20 @@
       "id": "CAP-07",
       "capability": "Fresh homepage matrix, tier/freshness exclusions and fallback selection",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Retained homepage hybrid/tier fallback and SQL eligibility",
-      "next_code_or_boundary_acceptance": "Audit fallback versus current-card filters and large-catalog selection before declaring caller breadth complete",
+      "next_code_or_boundary_acceptance": "Current SQL homepage index/fallback/seen/large synthetic-prefix audit complete; release gate required. Bounded candidate scan not exhaustive ranking.",
       "quality_acceptance": "Real catalog ranking usefulness and cold/warm retrieval latency",
       "owner_acceptance": "Owner stack/model/index profile and homepage delivery",
       "evidence_leads": [
         "apps/api/tests/test_homepage_postgres.py",
         "apps/api/tests/test_opening_pool_postgres.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap07-code-acceptance-v1.md"
     },
     {
       "id": "CAP-13",
@@ -424,6 +425,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 14,
-  "code_remaining_groups": 6
+  "code_complete_groups": 15,
+  "code_remaining_groups": 5
 }
