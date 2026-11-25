@@ -26,12 +26,27 @@ async def write_batch(llm,groups,timeout=25.):
     cards={label:[c for p in products[:10] if (c:=catalog_result(p)) is not None and c.evidence_kind in {'local_catalog','dev_fixture'} and c.stock_status in {'local_in_stock','fixture_in_stock'}] for label,products in groups if products}
     cards={k:v for k,v in cards.items() if v}
     if not cards:return {}
-    payload={'rows':[{'row':label,'cards':[{'id':c.id,'name':c.name,'catalog_specs':c.catalog_specs,'evidence_kind':c.evidence_kind,'stock_status':c.stock_status} for c in values]} for label,values in cards.items()]}
+    # Shared products are encoded once, while every row keeps all ten IDs.
+    evidence={}
+    rows=[]
+    for label,values in cards.items():
+        ids=[]
+        for card in values:
+            record={'id':card.id,'name':card.name,'catalog_specs':card.catalog_specs,
+                    'evidence_kind':card.evidence_kind,'stock_status':card.stock_status}
+            if card.id in evidence and evidence[card.id]!=record:
+                raise ShoppingCopyError('writer_evidence','opening_identity_mismatch')
+            evidence[card.id]=record;ids.append(card.id)
+        rows.append({'row':label,'card_ids':ids})
+    payload={'rows':rows,'catalog':list(evidence.values())}
     schema=opening_schema(cards)
+    # Explicit exact shape helps constrained decoding without relaxing bounds.
+    required_shape={label:{'introduction':'one short paragraph','insight':'one useful paragraph','product_ids':[],'claims':[]} for label in cards}
+    writer_rules=RULES+' Required shape (empty lists when no individual product is named; never add a card list): '+json.dumps(required_shape,separators=(',',':'))
     stage='writer_provider'
     try:
         with anyio.fail_after(timeout):
-            raw=await infer_schema(llm.infer_sales_json,[{'role':'system','content':RULES},{'role':'user','content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))}],schema)
+            raw=await infer_schema(llm.infer_sales_json,[{'role':'system','content':writer_rules},{'role':'user','content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))}],schema)
             stage='writer_schema'
             def unique_keys(pairs):
                 result={}

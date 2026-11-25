@@ -264,7 +264,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         with anyio.fail_after(timeout):
             from app.services.structured_output import infer_schema
             raw=await infer_schema(infer,[{'role':'system','content':writer_rules},
-                             {'role':'user','content':json.dumps(payload,ensure_ascii=False)}],ShoppingDraft)
+                             {'role':'user','content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))}],ShoppingDraft)
             stage='writer_schema'
             draft=ShoppingDraft.model_validate_json(raw)
             stage='writer_evidence'
@@ -281,14 +281,14 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
                     if repair_fields else
                     'Previous draft failed the no-card numeric/link contract. Write an honest current-results no-match response without any numerals, URLs, product recommendations or invented facts. Say your stated budget instead of repeating an amount. Return empty product_ids and claims.')
                 raw=await infer_schema(infer,[{'role':'system','content':writer_rules},
-                    {'role':'user','content':json.dumps(repair,ensure_ascii=False)}],ShoppingDraft)
+                    {'role':'user','content':json.dumps(repair,ensure_ascii=False,separators=(',',':'))}],ShoppingDraft)
                 stage='writer_repair_schema'
                 draft=ShoppingDraft.model_validate_json(raw)
                 stage='writer_evidence'
                 validate_draft(draft,cards,context,brief)
             stage='review_provider'
             review=await infer_schema(infer,[{'role':'system','content':review_rules},
-                {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False)}],GroundingReview)
+                {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False,separators=(',',':'))}],GroundingReview)
             stage='review_schema'
             verdict=GroundingReview.model_validate_json(review)
             stage='review_verdict'
