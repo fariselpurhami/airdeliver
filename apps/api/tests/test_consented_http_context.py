@@ -11,14 +11,15 @@ from tests.test_cart_persistence_outcomes import real_cache
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('mode',['enabled','other_owner','revoked','feature_off','revoked_during_model'])
+@pytest.mark.parametrize('mode',['enabled','other_owner','revoked','feature_off','revoked_during_model','learning_off','off_during_model'])
 async def test_http_saved_context_is_owner_bound_consent_gated_and_rechecked(memory_db,real_cache,monkeypatch,mode):
     sessions,(uid,other)=memory_db;cache,_=real_cache
     extractor=SimpleNamespace(extract_shopping_preferences=AsyncMock(return_value={'category':'color','value':'blue','evidence':'I prefer blue'}))
     async with sessions() as db:
         service=CustomerMemoryService(db);await service.set_consent(uid,True)
         await service.collect(uid,'I prefer blue',extractor)
-        if mode=='revoked':await service.set_consent(uid,False)
+        if mode=='revoked':await service.erase_preferences(uid)
+        if mode=='learning_off':await service.set_consent(uid,False)
     if mode=='feature_off':monkeypatch.setattr(get_core_settings(),'CUSTOMER_MEMORY_ENABLED',False)
     active_uid=other if mode=='other_owner' else uid
     svc=NeuralCoreService(object(),cache);svc.is_healthy=True;svc.configuration_error=False
@@ -29,6 +30,8 @@ async def test_http_saved_context_is_owner_bound_consent_gated_and_rechecked(mem
         payload=json.loads(messages[1]['content']);seen.append(payload)
         if 'catalog_evidence' in payload:
             if mode=='revoked_during_model':
+                async with sessions() as revoke:await CustomerMemoryService(revoke).erase_preferences(uid)
+            if mode=='off_during_model':
                 async with sessions() as revoke:await CustomerMemoryService(revoke).set_consent(uid,False)
             return json.dumps({'text':'What occasion and product category do you have in mind, and what is your budget?','product_ids':[],'claims':[]})
         return json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
@@ -49,7 +52,7 @@ async def test_http_saved_context_is_owner_bound_consent_gated_and_rechecked(mem
             response=await client.post('/api/v1/ai-support/chat',json={'message':'I want a gift for my wife','session_id':'consented-http-test'})
         assert response.status_code==200,response.text
         context=seen[0]['request_evidence'].get('consented_saved_preferences',[])
-        assert context==(['Customer explicitly prefers color: blue'] if mode in {'enabled','revoked_during_model'} else [])
+        assert context==(['Customer explicitly prefers color: blue'] if mode in {'enabled','revoked_during_model','learning_off','off_during_model'} else [])
         if mode=='revoked_during_model':
             assert response.json()['response_kind']=='system_notice'
             # The rejected personalized response is not retained in Redis.
@@ -74,7 +77,7 @@ async def test_http_current_customer_preference_collection_preserves_consent_and
         calls.append(statement)
         if mode=='provider_failure':raise ConnectionError('controlled preference extraction outage')
         if mode=='revoked_during_extract':
-            async with sessions() as db:await CustomerMemoryService(db).set_consent(uid,False)
+            async with sessions() as db:await CustomerMemoryService(db).erase_preferences(uid)
         return {'category':'color','value':'blue','evidence':'I prefer blue'}
     from app.services.free_llm_service import FreeLLMService
     monkeypatch.setattr(FreeLLMService,'extract_shopping_preferences',extract)
@@ -119,7 +122,7 @@ async def test_special_paths_receive_separate_consented_hints_and_recheck_before
         if 'Plan generic component' in prompt or 'Extract source-backed' in prompt:
             seen.append(payload)
             if mode=='revoked_during_model':
-                async with sessions() as db:await CustomerMemoryService(db).set_consent(uid,False)
+                async with sessions() as db:await CustomerMemoryService(db).erase_preferences(uid)
         if 'Plan generic component' in prompt:return json.dumps({'components':['desk']})
         if 'Review a generic setup' in prompt:return json.dumps({'appropriate':True,'no_invented_products':True})
         if 'Extract source-backed' in prompt:return json.dumps({'covered_targets':['desk'],'facts':[{'label':'Material','quote':'desk is wood','source':0}]})

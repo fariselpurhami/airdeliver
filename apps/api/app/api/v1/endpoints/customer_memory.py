@@ -32,5 +32,5 @@ async def update_memory_consent(body: MemoryConsentRequest,current_user: User=De
 
 @router.delete('/memory')
 async def delete_memory(current_user: User=Depends(deps.get_current_active_user),session: AsyncSession=Depends(get_async_session)):
-    await CustomerMemoryService(session).set_consent(current_user.id,False)
-    return {'enabled':False,'deleted':True,'scope':'shopping-v1 preferences, not order records or recent chat history'}
+    await CustomerMemoryService(session).erase_preferences(current_user.id)
+    return {'enabled':False,'deleted':True,'scope':'Saved shopping preferences only, not order records or recent chat history'}

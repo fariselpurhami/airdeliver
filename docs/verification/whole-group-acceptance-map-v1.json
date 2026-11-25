@@ -93,12 +93,12 @@
       "id": "CAP-18",
       "capability": "Recent Redis conversation memory, consented saved-shopping preferences and behavior/DNA cache",
       "whole_group_closed": false,
-      "code_status": "review_required",
+      "code_status": "complete_subject_to_release_gate",
       "boundary_status": "partial_evidence_not_whole_group_acceptance",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "SQL consent lifecycle, bounded customer history and canonical exposure timestamps",
-      "next_code_or_boundary_acceptance": "Audit separate behavior/history cache lifecycle and retention; opt-out scope must be decided rather than silently expanded",
+      "next_code_or_boundary_acceptance": "Long-term explicit policy opt-in, learning-off retained recall and separate atomic erase audited; broader collection/full reset follow in CAP30. Exact-head release gate required.",
       "quality_acceptance": "Saved hints must remain optional and never override current words",
       "owner_acceptance": "Confirm expected privacy/retention scope and feature configuration",
       "evidence_leads": [
@@ -108,7 +108,8 @@
         "apps/api/tests/test_behavior_consolidation_packets.py",
         "apps/api/tests/test_search_seen_recency.py"
       ],
-      "unresolved_test_leads": []
+      "unresolved_test_leads": [],
+      "code_acceptance_document": "docs/verification/cap18-code-acceptance-v1.md"
     },
     {
       "id": "CAP-20",
@@ -431,6 +432,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 18,
-  "code_remaining_groups": 2
+  "code_complete_groups": 19,
+  "code_remaining_groups": 1
 }

@@ -61,10 +61,10 @@ async def test_real_pg_no_consent_no_extractor_or_memory_then_optin_dedupe_recal
         assert await service.recall(uid)==['Customer explicitly prefers color: blue']
         assert await service.recall(other)==[]
         exported=await service.export(uid)
-        assert len(exported['preferences'])==1 and exported['retention_days']==90
+        assert len(exported['preferences'])==1 and exported['retention_days'] is None
         await service.set_consent(uid,False)
-        assert await service.recall(uid)==[]
-        assert (await service.export(uid))['preferences']==[]
+        assert await service.recall(uid)==['Customer explicitly prefers color: blue']
+        assert len((await service.export(uid))['preferences'])==1
         assert not await service.collect(uid,'I prefer blue',llm)
 
 

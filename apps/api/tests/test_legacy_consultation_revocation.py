@@ -29,7 +29,7 @@ async def test_saved_hints_revoked_during_model_are_not_published(memory_db,monk
         if 'Plan generic' in policy:return '{"components":["chair"]}'
         if 'Review a generic' in policy:return '{"appropriate":true,"no_invented_products":true}'
         if ('catalog_evidence' in data or 'Extract source-backed' in policy) and not revoked:
-            async with sessions() as db:await CustomerMemoryService(db).set_consent(uid,False)
+            async with sessions() as db:await CustomerMemoryService(db).erase_preferences(uid)
             revoked=True
         if 'Extract source-backed' in policy:return json.dumps({'covered_targets':['Atlas chair'],'facts':[{'label':'Material','quote':'Atlas chair uses wood.','source':0}]})
         if 'Review source extraction' in policy:return '{"supported":true,"exact_model":true,"product_information_only":true}'

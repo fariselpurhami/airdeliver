@@ -1,3 +1,7 @@
+# Historical audit, superseded decisions
+
+Owner resolved cart-only clear, long-term memory and learning-only off on November 25. See cap18-code-acceptance-v1.md for current lifecycle, and CAP30 for broader collection/full erasure. The audit below is a historical description, not current blockers or behavior.
+
 # Separate memory lifecycle audit, decisions open
 
 This is not CAP18/CAP30 code closure. Neither is promoted by the tests here.

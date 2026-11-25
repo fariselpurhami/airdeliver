@@ -37,10 +37,7 @@ async def test_recall_rechecks_canonical_consent_in_same_fact_query(memory_db,ch
         service=CustomerMemoryService(db);await service.set_consent(uid,True);assert await service.collect(uid,'I prefer blue',llm)
     async with sessions() as db:
         service=CustomerMemoryService(db)
-        async def precheck(user_id):
-            async with sessions() as writer:
-                await writer.execute(update(CustomerMemoryConsent).where(CustomerMemoryConsent.user_id==uid).values(**({'enabled':False} if change=='disabled' else {'policy_version':'old-policy'})))
-                await writer.commit()
-            return True
-        service.enabled=precheck
-        assert await service.recall(uid)==[]
+        async with sessions() as writer:
+            await writer.execute(update(CustomerMemoryConsent).where(CustomerMemoryConsent.user_id==uid).values(**({'enabled':False} if change=='disabled' else {'policy_version':'old-policy'})))
+            await writer.commit()
+        assert await service.recall(uid)==(['Customer explicitly prefers color: blue'] if change=='disabled' else [])

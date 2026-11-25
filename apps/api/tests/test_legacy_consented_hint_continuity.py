@@ -23,7 +23,7 @@ async def test_retained_product_answer_real_consent_and_current_sql(memory_db,st
         async with sessions() as db:
             memory=CustomerMemoryService(db);await memory.set_consent(uid,True)
             assert await memory.collect(uid,'I prefer blue',SimpleNamespace(extract_shopping_preferences=AsyncMock(return_value={'category':'color','value':'blue','evidence':'I prefer blue'})))
-            if state=='revoked':await memory.set_consent(uid,False)
+            if state=='revoked':await memory.erase_preferences(uid)
             if state=='expired':
                 await db.execute(update(CustomerShoppingMemory).where(CustomerShoppingMemory.user_id==uid).values(expires_at=datetime.now(timezone.utc)-timedelta(seconds=1)));await db.commit()
             row=Product(sku=uuid4().hex,name='Atlas chair',description='',category='chairs',price=20,currency='USD',inventory=3,attributes={})

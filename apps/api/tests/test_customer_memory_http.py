@@ -12,7 +12,7 @@ from app.core.config import get_core_settings
 
 @pytest.fixture
 def client(monkeypatch):
-    service=SimpleNamespace(export=AsyncMock(return_value={'preferences':[]}),set_consent=AsyncMock())
+    service=SimpleNamespace(export=AsyncMock(return_value={'preferences':[]}),set_consent=AsyncMock(),erase_preferences=AsyncMock())
     monkeypatch.setattr(customer_memory,'CustomerMemoryService',lambda db:service)
     async def session():yield object()
     app.dependency_overrides[get_async_session]=session
@@ -33,7 +33,7 @@ def test_delete_revokes_only_authenticated_customers_memory(client):
     client,service=client
     result=client.delete('/api/v1/users/me/memory')
     assert result.status_code==200
-    service.set_consent.assert_awaited_once_with(17,False)
+    service.erase_preferences.assert_awaited_once_with(17)
     assert 'recent chat history' in result.json()['scope']
 
 
