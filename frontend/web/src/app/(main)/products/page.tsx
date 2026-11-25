@@ -9,6 +9,7 @@ import { type Product } from '@/types';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
+import { AirSparkles } from '@/components/ui/AirSparkles';
 import { AlertTriangle, Bot, ShoppingBag, Zap, Layers, ChevronLeft, ChevronRight, Activity, BadgeCheck } from 'lucide-react';
 import Image from 'next/image';
 import { MobileHomeFloatingCards } from '@/components/hero/MobileHomeFloatingCards';
@@ -128,7 +129,7 @@ const AICatalogHero = React.memo(() => {
                         className="relative flex items-center p-1.5 sm:p-2 rounded-[73px] bg-[#0D0D0C]/90 lg:bg-[#0D0D0C]/80 border border-white/15 backdrop-blur-3xl transition-all duration-500 hover:border-cyan-500/50 hover:bg-[#0D0D0C]"
                     >
                         <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white/5 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 border border-white/5 relative">
-                            <Bot size={18} className="sm:w-[22px] sm:h-[22px]" strokeWidth={1.5} />
+                            <AirSparkles className="h-6 w-6 text-purple-400 sm:h-7 sm:w-7" />
                             
                             {/* نقطة الإشعار برقم المنتجات (Badge) */}
                             {cartItemsCount > 0 && (

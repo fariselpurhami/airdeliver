@@ -8,6 +8,7 @@ import Image from "next/image";
 import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
 import { AISecuredOrdersBadge } from '@/components/hero/AISecuredOrdersBadge';
 import Link from 'next/link';
+import { AirSparkles } from '@/components/ui/AirSparkles';
 import React, { 
   useRef, useMemo, useEffect, useReducer, memo, useId, Component, ErrorInfo, ReactNode 
 } from 'react';
@@ -584,7 +585,7 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
                 <div className={`absolute -inset-[1px] rounded-[73px] blur-md transition-all duration-1000 -z-10 ${cartItemsCount > 0 ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-100' : 'bg-gradient-to-r from-cyan-500/40 to-purple-500/40 opacity-80 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl'}`} aria-hidden="true" />
 
                 <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 transform-gpu relative">
-                  <Bot size={18} strokeWidth={1.5} className="sm:w-6 sm:h-6" aria-hidden="true" />
+                  <AirSparkles className="h-6 w-6 text-purple-400 sm:h-7 sm:w-7" />
                   {cartItemsCount > 0 && (
                     <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-black text-[#050505] shadow-[0_0_10px_rgba(6,182,212,0.8)]" aria-hidden="true">
                       {cartItemsCount}
@@ -707,7 +708,7 @@ const MobileHomeHeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectio
                 <div className={`absolute -inset-[1px] rounded-[73px] blur-md transition-all duration-1000 -z-10 ${cartItemsCount > 0 ? 'bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-100' : 'bg-gradient-to-r from-cyan-500/40 to-purple-500/40 opacity-80 group-hover:-inset-[3px] group-hover:opacity-100 group-hover:blur-xl'}`} aria-hidden="true" />
 
                 <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-zinc-800/80 text-cyan-400 group-hover:scale-105 transition-transform duration-500 shrink-0 transform-gpu relative">
-                  <Bot size={18} strokeWidth={1.5} className="sm:w-6 sm:h-6" aria-hidden="true" />
+                  <AirSparkles className="h-6 w-6 text-purple-400 sm:h-7 sm:w-7" />
                   {cartItemsCount > 0 && (
                     <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-400 text-[10px] font-black text-[#050505] shadow-[0_0_10px_rgba(6,182,212,0.8)]" aria-hidden="true">
                       {cartItemsCount}

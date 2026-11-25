@@ -8,7 +8,7 @@ WEB=ROOT/'frontend/web'
 def test_source_manifest_preserves_every_pre_move_byte():
  manifest=json.loads((ROOT/'docs/verification/web-source-layout-v1.json').read_text())
  evolution=json.loads((ROOT/'docs/verification/web-source-evolution-v1.json').read_text())
- assert set(evolution)=={'frontend/web/src/app/globals.css','frontend/web/src/app/(main)/_components/LandingClient.tsx','frontend/web/src/components/layout/Header.tsx','frontend/web/src/components/ai/Chatbot.tsx'}
+ assert set(evolution)=={'frontend/web/src/app/globals.css','frontend/web/src/app/(main)/_components/LandingClient.tsx','frontend/web/src/components/layout/Header.tsx','frontend/web/src/components/ai/Chatbot.tsx','frontend/web/src/app/(main)/products/page.tsx'}
  assert len(manifest['files'])>100
  for row in manifest['files']:
   assert not (ROOT/row['previous_path']).exists()
