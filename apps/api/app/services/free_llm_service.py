@@ -1215,6 +1215,18 @@ Output ONE line of search keywords only.
             return "generic product"
 
     async def _perform_tavily_title_lookup(self, query: str) -> str:
+        if not self._tavily_api_key:return ''
+        from app.services.tavily_boundary import search
+        from app.services.product_knowledge_service import allowed_url
+        result=await search(query[:350],self._tavily_api_key,max_results=1,depth='basic',raw=False,
+            timeout=self.limits.tavily_timeout_seconds)
+        rows=result.get('results',[])
+        if not rows or not isinstance(rows[0],dict):return ''
+        row=rows[0]
+        if not isinstance(row.get('url'),str) or not allowed_url(row['url']) or not isinstance(row.get('title'),str):return ''
+        return ' '.join(re.sub(r'[^\w\s-]',' ',row['title']).split()[:6])
+
+    async def _perform_tavily_title_lookup_legacy_unreviewed(self, query: str) -> str:
         if not self._tavily_api_key:
             return ""
 
@@ -1238,6 +1250,21 @@ Output ONE line of search keywords only.
         return await asyncio.wait_for(asyncio.to_thread(_execute), timeout=self.limits.tavily_timeout_seconds)
 
     async def _perform_web_search(self, query: str) -> str:
+        if not self._tavily_api_key or not str(self._tavily_api_key).strip():return 'Global search unavailable.'
+        from app.services.tavily_boundary import search,source_rows
+        try:
+            result=await search(_build_clean_web_query(query)[:350],self._tavily_api_key,
+                timeout=self.limits.tavily_timeout_seconds)
+            rows=source_rows(result,text_limit=2000)
+        except asyncio.CancelledError:raise
+        except Exception as exc:
+            logger.warning('web_search.withheld error_type=%s',type(exc).__name__)
+            return 'Global search could not verify source data.'
+        if not rows:return 'Global search yielded no confirmed data.'
+        return 'Untrusted search excerpts. These do not establish product identity, availability or independent factual verification.\n'+ '\n'.join(
+            'Source: '+row['url']+' | Excerpt: '+row['text'] for row in rows)
+
+    async def _perform_web_search_legacy_unreviewed(self, query: str) -> str:
         if not self._tavily_api_key or not str(self._tavily_api_key).strip():
             return "Global search unavailable."
 

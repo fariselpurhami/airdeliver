@@ -88,12 +88,8 @@ async def lookup_product_sources(question):
         logger.warning('product_knowledge.lookup cause=missing_key returned=0 accepted=0')
         raise SourceFailure('missing_key')
     try:
-      async with httpx.AsyncClient(timeout=6,follow_redirects=False) as client:
-        response=await client.post('https://api.tavily.com/search',json={
-            'api_key':key,'query':question[:300]+' product manufacturer evidence',
-            'max_results':3,'include_answer':False,'include_raw_content':True,'search_depth':'advanced'})
-        response.raise_for_status()
-        result=response.json()
+      from app.services.tavily_boundary import search
+      result=await search(question[:300]+' product manufacturer evidence',key)
     except httpx.HTTPStatusError as exc:
         status=exc.response.status_code
         cause='authentication' if status in {401,403} else 'rate_limit' if status==429 else 'provider_server' if status>=500 else 'provider_request'
@@ -105,15 +101,15 @@ async def lookup_product_sources(question):
     except httpx.RequestError:
         logger.warning('product_knowledge.lookup cause=connection')
         raise SourceFailure('connection') from None
+    except TimeoutError:
+        raise SourceFailure('timeout') from None
+    except (ValueError,TypeError):
+        raise SourceFailure('research_failed') from None
+    if not isinstance(result,dict):raise SourceFailure('research_failed')
     results=result.get('results',[])
     if not isinstance(results,list):raise SourceFailure('research_failed')
-    sources=[]
-    for item in results[:3]:
-        if not isinstance(item,dict):continue
-        url=item.get('url','')
-        text=item.get('raw_content') or item.get('content') or ''
-        if allowed_url(url) and isinstance(text,str) and text.strip():
-            sources.append({'url':url,'text':' '.join(text.split())[:6000]})
+    from app.services.tavily_boundary import source_rows
+    sources=source_rows(result)
     cause='ok' if sources else 'empty_results' if not results else 'source_policy'
     logger.info('product_knowledge.lookup cause=%s returned=%d accepted=%d rejected=%d',cause,len(results),len(sources),min(3,len(results))-len(sources))
     if not sources:raise SourceFailure(cause)

@@ -355,17 +355,19 @@
       "id": "CAP-50",
       "capability": "Tavily web search",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Tavily transport, per-target source lookup and truthful cause notices",
-      "next_code_or_boundary_acceptance": "Audit all retained web caller shapes/limits/URL handling and cancellation boundaries",
+      "next_code_or_boundary_acceptance": "No known remaining in-scope code gap after active caller audit; exact-head CI and merge remain. Source relevance, semantic entailment and owner acceptance remain separate.",
       "quality_acceptance": "Actual returned source relevance/entailment; exact quote is not semantic proof",
       "owner_acceptance": "Bounded credential/quota/source execution and current network outcomes",
       "evidence_leads": [
         "apps/api/tests/test_specification_service.py",
-        "apps/api/tests/test_reviewed_consultation.py"
+        "apps/api/tests/test_reviewed_consultation.py",
+        "docs/verification/cap50-code-acceptance-v1.md",
+        "apps/api/tests/test_tavily_boundary.py"
       ],
       "unresolved_test_leads": []
     },
@@ -389,6 +391,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 1,
-  "code_remaining_groups": 19
+  "code_complete_groups": 2,
+  "code_remaining_groups": 18
 }
