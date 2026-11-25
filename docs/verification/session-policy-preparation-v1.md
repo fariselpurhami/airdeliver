@@ -28,3 +28,7 @@ Sources read:
 - https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
 
 These sources inform security design, not owner approval for migration or deployment.
+
+## Additional offline fault checks
+
+Eleven mocked transport/storage boundary cases pass for issue/rotation flush or commit outage, cancellation propagation, replay revocation commit ordering, unknown/foreign-token non-revocation and failed-revocation error propagation. The five real PostgreSQL tests still skip locally; these mocks do not establish transaction rollback, row locking or concurrency. No new migration was executed, no active auth route was changed and C01 disposable-CI migration authority remains unresolved here.
