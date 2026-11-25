@@ -121,7 +121,7 @@ async def persist_import(db,payload):
 async def sync_import(snapshots,embedding,milvus,opensearch):
     """Reuse reviewed existing sinks, never generator/fresh-start/drop/run."""
     from types import SimpleNamespace
-    from seed_ultra_scale import ProductVector
+    from tools.seed_ultra_scale import ProductVector
     products=[SimpleNamespace(**{**row,'rating':row['rating'] if row['rating'] is not None else 0.}) for row in snapshots] # Index schema uses0 for unrated; SQL remainsNULL.
     embedding_rows=[SimpleNamespace(**{**p.__dict__,'attributes':{k:v for k,v in p.attributes.items() if not k.startswith(('_','fixture_')) and k!='image_kind'}}) for p in products]
     vectors=await embedding.embed_products(embedding_rows)

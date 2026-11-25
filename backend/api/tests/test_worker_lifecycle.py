@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-import worker_entrypoint as worker
+from app.services.orchestration import worker_entrypoint as worker
 
 
 @pytest.mark.asyncio

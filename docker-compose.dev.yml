@@ -445,7 +445,7 @@ services:
     command: >
       sh -c "
       echo '🚀 Starting Optimized Worker...' &&
-      /opt/venv/bin/watchfiles '/opt/venv/bin/python /app/worker_entrypoint.py' /app --ignore-paths '*/__pycache__'"
+      /opt/venv/bin/watchfiles '/opt/venv/bin/python -m app.services.orchestration.worker_entrypoint' /app --ignore-paths '*/__pycache__'"
     logging:
       driver: "json-file"
       options:
@@ -464,7 +464,7 @@ services:
       dockerfile: Dockerfile
       target: production
     container_name: airdeliver-seeder
-    command: /opt/venv/bin/python /app/seed_ultra_scale.py
+    command: /opt/venv/bin/python -m tools.seed_ultra_scale
     env_file: ${AIRDELIVER_ENV_FILE:-.env}
     environment:
       - SEED_TARGET_COUNT=${SEED_TARGET_COUNT:-1000}

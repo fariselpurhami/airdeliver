@@ -559,7 +559,7 @@ services:
       - global-net
     logging: *default-logging
     deploy: *default-core-deploy
-    command: python /app/worker_entrypoint.py
+    command: python -m app.services.orchestration.worker_entrypoint
 
   web:
     container_name: airdeliver-web

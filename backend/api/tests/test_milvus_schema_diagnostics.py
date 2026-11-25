@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 import logging
 import pytest
-import seed_ultra_scale as seed
+from tools import seed_ultra_scale as seed
 from scripts.inspect_product_collection import inspect_collection
 
 

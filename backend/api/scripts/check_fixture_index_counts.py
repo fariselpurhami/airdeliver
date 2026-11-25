@@ -10,7 +10,7 @@ async def main():
     from app.models.product import Product
     from app.db.session import AsyncSessionFactory
     from app.core.config import get_core_settings
-    from seed_ultra_scale import Settings, RetryPolicy, MilvusRepository, OpenSearchRepository, configure_logging
+    from tools.seed_ultra_scale import Settings, RetryPolicy, MilvusRepository, OpenSearchRepository, configure_logging
     async with AsyncSessionFactory() as db:
         ids=list((await db.execute(select(Product.id).where(Product.attributes.op('->>')('_seed_dataset')=='airdeliver-dev-fixtures-v1'))).scalars())
         await db.rollback()

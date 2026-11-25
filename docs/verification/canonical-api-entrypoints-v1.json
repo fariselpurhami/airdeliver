@@ -1,0 +1,17 @@
+{
+  "baseline": "7f608c13aef064cb6102aba6dc771d58e8fea2d8",
+  "worker_path": "backend/api/app/services/orchestration/worker_entrypoint.py",
+  "worker_sha256": "36a4b94cdf85a94271d3b98b4c7372a0c53416083128e4be51875a4d53de79c9",
+  "removed": [
+    "backend/api/create_db.py",
+    "backend/api/create_db_and_tables.py",
+    "backend/api/fix_milvus.py",
+    "backend/api/hash_password.py",
+    "backend/api/init_data.py",
+    "backend/api/nuke_milvus_v2.py",
+    "backend/api/reset_db.py",
+    "backend/api/seed_ultra_scale.py",
+    "backend/api/sync_search.py",
+    "backend/api/debian.sources"
+  ]
+}

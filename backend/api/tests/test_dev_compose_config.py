@@ -171,7 +171,7 @@ def test_seeder_compose_uses_real_settings_aliases_and_independent_network(prepa
     assert values['SEED_BATCH_SIZE']=='16' and values['EMBEDDING_ENCODE_BATCH_SIZE']=='1'
     assert 'network_mode' not in service and 'global-net' in service['networks']
     assert 'api' not in service['depends_on']
-    from seed_ultra_scale import Settings
+    from tools.seed_ultra_scale import Settings
     parsed=Settings(_env_file=None,**values)
     assert parsed.target_count==1000 and parsed.batch_size==16
     assert parsed.embedding_model=='Alibaba-NLP/gte-Qwen2-1.5B-instruct'
@@ -267,7 +267,7 @@ def test_worker_probe_matches_its_own_server_not_api_image(prepared):
         assert 'http://localhost:8000/api/v1/health' in ' '.join(services['api']['healthcheck']['test'])
         assert worker['start_period']=='6m30s'
         assert services['api']['healthcheck']['start_period']=='6m30s'
-    source=(ROOT/'backend/api/worker_entrypoint.py').read_text()
+    source=(ROOT/'backend/api/app/services/orchestration/worker_entrypoint.py').read_text()
     assert 'HEALTH_SERVER_PORT: Final[int] = 8081' in source
     assert 'raise StartupDependencyError("No payment gateway is configured and available")' in source
 
@@ -336,7 +336,7 @@ def test_combined_compose_selected_profile_without_legacy_gte_override(prepared,
         assert values.get('EMBEDDING_MODEL_PATH','')==''
         assert values['HF_HUB_CACHE']=='/data/storage/models_cache/huggingface/hub'
     # Fresh process: catalog_contract captures profile at import, as containers do.
-    probe="from seed_ultra_scale import Settings;from app.core.catalog_contract import ACTIVE_SPACE; s=Settings(_env_file=None);assert s.embedding_model==ACTIVE_SPACE.model;assert s.embedding_revision==ACTIVE_SPACE.revision;assert s.embedding_dimension==ACTIVE_SPACE.dimension;assert s.milvus_collection==ACTIVE_SPACE.collection;assert s.opensearch_index==ACTIVE_SPACE.search_index"
+    probe="from tools.seed_ultra_scale import Settings;from app.core.catalog_contract import ACTIVE_SPACE; s=Settings(_env_file=None);assert s.embedding_model==ACTIVE_SPACE.model;assert s.embedding_revision==ACTIVE_SPACE.revision;assert s.embedding_dimension==ACTIVE_SPACE.dimension;assert s.milvus_collection==ACTIVE_SPACE.collection;assert s.opensearch_index==ACTIVE_SPACE.search_index"
     env={**os.environ,**services['api-seeder']['environment'],'PYTHONPATH':str(ROOT/'backend/api')}
     result=subprocess.run([__import__('sys').executable,'-c',probe],env=env,capture_output=True,text=True)
     assert result.returncode==0,result.stderr

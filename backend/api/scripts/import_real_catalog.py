@@ -16,7 +16,7 @@ async def run(args):
     # SQL commit is durable before index work. Failure is explicitly partial,
     # rerunning exactfile repairs indexes with stableSKU/SQLid, no duplicate rows.
     print(json.dumps({'sql_committed':True,'sha256':digest,'plan':plan,'index_status':'pending'}),flush=True)
-    from seed_ultra_scale import Settings,RetryPolicy,MilvusRepository,OpenSearchRepository,EmbeddingService,configure_logging
+    from tools.seed_ultra_scale import Settings,RetryPolicy,MilvusRepository,OpenSearchRepository,EmbeddingService,configure_logging
     from app.core.config import get_core_settings
     core=get_core_settings()
     settings=Settings(DATABASE_URI=str(core.DATABASE_URI),APP_ENV=core.APP_ENV,MILVUS_ENABLED=True,OPENSEARCH_ENABLED=True)

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import numpy as np
 import pytest
-import worker_entrypoint as worker
+from app.services.orchestration import worker_entrypoint as worker
 from app.services import ai_commerce_engine as commerce
 from app.services.embedding_warmup import WarmupPolicy,warm_text_encoder,TextEmbeddingWarmupError
 from tests.test_embedding_startup_readiness import TimedEncoder

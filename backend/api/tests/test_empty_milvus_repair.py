@@ -40,7 +40,7 @@ def test_only_explicit_known_empty_repair_drops_once_and_checks_new_schema():
 
 
 def test_worker_product_bootstrap_includes_rating():
-    import worker_entrypoint as worker
+    from app.services.orchestration import worker_entrypoint as worker
     c=Mock();c.has_collection.return_value=False
     worker.WorkerRuntime.ensure_milvus_schema(c)
     text=c.create_collection.call_args_list[0].kwargs['schema'].to_dict()

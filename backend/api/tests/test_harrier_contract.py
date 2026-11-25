@@ -18,7 +18,7 @@ import json
 from app.core.catalog_contract import *
 from app.core.ai_profile import get_ai_profile
 from app.services.ai_commerce_engine import AICommerceEngine,PRODUCT_TEXT_MODEL,PRODUCT_SEARCH_INDEX,PRODUCT_QUERY_PROMPT
-from seed_ultra_scale import Settings
+from tools.seed_ultra_scale import Settings
 p=get_ai_profile();s=Settings(_env_file=None,DATABASE_URI='postgresql+asyncpg://unused/test',APP_ENV='development')
 print(json.dumps({'model':p.text_retrieval_model,'dim':PRODUCT_TEXT_MODEL.dimension,'revision':p.text_retrieval_revision,'collections':{k:v.name for k,v in AICommerceEngine.SCHEMA_CONFIG.items()},'os':PRODUCT_SEARCH_INDEX,'seed':s.embedding_model,'seed_dim':s.embedding_dimension,'seed_revision':s.embedding_revision,'prompt':PRODUCT_QUERY_PROMPT}))
 '''
@@ -33,7 +33,7 @@ print(json.dumps({'model':p.text_retrieval_model,'dim':PRODUCT_TEXT_MODEL.dimens
     assert data['os']==h.search_index and data['prompt']==h.query_prompt
 
 def test_known_candidate_namespace_rejects_wrong_model_even_if_os_only():
-    from seed_ultra_scale import Settings
+    from tools.seed_ultra_scale import Settings
     with pytest.raises(ValueError,match='versioned index'):
         Settings(_env_file=None,DATABASE_URI='postgresql+asyncpg://unused/test',APP_ENV='development',MILVUS_ENABLED=False,
             OPENSEARCH_INDEX=SPACES['harrier-v1'].search_index)
@@ -79,7 +79,7 @@ async def test_owner_migration_actual_control_flow_readonly_sha_memory_and_count
     from scripts import migrate_harrier_catalog as migration
     from app.db import session as session_module
     from app.core import config
-    import seed_ultra_scale as seed
+    from tools import seed_ultra_scale as seed
     import pymilvus
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
@@ -156,7 +156,7 @@ import json
 from app.core.catalog_contract import *
 from app.core.ai_profile import get_ai_profile
 from app.services.ai_commerce_engine import AICommerceEngine
-from seed_ultra_scale import Settings
+from tools.seed_ultra_scale import Settings
 p=get_ai_profile();s=Settings(_env_file=None,DATABASE_URI='postgresql+asyncpg://unused/test',APP_ENV='development')
 print(json.dumps([p.text_retrieval_model,p.text_retrieval_revision,p.text_retrieval_dimension,s.embedding_dimension,s.embedding_model,PRODUCT_QUERY_PROMPT,PRODUCT_SEARCH_INDEX,{k:v.name for k,v in AICommerceEngine.SCHEMA_CONFIG.items()}]))
 '''

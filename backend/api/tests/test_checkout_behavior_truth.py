@@ -3,7 +3,7 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import pytest
-from worker_entrypoint import WorkerRuntime
+from app.services.orchestration.worker_entrypoint import WorkerRuntime
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('failure',[False,True])

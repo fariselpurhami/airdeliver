@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from app.services.ai_cart_service import CartPersistenceError
-from worker_entrypoint import WorkerRuntime
+from app.services.orchestration.worker_entrypoint import WorkerRuntime
 
 
 class Context:
@@ -40,7 +40,7 @@ async def test_unconfirmed_cart_write_is_not_republished(notification_fails):
 
 @pytest.mark.asyncio
 async def test_other_transient_work_retains_existing_retry_policy(monkeypatch):
-    import worker_entrypoint as worker
+    from app.services.orchestration import worker_entrypoint as worker
     runtime=WorkerRuntime();runtime.republish_with_headers=AsyncMock()
     incoming=message();handler=AsyncMock(side_effect=ConnectionError('temporary'))
     monkeypatch.setattr(worker.asyncio,'sleep',AsyncMock())

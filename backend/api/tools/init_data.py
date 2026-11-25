@@ -16,7 +16,7 @@ from app.models.enums import UserRole
 
 # --- 🏭 Factory Imports (CORRECTED) ---
 # 👇 نستورد الدوال الصحيحة الموجودة فعلياً في ملفك
-from seed_ultra_scale import seed_sql, seed_search_engines
+from tools.seed_ultra_scale import seed_sql, seed_search_engines
 
 # --- 🎛️ Logging Configuration ---
 logging.basicConfig(

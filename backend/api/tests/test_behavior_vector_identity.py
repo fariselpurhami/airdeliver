@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock,Mock
 import logging
 import pytest
-from worker_entrypoint import WorkerRuntime
+from app.services.orchestration.worker_entrypoint import WorkerRuntime
 
 def runtime(rows):
     rt=object.__new__(WorkerRuntime)

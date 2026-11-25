@@ -21,7 +21,7 @@ async def run(args):
     from app.db.session import AsyncSessionFactory
     from app.models.product import Product
     from app.core.config import get_core_settings
-    from seed_ultra_scale import Settings,RetryPolicy,MilvusRepository,OpenSearchRepository,EmbeddingService,configure_logging
+    from tools.seed_ultra_scale import Settings,RetryPolicy,MilvusRepository,OpenSearchRepository,EmbeddingService,configure_logging
     from pymilvus import MilvusClient,DataType
     core=get_core_settings()
     # Explicit identity prevents stale .env seeder values redirecting writes.

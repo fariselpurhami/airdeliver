@@ -13,7 +13,13 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
  assert legacy is canonical
  sentinel=object();monkeypatch.setattr(legacy,'_layout_test_sentinel',sentinel,raising=False)
  assert canonical._layout_test_sentinel is sentinel
- assert hashlib.sha256((ROOT/row['path']).read_bytes()).hexdigest()==row['canonical_sha256']
+ source=(ROOT/row['path']).read_bytes()
+ # Preserve the immutable move manifest while accounting for the separately
+ # approved canonical maintenance import after root CLI wrapper retirement.
+ if row['canonical_module']=='app.services.catalog.real_catalog_import':
+  assert b'from tools.seed_ultra_scale import ProductVector' in source
+  source=source.replace(b'from tools.seed_ultra_scale import ProductVector',b'from seed_ultra_scale import ProductVector')
+ assert hashlib.sha256(source).hexdigest()==row['canonical_sha256']
 
 
 def test_voice_foundation_stays_at_its_existing_path():

@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from app.schemas.cart_recommendation import CartRecommendationEvent, CART_RECOMMENDATION_ROUTING_KEY
 from app.services.ai_cart_service import AICartService
 from tests.test_ai_cart_service import FakeDB, FakeCache, make_product
-from worker_entrypoint import WorkerRuntime
+from app.services.orchestration.worker_entrypoint import WorkerRuntime
 
 
 @pytest.mark.asyncio

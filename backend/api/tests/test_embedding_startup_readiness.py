@@ -110,7 +110,7 @@ async def test_actual_http_server_cannot_accept_health_until_api_lifespan_warmup
 
 @pytest.mark.asyncio
 async def test_worker_health_and_readiness_reject_cold_model():
-    import worker_entrypoint as worker
+    from app.services.orchestration import worker_entrypoint as worker
     runtime=worker.WorkerRuntime()
     s=runtime.services
     s.rabbitmq=SimpleNamespace(is_closed=False);s.db_engine=object()

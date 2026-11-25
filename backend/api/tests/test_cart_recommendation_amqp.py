@@ -16,7 +16,7 @@ from app.core.config import CoreSettings
 from app.schemas.cart_recommendation import CART_RECOMMENDATION_ROUTING_KEY
 from app.services.rabbitmq_service import RabbitMQService,EXCHANGE_NAME
 from app.services.ai_cart_service import AICartService
-from worker_entrypoint import WorkerRuntime
+from app.services.orchestration.worker_entrypoint import WorkerRuntime
 from tests.test_ai_cart_service import FakeDB,FakeCache,make_product
 
 

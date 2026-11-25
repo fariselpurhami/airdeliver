@@ -17,7 +17,7 @@ from sqlalchemy.engine import make_url
 import sys
 API=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(API))
-import seed_ultra_scale as seed
+from tools import seed_ultra_scale as seed
 
 
 def main():

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from worker_entrypoint import WorkerRuntime
+from app.services.orchestration.worker_entrypoint import WorkerRuntime
 
 
 class _FakeBehavior:

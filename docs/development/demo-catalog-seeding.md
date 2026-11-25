@@ -1,6 +1,6 @@
 # Demo catalog seeding on PostgreSQL 19
 
-`backend/api/seed_ultra_scale.py` remains the catalog generator. Migrations own the schema. The seeder checks the migrated columns and timestamp types instead of creating a conflicting standalone products table.
+`backend/api/tools/seed_ultra_scale.py` remains the catalog generator. Migrations own the schema. The seeder checks the migrated columns and timestamp types instead of creating a conflicting standalone products table.
 
 ## Data contract
 

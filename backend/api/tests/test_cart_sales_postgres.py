@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.models.product import Product
 from app.services.cart_sales_service import CartSalesService
 from tests.test_cart_persistence_outcomes import real_cache
-from worker_entrypoint import WorkerRuntime
+from app.services.orchestration.worker_entrypoint import WorkerRuntime
 
 pytestmark = pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'), reason='migrated disposable PostgreSQL required')
 

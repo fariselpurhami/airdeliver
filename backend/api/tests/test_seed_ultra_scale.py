@@ -13,7 +13,7 @@ import uuid
 import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
-import seed_ultra_scale as seed
+from tools import seed_ultra_scale as seed
 
 
 def settings(**overrides):
