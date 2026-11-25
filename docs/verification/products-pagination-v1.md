@@ -8,7 +8,7 @@ Command: `python -m pytest -q tests/test_products_pagination_http.py`.
 
 The existing route now validates skip0–100000, limit1–100 and page1–100001; calculated page offsets above100000 are rejected422 before query execution. Page always overrides skip, including page1. Default limit100 and response list shape remain unchanged. Both slash and no-slash route registrations use the same checks.
 
-Verified after fix: `python -m pytest -q tests/test_products_pagination_http.py tests/test_product_image_contract.py`,29 passed. SQL-boundary assertions inspect PostgreSQL-compiled LIMIT/OFFSET and verify rejected input never reaches the controlled session. This is real ASGI route validation with a controlled SQL result, not a production database load test. Full exact-head CI and postmerge remain pending.
+Verified after fix: `python -m pytest -q tests/test_products_pagination_http.py tests/test_product_image_contract.py`,29 passed. SQL-boundary assertions inspect PostgreSQL-compiled LIMIT/OFFSET and verify rejected input never reaches the controlled session. This is real ASGI route validation with a controlled SQL result, not a production database load test. Full exact-head CI passed at03daf9ee8d02e9e78e4dc7c0dee6487d23bbf8c6, including both PostgreSQL storage jobs, frontend/typecheck/build/tests, Docker smoke and secret scan. Evidence: https://github.com/fariselpurhami/airdeliver/actions/runs/45683581301/job/139450169414 . Final documentation-head CI and postmerge remain pending.
 
 ## Rationale and limits
 
