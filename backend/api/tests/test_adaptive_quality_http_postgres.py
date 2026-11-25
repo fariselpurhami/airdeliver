@@ -29,9 +29,10 @@ async def test_mounted_shared_adaptive_answer_runs_full_review_before_publish(re
   svc=NeuralCoreService(SimpleNamespace(perform_hybrid_search_pure=AsyncMock(side_effect=retrieve)),cache)
   svc.is_healthy=True;svc.configuration_error=False
   async def infer(messages):
-   policy=messages[0]['content'];data=json.loads(messages[1]['content'])
+   policy=messages[0]['content']
    if 'primary cognitive routing' in policy:
     return json.dumps({'intent':'PRODUCT_SEARCH','query':'Synthetic Atlas laptop','search_subject':'Synthetic Atlas laptop','shopping_task':'search','targets':[{'product_name':'Synthetic Atlas laptop'}]})
+   data=json.loads(messages[1]['content'])
    if 'catalog_evidence' in data:
     writer.append(messages)
     return json.dumps({'text':'This is a synthetic test candidate, not an offer. Water resistance is not listed, so confirm that before choosing.','product_ids':[],'claims':[]})
