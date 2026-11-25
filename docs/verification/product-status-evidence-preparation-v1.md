@@ -38,3 +38,9 @@ A dated official launch page can support actual release status for its exact mod
 
 ## Acceptance still open
 No claim of zero hallucinations, superiority over other AI, completed active integration, live research certification or user-approved final answer quality. The owner specifically requires further work beyond the first correct-but-repetitive backpack result. Preserve that bar.
+
+## Exact publisher-host configuration preparation
+
+An inactive `publisher_binding.py` now supplies application-configured exact HTTPS host binding, with no shipped publisher entries. Initial collection failed because the module was absent; the implementation rejects suffix impersonation, URL credentials, alternate ports, wildcard/public-root/IP configuration, control characters, encoded controls and unconfigured sibling hosts. Duplicate configured hosts fail closed. Binding an unrelated page on a known publisher still establishes only publisher origin, never exact product identity, source date, status assertion, or redirected destination. The final fetched URL must be checked independently; no HTTP/redirect is performed by this helper.
+
+This is the registry mechanism, not a verified real-world registry or active status integration. Current normalized source rows preserve locally observed time and retain provider publication metadata only with an explicit unverified label. Verified dates, exact model binding, approved publisher configuration, typed extraction/review and active HTTP/UI acceptance remain open. No provider, Tavily, account or stock access was used.
