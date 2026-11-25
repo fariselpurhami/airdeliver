@@ -10,6 +10,7 @@ on:
       - 'apps/api/app/services/compact_copy_contracts.py'
       - 'apps/api/app/services/compact_router_contract.py'
       - 'apps/api/tests/test_whole_chain_capacity.py'
+      - 'apps/api/app/services/admin_metrics.py'
       - '.github/workflows/secret-history-guard.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -21,6 +22,7 @@ on:
       - 'apps/api/app/services/compact_copy_contracts.py'
       - 'apps/api/app/services/compact_router_contract.py'
       - 'apps/api/tests/test_whole_chain_capacity.py'
+      - 'apps/api/app/services/admin_metrics.py'
       - '.github/workflows/secret-history-guard.yml'
   workflow_dispatch:
 
