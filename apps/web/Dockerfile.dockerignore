@@ -1,0 +1,15 @@
+# Root-context allowlist. Never send API source, credentials or local caches.
+**
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.pnpmfile.cjs
+!apps/
+!apps/web/
+!apps/web/**
+apps/web/node_modules
+apps/web/.next
+apps/web/.env*
+apps/web/.git
+apps/web/.vercel
+apps/web/*.tsbuildinfo
+apps/web/coverage

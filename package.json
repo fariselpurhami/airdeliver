@@ -1,0 +1,10 @@
+{
+  "name": "airdeliver-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.6.0",
+  "scripts": {
+    "web:dev": "pnpm --filter airdeliver/apps/web dev",
+    "web:build": "pnpm --filter airdeliver/apps/web build",
+    "web:test": "pnpm --filter airdeliver/apps/web exec jest --coverage=false"
+  }
+}

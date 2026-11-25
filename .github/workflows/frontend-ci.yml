@@ -4,8 +4,12 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["chore/generated-cache-cleanup", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
+    branches: ["build/canonical-workspace-lock", "chore/generated-cache-cleanup", "fix/admin-operations-labels", "fix/paid-admission-resource-failures", "test/paid-capacity-burst-faults", "feat/capacity-operator-snapshot", "feat/provider-observed-capacity", "feat/paid-scale-admission", "feat/safe-owner-capacity-trace", "feat/configured-provider-capacity", "fix/payment-outbox-reconciliation", "fix/currency-aware-dashboard", "test/whole-chain-capacity", "perf/router-contract-compaction", "perf/reviewed-chain-contracts", "feat/human-fallback-voice", "fix/compact-reviewed-inference", "main", "hardening/cart-ui-mutation-outcomes", "hardening/customer-memory-controls-ui", "hardening/unknown-price-ui", "hardening/revisioned-cart-ui", "hardening/cart-ui-snapshot-validation", "hardening/catalog-price-ui-consistency"]
     paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'docker-compose*.yml'
+      - 'apps/api/tests/test_canonical_web_workspace.py'
       - 'docs/verification/generated-cache-cleanup-v1*'
       - 'apps/api/tests/test_generated_cache_hygiene.py'
       - 'apps/web/**'
@@ -30,6 +34,10 @@ on:
   pull_request:
     branches: ["main"]
     paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'docker-compose*.yml'
+      - 'apps/api/tests/test_canonical_web_workspace.py'
       - 'docs/verification/generated-cache-cleanup-v1*'
       - 'apps/api/tests/test_generated_cache_hygiene.py'
       - 'apps/web/**'
@@ -103,3 +111,26 @@ jobs:
           pnpm exec tsc --noEmit
           pnpm exec jest --coverage=false --runInBand
           AUTH_SECRET=ci-build-dummy-secret-not-runtime pnpm build
+
+  docker-workspace-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build existing development interface from canonical workspace
+        run: docker build -f apps/web/Dockerfile --target development -t airdeliver-web-dev-ci .
+      - name: Resolve locked dependencies from the existing dev mount path
+        run: docker run --rm --entrypoint node airdeliver-web-dev-ci -e "for (const name of ['next','react','next-auth','sharp']) console.log(name, require.resolve(name));"
+      - name: Build standalone production runner from same frozen graph
+        run: docker build -f apps/web/Dockerfile --target runner -t airdeliver-web-run-ci .
+      - name: Verify standalone runner without API or provider traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name web-workspace-smoke -p 127.0.0.1:3100:3000 -e AUTH_SECRET=offline-runtime-test-only-not-a-user-secret airdeliver-web-run-ci
+          trap 'docker logs web-workspace-smoke; docker rm -f web-workspace-smoke' EXIT
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:3100/logo.png; then exit 0; fi
+            sleep 2
+          done
+          exit 1

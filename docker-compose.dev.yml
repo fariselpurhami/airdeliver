@@ -529,8 +529,8 @@ services:
       - "traefik.http.services.web.loadbalancer.server.port=3000"
     container_name: airdeliver-web
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/web/Dockerfile
       target: development
       args:
         - NEXT_PUBLIC_API_URL=http://${HOST_IP}/api

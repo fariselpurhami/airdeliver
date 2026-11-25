@@ -30,6 +30,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   output: 'standalone',
+  outputFileTracingRoot: path.resolve(__dirname, '..', '..'),
   reactStrictMode: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
