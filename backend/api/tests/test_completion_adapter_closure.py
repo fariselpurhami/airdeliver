@@ -48,7 +48,9 @@ async def test_strict_context_is_data_and_legacy_shape_is_preserved():
     assert payload['customer_prompt']=='CUSTOMER_MARKER'
     assert json.loads(payload['referenced_context'])==context
     await llm.generate_response('question',context=context)
-    assert 'UNTRUSTED_CONTEXT_MARKER' in llm._chat_completion.await_args.kwargs['messages'][0]['content']
+    messages=llm._chat_completion.await_args.kwargs['messages']
+    assert 'UNTRUSTED_CONTEXT_MARKER' not in messages[0]['content']
+    assert json.loads(json.loads(messages[1]['content'])['referenced_context'])==context
 
 @pytest.mark.asyncio
 async def test_actual_sdk_loopback_preserves_strict_context_and_cancellation():
