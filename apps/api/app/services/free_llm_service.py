@@ -1058,6 +1058,7 @@ class FreeLLMService:
             return None
 
     async def analyze_visual_context(self, base64_image: str, user_prompt: str = "") -> str:
+        from app.services.image_hint_boundary import image_data_url,hint_text
         if not base64_image:
             return "Visual core offline."
 
@@ -1074,7 +1075,7 @@ class FreeLLMService:
                             {"type": "text", "text": _truncate(final_prompt, self.limits.max_visual_prompt_chars)},
                             {
                                 "type": "image_url",
-                                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                                "image_url": {"url": image_data_url(base64_image)},
                             },
                         ],
                     }
@@ -1084,13 +1085,14 @@ class FreeLLMService:
                 max_tokens=250,
                 timeout_seconds=self.limits.vision_timeout_seconds,
             )
-            description = _normalize_whitespace(completion.choices[0].message.content or "")
+            description = hint_text(completion,1200)
             return description or "Visual signal interrupted."
         except Exception:
-            logger.error("analyze_visual_context failed", exc_info=True)
+            logger.warning("visual_context.withheld")
             return "Visual signal interrupted."
 
     async def analyze_product_image(self, base64_image: str, enrich_with_search: bool = True) -> str:
+        from app.services.image_hint_boundary import image_data_url,hint_text
         if not base64_image:
             return "generic product"
 
@@ -1175,7 +1177,7 @@ Output ONE line of search keywords only.
                             {"type": "text", "text": "Extract the commercial search terms for this product."},
                             {
                                 "type": "image_url",
-                                "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                                "image_url": {"url": image_data_url(base64_image)},
                             },
                         ],
                     },
@@ -1187,7 +1189,7 @@ Output ONE line of search keywords only.
                 timeout_seconds=self.limits.vision_timeout_seconds,
             )
 
-            search_terms = _normalize_whitespace(completion.choices[0].message.content or "")
+            search_terms = hint_text(completion)
             search_terms = search_terms.replace('"', "").replace("Search query:", "").strip()
             if not search_terms:
                 return "generic product"
@@ -1195,7 +1197,7 @@ Output ONE line of search keywords only.
             if enrich_with_search and len(search_terms.split()) > 1 and "generic" not in search_terms.lower():
                 try:
                     official_hint = await self._perform_tavily_title_lookup(f"{search_terms} official product name")
-                    if official_hint:
+                    if isinstance(official_hint,str) and len(official_hint)<=256 and official_hint.strip():
                         combined = f"{search_terms} {official_hint}"
                         deduped: List[str] = []
                         seen: set[str] = set()
@@ -1206,12 +1208,12 @@ Output ONE line of search keywords only.
                                 deduped.append(token)
                         search_terms = _normalize_whitespace(" ".join(deduped[:14]))
                 except Exception:
-                    logger.warning("visual enrichment skipped after Tavily issue", exc_info=True)
+                    logger.warning("image_hint.enrichment_withheld")
 
             return search_terms or "generic product"
 
         except Exception:
-            logger.error("analyze_product_image failed", exc_info=True)
+            logger.warning("image_hint.withheld")
             return "generic product"
 
     async def _perform_tavily_title_lookup(self, query: str) -> str:

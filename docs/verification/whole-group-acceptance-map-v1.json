@@ -337,17 +337,19 @@
       "id": "CAP-49",
       "capability": "Product-image identification and optional Tavily title enrichment",
       "whole_group_closed": false,
-      "code_status": "review_required",
-      "boundary_status": "partial_evidence_not_whole_group_acceptance",
+      "code_status": "complete_subject_to_release_gate",
+      "boundary_status": "active_caller_inventory_and_controlled_boundary_acceptance_complete",
       "quality_status": "unverified",
       "owner_status": "unverified",
       "current_source_scope": "Retained image analysis and optional external title hint",
-      "next_code_or_boundary_acceptance": "Audit optional enrichment timeout/outage/cancel and untrusted return shapes through every caller",
+      "next_code_or_boundary_acceptance": "No known remaining in-scope code gap after current image-hint/enrichment caller audit; exact-head CI and merge remain. Real image semantics and owner execution remain separate.",
       "quality_acceptance": "Real vision/provider recognition, hint never identity proof",
       "owner_acceptance": "Real assets/provider execution and owner profile receipts",
       "evidence_leads": [
         "apps/api/tests/test_neural_core_visual.py",
-        "apps/api/tests/test_bounded_image_decode.py"
+        "apps/api/tests/test_bounded_image_decode.py",
+        "docs/verification/cap49-code-acceptance-v1.md",
+        "apps/api/tests/test_image_hint_boundary.py"
       ],
       "unresolved_test_leads": []
     },
@@ -391,6 +393,6 @@
       "unresolved_test_leads": []
     }
   ],
-  "code_complete_groups": 2,
-  "code_remaining_groups": 18
+  "code_complete_groups": 3,
+  "code_remaining_groups": 17
 }
