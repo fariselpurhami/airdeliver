@@ -243,6 +243,12 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     # Transport-only image/SKU and seed-marker duplication are not prose evidence.
     # Evidence kind, stock qualifier, exact specs and all claimable fields remain.
     evidence=[c.model_dump(mode='json',exclude={'image','sku','attributes'}) for c in cards]
+    if (context or {}).get('product_answer_shape')=='adaptive':
+        for card in evidence:
+            card['claim_options']=[{'product_id':card['id'],'field':field,'value':str(card[field])}
+                for field in ('name','price','currency','evidence_kind','stock_status')]
+            card['claim_options'] += [{'product_id':card['id'],'field':'spec.'+key,'value':str(value)}
+                for key,value in card.get('catalog_specs',{}).items()]
     no_match=mode=='catalog_results' and not cards
     payload={'task':mode,'customer_message':message,'customer_brief':brief,'catalog_evidence':evidence,'request_evidence':context or {}}
     if no_match:

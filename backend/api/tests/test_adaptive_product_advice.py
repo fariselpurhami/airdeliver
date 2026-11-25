@@ -40,3 +40,13 @@ async def test_material_does_not_prove_weather_performance_and_prose_has_no_ids(
   assert 'Material alone does not prove water resistance' in rules
   assert 'Do not print internal product IDs' in rules
   assert 'exact full product name' in rules
+
+@pytest.mark.asyncio
+async def test_claim_choices_are_exact_card_values_not_generated_facts():
+ infer=AsyncMock(side_effect=[json.dumps(dict(text='Check the listed material.',product_ids=[],claims=[])),json.dumps(V)])
+ req=request();await SalesResponseService(infer,provider_ready=True,timeout=1).respond(req)
+ payload=json.loads(infer.await_args_list[0].args[0][1]['content'])
+ options=payload['catalog_evidence'][0]['claim_options']
+ assert {'product_id':req.products[0].id,'field':'name','value':req.products[0].name} in options
+ assert all(c['field'] in {'name','price','currency','evidence_kind','stock_status'} or c['field'].startswith('spec.') for c in options)
+ assert 'Copy needed claim objects' in infer.await_args_list[0].args[0][0]['content']
