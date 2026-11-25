@@ -1,32 +1,17 @@
 airdeliver/
-├── apps/
-│   ├── api/                    # FastAPI backend (AI commerce engine)
-│   │   ├── alembic/versions/   # DB migrations
-│   │   ├── app/
-│   │   │   ├── api/v1/         # REST routers (endpoints/ + api.py)
-│   │   │   ├── core/           # config, security
-│   │   │   ├── crud/
-│   │   │   ├── db/
-│   │   │   ├── models/         # SQLModel tables
-│   │   │   ├── schemas/        # Pydantic DTOs
-│   │   │   ├── services/       # AI cores, cart/checkout, payments
-│   │   │   ├── websockets/     # AI chat channel
-│   │   │   └── main.py
-│   │   ├── tests/
-│   │   ├── worker_entrypoint.py # RabbitMQ consumer (voice path + legacy queues)
-│   │   ├── Dockerfile
-│   │   └── pyproject.toml
-│   │
-│   └── web/                    # Next.js frontend
-│       ├── app/
-│       │   ├── (admin)/dashboard/
-│       │   ├── (main)/         # about, cart, checkout, products, tracking/[orderId], ...
-│       │   ├── api/auth/[...nextauth]/
-│       │   ├── legal/          # privacy-policy, terms-of-service
-│       │   └── help/
-│       ├── components/
-│       ├── hooks/
-│       └── Dockerfile
+├── frontend/
+│   └── web/                    # Next.js UI, auth routes, components, tests, Dockerfile
+├── backend/
+│   └── api/                    # FastAPI commerce engine
+│       ├── app/                # API routers, core, models, schemas, services, websockets
+│       ├── alembic/versions/   # Existing migrations, unchanged
+│       ├── tests/              # Backend contracts and integration tests
+│       ├── worker_entrypoint.py
+│       ├── Dockerfile
+│       └── pyproject.toml
+├── apps/                       # Relative compatibility aliases only
+│   ├── web -> ../frontend/web
+│   └── api -> ../backend/api
 │
 ├── infra/
 │   ├── k8s/                    # Kubernetes manifests (+ _legacy/)
@@ -36,4 +21,5 @@ airdeliver/
 ├── tests/                      # integration tests (require live stack)
 ├── docker-compose.yml          # full stack
 ├── docker-compose.dev.yml      # local dev stack
+├── package.json / pnpm-workspace.yaml / pnpm-lock.yaml # Canonical JS workspace
 └── README.md / RUNBOOK.md

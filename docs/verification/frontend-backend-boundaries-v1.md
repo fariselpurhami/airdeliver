@@ -18,7 +18,7 @@ Local validation: cold frozen install with identical application dependency
 resolutions and only an importer path change; 214 web tests in 39 suites;
 TypeScript; actual Next production build. Disposable PostgreSQL 19 and real
 Redis backend splits: 1411 passed/24 skipped and 1130 passed/4 skipped. Two
-bootstrap modules repeat to register existing SQLite compile hooks. Eighteen
+bootstrap modules repeat to register existing SQLite compile hooks. Nineteen
 focused ownership, compatibility, entrypoint and mount-path contracts pass.
 The local Docker engine is unavailable; actual Docker integration and full CI
 are required on the exact head before merge. This is not a production or scale
