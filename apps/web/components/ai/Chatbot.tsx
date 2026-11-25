@@ -224,7 +224,7 @@ export default function Chatbot() {
       <motion.button
         aria-label={isOpen ? "Close Air Assistant" : "Open Air Assistant"}
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-3 right-6 z-[60] p-0 rounded-full shadow-[0_0_72px_rgba(6,182,212,0.7)] focus:outline-none group transition-all duration-300 ${
+        className={`fixed bottom-3 right-6 z-[60] p-0 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_28px_rgba(103,232,249,0.10)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200 focus-visible:ring-offset-4 focus-visible:ring-offset-black group transition-all duration-300 ${
           isOpen ? 'hidden' : shouldHideOnMobile ? 'hidden md:block' : 'block'
         }`}
         whileHover={{ scale: 1.05 }}
@@ -235,8 +235,8 @@ export default function Chatbot() {
             <X size={22} />
           </div>
         ) : (
-          <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-black">
-            <Bot size={22} />
+          <div className="w-14 h-14 rounded-full bg-[#090c12]/90 backdrop-blur-2xl flex items-center justify-center text-cyan-200 transition-colors group-hover:bg-[#121823] group-hover:text-violet-200">
+            <Bot size={22} strokeWidth={1.6} aria-hidden="true" />
           </div>
         )}
       </motion.button>
