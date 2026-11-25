@@ -42,6 +42,12 @@ async def test_plan_budget_reaches_actual_shared_ledger_without_live_provider(se
   async with shared_provider_slot('offline-plan',[],{},8000,client=client):pytest.fail('free should withhold')
  assert client.calls==[]
  monkeypatch.setattr('app.core.config.get_core_settings',lambda:paid)
+ # This isolated ledger test supplies an explicit offline transport; fairness
+ # is covered separately with a real Redis client and resolved settings.
+ from contextlib import asynccontextmanager
+ @asynccontextmanager
+ async def offline_fairness(*args,**kwargs):yield
+ monkeypatch.setattr('app.services.paid_turn_admission.paid_turn_slot',offline_fairness)
  async with shared_provider_slot('offline-plan',[],{},8000,client=client):pass
  assert client.calls[0][-2]==225000
  # Changing plan never expands the independent six-call/16000turn bound.

@@ -25,6 +25,7 @@ class TurnBudget:
         self.calls+=1;self.reserved+=amount
 
 _turn_budget=ContextVar('provider_turn_budget',default=None)
+_principal=ContextVar('provider_principal',default=None)
 
 @asynccontextmanager
 async def provider_turn_budget():
@@ -78,7 +79,7 @@ class Reservation:
             await self.client.eval(COOLDOWN,1,self.keys[2],max(1,math.ceil(delay*1000)))
 
 @asynccontextmanager
-async def shared_provider_slot(model,messages,response_format,output,timeout=30,*,client=None,limit=None):
+async def _shared_provider_slot(model,messages,response_format,output,timeout=30,*,client=None,limit=None):
     from app.core.config import get_core_settings
     settings=get_core_settings()
     limit=limit or settings.PROVIDER_TPM_BUDGET
@@ -133,5 +134,23 @@ def budgeted_turn(function):
     @wraps(function)
     async def wrapped(*args,**kwargs):
         if _turn_budget.get() is not None:return await function(*args,**kwargs)
-        async with provider_turn_budget():return await function(*args,**kwargs)
+        # Both entrypoints bind user_id before opening any provider work.
+        import inspect
+        bound=inspect.signature(function).bind(*args,**kwargs)
+        principal=bound.arguments.get('user_id')
+        payload=bound.arguments.get('message_payload')
+        if isinstance(payload,dict):principal=payload.get('user_id')
+        principal_token=_principal.set(principal)
+        try:
+            async with provider_turn_budget():return await function(*args,**kwargs)
+        finally:_principal.reset(principal_token)
     return wrapped
+
+
+@asynccontextmanager
+async def shared_provider_slot(model,messages,response_format,output,timeout=30,*,client=None,limit=None):
+    # Admission surrounds provider calls only, never deterministic cart actions.
+    from app.services.paid_turn_admission import paid_turn_slot
+    async with paid_turn_slot(_principal.get() if _principal.get() is not None else 'internal-provider-work'):
+        async with _shared_provider_slot(model,messages,response_format,output,timeout,client=client,limit=limit) as reservation:
+            yield reservation
