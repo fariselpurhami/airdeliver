@@ -1,0 +1,15 @@
+{
+  "baseline_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674",
+  "modules": {
+    "backend/api/app/services/research/product_knowledge_service.py": {
+      "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674",
+      "previous_sha256": "4b1fb8f4db31517b801beb8e96187bb229ca675f0d001c1ad6afcc398bad801a",
+      "current_sha256": "8cb69d98e1e3edfa765d84d51e31fc4f87ecee016fd16639afef4b33127d766d"
+    },
+    "backend/api/app/services/research/tavily_boundary.py": {
+      "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674",
+      "previous_sha256": "8c4bd485ae6c6f14eca7d0555b9f8570768a3478b907d41f8a0fabcf722f2986",
+      "current_sha256": "cec6f3d3aeeb559fa71bc4abc7d19d48af676aa3d84faf2e4683ffee0348d0dc"
+    }
+  }
+}
