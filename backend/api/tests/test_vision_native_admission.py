@@ -68,7 +68,9 @@ async def test_decode_runs_off_event_loop_and_failure_releases_slot(monkeypatch)
         threads.append(threading.get_ident());raise ValueError('invalid image')
     monkeypatch.setattr(AICommerceEngine,'_decode_image_bounded',decode)
     for _ in range(2):
-        with pytest.raises(ValueError):await engine()._encode_image_to_vector('bad')
+        # This test checks thread placement and exception/slot cleanup, not40ms
+        # scheduling on a loaded CI worker. Deadline behavior is tested above.
+        with pytest.raises(ValueError):await engine(1)._encode_image_to_vector('bad')
     assert len(threads)==2 and all(t!=caller for t in threads)
     assert gate.acquire(blocking=False)
     gate.release()
