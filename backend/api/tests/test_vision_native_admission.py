@@ -42,7 +42,7 @@ async def test_timeout_keeps_shared_vision_slot_until_native_work_finishes(setup
         with pytest.raises(ExternalDependencyError):await engine()._encode_image_to_vector('other')
         assert model.calls==1
     finally:model.release.set();await asyncio.sleep(.05)
-    assert len(await engine()._encode_image_to_vector('third'))==PRODUCT_VISION_MODEL.dimension
+    assert len(await engine(1)._encode_image_to_vector('third'))==PRODUCT_VISION_MODEL.dimension
 
 
 @pytest.mark.asyncio
