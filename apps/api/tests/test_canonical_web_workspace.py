@@ -19,7 +19,7 @@ def test_one_canonical_application_lockfile_and_pinned_workspace_manager():
 
 def test_docker_uses_root_graph_frozen_install_and_existing_dev_path():
     docker=(ROOT/'apps/web/Dockerfile').read_text()
-    assert 'COPY pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs ./' in docker
+    assert 'COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs ./' in docker
     assert 'pnpm install --frozen-lockfile --ignore-scripts' in docker
     assert '--no-frozen-lockfile' not in docker
     assert 'WORKDIR /app' in docker and 'COPY --from=deps /workspace/node_modules /node_modules' in docker
