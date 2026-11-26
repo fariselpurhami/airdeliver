@@ -1,0 +1,69 @@
+"""Slot copy renderer: facts come from cards, never from model-typed text. Scripted drafts, no provider call (simulated, not Groq)."""
+import json
+import pytest
+from decimal import Decimal
+from tests.test_shopping_discovery_contract import row
+from app.services.shopping_discovery import catalog_result
+from app.services.shopping_copy import validate_draft
+from app.services.conversation.slot_copy import render_slots, SlotError, SLOT_WRITER_RULES
+
+def cards():
+    a = catalog_result(row(id=1, name='Studio Headphones', price=Decimal('79.00'), attributes={'connectivity': 'Bluetooth'}))
+    b = catalog_result(row(id=2, name='Steel Bottle', price=Decimal('18.00'), attributes={'capacity': '750 ml'}))
+    return [a, b]
+
+def ok(text, cs=None, brief=None, message='hi'):
+    cs = cs or cards()
+    d = render_slots({'text': text}, cs, brief, message)
+    validate_draft(d, cs, {}, brief or {}, message)
+    return d
+
+def test_slots_render_exact_card_values_and_build_matching_claims():
+    d = ok("The [[name:1]] is [[price:1]] and connects by [[spec.connectivity:1]]. I don't have its battery life.")
+    assert d.text == "The Studio Headphones is $79.00 and connects by Bluetooth. I don't have its battery life."
+    assert d.product_ids == [1]
+    assert {(c.field, c.value) for c in d.claims} == {('name', 'Studio Headphones'), ('price', '79.00'), ('spec.connectivity', 'Bluetooth')}
+
+def test_two_products_and_totals_come_from_code():
+    d = ok("[[name:1]] is [[price:1]] and [[name:2]] is [[price:2]]. Together that is [[total]], leaving [[left]].", brief={'budget_max': '300'})
+    assert '$97.00' in d.text and '$203.00' in d.text and d.product_ids == [1, 2]
+
+@pytest.mark.parametrize('text,reason', [
+    ("The [[name:1]] (ID 1) is great", 'slot_literal_fact'),
+    ("It costs 79 dollars", 'slot_literal_fact'),
+    ("Two days of battery, see https://x.example", 'slot_literal_fact'),
+    ("The [[name:9]] is nice", 'slot_unknown_product'),
+    ("[[spec.battery:1]] hours", 'slot_spec_unavailable'),
+    ("[[price]] total", 'slot_product_missing'),
+    ("[[left]] left", 'slot_total_unavailable'),
+    ("[[stock:1]] right now", 'slot_stock_not_asked'),
+    ("[[colour:1]] is black", 'slot_unknown_kind'),
+    ("A broken [[price:1 slot", 'slot_malformed'),
+])
+def test_unbacked_or_typed_facts_are_rejected(text, reason):
+    with pytest.raises(SlotError) as e:
+        render_slots({'text': text}, cards(), None, 'hi')
+    assert str(e.value) == reason
+
+def test_stock_slot_only_when_the_customer_asked():
+    d = ok("Yes, the [[name:1]] is [[stock:1]].", message='is it in stock?')
+    assert 'in stock' in d.text and any(c.field == 'stock_status' for c in d.claims)
+
+def test_raw_json_string_and_extra_keys():
+    d = render_slots(json.dumps({'text': '[[name:2]] holds [[spec.capacity:2]].'}), cards())
+    assert d.text == 'Steel Bottle holds 750 ml.'
+    with pytest.raises(SlotError):
+        render_slots({'text': 'x', 'claims': []}, cards())
+
+def test_id_leak_and_price_mismatch_are_impossible_by_construction():
+    d = ok("Between the [[name:1]] and the [[name:2]], the second one is [[price:2]].")
+    assert 'ID' not in d.text and '$18.00' in d.text and 'local_in_stock' not in d.text
+
+def test_writer_rules_forbid_typed_numbers_and_leave_voice_free():
+    assert 'Never type a number' in SLOT_WRITER_RULES and 'vary the shape' in SLOT_WRITER_RULES
+
+
+def test_total_needs_two_priced_cards_and_left_needs_a_budget():
+    one=cards()[:1]
+    with pytest.raises(SlotError):render_slots({'text':'[[total]] together'},one)
+    assert render_slots({'text':'[[total]] together'},cards()).text=='$97.00 together'
