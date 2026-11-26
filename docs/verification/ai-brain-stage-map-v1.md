@@ -160,3 +160,35 @@ all entry points need agreement. Reset-pending, generation change, stale snapsho
 write outage, read outage, TTL expiry, cancellation and owner isolation require
 real temporary Redis tests, plus HTTP response proof. Legacy queue memory is a
 separate state owner and cannot inherit support safety from this design.
+
+## Queue and native-cancellation follow-on
+
+31focused worker/vector/vision tests passed,2temporary-Redis cases skipped locally;
+26additional embedding/staged-search/intent tests passed (overlapping prior
+inspection counts, not a unique total). Native text/vector/vision calls retain
+shared capacity until the underlying thread finishes after caller timeout/cancel.
+Timeout is not proof native work stopped. Staged CandidateRanker.rerank is lexical
+bounded work, not another hidden model call. semantic_trim has no active call in
+the inspected NLU module, so its direct encoder is not labeled an active leak.
+
+Legacy process_message locks a user+message-content fingerprint, not the entire
+user/session. Different concurrent messages are not serialized by that lock.
+Legacy history append uses Redis LPUSH/LTRIM/EXPIRE under reset-generation fencing,
+not the support whole-snapshot SET. Therefore the reproduced support lost-update
+mechanism must not be attributed to legacy without its own contrast test. Ordering
+of concurrent user/assistant turns remains unverified. Worker creates a fresh NLU
+service per chat delivery, so instance _current_intent_payload is not evidence of
+cross-delivery sharing in that route. Generic retries do not establish exactly-once
+copy publication; cart uncertainty has a distinct non-replay path and is not chat.
+
+Frontend ordinary text routes to support HTTP; only explicit button commands enter
+mutation routing, then checkout opens a shipping step rather than direct payment.
+CANCEL_INTENT in the legacy handler means order cancellation, not cancellation of
+an in-flight answer. Frontend loading gate reduces same-tab text overlap but does
+not settle multiple tabs/devices, image requests or API callers. Its support fetch
+has a local45second controller. resetChat changes session state without a visible
+support-request generation guard in the inspected path. A delayed pre-reset reply
+potentially rendering afterward is a source-level concern requiring a mounted
+frontend deferred-response test, not a reproduced UI incident or a server
+privacy-fence bypass. Keep server reset publication fencing and client stale
+response suppression as different obligations.
