@@ -258,6 +258,21 @@ def validate_draft(draft, cards, context=None, brief=None):
         numeric_text=re.sub(r'\bbudget\b[^\d.!?]{0,30}'+amount+r'(?![\d.])','customer budget',numeric_text,flags=re.I)
         numeric_text=re.sub(r'(?<![\d.])'+amount+r'\s*(?:[- ]?(?:US\s*)?dollars?|USD|\$)?\s+budget\b','customer budget',numeric_text,flags=re.I)
         numeric_text=re.sub(r'\byour\s+(?:USD\s*|\$\s*)?'+amount+r'\s*(?:[- ]?(?:US\s*)?dollars?|USD|\$)?\s+(?:budget|limit|cap)\b','customer budget',numeric_text,flags=re.I)
+        # "for a gift under $100": the customer's own cap may be echoed with under/within/up to.
+        # Safe only when the sentence names a product and every named product has a known price
+        # within the cap, so the echo can never become a false price or catalog claim.
+        echo=re.compile(r"\b(?:under|within|up to|below|less than|no more than|at most)\s+(?:USD\s*|\$\s*)?"+amount+r"(?![\d.])(?:\s*(?:[- ]?(?:US\s*)?dollars?|USD))?",re.I)
+        def _echo_sentence(sentence):
+            from decimal import Decimal
+            if not echo.search(sentence):return sentence
+            named=[card for card in by_id.values() if card['name'].casefold() in sentence.casefold()]
+            if not named:return sentence
+            for card in named:
+                try:
+                    if Decimal(str(card.get('price')))>Decimal(cap):return sentence
+                except Exception:return sentence
+            return echo.sub('customer budget',sentence)
+        numeric_text=' '.join(_echo_sentence(part) for part in re.split(r'(?<=[.!?])\s+',numeric_text))
     numbers=re.findall(r'\d+(?:[.,]\d+)*',numeric_text)
     # Match complete numeric tokens, never substrings such as16 inside116
     # or9 inside99. Claims have already passed exact field-value equality.

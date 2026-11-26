@@ -27,3 +27,9 @@ def test_echoing_the_customer_cap_passes_when_every_named_product_is_within_it(t
 def test_cap_echo_never_launders_a_false_or_different_number(text,price):
     with pytest.raises(ValueError,match='unsupported_numeric_or_link_claim'):
         validate_draft(d(text,price),[card(price)],None,BRIEF)
+
+
+def test_cap_echo_without_a_named_product_stays_rejected():
+    # An unnamed "under $N" statement is a catalog claim ("nothing under $N"), not an echo.
+    with pytest.raises(ValueError,match='unsupported_numeric_or_link_claim'):
+        validate_draft(ShoppingDraft(text='No ring under 100 dollars in current results.'),[],None,BRIEF)
