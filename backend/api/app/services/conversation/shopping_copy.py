@@ -328,6 +328,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     use_references=(not no_match and (context or {}).get('product_answer_shape')=='adaptive'
         and (context or {}).get('claim_binding') in {'references_v1','template_v1','decision_v1'})
     use_template=use_template and use_references
+    use_decision=use_decision and use_template
     if use_references:
         for card in evidence:
             options=card.pop('claim_options',[])
@@ -365,6 +366,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         review_rules += ' A decisive unverified requirement prevents a proven suitability claim. Require conditional preference or no pick with the specific unresolved check. Reject a duplicated full product name immediately repeated in parentheses, repetitive price recap or filler. A simple factual answer needs no forced pitch or question.'
     if use_decision:
         writer_rules=writer_rules.replace('Return JSON{text_template}', 'Return DecisionShoppingDraft JSON')
+        writer_rules=writer_rules.replace('return ONLY text_template', 'return decision,preferred_product_id,decisive_unknown,text_template')
         writer_rules += ' Decision record: choose pick only when the requested decisive evidence is present, conditional for one preference with an unresolved must-have, or no_pick when no responsible preference exists. Set preferred_product_id to that one card or null for no_pick. decisive_unknown is empty only for a proven pick; otherwise name the exact missing must-have evidence. text_template must express the same decision, not defer a requested choice to a menu. Compared evidence cards are not additional preferred picks. This record is your explicit task plan, not product proof.'
         review_rules += ' Review decision_record and compiled draft together. Reject a decision inconsistent with the prose or evidence, a pick with an unresolved decisive requirement, or a two-option menu replacing a requested one preference/no-pick decision. Unknown must not become an invented defect. The record cannot authenticate claims or bypass any review criterion.'
     writer_schema=DecisionShoppingDraft if use_decision else TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft

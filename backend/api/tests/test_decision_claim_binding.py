@@ -57,3 +57,26 @@ async def test_decision_prose_cannot_invent_customer_laptop_dimensions():
  with pytest.raises(ValueError,match='unsupported_numeric_or_link_claim'):
   await write_shopping_copy(infer,'rain',[card],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'decision_v1'})
  assert infer.await_count==1
+
+@pytest.mark.asyncio
+async def test_decision_opt_in_does_not_replace_existing_no_match_contract():
+ infer=AsyncMock(side_effect=[json.dumps({'text':'No matching options in these results. Would you like to broaden the search?','product_ids':[],'claims':[]}),json.dumps(V)])
+ text=await write_shopping_copy(infer,'rain',[],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'decision_v1'})
+ assert 'No matching' in text and infer.await_count==2
+
+@pytest.mark.asyncio
+async def test_decision_opt_in_is_inactive_without_adaptive_product_context():
+ infer=AsyncMock(side_effect=[json.dumps({'text':'What is your budget?','product_ids':[],'claims':[]}),json.dumps(V)])
+ text=await write_shopping_copy(infer,'help',[],{},'clarification',1,{'claim_binding':'decision_v1'})
+ assert text=='What is your budget?' and infer.await_count==2
+
+@pytest.mark.asyncio
+async def test_decision_contract_has_no_template_only_wire_override():
+ calls=[]
+ async def infer(messages):
+  calls.append(messages)
+  if len(calls)==1:return json.dumps({'decision':'no_pick','preferred_product_id':None,'decisive_unknown':'Rain evidence missing.','text_template':'Rain protection is not established.'})
+  return json.dumps(V)
+ await write_shopping_copy(infer,'rain',[catalog_result(row())],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'decision_v1'})
+ assert 'return ONLY text_template' not in calls[0][0]['content']
+ assert 'decisive_unknown,text_template' in calls[0][0]['content']
