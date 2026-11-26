@@ -187,14 +187,25 @@ _CLAUSE_EDGE=re.compile(r"[.;:!?\n,]|\b(?:but|yet|however|though|although|while|
 # absence in any wording. Judged per adversative clause (but/and/so...), not per comma, and only for terms the customer raised.
 _ABSENCE_CUE=re.compile(r"\b(?:no|not|never|nothing|none|cannot|unable|unknown|unlisted|unverified|unspecified|without|lacks?|neither|nor)\b|n't")
 _AFFIRMING_OPENER=re.compile(r"\b(?:no (?:problem|doubt|worries|question)|of course|definitely|yes|sure|absolutely|certainly)\b")
+_NEUTRAL_MENTION=re.compile(r"^\W*(?:if|whether|when)\b|\?|\b(?:you need|you want|you're looking|essential|important|priority|priorities|let me know|help(?:ing)? (?:you )?find(?:ing)?|another|alternatives?)\b")
 def _asked_and_absent_sentences(term,lowered,message):
-    """True when the customer's own message names the term and every sentence using it carries an absence cue."""
-    if not message or term not in str(message).replace('\u2019',"'").casefold():
+    """True when the customer's own message names the term, the text states the absence somewhere, and every
+    clause using the term either carries an absence cue or is a neutral mention ("if you need X", a question).
+
+    An affirmative clause with no absence cue, or one opened by "no problem/yes/sure", is never accepted."""
+    stem=term.rstrip('sd') if len(term)>5 else term
+    if not message or stem not in str(message).replace('\u2019',"'").casefold():
         return False
-    clauses=[c for x in re.split(r"(?<=[.!?])\s+|\n+",lowered.replace('\u2019',"'"))
-             for c in re.split(r"\b(?:but|yet|however|though|although|while|except|and|so)\b|;",x) if term in c]
-    sentences=clauses
-    return bool(sentences) and all(_ABSENCE_CUE.search(x) and not _AFFIRMING_OPENER.search(x) for x in sentences)
+    pairs=[(c,x) for x in re.split(r"(?<=[.!?])\s+|\n+",lowered.replace('\u2019',"'"))
+           for c in re.split(r"\b(?:but|yet|however|though|although|while|except|and|so)\b|;",x) if term in c]
+    clauses=[c for c,_ in pairs]
+    if not clauses or _AFFIRMING_OPENER_ANY(clauses):
+        return False
+    cued=[bool(_ABSENCE_CUE.search(c)) for c in clauses]
+    # The neutral pattern is judged on the whole sentence ("let me know if you want X and warranty info").
+    return any(cued) and all(c or _NEUTRAL_MENTION.search(x) for c,(_,x) in zip(cued,pairs))
+def _AFFIRMING_OPENER_ANY(clauses):
+    return any(_AFFIRMING_OPENER.search(c) for c in clauses)
 
 # 'Waterproof rating: unknown' is an honest label, but the colon is a clause edge that hides its negation.
 _COLON_UNKNOWN=re.compile(r"(?:\s+\w+){0,2}\s*:\s*(?:unknown|unlisted|unverified|unspecified|not\s+(?:listed|specified|stated|provided|available|confirmed))\b")
@@ -252,7 +263,10 @@ def validate_draft(draft, cards, context=None, brief=None, message=None):
     # Deterministic backstop for affirmative commercial promises that have no
     # claimable field. Additive: the model review still runs separately.
     lowered=draft.text.casefold()
-    if _unnegated(r"\b(?:free shipping|ships?(?: today| fast| free)?|shipping|next[- ]day|same[- ]day|fast delivery|warranty|guarantee[ds]?|money[- ]back|easy returns?|refunds?)\b",lowered):
+    _policy=r"\b(?:free shipping|ships?(?: today| fast| free)?|shipping|next[- ]day|same[- ]day|fast delivery|warranty|guarantee[ds]?|money[- ]back|easy returns?|refunds?)\b"
+    _policy_terms={m.group(0) for m in re.finditer(_policy,lowered)}
+    _asked_policy=bool(_policy_terms) and all(_asked_and_absent_sentences(t,lowered,message) for t in _policy_terms)
+    if not _asked_policy and _unnegated(_policy,lowered):
         raise ValueError('unclaimed_fulfillment_or_policy_claim')
     if _unnegated(r"\b(?:best|perfect(?:ly)?|ideal|top[- ]rated|must[- ]have|bestseller|number one)\b",lowered):
         raise ValueError('unsupported_superiority_claim')

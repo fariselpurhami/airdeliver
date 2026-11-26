@@ -94,6 +94,17 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
    edited=edited.replace(edit['new'],edit['old'])
   assert hashlib.sha256(edited.encode()).hexdigest()==lr[row['path']]['baseline_sha256']
   source=edited.encode()
+ px=json.loads((ROOT/'docs/verification/asked-terms-neutral-policy-source-evolution-v1.json').read_text())
+ assert set(px)=={'backend/api/app/services/conversation/shopping_copy.py'}
+ if row['path'] in px:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==px[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in px[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==px[row['path']]['baseline_sha256']
+  source=edited.encode()
  dx=json.loads((ROOT/'docs/verification/sole-named-card-source-evolution-v1.json').read_text())
  assert set(dx)=={'backend/api/app/services/conversation/shopping_copy.py'}
  if row['path'] in dx:
