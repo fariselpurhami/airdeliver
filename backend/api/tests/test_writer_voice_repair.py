@@ -116,3 +116,24 @@ def test_leak_tells_are_detected():
 def test_product_name_containing_a_tell_word_is_not_a_tell():
     assert voice_tells('Catalog headphones are wired.',['Catalog headphones'])==[]
     assert voice_tells('Catalog headphones are wired, per the catalog.',['Catalog headphones'])==['catalog']
+
+
+LONG_ROBOTIC=("The Smart Watch is in stock locally.\n- Battery life: not listed in the catalog.\n- Sleep tracking: not mentioned in the specifications.\n"
+    "Given the lack of these details, we can't confirm either feature for this watch. Would you like to look at other wearables?")
+LONG_FLAT=("I have the Smart Watch in stock locally. I don't have the battery life for this one. I don't have sleep tracking details either. "
+    "If those matter, we could look at another wearable that lists them. Would you like to explore alternatives?")
+LONG_SPACED=("I have the Smart Watch in stock locally.\n\nI don't have its battery life, and I have nothing on sleep tracking either, so I won't guess on those.\n\n"
+    "If they matter to you, we could look at another wearable that lists them.")
+
+def test_long_answer_rewritten_into_one_flat_block_keeps_original():
+    text,seen=run([draft(LONG_ROBOTIC),draft(LONG_FLAT),OK])
+    assert text==LONG_ROBOTIC and len(seen)==3
+
+def test_long_answer_rewritten_into_spaced_paragraphs_is_used():
+    text,seen=run([draft(LONG_ROBOTIC),draft(LONG_SPACED),OK])
+    assert text==LONG_SPACED
+
+def test_cannot_confirm_forms_are_tells_and_rules_ban_them():
+    assert voice_tells('We cannot confirm that.') and voice_tells('I am unable to confirm it.')
+    text,seen=run([draft(ROBOTIC),draft(FRIEND),OK])
+    assert 'blank line' in seen[1][0]['content'] and 'unable to confirm' in seen[1][0]['content']
