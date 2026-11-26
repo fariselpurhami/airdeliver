@@ -1,0 +1,23 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "a850688ad29a46369cc05bc2ac8abefcb4e358a19c093a1f05c6a504ebceb15c",
+  "current_sha256": "f6930dad60a3f470e12a8e903b87aff25fcfe287f3e03a1240e77649fdaf1450",
+  "replacements": [
+   {
+    "old": "\ndef complete_name_claims(draft,cards):",
+    "new": "\ndef exact_totals(cards,brief):\n    \"\"\"Combined listed price (and budget remaining) computed in code from card prices, never by the model.\n\n    None whenever it would be a guess: fewer than two cards, an unknown price, mixed currencies.\"\"\"\n    from decimal import Decimal,InvalidOperation\n    try:\n        prices=[Decimal(str(card.price)) for card in cards]\n        currencies={card.currency for card in cards}\n    except (InvalidOperation,TypeError,AttributeError):\n        return None\n    if len(cards)<2 or len(currencies)!=1 or None in currencies or any(not p.is_finite() or p<0 for p in prices):\n        return None\n    total=sum(prices,Decimal('0')).quantize(Decimal('0.01'))\n    result={'combined_listed_price':str(total),'currency':currencies.pop()}\n    cap=(brief or {}).get('budget_max')\n    if isinstance(cap,str) and re.fullmatch(r'\\d+(?:\\.\\d+)?',cap):\n        gap=(Decimal(cap)-total).quantize(Decimal('0.01'))\n        result['budget_remaining' if gap>=0 else 'over_budget_by']=str(abs(gap))\n    return result\n\n\ndef complete_name_claims(draft,cards):",
+    "count": 1
+   },
+   {
+    "old": "    allowed_values={_number_value(n) for n in allowed}\n",
+    "new": "    totals=exact_totals(cards,brief)\n    if totals:allowed|={n for v in totals.values() for n in re.findall(r'\\d+(?:[.,]\\d+)*',v)}\n    allowed_values={_number_value(n) for n in allowed}\n",
+    "count": 1
+   },
+   {
+    "old": "    if no_match:\n        payload={'task':'no_match'",
+    "new": "    totals=None if no_match else exact_totals(cards,brief)\n    if totals:payload['exact_totals']=totals\n    if no_match:\n        payload={'task':'no_match'",
+    "count": 1
+   }
+  ]
+ }
+}
