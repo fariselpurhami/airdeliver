@@ -32,3 +32,7 @@ These sources inform security design, not owner approval for migration or deploy
 ## Additional offline fault checks
 
 Eleven mocked transport/storage boundary cases pass for issue/rotation flush or commit outage, cancellation propagation, replay revocation commit ordering, unknown/foreign-token non-revocation and failed-revocation error propagation. The five real PostgreSQL tests still skip locally; these mocks do not establish transaction rollback, row locking or concurrency. No new migration was executed, no active auth route was changed and C01 disposable-CI migration authority remains unresolved here.
+
+## Offline ancestry reconciliation, no migration execution
+
+Current main05b95d32 was merged locally without changing deployed state. A new static AST graph test first failed because this prepared migration branched from f96bc435e876 while existing customer-memory/cart-journal migrations already extend that revision. Its parent now points to current graph head1b8de657a098, retaining a single future head. The graph test reads source literals only, never imports Alembic or runs DDL. Twelve static/fault tests pass; five real PostgreSQL policy tests remain skipped locally. Nothing pushed and no migration/rollback/database/schema action executed. Disposable-CI migration approval remains unanswered and active auth/NextAuth wiring remains absent.
