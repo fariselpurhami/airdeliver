@@ -61,6 +61,17 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
    edited=edited.replace(edit['new'],edit['old'])
   assert hashlib.sha256(edited.encode()).hexdigest()==cf[row['path']]['baseline_sha256']==expected
   expected=cf[row['path']]['current_sha256']
+ vr=json.loads((ROOT/'docs/verification/validator-reason-log-source-evolution-v1.json').read_text())
+ assert set(vr)=={'backend/api/app/services/conversation/shopping_copy.py'}
+ if row['path'] in vr:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==vr[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in vr[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==vr[row['path']]['baseline_sha256']
+  source=edited.encode()
  ng=json.loads((ROOT/'docs/verification/negated-policy-source-evolution-v1.json').read_text())
  assert set(ng)=={'backend/api/app/services/conversation/shopping_copy.py'}
  if row['path'] in ng:

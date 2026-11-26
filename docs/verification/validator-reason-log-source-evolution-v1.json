@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "376f19aa2f8d7a329f0da3c516e4101a67f9cf8d2401d68169770d62a018c99e",
+  "current_sha256": "47f4de76e2750d588d1278ee5e5bd75db54aa81dd088462f3ed38632a4ad641e",
+  "replacements": [
+   {
+    "old": "'unsupported_numeric_or_link_claim','grounding_review_rejected'}",
+    "new": "'unsupported_numeric_or_link_claim','grounding_review_rejected','unclaimed_fulfillment_or_policy_claim','unsupported_superiority_claim','unclaimed_stock_claim','unclaimed_spec_claim'}",
+    "count": 1
+   }
+  ]
+ }
+}

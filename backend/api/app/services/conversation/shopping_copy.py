@@ -329,7 +329,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         from app.services.structured_output import StructuredOutputError
         if isinstance(exc,StructuredOutputError) and stage.endswith('_provider'):
             stage=stage.removesuffix('_provider')+'_schema'
-        allowed={'gift_followup_count','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
+        allowed={'gift_followup_count','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected','unclaimed_fulfillment_or_policy_claim','unsupported_superiority_claim','unclaimed_stock_claim','unclaimed_spec_claim'}
         reason=str(exc) if type(exc) is ValueError and str(exc) in allowed else type(exc).__name__
         error_class=ShoppingCopyTimeout if isinstance(exc,TimeoutError) else ShoppingCopyError
         raise error_class(stage,reason) from exc
