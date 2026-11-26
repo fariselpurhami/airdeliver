@@ -73,3 +73,23 @@ async def test_template_contract_avoids_literal_placeholder_duplication_and_revi
  await write_shopping_copy(infer,'rain safe',[catalog_result(row())],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'template_v1'})
  assert 'Do not type a literal product name beside its name placeholder' in calls[0][0]['content']
  assert 'A decisive unverified requirement prevents a proven suitability claim' in calls[1][0]['content']
+
+@pytest.mark.asyncio
+async def test_template_duplicate_full_name_parenthesis_fails_before_review():
+ card=catalog_result(row());calls=[]
+ async def infer(messages):
+  calls.append(messages)
+  if len(calls)==1:
+   refs=json.loads(messages[1]['content'])['claim_reference_map']
+   name=next(k for k,v in refs.items() if v['field']=='name')
+   return json.dumps({'text_template':card.name+' ({{'+name+'}}, listed candidate) is a conditional option.'})
+  return json.dumps(V)
+ with pytest.raises(ValueError,match='duplicate_product_name'):
+  await write_shopping_copy(infer,'x',[card],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'template_v1'})
+ assert len(calls)==1
+
+@pytest.mark.asyncio
+async def test_exact_product_name_can_recur_in_distinct_sentences():
+ card=catalog_result(row());infer=AsyncMock(side_effect=[json.dumps({'text_template':card.name+' is listed. Verify fit before considering '+card.name+'.'}),json.dumps(V)])
+ text=await write_shopping_copy(infer,'x',[card],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'template_v1'})
+ assert text.count(card.name)==2 and infer.await_count==2

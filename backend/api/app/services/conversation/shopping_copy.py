@@ -89,6 +89,12 @@ def resolve_template_claims(raw,reference_map):
         if not any(c['product_id']==identity and c['field']=='name' for c in claims):
             raise ValueError('undeclared_product_mention')
     text=re.sub(r'\{\{(c[0-9]+)\}\}',lambda match:reference_map[match.group(1)]['value'],template)
+    # Reject the observed name (name, facts) defect without rewriting prose.
+    for claim in claims:
+        if claim['field']=='name':
+            name=re.escape(claim['value'])
+            if re.search(name+r'\s*\(\s*'+name+r'(?=[\s,;:)])',text,re.I):
+                raise ValueError('duplicate_product_name')
     return ShoppingDraft(text=text,product_ids=identities,claims=claims)
 
 
@@ -417,7 +423,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         from app.services.structured_output import StructuredOutputError
         if isinstance(exc,StructuredOutputError) and stage.endswith('_provider'):
             stage=stage.removesuffix('_provider')+'_schema'
-        allowed={'gift_followup_count','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
+        allowed={'duplicate_product_name','gift_followup_count','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
         reason=str(exc) if type(exc) is ValueError and str(exc) in allowed else type(exc).__name__
         error_class=ShoppingCopyTimeout if isinstance(exc,TimeoutError) else ShoppingCopyError
         raise error_class(stage,reason) from exc
