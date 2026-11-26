@@ -12,6 +12,7 @@ from copy import deepcopy
 from app.schemas.ai_actions import CatalogResult,NeuralCoreResponse
 from app.services.shopping_copy import write_shopping_copy, ShoppingCopyError
 from app.services.shopping_discovery import ShoppingBrief
+from app.services.conversation.catalog_fact_answer import catalog_fact_answer
 
 logger=logging.getLogger('airdeliver.sales_response')
 Infer=Callable[[list[dict[str,str]]],Awaitable[str]]
@@ -47,6 +48,12 @@ class SalesResponseService:
         # cannot alter evidence while writer/review network awaits are in flight.
         cards=[p.model_copy(deep=True) for p in request.products]
         brief=request.brief.model_copy(deep=True)
+        if request.mode=='catalog_results' and request.intent=='CATALOG_CONSULTATION':
+            fact=catalog_fact_answer(request.message,cards)
+            if fact:
+                return NeuralCoreResponse(text=fact,products=cards,response_kind='catalog_results',confidence=0.9,
+                    explain='Deterministic answer from current catalog card fields, no model-authored claims',
+                    telemetry={'intent':request.intent,'entities':[],'turn':0})
         try:
             if not self.provider_ready:raise RuntimeError('provider_unavailable')
             from app.services.product_answer_policy import answer_shape,advisory_strategy
