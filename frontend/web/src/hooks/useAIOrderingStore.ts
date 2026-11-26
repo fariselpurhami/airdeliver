@@ -17,6 +17,8 @@ import { getCheckoutRequestKey, retireCheckoutRequestKey } from '@/lib/checkout-
 // lifetime. Retain the historical localStorage key only for legacy migration;
 // never load unseen prior conversations into a visually new page.
 let visibleSupportSessionId: string | null = null;
+// Local conversation lifetime fence, independent of server erase/publication fences.
+let supportConversationGeneration = 0;
 
 // --- Domain Types ---
 
@@ -751,6 +753,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   },
 
   _postSupportChat: async (message, msgId, imageBase64) => {
+    const conversationGeneration = supportConversationGeneration;
     // Live assistant path: the ai_support HTTP endpoint backed by
     // NeuralCoreService. Chat text and image queries go here; cart and
     // checkout commands stay on the websocket.
@@ -769,10 +772,12 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
         }),
         signal: controller.signal,
       });
+      if (conversationGeneration !== supportConversationGeneration) return;
       if (!response.ok) {
         throw new Error(`support chat returned ${response.status}`);
       }
       const data = parseSupportReply(await response.json());
+      if (conversationGeneration !== supportConversationGeneration) return;
 
       // Delivery confirmed: settle the optimistic user message.
       if (msgId) {
@@ -792,6 +797,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
 
       get().addSocketAIMessage({ type: data.products.length ? 'product_carousel' : data.response_kind === 'system_notice' ? 'info' : 'text', content: data.text, action: data.action, products: data.products, status_code:data.status_code, recovery:data.recovery });
     } catch (error) {
+      if (conversationGeneration !== supportConversationGeneration) return;
       if (msgId) {
         const ackTimeout = get().ackTimeouts[msgId];
         if (ackTimeout) clearTimeout(ackTimeout);
@@ -1085,6 +1091,7 @@ export const useAIOrderingStore = create<AIOrderingState>()((set, get) => ({
   },
 
   resetChat: () => {
+    supportConversationGeneration += 1;
     visibleSupportSessionId = null;
     get().clearCart();
     set({

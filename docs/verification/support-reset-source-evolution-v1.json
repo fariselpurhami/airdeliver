@@ -1,0 +1,8 @@
+{
+  "frontend/web/src/hooks/useAIOrderingStore.ts": {
+    "baseline_sha256": "0b4535cf86b285fe735c3e8bdf3d4932312645f6dda21c0302914538f46db02c",
+    "current_sha256": "2ffc54a8e77db0d7c7abc2654f857bf8b8b14b5ea8256b58df8eb16a0c5ed218",
+    "reason": "Seven additive lines fence delayed HTTP support results to visible reset generation; existing source retained",
+    "evidence": "docs/verification/support-reset-response-fence-v1.md"
+  }
+}
