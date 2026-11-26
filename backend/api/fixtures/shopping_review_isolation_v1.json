@@ -1,0 +1,305 @@
+{
+  "scope": "Controlled writer objects and captured real semantic review verdicts. Not live writer acceptance, no private reasoning.",
+  "cases": [
+    {
+      "case": "019",
+      "question": "Which material is listed for each backpack?",
+      "products": [
+        {
+          "id": 101,
+          "name": "Synthetic Cedar Backpack",
+          "price": "45.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 5,
+          "category": "backpacks",
+          "attributes": {
+            "material": "canvas",
+            "color": "blue",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "850",
+            "water_resistance": "not specified"
+          }
+        },
+        {
+          "id": 102,
+          "name": "Synthetic Birch Backpack",
+          "price": "70.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 3,
+          "category": "backpacks",
+          "attributes": {
+            "material": "nylon",
+            "color": "black",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "600",
+            "water_resistance": "not specified"
+          }
+        }
+      ],
+      "controlled_writer": {
+        "text": "Synthetic Cedar Backpack is listed as canvas. Synthetic Birch Backpack is listed as nylon.",
+        "product_ids": [
+          101,
+          102
+        ],
+        "claims": [
+          {
+            "product_id": 101,
+            "field": "name",
+            "value": "Synthetic Cedar Backpack"
+          },
+          {
+            "product_id": 102,
+            "field": "name",
+            "value": "Synthetic Birch Backpack"
+          },
+          {
+            "product_id": 101,
+            "field": "spec.material",
+            "value": "canvas"
+          },
+          {
+            "product_id": 102,
+            "field": "spec.material",
+            "value": "nylon"
+          }
+        ]
+      },
+      "actual_review": {
+        "supported": true,
+        "all_product_mentions_declared": true,
+        "no_unsupported_commercial_claims": true,
+        "fulfills_discovery_task": true
+      },
+      "expected_kind": "catalog_results",
+      "scope": "Controlled writer final object and real independent review only; not live writer quality. Synthetic local_catalog. Not full HTTP/database/search/checkout acceptance."
+    },
+    {
+      "case": "020",
+      "question": "Which material is listed for each backpack?",
+      "products": [
+        {
+          "id": 101,
+          "name": "Synthetic Cedar Backpack",
+          "price": "45.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 5,
+          "category": "backpacks",
+          "attributes": {
+            "material": "canvas",
+            "color": "blue",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "850",
+            "water_resistance": "not specified"
+          }
+        },
+        {
+          "id": 102,
+          "name": "Synthetic Birch Backpack",
+          "price": "70.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 3,
+          "category": "backpacks",
+          "attributes": {
+            "material": "nylon",
+            "color": "black",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "600",
+            "water_resistance": "not specified"
+          }
+        }
+      ],
+      "controlled_writer": {
+        "text": "Synthetic Cedar Backpack is listed as nylon. Synthetic Birch Backpack is listed as canvas.",
+        "product_ids": [
+          101,
+          102
+        ],
+        "claims": [
+          {
+            "product_id": 101,
+            "field": "name",
+            "value": "Synthetic Cedar Backpack"
+          },
+          {
+            "product_id": 102,
+            "field": "name",
+            "value": "Synthetic Birch Backpack"
+          },
+          {
+            "product_id": 101,
+            "field": "spec.material",
+            "value": "canvas"
+          },
+          {
+            "product_id": 102,
+            "field": "spec.material",
+            "value": "nylon"
+          }
+        ]
+      },
+      "actual_review": {
+        "supported": false,
+        "all_product_mentions_declared": true,
+        "no_unsupported_commercial_claims": false,
+        "fulfills_discovery_task": false
+      },
+      "expected_kind": "system_notice",
+      "scope": "Controlled writer final object and real independent review only; not live writer quality. Synthetic local_catalog. Not full HTTP/database/search/checkout acceptance."
+    },
+    {
+      "case": "014",
+      "question": "Can either listing confirm water resistance?",
+      "products": [
+        {
+          "id": 101,
+          "name": "Synthetic Cedar Backpack",
+          "price": "45.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 5,
+          "category": "backpacks",
+          "attributes": {
+            "material": "canvas",
+            "color": "blue",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "850",
+            "water_resistance": "not specified"
+          }
+        },
+        {
+          "id": 102,
+          "name": "Synthetic Birch Backpack",
+          "price": "70.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 3,
+          "category": "backpacks",
+          "attributes": {
+            "material": "nylon",
+            "color": "black",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "600",
+            "water_resistance": "not specified"
+          }
+        }
+      ],
+      "controlled_writer": {
+        "text": "Synthetic Cedar Backpack and Synthetic Birch Backpack are confirmed water resistant.",
+        "product_ids": [
+          101,
+          102
+        ],
+        "claims": [
+          {
+            "product_id": 101,
+            "field": "name",
+            "value": "Synthetic Cedar Backpack"
+          },
+          {
+            "product_id": 102,
+            "field": "name",
+            "value": "Synthetic Birch Backpack"
+          },
+          {
+            "product_id": 101,
+            "field": "spec.water_resistance",
+            "value": "not specified"
+          },
+          {
+            "product_id": 102,
+            "field": "spec.water_resistance",
+            "value": "not specified"
+          }
+        ]
+      },
+      "actual_review": {
+        "supported": false,
+        "all_product_mentions_declared": false,
+        "no_unsupported_commercial_claims": false,
+        "fulfills_discovery_task": false
+      },
+      "expected_kind": "system_notice",
+      "scope": "Controlled writer final object and real independent review only; not live writer quality. Synthetic local_catalog. Not full HTTP/database/search/checkout acceptance."
+    },
+    {
+      "case": "015",
+      "question": "I need a backpack weighing at most 700 grams. Which meets this limit?",
+      "products": [
+        {
+          "id": 101,
+          "name": "Synthetic Cedar Backpack",
+          "price": "45.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 5,
+          "category": "backpacks",
+          "attributes": {
+            "material": "canvas",
+            "color": "blue",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "850",
+            "water_resistance": "not specified"
+          }
+        },
+        {
+          "id": 102,
+          "name": "Synthetic Birch Backpack",
+          "price": "70.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 3,
+          "category": "backpacks",
+          "attributes": {
+            "material": "nylon",
+            "color": "black",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "600",
+            "water_resistance": "not specified"
+          }
+        }
+      ],
+      "controlled_writer": {
+        "text": "Choose Synthetic Cedar Backpack. It is listed at 850 grams, so it meets your weight requirement. Synthetic Birch Backpack is listed at 600 grams.",
+        "product_ids": [
+          101,
+          102
+        ],
+        "claims": [
+          {
+            "product_id": 101,
+            "field": "name",
+            "value": "Synthetic Cedar Backpack"
+          },
+          {
+            "product_id": 102,
+            "field": "name",
+            "value": "Synthetic Birch Backpack"
+          },
+          {
+            "product_id": 101,
+            "field": "spec.weight_grams",
+            "value": "850"
+          },
+          {
+            "product_id": 102,
+            "field": "spec.weight_grams",
+            "value": "600"
+          }
+        ]
+      },
+      "actual_review": {
+        "supported": false,
+        "all_product_mentions_declared": true,
+        "no_unsupported_commercial_claims": false,
+        "fulfills_discovery_task": false
+      },
+      "expected_kind": "system_notice",
+      "scope": "Controlled writer final object and real independent review only; not live writer quality. Synthetic local_catalog. Not full HTTP/database/search/checkout acceptance."
+    }
+  ]
+}

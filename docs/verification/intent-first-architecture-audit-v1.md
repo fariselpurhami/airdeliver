@@ -61,3 +61,13 @@ new provider spend, extra synchronous stages or activation is approved by this d
 A new intent layer must not replace existing foundations or conceal failures.
 Existing synchronous writer/reviewer remains, no ID stripping or guessed claim
 repair, and owner quality acceptance stays separate from code/CI acceptance.
+
+## Semantic contrast regression checkpoint
+
+Captured controlled drafts now replay through the actual preflight and independent
+review boundary. The correct mapping passes; swapped facts, unknown-as-confirmed
+and explicit weight-limit violation pass structural equality but fail the captured
+review verdict. This explicitly demonstrates why structure alone is insufficient.
+17focused tests pass,7DB-dependent cases skipped locally. No claim of running
+those7or fresh provider review during replay. Next intent-contract work must keep
+this distinction between evidence-valid shape and decision-valid meaning.
