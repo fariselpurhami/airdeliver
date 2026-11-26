@@ -94,3 +94,15 @@ def test_customer_typed_product_words_with_digits_are_echoes_not_facts():
         render_slots({'text': "It lasts 30h."}, [card], None, 'Does it last 30h?')
     with pytest.raises(SlotError):
         render_slots({'text': "It has PS5 support."}, [card], None, 'Do they work with a PS4?')
+
+
+def test_plainly_typed_product_name_is_declared_not_withheld():
+    """Real Groq (n=1, cmp-03, 1:20 AM): the model typed "Oak Desk" in plain words next to [[total]] and the draft was rejected as an undeclared name."""
+    from tests.test_shopping_discovery_contract import row
+    from app.services.shopping_discovery import catalog_result
+    from app.services.conversation.slot_copy import render_slots
+    from app.services.conversation.shopping_copy import validate_draft
+    card = catalog_result(row())
+    d = render_slots({'text': "Yes, the Studio Headphones fit your plan at [[price:1]]."}, [card], None, 'Do the Studio Headphones fit?')
+    assert d.product_ids == [1] and any(c.field == 'name' for c in d.claims)
+    validate_draft(d, [card], {}, {}, 'Do the Studio Headphones fit?')

@@ -24,7 +24,7 @@ SLOT_WRITER_RULES = (
     "Write the reply as JSON {text}. Never type a number, price, measurement, product ID or link yourself. Every fact comes from a slot that the shop fills in: "
     "[[name:ID]] for a product name, [[price:ID]] for its price, [[spec.KEY:ID]] for a listed spec value, [[total]] and [[left]] for the combined price and the budget left when they are provided. "
     "Use only IDs and spec keys that appear in the supplied cards. A fact with no slot is unknown: say plainly that you do not have it, in your own words, without slots. "
-    "Everything else is free: write like a sharp, tactful friend, vary the shape and length to the customer's intent, use short bullet lines only for two or more precise facts."
+    "No exclamation marks, no stock openers like Sure thing, bullet lines start with \"- \". Everything else is free: write like a sharp, tactful friend, vary the shape and length to the customer's intent, use short bullet lines only for two or more precise facts."
 )
 
 
@@ -118,4 +118,10 @@ def render_slots(raw, cards, brief=None, message=None):
     if _NUMBER_WORD_FACT.search(outside):
         raise SlotError('slot_number_word_fact')
     rendered = _SLOT.sub(fill, text)
+    # A product named in plain words (no slot) is still the card's exact name: declare it, as the normal writer path does.
+    low = rendered.casefold()
+    for pid, card in by_id.items():
+        if pid not in ids and str(card['name']).casefold() in low:
+            ids.append(pid)
+            claims.append(Claim(product_id=pid, field='name', value=str(card['name'])))
     return ShoppingDraft(text=rendered, product_ids=ids, claims=claims)
