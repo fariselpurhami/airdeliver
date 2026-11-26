@@ -33,6 +33,7 @@ def validate_status_source(source):
         or len(set(source.exact_models))!=len(source.exact_models)
         or any(not isinstance(d,datetime) or d.tzinfo is None or d.utcoffset() is None for d in dates)):
         raise ValueError('verified_metadata_required')
+    if source.published_at>source.observed_at:raise ValueError('verified_metadata_required')
 
 
 class ExtractedStatus(BaseModel):

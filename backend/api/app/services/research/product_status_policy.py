@@ -48,7 +48,7 @@ class ProductStatus:
 def resolve_status(model_key,evidence,*,now,region,max_age):
     if now.tzinfo is None or now.utcoffset() is None or max_age<=timedelta(0):raise ValueError('invalid_status_clock')
     rows=[r for r in evidence if r.model_key==model_key and r.exact_identity and r.official_binding
-          and r.region==region and timedelta(0)<=now-r.observed_at<=max_age and r.published_at<=now
+          and r.region==region and timedelta(0)<=now-r.observed_at<=max_age and r.published_at<=r.observed_at<=now
           and timedelta(0)<=now-r.published_at<=max_age]
     # Explicit supersession is upstream trusted metadata, never newest-wins.
     superseded={u for r in rows for u in r.supersedes}

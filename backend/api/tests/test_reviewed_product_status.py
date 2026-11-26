@@ -170,3 +170,12 @@ async def test_status_source_list_changes_during_writer_do_not_replace_evidence(
   return json.dumps(V)
  result=await reviewed_product_status(infer,'maker:x',sources,registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
  assert result.state=='released' and len(calls)==2
+
+@pytest.mark.asyncio
+async def test_impossible_adapter_publication_order_rejected_before_inference():
+ from dataclasses import replace
+ infer=AsyncMock(side_effect=[json.dumps(D),json.dumps(V)])
+ impossible=replace(source(),observed_at=NOW-timedelta(hours=2),published_at=NOW-timedelta(hours=1))
+ with pytest.raises(ValueError,match='verified_metadata_required'):
+  await reviewed_product_status(infer,'maker:x',[impossible],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
+ infer.assert_not_awaited()

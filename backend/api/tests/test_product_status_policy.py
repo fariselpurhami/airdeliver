@@ -61,3 +61,7 @@ def test_future_discontinuation_notice_is_not_currently_discontinued():
 
 def test_future_announced_effective_instant_cannot_prove_current_announcement():
  assert resolve([change(assertion='announced',effective_at=NOW+timedelta(days=1))]).state=='unverified'
+
+def test_source_cannot_be_published_after_it_was_observed():
+ row=change(observed_at=NOW-timedelta(hours=2),published_at=NOW-timedelta(hours=1))
+ assert resolve([row]).state=='unverified'

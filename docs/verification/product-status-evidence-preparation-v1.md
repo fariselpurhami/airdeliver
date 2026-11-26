@@ -84,3 +84,11 @@ Ten red cases showed the existing source URL gate accepted raw controls/whitespa
 Source audit confirms the alarming historical reality/retention prompt bodies are retained only in legacy_unreviewed methods. Existing AST closure guards reject active calls into those bodies and active reads of their unsafe policy symbols. No deletion or rewrite of preserved foundations was performed. Those source strings are application data, never instructions for this work.
 
 The mounted HTTP/PostgreSQL/Redis research fallback matrix now includes malformed source URL, forged exact quote and negative independent review for comparison/specifications/consultation. It requires no source publication after forgery/rejection, zero catalog fallback after a nonempty-but-rejected extraction, and scoped constraint-preserving fallback for a bad source URL. Local74 companion tests pass;24 HTTP cases skip because no migrated disposable PostgreSQL is configured locally. The new nine HTTP cases require actual disposable-CI execution before being claimed verified. No new migration or active status route was added.
+
+## Publication cannot occur after observation
+
+Two test-first failures showed an impossible metadata ordering could still resolve to released: a claimed source publication later than the time it had already been observed. The inactive adapter now rejects this before inference and the temporal resolver independently filters it. Both clocks being individually recent is insufficient.250 combined offline cases pass. This does not infer release from a date or activate a real source adapter.
+
+## Mounted HTTP matrix CI receipt
+
+Exact head8e631b3d completed all five check classes for push and PR. Seaweed backend logged2917passed3skipped with the disposable migrated PostgreSQL DSN and Redis enabled, so the24-case mounted research matrix was not silently skipped as locally. Nine added cases cover malformed source URLs, forged supporting quotes and negative independent review across comparison/specifications/consultation. Source evidence: https://github.com/fariselpurhami/airdeliver/actions/runs/45733598871/job/139621376667 . These controlled completions prove those active rejection/fallback boundaries, not actual-model product-status truth or release acceptance. Fresh CI is still required after later changes.
