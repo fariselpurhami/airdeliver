@@ -89,3 +89,30 @@ def test_multiple_article_objects_preserve_each_candidate_without_identity_bindi
  row=extract('''<script type="application/ld+json">[{"@type":["Thing","NewsArticle"],"datePublished":"2026-03-03"},{"@type":"NewsArticle","datePublished":"2026-03-04"}]</script>''')
  assert {p.raw for p in row.publications}=={'2026-03-03','2026-03-04'}
  assert row.ambiguous_publication
+
+@pytest.mark.parametrize('html',[
+ '<meta name>', '<script type></script>', '<link rel>',
+ '<link rel="CANONICAL" href>', '<meta name="date" content>',
+ '<script type="application/ld+json">{"@type":"NewsArticle","datePublished":null}</script>',
+])
+def test_valueless_html_attributes_or_null_json_remain_unverified(html):
+ row=extract(html)
+ assert row.publications==() and row.canonical_urls==()
+
+@pytest.mark.parametrize('payload',[
+ '{"@type":"NewsArticle","datePublished":"2026-03-03","datePublished":"2026-03-04"}',
+ '{"@type":"Product","@type":"NewsArticle","datePublished":"2026-03-03"}',
+ '{"@graph":[],"@graph":[{"@type":"NewsArticle","datePublished":"2026-03-03"}]}',
+])
+def test_duplicate_json_fields_fail_closed_instead_of_last_value_wins(payload):
+ row=extract('<script type="application/ld+json">'+payload+'</script>')
+ assert row.publications==()
+
+@pytest.mark.parametrize('html',[
+ '<meta name="ignore" name="date" content="2026-03-03">',
+ '<script type="text/plain" type="application/ld+json">{"@type":"NewsArticle","datePublished":"2026-03-03"}</script>',
+ '<link rel="alternate" rel="canonical" href="https://news.maker.example/release">',
+])
+def test_duplicate_html_attributes_do_not_resolve_by_last_value_wins(html):
+ row=extract(html)
+ assert row.publications==() and row.canonical_urls==()

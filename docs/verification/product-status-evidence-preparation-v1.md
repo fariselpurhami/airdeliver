@@ -143,3 +143,15 @@ global aware+09:00instant, Samsung Japan day-only. Sizes117823..233095bytes stay
 inside the existing bound. This replay tests extraction compatibility, not trust,
 real-time status, model reasoning or merchant inventory. No source-specific
 metadata acceptance policy or production caller has been added.
+
+### Malformed/ambiguous metadata follow-up
+
+Additional original-HTML boundary tests reproduced9failures:3valueless attributes
+raised AttributeError,3duplicate JSON fields silently selected the last value,
+and3duplicate HTML attributes did the same. The parser now ignores valueless
+attributes, ignores tags with duplicate attributes and rejects duplicate-key
+JSON objects without publishing partial values.12newcases pass,37candidate-parser
+cases total,334combinedfocusedpass. All4captured official HTML replays retain
+expected publication values. A deterministic10000malformed-attribute sample had
+no uncaught parser errors; this is not a fuzzing or security certification.
+Full local backend2470pass/536skip, with unavailable-service skips, not CI parity.

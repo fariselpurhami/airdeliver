@@ -21,6 +21,14 @@ class MetadataCandidates:
     def ambiguous_publication(self):return len(self.publications)>1
 
 
+def _unique_json_object(pairs):
+    result={}
+    for key,value in pairs:
+        if key in result:raise ValueError('ambiguous_json_object')
+        result[key]=value
+    return result
+
+
 class _Parser(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -37,7 +45,10 @@ class _Parser(HTMLParser):
         if value not in self.dates:self.dates.append(value)
 
     def handle_starttag(self,tag,attrs):
-        attrs=dict(attrs)
+        if len({key for key,_ in attrs})!=len(attrs):
+            if tag=='script':self.in_ld=False;self.parts=[]
+            return
+        attrs={key:value for key,value in attrs if value is not None}
         if tag=='link' and 'canonical' in attrs.get('rel','').lower().split():
             self.candidate();url=attrs.get('href')
             if isinstance(url,str) and url not in self.canonical:self.canonical.append(url)
@@ -52,7 +63,7 @@ class _Parser(HTMLParser):
     def handle_endtag(self,tag):
         if tag!='script' or not self.in_ld:return
         self.in_ld=False
-        try:payload=json.loads(''.join(self.parts))
+        try:payload=json.loads(''.join(self.parts),object_pairs_hook=_unique_json_object)
         except (ValueError,RecursionError):return
         # Reject the whole JSON payload when depth exceeds the bounded walk.
         stack=[(payload,0)];articles=[]
