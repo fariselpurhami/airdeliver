@@ -203,6 +203,19 @@ def validate_draft(draft, cards, context=None, brief=None):
     for pid in draft.product_ids:
         if not any(c.product_id==pid and c.field=='name' for c in draft.claims):
             raise ValueError('undeclared_product_mention')
+    # Deterministic backstop for affirmative commercial promises that have no
+    # claimable field. Additive: the model review still runs separately.
+    lowered=draft.text.casefold()
+    if re.search(r"\b(?:free shipping|ships?(?: today| fast| free)?|shipping|next[- ]day|same[- ]day|fast delivery|warranty|guarantee[ds]?|money[- ]back|easy returns?|refunds?)\b",lowered):
+        raise ValueError('unclaimed_fulfillment_or_policy_claim')
+    if re.search(r"\b(?:best|perfect(?:ly)?|ideal|top[- ]rated|must[- ]have|bestseller|number one)\b",lowered):
+        raise ValueError('unsupported_superiority_claim')
+    if re.search(r"\b(?:in stock|available now|ready to ship)\b",lowered) and not any(c.field=='stock_status' for c in draft.claims):
+        raise ValueError('unclaimed_stock_claim')
+    evidence_text=' '.join(str(v) for card in by_id.values() for v in [card.get('name'),card.get('category'),*(card.get('catalog_specs') or {}).values()]).casefold()
+    for term in ('waterproof','water resistant','noise cancel','wireless','bluetooth','organic','handmade','leather'):
+        if term in lowered and term not in evidence_text:
+            raise ValueError('unclaimed_spec_claim')
     # No independently generated amounts, percentages, URLs or numerical product
     # model names: numeric strings must occur in an evidence-backed field claim.
     numeric_text=draft.text
