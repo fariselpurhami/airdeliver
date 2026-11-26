@@ -1,0 +1,18 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "ae6c6d05be17055e273a742e7c32f58caf5da5be377de703dc22785381431097",
+  "current_sha256": "bffc8b891d5a953ada4f2485448c43094635a63c7424dc619294af38d05cda90",
+  "replacements": [
+   {
+    "old": "_IN_STOCK_WORDS=",
+    "new": "def declare_sole_named_card(draft,cards):\n    \"\"\"Declare the product when the draft declares none and its text names exactly one retrieved card.\n\n    The id and name claim come from the card, never from the model. A draft that declares any product,\n    names no card, or names two or more cards (an ambiguous mix) is left alone and validation decides.\"\"\"\n    if draft.product_ids:\n        return draft\n    named=[card for card in cards if card.name.casefold() in draft.text.casefold()]\n    if len(named)!=1:\n        return draft\n    return draft.model_copy(update={'product_ids':[named[0].id],'claims':[*draft.claims,Claim(product_id=named[0].id,field='name',value=named[0].name)]})\n\n\n_IN_STOCK_WORDS=",
+    "count": 1
+   },
+   {
+    "old": "draft=complete_stock_claims(complete_name_claims(ShoppingDraft.model_validate_json(raw),cards),cards)",
+    "new": "draft=complete_stock_claims(complete_name_claims(declare_sole_named_card(ShoppingDraft.model_validate_json(raw),cards),cards),cards)",
+    "count": 1
+   }
+  ]
+ }
+}

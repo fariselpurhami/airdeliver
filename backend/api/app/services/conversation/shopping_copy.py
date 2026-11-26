@@ -337,6 +337,19 @@ def exact_totals(cards,brief):
     return result
 
 
+def declare_sole_named_card(draft,cards):
+    """Declare the product when the draft declares none and its text names exactly one retrieved card.
+
+    The id and name claim come from the card, never from the model. A draft that declares any product,
+    names no card, or names two or more cards (an ambiguous mix) is left alone and validation decides."""
+    if draft.product_ids:
+        return draft
+    named=[card for card in cards if card.name.casefold() in draft.text.casefold()]
+    if len(named)!=1:
+        return draft
+    return draft.model_copy(update={'product_ids':[named[0].id],'claims':[*draft.claims,Claim(product_id=named[0].id,field='name',value=named[0].name)]})
+
+
 _IN_STOCK_WORDS=re.compile(r"\b(?:in stock|available now|ready to ship)\b",re.I)
 def complete_stock_claims(draft,cards):
     """Add the exact stock_status claim when the text says "in stock" and every declared product really is in stock.
@@ -399,7 +412,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
             raw=await infer_schema(infer,[{'role':'system','content':writer_rules},
                              {'role':'user','content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))}],ShoppingDraft)
             stage='writer_schema'
-            draft=complete_stock_claims(complete_name_claims(ShoppingDraft.model_validate_json(raw),cards),cards)
+            draft=complete_stock_claims(complete_name_claims(declare_sole_named_card(ShoppingDraft.model_validate_json(raw),cards),cards),cards)
             stage='writer_evidence'
             try:
                 validate_draft(draft,cards,context,brief,message)
