@@ -45,11 +45,18 @@ async def main():
     sys.path.insert(0,str(HERE));from fixtures import cards
     svc=FreeLLMService()
     svc._client=AsyncGroq(api_key=os.environ['GROQ_API_KEY'],base_url='https://api.groq.com',max_retries=0,http_client=httpx.AsyncClient(transport=Guard(),trust_env=False,timeout=30))
-    cs=cards();cases=[c for c in json.load(open(HERE/'cases.json'))['cases'] if c['cat'] in ('grounding','comparison') and c['id'].split('-')[1].isdigit() and int(c['id'].split('-')[1])>=100][:MAXC]
+    cs=cards();cases=[c for c in json.load(open(HERE/'cases.json'))['cases'] if c['cat'] in ('grounding','comparison') and c['id'].split('-')[1].isdigit() and int(c['id'].split('-')[1])>=100]
+    import hashlib;cases.sort(key=lambda c:hashlib.sha256(c['id'].encode()).hexdigest());cases=cases[:MAXC]  # fixed pseudo-random order, not hand-picked
     out=DIR/'responses.json';resp=json.loads(out.read_text()) if out.exists() else {}
     for c in cases:
         if c['id'] in resp:continue
         if json.loads(LEDGER.read_text())['stopped']:print('stopped');break
+        lim=json.loads(LEDGER.read_text())['limits']
+        rem=int(lim.get('x-ratelimit-remaining-tokens','8000'))
+        if rem<4500:
+            wait=float(str(lim.get('x-ratelimit-reset-tokens','60s')).replace('s','').split('m')[-1] or 60)+5
+            await asyncio.sleep(min(wait,70))  # stay under the per-minute token limit, never retry a 429
+            mutate(lambda st:st['limits'].update({'x-ratelimit-remaining-tokens':'8000'}))
         names=c.get('products') or [c['product']]
         try:
             r=await svc.filter_and_recommend(c['question'],[cs[n] for n in names])
