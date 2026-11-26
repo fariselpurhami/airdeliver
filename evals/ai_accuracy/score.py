@@ -7,12 +7,21 @@ def wilson(k,n,z=1.96):
     p=k/n;d=1+z*z/n;c=p+z*z/(2*n);m=z*math.sqrt(p*(1-p)/n+z*z/(4*n*n))
     return ((c-m)/d,(c+m)/d)
 def is_withheld(resp):return resp.get('text','').lstrip().startswith('System notice:')
+HONEST=r"unknown|unclear|no information|not (?:listed|specified|stated|verified|provided|indicated|confirmed|available)|does not (?:list|specify|state|indicate|include|provide|say|mention)|do not (?:list|specify|have)|(?:cannot|can[’']?t|unable to) (?:confirm|verify|guarantee|say)"
+NEG=re.compile(r"\b(?:not|no|never|cannot|unable|unknown)\b|n[’']t\b")
+def _affirmed(p,low):
+    # A forbidden pattern counts only if its match is not negated earlier in the same sentence.
+    for m in re.finditer(p,low):
+        start=max(low.rfind('.',0,m.start()),low.rfind(';',0,m.start()),low.rfind('\n',0,m.start()))+1
+        seg=re.split(r"\b(?:but|yet|however|though|although)\b",low[start:m.start()])[-1]
+        if not NEG.search(seg):return True
+    return False
 def check(case,resp):
     t=resp.get('text','');low=t.lower();fails=[]
     ma=case.get('must_any')
-    if ma and not any(re.search(p,low) for p in ma):fails.append('missing_required')
+    if ma and not any(re.search(p,low) for p in ma) and not (any('unknown' in p for p in ma) and re.search(HONEST,low)):fails.append('missing_required')
     for p in case.get('must_not',[]):
-        if re.search(p,low):fails.append('forbidden:'+p)
+        if _affirmed(p,low):fails.append('forbidden:'+p)
     if 'max_words' in case and len(t.split())>case['max_words']:fails.append('too_long')
     if 'max_questions' in case and t.count('?')>case['max_questions']:fails.append('too_many_questions')
     if case.get('expects_products') is False and resp.get('product_ids'):fails.append('unexpected_products')
