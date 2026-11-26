@@ -13,12 +13,16 @@ def test_source_manifest_preserves_every_pre_move_byte():
  security=json.loads((ROOT/'docs/verification/next-security-source-evolution-v1.json').read_text())
  reset=json.loads((ROOT/'docs/verification/support-reset-source-evolution-v1.json').read_text())
  assert set(reset)=={'frontend/web/src/hooks/useAIOrderingStore.ts'}
+ ui=json.loads((ROOT/'docs/verification/web-ui-source-evolution-v1.json').read_text())
  for row in manifest['files']:
   assert not (ROOT/row['previous_path']).exists()
   expected=security[row['canonical_path']]['current_sha256'] if row['canonical_path'] in security else evolution.get(row['canonical_path'],row['sha256'])
   if row['canonical_path'] in reset:
    assert reset[row['canonical_path']]['baseline_sha256']==expected
    expected=reset[row['canonical_path']]['current_sha256']
+  if row['canonical_path'] in ui:
+   assert ui[row['canonical_path']]['baseline_sha256']==expected
+   expected=ui[row['canonical_path']]['current_sha256']
   assert hashlib.sha256((ROOT/row['canonical_path']).read_bytes()).hexdigest()==expected
 
 
@@ -42,10 +46,15 @@ def test_reviewed_source_evolution_does_not_rewrite_historical_move_manifest():
  manifest=json.loads((ROOT/'docs/verification/web-source-layout-v1.json').read_text())
  evolution=json.loads((ROOT/'docs/verification/web-source-evolution-v1.json').read_text())
  historical={row['canonical_path']:row['sha256'] for row in manifest['files']}
+ ui=json.loads((ROOT/'docs/verification/web-ui-source-evolution-v1.json').read_text())
  for name,digest in evolution.items():
   assert name in historical and digest!=historical[name]
   assert len(digest)==64
-  assert hashlib.sha256((ROOT/name).read_bytes()).hexdigest()==digest
+  expected=digest
+  if name in ui:
+   assert ui[name]['baseline_sha256']==digest
+   expected=ui[name]['current_sha256']
+  assert hashlib.sha256((ROOT/name).read_bytes()).hexdigest()==expected
 
 
 def test_next_security_evolution_has_exact_current_hashes_and_keeps_move_receipts():
