@@ -24,6 +24,142 @@ class ShoppingDraft(BaseModel):
     claims: list[Claim] = Field(default_factory=list,max_length=50)
 
 
+class ReferencedShoppingDraft(BaseModel):
+    """Opt-in wire format. References resolve before the existing evidence gate."""
+    model_config=ConfigDict(extra='forbid')
+    text: StrictStr = Field(min_length=1,max_length=2000)
+    product_ids: list[StrictInt] = Field(default_factory=list,max_length=10)
+    claim_refs: list[StrictStr] = Field(default_factory=list,max_length=50)
+
+
+def resolve_claim_references(raw, reference_map):
+    draft=ReferencedShoppingDraft.model_validate_json(raw)
+    if len(set(draft.claim_refs)) != len(draft.claim_refs):
+        raise ValueError('duplicate_claim_reference')
+    if any(ref not in reference_map for ref in draft.claim_refs):
+        raise ValueError('unknown_claim_reference')
+    return ShoppingDraft(text=draft.text,product_ids=draft.product_ids,
+        claims=[reference_map[ref] for ref in draft.claim_refs])
+
+
+class TemplateShoppingDraft(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    text_template: StrictStr = Field(min_length=1,max_length=2000)
+
+
+class DecisionShoppingDraft(TemplateShoppingDraft):
+    decision: Literal['pick','conditional','no_pick']
+    preferred_product_id: StrictInt|None
+    decisive_unknown: StrictStr = Field(max_length=500)
+
+
+
+class ShoppingTextBlock(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    kind: Literal['paragraph','bullet']
+    text_template: StrictStr = Field(min_length=1,max_length=1000,pattern=r'^[^\r\n]*$')
+
+
+class DecisionBlocksDraft(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    decision: Literal['pick','conditional','no_pick']
+    preferred_product_id: StrictInt|None
+    decisive_unknown: StrictStr = Field(max_length=500)
+    blocks: list[ShoppingTextBlock] = Field(min_length=1,max_length=6)
+
+
+class ShoppingSegment(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    kind:Literal['text','claim']
+    value:StrictStr=Field(min_length=1,max_length=1000,pattern=r'^[^\r\n{}]*$')
+
+
+class SegmentBlock(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    kind:Literal['paragraph','bullet']
+    segments:list[ShoppingSegment]=Field(min_length=1,max_length=20)
+
+
+class SegmentDecisionDraft(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    decision:Literal['pick','conditional','no_pick']
+    preferred_product_id:StrictInt|None
+    decisive_unknown:StrictStr=Field(max_length=500)
+    blocks:list[SegmentBlock]=Field(min_length=1,max_length=6)
+
+
+def parse_segment_decision(raw,reference_map):
+    wire=SegmentDecisionDraft.model_validate_json(raw)
+    data=wire.model_dump(exclude={'blocks'})
+    data['blocks']=[]
+    for block in wire.blocks:
+        parts=[]
+        for segment in block.segments:
+            if segment.kind=='claim':
+                if segment.value not in reference_map:raise ValueError('unknown_claim_reference')
+                parts.append('{{'+segment.value+'}}')
+            else:parts.append(segment.value)
+        data['blocks'].append({'kind':block.kind,'text_template':''.join(parts)})
+    return parse_decision_blocks(json.dumps(data),reference_map)
+
+
+def parse_decision_blocks(raw,reference_map):
+    wire=DecisionBlocksDraft.model_validate_json(raw)
+    parts=[]
+    for block in wire.blocks:
+        if any(c in block.text_template for c in '\r\n'):
+            raise ValueError('invalid_block_newline')
+        parts.append(('- ' if block.kind=='bullet' else '')+block.text_template)
+    record=wire.model_dump(exclude={'blocks'})
+    record['text_template']='\n\n'.join(parts)
+    return parse_decision(json.dumps(record),reference_map)
+
+
+def parse_decision(raw,reference_map):
+    record=DecisionShoppingDraft.model_validate_json(raw)
+    known={claim['product_id'] for claim in reference_map.values()}
+    if record.decision=='no_pick':
+        if record.preferred_product_id is not None or not record.decisive_unknown.strip():
+            raise ValueError('inconsistent_decision_record')
+    elif record.preferred_product_id not in known:
+        raise ValueError('unknown_preferred_identity')
+    elif (record.decision=='pick' and record.decisive_unknown.strip()) or (record.decision=='conditional' and not record.decisive_unknown.strip()):
+        raise ValueError('inconsistent_decision_record')
+    draft=resolve_template_claims(json.dumps({'text_template':record.text_template}),reference_map)
+    if record.preferred_product_id is not None and record.preferred_product_id not in draft.product_ids:
+        raise ValueError('preferred_identity_not_in_prose')
+    return draft,record.model_dump(exclude={'text_template'})
+
+
+def resolve_template_claims(raw,reference_map):
+    template=TemplateShoppingDraft.model_validate_json(raw).text_template
+    references=re.findall(r'\{\{(c[0-9]+)\}\}',template)
+    remaining=re.sub(r'\{\{c[0-9]+\}\}','',template)
+    if any(mark in remaining for mark in '{}'):
+        raise ValueError('unsupported_template_literal')
+    if any(ref not in reference_map for ref in references):raise ValueError('unknown_claim_reference')
+    refs=list(dict.fromkeys(references))
+    claims=[reference_map[ref] for ref in refs]
+    # Exact literal full names are the same evidence as their name placeholder.
+    # Do not infer aliases, shortened names or identity from semantic similarity.
+    for claim in reference_map.values():
+        if claim['field']=='name' and claim['value'].casefold() in template.casefold() and claim not in claims:
+            claims.append(claim)
+    identities=list(dict.fromkeys(claim['product_id'] for claim in claims))
+    # Every cited card needs its exact name, even a comparison-only card.
+    for identity in identities:
+        if not any(c['product_id']==identity and c['field']=='name' for c in claims):
+            raise ValueError('undeclared_product_mention')
+    text=re.sub(r'\{\{(c[0-9]+)\}\}',lambda match:reference_map[match.group(1)]['value'],template)
+    # Reject the observed name (name, facts) defect without rewriting prose.
+    for claim in claims:
+        if claim['field']=='name':
+            name=re.escape(claim['value'])
+            if re.search(name+r'\s*\(\s*'+name+r'(?=[\s,;:)])',text,re.I):
+                raise ValueError('duplicate_product_name')
+    return ShoppingDraft(text=text,product_ids=identities,claims=claims)
+
+
 class GroundingReview(BaseModel):
     model_config=ConfigDict(extra='forbid')
     supported: StrictBool
@@ -182,6 +318,14 @@ def fixture_violation(text):
     return next((name for name,pattern in patterns.items() if re.search(pattern,text)),None)
 
 def validate_draft(draft, cards, context=None, brief=None):
+    # Exact catalog names may contain model digits. Explicit ID labels outside
+    # those names disclose application identity rather than shopper evidence.
+    identity_text=draft.text
+    for card in cards:
+        identity_text=re.sub(re.escape(card.name),'',identity_text,flags=re.I)
+    for card in cards:
+        if re.search(r'\b(?:product[ _-]*)?id\s*[:#=]?\s*'+re.escape(str(card.id))+r'(?!\d)',identity_text,re.I):
+            raise ValueError('internal_product_id_in_copy')
     if any(card.evidence_kind=='dev_fixture' for card in cards):
         violation=fixture_violation(draft.text)
         if violation:
@@ -243,11 +387,33 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     # Transport-only image/SKU and seed-marker duplication are not prose evidence.
     # Evidence kind, stock qualifier, exact specs and all claimable fields remain.
     evidence=[c.model_dump(mode='json',exclude={'image','sku','attributes'}) for c in cards]
+    if (context or {}).get('product_answer_shape')=='adaptive':
+        for card in evidence:
+            card['claim_options']=[{'product_id':card['id'],'field':field,'value':str(card[field])}
+                for field in ('name','price','currency','evidence_kind','stock_status')]
+            card['claim_options'] += [{'product_id':card['id'],'field':'spec.'+key,'value':str(value)}
+                for key,value in card.get('catalog_specs',{}).items()]
     no_match=mode=='catalog_results' and not cards
     payload={'task':mode,'customer_message':message,'customer_brief':brief,'catalog_evidence':evidence,'request_evidence':context or {}}
     if no_match:
         payload={'task':'no_match','customer_message':message,'customer_brief':brief,'catalog_evidence':[],
                  'scope':'No eligible current retrieved catalog cards; not exhaustive inventory'}
+    reference_map={}
+    use_segments=(context or {}).get('claim_binding')=='decision_segments_v1'
+    use_blocks=(context or {}).get('claim_binding') in {'decision_blocks_v1','decision_segments_v1'}
+    use_decision=(context or {}).get('claim_binding') in {'decision_v1','decision_blocks_v1','decision_segments_v1'}
+    use_template=(context or {}).get('claim_binding') in {'template_v1','decision_v1','decision_blocks_v1','decision_segments_v1'}
+    use_references=(not no_match and (context or {}).get('product_answer_shape')=='adaptive'
+        and (context or {}).get('claim_binding') in {'references_v1','template_v1','decision_v1','decision_blocks_v1','decision_segments_v1'})
+    use_template=use_template and use_references
+    use_decision=use_decision and use_template
+    use_blocks=use_blocks and use_decision
+    if use_references:
+        for card in evidence:
+            options=card.pop('claim_options',[])
+            for option in options:
+                reference_map['c'+str(len(reference_map))]=option
+        payload['claim_reference_map']=reference_map
     writer_rules=NO_MATCH_WRITER_RULES if no_match else WRITER_RULES
     review_rules=NO_MATCH_REVIEW_RULES if no_match else REVIEW_RULES
     from app.services.product_answer_policy import SAFE_ADVISORY_STRATEGY
@@ -263,15 +429,55 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     if not no_match:
         from app.services.compact_copy_contracts import contracts
         writer_rules,review_rules=contracts(mode,context)
+    segment_base_rules=writer_rules
+    if use_references:
+        writer_rules=writer_rules.replace('Return JSON{text,product_ids,claims}',
+            'Return JSON{text,product_ids,claim_refs}')
+        writer_rules=writer_rules.replace("Copy needed claim objects from each card's claim_options, including its name claim for every product mentioned; never shorten a spec.KEY field.",
+            'Select exact claim_reference_map keys for each stated fact and name; never invent a reference.')
+        writer_rules += ' Do not calculate differences, convert units or generate new numerical values. When comparing price or weight, use lower/higher/lighter/heavier only when exact listed values support it; no derived amounts. Include references and product_ids for every compared card, even when only one is the preferred pick. A preference is conditional when the decisive must-have is unknown. Keep unknown material performance unknown. '
+        writer_rules += ' Wire format override: return text, product_ids, claim_refs only. Instead of claims objects, select exact keys from claim_reference_map for every stated fact. No unknown or duplicate references. All evidence and task requirements still apply. The application resolves references, then validates and independently reviews the complete claims.'
+    if use_template:
+        writer_rules=writer_rules.split(' Wire format override:')[0]
+        writer_rules=writer_rules.replace('Return JSON{text,product_ids,claim_refs}', 'Return JSON{text_template}')
+        writer_rules += ' Final wire format: return ONLY text_template. Write your own natural answer, but insert every product name, price, currency and factual value as {{cN}} using exact claim_reference_map keys. No product_ids or claim_refs properties. No invented digits, calculations or braces outside placeholders. An explicitly labelled customer budget may repeat the supplied grounded budget; it remains subject to the unchanged numeric validator. Every card with any referenced fact must also have its name placeholder. The application substitutes exact values and builds claims before unchanged validation and independent review. This is evidence substitution, not permission to invent implications, suitability or unknown facts.'
+    if use_template:
+        writer_rules += ' Do not type a literal product name beside its name placeholder: the placeholder already renders that exact name. Lead with the answer. Separate decision and decisive check into short paragraphs when useful; no mandatory headings. Avoid repeating card prices unless needed for the customer question.'
+        review_rules += ' A decisive unverified requirement prevents a proven suitability claim. Require conditional preference or no pick with the specific unresolved check. Reject a duplicated full product name immediately repeated in parentheses, repetitive price recap or filler. A simple factual answer needs no forced pitch or question.'
+    if use_decision:
+        writer_rules=writer_rules.replace('Return JSON{text_template}', 'Return DecisionShoppingDraft JSON')
+        writer_rules=writer_rules.replace('return ONLY text_template', 'return decision,preferred_product_id,decisive_unknown,text_template')
+        writer_rules += ' Decision record: choose pick only when the requested decisive evidence is present, conditional for one preference with an unresolved must-have, or no_pick when no responsible preference exists. Set preferred_product_id to that one card or null for no_pick. decisive_unknown is empty only for a proven pick; otherwise name the exact missing must-have evidence. text_template must express the same decision, not defer a requested choice to a menu. Compared evidence cards are not additional preferred picks. This record is your explicit task plan, not product proof.'
+        review_rules += ' Review decision_record and compiled draft together. Reject a decision inconsistent with the prose or evidence, a pick with an unresolved decisive requirement, or a two-option menu replacing a requested one preference/no-pick decision. Unknown must not become an invented defect. The record cannot authenticate claims or bypass any review criterion.'
+    if use_blocks:
+        writer_rules=writer_rules.replace('Return DecisionShoppingDraft JSON','Return DecisionBlocksDraft JSON')
+        writer_rules=writer_rules.replace('return decision,preferred_product_id,decisive_unknown,text_template','return decision,preferred_product_id,decisive_unknown,blocks')
+        writer_rules=writer_rules.replace('text_template must express','The composed blocks must express')
+        writer_rules += ' Composition wire format: blocks is one to six model-authored objects with kind paragraph or bullet and text_template. Choose count, order and kind for this exact question, no mandatory sequence or headings. One fact may need one paragraph; a decision may benefit from a direct answer paragraph and a short decisive-check paragraph or bullets. Each block contains no literal newlines. The application only inserts Markdown spacing or bullet markers; it does not author or rewrite your words. All previous placeholders and evidence rules apply inside each block.'
+    use_segments=use_segments and use_blocks
+    if use_segments:
+        writer_rules=segment_base_rules.replace('Return JSON{text,product_ids,claims}', 'Return SegmentDecisionDraft JSON')
+        writer_rules=writer_rules.replace("Copy needed claim objects from each card's claim_options, including its name claim for every product mentioned; never shorten a spec.KEY field.", 'Select exact claim_reference_map keys for every stated product fact and name.')
+        writer_rules += ' Decision: pick only with decisive evidence; conditional with a preferred product and a specific unresolved must-have; no_pick with null preferred_product_id and the missing must-have. Empty decisive_unknown only for pick. Keep record and prose consistent. No derived numbers or fit inference. Lead with answer, no repeated names or forced layout; compared cards are not additional preferred picks. Unknown material performance stays unknown. '
+        writer_rules += ' Final structural wire override: return SegmentDecisionDraft. Every block has kind and segments only. Each segment is {kind:text,value:your connecting prose} or {kind:claim,value:an exact cN reference key}. Select claim segments for every product name or factual value; no braces or literal newlines anywhere. Text segments contain only your natural connecting prose, never literal product facts or digits except an explicitly labelled grounded customer budget. The application concatenates exact segment values and passes the same compiled claims/decision to the unchanged validator and independent reviewer. You still choose all words, order and block kinds. Never infer a customer laptop dimension from catalog fit.'
+    writer_schema=SegmentDecisionDraft if use_segments else DecisionBlocksDraft if use_blocks else DecisionShoppingDraft if use_decision else TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
+    decision_record={}
+    def parse_writer(raw):
+        nonlocal decision_record
+        if use_decision:
+            draft,decision_record=(parse_segment_decision if use_segments else parse_decision_blocks if use_blocks else parse_decision)(raw,reference_map)
+            return draft
+        if use_template:return resolve_template_claims(raw,reference_map)
+        return resolve_claim_references(raw,reference_map) if use_references else ShoppingDraft.model_validate_json(raw)
     # One total budget covers writer, review and all inference retry backoff.
     stage='writer_provider'
     try:
         with anyio.fail_after(timeout):
             from app.services.structured_output import infer_schema
             raw=await infer_schema(infer,[{'role':'system','content':writer_rules},
-                             {'role':'user','content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))}],ShoppingDraft)
+                             {'role':'user','content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))}],writer_schema)
             stage='writer_schema'
-            draft=ShoppingDraft.model_validate_json(raw)
+            draft=parse_writer(raw)
             stage='writer_evidence'
             try:
                 validate_draft(draft,cards,context,brief)
@@ -286,14 +492,14 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
                     if repair_fields else
                     'Previous draft failed the no-card numeric/link contract. Write an honest current-results no-match response without any numerals, URLs, product recommendations or invented facts. Say your stated budget instead of repeating an amount. Return empty product_ids and claims.')
                 raw=await infer_schema(infer,[{'role':'system','content':writer_rules},
-                    {'role':'user','content':json.dumps(repair,ensure_ascii=False,separators=(',',':'))}],ShoppingDraft)
+                    {'role':'user','content':json.dumps(repair,ensure_ascii=False,separators=(',',':'))}],writer_schema)
                 stage='writer_repair_schema'
-                draft=ShoppingDraft.model_validate_json(raw)
+                draft=parse_writer(raw)
                 stage='writer_evidence'
                 validate_draft(draft,cards,context,brief)
             stage='review_provider'
             review=await infer_schema(infer,[{'role':'system','content':review_rules},
-                {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False,separators=(',',':'))}],GroundingReview)
+                {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump(),**({'decision_record':decision_record} if use_decision else {})},ensure_ascii=False,separators=(',',':'))}],GroundingReview)
             stage='review_schema'
             verdict=GroundingReview.model_validate_json(review)
             stage='review_verdict'
@@ -302,7 +508,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         from app.services.structured_output import StructuredOutputError
         if isinstance(exc,StructuredOutputError) and stage.endswith('_provider'):
             stage=stage.removesuffix('_provider')+'_schema'
-        allowed={'gift_followup_count','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
+        allowed={'internal_product_id_in_copy','duplicate_product_name','gift_followup_count','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
         reason=str(exc) if type(exc) is ValueError and str(exc) in allowed else type(exc).__name__
         error_class=ShoppingCopyTimeout if isinstance(exc,TimeoutError) else ShoppingCopyError
         raise error_class(stage,reason) from exc

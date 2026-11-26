@@ -1,0 +1,35 @@
+{
+  "baseline_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674",
+  "modules": {
+    "backend/api/app/services/conversation/compact_copy_contracts.py": {
+      "previous_sha256": "02ebd2bdd1a7088032f8ee61141ffe130c381a47b0ac77a7c95916718e8c7a4b",
+      "current_sha256": "d7b1b4622da148e6136ab7c8a01bd4ebb1af296a0f1baf1c1dbcc37ad2c14488",
+      "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674"
+    },
+    "backend/api/app/services/conversation/free_llm_service.py": {
+      "previous_sha256": "3a497c57c1c779477d376dd414f9e39a89c25156425389134e0c04b6a2be72b2",
+      "current_sha256": "c759d86ff97d5518fd2078a2c2d30566f57f1cda803441edbfec6270c3df4b52",
+      "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674"
+    },
+    "backend/api/app/services/conversation/product_answer_policy.py": {
+      "previous_sha256": "e73f40c263d4fa814afa69eadc1cbfaa798c6e502b5aaee1ad77f14d7254028d",
+      "current_sha256": "0c7a7b71ab52a16367aa18139204e0dfdccdd257e9dfa4a8990e8ef2c96d113d",
+      "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674"
+    },
+    "backend/api/app/services/conversation/reviewed_recommendation.py": {
+      "previous_sha256": "9df85f413f99b30ca37eacdcdcf4b492ccb020c869df9363b21e47fdb785acf4",
+      "current_sha256": "98c6a1f71355762122ad15bd8711ea1d5d3940d90f6c4a6eb27ca8651e98b666",
+      "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674"
+    },
+    "backend/api/app/services/conversation/shopping_copy.py": {
+      "previous_sha256": "9d6962c29bc3464f005996d21733ecd2863e588b6577f6d4740fdf0fd00c6265",
+      "current_sha256": "d59fce2b04615a35e43dcb243b0410e2491c6c0e2703051de07ba703fddfec20",
+      "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674"
+    },
+    "backend/api/app/services/conversation/neural_core_service.py": {
+      "previous_sha256": "19e79bdf0ee7487ad5a6342cc988b7ebfaf73f74110cba1a7469a1d598901c0c",
+      "current_sha256": "d410b9124433b0f1643b376cb25f6e7dc2763406a76916871da66f5a3d62f3cf",
+      "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674"
+    }
+  }
+}

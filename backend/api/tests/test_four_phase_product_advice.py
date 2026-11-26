@@ -10,16 +10,16 @@ V=dict(supported=True,all_product_mentions_declared=True,no_unsupported_commerci
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('task',['search','comparison','consultation','specifications','setup','negotiation','objection'])
-async def test_substantive_advice_has_explicit_four_phase_writer_and_independent_review(task):
+async def test_substantive_advice_has_explicit_adaptive_writer_and_independent_review(task):
     infer=AsyncMock(side_effect=[json.dumps(dict(text=TEXT,product_ids=[],claims=[])),json.dumps(V)])
     result=await SalesResponseService(infer,provider_ready=True,timeout=1).respond(request(evidence={'shopping_task':task}))
     assert result.text==TEXT and len(result.text.split('\n\n'))==4
     assert infer.await_count==2
     writer,review=[call.args[0] for call in infer.await_args_list]
-    assert 'exactly four nonempty sections' in writer[0]['content']
-    assert 'four generic filler paragraphs fails' in review[0]['content']
-    assert json.loads(writer[1]['content'])['request_evidence']['product_answer_shape']=='four_phase'
-    assert json.loads(review[1]['content'])['input']['request_evidence']['product_answer_shape']=='four_phase'
+    assert 'Do not force four sections' in writer[0]['content']
+    assert 'Reject repetitive filler' in review[0]['content']
+    assert json.loads(writer[1]['content'])['request_evidence']['product_answer_shape']=='adaptive'
+    assert json.loads(review[1]['content'])['input']['request_evidence']['product_answer_shape']=='adaptive'
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('mode,task,intent',[('catalog_results','price_inquiry','PRODUCT_SEARCH'),('clarification','search','GIFT_DISCOVERY'),('conversation','search','SOCIAL_CHAT'),('catalog_results','search','OPENING_INSIGHT')])
