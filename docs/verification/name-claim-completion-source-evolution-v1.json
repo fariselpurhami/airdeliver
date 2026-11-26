@@ -1,0 +1,18 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "b8144cc68532b73a735bfce023f0d1a5e582f9faa13fd3e8df7cbc0fe556d0fc",
+  "current_sha256": "1601fc2a4d890ab8e412d26f6be66c6f70b1c665b24c6aaa6b914dc24e5866c6",
+  "replacements": [
+   {
+    "old": "\nasync def write_shopping_copy(",
+    "new": "\ndef complete_name_claims(draft,cards):\n    \"\"\"Add the exact card-name claim for a listed product the text really names.\n\n    The name claim carries no model knowledge, so forgetting it must not withhold an honest answer.\n    A product that is listed but not named in the text is left alone and still rejected by validation.\n    \"\"\"\n    by_id={card.id:card for card in cards}\n    have={c.product_id for c in draft.claims if c.field=='name'}\n    add=[Claim(product_id=pid,field='name',value=by_id[pid].name) for pid in draft.product_ids\n         if pid in by_id and pid not in have and by_id[pid].name.casefold() in draft.text.casefold()]\n    return draft.model_copy(update={'claims':[*draft.claims,*add]}) if add else draft\n\n\nasync def write_shopping_copy(",
+    "count": 1
+   },
+   {
+    "old": "            draft=ShoppingDraft.model_validate_json(raw)\n            stage='writer_evidence'\n            try:\n                validate_draft(draft,cards,context,brief)",
+    "new": "            draft=complete_name_claims(ShoppingDraft.model_validate_json(raw),cards)\n            stage='writer_evidence'\n            try:\n                validate_draft(draft,cards,context,brief)",
+    "count": 1
+   }
+  ]
+ }
+}
