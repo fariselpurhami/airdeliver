@@ -33,6 +33,17 @@ def test_raw_logging_evolution_preserves_recorded_non_diagnostic_syntax():
     assert len(data["modules"])==20
     for path,row in data["modules"].items():
         source=(ROOT/path).read_bytes()
+        later=json.loads((ROOT/"docs/verification/worker-gateway-log-source-evolution-v1.json").read_text()).get(path)
+        if later:
+            # Later reviewed log-level change: original receipt must still match once
+            # the recorded replacements are reversed, and nothing else may differ.
+            assert later["baseline_sha256"]==row["current_sha256"],path
+            assert hashlib.sha256(source).hexdigest()==later["current_sha256"],path
+            text=source.decode()
+            for edit in later["replacements"]:
+                assert text.count(edit["new"])==1,path
+                text=text.replace(edit["new"],edit["old"])
+            source=text.encode()
         assert hashlib.sha256(source).hexdigest()==row["current_sha256"],path
         assert business_digest(source)==row["baseline_business_sha256"],path
         assert len(row["baseline_source_sha256"])==64

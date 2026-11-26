@@ -1,0 +1,21 @@
+{
+  "backend/api/app/services/orchestration/worker_entrypoint.py": {
+    "baseline_sha256": "0b6a585607fba5e2ca5778fb07cfed8ca2b0c0491b587876e3ff5f2b5c32666c",
+    "current_sha256": "501f89d2c877e67621990eb1acfdf25721c2a90d749b54a5823bdb0a37ed7e5e",
+    "replacements": [
+      {
+        "old": "            except ValidationError:\n                logger.warning(\"Payment gateway not configured: %s\", label)\n                continue\n",
+        "new": "            except ValidationError:\n                unconfigured.append(label)\n                continue\n"
+      },
+      {
+        "old": "        gateways = []\n        factories = (\n",
+        "new": "        gateways = []\n        unconfigured = []\n        factories = (\n"
+      },
+      {
+        "old": "        if not gateways:\n            raise StartupDependencyError(\"No payment gateway is configured and available\")",
+        "new": "        # A gateway that is deliberately not set up is routine while another one is\n        # live; it is a warning only when it leaves checkout with no gateway.\n        level = logging.INFO if gateways else logging.WARNING\n        for label in unconfigured:\n            logger.log(level, \"Payment gateway not configured: %s\", label)\n        if not gateways:\n            raise StartupDependencyError(\"No payment gateway is configured and available\")"
+      }
+    ],
+    "reason": "Unconfigured secondary payment gateways log INFO while another gateway is live, WARNING when none is"
+  }
+}

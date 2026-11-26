@@ -853,6 +853,7 @@ class WorkerRuntime:
             raise StartupDependencyError("HTTP Client not initialized prior to payments")
             
         gateways = []
+        unconfigured = []
         factories = (
             ("stripe", get_stripe_settings, lambda value: StripeGateway(value)),
             ("paypal", get_paypal_settings, lambda value: PayPalGateway(value, cache_client, self.services.http_client)),
@@ -862,13 +863,18 @@ class WorkerRuntime:
             try:
                 gateway_settings = settings_factory()
             except ValidationError:
-                logger.warning("Payment gateway not configured: %s", label)
+                unconfigured.append(label)
                 continue
             gateway = gateway_factory(gateway_settings)
             if isinstance(gateway, MpesaGateway) and not gateway.available_for_checkout:
                 logger.warning("M-Pesa live adapter unavailable; development simulation is disabled")
                 continue
             gateways.append(gateway)
+        # A gateway that is deliberately not set up is routine while another one is
+        # live; it is a warning only when it leaves checkout with no gateway.
+        level = logging.INFO if gateways else logging.WARNING
+        for label in unconfigured:
+            logger.log(level, "Payment gateway not configured: %s", label)
         if not gateways:
             raise StartupDependencyError("No payment gateway is configured and available")
         self.services.payment = PaymentOrchestrator(gateways)
