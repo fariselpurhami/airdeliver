@@ -113,10 +113,10 @@ describe('HomePage', () => {
 
   it('renders the HowItWorks steps', () => {
     renderLanding();
-    expect(screen.getByText('AI Intent Recognition')).toBeInTheDocument();
-    expect(screen.getByText('Inventory Sync')).toBeInTheDocument();
-    expect(screen.getByText('Multimodal Visual Matching')).toBeInTheDocument();
-    expect(screen.getByText('Autonomous One-Tap Checkout')).toBeInTheDocument();
+    expect(screen.getByText('Tell Air what you need')).toBeInTheDocument();
+    expect(screen.getByText('Price and availability checks')).toBeInTheDocument();
+    expect(screen.getByText('Search from a photo')).toBeInTheDocument();
+    expect(screen.getByText('Review, then confirm')).toBeInTheDocument();
   });
 
   it('renders the final CTA', () => {
