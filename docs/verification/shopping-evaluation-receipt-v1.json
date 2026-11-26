@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "synthetic_only": true,
+  "owner_quality_accepted": false,
+  "active_experimental_caller": false,
+  "attempt_limit": 50,
+  "attempts_used": 48,
+  "unused_attempts": 2,
+  "evaluation_stopped": true,
+  "caveats": [
+    "Historical receipts before037 omit grounded brief. The manually supplied budget_max did not survive grounding because literal budget and budget_currency were omitted; do not interpret those probes as correctly grounded budget behavior.",
+    "selected_ids in the evaluation receipt represent returned display cards from SalesResponseService, not the single model preferred_product_id.",
+    "Rendering used actual app Markdown branch/styles only, not full HTTP, retrieval, product-card, cart or checkout acceptance.",
+    "No raw provider reasoning, secrets, private account values or raw error payloads are included."
+  ],
+  "cases": [
+    {
+      "case": "031",
+      "source_sha": "12e0acc52f817b4271868e8b9f724643e03bde2d",
+      "question": "My budget is $80 and low carry weight matters more to me than paying less. Which one of these synthetic backpacks should I prefer based only on the listed facts? Keep it concise.",
+      "grounded_brief": null,
+      "brief_verified_in_receipt": false,
+      "attempts_total_after": 38,
+      "elapsed_seconds": 2.5769782620000115,
+      "dirty_source": false,
+      "result": {
+        "text": "Based on the listed specs, the Synthetic Birch Backpack (Synthetic Birch Backpack) weighs 600 g, which is lighter than the Synthetic Cedar Backpack (850 g). Both fit under your $80 budget (45.00 USD vs 70.00 USD). Since low carry weight is your higher priority, the Birch model is the better choice, though it costs more. Water‑resistance details are not provided for either.",
+        "response_kind": "catalog_results",
+        "selected_ids": [
+          101,
+          102
+        ]
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "032",
+      "source_sha": "683c2ecb2534bed86ad0a2a441ac2f26f1e0f1c3",
+      "question": "I walk to work in rain with my laptop. My budget is $80. Choose just one of these synthetic backpacks. Explain the decisive tradeoff and what I must verify before buying.",
+      "grounded_brief": null,
+      "brief_verified_in_receipt": false,
+      "attempts_total_after": 40,
+      "elapsed_seconds": 2.476692921999984,
+      "dirty_source": false,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "033",
+      "source_sha": "db5b4bd82c48073e0143f6cbe7c5013794fdfa44",
+      "question": "I walk to work in rain with my laptop. My budget is $80. Choose just one of these synthetic backpacks. Explain the decisive tradeoff and what I must verify before buying.",
+      "grounded_brief": null,
+      "brief_verified_in_receipt": false,
+      "attempts_total_after": 41,
+      "elapsed_seconds": 2.2431473280000063,
+      "dirty_source": false,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "034",
+      "source_sha": "f92926e3653b358dce7aeb464a1d0506241bbd63",
+      "question": "I walk to work in rain with my laptop. My budget is $80. Choose just one of these synthetic backpacks. Explain the decisive tradeoff and what I must verify before buying.",
+      "grounded_brief": null,
+      "brief_verified_in_receipt": false,
+      "attempts_total_after": 43,
+      "elapsed_seconds": 2.8716462600000057,
+      "dirty_source": false,
+      "result": {
+        "text": "Both backpacks fit your budget, but the key unknown is water resistance (not specified for Synthetic Cedar Backpack, not specified for Synthetic Birch Backpack). You should verify that the bag you choose is water‑resistant before purchase. If it is, the lighter Synthetic Birch Backpack (Synthetic Birch Backpack, 70.00 USD, weight 600 g, material nylon) is preferable to the heavier Synthetic Cedar Backpack (Synthetic Cedar Backpack, 45.00 USD, weight 850 g, material canvas).",
+        "response_kind": "catalog_results",
+        "selected_ids": [
+          101,
+          102
+        ]
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "035",
+      "source_sha": "b85aaf2bd89066acbee9721979802eb01548bc0e",
+      "question": "I walk to work in rain with my laptop. My budget is $80. Choose just one of these synthetic backpacks. Explain the decisive tradeoff and what I must verify before buying.",
+      "grounded_brief": null,
+      "brief_verified_in_receipt": false,
+      "attempts_total_after": 44,
+      "elapsed_seconds": 2.9343308400000296,
+      "dirty_source": false,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "036",
+      "source_sha": "d962c4990e0439fff39d4567ad6d9aa7ab8f32db",
+      "question": "Which of these synthetic backpacks has the lower listed price? Choose that one based only on price. My budget is $80.",
+      "grounded_brief": null,
+      "brief_verified_in_receipt": false,
+      "attempts_total_after": 45,
+      "elapsed_seconds": 1.4803561589999958,
+      "dirty_source": false,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "037",
+      "source_sha": "cfe5432f4d1d1b62dbbda0f4d7fba65620081f2e",
+      "question": "Which of these synthetic backpacks has the lower listed price? Choose that one based only on price. My budget is $80.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": "backpacks",
+        "budget": "$80",
+        "budget_max": "80",
+        "budget_currency": "USD",
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "brief_verified_in_receipt": true,
+      "attempts_total_after": 47,
+      "elapsed_seconds": 2.198864130000004,
+      "dirty_source": false,
+      "result": {
+        "text": "The lower‑priced option is Synthetic Cedar Backpack at USD 45.00, which is within your $80 budget.",
+        "response_kind": "catalog_results",
+        "selected_ids": [
+          101,
+          102
+        ]
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "038",
+      "source_sha": "cfe5432f4d1d1b62dbbda0f4d7fba65620081f2e",
+      "question": "I walk to work in rain with my laptop. My budget is $80. Choose just one of these synthetic backpacks. Explain the decisive tradeoff and what I must verify before buying.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": "backpacks",
+        "budget": "$80",
+        "budget_max": "80",
+        "budget_currency": "USD",
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "brief_verified_in_receipt": true,
+      "attempts_total_after": 48,
+      "elapsed_seconds": 2.779786329999979,
+      "dirty_source": false,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    }
+  ]
+}
