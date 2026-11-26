@@ -71,3 +71,9 @@ async def test_blocks_known_numeric_spec_is_not_proof_of_customer_fit():
  with pytest.raises(ValueError,match='grounding_review_rejected'):
   await write_shopping_copy(infer,'Rain with my laptop',[card],{},'catalog_results',1,CTX)
  assert len(calls)==2
+
+
+def test_block_schema_exposes_single_line_constraint_to_provider_not_only_postparse():
+ from app.services.conversation.shopping_copy import DecisionBlocksDraft
+ schema=DecisionBlocksDraft.model_json_schema()
+ assert schema['$defs']['ShoppingTextBlock']['properties']['text_template']['pattern']==r'^[^\r\n]*$'

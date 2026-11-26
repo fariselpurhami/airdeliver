@@ -109,3 +109,26 @@ shopping-evaluation-receipt-v1.json preserves cases031-038 with exact source rev
 ## Native SDK over loopback HTTP, not a live model substitute
 
 Two additional tests send the actual Groq SDK request through a local HTTP server for positive and rejected composition review. They inspect serialized strict schemas, writer1200/reviewer256 budgets, review low reasoning, exact compiled paragraphs and decision record, and card clearing on negative review.128 combined focused cases pass. No external request occurs and this does not change actual-model semantic failures or enable the experimental caller.
+
+## New free-tier development authority and structural baseline, November26
+
+The owner replaced the50attempt experiment cap with available free-tier development
+limits, keeping$0/no paid plan, isolated synthetic English tests and stop-on429.
+Historical48/50receipt remains unchanged. New ledger is separate. Official public
+Free Plan table shows120band20b30RPM/1000RPD/8000TPM/200000TPD:
+https://console.groq.com/docs/rate-limits . Actual first response confirms1000RPD
+and8000TPM; account console is signed out, no plan or daily-token-remaining claim.
+
+Two actual120brequests used6133tokens. Active-path baseline withheld before review;
+its draft was not captured, so no specific semantic diagnosis is asserted. Composed
+case correctly selected no_pick/water resistance unknown but included literal
+newlines inside one bullet block. Offline exact replay fails invalid_block_newline
+first. Single-line constraint now exists in the strict JSON schema as well as the
+unchanged runtime gate. Test-first missing-pattern regression corrected;128focused
+cases pass. A literal15-inch fit phrase remains a later risk, not the observed
+first failure. No quality acceptance or experiment activation.
+
+One additional harness case made zero requests because pacing was mistakenly
+inside the response deadline. Pacing moved before the timed app call; that case
+is harness-only, never counted as provider failure. Calls are for structural
+changes, not quota exhaustion or prompt paraphrase loops.

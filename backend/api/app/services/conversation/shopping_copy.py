@@ -57,7 +57,7 @@ class DecisionShoppingDraft(TemplateShoppingDraft):
 class ShoppingTextBlock(BaseModel):
     model_config=ConfigDict(extra='forbid')
     kind: Literal['paragraph','bullet']
-    text_template: StrictStr = Field(min_length=1,max_length=1000)
+    text_template: StrictStr = Field(min_length=1,max_length=1000,pattern=r'^[^\r\n]*$')
 
 
 class DecisionBlocksDraft(BaseModel):
