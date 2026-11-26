@@ -33,6 +33,13 @@ def test_raw_logging_evolution_preserves_recorded_non_diagnostic_syntax():
     assert len(data["modules"])==20
     for path,row in data["modules"].items():
         source=(ROOT/path).read_bytes()
+        later=json.loads((ROOT/"docs/verification/legacy-intent-budget-source-evolution-v1.json").read_text()).get(path)
+        if later:
+            # Later reviewed additive block: original receipt must still match the
+            # block-free source, and the block must be the only difference.
+            assert later["baseline_sha256"]==row["current_sha256"],path
+            assert hashlib.sha256(source).hexdigest()==later["current_sha256"],path
+            source=source.decode().replace(later["inserted_block"],"").encode()
         assert hashlib.sha256(source).hexdigest()==row["current_sha256"],path
         assert business_digest(source)==row["baseline_business_sha256"],path
         assert len(row["baseline_source_sha256"])==64
