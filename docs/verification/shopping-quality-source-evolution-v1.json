@@ -23,7 +23,7 @@
     },
     "backend/api/app/services/conversation/shopping_copy.py": {
       "previous_sha256": "9d6962c29bc3464f005996d21733ecd2863e588b6577f6d4740fdf0fd00c6265",
-      "current_sha256": "cc1d2bdaeaef517f6abca719e841099b16bd51ab784e88bdea6db32fc826e841",
+      "current_sha256": "befc88d8c22cdeaf2d4aeb162808909d17d003d2cd7d0d1c4ba65d424ea2cf18",
       "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674"
     }
   }

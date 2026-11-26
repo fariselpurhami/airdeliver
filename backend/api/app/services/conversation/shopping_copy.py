@@ -53,6 +53,33 @@ class DecisionShoppingDraft(TemplateShoppingDraft):
     decisive_unknown: StrictStr = Field(max_length=500)
 
 
+
+class ShoppingTextBlock(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    kind: Literal['paragraph','bullet']
+    text_template: StrictStr = Field(min_length=1,max_length=1000)
+
+
+class DecisionBlocksDraft(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    decision: Literal['pick','conditional','no_pick']
+    preferred_product_id: StrictInt|None
+    decisive_unknown: StrictStr = Field(max_length=500)
+    blocks: list[ShoppingTextBlock] = Field(min_length=1,max_length=6)
+
+
+def parse_decision_blocks(raw,reference_map):
+    wire=DecisionBlocksDraft.model_validate_json(raw)
+    parts=[]
+    for block in wire.blocks:
+        if any(c in block.text_template for c in '\r\n'):
+            raise ValueError('invalid_block_newline')
+        parts.append(('- ' if block.kind=='bullet' else '')+block.text_template)
+    record=wire.model_dump(exclude={'blocks'})
+    record['text_template']='\n\n'.join(parts)
+    return parse_decision(json.dumps(record),reference_map)
+
+
 def parse_decision(raw,reference_map):
     record=DecisionShoppingDraft.model_validate_json(raw)
     known={claim['product_id'] for claim in reference_map.values()}
@@ -329,12 +356,14 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         payload={'task':'no_match','customer_message':message,'customer_brief':brief,'catalog_evidence':[],
                  'scope':'No eligible current retrieved catalog cards; not exhaustive inventory'}
     reference_map={}
-    use_decision=(context or {}).get('claim_binding')=='decision_v1'
-    use_template=(context or {}).get('claim_binding') in {'template_v1','decision_v1'}
+    use_blocks=(context or {}).get('claim_binding')=='decision_blocks_v1'
+    use_decision=(context or {}).get('claim_binding') in {'decision_v1','decision_blocks_v1'}
+    use_template=(context or {}).get('claim_binding') in {'template_v1','decision_v1','decision_blocks_v1'}
     use_references=(not no_match and (context or {}).get('product_answer_shape')=='adaptive'
-        and (context or {}).get('claim_binding') in {'references_v1','template_v1','decision_v1'})
+        and (context or {}).get('claim_binding') in {'references_v1','template_v1','decision_v1','decision_blocks_v1'})
     use_template=use_template and use_references
     use_decision=use_decision and use_template
+    use_blocks=use_blocks and use_decision
     if use_references:
         for card in evidence:
             options=card.pop('claim_options',[])
@@ -375,12 +404,17 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         writer_rules=writer_rules.replace('return ONLY text_template', 'return decision,preferred_product_id,decisive_unknown,text_template')
         writer_rules += ' Decision record: choose pick only when the requested decisive evidence is present, conditional for one preference with an unresolved must-have, or no_pick when no responsible preference exists. Set preferred_product_id to that one card or null for no_pick. decisive_unknown is empty only for a proven pick; otherwise name the exact missing must-have evidence. text_template must express the same decision, not defer a requested choice to a menu. Compared evidence cards are not additional preferred picks. This record is your explicit task plan, not product proof.'
         review_rules += ' Review decision_record and compiled draft together. Reject a decision inconsistent with the prose or evidence, a pick with an unresolved decisive requirement, or a two-option menu replacing a requested one preference/no-pick decision. Unknown must not become an invented defect. The record cannot authenticate claims or bypass any review criterion.'
-    writer_schema=DecisionShoppingDraft if use_decision else TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
+    if use_blocks:
+        writer_rules=writer_rules.replace('Return DecisionShoppingDraft JSON','Return DecisionBlocksDraft JSON')
+        writer_rules=writer_rules.replace('return decision,preferred_product_id,decisive_unknown,text_template','return decision,preferred_product_id,decisive_unknown,blocks')
+        writer_rules=writer_rules.replace('text_template must express','The composed blocks must express')
+        writer_rules += ' Composition wire format: blocks is one to six model-authored objects with kind paragraph or bullet and text_template. Choose count, order and kind for this exact question, no mandatory sequence or headings. One fact may need one paragraph; a decision may benefit from a direct answer paragraph and a short decisive-check paragraph or bullets. Each block contains no literal newlines. The application only inserts Markdown spacing or bullet markers; it does not author or rewrite your words. All previous placeholders and evidence rules apply inside each block.'
+    writer_schema=DecisionBlocksDraft if use_blocks else DecisionShoppingDraft if use_decision else TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
     decision_record={}
     def parse_writer(raw):
         nonlocal decision_record
         if use_decision:
-            draft,decision_record=parse_decision(raw,reference_map)
+            draft,decision_record=(parse_decision_blocks if use_blocks else parse_decision)(raw,reference_map)
             return draft
         if use_template:return resolve_template_claims(raw,reference_map)
         return resolve_claim_references(raw,reference_map) if use_references else ShoppingDraft.model_validate_json(raw)
