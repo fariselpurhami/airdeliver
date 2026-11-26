@@ -1,3 +1,4 @@
+import { AirSparklesIcon } from '@/components/ui/AirSparkles';
 //** frontend/web/app/help/page.tsx **//
 
 'use client';
@@ -7,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import { 
-    Bot, Mail, Phone, ChevronDown, Search, 
+    Mail, Phone, ChevronDown, Search, 
     Zap, LifeBuoy, Box, ShieldCheck, Activity 
 } from 'lucide-react';
 import * as THREE from 'three';
@@ -50,7 +51,7 @@ const faqCategories = [
 
 const contactModules = [
     {
-        icon: Bot,
+        icon: AirSparklesIcon,
         title: "AI Neural Assistant",
         desc: "Product questions and reviewed store actions.",
         action: "Initiate Chat",

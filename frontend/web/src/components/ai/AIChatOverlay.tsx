@@ -9,7 +9,7 @@ import { ProductDetailsCard } from '../products/ProductDetailsCard';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import {
-    Bot, User, CornerDownRight, ShoppingCart, Cpu, X,
+    User, CornerDownRight, ShoppingCart, Cpu, X,
     ChevronLeft, ChevronRight, Save, ChevronDown, ChevronUp, Trash2, Undo2, AlertCircle,
     ShoppingBag, ShieldOff, Loader2, Wind, Navigation, Zap,
     Activity, BrainCircuit, Lock, Star, Sparkles, Mic, Camera, Image as ImageIcon, MapPin, Clock, Eye, ShieldCheck

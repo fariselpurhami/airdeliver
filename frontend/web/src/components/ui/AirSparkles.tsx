@@ -8,3 +8,8 @@ export function AirSparkles(props: SVGProps<SVGSVGElement>) {
     <path d="M27 21c-.3 3.3-1.7 4.7-5 5 3.3.3 4.7 1.7 5 5 .3-3.3 1.7-4.7 5-5-3.3-.3-4.7-1.7-5-5Z" />
   </svg>;
 }
+
+/** Drop-in for lucide icon slots (size, className); strokeWidth is accepted and ignored since the mark is filled. */
+export function AirSparklesIcon({ size = 24, className, strokeWidth: _strokeWidth, ...rest }: Omit<SVGProps<SVGSVGElement>, 'width' | 'height'> & { size?: number | string; strokeWidth?: number | string }) {
+  return <AirSparkles width={size} height={size} className={className} {...rest} />;
+}

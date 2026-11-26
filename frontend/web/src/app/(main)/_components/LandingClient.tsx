@@ -8,7 +8,7 @@ import Image from "next/image";
 import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
 import { AISecuredOrdersBadge } from '@/components/hero/AISecuredOrdersBadge';
 import Link from 'next/link';
-import { AirSparkles } from '@/components/ui/AirSparkles';
+import { AirSparkles, AirSparklesIcon } from '@/components/ui/AirSparkles';
 import React, { 
   useRef, useMemo, useEffect, useReducer, memo, useId, Component, ErrorInfo, ReactNode 
 } from 'react';
@@ -27,9 +27,10 @@ import ProductOverlay from '@/components/products/ProductOverlay';
 
 // Lucide Icons
 import { 
-  MapIcon, Activity, Bot, ChevronRight, 
+  MapIcon, Activity, ChevronRight, 
   Rocket, Zap, ArrowRight, Cpu, ArrowDown, Camera, ShieldCheck
 } from 'lucide-react';
+import type { ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
 // ============================================================================
@@ -211,7 +212,7 @@ const HERO_CARDS: ReadonlyArray<HeroFloatingCardProps> = [
 ];
 
 const PRODUCTION_STEPS = [
-  { icon: Bot, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product across our partner stores' inventory without you scrolling through catalogs." },
+  { icon: AirSparklesIcon, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product across our partner stores' inventory without you scrolling through catalogs." },
   { icon: Cpu, step: "02", title: "Inventory Sync", description: "Within milliseconds, the system queries local hubs and databases to secure the best price and immediate availability, reserving your item autonomously." },
   { icon: Camera, step: "03", title: "Multimodal Visual Matching", description: "Upload a image or screenshot. Our computer vision models analyze texture, brand, and style to match real-world items in seconds." },
   { icon: ShieldCheck, step: "04", title: "Autonomous One-Tap Checkout", description: "Review your personalized bag preview and complete your purchase securely with one-tap encrypted payment flow directly within the overlay." },
@@ -760,7 +761,7 @@ MobileHomeHeroSection.displayName = 'MobileHomeHeroSection';
 // ============================================================================
 
 interface StepItem {
-  readonly icon: LucideIcon;
+  readonly icon: ComponentType<{ size?: number | string; strokeWidth?: number | string; className?: string }>;
   readonly step: string;
   readonly title: string;
   readonly description: string;

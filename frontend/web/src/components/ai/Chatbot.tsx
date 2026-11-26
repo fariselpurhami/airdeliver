@@ -7,7 +7,6 @@ import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
-  Bot,
   Cpu,
   User,
   Loader2,
@@ -16,6 +15,7 @@ import {
   BrainCircuit,
   ShieldCheck,
 } from 'lucide-react';
+import { AirSparklesIcon } from '@/components/ui/AirSparkles';
 import AssistantAction from './AssistantAction';
 import { useAISupportStore, type ChatMessage } from '@/hooks/useAISupportStore';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
@@ -62,7 +62,7 @@ const MessageBubble = memo(({ message, onSend }: MessageBubbleProps) => {
         isUser ? 'justify-end' : 'justify-start'
       }`}
     >
-      {!isUser && <span className="w-7 h-7 mb-1 flex-shrink-0 rounded-full flex items-center justify-center bg-white/90 text-[#24205d] shadow-lg" aria-hidden="true"><Bot size={16}/></span>}
+      {!isUser && <span className="w-7 h-7 mb-1 flex-shrink-0 rounded-full flex items-center justify-center bg-white/90 text-[#24205d] shadow-lg" aria-hidden="true"><AirSparklesIcon size={16} className="text-purple-500" /></span>}
       <div
         className={`w-fit max-w-[84%] px-4 py-3.5 ${
           isUser
@@ -236,7 +236,7 @@ export default function Chatbot() {
           </div>
         ) : (
           <div className="w-14 h-14 bg-transparent flex items-center justify-center text-cyan-100 transition-colors group-hover:text-violet-200 drop-shadow-[0_2px_10px_rgba(103,232,249,0.25)]">
-            <Bot size={28} strokeWidth={1.6} aria-hidden="true" />
+            <AirSparklesIcon size={28} className="text-purple-300" aria-hidden="true" />
           </div>
         )}
       </motion.button>
@@ -281,7 +281,7 @@ export default function Chatbot() {
                   <p className="text-[10px] tracking-[0.18em] uppercase text-indigo-200/65 mb-2">Your everyday co-pilot</p>
                   <h3 className="text-[28px] sm:text-[32px] font-semibold text-white tracking-[-0.035em] leading-tight">How can I help<br/>you today?</h3>
                   <p className="text-[13px] font-normal text-white/50 leading-relaxed mt-3 max-w-[260px]">A little guidance, a clearer next step. This is Air Assistant.</p>
-                  <div className="absolute right-1 top-12 w-16 h-16 sm:w-20 sm:h-20 rounded-[22px] rotate-[10deg] flex items-center justify-center bg-gradient-to-br from-indigo-400/40 via-violet-400/25 to-sky-300/10 border border-white/20 shadow-[0_16px_32px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.25)]" aria-hidden="true"><Bot className="text-indigo-50 -rotate-[10deg]" size={32} strokeWidth={1.3}/></div>
+                  <div className="absolute right-1 top-12 w-16 h-16 sm:w-20 sm:h-20 rounded-[22px] rotate-[10deg] flex items-center justify-center bg-gradient-to-br from-indigo-400/40 via-violet-400/25 to-sky-300/10 border border-white/20 shadow-[0_16px_32px_rgba(0,0,0,0.30),inset_0_1px_0_rgba(255,255,255,0.25)]" aria-hidden="true"><AirSparklesIcon className="text-purple-200 -rotate-[10deg]" size={32} /></div>
                 </div>
                 <AnimatePresence initial={false}>
                   {messages.map((msg, idx) => (

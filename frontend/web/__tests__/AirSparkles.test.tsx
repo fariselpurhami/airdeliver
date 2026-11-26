@@ -17,3 +17,9 @@ test('shopping mark has one large star and two small stars without changing assi
  expect(card).not.toContain('<Bot ');
  expect(card.match(/<AirSparkles /g)).toHaveLength(1);
 });
+
+test('no source file uses the old Bot glyph',()=>{
+ const walk=(d:string):string[]=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(d,e.name)):/\.tsx$/.test(e.name)?[path.join(d,e.name)]:[]);
+ const offenders=walk(path.join(process.cwd(),'src')).filter(f=>/\bBot\b/.test(fs.readFileSync(f,'utf8').replace(/googleBot/g,'')));
+ expect(offenders).toEqual([]);
+});

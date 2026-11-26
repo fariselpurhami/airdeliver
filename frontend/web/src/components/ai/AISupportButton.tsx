@@ -1,6 +1,7 @@
 "use client";
 
-import { Bot, X } from "lucide-react";
+import { X } from "lucide-react";
+import { AirSparkles } from "@/components/ui/AirSparkles";
 import { useAISupportStore } from "@/hooks/useAISupportStore";
 import { motion } from "framer-motion";
 
@@ -19,7 +20,7 @@ export const AISupportButton = () => {
       transition={{ type: "spring", stiffness: 200, damping: 20 }}
       aria-label="Toggle AI Support Chat"
     >
-      {isOpen ? <X className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+      {isOpen ? <X className="h-4 w-4" /> : <AirSparkles className="h-4 w-4" />}
     </motion.button>
   );
 };
