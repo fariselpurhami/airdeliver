@@ -421,6 +421,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     if not no_match:
         from app.services.compact_copy_contracts import contracts
         writer_rules,review_rules=contracts(mode,context)
+    segment_base_rules=writer_rules
     if use_references:
         writer_rules=writer_rules.replace('Return JSON{text,product_ids,claims}',
             'Return JSON{text,product_ids,claim_refs}')
@@ -447,7 +448,10 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         writer_rules += ' Composition wire format: blocks is one to six model-authored objects with kind paragraph or bullet and text_template. Choose count, order and kind for this exact question, no mandatory sequence or headings. One fact may need one paragraph; a decision may benefit from a direct answer paragraph and a short decisive-check paragraph or bullets. Each block contains no literal newlines. The application only inserts Markdown spacing or bullet markers; it does not author or rewrite your words. All previous placeholders and evidence rules apply inside each block.'
     use_segments=use_segments and use_blocks
     if use_segments:
-        writer_rules += ' Final structural wire override: return SegmentDecisionDraft. Every block has kind and segments, never text_template. Each segment is {kind:text,value:your connecting prose} or {kind:claim,value:an exact cN reference key}. Select claim segments for every product name or factual value; no braces or literal newlines anywhere. Text segments contain only your natural connecting prose, never literal product facts or digits except an explicitly labelled grounded customer budget. The application concatenates exact segment values and passes the same compiled claims/decision to the unchanged validator and independent reviewer. You still choose all words, order and block kinds. Never infer a customer laptop dimension from catalog fit.'
+        writer_rules=segment_base_rules.replace('Return JSON{text,product_ids,claims}', 'Return SegmentDecisionDraft JSON')
+        writer_rules=writer_rules.replace("Copy needed claim objects from each card's claim_options, including its name claim for every product mentioned; never shorten a spec.KEY field.", 'Select exact claim_reference_map keys for every stated product fact and name.')
+        writer_rules += ' Decision: pick only with decisive evidence; conditional with a preferred product and a specific unresolved must-have; no_pick with null preferred_product_id and the missing must-have. Empty decisive_unknown only for pick. Keep record and prose consistent. No derived numbers or fit inference. Lead with answer, no repeated names or forced layout; compared cards are not additional preferred picks. Unknown material performance stays unknown. '
+        writer_rules += ' Final structural wire override: return SegmentDecisionDraft. Every block has kind and segments only. Each segment is {kind:text,value:your connecting prose} or {kind:claim,value:an exact cN reference key}. Select claim segments for every product name or factual value; no braces or literal newlines anywhere. Text segments contain only your natural connecting prose, never literal product facts or digits except an explicitly labelled grounded customer budget. The application concatenates exact segment values and passes the same compiled claims/decision to the unchanged validator and independent reviewer. You still choose all words, order and block kinds. Never infer a customer laptop dimension from catalog fit.'
     writer_schema=SegmentDecisionDraft if use_segments else DecisionBlocksDraft if use_blocks else DecisionShoppingDraft if use_decision else TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
     decision_record={}
     def parse_writer(raw):

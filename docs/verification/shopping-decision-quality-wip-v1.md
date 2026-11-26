@@ -143,3 +143,16 @@ braces/newlines in segments, unknown keys rejected; no auto-binding of facts fro
 free prose. Test-first import failure, then137combinedfocusedpass including actual
 SDK loopback positive/negative review transport at unchanged1200/256budgets.
 No production caller opts in and no live quality acceptance is implied.
+
+## Segment contract conflict found offline
+
+New development receipt v2 preserves all5case records, including the zero-request
+harness case, four actual requests,9511measuredtokens and an8000token conservative
+reserve for the400response with missing usage. It contains no provider reasoning.
+
+A test-first policy inspection failed: SegmentDecisionDraft inherited earlier
+text-template and placeholder format instructions before appending a segment
+override. The segment branch now starts from the unchanged base grounding contract
+and supplies one segment wire contract. Compiler, evidence and reviewer gates are
+unchanged, no active caller changed. This removes an application contradiction;
+it does not establish that the400was caused by it. Real evaluation remains open.

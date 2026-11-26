@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "synthetic_only": true,
+  "owner_quality_accepted": false,
+  "active_experimental_caller": false,
+  "historical_receipt_unchanged": true,
+  "requests": 4,
+  "measured_tokens": 9511,
+  "requests_with_unknown_usage": 1,
+  "conservative_unknown_token_reserve": 8000,
+  "conservative_total_tokens": 17511,
+  "public_free_caps": {
+    "rpm": 30,
+    "rpd": 1000,
+    "tpm": 8000,
+    "tpd": 200000,
+    "source": "https://console.groq.com/docs/rate-limits"
+  },
+  "actual_headers_confirm": {
+    "rpd": 1000,
+    "tpm": 8000
+  },
+  "account_plan_verified": false,
+  "cases": [
+    {
+      "case": "001",
+      "source_sha": "58bb6d2ba55f21ead62f64a7c64d4f2ddf8e17a1",
+      "dirty_source": false,
+      "question": "I need a backpack for commuting in the rain and carrying my laptop. My budget is $80. Compare these two and tell me which one to pick, or say if the evidence is not enough.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": null,
+        "budget": "$80",
+        "budget_max": "80",
+        "budget_currency": "USD",
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 1,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "002",
+      "source_sha": "58bb6d2ba55f21ead62f64a7c64d4f2ddf8e17a1",
+      "dirty_source": false,
+      "question": "I need a backpack for commuting in the rain and carrying my laptop. My budget is $80. Compare these two and tell me which one to pick, or say if the evidence is not enough.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": "backpack",
+        "budget": "$80",
+        "budget_max": "80",
+        "budget_currency": "USD",
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 1,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "003",
+      "source_sha": "58bb6d2ba55f21ead62f64a7c64d4f2ddf8e17a1",
+      "dirty_source": false,
+      "question": "I need a backpack for commuting in the rain and carrying my laptop. My budget is $80. Compare these two and tell me which one to pick, or say if the evidence is not enough.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": "backpack",
+        "budget": "$80",
+        "budget_max": "80",
+        "budget_currency": "USD",
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 2,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "004",
+      "source_sha": "01c9ea6394e5469f9a89c07fea6f9cef7596ae17",
+      "dirty_source": false,
+      "question": "I need a backpack for commuting in the rain and carrying my laptop. My budget is $80. Compare these two and tell me which one to pick, or say if the evidence is not enough.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": "backpack",
+        "budget": "$80",
+        "budget_max": "80",
+        "budget_currency": "USD",
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 3,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "005",
+      "source_sha": "efed340c7e629bcaefae74fa23adb0adf6084d23",
+      "dirty_source": false,
+      "question": "I need a backpack for commuting in the rain and carrying my laptop. My budget is $80. Compare these two and tell me which one to pick, or say if the evidence is not enough.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": "backpack",
+        "budget": "$80",
+        "budget_max": "80",
+        "budget_currency": "USD",
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 4,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    }
+  ],
+  "findings": [
+    "001 active baseline withheld before review; draft not retained, no specific failure diagnosis.",
+    "002 sent no request because harness pacing was inside app deadline; pacing fixed before timed call. Not a provider failure.",
+    "003 decision_blocks selected no_pick but first exact replay failed invalid_block_newline.",
+    "004 strict single-line schema removed newline failure; unchanged numeric gate rejected literal15-inch without spec claim.",
+    "005 typed segments returned400json_validate_failed, failed generation not parseable. No retry."
+  ],
+  "limits": [
+    "Default/source model configuration checked, not deployed environment overrides.",
+    "No daily-token-remaining header or current account plan proof.",
+    "Headers are observations at request times, not a promise of remaining budget.",
+    "Raw provider reasoning and raw errors omitted.",
+    "No full HTTP/retrieval/cards/checkout acceptance."
+  ]
+}

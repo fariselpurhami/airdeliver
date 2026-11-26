@@ -23,3 +23,21 @@ def test_bad_slots_never_invent_bindings(segments):
  with pytest.raises(ValueError):
   d,_=parse_segment_decision(draft(segments),REFS)
   validate_draft(d,[catalog_result(row())])
+
+@pytest.mark.asyncio
+async def test_segment_wire_uses_one_schema_contract_not_conflicting_template_overrides():
+ from unittest.mock import AsyncMock
+ from app.services.shopping_copy import write_shopping_copy
+ from app.services.shopping_discovery import catalog_result
+ from tests.test_shopping_discovery_contract import row
+ calls=[]
+ async def infer(messages):
+  calls.append(messages)
+  if len(calls)==1:
+   policy=messages[0]['content']
+   assert 'text_template' not in policy and '{{cN}}' not in policy
+   assert 'Final wire format' not in policy and 'Wire format override' not in policy
+   return draft([{'kind':'text','value':'Rain resistance remains unknown.'}])
+  return json.dumps({'supported':True,'all_product_mentions_declared':True,'no_unsupported_commercial_claims':True,'fulfills_discovery_task':True})
+ text=await write_shopping_copy(infer,'rain',[catalog_result(row())],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'decision_segments_v1'})
+ assert text=='Rain resistance remains unknown.' and len(calls)==2
