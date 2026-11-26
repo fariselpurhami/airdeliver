@@ -21,6 +21,20 @@ class VerifiedStatusSource:
     exact_models:tuple[str,...]
 
 
+def validate_status_source(source):
+    """Validate adapter metadata shape, never authenticate its origin."""
+    if not isinstance(source,VerifiedStatusSource):raise ValueError('verified_metadata_required')
+    dates=(source.observed_at,source.published_at)
+    if (not isinstance(source.text,str) or not 1<=len(source.text)<=6000
+        or not isinstance(source.final_url,str)
+        or not isinstance(source.region,str) or not source.region.strip()
+        or not isinstance(source.exact_models,tuple) or not source.exact_models
+        or any(not isinstance(key,str) or not key.strip() for key in source.exact_models)
+        or len(set(source.exact_models))!=len(source.exact_models)
+        or any(not isinstance(d,datetime) or d.tzinfo is None or d.utcoffset() is None for d in dates)):
+        raise ValueError('verified_metadata_required')
+
+
 class ExtractedStatus(BaseModel):
     model_config=ConfigDict(extra='forbid',strict=True)
     source:StrictInt=Field(ge=0,le=8)

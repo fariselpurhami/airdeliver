@@ -6,7 +6,7 @@ identity. Callers must supply those bindings independently. No live route calls 
 import json
 import anyio
 from pydantic import BaseModel,ConfigDict,Field,StrictBool
-from app.services.research.status_claim_binding import ExtractedStatus,VerifiedStatusSource,bind_status_claim,validate_status_claim
+from app.services.research.status_claim_binding import ExtractedStatus,VerifiedStatusSource,bind_status_claim,validate_status_claim,validate_status_source
 from app.services.research.product_status_policy import resolve_status
 from app.services.structured_output import infer_schema
 
@@ -30,7 +30,7 @@ async def reviewed_product_status(infer,model_key,sources,registry,*,now,region,
     resolve_status(model_key,[],now=now,region=region,max_age=max_age)
     frozen=tuple(sources)
     for source in frozen:
-        if not isinstance(source,VerifiedStatusSource) or len(source.text)>6000:raise ValueError('verified_metadata_required')
+        validate_status_source(source)
         if registry.publisher_for(source.final_url) is None:raise ValueError('unbound_status_publisher')
     if not frozen:return resolve_status(model_key,[],now=now,region=region,max_age=max_age)
     payload={'model_key':model_key,'region':region,'now':now.isoformat(),'sources':[{

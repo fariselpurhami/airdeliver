@@ -94,3 +94,20 @@ async def test_shared_status_deadline_cancels_stage_without_returning_draft(stag
  with pytest.raises(TimeoutError):
   await reviewed_product_status(infer,'maker:x',[source()],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=0.01)
  assert len(calls)==stage+1
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('changes',[
+ {'observed_at':NOW.replace(tzinfo=None)},
+ {'published_at':NOW.replace(tzinfo=None)},
+ {'region':''},
+ {'exact_models':()},
+ {'exact_models':('maker:x','maker:x')},
+ {'exact_models':['maker:x']},
+ {'text':None},
+])
+async def test_malformed_verified_adapter_metadata_rejected_before_inference(changes):
+ from dataclasses import replace
+ infer=AsyncMock(side_effect=[json.dumps(D),json.dumps(V)])
+ with pytest.raises(ValueError,match='verified_metadata_required'):
+  await reviewed_product_status(infer,'maker:x',[replace(source(),**changes)],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
+ infer.assert_not_awaited()

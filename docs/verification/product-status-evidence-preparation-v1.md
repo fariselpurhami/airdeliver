@@ -62,3 +62,7 @@ A test-first missing-module failure preceded `reviewed_product_status.py`, which
 ## Preflight is separate from review, and invalid clocks fail before inference
 
 Three new regressions failed first: preflight called the reviewed binder before the reviewer, and invalid application clock/age values reached both inference stages before failing. A new validation-only API now returns no evidence and is used for preflight. The reviewed binder is reached only after a positive independent verdict. The application clock is validated before inference. Additional extraction/review outage and shared-deadline cancellation tests confirm no partial draft is returned. Combined69 focused cases pass offline. This refines only the inactive pipeline; no real source adapter, provider call or active path was added.
+
+## Reject malformed adapter metadata before inference
+
+Seven further red cases showed that the dataclass annotation alone did not enforce adapter metadata. Naive observation/publication times, empty region/model sets, duplicate model keys, mutable list identity bindings and non-text content could reach inference or fail with an unrelated exception. Source shape is now validated before either stage. This validates structure only, never source authenticity; verified publisher/date/model extraction remains unimplemented for real pages.145 combined status/binding/publisher/source-evolution cases pass offline. No provider or source fetch was used.
