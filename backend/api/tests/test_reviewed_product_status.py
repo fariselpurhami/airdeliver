@@ -46,3 +46,51 @@ async def test_cancellation_propagates_without_second_call():
  with pytest.raises(asyncio.CancelledError):
   await reviewed_product_status(infer,'maker:x',[source()],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
  assert infer.await_count==1
+
+@pytest.mark.asyncio
+async def test_preflight_never_uses_reviewed_binder(monkeypatch):
+ # Import the module explicitly because the function shares its name.
+ import importlib
+ service=importlib.import_module('app.services.research.reviewed_product_status')
+ original=service.bind_status_claim
+ calls=[]
+ def checked(*args,**kwargs):
+  calls.append(infer.await_count)
+  return original(*args,**kwargs)
+ monkeypatch.setattr(service,'bind_status_claim',checked)
+ infer=AsyncMock(side_effect=[json.dumps(D),json.dumps(V)])
+ await service.reviewed_product_status(infer,'maker:x',[source()],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
+ assert calls==[2], 'reviewed binding is allowed only after independent review'
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('bad_clock',['naive','age'])
+async def test_invalid_clock_rejected_before_any_model_call(bad_clock):
+ infer=AsyncMock(side_effect=[json.dumps(D),json.dumps(V)])
+ now=NOW.replace(tzinfo=None) if bad_clock=='naive' else NOW
+ age=timedelta(0) if bad_clock=='age' else timedelta(hours=6)
+ with pytest.raises(ValueError,match='invalid_status_clock'):
+  await reviewed_product_status(infer,'maker:x',[source()],registry(),now=now,region='US',max_age=age,timeout=1)
+ infer.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('stage',[0,1])
+async def test_status_provider_outage_never_returns_partial_evidence(stage):
+ failures=[RuntimeError('synthetic outage')] if stage==0 else [json.dumps(D),RuntimeError('synthetic outage')]
+ infer=AsyncMock(side_effect=failures)
+ with pytest.raises(RuntimeError,match='synthetic outage'):
+  await reviewed_product_status(infer,'maker:x',[source()],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
+ assert infer.await_count==stage+1
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('stage',[0,1])
+async def test_shared_status_deadline_cancels_stage_without_returning_draft(stage):
+ import anyio
+ calls=[]
+ async def infer(*args,**kwargs):
+  calls.append(args)
+  if len(calls)<=stage:return json.dumps(D)
+  await anyio.sleep(1)
+ with pytest.raises(TimeoutError):
+  await reviewed_product_status(infer,'maker:x',[source()],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=0.01)
+ assert len(calls)==stage+1

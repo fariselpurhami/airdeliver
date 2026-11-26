@@ -30,8 +30,7 @@ class ExtractedStatus(BaseModel):
     quote:StrictStr=Field(min_length=2,max_length=1200)
 
 
-def bind_status_claim(claim,sources,registry,*,reviewed):
-    if reviewed is not True:raise ValueError('status_review_required')
+def _normalize_status_claim(claim,sources,registry):
     if not isinstance(claim,ExtractedStatus) or claim.source>=len(sources):raise ValueError('invalid_status_source')
     source=sources[claim.source]
     if not isinstance(source,VerifiedStatusSource):raise ValueError('verified_metadata_required')
@@ -48,3 +47,16 @@ def bind_status_claim(claim,sources,registry,*,reviewed):
         publisher_key=publisher,official_binding=True,exact_identity=True,
         assertion=claim.assertion,observed_at=source.observed_at,
         published_at=source.published_at,effective_at=instant,region=source.region)
+
+
+def validate_status_claim(claim,sources,registry):
+    """Validate exact evidence shape without claiming independent review.
+
+    Returns no publishable evidence. Semantic entailment is a later review step.
+    """
+    _normalize_status_claim(claim,sources,registry)
+
+
+def bind_status_claim(claim,sources,registry,*,reviewed):
+    if reviewed is not True:raise ValueError('status_review_required')
+    return _normalize_status_claim(claim,sources,registry)
