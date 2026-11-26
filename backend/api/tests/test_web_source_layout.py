@@ -11,9 +11,14 @@ def test_source_manifest_preserves_every_pre_move_byte():
  assert set(evolution)=={'frontend/web/src/app/globals.css','frontend/web/src/app/(main)/_components/LandingClient.tsx','frontend/web/src/components/layout/Header.tsx','frontend/web/src/components/ai/Chatbot.tsx','frontend/web/src/app/(main)/products/page.tsx'}
  assert len(manifest['files'])>100
  security=json.loads((ROOT/'docs/verification/next-security-source-evolution-v1.json').read_text())
+ reset=json.loads((ROOT/'docs/verification/support-reset-source-evolution-v1.json').read_text())
+ assert set(reset)=={'frontend/web/src/hooks/useAIOrderingStore.ts'}
  for row in manifest['files']:
   assert not (ROOT/row['previous_path']).exists()
   expected=security[row['canonical_path']]['current_sha256'] if row['canonical_path'] in security else evolution.get(row['canonical_path'],row['sha256'])
+  if row['canonical_path'] in reset:
+   assert reset[row['canonical_path']]['baseline_sha256']==expected
+   expected=reset[row['canonical_path']]['current_sha256']
   assert hashlib.sha256((ROOT/row['canonical_path']).read_bytes()).hexdigest()==expected
 
 

@@ -34,3 +34,14 @@ accepted before reset is removed by existing reset behavior.
 - Full exact-head hosted CI pending. Green tests alone do not authorize merge or
   product quality acceptance. Server same-session lost-update and swallowed
   persistence outage remain separate unresolved gaps in PR266.
+
+## First hosted pass and provenance correction
+
+ca7e117d frontend/typecheck/build, secret scan and Docker smoke passed. Backend
+1failed2801passed3skipped: immutable pre-move hash guard for the intentionally
+changed store hook, not a failing behavioral assertion. Original move, web and
+security evolution manifests remain unchanged. A separate single-path receipt
+pins the original baseline and seven-line changed source. The layout guard checks
+that receipt's baseline against the prior expected hash, then its current hash;
+all unrelated files stay pinned exactly as before. Full new-head CI remains
+required. This correction does not weaken behavioral acceptance or erase red tests.
