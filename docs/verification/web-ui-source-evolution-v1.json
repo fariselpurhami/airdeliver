@@ -1,7 +1,7 @@
 {
   "frontend/web/src/app/(main)/_components/LandingClient.tsx": {
     "baseline_sha256": "7bbea471bbb98cd2413dc3e1cd9b505c96ecb3077ebc66a6c3719079459a42b9",
-    "current_sha256": "bce0364e806cf17235ef6b18abdf34bdcc64455744f22024144ff50ed6c1e58c",
+    "current_sha256": "f1b53817743148649264641d7159625d5680fd38e7a9f852f1d8652e1c4ffd30",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/app/(main)/login/page.tsx": {

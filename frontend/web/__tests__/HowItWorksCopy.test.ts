@@ -17,3 +17,9 @@ it('stretches the word works with letter spacing', () => {
   expect(m).not.toBeNull();
   expect(m![0]).toMatch(/tracking-\[0\.0[4-9]em\]/);
 });
+it('names the shopping service Order with Air, never bare Air, in the steps', () => {
+  const steps = src.slice(src.indexOf('const PRODUCTION_STEPS'), src.indexOf('] as const;', src.indexOf('const PRODUCTION_STEPS')));
+  expect(steps.match(/\bAir\b/g)!.length).toBe(steps.match(/Order with Air/g)!.length);
+  expect(steps).toContain('Order with Air turns it into a search');
+  expect(steps).toContain('Order with Air reads it as a short hint');
+});
