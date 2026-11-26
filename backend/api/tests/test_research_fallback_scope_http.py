@@ -43,6 +43,9 @@ async def test_research_catalog_fallback_retains_scope_after_empty_sources(real_
             if 'Extract source-backed' in policy:
                 return json.dumps({'covered_targets':['Atlas laptop'],'facts':[{'label':'Connection','quote':'Atlas laptop has a forged feature.' if mode=='source_forged_quote' else 'Atlas laptop has a wired connection.','source':0}]})
             if 'untrusted_sources' in data.get('input',data) or 'product_information_only' in policy:
+                assert data['input']['customer_only_recent_context']
+                assert 'Atlas laptop at least 16GB RAM and Atlas chair without red' in data['input']['customer_only_recent_context']
+                assert data['input']['saved_preferences_scope'].startswith('Optional shopping hints only.')
                 return json.dumps({'supported':mode!='source_review_reject','exact_model':True,'product_information_only':True})
             if 'Assign existing hard features' in policy:return '{"assignments":[]}'
             if 'Review exact target/feature scope' in policy:return '{"explicit_scope":true}'

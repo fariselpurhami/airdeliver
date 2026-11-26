@@ -63,3 +63,16 @@ async def test_control_character_source_url_is_dropped_before_product_inference(
 ])
 def test_unambiguous_https_source_forms_remain_allowed(url):
  assert allowed_url(url) is True
+
+@pytest.mark.asyncio
+async def test_independent_source_review_receives_same_customer_constraints_as_writer():
+ calls=[]
+ async def infer(messages):
+  calls.append(json.loads(messages[1]['content']))
+  if len(calls)==1:return json.dumps({'covered_targets':['Alpha'],'facts':[{'label':'Material','quote':'Alpha uses wood.','source':0}]})
+  assert calls[1]['input']==calls[0]
+  return json.dumps(V)
+ result=await answer_product_question(infer,'Does Alpha suit that use?',targets=('Alpha',),lookup=AsyncMock(return_value=[{'url':'https://maker.example/a','text':'Alpha uses wood.'}]),customer_context=('I need a desk for outdoor use.','Tell me about Alpha'),saved_preferences=({'category':'material','value':'wood'},))
+ assert result.confidence>0 and len(calls)==2
+ assert calls[1]['input']['customer_only_recent_context'][0]=='I need a desk for outdoor use.'
+ assert calls[1]['input']['saved_preferences_scope']==calls[0]['saved_preferences_scope']
