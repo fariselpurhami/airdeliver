@@ -19,6 +19,7 @@ REQUIRED={
  'privacy_tone':['exact sentiment_evidence','tone only','current words win','private profile'],
  'alternatives':['same-purpose evidence','never global','outside_budget is not out-of-stock'],
  'tasks':['target_searches','no borrowing specs','no invented discount','listed price/currency'],
+ 'no_internal_ids_in_text':['shows product IDs','status codes','in-stock wording needs a stock_status claim'],
  'customer_experience':['specific unknown','low-pressure','varied relevant wording','never invented certainty'],
   'no_invented_offers':['next step the shop really has','never offer holds, alerts, monitoring, notifications'],
 }
@@ -58,4 +59,4 @@ async def test_actual_writer_review_pair_reduction_without_data_or_call_loss():
  assert len(seen)==2 and 'Independently review' in seen[1][0]['content']
  assert json.loads(seen[1][1]['content'])['input']==json.loads(seen[0][1]['content'])
  pair=estimated_tokens(seen[0],response_format('openai/gpt-oss-120b',ShoppingDraft))+640+estimated_tokens(seen[1],response_format('openai/gpt-oss-120b',GroundingReview))+256
- assert pair<4700  # Previous same-fixture pair5952, not a full rolling-quota promise.
+ assert pair<4740  # Previous same-fixture pair5952; was 4700 (measured 4695), raised by the measured 36-token no-internal-IDs clause, not a full rolling-quota promise.

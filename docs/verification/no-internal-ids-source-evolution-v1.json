@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/compact_copy_contracts.py": {
+  "baseline_sha256": "3ac94eba5356f8316d012a1bddfb32247106d5eb3f2afdbb4293e869c3657425",
+  "current_sha256": "e2afecd68f06cb2b8c3207c9d5cc562d93a0f217fff866b4cea791a773928c63",
+  "replacements": [
+   {
+    "old": "or technical narration about schemas/retrieval/grounding.",
+    "new": "or technical narration about schemas/retrieval/grounding. Text never shows product IDs, field names, JSON or status codes; in-stock wording needs a stock_status claim.",
+    "count": 1
+   }
+  ]
+ }
+}
