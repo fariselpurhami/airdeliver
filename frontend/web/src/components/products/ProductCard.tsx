@@ -4,7 +4,8 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
-import { Bot, ScanLine, ShoppingBag, Check } from 'lucide-react';
+import { ScanLine, ShoppingBag, Check } from 'lucide-react';
+import { AirSparkles } from '@/components/ui/AirSparkles';
 import Image from 'next/image';
 import { isDemoImageEligible } from '@/lib/catalog/demoImages';
 import { DemoImageAttribution } from '@/components/products/DemoImageAttribution';
@@ -90,7 +91,7 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
             
             {isRecommendedByAI && (
                 <div className="absolute top-2 right-2 md:top-4 md:right-4 z-20 flex items-center gap-1 px-1.5 py-1 md:px-3 md:py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.2)] md:[transform:translateZ(40px)]">
-                    <Bot size={10} className="text-cyan-400 animate-pulse md:w-[12px] md:h-[12px]" />
+                    <AirSparkles className="h-2.5 w-2.5 text-purple-400 animate-pulse md:h-3 md:w-3" />
                     <span className="text-[8px] md:text-[10px] font-bold text-cyan-300 uppercase tracking-wider">AI Pick</span>
                 </div>
             )}

@@ -15,9 +15,9 @@ import {
   Check,
   Rocket,
   TrendingUp,
-  Bot,
   Star,
 } from 'lucide-react';
+import { AirSparkles } from '@/components/ui/AirSparkles';
 import Image from 'next/image';
 import { isDemoImageEligible } from '@/lib/catalog/demoImages';
 import { CatalogImage } from './CatalogImage';
@@ -195,7 +195,7 @@ const LegacyProductDetailsCardComponent = ({
                 </span>
                 {product.isAIRec ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-cyan-200 backdrop-blur-md">
-                    <Bot className="h-3.5 w-3.5" />
+                    <AirSparkles className="h-3.5 w-3.5 text-purple-300" />
                     AI Verified
                   </span>
                 ) : null}

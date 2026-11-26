@@ -11,6 +11,16 @@ test('shopping mark has one large star and two small stars without changing assi
  const home=fs.readFileSync(path.join(process.cwd(),'src/app/(main)/_components/LandingClient.tsx'),'utf8');
  const products=fs.readFileSync(path.join(process.cwd(),'src/app/(main)/products/page.tsx'),'utf8');
  expect(home.match(/<AirSparkles /g)).toHaveLength(2);
- expect(products.match(/<AirSparkles /g)).toHaveLength(1);
- expect(products).toContain('<Bot size={12}');
+ expect(products.match(/<AirSparkles /g)).toHaveLength(2);
+ expect(products).not.toContain('<Bot ');
+ const card=fs.readFileSync(path.join(process.cwd(),'src/components/products/ProductCard.tsx'),'utf8');
+ expect(card).not.toContain('<Bot ');
+ expect(card.match(/<AirSparkles /g)).toHaveLength(1);
+});
+
+test('Bot glyph remains only in the Air Assistant chatbot UI and help page',()=>{
+ const walk=(d:string):string[]=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(d,e.name)):/\.tsx$/.test(e.name)?[path.join(d,e.name)]:[]);
+ const assistant=/(components[\\/]ai[\\/](AISupportButton|Chatbot|AIChatOverlay)\.tsx|app[\\/]help[\\/]page\.tsx)$/;
+ const offenders=walk(path.join(process.cwd(),'src')).filter(f=>!assistant.test(f)).filter(f=>/\bBot\b/.test(fs.readFileSync(f,'utf8').replace(/googleBot/g,'')));
+ expect(offenders).toEqual([]);
 });
