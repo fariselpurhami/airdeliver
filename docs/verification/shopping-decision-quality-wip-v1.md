@@ -146,8 +146,8 @@ No production caller opts in and no live quality acceptance is implied.
 
 ## Segment contract conflict found offline
 
-New development receipt v2 preserves all7case records, including the zero-request
-harness case, six actual requests,14255measuredtokens and an8000token conservative
+New development receipt v2 preserves all11case records, including the zero-request
+harness case, twelve actual requests,27018measuredtokens and an8000token conservative
 reserve for the400response with missing usage. It contains no provider reasoning.
 
 A test-first policy inspection failed: SegmentDecisionDraft inherited earlier
@@ -174,3 +174,26 @@ rejects ID labels outside exact catalog names, preserving names with model digit
 or an actual ID label. Actual consultation transport confirms fail-closed before
 review. This fixes a boundary, not generator reliability. No new format enabled,
 review unchanged, no quality acceptance, no successful HTTP/UI/checkout claim.
+
+## Distinct unchanged active-path held-outs
+
+At clean b82b1c38, each need ran once:008material comparison,009merchant stock
+and next-day delivery,010missing microphone evidence,011weight constraint.
+008and010returned catalog_results after both real writer and independent review.
+009and011were withheld before review for internal_product_id_in_copy.011also
+compared Cedar without its claims, so removing an ID alone does not prove success.
+No rewritten prompt, enabled experimental format or successful retry is claimed.
+
+The twelve new requests used27018measuredtokens plus8000reserved for the earlier
+400without usage, total35018conservative. No429occurred. The old48/50run is unchanged.
+The harness rows are synthetic, but their adapter evidence_kind is local_catalog,
+not dev_fixture/seeded_demo. This scope does not test fixture-specific disclosures.
+The011batch paused out during inter-case pacing; ledger inspection confirmed no
+011reservation before its separate single execution. No duplicate request.
+
+Actual008and010text-renderer pixels were inspected at390mobile/1280desktop, with
+no clipping. These are renderer-only previews, not full running app/product cards,
+mountedHTTP, checkout or owner acceptance.008answers a narrow material question in
+a short paragraph.010keeps absent microphone evidence unknown, not nonexistent.
+Full b82b1c38hostedCI2894passed/3skipped and all10checks green. Generator reliability,
+source-truth routing and owner quality remain open. No merge or activation.

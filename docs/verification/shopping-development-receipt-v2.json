@@ -4,11 +4,11 @@
   "owner_quality_accepted": false,
   "active_experimental_caller": false,
   "historical_receipt_unchanged": true,
-  "requests": 6,
-  "measured_tokens": 14255,
+  "requests": 12,
+  "measured_tokens": 27018,
   "requests_with_unknown_usage": 1,
   "conservative_unknown_token_reserve": 8000,
-  "conservative_total_tokens": 22255,
+  "conservative_total_tokens": 35018,
   "public_free_caps": {
     "rpm": 30,
     "rpd": 1000,
@@ -197,6 +197,120 @@
         "selected_ids": []
       },
       "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "008",
+      "source_sha": "b82b1c38ec2839de4d9ca0ffdac8c2303e281f0d",
+      "dirty_source": false,
+      "question": "Compare only the listed materials of these backpacks. What does the listing actually tell us?",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": null,
+        "budget": null,
+        "budget_max": null,
+        "budget_currency": null,
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 8,
+      "result": {
+        "text": "The Synthetic Cedar Backpack is listed as made of canvas, while the Synthetic Birch Backpack is listed as made of nylon. Those are the only material details the listings provide; other specs such as water resistance are not specified.",
+        "response_kind": "catalog_results",
+        "selected_ids": [
+          101,
+          102
+        ]
+      },
+      "elapsed_seconds": 2.102568766999994,
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance.",
+      "catalog_evidence_kind": "local_catalog (synthetic harness rows, not dev_fixture or seeded_demo markers)"
+    },
+    {
+      "case": "009",
+      "source_sha": "b82b1c38ec2839de4d9ca0ffdac8c2303e281f0d",
+      "dirty_source": false,
+      "question": "Can you confirm either backpack is in stock with a real merchant and will arrive tomorrow?",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": null,
+        "budget": null,
+        "budget_max": null,
+        "budget_currency": null,
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 9,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "elapsed_seconds": 1.770946390000006,
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance.",
+      "catalog_evidence_kind": "local_catalog (synthetic harness rows, not dev_fixture or seeded_demo markers)"
+    },
+    {
+      "case": "010",
+      "source_sha": "b82b1c38ec2839de4d9ca0ffdac8c2303e281f0d",
+      "dirty_source": false,
+      "question": "I need headphones with a microphone for calls. Which of these listings actually confirms a microphone?",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": null,
+        "budget": null,
+        "budget_max": null,
+        "budget_currency": null,
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 11,
+      "result": {
+        "text": "Both listings lack any spec indicating a built\u2011in microphone, so we can\u2019t confirm they support calls. If a mic is essential, you may need to look for other headphones that list a microphone in their specifications.",
+        "response_kind": "catalog_results",
+        "selected_ids": [
+          201,
+          202
+        ]
+      },
+      "elapsed_seconds": 2.143271016,
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance.",
+      "catalog_evidence_kind": "local_catalog (synthetic harness rows, not dev_fixture or seeded_demo markers)"
+    },
+    {
+      "case": "011",
+      "source_sha": "b82b1c38ec2839de4d9ca0ffdac8c2303e281f0d",
+      "dirty_source": false,
+      "question": "I can carry at most 700 grams. Based only on listed weight, which backpack meets that limit? Do not infer comfort.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": null,
+        "budget": null,
+        "budget_max": null,
+        "budget_currency": null,
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 12,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "elapsed_seconds": 1.3987948860000188,
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance.",
+      "catalog_evidence_kind": "local_catalog (synthetic harness rows, not dev_fixture or seeded_demo markers)"
     }
   ],
   "findings": [
@@ -206,7 +320,12 @@
     "004 strict single-line schema removed newline failure; unchanged numeric gate rejected literal15-inch without spec claim.",
     "005 typed segments returned400json_validate_failed, failed generation not parseable. No retry.",
     "006 single-wire segment correction produced valid JSON/no_pick; numeric gate withheld a literal15-inch claim without a spec reference before review. Rain/wire probe line ended.",
-    "007 active simple-price control named product but omitted name claim and printed internal ID; first exact gate undeclared_product_mention. No retry."
+    "007 active simple-price control named product but omitted name claim and printed internal ID; first exact gate undeclared_product_mention. No retry.",
+    "008material and010missing-microphone controls passed unchanged active writer and independent review; two publishable replies, not owner quality acceptance.",
+    "009merchant-stock and011weight-limit controls withheld before review: internal_product_id_in_copy.011also omitted Cedar claims while comparing it; no success inferred after first gate.",
+    "Hosted CI b82b1c38:2894passed3skipped; all10push/PRchecks green. No merge.",
+    "008/010 inspected as text-renderer previews at390mobile and1280desktop; not full running application, product-card, HTTP, checkout or owner acceptance.",
+    "Case011 ran once after a batch timeout during pacing; ledger inspection showed no011reservation before resuming. No request repeated."
   ],
   "limits": [
     "Default/source model configuration checked, not deployed environment overrides.",
