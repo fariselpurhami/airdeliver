@@ -214,9 +214,9 @@ const HERO_CARDS: ReadonlyArray<HeroFloatingCardProps> = [
 ];
 
 const PRODUCTION_STEPS = [
-  { icon: AirSparklesIcon, step: "01", title: "Order with Air", description: "Type or speak a request. Air turns it into a search of the product catalog and shows matching products, so you do not have to scroll through categories." },
+  { icon: AirSparklesIcon, step: "01", title: "Order with Air", description: "Type or speak a request. Order with Air turns it into a search of the product catalog and shows matching products, so you do not have to scroll through categories." },
   { icon: Cpu, step: "02", title: "Price and availability checks", description: "Every result carries the price and stock status from the catalog. An item whose price cannot be verified cannot be added to your cart." },
-  { icon: Camera, step: "03", title: "Search from a photo", description: "Add a photo (JPEG, PNG, WebP or GIF, up to 6 MB). Air reads it as a short hint to guide the search. A photo is a hint, not proof of what a product is, so results are still checked against the catalog." },
+  { icon: Camera, step: "03", title: "Search from a photo", description: "Add a photo (JPEG, PNG, WebP or GIF, up to 6 MB). Order with Air reads it as a short hint to guide the search. A photo is a hint, not proof of what a product is, so results are still checked against the catalog." },
   { icon: ShieldCheck, step: "04", title: "Review, then confirm", description: "Check your cart and shipping address, then choose from the payment methods currently available. Confirming sends one order, and a retry never creates a second one. Checkout is US only, in US dollars." },
 ] as const;
 
