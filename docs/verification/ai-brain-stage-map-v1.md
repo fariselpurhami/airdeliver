@@ -129,3 +129,34 @@ constraints. A process-local lock or append-only history fix would not settle
 in-flight answers based on stale intent. Distributed Redis/cancel/outage tests are
 required before claiming this fixed. This is now a priority alongside writer
 reliability, ahead of adding a durable decision state on unsafe persistence.
+
+Follow-on controlled failure/cancellation cases: a forced write outage still
+publishes an ordinary conversation reply with no durable turn. The proposed
+continuity-notice invariant is recorded as a second strict expected failure,
+not an implemented product-policy choice. Cancellation before model completion
+leaves no half-turn, and simultaneous different sessions retain their own turns.
+Combined local slice:9passed,2expected failures. These are controlled-cache
+service tests, not mounted HTTP/real Redis or cancellation-at-every-boundary proof.
+
+### Smallest distributed-state design candidate, not activated
+
+Prefer stale-snapshot rejection before publishing over holding a distributed
+lease throughout model calls. Reuse existing atomic compare semantics, but the
+support commit must atomically compare the exact hydrated snapshot AND the owner
+reset generation/reset-pending state. Checking generation then doing a separate
+CAS leaves a reset race. Generic compare_json_required alone is insufficient.
+An anonymous session still needs snapshot CAS; authenticated keys remain owner
+bound. A missing cache value and a failed read must be distinguishable. Commit
+must return explicit committed/stale/reset/unavailable status instead of logging
+and swallowing failure. No provider retry, hidden replay, silent constraint merge
+or global/process-local lock. Only a committed current snapshot can publish an
+ordinary answer; rejection should return an honest retry notice. UX wording is
+still a product-policy candidate, not established user approval.
+
+Tradeoff: CAS intentionally makes one concurrent request retry rather than
+preserving both automatically. It avoids queueing provider calls behind a lease,
+lease renewal/expiry complexity and stale answers, but the user experience and
+all entry points need agreement. Reset-pending, generation change, stale snapshot,
+write outage, read outage, TTL expiry, cancellation and owner isolation require
+real temporary Redis tests, plus HTTP response proof. Legacy queue memory is a
+separate state owner and cannot inherit support safety from this design.
