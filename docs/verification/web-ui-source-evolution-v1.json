@@ -16,7 +16,7 @@
   },
   "frontend/web/src/app/(main)/profile/page.tsx": {
     "baseline_sha256": "99273a2c955b1b9e5f8863b3322ed6afb4e9ca1fce16850a9646781e9f667ab4",
-    "current_sha256": "1f00d320031f05ac33fc1c7de79a4187dad78bed99e27c1591d8cfcc408da3b7",
+    "current_sha256": "a9c70f463cda9394da8fe97f8eaec43798e4de2427de655c39730100672a2f96",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/components/ai/Chatbot.tsx": {

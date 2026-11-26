@@ -63,6 +63,7 @@ interface FloatingCardProps {
     colorCls: string;
     rotation: number;
     priority?: boolean;
+    mobileClasses?: string;
 }
 
 interface IconButtonProps {
@@ -172,14 +173,14 @@ const ProfileFloatingProduct = memo(({
                         alt="" 
                         fill 
                         sizes="(max-width: 768px) 30vw, 20vw" 
-                        className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" 
+                        className="object-cover opacity-75 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" 
                         priority={priority}
                         loading={priority ? "eager" : "lazy"}
                     />
 
                     <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
-                        <span className="text-[9px] font-mono uppercase tracking-[0.1em] opacity-70 text-white break-words">{category}</span>
-                        <h3 className="text-sm font-bold text-white tracking-wide leading-tight truncate">{title}</h3>
+                        <span className="text-[9px] font-mono uppercase tracking-[0.06em] opacity-90 text-white break-words">{category}</span>
+                        <h3 className="text-xs lg:text-sm font-bold text-white tracking-wide leading-tight line-clamp-2 break-words">{title}</h3>
                     </div>
 
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[20px] lg:rounded-[32px] ring-2 ring-current ring-inset mix-blend-overlay" />
@@ -221,12 +222,12 @@ IconButton.displayName = 'IconButton';
 // ============================================================================
 
 const HERO_CARDS: FloatingCardProps[] = [
-    { title: "Apple Vision Pro", category: "Neural Tech", delay: 0.1, rotation: -8, image: "https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop", positionClasses: "top-[2%] left-[4%] lg:top-[8%] lg:left-[5%]", sizeClasses: "w-24 h-32 lg:w-48 lg:h-64", colorCls: "hover:shadow-cyan-500/20 text-cyan-400", priority: true },
-    { title: "PS5 Console", category: "Hardware", delay: 0.2, rotation: 6, image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[2%] right-[4%] lg:top-[8%] lg:right-[5%]", sizeClasses: "w-24 h-32 lg:w-40 lg:h-56", colorCls: "hover:shadow-purple-500/20 text-purple-400", priority: true },
-    { title: "Dyson Airwrap", category: "Aesthetic", delay: 0.3, rotation: -4, image: "https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[40%] -left-[5%] lg:top-[45%] lg:left-[2%]", sizeClasses: "w-20 h-28 lg:w-40 lg:h-52", colorCls: "hover:shadow-pink-500/20 text-pink-400" },
-    { title: "Sony WH-1000XM5", category: "Audio", delay: 0.4, rotation: 8, image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[40%] -right-[5%] lg:top-[45%] lg:right-[2%]", sizeClasses: "w-20 h-28 lg:w-44 lg:h-48", colorCls: "hover:shadow-amber-500/20 text-amber-400" },
-    { title: "Leather Tote", category: "Bags", delay: 0.5, rotation: -6, image: "https://images.unsplash.com/photo-1691480150204-66dd1eb77391?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[5%] left-[5%] lg:bottom-[15%] lg:left-[8%]", sizeClasses: "w-24 h-32 lg:w-36 lg:h-48", colorCls: "hover:shadow-emerald-500/20 text-emerald-400" },
-    { title: "iPhone 17 Pro", category: "Electronics", delay: 0.6, rotation: 5, image: "https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[5%] right-[5%] lg:bottom-[15%] lg:right-[8%]", sizeClasses: "w-24 h-32 lg:w-40 lg:h-56", colorCls: "hover:shadow-blue-500/20 text-blue-400" }
+    { title: "Apple Vision Pro", category: "Neural Tech", delay: 0.1, rotation: -8, image: "https://images.unsplash.com/photo-1696429175928-793a1cdef1d3?q=80&w=1000&auto=format&fit=crop", positionClasses: "top-[2%] left-[4%] lg:top-[8%] lg:left-[5%]", sizeClasses: "w-24 h-32 lg:w-48 lg:h-64", colorCls: "hover:shadow-cyan-500/20 text-cyan-400", mobileClasses: "top-[0.75rem] left-[2%]", priority: true },
+    { title: "PS5 Console", category: "Hardware", delay: 0.2, rotation: 6, image: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[2%] right-[4%] lg:top-[8%] lg:right-[5%]", sizeClasses: "w-24 h-32 lg:w-40 lg:h-56", colorCls: "hover:shadow-purple-500/20 text-purple-400", mobileClasses: "top-0 left-[36%]", priority: true },
+    { title: "Dyson Airwrap", category: "Aesthetic", delay: 0.3, rotation: -4, image: "https://images.unsplash.com/photo-1755247339923-4fdfde950660?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[40%] -left-[5%] lg:top-[45%] lg:left-[2%]", sizeClasses: "w-20 h-28 lg:w-40 lg:h-52", colorCls: "hover:shadow-pink-500/20 text-pink-400", mobileClasses: "top-[0.75rem] right-[2%]" },
+    { title: "Sony WH-1000XM5", category: "Audio", delay: 0.4, rotation: 8, image: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?q=80&w=600&auto=format&fit=crop", positionClasses: "top-[40%] -right-[5%] lg:top-[45%] lg:right-[2%]", sizeClasses: "w-20 h-28 lg:w-44 lg:h-48", colorCls: "hover:shadow-amber-500/20 text-amber-400", mobileClasses: "top-[8.75rem] left-[2%]" },
+    { title: "Leather Tote", category: "Bags", delay: 0.5, rotation: -6, image: "https://images.unsplash.com/photo-1691480150204-66dd1eb77391?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[5%] left-[5%] lg:bottom-[15%] lg:left-[8%]", sizeClasses: "w-24 h-32 lg:w-36 lg:h-48", colorCls: "hover:shadow-emerald-500/20 text-emerald-400", mobileClasses: "top-[8rem] left-[36%]" },
+    { title: "iPhone 17 Pro", category: "Electronics", delay: 0.6, rotation: 5, image: "https://images.unsplash.com/photo-1764746250417-2cc103a45a56?q=80&w=600&auto=format&fit=crop", positionClasses: "bottom-[5%] right-[5%] lg:bottom-[15%] lg:right-[8%]", sizeClasses: "w-24 h-32 lg:w-40 lg:h-56", colorCls: "hover:shadow-blue-500/20 text-blue-400", mobileClasses: "top-[8.75rem] right-[2%]" }
 ];
 
 export default function ProfilePage() {
@@ -330,6 +331,13 @@ export default function ProfilePage() {
                         transition={{ duration: 0.8, ease: TRANSITION_PREMIUM }}
                         className="flex flex-col items-center w-full"
                     >
+                        {/* Mobile card cluster: all six cards above the identity block (and Shopping memory) */}
+                        <div className="relative mb-6 h-[17rem] w-full sm:hidden" data-testid="profile-mobile-card-cluster" aria-hidden="true">
+                            {HERO_CARDS.map((card, idx) => (
+                                <ProfileFloatingProduct key={idx} {...card} positionClasses={card.mobileClasses ?? card.positionClasses} sizeClasses="w-[28%] h-32" />
+                            ))}
+                        </div>
+
                         {/* Interactive Avatar */}
                         <button 
                             className="relative w-24 h-24 lg:w-28 lg:h-28 mx-auto mb-6 rounded-full border border-white/20 bg-zinc-900 overflow-hidden shadow-2xl group hover:scale-105 transition-transform duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 focus-visible:outline-offset-4"
@@ -396,7 +404,7 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Floating Product Decor */}
-                <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center perspective-1000 opacity-25 sm:opacity-100">
+                <div className="absolute inset-0 pointer-events-none z-0 hidden sm:flex items-center justify-center perspective-1000">
                     <motion.div
                         initial={{ opacity: 0 }} 
                         animate={{ opacity: 1 }} 
