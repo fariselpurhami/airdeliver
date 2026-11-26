@@ -642,7 +642,7 @@ class FreeLLMService:
         completion = await self._chat_completion(
             messages=messages, model=self.models.brain_model, temperature=0.2,
             max_tokens=1800 if response_schema and response_schema.__name__=='OpeningBatch' else 256 if response_schema and response_schema.__name__=='GroundingReview' else 1200, response_format=wire_format,
-            **({'reasoning_effort':'low'} if self.models.brain_model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and response_schema and response_schema.__name__ in {'OpeningBatch','GroundingReview'} else {}),
+            **({'reasoning_effort':'low'} if self.models.brain_model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and response_schema and response_schema.__name__ in {'OpeningBatch','GroundingReview','ShoppingDraft'} else {}),
         )
         if completion and completion.choices and getattr(completion.choices[0],'finish_reason',None)=='length':
             raise StructuredOutputError('Sales completion exceeded output budget')

@@ -33,6 +33,16 @@ def test_raw_logging_evolution_preserves_recorded_non_diagnostic_syntax():
     assert len(data["modules"])==20
     for path,row in data["modules"].items():
         source=(ROOT/path).read_bytes()
+        newest=json.loads((ROOT/"docs/verification/writer-low-reasoning-source-evolution-v1.json").read_text()).get(path)
+        if newest:
+            # Newest reviewed change: verify the live file, then reverse it so older receipts verify the prior stage.
+            assert hashlib.sha256(source).hexdigest()==newest["current_sha256"],path
+            text=source.decode()
+            for edit in newest["replacements"]:
+                assert text.count(edit["new"])==edit["count"],path
+                text=text.replace(edit["new"],edit["old"])
+            assert hashlib.sha256(text.encode()).hexdigest()==newest["baseline_sha256"],path
+            source=text.encode()
         later=json.loads((ROOT/"docs/verification/legacy-intent-budget-source-evolution-v1.json").read_text()).get(path)
         if later:
             # Later reviewed additive block: original receipt must still match the

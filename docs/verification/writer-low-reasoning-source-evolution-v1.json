@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/free_llm_service.py": {
+  "baseline_sha256": "91f11fb6c7c14c65a75ceb1927b4f870343c8db410127457a34f54ea03e54790",
+  "current_sha256": "a2f1314c4e0d216c90f3a2a92c194385cbecdba1b8ceafa9b6f33f374f44200e",
+  "replacements": [
+   {
+    "old": "response_schema.__name__ in {'OpeningBatch','GroundingReview'} else {}),",
+    "new": "response_schema.__name__ in {'OpeningBatch','GroundingReview','ShoppingDraft'} else {}),",
+    "count": 1
+   }
+  ]
+ }
+}
