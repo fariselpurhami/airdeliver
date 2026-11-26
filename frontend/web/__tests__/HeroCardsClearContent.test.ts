@@ -14,8 +14,10 @@ type Box = { name: string; l: number; r: number; t: number; b: number };
 
 function cards(vw: number): Box[] {
   const rows = [...src.matchAll(/sizeClasses="([^"]*lg:w-[^"]*)"[^>]*title="([^"]*)"/g)];
-  return rows.map(([, cls, name]) => {
-    const g = (re: RegExp) => { const m = cls.match(re); return m ? parseFloat(m[1]) : NaN; };
+  return rows.map((row) => {
+    const cls = row[1] ?? '';
+    const name = row[2] ?? '';
+    const g = (re: RegExp) => { const m = cls.match(re); return m && m[1] !== undefined ? parseFloat(m[1]) : NaN; };
     const w = g(/lg:w-(\d+)\b/) * 4, h = g(/lg:h-(\d+)\b/) * 4;
     const top = g(/lg:top-\[(\d+)%\]/), left = g(/lg:left-\[(\d+)%\]/), right = g(/lg:right-\[(\d+)%\]/);
     const l = Number.isNaN(left) ? vw - (vw * right) / 100 - w : (vw * left) / 100;
