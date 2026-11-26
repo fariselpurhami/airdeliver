@@ -47,6 +47,11 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
  if row['path'] in truth:
   assert truth[row['path']]['previous_sha256']==expected
   expected=truth[row['path']]['current_sha256']
+ wr=json.loads((ROOT/'docs/verification/withheld-reason-source-evolution-v1.json').read_text())
+ assert set(wr)=={'backend/api/app/services/conversation/free_llm_service.py'}
+ if row['path'] in wr:
+  assert wr[row['path']]['baseline_sha256']==expected
+  expected=wr[row['path']]['current_sha256']
  assert hashlib.sha256(source).hexdigest()==expected
 
 

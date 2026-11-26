@@ -21,6 +21,7 @@ from app.core.ai_profile import get_ai_profile
 from app.services.ai_adapters import GroqAdapter
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, field_serializer
 from tavily import TavilyClient
+from app.services.conversation.withheld_reason import withheld_reason
 
 logger = logging.getLogger("airdeliver.services.cognitive_core")
 
@@ -2004,7 +2005,7 @@ Output ONE line of search keywords only.
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.warning('reviewed_recommendation_withheld error_type=%s',type(exc).__name__)
+            logger.warning('reviewed_recommendation_withheld error_type=%s reason=%s',type(exc).__name__,withheld_reason(exc))
             return CognitiveResponse(selected_ids=[],reasoning={},intro_message='System notice: a grounded recommendation could not be verified. No product has been reserved.',confidence_score=0.0)
 
     async def _filter_and_recommend_legacy_unreviewed(
@@ -2039,7 +2040,7 @@ Output ONE line of search keywords only.
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                logger.warning('reviewed_recommendation_withheld error_type=%s',type(exc).__name__)
+                logger.warning('reviewed_recommendation_withheld error_type=%s reason=%s',type(exc).__name__,withheld_reason(exc))
                 return CognitiveResponse(selected_ids=[],reasoning={},intro_message='System notice: a grounded recommendation could not be verified. No product has been reserved.',confidence_score=0.0)
 
         ranked_products = self._rank_products_by_relevance(user_query, products)

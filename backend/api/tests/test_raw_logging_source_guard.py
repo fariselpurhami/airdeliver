@@ -31,7 +31,7 @@ def unsafe_reasons(call):
                 if isinstance(key,ast.Constant) and key.value in PRIVATE_FIELDS: reasons.append("private extra "+key.value)
     # Exception names passed directly, stringified, or interpolated retain bodies.
     # Class-name expressions are permitted, with no exception object in record.
-    safe_calls = {"type", "quota_metadata", "provider_error_shape", "failed_json_diagnostics"}
+    safe_calls = {"type", "quota_metadata", "provider_error_shape", "failed_json_diagnostics", "withheld_reason"}  # returns fixed codes only; see test_withheld_reason_code
     for arg in call.args:
         for node in ast.walk(arg):
             if isinstance(node,ast.Name) and node.id in EXCEPTION_NAMES:
