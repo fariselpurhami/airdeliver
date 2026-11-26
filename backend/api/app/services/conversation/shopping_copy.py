@@ -183,6 +183,19 @@ def fixture_violation(text):
 
 _NEGATION=re.compile(r"(?:\bnot(?!\s+only)|\bcannot|n't|\bunable)\W+(?:\w+\W+){0,3}?(?:list\w*|specif\w*|stat\w*|mention\w*|indicat\w*|confirm\w*|verif\w*|say|know\w*|guarantee\w*|promis\w*|assur\w*|available)\b|\bno\W+(?:indicat\w*|mention\w*|evidence|sign|information|info|listing|claims?|record)\b|\b(?:unknown|unlisted|unverified|unspecified)\b")
 _CLAUSE_EDGE=re.compile(r"[.;:!?\n,]|\b(?:but|yet|however|though|although|while|so|and|except|only)\b")
+# The customer asked about a term the catalog does not list: an honest "no/not/unknown" answer may phrase the
+# absence in any wording. Judged per adversative clause (but/and/so...), not per comma, and only for terms the customer raised.
+_ABSENCE_CUE=re.compile(r"\b(?:no|not|never|nothing|none|cannot|unable|unknown|unlisted|unverified|unspecified|without|lacks?|neither|nor)\b|n't")
+_AFFIRMING_OPENER=re.compile(r"\b(?:no (?:problem|doubt|worries|question)|of course|definitely|yes|sure|absolutely|certainly)\b")
+def _asked_and_absent_sentences(term,lowered,message):
+    """True when the customer's own message names the term and every sentence using it carries an absence cue."""
+    if not message or term not in str(message).replace('\u2019',"'").casefold():
+        return False
+    clauses=[c for x in re.split(r"(?<=[.!?])\s+|\n+",lowered.replace('\u2019',"'"))
+             for c in re.split(r"\b(?:but|yet|however|though|although|while|except|and|so)\b|;",x) if term in c]
+    sentences=clauses
+    return bool(sentences) and all(_ABSENCE_CUE.search(x) and not _AFFIRMING_OPENER.search(x) for x in sentences)
+
 # 'Waterproof rating: unknown' is an honest label, but the colon is a clause edge that hides its negation.
 _COLON_UNKNOWN=re.compile(r"(?:\s+\w+){0,2}\s*:\s*(?:unknown|unlisted|unverified|unspecified|not\s+(?:listed|specified|stated|provided|available|confirmed))\b")
 def _unnegated(pattern,low):
@@ -214,7 +227,7 @@ def _number_value(token):
     try:return Decimal(plain).normalize()
     except InvalidOperation:return token
 
-def validate_draft(draft, cards, context=None, brief=None):
+def validate_draft(draft, cards, context=None, brief=None, message=None):
     if any(card.evidence_kind=='dev_fixture' for card in cards):
         violation=fixture_violation(draft.text)
         if violation:
@@ -247,7 +260,7 @@ def validate_draft(draft, cards, context=None, brief=None):
         raise ValueError('unclaimed_stock_claim')
     evidence_text=' '.join(str(v) for card in by_id.values() for v in [card.get('name'),card.get('category'),*(card.get('catalog_specs') or {}).values()]).casefold()
     for term in ('waterproof','water resistant','noise cancel','wireless','bluetooth','organic','handmade','leather'):
-        if term in lowered and term not in evidence_text and _unnegated(re.escape(term),lowered):
+        if term in lowered and term not in evidence_text and not _asked_and_absent_sentences(term,lowered,message) and _unnegated(re.escape(term),lowered):
             raise ValueError('unclaimed_spec_claim')
     # No independently generated amounts, percentages, URLs or numerical product
     # model names: numeric strings must occur in an evidence-backed field claim.
@@ -374,7 +387,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
             draft=complete_name_claims(ShoppingDraft.model_validate_json(raw),cards)
             stage='writer_evidence'
             try:
-                validate_draft(draft,cards,context,brief)
+                validate_draft(draft,cards,context,brief,message)
             except ValueError as invalid:
                 repair_fields = bool(cards) and (context or {}).get('sales_intent')=='OPENING_INSIGHT' and str(invalid)=='unsupported_field_claim'
                 repair_empty = not cards and str(invalid)=='unsupported_numeric_or_link_claim'
@@ -390,7 +403,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
                 stage='writer_repair_schema'
                 draft=ShoppingDraft.model_validate_json(raw)
                 stage='writer_evidence'
-                validate_draft(draft,cards,context,brief)
+                validate_draft(draft,cards,context,brief,message)
             stage='review_provider'
             review=await infer_schema(infer,[{'role':'system','content':review_rules},
                 {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False,separators=(',',':'))}],GroundingReview)

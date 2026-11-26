@@ -1,0 +1,28 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "36666c9231019a9728919a27449da5f7be16ed119c943ff7a185b028e0a6f4f5",
+  "current_sha256": "751a1d9e63679ef250c237ca13b385305230dc41a751016cd2f1f5484b02c9e9",
+  "replacements": [
+   {
+    "old": "def validate_draft(draft, cards, context=None, brief=None):",
+    "new": "def validate_draft(draft, cards, context=None, brief=None, message=None):",
+    "count": 1
+   },
+   {
+    "old": "# 'Waterproof rating: unknown' is an honest label",
+    "new": "# The customer asked about a term the catalog does not list: an honest \"no/not/unknown\" answer may phrase the\n# absence in any wording. Judged per adversative clause (but/and/so...), not per comma, and only for terms the customer raised.\n_ABSENCE_CUE=re.compile(r\"\\b(?:no|not|never|nothing|none|cannot|unable|unknown|unlisted|unverified|unspecified|without|lacks?|neither|nor)\\b|n't\")\n_AFFIRMING_OPENER=re.compile(r\"\\b(?:no (?:problem|doubt|worries|question)|of course|definitely|yes|sure|absolutely|certainly)\\b\")\ndef _asked_and_absent_sentences(term,lowered,message):\n    \"\"\"True when the customer's own message names the term and every sentence using it carries an absence cue.\"\"\"\n    if not message or term not in str(message).replace('\\u2019',\"'\").casefold():\n        return False\n    clauses=[c for x in re.split(r\"(?<=[.!?])\\s+|\\n+\",lowered.replace('\\u2019',\"'\"))\n             for c in re.split(r\"\\b(?:but|yet|however|though|although|while|except|and|so)\\b|;\",x) if term in c]\n    sentences=clauses\n    return bool(sentences) and all(_ABSENCE_CUE.search(x) and not _AFFIRMING_OPENER.search(x) for x in sentences)\n\n# 'Waterproof rating: unknown' is an honest label",
+    "count": 1
+   },
+   {
+    "old": "        if term in lowered and term not in evidence_text and _unnegated(re.escape(term),lowered):\n",
+    "new": "        if term in lowered and term not in evidence_text and not _asked_and_absent_sentences(term,lowered,message) and _unnegated(re.escape(term),lowered):\n",
+    "count": 1
+   },
+   {
+    "old": "validate_draft(draft,cards,context,brief)",
+    "new": "validate_draft(draft,cards,context,brief,message)",
+    "count": 2
+   }
+  ]
+ }
+}
