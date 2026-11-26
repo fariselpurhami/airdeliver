@@ -191,4 +191,22 @@ def test_four_phase_rewrite_that_merges_into_three_blocks_keeps_original_and_rul
     three="I don't have the battery life for Studio Headphones.\n\n- Battery: I don't have it\n- Sleep: I don't have it\n\nWant me to look at other headphones?"
     text,seen=run([draft(FOUR_ROBOTIC),draft(three),OK],{'product_answer_shape':'four_phase'})
     assert text==FOUR_ROBOTIC and len(seen)==3
-    assert 'exactly four in this order' in seen[1][0]['content'] and 'without restating the question' in seen[1][0]['content']
+    assert 'keep exactly four' in seen[1][0]['content']
+
+
+def test_rewrite_rejected_by_review_falls_back_to_reviewed_original_instead_of_withholding():
+    bad={'supported':True,'all_product_mentions_declared':True,'no_unsupported_commercial_claims':True,'fulfills_discovery_task':False}
+    text,seen=run([draft(ROBOTIC),draft(FRIEND),bad,OK])
+    assert text==ROBOTIC and len(seen)==4
+
+def test_original_rejected_by_review_is_still_withheld_after_fallback():
+    import pytest
+    from app.services.shopping_copy import ShoppingCopyError
+    bad={'supported':True,'all_product_mentions_declared':True,'no_unsupported_commercial_claims':True,'fulfills_discovery_task':False}
+    with pytest.raises(ShoppingCopyError):
+        run([draft(ROBOTIC),draft(FRIEND),bad,bad])
+
+def test_rules_vary_shape_and_limit_bullets_to_multiple_precise_items():
+    text,seen=run([draft(FOUR_ROBOTIC),draft(FOUR_FRIEND),OK],{'product_answer_shape':'four_phase'})
+    c=seen[1][0]['content']
+    assert 'rather than a fixed pattern' in c and 'two or more precise' in c and 'never reuse a stock opening' in c
