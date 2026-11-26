@@ -192,3 +192,15 @@ potentially rendering afterward is a source-level concern requiring a mounted
 frontend deferred-response test, not a reproduced UI incident or a server
 privacy-fence bypass. Keep server reset publication fencing and client stale
 response suppression as different obligations.
+
+## Behavior price-scale characterization
+
+8controlled tests including public facade passed. Actual classifier, no model
+allocation:20observations100each gives LOW;1000each gives HIGH;19at100plus one15000
+gives HIGH. Missing/negative/nonfinite observations return MEDIUM. A synthetic
+numeric rescaling changes tier with no explicit goal input, confirming fixed-scale
+average sensitivity. This is NOT an asserted exchange rate, prediction of wealth,
+or a held-out ranking benchmark. Source code shows downstream tier affects fallback
+candidate selection. Those facts justify further intent-first contrast testing,
+not deleting behavior code or changing all ranking. Owner explicit budget/current
+intent should be the grounding, not inferred affordability from viewing prices.
