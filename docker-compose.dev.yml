@@ -574,7 +574,7 @@ services:
       - ./frontend/web:/workspace/frontend/web:delegated
       - pnpm-store:/pnpm
       - /workspace/frontend/web/node_modules
-      - /workspace/frontend/web/.next
+      - web-next-cache:/workspace/frontend/web/.next
     depends_on:
       api:
         condition: service_healthy
@@ -631,6 +631,7 @@ volumes:
   pnpm-store:             
     driver: local
   web_build_cache:
+  web-next-cache:
   huggingface-cache:
   sentence-transformers-cache:
   caddy-data:
