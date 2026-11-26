@@ -40,3 +40,26 @@ async def test_consultation_default_does_not_silently_enable_experimental_wire_f
  result=await svc.consult_catalog(question='What material is listed?',cards=list(request().products))
  assert result.response_kind=='catalog_results'
  assert names==['ShoppingDraft','GroundingReview']
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('reject',[False,True])
+async def test_actual_composition_transport_preserves_two_stages_and_original_budgets(reject):
+ svc=service();calls=[];card=request().products[0]
+ async def respond(**kwargs):
+  calls.append(kwargs)
+  name=kwargs['response_format']['json_schema']['name']
+  if name=='DecisionBlocksDraft':
+   data=json.loads(kwargs['messages'][1]['content']);refs=data['claim_reference_map']
+   key=next(k for k,v in refs.items() if v['field']=='name')
+   return completion(json.dumps({'decision':'conditional','preferred_product_id':card.id,'decisive_unknown':'Rain protection.','blocks':[{'kind':'paragraph','text_template':'Conditionally prefer {{'+key+'}}.'},{'kind':'paragraph','text_template':'Verify rain protection first.'}]}))
+  assert name=='GroundingReview'
+  data=json.loads(kwargs['messages'][1]['content'])
+  assert data['draft']['text']==f'Conditionally prefer {card.name}.\n\nVerify rain protection first.'
+  assert data['decision_record']['preferred_product_id']==card.id
+  return completion(json.dumps({'supported':not reject,'all_product_mentions_declared':True,'no_unsupported_commercial_claims':True,'fulfills_discovery_task':True}))
+ svc._chat_completion=AsyncMock(side_effect=respond)
+ result=await svc.consult_catalog(question='Choose one for rain.',cards=[card],evidence={'claim_binding':'decision_blocks_v1'})
+ assert len(calls)==2 and [c['max_tokens'] for c in calls]==[1200,256]
+ assert calls[1]['reasoning_effort']=='low'
+ assert result.response_kind==('system_notice' if reject else 'catalog_results')
+ assert result.products==([] if reject else [card])

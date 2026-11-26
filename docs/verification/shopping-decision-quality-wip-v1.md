@@ -85,3 +85,7 @@ Three new red cases demonstrated the absence of a structured composition wire fo
 ## Probe035 provider schema rejection
 
 The first actual composition-block attempt at b85aaf2b returned provider HTTP400 json_validate_failed before a parseable draft. No retry or review call followed. Total44/50, six remaining; ledger stopped and temporary key deleted. This is a failed evaluation, not evidence of useful composition, and the fallback notice is not a shopping-quality answer. Preserve the negative receipt. No model foundation, writer/reviewer budget or active caller changed.
+
+## Controlled production transport preservation
+
+The composition option also passes through the actual consult_catalog and inference adapters with controlled completions. Two added positive/negative-review cases verify exact compiled paragraphs and decision record reach independent review, writer1200/reviewer256 budgets and review low reasoning remain unchanged, and a negative review clears all cards.123 combined focused tests pass. These controlled completions do not substitute for the failed actual provider probe035 or owner quality review.
