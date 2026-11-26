@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/compact_copy_contracts.py": {
+  "baseline_sha256": "02ebd2bdd1a7088032f8ee61141ffe130c381a47b0ac77a7c95916718e8c7a4b",
+  "current_sha256": "0243d476f50cc323d9c781ce840f832f3f32e11ff50558b9e4eef40ce5c4adfb",
+  "replacements": [
+   {
+    "old": "Answer first, useful supported tradeoffs, specific unknown, useful next step; allow decline.",
+    "new": "Answer first like a consultative sales engineer: one clear supported pick with its reason, one alternative tradeoff, specific unknown, one focused next-step question; allow decline.",
+    "count": 1
+   }
+  ]
+ }
+}
