@@ -446,7 +446,13 @@ async def _voice_repair(infer,draft,cards,context,brief,message,rescue=False):
             {'role':'user','content':json.dumps(draft.model_dump(),ensure_ascii=False,separators=(',',':'))}],ShoppingDraft)
         new=draft.model_copy(update={'text':ShoppingDraft.model_validate_json(raw).text})
         low=new.text.casefold()
-        names_kept=all(c.name.casefold() in low for c in cards if c.name.casefold() in draft.text.casefold())
+        def _named(c):
+            full=c.name.casefold()
+            if full in low:return True
+            # A sole product may be referred to by its last word ("The Smart Watch" -> "the watch"); several products need the full name.
+            parts=full.split()
+            return len(cards)==1 and len(parts)>1 and len(parts[-1])>=4 and re.search(r'\b'+re.escape(parts[-1])+r'\b',low) is not None
+        names_kept=all(_named(c) for c in cards if c.name.casefold() in draft.text.casefold())
         ids={str(i) for i in draft.product_ids}
         digits=lambda t:{_num_key(x) for x in re.findall(r'\d+(?:[.,]\d+)?',t)}-ids
         paras=lambda t:len([x for x in re.split(r'\n\s*\n',t) if x.strip()])
