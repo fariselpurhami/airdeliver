@@ -181,7 +181,7 @@ def fixture_violation(text):
     }
     return next((name for name,pattern in patterns.items() if re.search(pattern,text)),None)
 
-_NEGATION=re.compile(r"(?:\bnot(?!\s+only)|\bcannot|n't|\bunable)\W+(?:\w+\W+){0,3}?(?:list\w*|specif\w*|stat\w*|mention\w*|indicat\w*|confirm\w*|verif\w*|say|know\w*|guarantee\w*|promis\w*|assur\w*|available)\b|\b(?:unknown|unlisted|unverified|unspecified)\b")
+_NEGATION=re.compile(r"(?:\bnot(?!\s+only)|\bcannot|n't|\bunable)\W+(?:\w+\W+){0,3}?(?:list\w*|specif\w*|stat\w*|mention\w*|indicat\w*|confirm\w*|verif\w*|say|know\w*|guarantee\w*|promis\w*|assur\w*|available)\b|\bno\W+(?:indicat\w*|mention\w*|evidence|sign|information|info|listing|claims?|record)\b|\b(?:unknown|unlisted|unverified|unspecified)\b")
 _CLAUSE_EDGE=re.compile(r"[.;:!?\n,]|\b(?:but|yet|however|though|although|while|so|and|except|only)\b")
 # 'Waterproof rating: unknown' is an honest label, but the colon is a clause edge that hides its negation.
 _COLON_UNKNOWN=re.compile(r"(?:\s+\w+){0,2}\s*:\s*(?:unknown|unlisted|unverified|unspecified|not\s+(?:listed|specified|stated|provided|available|confirmed))\b")
@@ -191,6 +191,7 @@ def _unnegated(pattern,low):
     Only a negation inside the same clause counts ('no' does not, and
     'not only' does not). Any clause edge (comma, 'but', 'and'...) ends it, so a
     negated clause cannot cover an affirmative one. Fail closed on anything else."""
+    low=low.replace('\u2019',"'")  # curly apostrophes must not hide n't negations
     for m in re.finditer(pattern,low):
         if _COLON_UNKNOWN.match(low[m.end():]):
             continue

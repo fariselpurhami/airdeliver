@@ -1,0 +1,18 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "42e806dfeabfae66666ae436a6301a96054e16e29594f429f72ca66534369de8",
+  "current_sha256": "36666c9231019a9728919a27449da5f7be16ed119c943ff7a185b028e0a6f4f5",
+  "replacements": [
+   {
+    "old": "|\\b(?:unknown|unlisted|unverified|unspecified)\\b\")",
+    "new": "|\\bno\\W+(?:indicat\\w*|mention\\w*|evidence|sign|information|info|listing|claims?|record)\\b|\\b(?:unknown|unlisted|unverified|unspecified)\\b\")",
+    "count": 1
+   },
+   {
+    "old": "    for m in re.finditer(pattern,low):\n",
+    "new": "    low=low.replace('\\u2019',\"'\")  # curly apostrophes must not hide n't negations\n    for m in re.finditer(pattern,low):\n",
+    "count": 1
+   }
+  ]
+ }
+}
