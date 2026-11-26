@@ -91,3 +91,22 @@ proof of capability. No comparison against external frontier models is establish
 - intent-first-architecture-audit-v1.md, shopping-development-receipt-v2.json.
 - Separate product-status-evidence-preparation-v1.md and source compatibility audit.
 - PR266/267/268 preserve one-item separation and unaccepted rollout gaps.
+
+## Follow-on behavior and dormant-path inspection
+
+46focused behavior/meta/adapter tests passed,22Redis-dependent skips. The active
+meta-cognition implementation intentionally reports unavailable/uncalibrated and
+never grants transaction authority. No learned confidence artifact is proved.
+Active synthesis and genius-response facades call reviewed_legacy_answer; old
+forceful sales templates inside *_legacy_unreviewed methods are retained dormant
+source, not evidence those instructions run on current customer traffic.
+
+A distinct live-code concern remains: _handle_initial_suggestions_bounded calls
+BehaviorEngine.analyze_financial_dna, which classifies recent price history by
+fixed150/800thresholds and passes its tier to get_fresh_homepage_matrix. That tier
+can affect fallback price ordering. The price list has no currency normalization
+in that routine, and observed prices are not a person's explicit budget, wealth
+or intent. Code-path evidence establishes influence, not a harmful observed live
+outcome. This needs an intent-versus-behavior contrast test and a preserving design
+decision, not deleting the behavior foundation or silently changing all ranking.
+Do not mistake persona/segment vocabulary for authenticated personal facts.
