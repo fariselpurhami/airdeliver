@@ -125,3 +125,21 @@ Test-first result: missing-module collection failure, then 27 cases passed.
 Two further regressions showed Python normalizes invalid offset minutes; explicit
 minute validation fixed both. Final new-file result29pass, combined focused
 result297pass. No real source was fed into the model or published as status.
+
+## Original-HTML candidate boundary, still unverified
+
+`source_metadata_candidates.py` parses bounded supplied HTML only, never fetches.
+It retains canonical URL candidates without following them, collects explicit
+NewsArticle datePublished and meta-name-date values, excludes Organization/Product
+and modified-date fallback, preserves ambiguity, and caps input at256KiB, depth16
+and32metadata candidates. Invalid date values remain absent. No result is a
+VerifiedStatusSource: publisher/model/market/status authentication is still absent.
+
+Test-first missing module, then21pass. Two malformed-Unicode boundary regressions
+failed and were fixed; final25newcases,322combinedfocusedpass. Replay against the
+four previously captured original HTML snapshots produced the observed source
+publication values without inventing instants: Apple two day-only values, Samsung
+global aware+09:00instant, Samsung Japan day-only. Sizes117823..233095bytes stayed
+inside the existing bound. This replay tests extraction compatibility, not trust,
+real-time status, model reasoning or merchant inventory. No source-specific
+metadata acceptance policy or production caller has been added.
