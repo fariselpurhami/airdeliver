@@ -66,10 +66,28 @@ def test_provider_failure_in_rewrite_falls_back_without_withholding():
     text=asyncio.run(write_shopping_copy(infer,'battery life?',[catalog_result(row())],{},'catalog_results',20))
     assert text==ROBOTIC and len(calls)==3
 
-@pytest.mark.parametrize('ctx',[{'sales_intent':'OPENING_INSIGHT'},{'product_answer_shape':'four_phase'}])
-def test_opening_copy_and_four_phase_are_never_rewritten(ctx):
-    text,seen=run([draft(ROBOTIC),OK],ctx)
+def test_opening_copy_is_never_rewritten():
+    text,seen=run([draft(ROBOTIC),OK],{'sales_intent':'OPENING_INSIGHT'})
     assert text==ROBOTIC and len(seen)==2
+
+FOUR_ROBOTIC=("Studio Headphones are in stock locally, but the catalog does not list battery life.\n\n- Battery: not specified in the data.\n- Stock: local.\n\n"
+    "Since I can't confirm battery life, I can't say it fits an all-day need.\n\nWant me to look at other headphones?")
+FOUR_FRIEND=("Studio Headphones are in stock locally, but I don't have their battery life.\n\nThat is the one gap: stock is local and nothing else is missing.\n\n"
+    "So I can't say if it lasts you all day.\n\nWant me to look at other headphones?")
+
+def test_four_phase_answers_are_repaired_keeping_four_sections():
+    text,seen=run([draft(FOUR_ROBOTIC),draft(FOUR_FRIEND),OK],{'product_answer_shape':'four_phase'})
+    assert text==FOUR_FRIEND and len(seen)==3
+    assert 'same number of sections' in seen[1][0]['content']
+    assert '- ' not in text and '\n\n' in text
+
+def test_four_phase_rewrite_that_collapses_sections_keeps_original():
+    text,seen=run([draft(FOUR_ROBOTIC),draft(FRIEND),OK],{'product_answer_shape':'four_phase'})
+    assert text==FOUR_ROBOTIC and len(seen)==3
+
+def test_non_four_phase_rules_do_not_mention_sections():
+    text,seen=run([draft(ROBOTIC),draft(FRIEND),OK])
+    assert 'same number of sections' not in seen[1][0]['content']
 
 def test_answers_that_declare_no_product_are_never_rewritten():
     seen=[]
@@ -93,3 +111,8 @@ def test_leak_that_the_rewrite_does_not_fix_is_still_withheld_with_the_original_
 def test_leak_tells_are_detected():
     assert voice_tells('Stock status: local_in_stock (ID 10).')
     assert voice_tells('spec.weight is 650 g')
+
+
+def test_product_name_containing_a_tell_word_is_not_a_tell():
+    assert voice_tells('Catalog headphones are wired.',['Catalog headphones'])==[]
+    assert voice_tells('Catalog headphones are wired, per the catalog.',['Catalog headphones'])==['catalog']

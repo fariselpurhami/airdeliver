@@ -1,0 +1,38 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "41c32add5648be44663c0d4370669cdf874eb206b620b46a7b8bc67c285c72b1",
+  "current_sha256": "b5fc0dbd374493f26d3b44182f7548e2e67405cef3a9bc27b61969bd60a65cf9",
+  "replacements": [
+   {
+    "old": "def voice_tells(text):\n    \"\"\"Robotic tells a person would not write: catalog/specification jargon, \"can't confirm\", bullet lines.\"\"\"\n    return _VOICE_TELLS.findall(text or '')",
+    "new": "def voice_tells(text,names=()):\n    \"\"\"Robotic tells a person would not write: catalog/specification jargon, \"can't confirm\", bullet lines.\n    Product names are removed first, so a product literally called \"Catalog headphones\" is not a tell.\"\"\"\n    text=text or ''\n    for name in sorted({str(n) for n in names if n},key=len,reverse=True):\n        text=re.sub(re.escape(name),' ',text,flags=re.I)\n    return _VOICE_TELLS.findall(text)",
+    "count": 1
+   },
+   {
+    "old": "    tells=voice_tells(draft.text)\n",
+    "new": "    pnames=[c.name for c in cards]\n    tells=voice_tells(draft.text,pnames)\n",
+    "count": 1
+   },
+   {
+    "old": "    if not cards or not draft.product_ids or ctx.get('sales_intent')=='OPENING_INSIGHT' or ctx.get('product_answer_shape')=='four_phase':\n        return draft\n",
+    "new": "    if not cards or not draft.product_ids or ctx.get('sales_intent')=='OPENING_INSIGHT':\n        return draft\n    four=ctx.get('product_answer_shape')=='four_phase'\n",
+    "count": 1
+   },
+   {
+    "old": "'content':VOICE_REPAIR_RULES},",
+    "new": "'content':VOICE_REPAIR_RULES+(VOICE_REPAIR_FOUR if four else '')},",
+    "count": 1
+   },
+   {
+    "old": "        if (len(voice_tells(new.text))>=len(tells) or not names_kept",
+    "new": "        paras=lambda t:len([x for x in re.split(r'\\n\\s*\\n',t) if x.strip()])\n        if (len(voice_tells(new.text,pnames))>=len(tells) or not names_kept or (four and paras(new.text)<min(4,paras(draft.text)))",
+    "count": 1
+   },
+   {
+    "old": "async def _voice_repair(",
+    "new": "VOICE_REPAIR_FOUR=(\" This answer has separate sections divided by blank lines: keep the same number of sections in the same order, \"\n    \"turn any bullet list into plain sentences inside its section, and add no heading or label.\")\n\nasync def _voice_repair(",
+    "count": 1
+   }
+  ]
+ }
+}
