@@ -204,3 +204,30 @@ or a held-out ranking benchmark. Source code shows downstream tier affects fallb
 candidate selection. Those facts justify further intent-first contrast testing,
 not deleting behavior code or changing all ranking. Owner explicit budget/current
 intent should be the grounding, not inferred affordability from viewing prices.
+
+## Paired intent metadata grounding audit
+
+20controlled adapter/goal/contract tests passed. For the same neutral explicit
+Atlas product request, injected legacy structured output retains unsupported
+budget999ornegative1and URGENT/FRUSTRATED labels; support drops unsupported budget
+and sentiment. Legacy does remove an invented competitor. These are controlled
+parser/postprocessing contrasts, not measured model misunderstanding. Tests assert
+observed behavior to make the mismatch visible, not certify it as desired policy.
+
+Important impact boundary: budget_max has no downstream read in this inspected
+legacy module. Sentiment-specific persuasive instructions found at6153onward are
+inside dormant _generate_genius_response_legacy_unreviewed, not the active writer.
+The active reviewed_legacy_answer re-extracts a current grounded brief and does not
+forward sentiment or inferred budget into writer evidence. Therefore metadata
+mismatch is proved, harmful current budget filtering or emotional prose is NOT.
+Category still selects strategic/informational search, source lookup and writer
+task. Legacy competitor-priority prompt can disagree with task-first support
+policy; an actual held-out classification/route consequence needs separate proof.
+Do not attribute dormant tone instructions to current customer traffic.
+
+Next useful parity cases: identical named products with explicit price versus
+material versus suitability goals, changed hard constraints, incomplete facts,
+competitor merely used as a source, negated action and current-versus-prior goal.
+Assert normalized source-bound task/evidence/next-step state across real adapters,
+not exact prose or inferred motives. Preserve both foundations; avoid adding a
+third parser until mismatch evidence defines the shared contract.
