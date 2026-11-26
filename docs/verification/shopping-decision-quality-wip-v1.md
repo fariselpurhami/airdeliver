@@ -105,3 +105,7 @@ Actual evaluation is stopped at48/50attempts with two unused, temporary key dele
 ## Minimal reproducible evaluation receipt
 
 shopping-evaluation-receipt-v1.json preserves cases031-038 with exact source revision, question, returned text/kind/cards, measured elapsed time, cumulative attempts and scope. It includes only synthetic evidence, not raw provider reasoning, credentials or raw error payloads. Historical missing-grounded-brief and display-cards-versus-preferred-ID caveats are explicit. It keeps failed results, inactive-caller state and owner_quality_accepted:false. One receipt integrity test passes. This artifact supports audit, not runtime success-rate or production-latency claims.
+
+## Native SDK over loopback HTTP, not a live model substitute
+
+Two additional tests send the actual Groq SDK request through a local HTTP server for positive and rejected composition review. They inspect serialized strict schemas, writer1200/reviewer256 budgets, review low reasoning, exact compiled paragraphs and decision record, and card clearing on negative review.128 combined focused cases pass. No external request occurs and this does not change actual-model semantic failures or enable the experimental caller.
