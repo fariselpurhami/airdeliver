@@ -38,6 +38,11 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
  if row['path'] in budget:
   assert budget[row['path']]['baseline_sha256']==expected
   expected=budget[row['path']]['current_sha256']
+ gw=json.loads((ROOT/'docs/verification/worker-gateway-log-source-evolution-v1.json').read_text())
+ assert set(gw)=={'backend/api/app/services/orchestration/worker_entrypoint.py'}
+ if row['path'] in gw:
+  assert gw[row['path']]['baseline_sha256']==expected
+  expected=gw[row['path']]['current_sha256']
  assert hashlib.sha256(source).hexdigest()==expected
 
 

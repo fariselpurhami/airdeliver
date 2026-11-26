@@ -118,3 +118,38 @@ def test_payment_initialization_rejects_no_configured_gateway(monkeypatch):
     with pytest.raises(worker.StartupDependencyError, match="No payment gateway"):
         runtime.initialize_payment(object())
     assert runtime.services.payment_ready is False
+
+
+def _payment_runtime(monkeypatch, stripe_ok):
+    from pydantic import ValidationError
+    from app.core.config import StripeSettings
+    runtime = worker.WorkerRuntime()
+    runtime.services.http_client = object()
+    def missing():
+        raise ValidationError.from_exception_data("UnconfiguredGateway", [])
+    stripe = (lambda: StripeSettings(STRIPE_SECRET_KEY="sk_test_dummy", STRIPE_WEBHOOK_SECRET="whsec_dummy",
+              STRIPE_PUBLISHABLE_KEY="pk_test_dummy")) if stripe_ok else missing
+    monkeypatch.setattr(worker, "get_stripe_settings", stripe)
+    monkeypatch.setattr(worker, "get_paypal_settings", missing)
+    monkeypatch.setattr(worker, "get_mpesa_settings", missing)
+    return runtime
+
+
+def test_unconfigured_secondary_gateways_log_info_when_another_gateway_is_live(monkeypatch, caplog):
+    import logging
+    runtime = _payment_runtime(monkeypatch, stripe_ok=True)
+    with caplog.at_level(logging.DEBUG):
+        runtime.initialize_payment(object())
+    rows = [r for r in caplog.records if "Payment gateway not configured" in r.getMessage()]
+    assert {r.getMessage().split(": ")[1] for r in rows} == {"paypal", "mpesa"}
+    assert all(r.levelno == logging.INFO for r in rows)
+
+
+def test_unconfigured_gateways_stay_warnings_when_none_is_live(monkeypatch, caplog):
+    import logging
+    runtime = _payment_runtime(monkeypatch, stripe_ok=False)
+    with caplog.at_level(logging.DEBUG), pytest.raises(worker.StartupDependencyError):
+        runtime.initialize_payment(object())
+    rows = [r for r in caplog.records if "Payment gateway not configured" in r.getMessage()]
+    assert {r.getMessage().split(": ")[1] for r in rows} == {"stripe", "paypal", "mpesa"}
+    assert all(r.levelno == logging.WARNING for r in rows)

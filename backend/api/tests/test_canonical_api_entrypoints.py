@@ -9,7 +9,12 @@ def test_worker_is_byte_identical_at_owner_selected_services_domain():
  evolution=json.loads((ROOT/'docs/verification/raw-logging-source-evolution-v1.json').read_text())['modules']
  worker=evolution[manifest['worker_path']]
  assert worker['baseline_source_sha256']==manifest['worker_sha256']
- assert hashlib.sha256((ROOT/manifest['worker_path']).read_bytes()).hexdigest()==worker['current_sha256']
+ later=json.loads((ROOT/'docs/verification/worker-gateway-log-source-evolution-v1.json').read_text()).get(manifest['worker_path'])
+ expected=worker['current_sha256']
+ if later:
+  assert later['baseline_sha256']==expected
+  expected=later['current_sha256']
+ assert hashlib.sha256((ROOT/manifest['worker_path']).read_bytes()).hexdigest()==expected
  assert not (ROOT/'backend/api/worker_entrypoint.py').exists()
  for old in manifest['removed']:assert not (ROOT/old).exists()
  config=manifest['retained_unique_config']
