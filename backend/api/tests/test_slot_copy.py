@@ -91,4 +91,6 @@ def test_customer_typed_product_words_with_digits_are_echoes_not_facts():
     with pytest.raises(SlotError):
         render_slots({'text': "The [[name:1]] works with a PS5 and lasts 30 hours."}, [card], None, 'Do they work with a PS5?')
     with pytest.raises(SlotError):
+        render_slots({'text': "It lasts 30h."}, [card], None, 'Does it last 30h?')
+    with pytest.raises(SlotError):
         render_slots({'text': "It has PS5 support."}, [card], None, 'Do they work with a PS4?')

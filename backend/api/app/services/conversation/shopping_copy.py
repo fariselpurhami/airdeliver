@@ -282,6 +282,10 @@ def validate_draft(draft, cards, context=None, brief=None, message=None):
     requested=(context or {}).get('requested_name')
     if isinstance(requested,str) and requested:
         numeric_text=re.sub(re.escape(requested),'',numeric_text,flags=re.I)
+    # A model-style word the customer typed themselves (letters then digits: PS5, USB3) is an echo, not a number claim.
+    # Digit-first tokens such as 30h or 4K are measurements and stay checked.
+    typed={t.casefold() for t in re.findall(r'\b[A-Za-z]+\d+[A-Za-z0-9]*',message or '')}
+    if typed:numeric_text=re.sub(r'\b[A-Za-z]+\d+[A-Za-z0-9]*',lambda m:' ' if m.group(0).casefold() in typed else m.group(0),numeric_text)
     # Customer budget is not a product price. Permit only an explicitly grounded
     # cap in a budget-labelled phrase, never arbitrary customer numerals/specs.
     cap=(brief or {}).get('budget_max')

@@ -110,9 +110,9 @@ def render_slots(raw, cards, brief=None, message=None):
     outside = _SLOT.sub('\0', text)
     if _ANY_BRACKETS.search(outside) or '\0' in text:
         raise SlotError('slot_malformed')
-    # Product words with digits that the customer typed themselves (PS5, 4K, USB-C2) are echoes, not claimed facts.
-    own = {t.casefold() for t in re.findall(r'[A-Za-z]+\d+[A-Za-z0-9]*|\d+[A-Za-z]+[A-Za-z0-9]*', message or '')}
-    checked = re.sub(r'[A-Za-z]+\d+[A-Za-z0-9]*|\d+[A-Za-z]+[A-Za-z0-9]*', lambda m: ' ' if m.group(0).casefold() in own else m.group(0), outside)
+    # Model-style words (letters first, then digits) that the customer typed themselves (PS5, USB3). Digit-first tokens such as 30h or 4K stay facts are echoes, not claimed facts.
+    own = {t.casefold() for t in re.findall(r'\b[A-Za-z]+\d+[A-Za-z0-9]*', message or '')}
+    checked = re.sub(r'\b[A-Za-z]+\d+[A-Za-z0-9]*', lambda m: ' ' if m.group(0).casefold() in own else m.group(0), outside)
     if re.search(r'\d', checked) or re.search(r'https?://|www\.', outside, re.I):
         raise SlotError('slot_literal_fact')
     if _NUMBER_WORD_FACT.search(outside):

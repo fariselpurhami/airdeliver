@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "2f132599e120c82bbda9c19ba5fb9e25309a12344e3ea86ea0950108fbfca4bc",
+  "current_sha256": "247f890ed3cb06ada54cf7ca994b63451c0710db6a7ff52b0099df2ee0002af4",
+  "replacements": [
+   {
+    "old": "    # Customer budget is not a product price. Permit only an explicitly grounded\n",
+    "new": "    # A model-style word the customer typed themselves (letters then digits: PS5, USB3) is an echo, not a number claim.\n    # Digit-first tokens such as 30h or 4K are measurements and stay checked.\n    typed={t.casefold() for t in re.findall(r'\\b[A-Za-z]+\\d+[A-Za-z0-9]*',message or '')}\n    if typed:numeric_text=re.sub(r'\\b[A-Za-z]+\\d+[A-Za-z0-9]*',lambda m:' ' if m.group(0).casefold() in typed else m.group(0),numeric_text)\n    # Customer budget is not a product price. Permit only an explicitly grounded\n",
+    "count": 1
+   }
+  ]
+ }
+}
