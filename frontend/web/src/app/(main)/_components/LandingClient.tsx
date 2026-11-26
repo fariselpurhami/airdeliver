@@ -480,7 +480,7 @@ const HeroFloatingCard = memo(({ title, image, category, delay, positionClasses,
       >
         <div className={`relative w-full h-full rounded-[20px] lg:rounded-[32px] bg-[#0D0D0C]/80 backdrop-blur-2xl border border-white/10 shadow-[0_15px_30px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] lg:shadow-[0_30px_60px_rgba(0,0,0,0.8)] overflow-hidden group hover:scale-105 transition-transform duration-500 hover:z-50 pointer-events-auto ${colorCls}`}>
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 lg:via-black/20 to-transparent z-10" />
-          <Image src={image} alt="" fill sizes="(max-width: 768px) 30vw, 20vw" decoding="async" className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
+          <Image src={image} alt="" fill sizes="(max-width: 768px) 30vw, 20vw" loading="eager" decoding="async" className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
           <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
             <span className="text-[7px] lg:text-[9px] font-mono uppercase tracking-[0.08em] lg:tracking-[0.3em] opacity-70 text-current mix-blend-overlay break-words">{category}</span>
             <h3 className="text-[10px] lg:text-sm font-bold text-white tracking-wide leading-tight line-clamp-2 break-words" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
