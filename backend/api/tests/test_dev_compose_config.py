@@ -356,3 +356,10 @@ def test_explicit_embedding_override_is_preserved_for_namespace_validation(prepa
     monkeypatch.setenv('EMBEDDING_MODEL','Alibaba-NLP/gte-Qwen2-1.5B-instruct')
     services=config(root,['docker-compose.yml','docker-compose.dev.yml'],root/'.env.dev')['services']
     assert services['api-seeder']['environment']['EMBEDDING_MODEL']=='Alibaba-NLP/gte-Qwen2-1.5B-instruct'
+
+
+def test_dev_web_passes_optional_private_https_host_through_and_defaults_to_off():
+    text=(ROOT/'docker-compose.dev.yml').read_text()
+    assert '- DEV_PUBLIC_HOST=${DEV_PUBLIC_HOST:-}' in text
+    example=(ROOT/'.env.dev.example').read_text()
+    assert 'DEV_PUBLIC_HOST' in example and '\nDEV_PUBLIC_HOST=' not in example
