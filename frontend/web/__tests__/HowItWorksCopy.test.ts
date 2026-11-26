@@ -8,7 +8,7 @@ it('uses the new pill, step title and subtitle; drops the old ones', () => {
   expect(src).not.toContain('FOUR STEPS');
   expect(src).not.toContain('Tell Air what you need');
   expect(src).not.toContain('in four steps.');
-  expect(src).toContain('VERIFIED BEFORE YOU ORDER');
+  expect(src).toContain('END-TO-END ECOSYSTEM');
   expect(src).toContain('title: "Order with Air"');
   expect(src).toContain('Say it or snap it. Every price is checked against the catalog, and one confirmation places one order.');
 });
