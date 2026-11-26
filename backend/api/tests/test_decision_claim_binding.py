@@ -39,3 +39,21 @@ async def test_reviewed_no_pick_has_no_preferred_identity():
   assert json.loads(messages[1]['content'])['decision_record']['preferred_product_id'] is None
   return json.dumps(V)
  assert 'rain protection' in await write_shopping_copy(infer,'rain',[catalog_result(row())],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'decision_v1'})
+
+@pytest.mark.asyncio
+async def test_decision_record_cannot_bypass_negative_independent_review():
+ calls=[]
+ async def infer(messages):
+  calls.append(messages)
+  if len(calls)==1:return json.dumps({'decision':'no_pick','preferred_product_id':None,'decisive_unknown':'Missing rain evidence.','text_template':'Rain protection is not established.'})
+  return json.dumps({**V,'fulfills_discovery_task':False})
+ with pytest.raises(ValueError,match='grounding_review_rejected'):
+  await write_shopping_copy(infer,'rain',[catalog_result(row())],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'decision_v1'})
+ assert len(calls)==2
+
+@pytest.mark.asyncio
+async def test_decision_prose_cannot_invent_customer_laptop_dimensions():
+ card=catalog_result(row());infer=AsyncMock(return_value=json.dumps({'decision':'conditional','preferred_product_id':card.id,'decisive_unknown':'Missing rain evidence.','text_template':card.name+' fits your 15-inch laptop.'}))
+ with pytest.raises(ValueError,match='unsupported_numeric_or_link_claim'):
+  await write_shopping_copy(infer,'rain',[card],{},'catalog_results',1,{'product_answer_shape':'adaptive','claim_binding':'decision_v1'})
+ assert infer.await_count==1
