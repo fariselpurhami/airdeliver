@@ -318,6 +318,14 @@ def fixture_violation(text):
     return next((name for name,pattern in patterns.items() if re.search(pattern,text)),None)
 
 def validate_draft(draft, cards, context=None, brief=None):
+    # Exact catalog names may contain model digits. Explicit ID labels outside
+    # those names disclose application identity rather than shopper evidence.
+    identity_text=draft.text
+    for card in cards:
+        identity_text=re.sub(re.escape(card.name),'',identity_text,flags=re.I)
+    for card in cards:
+        if re.search(r'\b(?:product[ _-]*)?id\s*[:#=]?\s*'+re.escape(str(card.id))+r'(?!\d)',identity_text,re.I):
+            raise ValueError('internal_product_id_in_copy')
     if any(card.evidence_kind=='dev_fixture' for card in cards):
         violation=fixture_violation(draft.text)
         if violation:
@@ -500,7 +508,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         from app.services.structured_output import StructuredOutputError
         if isinstance(exc,StructuredOutputError) and stage.endswith('_provider'):
             stage=stage.removesuffix('_provider')+'_schema'
-        allowed={'duplicate_product_name','gift_followup_count','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
+        allowed={'internal_product_id_in_copy','duplicate_product_name','gift_followup_count','fixture_claim_forbidden','unsupported_product_reference','unsupported_field_claim','undeclared_catalog_name','undeclared_product_mention','unsupported_numeric_or_link_claim','grounding_review_rejected'}
         reason=str(exc) if type(exc) is ValueError and str(exc) in allowed else type(exc).__name__
         error_class=ShoppingCopyTimeout if isinstance(exc,TimeoutError) else ShoppingCopyError
         raise error_class(stage,reason) from exc

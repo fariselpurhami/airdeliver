@@ -26,9 +26,11 @@ def test_new_free_development_receipt_preserves_historical_run_and_unknown_usage
  r=json.loads((ROOT/'docs/verification/shopping-development-receipt-v2.json').read_text())
  assert r['historical_receipt_unchanged'] is True and r['synthetic_only'] is True
  assert not r['owner_quality_accepted'] and not r['active_experimental_caller']
- assert r['requests']==4 and r['measured_tokens']==9511
+ assert r['requests']==6 and r['measured_tokens']==14255
  assert r['requests_with_unknown_usage']==1
  assert r['conservative_total_tokens']==r['measured_tokens']+r['conservative_unknown_token_reserve']
  assert all(c['result']['response_kind']=='system_notice' for c in r['cases'])
- assert all(len(c['source_sha'])==40 and not c['dirty_source'] for c in r['cases'])
+ assert all(len(c['source_sha'])==40 for c in r['cases'])
+ assert [c['case'] for c in r['cases'] if c['dirty_source']]==['007']
+ assert 'Only006receipt' in r['cases'][-1]['dirty_scope']
  assert r['account_plan_verified'] is False

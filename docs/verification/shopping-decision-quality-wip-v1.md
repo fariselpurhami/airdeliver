@@ -146,8 +146,8 @@ No production caller opts in and no live quality acceptance is implied.
 
 ## Segment contract conflict found offline
 
-New development receipt v2 preserves all5case records, including the zero-request
-harness case, four actual requests,9511measuredtokens and an8000token conservative
+New development receipt v2 preserves all7case records, including the zero-request
+harness case, six actual requests,14255measuredtokens and an8000token conservative
 reserve for the400response with missing usage. It contains no provider reasoning.
 
 A test-first policy inspection failed: SegmentDecisionDraft inherited earlier
@@ -156,3 +156,21 @@ override. The segment branch now starts from the unchanged base grounding contra
 and supplies one segment wire contract. Compiler, evidence and reviewer gates are
 unchanged, no active caller changed. This removes an application contradiction;
 it does not establish that the400was caused by it. Real evaluation remains open.
+
+## Different active-path control and offline identity boundary
+
+Case006 after the single-wire fix produced valid segment JSON, but a literal
+15-inch claim lacked its spec reference. The numeric gate withheld it before
+review. This ends the rain/wire probe line, not a prompt-retry invitation.
+Case007 instead asked only for the lower listed price on the active default path.
+It omitted a name claim and exposed an internal product ID. Its first exact
+failure was undeclared_product_mention; no review ran. Application source was
+exact008702f7, with only the006receipt/assertion dirty, recorded explicitly.
+
+Offline reproduction then exposed a separate guard gap: a valid name claim whose
+model number equals the product ID could launder an explicit ID label through the
+numeric check. Three regression cases failed first. The smallest added guard
+rejects ID labels outside exact catalog names, preserving names with model digits
+or an actual ID label. Actual consultation transport confirms fail-closed before
+review. This fixes a boundary, not generator reliability. No new format enabled,
+review unchanged, no quality acceptance, no successful HTTP/UI/checkout claim.

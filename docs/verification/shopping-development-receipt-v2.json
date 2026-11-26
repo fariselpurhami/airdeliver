@@ -4,11 +4,11 @@
   "owner_quality_accepted": false,
   "active_experimental_caller": false,
   "historical_receipt_unchanged": true,
-  "requests": 4,
-  "measured_tokens": 9511,
+  "requests": 6,
+  "measured_tokens": 14255,
   "requests_with_unknown_usage": 1,
   "conservative_unknown_token_reserve": 8000,
-  "conservative_total_tokens": 17511,
+  "conservative_total_tokens": 22255,
   "public_free_caps": {
     "rpm": 30,
     "rpd": 1000,
@@ -146,6 +146,57 @@
         "selected_ids": []
       },
       "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "006",
+      "source_sha": "008702f7aa6eb867f1e7d88399ada6ac48e05c20",
+      "dirty_source": false,
+      "question": "I need a backpack for commuting in the rain and carrying my laptop. My budget is $80. Compare these two and tell me which one to pick, or say if the evidence is not enough.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": "backpack",
+        "budget": "$80",
+        "budget_max": "80",
+        "budget_currency": "USD",
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 5,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
+    },
+    {
+      "case": "007",
+      "source_sha": "008702f7aa6eb867f1e7d88399ada6ac48e05c20",
+      "dirty_source": true,
+      "dirty_scope": "Only006receipt and its assertion uncommitted; app source remained exact008702f7.",
+      "question": "My backpack budget is $80. Which of these two has the lower listed price, and what is that listed price? Do not assess suitability.",
+      "grounded_brief": {
+        "version": 1,
+        "recipient": null,
+        "occasion": null,
+        "category": "backpack",
+        "budget": "$80",
+        "budget_max": "80",
+        "budget_currency": "USD",
+        "preference": null,
+        "excluded_terms": [],
+        "required_features": []
+      },
+      "requests_total_after": 6,
+      "result": {
+        "text": "System notice: a grounded shopping reply could not be generated. No product is reserved and no merchant availability has been verified. Please try again or browse the catalog.",
+        "response_kind": "system_notice",
+        "selected_ids": []
+      },
+      "scope": "Production recommendation writer and review methods with synthetic supplied catalog. Not full HTTP/database/search/checkout or multimodal acceptance."
     }
   ],
   "findings": [
@@ -153,7 +204,9 @@
     "002 sent no request because harness pacing was inside app deadline; pacing fixed before timed call. Not a provider failure.",
     "003 decision_blocks selected no_pick but first exact replay failed invalid_block_newline.",
     "004 strict single-line schema removed newline failure; unchanged numeric gate rejected literal15-inch without spec claim.",
-    "005 typed segments returned400json_validate_failed, failed generation not parseable. No retry."
+    "005 typed segments returned400json_validate_failed, failed generation not parseable. No retry.",
+    "006 single-wire segment correction produced valid JSON/no_pick; numeric gate withheld a literal15-inch claim without a spec reference before review. Rain/wire probe line ended.",
+    "007 active simple-price control named product but omitted name claim and printed internal ID; first exact gate undeclared_product_mention. No retry."
   ],
   "limits": [
     "Default/source model configuration checked, not deployed environment overrides.",
