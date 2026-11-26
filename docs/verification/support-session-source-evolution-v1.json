@@ -1,0 +1,7 @@
+{
+  "backend/api/app/services/conversation/neural_core_service.py": {
+    "baseline_sha256": "19e79bdf0ee7487ad5a6342cc988b7ebfaf73f74110cba1a7469a1d598901c0c",
+    "current_sha256": "f8214e14859b3b3e52f9c0e9b986ab3625b478f8fbf294299b0bc573e1e8c4f7",
+    "reason": "Required snapshot hydration and atomic owner generation plus snapshot commit boundary"
+  }
+}

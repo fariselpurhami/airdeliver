@@ -23,6 +23,11 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
  assert set(evolution)=={'backend/api/app/services/conversation/free_llm_service.py'}
  logging_evolution=json.loads((ROOT/'docs/verification/raw-logging-source-evolution-v1.json').read_text())['modules']
  expected=logging_evolution[row['path']]['current_sha256'] if row['path'] in logging_evolution else evolution.get(row['path'],row['canonical_sha256'])
+ atomic=json.loads((ROOT/'docs/verification/support-session-source-evolution-v1.json').read_text())
+ assert set(atomic)=={'backend/api/app/services/conversation/neural_core_service.py'}
+ if row['path'] in atomic:
+  assert atomic[row['path']]['baseline_sha256']==expected
+  expected=atomic[row['path']]['current_sha256']
  assert hashlib.sha256(source).hexdigest()==expected
 
 

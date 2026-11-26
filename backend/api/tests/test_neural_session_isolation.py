@@ -3,7 +3,10 @@ import pytest
 from app.services.neural_core_service import NeuralCoreService,RouterDecision
 
 class Cache:
-    def __init__(self):self.data={}
+    def __init__(self):
+        self.data={}
+        from tests.support_snapshot_cache_adapter import SnapshotRedisAdapter
+        self.client=SnapshotRedisAdapter(self.data)
     async def get_json(self,key):return self.data.get(key)
     async def set_json(self,key,value,ttl=None):self.data[key]=value
 

@@ -282,7 +282,8 @@ class NeuralCoreService:
         """Retrieves and validates session state from the distributed cache."""
         key = self._get_session_key(session_id)
         try:
-            raw_data = await self.cache.get_json(key)
+            from app.services.conversation.support_session_commit import hydrate, _snapshots
+            raw_data = await hydrate(self.cache,session_id,key) if _snapshots.get() is not None else await self.cache.get_json(key)
             if raw_data:
                 return SessionMemory.model_validate(raw_data)
         except (ValidationError, TypeError, ValueError) as exc:
@@ -298,6 +299,10 @@ class NeuralCoreService:
             deferred.append((session_id,memory.model_copy(deep=True)))
             return
         key = self._get_session_key(session_id)
+        from app.services.conversation.support_session_commit import commit, _snapshots
+        if _snapshots.get() is not None:
+            await commit(self.cache,key,memory.model_dump(mode="json"),NeuralCoreConfig.SESSION_TTL_SEC)
+            return
         try:
             import json
             from app.services.personalization_fence import write
@@ -844,6 +849,8 @@ class NeuralCoreService:
         memory_token=_deferred_memory.set(deferred)
         from app.services.shared_provider_admission import _turn_budget,TurnBudget
         budget_token=_turn_budget.set(TurnBudget())
+        from app.services.conversation.support_session_commit import _snapshots,SessionStateUnavailable,SessionStateConflict
+        snapshot_token=_snapshots.set({})
         try:
             response=await self._handle_message_with_context(db,message,user,session_id,image_base64)
             if preferences:
@@ -860,7 +867,11 @@ class NeuralCoreService:
             _deferred_memory.reset(memory_token)
             memory_token=None
             from app.services.personalization_fence import can_publish
-            if user is not None and type(getattr(user,'id',None)) is int and not await can_publish(self.cache,user.id):
+            try:
+                publish_current = user is None or type(getattr(user,'id',None)) is not int or await can_publish(self.cache,user.id)
+            except Exception as exc:
+                raise SessionStateUnavailable('Owner publication state unavailable') from exc
+            if not publish_current:
                 return NeuralCoreResponse(text='Personalization was reset during this reply. Please retry.',response_kind='system_notice',confidence=0,explain='Personalization reset',telemetry={'intent':'CONTEXT_REVALIDATION','entities':[],'turn':0})
             for key,memory in deferred:
                 await self._persist_session(key,memory)
@@ -878,7 +889,12 @@ class NeuralCoreService:
                     _log_inference_failure('neural_core.preference_collection_unavailable',exc)
                     await db.rollback()
             return response
+        except (SessionStateUnavailable,SessionStateConflict):
+            return NeuralCoreResponse(text='System notice: this conversation changed or its saved state could not be confirmed. Please retry your question with your current constraints.',
+                response_kind='system_notice',confidence=0,explain='Session state not committed',
+                telemetry={'intent':'CONTEXT_REVALIDATION','entities':[],'turn':0})
         finally:
+            _snapshots.reset(snapshot_token)
             _turn_budget.reset(budget_token)
             if memory_token is not None:_deferred_memory.reset(memory_token)
             _request_preferences.reset(token)
