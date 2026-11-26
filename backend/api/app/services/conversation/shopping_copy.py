@@ -467,7 +467,7 @@ async def _validate_or_voice_repair(infer,draft,cards,context,brief,message):
     except ValueError as invalid:
         if str(invalid) not in _LEAK_REASONS:
             raise
-        fixed=await _voice_repair(infer,draft,cards,context,brief,message,rescue=True)
+        fixed=await _voice_repair(infer,draft,cards,context,brief,message,rescue=str(invalid)=='unsupported_superiority_claim')
         if fixed is draft:
             raise
         return fixed
