@@ -418,7 +418,7 @@ VOICE_REPAIR_FOUR=(" This answer has four blocks separated by blank lines, keep 
     "it connects them to what the customer is doing, and it moves them forward. Everything else is free: choose how to open, whether the specifics are bullet lines (only for two or more precise facts) or a sentence, "
     "how long each block is, and whether the close is a question or an offer, to fit this customer; never reuse a stock opening or closing. Add no heading or label.")
 
-async def _voice_repair(infer,draft,cards,context,brief,message):
+async def _voice_repair(infer,draft,cards,context,brief,message,rescue=False):
     """One extra low-effort call that rewrites only the text. Every failure keeps the original, already validated draft."""
     import logging
     ctx=context or {}
@@ -429,7 +429,7 @@ async def _voice_repair(infer,draft,cards,context,brief,message):
     tells=voice_tells(draft.text,pnames)
     asked_stock=bool(re.search(r'stock|availab|in store|pick ?up',message or '',re.I))
     if not asked_stock:tells=tells+_STOCK_PLACE.findall(draft.text)
-    if not tells:
+    if not tells and not rescue:
         return draft
     log=logging.getLogger('airdeliver.shopping_copy')
     try:
@@ -444,7 +444,7 @@ async def _voice_repair(infer,draft,cards,context,brief,message):
         paras=lambda t:len([x for x in re.split(r'\n\s*\n',t) if x.strip()])
         flat=len(draft.text)>=200 and paras(new.text)<2
         casual=bool(re.search(r"!|^\s*(?:hey|hi|hello|hiya)\b",new.text,re.I))
-        if ((len(voice_tells(new.text,pnames))+(0 if asked_stock else len(_STOCK_PLACE.findall(new.text))))>=len(tells) or not names_kept or flat or casual or (four and paras(new.text)<min(4,paras(draft.text))) or not digits(draft.text)<=digits(new.text)
+        if (((len(voice_tells(new.text,pnames))+(0 if asked_stock else len(_STOCK_PLACE.findall(new.text))))>=len(tells) and not rescue) or not names_kept or flat or casual or (four and paras(new.text)<min(4,paras(draft.text))) or not digits(draft.text)<=digits(new.text)
                 or len(new.text)>len(draft.text)*1.25+20):
             log.info('voice_repair_kept_original reason=rejected_by_guards')
             return draft
@@ -456,7 +456,7 @@ async def _voice_repair(infer,draft,cards,context,brief,message):
         return draft
 
 
-_LEAK_REASONS={'unsupported_numeric_or_link_claim','unclaimed_stock_claim','unclaimed_spec_claim'}
+_LEAK_REASONS={'unsupported_numeric_or_link_claim','unclaimed_stock_claim','unclaimed_spec_claim','unsupported_superiority_claim'}
 async def _validate_or_voice_repair(infer,draft,cards,context,brief,message):
     """validate_draft; a leak-class rejection (IDs, field names, status codes, jargon) gets one voice rewrite first.
 
@@ -467,7 +467,7 @@ async def _validate_or_voice_repair(infer,draft,cards,context,brief,message):
     except ValueError as invalid:
         if str(invalid) not in _LEAK_REASONS:
             raise
-        fixed=await _voice_repair(infer,draft,cards,context,brief,message)
+        fixed=await _voice_repair(infer,draft,cards,context,brief,message,rescue=True)
         if fixed is draft:
             raise
         return fixed

@@ -210,3 +210,14 @@ def test_rules_vary_shape_and_limit_bullets_to_multiple_precise_items():
     text,seen=run([draft(FOUR_ROBOTIC),draft(FOUR_FRIEND),OK],{'product_answer_shape':'four_phase'})
     c=seen[1][0]['content']
     assert 'rather than a fixed pattern' in c and 'two or more precise' in c and 'never reuse a stock opening' in c
+
+
+BESTY="Studio Headphones are wired. I can suggest the best fit once you tell me what you listen to."
+
+def test_superiority_wording_gets_the_rewrite_and_is_withheld_only_if_the_rewrite_keeps_it():
+    text,seen=run([draft(BESTY),draft("Studio Headphones are wired. Tell me what you listen to and I will narrow it down."),OK])
+    assert 'best' not in text.casefold() and len(seen)==3
+    import pytest
+    from app.services.shopping_copy import ShoppingCopyError
+    with pytest.raises(ShoppingCopyError):
+        run([draft(BESTY),draft("Studio Headphones are the best choice for you."),OK])
