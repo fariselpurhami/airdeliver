@@ -65,3 +65,10 @@ red1failed21passed; strict public support hydration now rejects typed corruption
 before inference rather than silently resetting. Direct historical helper behavior
 is retained outside the public strict boundary.172focused tests pass,22real
 Redis/service/HTTP cases. New source receipt current digest updated, baseline kept.
+
+Final-publication follow-on: reset finishing immediately after successful commit
+was another red boundary1failed22passed. Owner generation is now rechecked after
+optional preference collection, immediately before service return, in addition to
+the atomic precommit fence.173focused pass,23real Redis/service/HTTP cases. There
+can still be a reset after the final service check while bytes are in transit;
+client conversation-generation suppression is the separate browser obligation.

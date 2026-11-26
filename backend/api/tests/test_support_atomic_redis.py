@@ -199,3 +199,15 @@ async def test_invalid_typed_snapshot_is_not_silently_fresh_context(real_cache):
  svc._analyze_intent=route
  result=await svc.handle_message(None,'new question',None,'same-session')
  assert result.response_kind=='system_notice' and calls==[]
+
+@pytest.mark.asyncio
+async def test_owner_reset_immediately_after_commit_is_rechecked_before_return(real_cache):
+ cache,_=real_cache;svc=service(cache);original=cache.client.eval
+ from app.services.personalization_fence import key
+ async def reset_after_commit(script,*args,**kwargs):
+  result=await original(script,*args,**kwargs)
+  if "return 'committed'" in script:await cache.client.incr(key(7))
+  return result
+ cache.client.eval=reset_after_commit
+ reply=await svc.handle_message(None,'synthetic goal',SimpleNamespace(id=7,full_name='Synthetic'),'same-session')
+ assert reply.response_kind=='system_notice'

@@ -891,6 +891,14 @@ class NeuralCoreService:
                 except Exception as exc:
                     _log_inference_failure('neural_core.preference_collection_unavailable',exc)
                     await db.rollback()
+            # A reset can finish after commit or during optional collection.
+            # Recheck at the final service publication boundary as well.
+            try:
+                if user is not None and type(getattr(user,'id',None)) is int and not await can_publish(self.cache,user.id):
+                    raise SessionStateConflict('Owner reset after commit')
+            except (SessionStateUnavailable,SessionStateConflict):raise
+            except Exception as exc:
+                raise SessionStateUnavailable('Final owner publication check unavailable') from exc
             return response
         except (SessionStateUnavailable,SessionStateConflict):
             return NeuralCoreResponse(text='System notice: this conversation changed or its saved state could not be confirmed. Please retry your question with your current constraints.',
