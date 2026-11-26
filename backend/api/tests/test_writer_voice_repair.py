@@ -148,3 +148,10 @@ def test_rewrite_with_tidy_bullets_is_accepted_and_bullets_alone_do_not_trigger_
     assert text==LONG_BULLETED and '- Battery life' in text
     text,seen=run([draft(LONG_BULLETED),OK])
     assert text==LONG_BULLETED and len(seen)==2
+
+
+def test_rewrite_with_greeting_or_exclamation_keeps_original():
+    chatty="Hey there! I have the Smart Watch in stock locally.\n\n- Battery life: I don't have it\n- Sleep tracking: I have nothing on it\n\nIf those matter, we could look at another wearable that lists them."
+    text,seen=run([draft(LONG_ROBOTIC),draft(chatty),OK])
+    assert text==LONG_ROBOTIC and len(seen)==3
+    assert 'no greeting' in seen[1][0]['content'] and 'no exclamation' in seen[1][0]['content']
