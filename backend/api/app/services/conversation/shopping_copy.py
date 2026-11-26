@@ -47,6 +47,28 @@ class TemplateShoppingDraft(BaseModel):
     text_template: StrictStr = Field(min_length=1,max_length=2000)
 
 
+class DecisionShoppingDraft(TemplateShoppingDraft):
+    decision: Literal['pick','conditional','no_pick']
+    preferred_product_id: StrictInt|None
+    decisive_unknown: StrictStr = Field(max_length=500)
+
+
+def parse_decision(raw,reference_map):
+    record=DecisionShoppingDraft.model_validate_json(raw)
+    known={claim['product_id'] for claim in reference_map.values()}
+    if record.decision=='no_pick':
+        if record.preferred_product_id is not None or not record.decisive_unknown.strip():
+            raise ValueError('inconsistent_decision_record')
+    elif record.preferred_product_id not in known:
+        raise ValueError('unknown_preferred_identity')
+    elif (record.decision=='pick' and record.decisive_unknown.strip()) or (record.decision=='conditional' and not record.decisive_unknown.strip()):
+        raise ValueError('inconsistent_decision_record')
+    draft=resolve_template_claims(json.dumps({'text_template':record.text_template}),reference_map)
+    if record.preferred_product_id is not None and record.preferred_product_id not in draft.product_ids:
+        raise ValueError('preferred_identity_not_in_prose')
+    return draft,record.model_dump(exclude={'text_template'})
+
+
 def resolve_template_claims(raw,reference_map):
     template=TemplateShoppingDraft.model_validate_json(raw).text_template
     references=re.findall(r'\{\{(c[0-9]+)\}\}',template)
@@ -301,9 +323,10 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         payload={'task':'no_match','customer_message':message,'customer_brief':brief,'catalog_evidence':[],
                  'scope':'No eligible current retrieved catalog cards; not exhaustive inventory'}
     reference_map={}
-    use_template=(context or {}).get('claim_binding')=='template_v1'
+    use_decision=(context or {}).get('claim_binding')=='decision_v1'
+    use_template=(context or {}).get('claim_binding') in {'template_v1','decision_v1'}
     use_references=(not no_match and (context or {}).get('product_answer_shape')=='adaptive'
-        and (context or {}).get('claim_binding') in {'references_v1','template_v1'})
+        and (context or {}).get('claim_binding') in {'references_v1','template_v1','decision_v1'})
     use_template=use_template and use_references
     if use_references:
         for card in evidence:
@@ -340,8 +363,17 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     if use_template:
         writer_rules += ' Do not type a literal product name beside its name placeholder: the placeholder already renders that exact name. Lead with the answer. Separate decision and decisive check into short paragraphs when useful; no mandatory headings. Avoid repeating card prices unless needed for the customer question.'
         review_rules += ' A decisive unverified requirement prevents a proven suitability claim. Require conditional preference or no pick with the specific unresolved check. Reject a duplicated full product name immediately repeated in parentheses, repetitive price recap or filler. A simple factual answer needs no forced pitch or question.'
-    writer_schema=TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
+    if use_decision:
+        writer_rules=writer_rules.replace('Return JSON{text_template}', 'Return DecisionShoppingDraft JSON')
+        writer_rules += ' Decision record: choose pick only when the requested decisive evidence is present, conditional for one preference with an unresolved must-have, or no_pick when no responsible preference exists. Set preferred_product_id to that one card or null for no_pick. decisive_unknown is empty only for a proven pick; otherwise name the exact missing must-have evidence. text_template must express the same decision, not defer a requested choice to a menu. Compared evidence cards are not additional preferred picks. This record is your explicit task plan, not product proof.'
+        review_rules += ' Review decision_record and compiled draft together. Reject a decision inconsistent with the prose or evidence, a pick with an unresolved decisive requirement, or a two-option menu replacing a requested one preference/no-pick decision. Unknown must not become an invented defect. The record cannot authenticate claims or bypass any review criterion.'
+    writer_schema=DecisionShoppingDraft if use_decision else TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
+    decision_record={}
     def parse_writer(raw):
+        nonlocal decision_record
+        if use_decision:
+            draft,decision_record=parse_decision(raw,reference_map)
+            return draft
         if use_template:return resolve_template_claims(raw,reference_map)
         return resolve_claim_references(raw,reference_map) if use_references else ShoppingDraft.model_validate_json(raw)
     # One total budget covers writer, review and all inference retry backoff.
@@ -374,7 +406,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
                 validate_draft(draft,cards,context,brief)
             stage='review_provider'
             review=await infer_schema(infer,[{'role':'system','content':review_rules},
-                {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump()},ensure_ascii=False,separators=(',',':'))}],GroundingReview)
+                {'role':'user','content':json.dumps({'input':payload,'draft':draft.model_dump(),**({'decision_record':decision_record} if use_decision else {})},ensure_ascii=False,separators=(',',':'))}],GroundingReview)
             stage='review_schema'
             verdict=GroundingReview.model_validate_json(review)
             stage='review_verdict'
