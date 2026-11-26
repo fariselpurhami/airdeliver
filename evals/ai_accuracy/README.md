@@ -1,6 +1,6 @@
 # AI accuracy evaluation (English), v1 seed
 
-Status: seed only. 24 cases cannot give a tight accuracy number (a perfect score on 24 still has a 95% lower bound near 86%). Target is 200+ cases before any headline percentage is quoted.
+Status: v2 draft. Templated variants of the same few shapes, so the effective diversity is lower than the count. The seed had 24 cases cannot give a tight accuracy number (a perfect score on 24 still has a 95% lower bound near 86%). Target is 200+ cases before any headline percentage is quoted.
 
 Method: each case has rule-based pass criteria (required pattern, forbidden patterns, length, question count, whether products may be returned). No model judges the model. score.py reports per-category and overall pass rate with a Wilson 95% interval and n, and counts unscored cases.
 
