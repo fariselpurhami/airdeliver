@@ -163,3 +163,30 @@ async def test_sequential_same_input_is_two_turns_not_automatic_deduplication(re
  for _ in range(2):assert (await svc.handle_message(None,'same explicit goal',None,'same-session')).response_kind=='conversation'
  saved=await cache.get_json_required(svc._get_session_key('same-session'))
  assert len(saved['history'])==4
+
+@pytest.mark.asyncio
+async def test_identical_capped_history_still_has_unique_commit_revision(real_cache):
+ cache,_=real_cache;svc=service(cache)
+ for _ in range(6):await svc.handle_message(None,'identical goal',None,'same-session')
+ before=await cache.client.get(svc._get_session_key('same-session'))
+ assert (await svc.handle_message(None,'identical goal',None,'same-session')).response_kind=='conversation'
+ after=await cache.client.get(svc._get_session_key('same-session'))
+ # Same capped semantic history must not make a new commit equal an old raw
+ # snapshot, otherwise two concurrent identical turns can both pass CAS.
+ assert before!=after
+
+@pytest.mark.asyncio
+async def test_concurrent_identical_turns_on_saturated_history_still_have_one_winner(real_cache):
+ cache,_=real_cache
+ seed=service(cache)
+ for _ in range(6):await seed.handle_message(None,'identical goal',None,'same-session')
+ services=[service(cache),service(cache)];both=asyncio.Event();count=0
+ async def route(*args):
+  nonlocal count
+  count+=1
+  if count==2:both.set()
+  await both.wait()
+  return RouterDecision(intent='SOCIAL_CHAT',social_reply='ok')
+ for svc in services:svc._analyze_intent=route
+ replies=await asyncio.gather(*(svc.handle_message(None,'identical goal',None,'same-session') for svc in services))
+ assert sorted(r.response_kind for r in replies)==['conversation','system_notice']

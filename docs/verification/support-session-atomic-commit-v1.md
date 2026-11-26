@@ -47,3 +47,14 @@ reset-response fences remain separate obligations.
 
 Final focused preparation:169tests passed, including19real temporary Redis/service/
 HTTP cases, existing support/visual/session contracts and provenance checks.
+
+## Adversarial identical-history follow-on
+
+b0c60d90 all5hosted checks green; backend2821passed3skipped. Before acceptance,
+new real-Redis saturated-history test exposed that content-equality CAS can see
+identical serialized bytes after a new turn. Red1failed19passed. Added opaque
+per-commit revision nonce to the stored snapshot, separate from customer memory
+fields. Both unchanged semantic history revision and concurrent identical-turn
+one-winner tests now pass. Existing model schema ignores this storage-only field;
+it is never supplied as customer/claim evidence.171focused tests now pass including
+21temporary real Redis/service/HTTP cases. Full new-head CI required again.

@@ -3,6 +3,7 @@
 No long-lived lock, merge, provider retry or swallowed commit failure.
 """
 import json
+from uuid import uuid4
 from contextvars import ContextVar
 from app.services.personalization_fence import snapshot,key as owner_key
 
@@ -39,6 +40,8 @@ async def commit(cache,key,value,ttl):
  state=_snapshots.get()
  if state is None or key not in state:raise SessionStateUnavailable('Missing hydrated snapshot')
  raw,generation,uid=state[key]
+ # Opaque changing revision prevents identical capped histories from ABA.
+ value={**value,"_support_revision":uuid4().hex}
  try:
   result=await cache.client.eval(SCRIPT,2,key,owner_key(uid) if uid else key,generation,
    'missing' if raw is None else 'present',raw or '',json.dumps(value,separators=(',',':')),ttl)
