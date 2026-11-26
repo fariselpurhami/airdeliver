@@ -10,7 +10,7 @@ import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
 import { AirSparkles } from '@/components/ui/AirSparkles';
-import { AlertTriangle, Bot, ShoppingBag, Zap, Layers, ChevronLeft, ChevronRight, Activity, BadgeCheck } from 'lucide-react';
+import { AlertTriangle, ShoppingBag, Zap, Layers, ChevronLeft, ChevronRight, Activity, BadgeCheck } from 'lucide-react';
 import Image from 'next/image';
 import { MobileHomeFloatingCards } from '@/components/hero/MobileHomeFloatingCards';
 import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/FloatingHeroCards';
@@ -307,7 +307,7 @@ const ProductCard = React.memo(({ product, onOpen }: { product: Product, onOpen:
                             </motion.button>
                         ) : (
                             <motion.button id={uniqueBtnId} key="add" onClick={handleAddToCart} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="h-7 w-7 md:w-auto md:h-10 md:px-4 rounded-lg md:rounded-xl bg-white text-black font-bold text-[9px] md:text-[10px] tracking-widest flex items-center justify-center gap-1.5 md:gap-2 hover:bg-cyan-400 transition-colors shadow-lg">
-                                <Bot size={12} className="md:w-3.5 md:h-3.5" />  <span className="hidden md:inline">order with air</span>
+                                <AirSparkles className="h-3 w-3 text-purple-500 md:h-3.5 md:w-3.5" />  <span className="hidden md:inline">order with air</span>
                             </motion.button>
                         )}
                     </AnimatePresence>

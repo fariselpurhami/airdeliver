@@ -11,6 +11,9 @@ test('shopping mark has one large star and two small stars without changing assi
  const home=fs.readFileSync(path.join(process.cwd(),'src/app/(main)/_components/LandingClient.tsx'),'utf8');
  const products=fs.readFileSync(path.join(process.cwd(),'src/app/(main)/products/page.tsx'),'utf8');
  expect(home.match(/<AirSparkles /g)).toHaveLength(2);
- expect(products.match(/<AirSparkles /g)).toHaveLength(1);
- expect(products).toContain('<Bot size={12}');
+ expect(products.match(/<AirSparkles /g)).toHaveLength(2);
+ expect(products).not.toContain('<Bot ');
+ const card=fs.readFileSync(path.join(process.cwd(),'src/components/products/ProductCard.tsx'),'utf8');
+ expect(card).not.toContain('<Bot ');
+ expect(card.match(/<AirSparkles /g)).toHaveLength(1);
 });
