@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/compact_copy_contracts.py": {
+  "baseline_sha256": "02ebd2bdd1a7088032f8ee61141ffe130c381a47b0ac77a7c95916718e8c7a4b",
+  "current_sha256": "3ac94eba5356f8316d012a1bddfb32247106d5eb3f2afdbb4293e869c3657425",
+  "replacements": [
+   {
+    "old": "Answer first, useful supported tradeoffs, specific unknown, useful next step; allow decline.",
+    "new": "Answer first, useful supported tradeoffs, specific unknown, useful next step the shop really has (a clarifying question or other catalog items); never offer holds, alerts, monitoring, notifications or follow-ups; allow decline.",
+    "count": 1
+   }
+  ]
+ }
+}

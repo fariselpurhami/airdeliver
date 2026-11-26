@@ -20,6 +20,7 @@ REQUIRED={
  'alternatives':['same-purpose evidence','never global','outside_budget is not out-of-stock'],
  'tasks':['target_searches','no borrowing specs','no invented discount','listed price/currency'],
  'customer_experience':['specific unknown','low-pressure','varied relevant wording','never invented certainty'],
+  'no_invented_offers':['next step the shop really has','never offer holds, alerts, monitoring, notifications'],
 }
 @pytest.mark.parametrize('name,phrases',REQUIRED.items())
 def test_writer_obligation_coverage(name,phrases):
