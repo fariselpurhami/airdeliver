@@ -1,0 +1,18 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "47f4de76e2750d588d1278ee5e5bd75db54aa81dd088462f3ed38632a4ad641e",
+  "current_sha256": "5e6f03d2f5bd61e9f35b2b8ccbd788d2f961cfb375a7c37648c24f6d83d54214",
+  "replacements": [
+   {
+    "old": "    if any(n not in allowed for n in numbers) or re.search(r'https?://|www\\.',draft.text,re.I):",
+    "new": "    allowed_values={_number_value(n) for n in allowed}\n    if any(n not in allowed and _number_value(n) not in allowed_values for n in numbers) or re.search(r'https?://|www\\.',draft.text,re.I):",
+    "count": 1
+   },
+   {
+    "old": "\ndef validate_draft(",
+    "new": "\ndef _number_value(token):\n    \"\"\"Numeric value of a matched token so 24 equals 24.00; text that is not a number keeps its own text.\"\"\"\n    from decimal import Decimal,InvalidOperation\n    plain=token.replace(',','') if re.fullmatch(r'\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?',token) else token.replace(',','.')\n    try:return Decimal(plain).normalize()\n    except InvalidOperation:return token\n\ndef validate_draft(",
+    "count": 1
+   }
+  ]
+ }
+}
