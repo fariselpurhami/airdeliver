@@ -113,7 +113,7 @@ describe('HomePage', () => {
 
   it('renders the HowItWorks steps', () => {
     renderLanding();
-    expect(screen.getByText('Tell Air what you need')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /Order with Air/ })).toBeInTheDocument();
     expect(screen.getByText('Price and availability checks')).toBeInTheDocument();
     expect(screen.getByText('Search from a photo')).toBeInTheDocument();
     expect(screen.getByText('Review, then confirm')).toBeInTheDocument();

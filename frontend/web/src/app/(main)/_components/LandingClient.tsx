@@ -214,7 +214,7 @@ const HERO_CARDS: ReadonlyArray<HeroFloatingCardProps> = [
 ];
 
 const PRODUCTION_STEPS = [
-  { icon: AirSparklesIcon, step: "01", title: "Tell Air what you need", description: "Type or speak a request. Air turns it into a search of the product catalog and shows matching products, so you do not have to scroll through categories." },
+  { icon: AirSparklesIcon, step: "01", title: "Order with Air", description: "Type or speak a request. Air turns it into a search of the product catalog and shows matching products, so you do not have to scroll through categories." },
   { icon: Cpu, step: "02", title: "Price and availability checks", description: "Every result carries the price and stock status from the catalog. An item whose price cannot be verified cannot be added to your cart." },
   { icon: Camera, step: "03", title: "Search from a photo", description: "Add a photo (JPEG, PNG, WebP or GIF, up to 6 MB). Air reads it as a short hint to guide the search. A photo is a hint, not proof of what a product is, so results are still checked against the catalog." },
   { icon: ShieldCheck, step: "04", title: "Review, then confirm", description: "Check your cart and shipping address, then choose from the payment methods currently available. Confirming sends one order, and a retry never creates a second one. Checkout is US only, in US dollars." },
@@ -861,7 +861,7 @@ const HowItWorksSection = memo(() => {
             aria-hidden="true"
           >
             <Activity size={16} className={`${prefersReducedMotion ? '' : 'animate-pulse'} text-cyan-400`} />
-            <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">FOUR STEPS</span>
+            <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">VERIFIED BEFORE YOU ORDER</span>
           </motion.div>
 
           <motion.h2
@@ -870,7 +870,7 @@ const HowItWorksSection = memo(() => {
             className="text-[2.75rem] font-bold leading-[1.02] tracking-[-0.03em] text-white drop-shadow-2xl transform-gpu md:text-6xl lg:text-7xl"
           >
             <span>How it</span> <br className="md:hidden" />
-            <span className="bg-gradient-to-r from-cyan-400 via-white to-purple-500 bg-clip-text text-transparent md:pl-3">
+            <span className="bg-gradient-to-r from-cyan-400 via-white to-purple-500 bg-clip-text text-transparent tracking-[0.06em] md:pl-3 md:tracking-[0.05em]">
               works
             </span>
           </motion.h2>
@@ -879,7 +879,7 @@ const HowItWorksSection = memo(() => {
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.8 }}
             className="mt-6 max-w-xl text-base font-normal leading-relaxed text-zinc-400 transform-gpu md:text-lg"
           >
-            From a typed request or a photo to a reviewed order, in four steps.
+            Say it or snap it. Every price is checked against the catalog, and one confirmation places one order.
           </motion.p>
         </div>
 
