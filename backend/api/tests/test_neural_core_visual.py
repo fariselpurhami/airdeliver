@@ -17,6 +17,8 @@ pytestmark = pytest.mark.anyio
 class FakeCache:
     def __init__(self, initial=None):
         self.store = dict(initial or {})
+        from tests.support_snapshot_cache_adapter import SnapshotRedisAdapter
+        self.client=SnapshotRedisAdapter(self.store)
 
     async def get_json(self, key):
         return self.store.get(key)

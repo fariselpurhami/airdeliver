@@ -28,6 +28,11 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
  if row['path'] in writer:
   assert writer[row['path']]['baseline_sha256']==expected
   expected=writer[row['path']]['current_sha256']
+ atomic=json.loads((ROOT/'docs/verification/support-session-source-evolution-v1.json').read_text())
+ assert set(atomic)=={'backend/api/app/services/conversation/neural_core_service.py'}
+ if row['path'] in atomic:
+  assert atomic[row['path']]['baseline_sha256']==expected
+  expected=atomic[row['path']]['current_sha256']
  assert hashlib.sha256(source).hexdigest()==expected
 
 
