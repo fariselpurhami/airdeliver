@@ -71,3 +71,11 @@ review verdict. This explicitly demonstrates why structure alone is insufficient
 17focused tests pass,7DB-dependent cases skipped locally. No claim of running
 those7or fresh provider review during replay. Next intent-contract work must keep
 this distinction between evidence-valid shape and decision-valid meaning.
+
+Seven controlled intent contrast tests now exercise actual _analyze_intent and
+shared writer/reviewer propagation: same card, different material/call-use/price/
+negotiation/objection/comparison goals, plus a prior price turn changing to missing
+microphone evidence. Current question, task, strategy and evidence reach both
+stages unchanged; ungrounded urgency, competitor and customer signals are cleared.
+24related tests pass. Controlled router/writer outputs mean propagation proof,
+not real intent-recognition accuracy. No new active intent state was introduced.
