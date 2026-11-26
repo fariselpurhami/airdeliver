@@ -182,3 +182,8 @@ The public normalizer now invokes the same existing validate_status_source guard
 before publisher/quote/date binding.190focused status/source tests pass, preserving
 all old rules and inactive status. This does not authenticate source metadata or
 supply the still-missing real publisher/date/model/market adapter.
+
+## Reviewed per-region publisher allowlist (US configured)
+
+Owner approved the proposed tiers on 2026-11-26 (phonemsg-01M8BEFK0C80CXTZZYTEZ5GAQM, phonemsg-01M8BEER79K67RQGAAHJTJK4K8 proposal) with the US as the only market now and later expansion expected (phonemsg-01M8BEFVK44WN189N2S11R8WGF). `status_source_allowlist.py` holds data per region; the US region is the only one configured and an unconfigured region is refused, never defaulted. Tier 1 brand hosts (with US path prefixes where the site is regionalised) are valid only for their own brand and may support release, price and availability; Tier 2 tech press supports release and announcement only; Tier 3 fcc.gov supports certification only. Resellers, marketplaces, forums, social media and undated pages are not on any tier.
+17 tests (module missing first, then pass). The host and path list is a reviewed proposal, not live-verified: each host and US path prefix must be confirmed against the live site before the first real search. No page fetch or provider call exists in this change.
