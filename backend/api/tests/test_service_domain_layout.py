@@ -47,6 +47,15 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
  if row['path'] in truth:
   assert truth[row['path']]['previous_sha256']==expected
   expected=truth[row['path']]['current_sha256']
+ ng=json.loads((ROOT/'docs/verification/negated-policy-source-evolution-v1.json').read_text())
+ assert set(ng)=={'backend/api/app/services/conversation/shopping_copy.py'}
+ if row['path'] in ng:
+  edited=source.decode()
+  for edit in ng[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==ng[row['path']]['baseline_sha256']==expected
+  expected=ng[row['path']]['current_sha256']
  assert hashlib.sha256(source).hexdigest()==expected
 
 

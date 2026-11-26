@@ -181,6 +181,20 @@ def fixture_violation(text):
     }
     return next((name for name,pattern in patterns.items() if re.search(pattern,text)),None)
 
+_NEGATION=re.compile(r"(?:\bnot(?!\s+only)|\bcannot|n't|\bunable)\W+(?:\w+\W+){0,3}?(?:list\w*|specif\w*|stat\w*|mention\w*|indicat\w*|confirm\w*|verif\w*|say|know\w*|guarantee\w*|available)\b|\b(?:unknown|unlisted|unverified|unspecified)\b")
+_CLAUSE_EDGE=re.compile(r"[.;:!?\n,]|\b(?:but|yet|however|though|although|while|so|and|except|only)\b")
+def _unnegated(pattern,low):
+    """True when pattern occurs outside an honest 'not listed/unknown' clause.
+
+    Only a negation inside the same clause counts ('no' does not, and
+    'not only' does not). Any clause edge (comma, 'but', 'and'...) ends it, so a
+    negated clause cannot cover an affirmative one. Fail closed on anything else."""
+    for m in re.finditer(pattern,low):
+        before=_CLAUSE_EDGE.split(low[:m.start()])[-1]
+        after=_CLAUSE_EDGE.split(low[m.end():])[0]
+        if not _NEGATION.search(before+' '+m.group(0)+' '+after):return True
+    return False
+
 def validate_draft(draft, cards, context=None, brief=None):
     if any(card.evidence_kind=='dev_fixture' for card in cards):
         violation=fixture_violation(draft.text)
@@ -206,15 +220,15 @@ def validate_draft(draft, cards, context=None, brief=None):
     # Deterministic backstop for affirmative commercial promises that have no
     # claimable field. Additive: the model review still runs separately.
     lowered=draft.text.casefold()
-    if re.search(r"\b(?:free shipping|ships?(?: today| fast| free)?|shipping|next[- ]day|same[- ]day|fast delivery|warranty|guarantee[ds]?|money[- ]back|easy returns?|refunds?)\b",lowered):
+    if _unnegated(r"\b(?:free shipping|ships?(?: today| fast| free)?|shipping|next[- ]day|same[- ]day|fast delivery|warranty|guarantee[ds]?|money[- ]back|easy returns?|refunds?)\b",lowered):
         raise ValueError('unclaimed_fulfillment_or_policy_claim')
-    if re.search(r"\b(?:best|perfect(?:ly)?|ideal|top[- ]rated|must[- ]have|bestseller|number one)\b",lowered):
+    if _unnegated(r"\b(?:best|perfect(?:ly)?|ideal|top[- ]rated|must[- ]have|bestseller|number one)\b",lowered):
         raise ValueError('unsupported_superiority_claim')
     if re.search(r"\b(?:in stock|available now|ready to ship)\b",lowered) and not any(c.field=='stock_status' for c in draft.claims):
         raise ValueError('unclaimed_stock_claim')
     evidence_text=' '.join(str(v) for card in by_id.values() for v in [card.get('name'),card.get('category'),*(card.get('catalog_specs') or {}).values()]).casefold()
     for term in ('waterproof','water resistant','noise cancel','wireless','bluetooth','organic','handmade','leather'):
-        if term in lowered and term not in evidence_text:
+        if term in lowered and term not in evidence_text and _unnegated(re.escape(term),lowered):
             raise ValueError('unclaimed_spec_claim')
     # No independently generated amounts, percentages, URLs or numerical product
     # model names: numeric strings must occur in an evidence-backed field claim.

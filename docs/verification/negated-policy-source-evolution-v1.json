@@ -1,0 +1,28 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "0c52ac1c046523753717ce87473dd62af1570ca8e02468abb9f7c231293aa3e7",
+  "current_sha256": "376f19aa2f8d7a329f0da3c516e4101a67f9cf8d2401d68169770d62a018c99e",
+  "replacements": [
+   {
+    "old": "\ndef validate_draft(",
+    "new": "\n_NEGATION=re.compile(r\"(?:\\bnot(?!\\s+only)|\\bcannot|n't|\\bunable)\\W+(?:\\w+\\W+){0,3}?(?:list\\w*|specif\\w*|stat\\w*|mention\\w*|indicat\\w*|confirm\\w*|verif\\w*|say|know\\w*|guarantee\\w*|available)\\b|\\b(?:unknown|unlisted|unverified|unspecified)\\b\")\n_CLAUSE_EDGE=re.compile(r\"[.;:!?\\n,]|\\b(?:but|yet|however|though|although|while|so|and|except|only)\\b\")\ndef _unnegated(pattern,low):\n    \"\"\"True when pattern occurs outside an honest 'not listed/unknown' clause.\n\n    Only a negation inside the same clause counts ('no' does not, and\n    'not only' does not). Any clause edge (comma, 'but', 'and'...) ends it, so a\n    negated clause cannot cover an affirmative one. Fail closed on anything else.\"\"\"\n    for m in re.finditer(pattern,low):\n        before=_CLAUSE_EDGE.split(low[:m.start()])[-1]\n        after=_CLAUSE_EDGE.split(low[m.end():])[0]\n        if not _NEGATION.search(before+' '+m.group(0)+' '+after):return True\n    return False\n\ndef validate_draft(",
+    "count": 1
+   },
+   {
+    "old": "    if re.search(r\"\\b(?:free shipping|ships?(?: today| fast| free)?|shipping|next[- ]day|same[- ]day|fast delivery|warranty|guarantee[ds]?|money[- ]back|easy returns?|refunds?)\\b\",lowered):",
+    "new": "    if _unnegated(r\"\\b(?:free shipping|ships?(?: today| fast| free)?|shipping|next[- ]day|same[- ]day|fast delivery|warranty|guarantee[ds]?|money[- ]back|easy returns?|refunds?)\\b\",lowered):",
+    "count": 1
+   },
+   {
+    "old": "    if re.search(r\"\\b(?:best|perfect(?:ly)?|ideal|top[- ]rated|must[- ]have|bestseller|number one)\\b\",lowered):",
+    "new": "    if _unnegated(r\"\\b(?:best|perfect(?:ly)?|ideal|top[- ]rated|must[- ]have|bestseller|number one)\\b\",lowered):",
+    "count": 1
+   },
+   {
+    "old": "        if term in lowered and term not in evidence_text:",
+    "new": "        if term in lowered and term not in evidence_text and _unnegated(re.escape(term),lowered):",
+    "count": 1
+   }
+  ]
+ }
+}
