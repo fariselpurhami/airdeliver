@@ -81,3 +81,7 @@ An offline red regression reproduced immediate full-name (same full-name, facts)
 ## Opt-in model-authored composition blocks
 
 Three new red cases demonstrated the absence of a structured composition wire format. The inactive decision_blocks_v1 option now lets the same writer choose one to six paragraph/bullet blocks, their order and all words, plus the same decision record. The application inserts only Markdown spacing/markers before exact claim compilation and the unchanged validator and independent review. There is no mandatory count or section sequence, no authored fallback prose and no added model stage. Each block forbids embedded newlines; malformed block types/bounds, invented digits and negative/outage review remain fail-closed.121 focused cases pass offline, including one paragraph, two paragraphs and mixed paragraph/bullets. This is an experiment, not active adoption or a quality claim. Actual model/pixel evidence remains needed.
+
+## Probe035 provider schema rejection
+
+The first actual composition-block attempt at b85aaf2b returned provider HTTP400 json_validate_failed before a parseable draft. No retry or review call followed. Total44/50, six remaining; ledger stopped and temporary key deleted. This is a failed evaluation, not evidence of useful composition, and the fallback notice is not a shopping-quality answer. Preserve the negative receipt. No model foundation, writer/reviewer budget or active caller changed.
