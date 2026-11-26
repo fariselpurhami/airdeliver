@@ -214,10 +214,10 @@ const HERO_CARDS: ReadonlyArray<HeroFloatingCardProps> = [
 ];
 
 const PRODUCTION_STEPS = [
-  { icon: AirSparklesIcon, step: "01", title: "AI Intent Recognition", description: "Simply type or speak your order. Our neural engine parses your intent instantly, finding the exact product across our partner stores' inventory without you scrolling through catalogs." },
-  { icon: Cpu, step: "02", title: "Inventory Sync", description: "Within milliseconds, the system queries local hubs and databases to secure the best price and immediate availability, reserving your item autonomously." },
-  { icon: Camera, step: "03", title: "Multimodal Visual Matching", description: "Upload a image or screenshot. Our computer vision models analyze texture, brand, and style to match real-world items in seconds." },
-  { icon: ShieldCheck, step: "04", title: "Autonomous One-Tap Checkout", description: "Review your personalized bag preview and complete your purchase securely with one-tap encrypted payment flow directly within the overlay." },
+  { icon: AirSparklesIcon, step: "01", title: "Tell Air what you need", description: "Type or speak a request. Air turns it into a search of the product catalog and shows matching products, so you do not have to scroll through categories." },
+  { icon: Cpu, step: "02", title: "Price and availability checks", description: "Every result carries the price and stock status from the catalog. An item whose price cannot be verified cannot be added to your cart." },
+  { icon: Camera, step: "03", title: "Search from a photo", description: "Add a photo (JPEG, PNG, WebP or GIF, up to 6 MB). Air reads it as a short hint to guide the search. A photo is a hint, not proof of what a product is, so results are still checked against the catalog." },
+  { icon: ShieldCheck, step: "04", title: "Review, then confirm", description: "Check your cart and shipping address, then choose from the payment methods currently available. Confirming sends one order, and a retry never creates a second one. Checkout is US only, in US dollars." },
 ] as const;
 
 // ============================================================================
@@ -824,7 +824,7 @@ const HolographicStepCard = memo(({ item, isLast }: { readonly item: StepItem; r
               <h3 className="mb-3 text-2xl md:text-4xl font-bold tracking-tight text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all duration-500">
                 <span className="sr-only">Step {item.step}: </span>{item.title}
               </h3>
-              <p className="text-[15px] md:text-lg font-normal leading-[1.75] text-zinc-300 group-hover:text-gray-300 transition-colors duration-500">
+              <p className="text-[15px] md:text-[17px] font-normal leading-[1.7] text-zinc-400 group-hover:text-zinc-300 transition-colors duration-500">
                 {item.description}
               </p>
             </div>
@@ -854,32 +854,32 @@ const HowItWorksSection = memo(() => {
       </div>
 
       <div className="container relative z-10 mx-auto px-5 sm:px-6 lg:px-12">
-        <div className="text-center mb-24 md:mb-32 flex flex-col items-center">
+        <div className="mx-auto mb-20 flex w-full max-w-4xl flex-col items-start text-left md:mb-28">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
             className="mb-8 inline-flex items-center gap-2 rounded-full border border-cyan-500/30 bg-cyan-950/30 px-5 py-2 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)] transform-gpu"
             aria-hidden="true"
           >
             <Activity size={16} className={`${prefersReducedMotion ? '' : 'animate-pulse'} text-cyan-400`} />
-            <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">END-TO-END SYSTEM</span>
+            <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">FOUR STEPS</span>
           </motion.div>
 
           <motion.h2
             id="how-it-works-heading"
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1, duration: 0.8 }}
-            className="text-5xl md:text-7xl lg:text-8xl font-semibold leading-[1.05] tracking-tight text-white drop-shadow-2xl transform-gpu"
+            className="text-[2.75rem] font-bold leading-[1.02] tracking-[-0.03em] text-white drop-shadow-2xl transform-gpu md:text-6xl lg:text-7xl"
           >
-            <span>HOW IT</span> <br className="md:hidden" />
-            <span className="bg-gradient-to-r from-cyan-400 via-white to-purple-500 bg-clip-text text-transparent px-2">
-              WORKS
+            <span>How it</span> <br className="md:hidden" />
+            <span className="bg-gradient-to-r from-cyan-400 via-white to-purple-500 bg-clip-text text-transparent md:pl-3">
+              works
             </span>
           </motion.h2>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.8 }}
-            className="mt-8 max-w-2xl text-lg md:text-xl font-normal leading-[1.75] text-zinc-300 transform-gpu"
+            className="mt-6 max-w-xl text-base font-normal leading-relaxed text-zinc-400 transform-gpu md:text-lg"
           >
-            Watch how our neural network translates your thoughts into a verified, checkout-ready product in seconds.
+            From a typed request or a photo to a reviewed order, in four steps.
           </motion.p>
         </div>
 

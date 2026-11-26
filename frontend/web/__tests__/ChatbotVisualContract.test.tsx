@@ -27,9 +27,12 @@ it('keeps the unframed launcher accessible and opens the same assistant',()=>{
  const button=screen.getByRole('button',{name:'Open Air Assistant'});
  expect(button).toHaveClass('focus-visible:ring-2');
  expect(button).toHaveClass('bg-transparent','border-0','shadow-none');
- expect(button.querySelector('div')).toHaveClass('text-cyan-100','bg-transparent');
- expect(button.querySelector('div')).not.toHaveClass('rounded-full','border','backdrop-blur-xl');
- expect(button.querySelector('div')).not.toHaveClass('bg-white');
+ // The launcher button itself stays unframed; the user asked (phonemsg-01M8BGPHPN6GCKRZSVN787YE7E,
+ // 01M8BGSM...) for a barely visible glass disc behind the robot, so the disc is the one framed element.
+ const glass=button.querySelector('[data-testid="chatbot-launcher-glass"]');
+ expect(glass).toHaveClass('text-cyan-100','rounded-full','backdrop-blur-md','w-11','h-11');
+ expect(glass).not.toHaveClass('bg-white');
+ expect(button).not.toHaveClass('rounded-full','backdrop-blur-xl');
  fireEvent.click(button);expect(setIsOpen).toHaveBeenCalledWith(true);
  mockIsOpen=true;
 });
