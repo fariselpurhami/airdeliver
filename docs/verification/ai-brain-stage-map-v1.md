@@ -110,3 +110,22 @@ or intent. Code-path evidence establishes influence, not a harmful observed live
 outcome. This needs an intent-versus-behavior contrast test and a preserving design
 decision, not deleting the behavior foundation or silently changing all ranking.
 Do not mistake persona/segment vocabulary for authenticated personal facts.
+
+## Reproduced concurrent intent-state loss
+
+Controlled simultaneous support requests sharing a session hydrate separate copies
+of the same state, then last-write-wins SET loses one turn: expected2, stored1.
+An explicit strict-xfail regression records the desired invariant without calling
+this gap passed or hiding a failing test as acceptance. No provider/real session
+was touched. Each write being awaited is not cross-request serialization.
+
+Existing infrastructure already has atomic compare_json_required and owner reset
+generation fences, but support session hydration/persistence uses resilient get/
+set paths and has no per-session revision/lease across the full turn. A correct
+fix must decide concurrent-turn behavior: bounded serialization versus rejecting
+stale snapshots before publication. It must work across workers, preserve owner
+reset fencing, detect lease expiry, and never silently merge contradictory hard
+constraints. A process-local lock or append-only history fix would not settle
+in-flight answers based on stale intent. Distributed Redis/cancel/outage tests are
+required before claiming this fixed. This is now a priority alongside writer
+reliability, ahead of adding a durable decision state on unsafe persistence.
