@@ -1,0 +1,18 @@
+{
+ "backend/api/app/services/conversation/free_llm_service.py": {
+  "baseline_sha256": "3a497c57c1c779477d376dd414f9e39a89c25156425389134e0c04b6a2be72b2",
+  "current_sha256": "91f11fb6c7c14c65a75ceb1927b4f870343c8db410127457a34f54ea03e54790",
+  "replacements": [
+   {
+    "old": "logger.warning('reviewed_recommendation_withheld error_type=%s',type(exc).__name__)",
+    "new": "logger.warning('reviewed_recommendation_withheld error_type=%s reason=%s',type(exc).__name__,withheld_reason(exc))",
+    "count": 2
+   },
+   {
+    "old": "from tavily import TavilyClient\n",
+    "new": "from tavily import TavilyClient\nfrom app.services.conversation.withheld_reason import withheld_reason\n",
+    "count": 1
+   }
+  ]
+ }
+}
