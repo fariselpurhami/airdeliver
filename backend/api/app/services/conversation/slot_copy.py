@@ -13,6 +13,9 @@ from app.services.conversation.shopping_copy import Claim, ShoppingDraft, exact_
 
 _SLOT = re.compile(r"\[\[\s*([a-z_.]+?)(?::\s*(\d+))?\s*\]\]")
 _ANY_BRACKETS = re.compile(r"\[\[|\]\]")
+_NUMBER_WORD_FACT = re.compile(
+    r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|hundred|thousand|dozen|half|double|triple)"
+    r"(?:[- ](?:and a half|hundred|thousand|a|an))?[- ]+(?:hours?|days?|weeks?|minutes?|years?|months?|grams?|kilograms?|kilos?|liters?|litres?|ml|cm|mm|inches|inch|pounds?|dollars?|euros?|percent|per cent|watts?|gb|mah|stars?|reviews?)\b", re.I)
 _SYMBOL = {'USD': '$', 'EUR': '€', 'GBP': '£'}
 _STOCK_WORDS = {'local_in_stock': 'in stock', 'fixture_in_stock': 'in stock', 'local_out_of_stock': 'out of stock', 'fixture_out_of_stock': 'out of stock'}
 
@@ -103,5 +106,7 @@ def render_slots(raw, cards, brief=None, message=None):
         raise SlotError('slot_malformed')
     if re.search(r'\d', outside) or re.search(r'https?://|www\.', outside, re.I):
         raise SlotError('slot_literal_fact')
+    if _NUMBER_WORD_FACT.search(outside):
+        raise SlotError('slot_number_word_fact')
     rendered = _SLOT.sub(fill, text)
     return ShoppingDraft(text=rendered, product_ids=ids, claims=claims)

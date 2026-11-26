@@ -67,3 +67,13 @@ def test_total_needs_two_priced_cards_and_left_needs_a_budget():
     one=cards()[:1]
     with pytest.raises(SlotError):render_slots({'text':'[[total]] together'},one)
     assert render_slots({'text':'[[total]] together'},cards()).text=='$97.00 together'
+
+
+@pytest.mark.parametrize('text',["It lasts two days on a charge.","Around fifteen hours of battery.","Twenty percent off today.","It holds half a liter","about ten dollars"])
+def test_number_words_used_as_facts_are_rejected(text):
+    with pytest.raises(SlotError) as e:
+        render_slots({'text':text},cards(),None,'hi')
+    assert str(e.value)=='slot_number_word_fact'
+
+def test_plain_words_that_are_not_facts_pass():
+    assert ok("One thing I do not have is its battery life; the [[name:1]] is the one you asked about.").text.startswith('One thing')
