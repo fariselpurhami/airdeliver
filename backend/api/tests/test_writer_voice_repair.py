@@ -79,7 +79,7 @@ FOUR_FRIEND=("I don't have the battery life for Studio Headphones.\n\nThat is th
 def test_four_phase_answers_are_repaired_keeping_four_sections():
     text,seen=run([draft(FOUR_ROBOTIC),draft(FOUR_FRIEND),OK],{'product_answer_shape':'four_phase'})
     assert text==FOUR_FRIEND and len(seen)==3
-    assert 'same number of sections' in seen[1][0]['content']
+    assert 'exactly four' in seen[1][0]['content']
     assert '\n\n' in text
 
 def test_four_phase_rewrite_that_collapses_sections_keeps_original():
@@ -88,7 +88,7 @@ def test_four_phase_rewrite_that_collapses_sections_keeps_original():
 
 def test_non_four_phase_rules_do_not_mention_sections():
     text,seen=run([draft(ROBOTIC),draft(FRIEND),OK])
-    assert 'same number of sections' not in seen[1][0]['content']
+    assert 'exactly four' not in seen[1][0]['content']
 
 def test_answers_that_declare_no_product_are_never_rewritten():
     seen=[]
@@ -185,3 +185,10 @@ def test_writer_contract_says_not_to_state_stock_unless_asked():
 def test_rules_ask_for_one_connected_thread_without_outside_facts():
     text,seen=run([draft(ROBOTIC),draft(FRIEND),OK])
     assert 'one connected thread' in seen[1][0]['content'] and 'Add no outside facts' in seen[1][0]['content']
+
+
+def test_four_phase_rewrite_that_merges_into_three_blocks_keeps_original_and_rules_name_four_blocks():
+    three="I don't have the battery life for Studio Headphones.\n\n- Battery: I don't have it\n- Sleep: I don't have it\n\nWant me to look at other headphones?"
+    text,seen=run([draft(FOUR_ROBOTIC),draft(three),OK],{'product_answer_shape':'four_phase'})
+    assert text==FOUR_ROBOTIC and len(seen)==3
+    assert 'exactly four in this order' in seen[1][0]['content'] and 'without restating the question' in seen[1][0]['content']
