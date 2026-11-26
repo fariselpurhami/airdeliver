@@ -72,3 +72,13 @@ optional preference collection, immediately before service return, in addition t
 the atomic precommit fence.173focused pass,23real Redis/service/HTTP cases. There
 can still be a reset after the final service check while bytes are in transit;
 client conversation-generation suppression is the separate browser obligation.
+
+## Hosted CI receipt for 03d6f627
+
+All 5 hosted checks passed on exact head 03d6f627 (backend job
+https://github.com/fariselpurhami/airdeliver/actions/runs/45770247347/job/139740892493).
+Prior green heads baa963af and b0c60d90 are superseded by the later follow-ons.
+This is CI evidence only, not a quality, rollout or owner acceptance claim.
+Related client fence (PR269, head aa042223): actual store bundled into a React
+harness and run in Chrome at 390 and 1280 widths showed stale reply absent after
+reset. This is not a full production overlay or real server erase test.
