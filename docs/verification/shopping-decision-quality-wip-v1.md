@@ -132,3 +132,14 @@ One additional harness case made zero requests because pacing was mistakenly
 inside the response deadline. Pacing moved before the timed app call; that case
 is harness-only, never counted as provider failure. Calls are for structural
 changes, not quota exhaustion or prompt paraphrase loops.
+
+## Typed segment wire preparation
+
+A separate inactive decision_segments_v1 experiment replaces embedded placeholder
+syntax with typed text/claim segments. The model still chooses every word and
+block order. The application inserts exact claim values, then runs the existing
+composition compiler, numeric/identity gates and independent reviewer. No literal
+braces/newlines in segments, unknown keys rejected; no auto-binding of facts from
+free prose. Test-first import failure, then137combinedfocusedpass including actual
+SDK loopback positive/negative review transport at unchanged1200/256budgets.
+No production caller opts in and no live quality acceptance is implied.

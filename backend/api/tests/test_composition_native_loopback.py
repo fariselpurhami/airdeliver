@@ -9,17 +9,20 @@ from tests.test_llm_execution_limits import service
 from tests.test_sales_response_service import request
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('binding',['decision_blocks_v1','decision_segments_v1'])
 @pytest.mark.parametrize('reject',[False,True])
-async def test_native_sdk_composition_and_full_review_over_loopback_http(reject):
+async def test_native_sdk_composition_and_full_review_over_loopback_http(reject,binding):
  captured=[];card=request().products[0]
  class Handler(BaseHTTPRequestHandler):
   def log_message(self,*args):pass
   def do_POST(self):
    data=json.loads(self.rfile.read(int(self.headers['Content-Length'])));captured.append(data)
    schema=data['response_format']['json_schema']['name']
-   if schema=='DecisionBlocksDraft':
+   if schema in {'DecisionBlocksDraft','SegmentDecisionDraft'}:
     refs=json.loads(data['messages'][1]['content'])['claim_reference_map'];key=next(k for k,v in refs.items() if v['field']=='name')
     result={'decision':'conditional','preferred_product_id':card.id,'decisive_unknown':'Rain protection.','blocks':[{'kind':'paragraph','text_template':'Conditionally prefer {{'+key+'}}.'},{'kind':'paragraph','text_template':'Verify rain protection first.'}]}
+    if schema=='SegmentDecisionDraft':
+     result['blocks']=[{'kind':'paragraph','segments':[{'kind':'text','value':'Conditionally prefer '},{'kind':'claim','value':key},{'kind':'text','value':'.'}]},{'kind':'paragraph','segments':[{'kind':'text','value':'Verify rain protection first.'}]}]
    else:
     assert schema=='GroundingReview'
     result={'supported':not reject,'all_product_mentions_declared':True,'no_unsupported_commercial_claims':True,'fulfills_discovery_task':True}
@@ -29,9 +32,9 @@ async def test_native_sdk_composition_and_full_review_over_loopback_http(reject)
  sdk=AsyncGroq(api_key='loopback-only',base_url=f'http://127.0.0.1:{server.server_port}/v1',max_retries=0)
  llm=service();llm._get_client=AsyncMock(return_value=sdk)
  try:
-  result=await llm.consult_catalog(question='Choose one for rain.',cards=[card],evidence={'claim_binding':'decision_blocks_v1'})
+  result=await llm.consult_catalog(question='Choose one for rain.',cards=[card],evidence={'claim_binding':binding})
   assert len(captured)==2
-  assert [c['response_format']['json_schema']['name'] for c in captured]==['DecisionBlocksDraft','GroundingReview']
+  assert [c['response_format']['json_schema']['name'] for c in captured]==['SegmentDecisionDraft' if binding=='decision_segments_v1' else 'DecisionBlocksDraft','GroundingReview']
   assert all(c['response_format']['json_schema']['strict'] is True for c in captured)
   assert [c['max_tokens'] for c in captured]==[1200,256]
   assert captured[1]['reasoning_effort']=='low'

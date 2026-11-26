@@ -68,6 +68,41 @@ class DecisionBlocksDraft(BaseModel):
     blocks: list[ShoppingTextBlock] = Field(min_length=1,max_length=6)
 
 
+class ShoppingSegment(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    kind:Literal['text','claim']
+    value:StrictStr=Field(min_length=1,max_length=1000,pattern=r'^[^\r\n{}]*$')
+
+
+class SegmentBlock(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    kind:Literal['paragraph','bullet']
+    segments:list[ShoppingSegment]=Field(min_length=1,max_length=20)
+
+
+class SegmentDecisionDraft(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    decision:Literal['pick','conditional','no_pick']
+    preferred_product_id:StrictInt|None
+    decisive_unknown:StrictStr=Field(max_length=500)
+    blocks:list[SegmentBlock]=Field(min_length=1,max_length=6)
+
+
+def parse_segment_decision(raw,reference_map):
+    wire=SegmentDecisionDraft.model_validate_json(raw)
+    data=wire.model_dump(exclude={'blocks'})
+    data['blocks']=[]
+    for block in wire.blocks:
+        parts=[]
+        for segment in block.segments:
+            if segment.kind=='claim':
+                if segment.value not in reference_map:raise ValueError('unknown_claim_reference')
+                parts.append('{{'+segment.value+'}}')
+            else:parts.append(segment.value)
+        data['blocks'].append({'kind':block.kind,'text_template':''.join(parts)})
+    return parse_decision_blocks(json.dumps(data),reference_map)
+
+
 def parse_decision_blocks(raw,reference_map):
     wire=DecisionBlocksDraft.model_validate_json(raw)
     parts=[]
@@ -356,11 +391,12 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         payload={'task':'no_match','customer_message':message,'customer_brief':brief,'catalog_evidence':[],
                  'scope':'No eligible current retrieved catalog cards; not exhaustive inventory'}
     reference_map={}
-    use_blocks=(context or {}).get('claim_binding')=='decision_blocks_v1'
-    use_decision=(context or {}).get('claim_binding') in {'decision_v1','decision_blocks_v1'}
-    use_template=(context or {}).get('claim_binding') in {'template_v1','decision_v1','decision_blocks_v1'}
+    use_segments=(context or {}).get('claim_binding')=='decision_segments_v1'
+    use_blocks=(context or {}).get('claim_binding') in {'decision_blocks_v1','decision_segments_v1'}
+    use_decision=(context or {}).get('claim_binding') in {'decision_v1','decision_blocks_v1','decision_segments_v1'}
+    use_template=(context or {}).get('claim_binding') in {'template_v1','decision_v1','decision_blocks_v1','decision_segments_v1'}
     use_references=(not no_match and (context or {}).get('product_answer_shape')=='adaptive'
-        and (context or {}).get('claim_binding') in {'references_v1','template_v1','decision_v1','decision_blocks_v1'})
+        and (context or {}).get('claim_binding') in {'references_v1','template_v1','decision_v1','decision_blocks_v1','decision_segments_v1'})
     use_template=use_template and use_references
     use_decision=use_decision and use_template
     use_blocks=use_blocks and use_decision
@@ -409,12 +445,15 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
         writer_rules=writer_rules.replace('return decision,preferred_product_id,decisive_unknown,text_template','return decision,preferred_product_id,decisive_unknown,blocks')
         writer_rules=writer_rules.replace('text_template must express','The composed blocks must express')
         writer_rules += ' Composition wire format: blocks is one to six model-authored objects with kind paragraph or bullet and text_template. Choose count, order and kind for this exact question, no mandatory sequence or headings. One fact may need one paragraph; a decision may benefit from a direct answer paragraph and a short decisive-check paragraph or bullets. Each block contains no literal newlines. The application only inserts Markdown spacing or bullet markers; it does not author or rewrite your words. All previous placeholders and evidence rules apply inside each block.'
-    writer_schema=DecisionBlocksDraft if use_blocks else DecisionShoppingDraft if use_decision else TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
+    use_segments=use_segments and use_blocks
+    if use_segments:
+        writer_rules += ' Final structural wire override: return SegmentDecisionDraft. Every block has kind and segments, never text_template. Each segment is {kind:text,value:your connecting prose} or {kind:claim,value:an exact cN reference key}. Select claim segments for every product name or factual value; no braces or literal newlines anywhere. Text segments contain only your natural connecting prose, never literal product facts or digits except an explicitly labelled grounded customer budget. The application concatenates exact segment values and passes the same compiled claims/decision to the unchanged validator and independent reviewer. You still choose all words, order and block kinds. Never infer a customer laptop dimension from catalog fit.'
+    writer_schema=SegmentDecisionDraft if use_segments else DecisionBlocksDraft if use_blocks else DecisionShoppingDraft if use_decision else TemplateShoppingDraft if use_template else ReferencedShoppingDraft if use_references else ShoppingDraft
     decision_record={}
     def parse_writer(raw):
         nonlocal decision_record
         if use_decision:
-            draft,decision_record=(parse_decision_blocks if use_blocks else parse_decision)(raw,reference_map)
+            draft,decision_record=(parse_segment_decision if use_segments else parse_decision_blocks if use_blocks else parse_decision)(raw,reference_map)
             return draft
         if use_template:return resolve_template_claims(raw,reference_map)
         return resolve_claim_references(raw,reference_map) if use_references else ShoppingDraft.model_validate_json(raw)
