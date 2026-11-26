@@ -131,3 +131,42 @@ async def test_registry_mutation_during_review_cannot_rebind_publisher():
  with patch.object(service,'bind_status_claim',checked):
   result=await service.reviewed_product_status(infer,'maker:x',[source()],reg,now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
  assert result.state=='released' and seen==['maker']
+
+@pytest.mark.asyncio
+async def test_cancellation_during_status_review_does_not_return_preflight_evidence():
+ import asyncio
+ infer=AsyncMock(side_effect=[json.dumps(D),asyncio.CancelledError()])
+ with pytest.raises(asyncio.CancelledError):
+  await reviewed_product_status(infer,'maker:x',[source()],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
+ assert infer.await_count==2
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('value',[1,'true',None])
+async def test_coerced_status_review_verdicts_are_not_approval(value):
+ infer=AsyncMock(side_effect=[json.dumps(D),json.dumps({**V,'quote_entails_status':value})])
+ with pytest.raises(ValueError):
+  await reviewed_product_status(infer,'maker:x',[source()],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
+ assert infer.await_count==2
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('count,timeout',[(10,1),(1,0),(1,31)])
+async def test_status_bounds_rejected_without_any_inference(count,timeout):
+ infer=AsyncMock()
+ with pytest.raises(ValueError,match='invalid_status_bounds'):
+  await reviewed_product_status(infer,'maker:x',[source()]*count,registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=timeout)
+ infer.assert_not_awaited()
+
+@pytest.mark.asyncio
+async def test_status_source_list_changes_during_writer_do_not_replace_evidence():
+ from dataclasses import replace
+ sources=[source()];calls=[]
+ async def infer(messages):
+  calls.append(messages)
+  if len(calls)==1:
+   sources[0]=replace(source(),text='Unrelated replacement content.')
+   return json.dumps(D)
+  payload=json.loads(messages[1]['content'])
+  assert payload['sources'][0]['text']==QUOTE
+  return json.dumps(V)
+ result=await reviewed_product_status(infer,'maker:x',sources,registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
+ assert result.state=='released' and len(calls)==2

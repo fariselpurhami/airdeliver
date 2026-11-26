@@ -70,3 +70,7 @@ Seven further red cases showed that the dataclass annotation alone did not enfor
 ## Request-local publisher configuration snapshot
 
 A further test-first failure showed publisher configuration could change during the independent review await and silently rebind the final evidence to a different publisher. The inactive pipeline now takes a validated independent registry snapshot before inference.225 combined focused tests pass. This is request consistency, not verification of a real publisher registry, and the active product research flow is unchanged.
+
+## Additional unchanged-boundary verification
+
+Eight additional passing cases verify cancellation during review never returns preflight evidence, numeric/string/null verdicts cannot coerce to approval, invalid count/deadline bounds call no inference, and caller source-list replacement across writer await cannot swap the frozen evidence supplied to review. These verify existing fail-closed boundaries rather than claim new product behavior.233 combined focused cases pass offline. Active source adapters/routing remain open.
