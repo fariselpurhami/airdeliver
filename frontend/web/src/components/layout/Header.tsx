@@ -107,7 +107,7 @@ export default function Header() {
                   src="/logo.png"
                   alt=""
                   width={120}
-                  height={22}
+                  height={30}
                   priority
                   className="max-[360px]:w-[96px] object-contain transition-opacity duration-500 group-hover:opacity-80 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)] transform-gpu"
                 />
@@ -115,7 +115,7 @@ export default function Header() {
                   src="/logo.png"
                   alt=""
                   width={120}
-                  height={22}
+                  height={30}
                   priority
                   decoding="async"
                   className="max-[360px]:w-[96px] absolute top-0 left-0 object-contain opacity-0 group-hover:opacity-40 blur-md transition-opacity duration-300 transform-gpu will-change-opacity"

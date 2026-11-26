@@ -184,7 +184,7 @@ const AlgorithmicPick = React.memo(({ onOpen }: { onOpen: (product: Product) => 
                 <div className="w-[45%] md:w-1/2 relative flex items-center justify-center p-4 md:p-10 bg-white/[0.02]">
                     <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
                     <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} className="relative z-10 w-full h-full max-w-sm">
-                        <CatalogImage product={recommendationsData} src={recommendationsData.image_url || '/images/default.jpeg'} alt={recommendationsData.name} fill className="object-contain drop-shadow-2xl" priority />
+                        <CatalogImage product={recommendationsData} src={recommendationsData.image_url || '/images/default.jpeg'} alt={recommendationsData.name} fill sizes="(max-width: 768px) 45vw, 384px" className="object-contain drop-shadow-2xl" priority />
                     </motion.div>
                 </div>
 

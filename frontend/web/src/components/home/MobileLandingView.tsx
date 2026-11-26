@@ -112,7 +112,7 @@ const MobileHeader = memo(({ headerRef }: { headerRef: React.RefObject<HTMLEleme
               src="/logo.png"
               alt="airdeliver logo"
               width={120}
-              height={22}
+              height={30}
               priority
               className="object-contain transition-opacity duration-500 group-hover:opacity-80 drop-shadow-[0_2px_10px_rgba(255,255,255,0.2)] transform-gpu"
             />
@@ -121,7 +121,7 @@ const MobileHeader = memo(({ headerRef }: { headerRef: React.RefObject<HTMLEleme
               src="/logo.png"
               alt=""
               width={120}
-              height={22}
+              height={30}
               priority
               decoding="async"
               aria-hidden="true"
