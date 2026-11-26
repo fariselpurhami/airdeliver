@@ -146,8 +146,8 @@ No production caller opts in and no live quality acceptance is implied.
 
 ## Segment contract conflict found offline
 
-New development receipt v2 preserves all11case records, including the zero-request
-harness case, twelve actual requests,27018measuredtokens and an8000token conservative
+New development receipt v2 preserves all20case records, including the zero-request
+harness cases, sixteen actual requests,34306measuredtokens and an8000token conservative
 reserve for the400response with missing usage. It contains no provider reasoning.
 
 A test-first policy inspection failed: SegmentDecisionDraft inherited earlier
@@ -203,3 +203,23 @@ not a replacement validator:008/010preserve exact published text and two stages;
 009/011preserve exact first ID gate, no review and empty cards.12focused receipt,
 ID-guard and replay tests pass. Captures contain final structured objects only,
 no private provider reasoning. This is regression evidence, not fresh live quality.
+
+## Isolated semantic review, not a live writer success
+
+The next controlled slice feeds schema/evidence-valid final writer objects through
+the unchanged orchestration, then invokes only the real independent reviewer.
+019correct material mapping accepted;020swapped materials rejected;014unknown water
+resistance promoted to confirmed rejected;015a pick violating the explicit weight
+limit rejected. Four real reviewer requests, no live-writer success claim. Scope
+is a small targeted contrast set, not reviewer accuracy certification.
+
+Harness setup cases012/013/016/017/018sent zero requests: my initial wrapper used
+the wrong schema argument/owner hook, then called the replaced adapter recursively.
+These are harness errors, not model or app failures. Distinct IDs preserve each
+attempt; all are retained. Final run totals16requests/34306measuredtokens plus8000
+reserve=42306conservative, no429. Old48/50experiment unchanged, key copy deleted.
+
+Owner intent-first direction is now an explicit audit axis. Intent means grounded
+user goal, hard constraints, the next decision and decisive unknowns. A task label
+alone is not proof of those. Intent does not authenticate facts or authorize an
+action; hidden personality/wealth/permission inference remains forbidden.
