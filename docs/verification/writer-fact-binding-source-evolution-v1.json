@@ -1,0 +1,7 @@
+{
+  "backend/api/app/services/conversation/shopping_copy.py": {
+    "baseline_sha256": "9d6962c29bc3464f005996d21733ecd2863e588b6577f6d4740fdf0fd00c6265",
+    "current_sha256": "0c52ac1c046523753717ce87473dd62af1570ca8e02468abb9f7c231293aa3e7",
+    "reason": "Deterministic backstop rejecting unclaimed fulfillment, superiority, stock and spec claims in writer prose"
+  }
+}
