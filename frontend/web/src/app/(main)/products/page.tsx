@@ -10,6 +10,8 @@ import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { api } from '@/lib/api';
 import { AirSparkles } from '@/components/ui/AirSparkles';
+import { TypewriterText } from '@/components/ui/TypewriterText';
+import { PromptMediaIcons } from '@/components/ui/PromptMediaIcons';
 import { AlertTriangle, ShoppingBag, Zap, Layers, ChevronLeft, ChevronRight, Activity, BadgeCheck } from 'lucide-react';
 import Image from 'next/image';
 import { MobileHomeFloatingCards } from '@/components/hero/MobileHomeFloatingCards';
@@ -147,10 +149,11 @@ const AICatalogHero = React.memo(() => {
                             <p className={`text-[11px] sm:text-sm md:text-base transition-colors ${cartItemsCount > 0 ? 'text-cyan-200 font-medium' : 'text-gray-300 font-light truncate group-hover:text-white'}`}>
                                 {cartItemsCount > 0 
                                     ? "Your order is ready. Tap to review..." 
-                                    : "I need a black leather jacket..."}
+                                    : <TypewriterText text="I need a black leather jacket..." />}
                             </p>
                         </div>
 
+                        {cartItemsCount === 0 && <PromptMediaIcons />}
                         <button className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3.5 rounded-full bg-white text-black font-bold text-[10px] sm:text-xs hover:bg-cyan-50 transition-colors shrink-0 shadow-lg shadow-white/10 tracking-widest whitespace-nowrap">
                             <span className="hidden sm:inline">{cartItemsCount > 0 ? "Confirm Order!" : "order with air"}</span>
                             <span className="sm:hidden">{cartItemsCount > 0 ? "Confirm Order!" : "order with air"}</span>

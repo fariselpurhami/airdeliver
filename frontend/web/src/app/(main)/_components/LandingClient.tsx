@@ -9,6 +9,8 @@ import { FloatingHeroCards, HERO_STAGE_CLASSES } from '@/components/hero/Floatin
 import { AISecuredOrdersBadge } from '@/components/hero/AISecuredOrdersBadge';
 import Link from 'next/link';
 import { AirSparkles, AirSparklesIcon } from '@/components/ui/AirSparkles';
+import { TypewriterText } from '@/components/ui/TypewriterText';
+import { PromptMediaIcons } from '@/components/ui/PromptMediaIcons';
 import React, { 
   useRef, useMemo, useEffect, useReducer, memo, useId, Component, ErrorInfo, ReactNode 
 } from 'react';
@@ -596,9 +598,11 @@ const HeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectionProps) =>
 
                 <div className="flex-1 px-3 sm:px-4 min-w-0 text-left" aria-live="polite">
                   <p className={`text-[11px] sm:text-sm md:text-base font-light truncate transition-colors ${cartItemsCount > 0 ? 'text-cyan-200 font-medium' : 'text-zinc-300'}`}>
-                    {cartItemsCount > 0 ? "Your order is ready. Tap to review." : "I need noise-canceling headphones..."}
+                    {cartItemsCount > 0 ? "Your order is ready. Tap to review." : <TypewriterText text="I need noise-canceling headphones..." />}
                   </p>
                 </div>
+
+                {cartItemsCount === 0 && <PromptMediaIcons />}
 
                 <span className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3 rounded-full bg-white text-black font-bold text-[10px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu pointer-events-none">
                   {cartItemsCount > 0 ? "Confirm Order!" : "Order with Air"}
@@ -719,9 +723,11 @@ const MobileHomeHeroSection = memo(({ onOrderClick, onExploreClick }: HeroSectio
 
                 <div className="flex-1 px-3 sm:px-4 min-w-0 text-left" aria-live="polite">
                   <p className={`text-[11px] sm:text-sm md:text-base font-light truncate transition-colors ${cartItemsCount > 0 ? 'text-cyan-200 font-medium' : 'text-zinc-300'}`}>
-                    {cartItemsCount > 0 ? "Your order is ready. Tap to review." : "I need noise-canceling headphones..."}
+                    {cartItemsCount > 0 ? "Your order is ready. Tap to review." : <TypewriterText text="I need noise-canceling headphones..." />}
                   </p>
                 </div>
+
+                {cartItemsCount === 0 && <PromptMediaIcons />}
 
                 <span className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 sm:py-3 rounded-full bg-white text-black font-bold text-[10px] sm:text-sm hover:bg-cyan-50 hover:text-cyan-900 transition-colors shrink-0 whitespace-nowrap shadow-lg shadow-white/10 transform-gpu pointer-events-none">
                   {cartItemsCount > 0 ? "Confirm Order!" : "Order with Air"}
