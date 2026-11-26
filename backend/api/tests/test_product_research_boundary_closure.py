@@ -31,3 +31,35 @@ async def test_all_bad_sources_use_fallback_once_without_writer():
 async def test_cancel_during_independent_review_does_not_publish_partial_facts():
     infer=AsyncMock(side_effect=[json.dumps({'covered_targets':['Alpha'],'facts':[{'label':'Material','quote':'Alpha uses wood.','source':0}]}),asyncio.CancelledError()])
     with pytest.raises(asyncio.CancelledError):await answer_product_question(infer,'Alpha',targets=('Alpha',),lookup=AsyncMock(return_value=[{'url':'https://maker.example/a','text':'Alpha uses wood.'}]))
+
+@pytest.mark.parametrize('url',[
+ 'https://maker.example/\nrelease',
+ 'https://maker.example/\trelease',
+ 'https://maker.example/ release',
+ 'https://maker.example/\\release',
+ 'https://maker.example/%0arelease',
+ 'https://maker.example/%0Drelease',
+ 'https://maker.example/%5crelease',
+ 'https://maker..example/release',
+ 'https://-maker.example/release',
+ 'https://maker.example./release',
+])
+def test_research_url_rejects_ambiguous_control_and_host_forms(url):
+ assert allowed_url(url) is False
+
+@pytest.mark.asyncio
+async def test_control_character_source_url_is_dropped_before_product_inference():
+ infer=AsyncMock()
+ result=await answer_product_question(infer,'Atlas',targets=('Atlas',),lookup=AsyncMock(return_value=[{'url':'https://maker.example/\nrelease','text':'Atlas released.'}]))
+ assert result.confidence==0 and result.products==[]
+ assert '\nrelease' not in result.text and 'Source 1:' not in result.text
+ infer.assert_not_awaited()
+
+@pytest.mark.parametrize('url',[
+ 'https://maker.example/products/model-x?color=blue&region=US',
+ 'https://maker.example/news/release%20notes',
+ 'https://xn--bcher-kva.example/product',
+ 'https://maker.example:443/release#details',
+])
+def test_unambiguous_https_source_forms_remain_allowed(url):
+ assert allowed_url(url) is True

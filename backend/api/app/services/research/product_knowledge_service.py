@@ -70,11 +70,16 @@ class SpecDraft(BaseModel):
 def allowed_url(url,domains=None):
     if not isinstance(url,str) or not url or len(url)>2048:return False
     import ipaddress
+    # Preserve the exact authority/path spelling, never accept forms parsers
+    # silently normalize or render as a different source link.
+    if re.search(r'[\x00-\x20\x7f\\]',url) or re.search(r'%(?:0[0-9a-f]|1[0-9a-f]|7f|5c)',url,re.I):return False
     try:
         parsed=urlsplit(url)
         host=parsed.hostname or ''
         if parsed.scheme!='https' or parsed.username or parsed.password or parsed.port not in {None,443}:return False
         if not host or '.' not in host or host.endswith(('.localhost','.local','.internal')):return False
+        if not re.fullmatch(r'[a-z0-9.-]+',host) or len(host)>253:return False
+        if any(not label or len(label)>63 or label.startswith('-') or label.endswith('-') for label in host.split('.')):return False
         try:ipaddress.ip_address(host);return False
         except ValueError:pass
         return domains is None or host in domains

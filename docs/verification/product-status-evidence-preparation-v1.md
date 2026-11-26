@@ -74,3 +74,7 @@ A further test-first failure showed publisher configuration could change during 
 ## Additional unchanged-boundary verification
 
 Eight additional passing cases verify cancellation during review never returns preflight evidence, numeric/string/null verdicts cannot coerce to approval, invalid count/deadline bounds call no inference, and caller source-list replacement across writer await cannot swap the frozen evidence supplied to review. These verify existing fail-closed boundaries rather than claim new product behavior.233 combined focused cases pass offline. Active source adapters/routing remain open.
+
+## Active source URL spelling hardening
+
+Ten red cases showed the existing source URL gate accepted raw controls/whitespace/backslashes, encoded control/backslash sequences and malformed DNS labels. The gate now rejects those ambiguous spellings before source extraction; valid query strings, encoded spaces in paths, punycode labels and explicit443 remain allowed. An actual answer_product_question case verifies malformed links cause zero inference and no source publication. This is active URL-input hardening only, not active release-status integration or SSRF certification. No network fetch/provider was executed. The separate source-evolution receipt was updated, preserving immutable historical manifests.248 combined focused cases are covered by the full selection; the final targeted URL/source-evolution run passes99cases.

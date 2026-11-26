@@ -4,7 +4,7 @@
     "backend/api/app/services/research/product_knowledge_service.py": {
       "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674",
       "previous_sha256": "4b1fb8f4db31517b801beb8e96187bb229ca675f0d001c1ad6afcc398bad801a",
-      "current_sha256": "8cb69d98e1e3edfa765d84d51e31fc4f87ecee016fd16639afef4b33127d766d"
+      "current_sha256": "0fb5a6c5eea245b2ad403a37fb208ef3b4a330911a61334b759bc1ca77d0eb52"
     },
     "backend/api/app/services/research/tavily_boundary.py": {
       "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674",
