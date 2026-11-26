@@ -155,3 +155,8 @@ def test_rewrite_with_greeting_or_exclamation_keeps_original():
     text,seen=run([draft(LONG_ROBOTIC),draft(chatty),OK])
     assert text==LONG_ROBOTIC and len(seen)==3
     assert 'no greeting' in seen[1][0]['content'] and 'no exclamation' in seen[1][0]['content']
+
+
+def test_rules_ask_for_warm_voiced_bullets_and_closing():
+    text,seen=run([draft(ROBOTIC),draft(FRIEND),OK])
+    assert 'never bare fragments' in seen[1][0]['content'] and 'thoughtful friend' in seen[1][0]['content']
