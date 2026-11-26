@@ -51,7 +51,7 @@
   },
   "frontend/web/src/components/products/ProductCard.tsx": {
     "baseline_sha256": "114a949fe9ca7e829f430d9d02adc4a7ccb72b59ad3ecb416a91b050783807a1",
-    "current_sha256": "fe48fbea29cc7c68c95d1bc805db8b0101addde46d17c933f4605c36bbe61e9a",
+    "current_sha256": "c0777a2baf9669cd763897c7035d6df0479eb7d885e9b221a141eb3b8e18bf01",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/components/products/ProductDetailsCard.tsx": {

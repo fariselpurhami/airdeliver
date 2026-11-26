@@ -15,7 +15,8 @@ test('shopping mark has one large star and two small stars without changing assi
  expect(products).not.toContain('<Bot ');
  const card=fs.readFileSync(path.join(process.cwd(),'src/components/products/ProductCard.tsx'),'utf8');
  expect(card).not.toContain('<Bot ');
- expect(card.match(/<AirSparkles /g)).toHaveLength(1);
+ // badge plus the order-with-air button icon (user request 2026-11-26)
+ expect(card.match(/<AirSparkles /g)).toHaveLength(2);
 });
 
 test('Bot glyph remains only in the Air Assistant chatbot UI and help page',()=>{

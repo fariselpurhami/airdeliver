@@ -4,7 +4,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
-import { ScanLine, ShoppingBag, Check } from 'lucide-react';
+import { ScanLine, Check } from 'lucide-react';
 import { AirSparkles } from '@/components/ui/AirSparkles';
 import Image from 'next/image';
 import { isDemoImageEligible } from '@/lib/catalog/demoImages';
@@ -132,7 +132,7 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
             <div className="mt-auto">
                 <div className="flex items-center justify-between w-full mb-2 md:mb-3">
                    <span className="text-[10px] md:text-[10px] text-gray-600 uppercase font-bold">Price</span>
-                   <span className="text-base md:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+                   <span className="text-base md:text-xl font-semibold tabular-nums tracking-tight text-white">
                        <CatalogPrice product={product} />
                    </span>
                </div>
@@ -150,9 +150,8 @@ export const ProductCard = ({ product, priority = false, onOpen }: { product: Pr
                         <div className="flex gap-2 h-8 md:h-10">
                             <motion.button 
                                 disabled={!priceKnown} title={priceKnown ? 'Add to cart' : 'Price must be verified before adding'} id={uniqueBtnId} key="add" onClick={handleAddToCart} whileTap={{ scale: 0.95 }}
-                                className="disabled:opacity-40 disabled:cursor-not-allowed flex-1 rounded-lg md:rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 md:hover:bg-cyan-500 md:hover:text-black font-bold text-[8px] md:text-[10px] tracking-widest flex items-center justify-center gap-1.5 md:gap-2 transition-all duration-300"
-                            >
-                                <ShoppingBag size={12} className="md:w-[14px] md:h-[14px]" /> 
+                                className="disabled:opacity-40 disabled:cursor-not-allowed flex-1 rounded-full bg-white text-black md:hover:bg-white/90 font-semibold text-[9px] md:text-[11px] tracking-wide flex items-center justify-center gap-1.5 md:gap-2 shadow-[0_6px_18px_rgba(255,255,255,0.12)] transition-all duration-300">
+                                <AirSparkles className="h-3 w-3 text-purple-400 md:h-3.5 md:w-3.5" />
                                 <span>order with air</span>
                             </motion.button>
                         </div>
