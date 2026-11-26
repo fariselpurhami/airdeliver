@@ -1,0 +1,276 @@
+{
+  "scope": "Captured final structured completions only, no private reasoning. Synthetic unchanged-active-path cases, not a live provider test or owner acceptance.",
+  "cases": {
+    "008": {
+      "completions": [
+        {
+          "text": "The Synthetic Cedar Backpack is listed as made of canvas, while the Synthetic Birch Backpack is listed as made of nylon. Those are the only material details the listings provide; other specs such as water resistance are not specified.",
+          "product_ids": [
+            101,
+            102
+          ],
+          "claims": [
+            {
+              "product_id": 101,
+              "field": "name",
+              "value": "Synthetic Cedar Backpack"
+            },
+            {
+              "product_id": 101,
+              "field": "spec.material",
+              "value": "canvas"
+            },
+            {
+              "product_id": 102,
+              "field": "name",
+              "value": "Synthetic Birch Backpack"
+            },
+            {
+              "product_id": 102,
+              "field": "spec.material",
+              "value": "nylon"
+            }
+          ]
+        },
+        {
+          "supported": true,
+          "all_product_mentions_declared": true,
+          "no_unsupported_commercial_claims": true,
+          "fulfills_discovery_task": true
+        }
+      ],
+      "question": "Compare only the listed materials of these backpacks. What does the listing actually tell us?",
+      "products": [
+        {
+          "id": 101,
+          "name": "Synthetic Cedar Backpack",
+          "price": "45.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 5,
+          "category": "backpacks",
+          "attributes": {
+            "material": "canvas",
+            "color": "blue",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "850",
+            "water_resistance": "not specified"
+          }
+        },
+        {
+          "id": 102,
+          "name": "Synthetic Birch Backpack",
+          "price": "70.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 3,
+          "category": "backpacks",
+          "attributes": {
+            "material": "nylon",
+            "color": "black",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "600",
+            "water_resistance": "not specified"
+          }
+        }
+      ],
+      "expected_response_kind": "catalog_results",
+      "source_sha": "b82b1c38ec2839de4d9ca0ffdac8c2303e281f0d",
+      "synthetic": true
+    },
+    "009": {
+      "completions": [
+        {
+          "text": "Both the Synthetic Cedar Backpack (ID\u202f101) and the Synthetic Birch Backpack (ID\u202f102) are listed as in\u2011stock in the local catalog, but the catalog does not verify merchant availability or delivery timing, so I can\u2019t confirm they\u2019re available from a real merchant today or that they could arrive tomorrow. You may want to contact the seller directly to check current stock and shipping options.",
+          "product_ids": [
+            101,
+            102
+          ],
+          "claims": [
+            {
+              "product_id": 101,
+              "field": "name",
+              "value": "Synthetic Cedar Backpack"
+            },
+            {
+              "product_id": 101,
+              "field": "stock_status",
+              "value": "local_in_stock"
+            },
+            {
+              "product_id": 102,
+              "field": "name",
+              "value": "Synthetic Birch Backpack"
+            },
+            {
+              "product_id": 102,
+              "field": "stock_status",
+              "value": "local_in_stock"
+            }
+          ]
+        }
+      ],
+      "question": "Can you confirm either backpack is in stock with a real merchant and will arrive tomorrow?",
+      "products": [
+        {
+          "id": 101,
+          "name": "Synthetic Cedar Backpack",
+          "price": "45.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 5,
+          "category": "backpacks",
+          "attributes": {
+            "material": "canvas",
+            "color": "blue",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "850",
+            "water_resistance": "not specified"
+          }
+        },
+        {
+          "id": 102,
+          "name": "Synthetic Birch Backpack",
+          "price": "70.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 3,
+          "category": "backpacks",
+          "attributes": {
+            "material": "nylon",
+            "color": "black",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "600",
+            "water_resistance": "not specified"
+          }
+        }
+      ],
+      "expected_response_kind": "system_notice",
+      "source_sha": "b82b1c38ec2839de4d9ca0ffdac8c2303e281f0d",
+      "synthetic": true,
+      "first_gate": "internal_product_id_in_copy"
+    },
+    "010": {
+      "completions": [
+        {
+          "text": "Both listings lack any spec indicating a built\u2011in microphone, so we can\u2019t confirm they support calls. If a mic is essential, you may need to look for other headphones that list a microphone in their specifications.",
+          "product_ids": [
+            201,
+            202
+          ],
+          "claims": [
+            {
+              "product_id": 201,
+              "field": "name",
+              "value": "Synthetic Pine Headphones"
+            },
+            {
+              "product_id": 202,
+              "field": "name",
+              "value": "Synthetic Elm Headphones"
+            }
+          ]
+        },
+        {
+          "supported": true,
+          "all_product_mentions_declared": true,
+          "no_unsupported_commercial_claims": true,
+          "fulfills_discovery_task": true
+        }
+      ],
+      "question": "I need headphones with a microphone for calls. Which of these listings actually confirms a microphone?",
+      "products": [
+        {
+          "id": 201,
+          "name": "Synthetic Pine Headphones",
+          "price": "55.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 4,
+          "category": "headphones",
+          "attributes": {
+            "connection": "wired",
+            "color": "black"
+          }
+        },
+        {
+          "id": 202,
+          "name": "Synthetic Elm Headphones",
+          "price": "65.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 2,
+          "category": "headphones",
+          "attributes": {
+            "connection": "wireless",
+            "color": "white"
+          }
+        }
+      ],
+      "expected_response_kind": "catalog_results",
+      "source_sha": "b82b1c38ec2839de4d9ca0ffdac8c2303e281f0d",
+      "synthetic": true
+    },
+    "011": {
+      "completions": [
+        {
+          "text": "The Synthetic Birch Backpack (ID\u202f102) weighs 600\u202fg, which is under your 700\u202fg limit. The Synthetic Cedar Backpack (ID\u202f101) is 850\u202fg, exceeding that limit, so it doesn\u2019t meet the requirement.",
+          "product_ids": [
+            102
+          ],
+          "claims": [
+            {
+              "product_id": 102,
+              "field": "name",
+              "value": "Synthetic Birch Backpack"
+            },
+            {
+              "product_id": 102,
+              "field": "spec.weight_grams",
+              "value": "600"
+            }
+          ]
+        }
+      ],
+      "question": "I can carry at most 700 grams. Based only on listed weight, which backpack meets that limit? Do not infer comfort.",
+      "products": [
+        {
+          "id": 101,
+          "name": "Synthetic Cedar Backpack",
+          "price": "45.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 5,
+          "category": "backpacks",
+          "attributes": {
+            "material": "canvas",
+            "color": "blue",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "850",
+            "water_resistance": "not specified"
+          }
+        },
+        {
+          "id": 102,
+          "name": "Synthetic Birch Backpack",
+          "price": "70.00",
+          "currency": "USD",
+          "is_active": true,
+          "inventory": 3,
+          "category": "backpacks",
+          "attributes": {
+            "material": "nylon",
+            "color": "black",
+            "laptop_fit": "up to 15-inch laptop",
+            "weight_grams": "600",
+            "water_resistance": "not specified"
+          }
+        }
+      ],
+      "expected_response_kind": "system_notice",
+      "source_sha": "b82b1c38ec2839de4d9ca0ffdac8c2303e281f0d",
+      "synthetic": true,
+      "first_gate": "internal_product_id_in_copy"
+    }
+  }
+}

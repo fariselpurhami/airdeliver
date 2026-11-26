@@ -197,3 +197,9 @@ mountedHTTP, checkout or owner acceptance.008answers a narrow material question 
 a short paragraph.010keeps absent microphone evidence unknown, not nonexistent.
 Full b82b1c38hostedCI2894passed/3skipped and all10checks green. Generator reliability,
 source-truth routing and owner quality remain open. No merge or activation.
+
+Four captured final-wire held-outs now replay offline through SalesResponseService,
+not a replacement validator:008/010preserve exact published text and two stages;
+009/011preserve exact first ID gate, no review and empty cards.12focused receipt,
+ID-guard and replay tests pass. Captures contain final structured objects only,
+no private provider reasoning. This is regression evidence, not fresh live quality.
