@@ -53,3 +53,17 @@ DB cases cover absolute expiry, strict old-token retry after a lost successful
 response, rollback after a synthetic post-flush failure, and disable waiting on a
 rotation user lock. Actual CI execution and exact-head full results remain pending.
 The existing GitHub Actions synthetic seed/model exception remains unchanged.
+
+## Actual authorized CI receipt
+
+At cfbde3e6a7e61c9d1c0455affb2908d2a02561fb, all full PR checks passed:
+backend Seaweed/RustFS, frontend typecheck/tests/build, Docker smoke and scan.
+The backend log explicitly records upgrade1b8de657a098toa07cd546f987, followed by
+2829passed/3skipped. The9PostgreSQL policy cases ran, not local-only skips.
+https://github.com/fariselpurhami/airdeliver/actions/runs/45751355978/job/139679643417
+
+No local or real database was migrated. This confirms inactive transaction
+preparation in the approved hosted disposable environment. It does not certify
+HTTP/cookie/NextAuth rollout, stateless-JWT transition, deployment or real DB
+migration authority. PR remains separate and unmerged; scope guard intentionally
+refuses deployment outside the approved environment.
