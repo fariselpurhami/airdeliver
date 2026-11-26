@@ -192,7 +192,14 @@ def _unnegated(pattern,low):
     for m in re.finditer(pattern,low):
         before=_CLAUSE_EDGE.split(low[:m.start()])[-1]
         after=_CLAUSE_EDGE.split(low[m.end():])[0]
-        if not _NEGATION.search(before+' '+m.group(0)+' '+after):return True
+        if not _NEGATION.search(before+' '+m.group(0)+' '+after):
+            # "warranty and return terms are not listed": one negation may cover a coordinated
+            # noun phrase of at most three words that is the subject of that negated verb.
+            rest=low[m.end():]
+            joined=re.match(r"\s+(?:and|or)\s+(?:\w+\s+){1,3}?(?:is|are)\s+",rest)
+            if joined and not before.strip() and _NEGATION.match(_CLAUSE_EDGE.split(rest[joined.end():])[0]):
+                continue
+            return True
     return False
 
 def _number_value(token):

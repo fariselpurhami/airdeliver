@@ -11,7 +11,7 @@ def draft(text):
 
 @pytest.mark.parametrize('text',[
  'Studio Headphones: warranty and return terms are not listed, so I cannot confirm them.',
- 'Studio Headphones list no warranty details; free shipping and refunds are not listed either.',
+ 'Studio Headphones do not list warranty details; free shipping and refunds are not listed either.',
  'For Studio Headphones, free shipping or easy returns are not mentioned in the catalog.',
 ])
 def test_one_negation_covers_a_short_coordinated_list(text):
