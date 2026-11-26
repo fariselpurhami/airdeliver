@@ -61,5 +61,10 @@ def test_next_security_evolution_has_exact_current_hashes_and_keeps_move_receipt
  security=json.loads((ROOT/'docs/verification/next-security-source-evolution-v1.json').read_text())
  assert len(security)==9
  for path,row in security.items():
-  assert hashlib.sha256((ROOT/path).read_bytes()).hexdigest()==row['current_sha256']
+  expected=row['current_sha256']
+  later=json.loads((ROOT/'docs/verification/web-ui-source-evolution-v1.json').read_text()).get(path)
+  if later:
+   assert later['baseline_sha256']==expected
+   expected=later['current_sha256']
+  assert hashlib.sha256((ROOT/path).read_bytes()).hexdigest()==expected
   assert row['baseline_sha256'] is None or len(row['baseline_sha256'])==64

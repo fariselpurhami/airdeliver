@@ -148,7 +148,7 @@ const AuthFloatingProduct = memo(({
                         loading={priority ? "eager" : "lazy"}
                     />
                     <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
-                        <span className="text-[9px] font-mono uppercase tracking-widest opacity-70 text-white truncate">{category}</span>
+                        <span className="text-[9px] font-mono uppercase tracking-[0.1em] opacity-70 text-white break-words">{category}</span>
                         <h3 className="text-sm font-bold text-white tracking-wide leading-tight truncate">{title}</h3>
                     </div>
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-[20px] lg:rounded-[32px] ring-2 ring-current ring-inset mix-blend-overlay" />

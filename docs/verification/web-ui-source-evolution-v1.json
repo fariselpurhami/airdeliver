@@ -1,12 +1,22 @@
 {
   "frontend/web/src/app/(main)/_components/LandingClient.tsx": {
     "baseline_sha256": "7bbea471bbb98cd2413dc3e1cd9b505c96ecb3077ebc66a6c3719079459a42b9",
-    "current_sha256": "5bd65c5329d5c087d4f1574be7fb4eb8e34ff629fd0a46f58f632ce5d40e2227",
+    "current_sha256": "081cc65ee2d71a2df14f602c5727c067bb325bd03b2af16683518f71fd541ae6",
+    "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
+  },
+  "frontend/web/src/app/(main)/login/page.tsx": {
+    "baseline_sha256": "434e55fce6252d03c963108066b9d232855d7a7027555ad565268cd82ad83f95",
+    "current_sha256": "0f9741da6c49b3fb2fe5a54a5371161218631b97d4b85e1f72fa0b00f6a4564f",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/app/(main)/products/page.tsx": {
     "baseline_sha256": "b5ce5809cd68b2977eadc335e76b735d6e7b2c399f08635bb90e34ca7650d4d1",
     "current_sha256": "35e1687aa8f3a44498c865972592eac11b42c94c94632602b469c0cab9598b09",
+    "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
+  },
+  "frontend/web/src/app/(main)/profile/page.tsx": {
+    "baseline_sha256": "99273a2c955b1b9e5f8863b3322ed6afb4e9ca1fce16850a9646781e9f667ab4",
+    "current_sha256": "1f00d320031f05ac33fc1c7de79a4187dad78bed99e27c1591d8cfcc408da3b7",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/components/ai/Chatbot.tsx": {
@@ -16,12 +26,12 @@
   },
   "frontend/web/src/components/hero/FloatingHeroCards.tsx": {
     "baseline_sha256": "c404adabe0f9451880994375e6f743843466f289a13f9cf5fda53e91f999c3c1",
-    "current_sha256": "b829dc05ea265afbc92cecb85fcda30fdce9a2aa8ec27a9af72ae4a6c30100e2",
+    "current_sha256": "62b70de4c29c3b7889dd70859ce931e58ee97cc35c1f03b86e3ceb73d839c001",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/components/hero/MobileHomeFloatingCards.tsx": {
     "baseline_sha256": "f244045cc64eb0dae428f4eec9df49b261bfbfde1ba8b24e865ba34d932291da",
-    "current_sha256": "f5728860bcfeff68fe4dc613faf8ba5b831913c7fbcc02a3f5ee6b4a9d04a718",
+    "current_sha256": "3f4bef231c28575fdf3a2c7d60aba9e349f22a07a52be4f256fc314333001d46",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/components/home/MobileLandingView.tsx": {

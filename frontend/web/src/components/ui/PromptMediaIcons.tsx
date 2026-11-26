@@ -11,7 +11,7 @@ export function PromptMediaIcons() {
       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white/75 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] sm:h-9 sm:w-9">
         <Camera size={17} strokeWidth={1.8} />
       </span>
-      <span className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 sm:h-9 sm:w-9">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white/75 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] sm:h-9 sm:w-9">
         <Mic size={18} strokeWidth={1.8} />
       </span>
     </span>

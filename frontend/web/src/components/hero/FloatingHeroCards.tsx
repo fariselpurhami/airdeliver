@@ -32,7 +32,7 @@ export const FloatingCategoryCard = React.memo(({
                 <Image src={image} alt="" fill sizes="(max-width: 768px) 30vw, 20vw" className="object-cover opacity-60 lg:opacity-80 group-hover:opacity-100 transition-opacity duration-700" />
                 
                 <div className="absolute bottom-3 left-3 right-3 lg:bottom-5 lg:left-5 lg:right-5 z-20 flex flex-col gap-0.5 lg:gap-1">
-                    <span className="text-[7px] lg:text-[9px] font-mono uppercase tracking-[0.2em] lg:tracking-[0.3em] opacity-70 text-white mix-blend-overlay line-clamp-1">{category}</span>
+                    <span className="text-[7px] lg:text-[9px] font-mono uppercase tracking-[0.08em] lg:tracking-[0.3em] opacity-70 text-white mix-blend-overlay break-words">{category}</span>
                     <h3 className="text-[10px] lg:text-sm font-bold text-white tracking-wide leading-tight line-clamp-2 break-words" style={{ fontFamily: "'Orbitron', sans-serif" }}>{title}</h3>
                 </div>
                 
