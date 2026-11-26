@@ -221,3 +221,16 @@ def test_superiority_wording_gets_the_rewrite_and_is_withheld_only_if_the_rewrit
     from app.services.shopping_copy import ShoppingCopyError
     with pytest.raises(ShoppingCopyError):
         run([draft(BESTY),draft("Studio Headphones are the best choice for you."),OK])
+
+
+def test_same_amount_in_a_different_format_has_the_same_key():
+    from app.services.shopping_copy import _num_key
+    assert _num_key('300')==_num_key('300.00')==_num_key('300.0')
+    assert _num_key('1,024')==_num_key('1024')
+    assert _num_key('100.68')!=_num_key('100') and _num_key('99')!=_num_key('9')
+
+
+def test_rewrite_with_a_single_bullet_keeps_original():
+    one="I don't have the battery life for Studio Headphones.\n\n- Battery: I don't have it\n\nWant me to look at other headphones?\n\nI can check a few."
+    text,seen=run([draft(FOUR_ROBOTIC),draft(one),OK],{'product_answer_shape':'four_phase'})
+    assert text==FOUR_ROBOTIC and len(seen)==3

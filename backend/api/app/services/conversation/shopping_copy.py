@@ -5,6 +5,7 @@ Products and all commercial fields are always serialized outside the model.
 """
 import json
 import re
+from decimal import Decimal
 from typing import Literal
 import anyio
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, StrictBool
@@ -418,6 +419,13 @@ VOICE_REPAIR_FOUR=(" This answer has four blocks separated by blank lines, keep 
     "it connects them to what the customer is doing, and it moves them forward. Everything else is free: choose how to open, whether the specifics are bullet lines (only for two or more precise facts) or a sentence, "
     "how long each block is, and whether the close is a question or an offer, to fit this customer; never reuse a stock opening or closing. Add no heading or label.")
 
+def _num_key(token):
+    """Same number, same key: 300 and 300.00 match, 1,024 and 1024 match."""
+    try:
+        return format(Decimal(token.replace(',','')).normalize(),'f')
+    except Exception:
+        return token
+
 async def _voice_repair(infer,draft,cards,context,brief,message,rescue=False):
     """One extra low-effort call that rewrites only the text. Every failure keeps the original, already validated draft."""
     import logging
@@ -440,11 +448,12 @@ async def _voice_repair(infer,draft,cards,context,brief,message,rescue=False):
         low=new.text.casefold()
         names_kept=all(c.name.casefold() in low for c in cards if c.name.casefold() in draft.text.casefold())
         ids={str(i) for i in draft.product_ids}
-        digits=lambda t:set(re.findall(r'\d+(?:[.,]\d+)?',t))-ids
+        digits=lambda t:{_num_key(x) for x in re.findall(r'\d+(?:[.,]\d+)?',t)}-ids
         paras=lambda t:len([x for x in re.split(r'\n\s*\n',t) if x.strip()])
         flat=len(draft.text)>=200 and paras(new.text)<2
+        lone_bullet=len(re.findall(r'(?m)^\s*[-\u2022*]\s',new.text))==1
         casual=bool(re.search(r"!|^\s*(?:hey|hi|hello|hiya)\b",new.text,re.I))
-        if (((len(voice_tells(new.text,pnames))+(0 if asked_stock else len(_STOCK_PLACE.findall(new.text))))>=len(tells) and not rescue) or not names_kept or flat or casual or (four and paras(new.text)<min(4,paras(draft.text))) or not digits(draft.text)<=digits(new.text)
+        if (((len(voice_tells(new.text,pnames))+(0 if asked_stock else len(_STOCK_PLACE.findall(new.text))))>=len(tells) and not rescue) or not names_kept or flat or casual or lone_bullet or (four and paras(new.text)<min(4,paras(draft.text))) or not digits(draft.text)<=digits(new.text)
                 or len(new.text)>len(draft.text)*1.25+20):
             log.info('voice_repair_kept_original reason=rejected_by_guards')
             return draft
