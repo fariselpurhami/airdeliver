@@ -106,3 +106,22 @@ Four new tests initially failed because packed excerpts did not report their sel
 A test-first missing-module failure preceded an inactive pinned_status_source bridge. It accepts an application-owned separately reviewed pin: exact final URL, publisher identity, SHA256 of the supplied text, publication instant, region and exact model keys. It rejects changed content/URL, publisher mismatch, malformed digest and metadata before any status inference. The unchanged extraction/independent-review/temporal pipeline can then consume the exact matching snapshot. Thirteen new synthetic cases pass;268 combined focused cases pass.
 
 No real pins ship, no page fetch is performed, and this is not a source-specific metadata verifier. A hash can prove consistency with a pin but cannot establish the pin's correctness. Publication/model/region must still be independently reviewed from primary evidence, and changed pages require new review rather than automatic hash refresh. This is a bounded integrity mechanism for a future reviewed-source workflow, not completion of the missing real-world adapter or active semantic routing. No provider call or runtime activation occurred.
+
+## Real-source shape audit and date-precision preparation
+
+The four-source compatibility audit is recorded in
+`product-status-real-source-compatibility-v1.md`, with original HTML metadata
+shapes in `product-status-source-shapes-v1.json`. It demonstrates why the
+existing synthetic ISO-in-quote path is not yet a real-source adapter.
+
+The new inactive `source_date_precision.py` preserves a supplied publication
+value as either a calendar day or an aware instant. It never invents midnight,
+a source timezone, a model, market or release assertion. Day-only values with
+publisher-style trailing Z remain day-only. Unsupported relative/natural-language
+values and unknown offsets fail closed. Source-specific selection and metadata
+authentication are still absent; no existing caller uses this parser.
+
+Test-first result: missing-module collection failure, then 27 cases passed.
+Two further regressions showed Python normalizes invalid offset minutes; explicit
+minute validation fixed both. Final new-file result29pass, combined focused
+result297pass. No real source was fed into the model or published as status.
