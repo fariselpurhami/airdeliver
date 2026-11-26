@@ -16,7 +16,7 @@
   },
   "frontend/web/src/components/hero/FloatingHeroCards.tsx": {
     "baseline_sha256": "c404adabe0f9451880994375e6f743843466f289a13f9cf5fda53e91f999c3c1",
-    "current_sha256": "bfd171f91a56e750334f5a151636e87b6f1902ed5f043b91dc95dcb37d85b65f",
+    "current_sha256": "b829dc05ea265afbc92cecb85fcda30fdce9a2aa8ec27a9af72ae4a6c30100e2",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/components/hero/MobileHomeFloatingCards.tsx": {
