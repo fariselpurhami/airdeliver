@@ -48,7 +48,7 @@ class ExtractedStatus(BaseModel):
 def _normalize_status_claim(claim,sources,registry):
     if not isinstance(claim,ExtractedStatus) or claim.source>=len(sources):raise ValueError('invalid_status_source')
     source=sources[claim.source]
-    if not isinstance(source,VerifiedStatusSource):raise ValueError('verified_metadata_required')
+    validate_status_source(source)
     publisher=registry.publisher_for(source.final_url)
     if publisher is None:raise ValueError('unbound_status_publisher')
     if claim.model_key not in source.exact_models:raise ValueError('unbound_status_model')

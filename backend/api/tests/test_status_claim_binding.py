@@ -43,3 +43,15 @@ def test_fresh_fetch_cannot_make_old_publication_current():
 def test_wrong_region_keeps_status_unverified():
  row=bind_status_claim(claim(),[source()],registry(),reviewed=True)
  assert resolve_status('maker:x',[row],now=NOW,region='EG',max_age=timedelta(hours=6)).state=='unverified'
+
+
+@pytest.mark.parametrize('changes',[
+ {'region':''}, {'exact_models':('maker:x','maker:x')},
+ {'published_at':NOW+timedelta(seconds=1)}, {'text':QUOTE+'x'*6001},
+ {'observed_at':NOW.replace(tzinfo=None)},
+])
+def test_direct_binder_cannot_bypass_verified_metadata_shape_preflight(changes):
+ # The reviewed orchestrator already checks these, but the public binder must
+ # defend its own boundary when called independently with reviewed=True.
+ with pytest.raises(ValueError,match='verified_metadata_required'):
+  bind_status_claim(claim(),[replace(source(),**changes)],registry(),reviewed=True)

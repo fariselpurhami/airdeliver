@@ -171,3 +171,14 @@ numeric-host and empty-userinfo cases across all3tasks. Locally353focusedpass an
 Immutable historical manifests are unchanged; the source-evolution receipt records
 the active URL maintenance hash. This is a link-identity shape check, not DNS
 resolution, redirect validation, SSRF certification or real-provider execution.
+
+## Direct binder boundary audit
+
+Five red direct-entry cases found metadata preflight depended on the reviewed
+orchestrator: empty region, duplicate exact-model keys, publication after
+observation, oversized text, and a naive observation clock. Four were accepted
+by the direct binder; the naive clock failed only later with a different gate.
+The public normalizer now invokes the same existing validate_status_source guard
+before publisher/quote/date binding.190focused status/source tests pass, preserving
+all old rules and inactive status. This does not authenticate source metadata or
+supply the still-missing real publisher/date/model/market adapter.
