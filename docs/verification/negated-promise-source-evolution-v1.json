@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "1601fc2a4d890ab8e412d26f6be66c6f70b1c665b24c6aaa6b914dc24e5866c6",
+  "current_sha256": "a850688ad29a46369cc05bc2ac8abefcb4e358a19c093a1f05c6a504ebceb15c",
+  "replacements": [
+   {
+    "old": "|guarantee\\w*|available)\\b|",
+    "new": "|guarantee\\w*|promis\\w*|assur\\w*|available)\\b|",
+    "count": 1
+   }
+  ]
+ }
+}

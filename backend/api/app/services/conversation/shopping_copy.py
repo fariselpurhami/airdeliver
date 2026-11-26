@@ -181,7 +181,7 @@ def fixture_violation(text):
     }
     return next((name for name,pattern in patterns.items() if re.search(pattern,text)),None)
 
-_NEGATION=re.compile(r"(?:\bnot(?!\s+only)|\bcannot|n't|\bunable)\W+(?:\w+\W+){0,3}?(?:list\w*|specif\w*|stat\w*|mention\w*|indicat\w*|confirm\w*|verif\w*|say|know\w*|guarantee\w*|available)\b|\b(?:unknown|unlisted|unverified|unspecified)\b")
+_NEGATION=re.compile(r"(?:\bnot(?!\s+only)|\bcannot|n't|\bunable)\W+(?:\w+\W+){0,3}?(?:list\w*|specif\w*|stat\w*|mention\w*|indicat\w*|confirm\w*|verif\w*|say|know\w*|guarantee\w*|promis\w*|assur\w*|available)\b|\b(?:unknown|unlisted|unverified|unspecified)\b")
 _CLAUSE_EDGE=re.compile(r"[.;:!?\n,]|\b(?:but|yet|however|though|although|while|so|and|except|only)\b")
 def _unnegated(pattern,low):
     """True when pattern occurs outside an honest 'not listed/unknown' clause.
