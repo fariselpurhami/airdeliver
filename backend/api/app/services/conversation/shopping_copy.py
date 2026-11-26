@@ -183,6 +183,8 @@ def fixture_violation(text):
 
 _NEGATION=re.compile(r"(?:\bnot(?!\s+only)|\bcannot|n't|\bunable)\W+(?:\w+\W+){0,3}?(?:list\w*|specif\w*|stat\w*|mention\w*|indicat\w*|confirm\w*|verif\w*|say|know\w*|guarantee\w*|promis\w*|assur\w*|available)\b|\b(?:unknown|unlisted|unverified|unspecified)\b")
 _CLAUSE_EDGE=re.compile(r"[.;:!?\n,]|\b(?:but|yet|however|though|although|while|so|and|except|only)\b")
+# 'Waterproof rating: unknown' is an honest label, but the colon is a clause edge that hides its negation.
+_COLON_UNKNOWN=re.compile(r"(?:\s+\w+){0,2}\s*:\s*(?:unknown|unlisted|unverified|unspecified|not\s+(?:listed|specified|stated|provided|available|confirmed))\b")
 def _unnegated(pattern,low):
     """True when pattern occurs outside an honest 'not listed/unknown' clause.
 
@@ -190,6 +192,8 @@ def _unnegated(pattern,low):
     'not only' does not). Any clause edge (comma, 'but', 'and'...) ends it, so a
     negated clause cannot cover an affirmative one. Fail closed on anything else."""
     for m in re.finditer(pattern,low):
+        if _COLON_UNKNOWN.match(low[m.end():]):
+            continue
         before=_CLAUSE_EDGE.split(low[:m.start()])[-1]
         after=_CLAUSE_EDGE.split(low[m.end():])[0]
         if not _NEGATION.search(before+' '+m.group(0)+' '+after):

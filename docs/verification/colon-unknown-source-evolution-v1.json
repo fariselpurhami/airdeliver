@@ -1,0 +1,18 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "f6930dad60a3f470e12a8e903b87aff25fcfe287f3e03a1240e77649fdaf1450",
+  "current_sha256": "42e806dfeabfae66666ae436a6301a96054e16e29594f429f72ca66534369de8",
+  "replacements": [
+   {
+    "old": "def _unnegated(pattern,low):",
+    "new": "# 'Waterproof rating: unknown' is an honest label, but the colon is a clause edge that hides its negation.\n_COLON_UNKNOWN=re.compile(r\"(?:\\s+\\w+){0,2}\\s*:\\s*(?:unknown|unlisted|unverified|unspecified|not\\s+(?:listed|specified|stated|provided|available|confirmed))\\b\")\ndef _unnegated(pattern,low):",
+    "count": 1
+   },
+   {
+    "old": "    for m in re.finditer(pattern,low):\n        before=",
+    "new": "    for m in re.finditer(pattern,low):\n        if _COLON_UNKNOWN.match(low[m.end():]):\n            continue\n        before=",
+    "count": 1
+   }
+  ]
+ }
+}
