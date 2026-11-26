@@ -1,0 +1,8 @@
+{
+  "backend/api/app/services/conversation/ai_nlu_service.py": {
+    "baseline_sha256": "fc3401ffacd646cddcdc762dc9bdb5fb7c88a7a41dcd2dde27609114c935bfd2",
+    "current_sha256": "f993a67ccbabe3972565f5e557ff72abbee410728428124939f0769ee8be1632",
+    "reason": "Legacy intent payload drops a budget not stated in the customer's current words",
+    "inserted_block": "            # A budget with no matching amount in the customer's current words is\n            # model invention, not a constraint. Amounts accept commas and a k suffix.\n            if result.budget_max is not None:\n                stated=set()\n                for raw,suffix in re.findall(r'(\\d+(?:,\\d{3})*(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)\\s*(k\\b)?',current):\n                    value=float(raw.replace(',',''))\n                    stated.add(value*1000 if suffix else value)\n                if result.budget_max<=0 or float(result.budget_max) not in stated:result.budget_max=None\n"
+  }
+}
