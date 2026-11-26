@@ -1,7 +1,7 @@
 {
   "frontend/web/src/app/(main)/_components/LandingClient.tsx": {
     "baseline_sha256": "7bbea471bbb98cd2413dc3e1cd9b505c96ecb3077ebc66a6c3719079459a42b9",
-    "current_sha256": "081cc65ee2d71a2df14f602c5727c067bb325bd03b2af16683518f71fd541ae6",
+    "current_sha256": "b1c0c852bc7b91aee9d38f81166e0320e864a1fc70e34d5e14756102d7bd721b",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/app/(main)/login/page.tsx": {
@@ -26,12 +26,12 @@
   },
   "frontend/web/src/components/hero/FloatingHeroCards.tsx": {
     "baseline_sha256": "c404adabe0f9451880994375e6f743843466f289a13f9cf5fda53e91f999c3c1",
-    "current_sha256": "62b70de4c29c3b7889dd70859ce931e58ee97cc35c1f03b86e3ceb73d839c001",
+    "current_sha256": "57f38d078bb94a34835d023fd7627be713ec617dec5ede97baed1f19141ef37b",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/components/hero/MobileHomeFloatingCards.tsx": {
     "baseline_sha256": "f244045cc64eb0dae428f4eec9df49b261bfbfde1ba8b24e865ba34d932291da",
-    "current_sha256": "3f4bef231c28575fdf3a2c7d60aba9e349f22a07a52be4f256fc314333001d46",
+    "current_sha256": "cfd79ba7bc0e5d0329378181277e0b3b731b0e294d265778df2bbbf600df44b3",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/components/home/MobileLandingView.tsx": {
