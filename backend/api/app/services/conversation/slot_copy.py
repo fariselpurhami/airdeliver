@@ -9,6 +9,7 @@ run on it unchanged. Not wired into live traffic. Soft judgments ("a fair size")
 import json
 import re
 from decimal import Decimal, InvalidOperation
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from app.services.conversation.shopping_copy import Claim, ShoppingDraft, exact_totals
 
 _SLOT = re.compile(r"\[\[\s*([a-z_.]+?)(?::\s*(\d+))?\s*\]\]")
@@ -25,6 +26,11 @@ SLOT_WRITER_RULES = (
     "Use only IDs and spec keys that appear in the supplied cards. A fact with no slot is unknown: say plainly that you do not have it, in your own words, without slots. "
     "Everything else is free: write like a sharp, tactful friend, vary the shape and length to the customer's intent, use short bullet lines only for two or more precise facts."
 )
+
+
+class SlotDraft(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    text: StrictStr = Field(min_length=1, max_length=2000)
 
 
 class SlotError(ValueError):
