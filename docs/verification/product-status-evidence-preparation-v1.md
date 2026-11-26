@@ -66,3 +66,7 @@ Three new regressions failed first: preflight called the reviewed binder before 
 ## Reject malformed adapter metadata before inference
 
 Seven further red cases showed that the dataclass annotation alone did not enforce adapter metadata. Naive observation/publication times, empty region/model sets, duplicate model keys, mutable list identity bindings and non-text content could reach inference or fail with an unrelated exception. Source shape is now validated before either stage. This validates structure only, never source authenticity; verified publisher/date/model extraction remains unimplemented for real pages.145 combined status/binding/publisher/source-evolution cases pass offline. No provider or source fetch was used.
+
+## Request-local publisher configuration snapshot
+
+A further test-first failure showed publisher configuration could change during the independent review await and silently rebind the final evidence to a different publisher. The inactive pipeline now takes a validated independent registry snapshot before inference.225 combined focused tests pass. This is request consistency, not verification of a real publisher registry, and the active product research flow is unchanged.

@@ -36,6 +36,10 @@ class PublisherRegistry:
                 hosts[host]=binding.publisher_key
         self._hosts=hosts
 
+    def snapshot(self):
+        """Independent validated configuration for a bounded request."""
+        return PublisherRegistry(tuple(PublisherBinding(key,(host,)) for host,key in self._hosts.items()))
+
     def publisher_for(self,url):
         if type(url) is not str or not 0<len(url)<=2048:return None
         if re.search(r'[\x00-\x20\x7f\\]',url) or re.search(r'%(?:0[0-9a-f]|1[0-9a-f]|20|7f|5c)',url,re.I):return None

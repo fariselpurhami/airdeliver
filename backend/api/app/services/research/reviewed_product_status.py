@@ -8,6 +8,7 @@ import anyio
 from pydantic import BaseModel,ConfigDict,Field,StrictBool
 from app.services.research.status_claim_binding import ExtractedStatus,VerifiedStatusSource,bind_status_claim,validate_status_claim,validate_status_source
 from app.services.research.product_status_policy import resolve_status
+from app.services.research.publisher_binding import PublisherRegistry
 from app.services.structured_output import infer_schema
 
 
@@ -28,6 +29,8 @@ async def reviewed_product_status(infer,model_key,sources,registry,*,now,region,
     if not 0<timeout<=30 or len(sources)>9:raise ValueError('invalid_status_bounds')
     # Validate the application clock before either model stage, even with sources.
     resolve_status(model_key,[],now=now,region=region,max_age=max_age)
+    if not isinstance(registry,PublisherRegistry):raise ValueError('verified_registry_required')
+    registry=registry.snapshot()
     frozen=tuple(sources)
     for source in frozen:
         validate_status_source(source)

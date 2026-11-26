@@ -111,3 +111,23 @@ async def test_malformed_verified_adapter_metadata_rejected_before_inference(cha
  with pytest.raises(ValueError,match='verified_metadata_required'):
   await reviewed_product_status(infer,'maker:x',[replace(source(),**changes)],registry(),now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
  infer.assert_not_awaited()
+
+@pytest.mark.asyncio
+async def test_registry_mutation_during_review_cannot_rebind_publisher():
+ reg=registry();calls=[]
+ async def infer(messages):
+  calls.append(messages)
+  if len(calls)==1:return json.dumps(D)
+  reg._hosts={'news.maker.example':'different-publisher'}
+  return json.dumps(V)
+ import importlib
+ service=importlib.import_module('app.services.research.reviewed_product_status')
+ original=service.bind_status_claim
+ seen=[]
+ # Observe the actual final evidence, not only the status's source URL.
+ from unittest.mock import patch
+ def checked(*args,**kwargs):
+  evidence=original(*args,**kwargs);seen.append(evidence.publisher_key);return evidence
+ with patch.object(service,'bind_status_claim',checked):
+  result=await service.reviewed_product_status(infer,'maker:x',[source()],reg,now=NOW,region='US',max_age=timedelta(hours=6),timeout=1)
+ assert result.state=='released' and seen==['maker']
