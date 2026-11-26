@@ -77,3 +77,18 @@ def test_number_words_used_as_facts_are_rejected(text):
 
 def test_plain_words_that_are_not_facts_pass():
     assert ok("One thing I do not have is its battery life; the [[name:1]] is the one you asked about.").text.startswith('One thing')
+
+
+def test_customer_typed_product_words_with_digits_are_echoes_not_facts():
+    """Simulated slot draft (n=1 of 8): "PS5" in the customer's own question was rejected as a typed fact."""
+    import pytest
+    from tests.test_shopping_discovery_contract import row
+    from app.services.shopping_discovery import catalog_result
+    from app.services.conversation.slot_copy import render_slots, SlotError
+    card = catalog_result(row())
+    ok = render_slots({'text': "I can't see PS5 support on the [[name:1]], so I won't say yes."}, [card], None, 'Do they work with a PS5?')
+    assert 'PS5' in ok.text
+    with pytest.raises(SlotError):
+        render_slots({'text': "The [[name:1]] works with a PS5 and lasts 30 hours."}, [card], None, 'Do they work with a PS5?')
+    with pytest.raises(SlotError):
+        render_slots({'text': "It has PS5 support."}, [card], None, 'Do they work with a PS4?')
