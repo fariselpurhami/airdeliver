@@ -1,0 +1,18 @@
+{
+ "backend/api/app/services/conversation/sales_response_service.py": {
+  "baseline_sha256": "d2e21adfa25d81d76e990510ad00d3ff58d69b87be5eb16b21bd620d1cf006f9",
+  "current_sha256": "cbae0b0c226444360340154013041c8a0aee687a3dd3122c06f7d5ee1fe9bf10",
+  "replacements": [
+   {
+    "old": "        brief=request.brief.model_copy(deep=True)\n        try:\n",
+    "new": "        brief=request.brief.model_copy(deep=True)\n        if request.mode=='catalog_results' and request.intent=='CATALOG_CONSULTATION':\n            fact=catalog_fact_answer(request.message,cards)\n            if fact:\n                return NeuralCoreResponse(text=fact,products=cards,response_kind='catalog_results',confidence=0.9,\n                    explain='Deterministic answer from current catalog card fields, no model-authored claims',\n                    telemetry={'intent':request.intent,'entities':[],'turn':0})\n        try:\n",
+    "count": 1
+   },
+   {
+    "old": "from app.services.shopping_discovery import ShoppingBrief\n",
+    "new": "from app.services.shopping_discovery import ShoppingBrief\nfrom app.services.conversation.catalog_fact_answer import catalog_fact_answer\n",
+    "count": 1
+   }
+  ]
+ }
+}
