@@ -288,6 +288,9 @@ class NeuralCoreService:
                 return SessionMemory.model_validate(raw_data)
         except (ValidationError, TypeError, ValueError) as exc:
             logger.warning("neural_core.session.corrupted_state", extra={"error_type": type(exc).__name__})
+            from app.services.conversation.support_session_commit import _snapshots,SessionStateUnavailable
+            if _snapshots.get() is not None:
+                raise SessionStateUnavailable("Stored session failed validation") from exc
             # State corrupted or schema changed; graceful fallback to fresh session
 
         return SessionMemory(user_name=user_name)

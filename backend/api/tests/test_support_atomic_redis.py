@@ -190,3 +190,12 @@ async def test_concurrent_identical_turns_on_saturated_history_still_have_one_wi
  for svc in services:svc._analyze_intent=route
  replies=await asyncio.gather(*(svc.handle_message(None,'identical goal',None,'same-session') for svc in services))
  assert sorted(r.response_kind for r in replies)==['conversation','system_notice']
+
+@pytest.mark.asyncio
+async def test_invalid_typed_snapshot_is_not_silently_fresh_context(real_cache):
+ cache,_=real_cache;svc=service(cache);calls=[]
+ await cache.set_json_required(svc._get_session_key('same-session'),{'user_name':'Synthetic','history':[{'role':'system','content':'invalid stored role'}]},ttl=60)
+ async def route(*args):calls.append(True);return RouterDecision(intent='SOCIAL_CHAT',social_reply='ok')
+ svc._analyze_intent=route
+ result=await svc.handle_message(None,'new question',None,'same-session')
+ assert result.response_kind=='system_notice' and calls==[]

@@ -58,3 +58,10 @@ fields. Both unchanged semantic history revision and concurrent identical-turn
 one-winner tests now pass. Existing model schema ignores this storage-only field;
 it is never supplied as customer/claim evidence.171focused tests now pass including
 21temporary real Redis/service/HTTP cases. Full new-head CI required again.
+
+Typed-corruption follow-on: valid JSON with invalid stored role previously fell
+back to fresh context and could overwrite lost constraints. New actual Redis case
+red1failed21passed; strict public support hydration now rejects typed corruption
+before inference rather than silently resetting. Direct historical helper behavior
+is retained outside the public strict boundary.172focused tests pass,22real
+Redis/service/HTTP cases. New source receipt current digest updated, baseline kept.
