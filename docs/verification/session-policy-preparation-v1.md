@@ -36,3 +36,20 @@ Eleven mocked transport/storage boundary cases pass for issue/rotation flush or 
 ## Offline ancestry reconciliation, no migration execution
 
 Current main05b95d32 was merged locally without changing deployed state. A new static AST graph test first failed because this prepared migration branched from f96bc435e876 while existing customer-memory/cart-journal migrations already extend that revision. Its parent now points to current graph head1b8de657a098, retaining a single future head. The graph test reads source literals only, never imports Alembic or runs DDL. Twelve static/fault tests pass; five real PostgreSQL policy tests remain skipped locally. Nothing pushed and no migration/rollback/database/schema action executed. Disposable-CI migration approval remains unanswered and active auth/NextAuth wiring remains absent.
+
+## Scoped disposable-CI approval, 26 November 2026
+
+The owner replied directly to the narrow disposable GitHub Actions migration
+question with a conditional go-ahead if this is the professional/better option.
+Testing real PostgreSQL transaction/lock semantics is better than claiming mocks
+prove replay containment. Scope: synthetic hosted Actions DBs only, never his
+machine or a real DB. No active auth/NextAuth rollout is authorized by this step.
+
+The prepared migration now enforces hosted Actions, local PostgreSQL authority
+and an airdeliver_test_* database name before additive DDL. Five refusing-scope
+mock tests failed first, then six scope tests passed. No local DDL was executed.
+18offline static/fault/scope tests pass;9PostgreSQL tests locally skip. Added real
+DB cases cover absolute expiry, strict old-token retry after a lost successful
+response, rollback after a synthetic post-flush failure, and disable waiting on a
+rotation user lock. Actual CI execution and exact-head full results remain pending.
+The existing GitHub Actions synthetic seed/model exception remains unchanged.
