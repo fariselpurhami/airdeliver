@@ -77,3 +77,19 @@ def test_answers_that_declare_no_product_are_never_rewritten():
         seen.append(1);return json.dumps({'text':'Explore these catalog designs.','product_ids':[],'claims':[]} if len(seen)==1 else OK)
     text=asyncio.run(write_shopping_copy(infer,'ideas?',[catalog_result(row())],{},'catalog_results',20))
     assert text=='Explore these catalog designs.' and len(seen)==2
+
+LEAKY="Studio Headphones are in stock locally (ID 1), status local_in_stock. I don't have the battery life for this pair."
+
+def test_id_and_status_leak_is_repaired_by_the_voice_rewrite_instead_of_withholding():
+    text,seen=run([draft(LEAKY),draft(FRIEND),OK])
+    assert text==FRIEND and len(seen)==3
+
+def test_leak_that_the_rewrite_does_not_fix_is_still_withheld_with_the_original_reason():
+    from app.services.shopping_copy import ShoppingCopyError
+    with pytest.raises(ShoppingCopyError) as caught:
+        run([draft(LEAKY),draft(LEAKY),OK])
+    assert caught.value.reason=='unsupported_numeric_or_link_claim'
+
+def test_leak_tells_are_detected():
+    assert voice_tells('Stock status: local_in_stock (ID 10).')
+    assert voice_tells('spec.weight is 650 g')
