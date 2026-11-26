@@ -28,7 +28,8 @@ def run(replies,ctx=None):
 
 def test_tells_are_detected():
     assert voice_tells(ROBOTIC)
-    assert voice_tells('- Battery: not specified\n- Weight: 1 kg')
+    assert voice_tells('- Battery: not specified in the data\n- Weight: 1 kg')
+    assert not voice_tells('- Battery: 12 hours\n- Weight: 1 kg')
     assert voice_tells('Not mentioned in the specifications.')
     assert not voice_tells(FRIEND)
 
@@ -79,7 +80,7 @@ def test_four_phase_answers_are_repaired_keeping_four_sections():
     text,seen=run([draft(FOUR_ROBOTIC),draft(FOUR_FRIEND),OK],{'product_answer_shape':'four_phase'})
     assert text==FOUR_FRIEND and len(seen)==3
     assert 'same number of sections' in seen[1][0]['content']
-    assert '- ' not in text and '\n\n' in text
+    assert '\n\n' in text
 
 def test_four_phase_rewrite_that_collapses_sections_keeps_original():
     text,seen=run([draft(FOUR_ROBOTIC),draft(FRIEND),OK],{'product_answer_shape':'four_phase'})
@@ -136,4 +137,14 @@ def test_long_answer_rewritten_into_spaced_paragraphs_is_used():
 def test_cannot_confirm_forms_are_tells_and_rules_ban_them():
     assert voice_tells('We cannot confirm that.') and voice_tells('I am unable to confirm it.')
     text,seen=run([draft(ROBOTIC),draft(FRIEND),OK])
-    assert 'blank line' in seen[1][0]['content'] and 'unable to confirm' in seen[1][0]['content']
+    assert 'blank line' in seen[1][0]['content'] and 'bullet' in seen[1][0]['content'] and 'unable to confirm' in seen[1][0]['content']
+
+
+LONG_BULLETED=("I have the Smart Watch in stock locally, but two things are missing.\n\n- Battery life: I don't have it\n- Sleep tracking: I have nothing on it\n\n"
+    "If those matter, we could look at another wearable that lists them.")
+
+def test_rewrite_with_tidy_bullets_is_accepted_and_bullets_alone_do_not_trigger_repair():
+    text,seen=run([draft(LONG_ROBOTIC),draft(LONG_BULLETED),OK])
+    assert text==LONG_BULLETED and '- Battery life' in text
+    text,seen=run([draft(LONG_BULLETED),OK])
+    assert text==LONG_BULLETED and len(seen)==2
