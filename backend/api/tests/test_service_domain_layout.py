@@ -61,6 +61,17 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
    edited=edited.replace(edit['new'],edit['old'])
   assert hashlib.sha256(edited.encode()).hexdigest()==cf[row['path']]['baseline_sha256']==expected
   expected=cf[row['path']]['current_sha256']
+ sv=json.loads((ROOT/'docs/verification/sales-engineer-voice-source-evolution-v1.json').read_text())
+ assert set(sv)=={'backend/api/app/services/conversation/compact_copy_contracts.py'}
+ if row['path'] in sv:
+  # Newest receipt: verify the live file, then revert it so the move manifest verifies the original.
+  assert hashlib.sha256(source).hexdigest()==sv[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in sv[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==sv[row['path']]['baseline_sha256']==row['canonical_sha256']
+  source=edited.encode()
  be=json.loads((ROOT/'docs/verification/writer-budget-echo-source-evolution-v1.json').read_text())
  assert set(be)=={'backend/api/app/services/conversation/shopping_copy.py'}
  if row['path'] in be:

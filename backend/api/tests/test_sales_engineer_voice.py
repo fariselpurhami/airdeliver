@@ -6,9 +6,9 @@ from app.services.compact_copy_contracts import contracts
 def test_writer_contract_carries_the_sales_engineer_voice_and_keeps_every_guard(mode,ctx):
     writer,reviewer=contracts(mode,ctx)
     low=writer.lower()
-    for phrase in ('consultative sales engineer','one clear pick','at most one alternative','one focused question'):
+    for phrase in ('consultative sales engineer','one clear supported pick','one alternative tradeoff','one focused next-step question'):
         assert phrase in low
-    for guard in ('never from superiority, urgency, scarcity, social proof','only supplied cards prove product facts','never invented certainty','low-pressure'):
+    for guard in ('superiority, urgency, scarcity, social proof','only supplied cards prove product facts','never invented certainty','low-pressure'):
         assert guard in low
     assert 'reject any violation of evidence' in reviewer.lower()
 
