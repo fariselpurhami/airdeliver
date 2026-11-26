@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "4c0e5e1ede71be2e59122e2bc9f2af6f287c9b917347beee8e0e1ae6c16aaca2",
+  "current_sha256": "2725886465aa0c6e645f318d42ae5d11c3c64ba79299c9c7892bc0a47a4a1be0",
+  "replacements": [
+   {
+    "old": "_STOCK_PLACE=re.compile(r\"\\bin stock locally\\b|\\bin our (?:stock|shop)\\b|\\bavailable (?:right )?(?:here )?in our shop\\b|\\blocally in stock\\b\",re.I)\n",
+    "new": "_STOCK_PLACE=re.compile(r\"\\bin[\\s\\u00a0\\u202f\\u2010-\\u2015-]+stock[\\s\\u00a0\\u202f\\u2010-\\u2015-]+locally\\b|\\bin[\\s\\u00a0\\u202f\\u2010-\\u2015-]+our[\\s\\u00a0\\u202f\\u2010-\\u2015-]+(?:stock|shop)\\b|\\bavailable[\\s\\u00a0\\u202f\\u2010-\\u2015-]+(?:right[\\s\\u00a0\\u202f\\u2010-\\u2015-]+)?(?:here[\\s\\u00a0\\u202f\\u2010-\\u2015-]+)?in[\\s\\u00a0\\u202f\\u2010-\\u2015-]+our[\\s\\u00a0\\u202f\\u2010-\\u2015-]+shop\\b|\\blocally[\\s\\u00a0\\u202f\\u2010-\\u2015-]+in[\\s\\u00a0\\u202f\\u2010-\\u2015-]+stock\\b\",re.I)\n",
+    "count": 1
+   }
+  ]
+ }
+}

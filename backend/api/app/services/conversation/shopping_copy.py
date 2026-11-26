@@ -393,7 +393,7 @@ def complete_name_claims(draft,cards):
     return draft.model_copy(update={'claims':[*draft.claims,*add]}) if add else draft
 
 
-_STOCK_PLACE=re.compile(r"\bin stock locally\b|\bin our (?:stock|shop)\b|\bavailable (?:right )?(?:here )?in our shop\b|\blocally in stock\b",re.I)
+_STOCK_PLACE=re.compile(r"\bin[\s\u00a0\u202f\u2010-\u2015-]+stock[\s\u00a0\u202f\u2010-\u2015-]+locally\b|\bin[\s\u00a0\u202f\u2010-\u2015-]+our[\s\u00a0\u202f\u2010-\u2015-]+(?:stock|shop)\b|\bavailable[\s\u00a0\u202f\u2010-\u2015-]+(?:right[\s\u00a0\u202f\u2010-\u2015-]+)?(?:here[\s\u00a0\u202f\u2010-\u2015-]+)?in[\s\u00a0\u202f\u2010-\u2015-]+our[\s\u00a0\u202f\u2010-\u2015-]+shop\b|\blocally[\s\u00a0\u202f\u2010-\u2015-]+in[\s\u00a0\u202f\u2010-\u2015-]+stock\b",re.I)
 _VOICE_TELLS=re.compile(r"\bcatalog\b|\bspecifications?\b|\bspecs\b|\binformation (?:provided|available)\b|\b(?:can|could)(?:'|\u2019)?t confirm\b|\bnot (?:specified|listed|mentioned) in\b|\b(?:cannot|unable to) confirm\b|\bid\s*\d+\b|\b(?:local|fixture)_(?:in|out_of)_stock\b|\bspec\.\w+|\bproduct_id\b",re.I|re.M)
 def voice_tells(text,names=()):
     """Robotic tells a person would not write: catalog/specification jargon and "can't confirm" phrasing. Bullets are wanted for key precise facts, so they are not tells.
