@@ -466,7 +466,7 @@ export default function AuthPage() {
 
                 {/* Same stage, card components and mobile frame as products. */}
                 <div className="hidden lg:contents"><FloatingHeroCards /></div>
-                <div className="absolute inset-x-5 top-28 bottom-16 lg:hidden pointer-events-none" data-mobile-auth-distribution style={{ opacity: 0.32 }}><MobileHomeFloatingCards /></div>
+                <div className="absolute inset-x-5 top-28 bottom-16 lg:hidden pointer-events-none" data-mobile-auth-distribution style={{ opacity: 0.62 }}><MobileHomeFloatingCards /></div>
 
             </div>
         </main>

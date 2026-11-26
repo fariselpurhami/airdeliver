@@ -27,5 +27,5 @@ it('keeps matching mobile frame offsets and desktop center width',()=>{
  const auth=fs.readFileSync('src/app/(main)/login/page.tsx','utf8');
  const products=fs.readFileSync('src/app/(main)/products/page.tsx','utf8');
  for(const source of [auth,products])for(const token of ['HERO_STAGE_CLASSES','inset-x-5 top-28 bottom-16 lg:hidden','lg:max-w-[48%]','<FloatingHeroCards />','<MobileHomeFloatingCards />'])expect(source).toContain(token);
- expect(auth).toContain('opacity: 0.32');
+ expect(auth).toContain('opacity: 0.62');
 });

@@ -180,7 +180,7 @@ const HeroContent = memo(({ onDownload }: { onDownload: () => void }) => (
       </div>
       
       <p className="mt-12 text-[10px] text-gray-600 font-mono uppercase tracking-[0.2em]">
-        Instant Delivery &bull; Live Tracking &bull; 100% Autonomous
+        Instant Delivery &bull; Live Tracking &bull; Secured
       </p>
     </motion.div>
   </div>

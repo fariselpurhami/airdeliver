@@ -936,7 +936,7 @@ const FinalCTA = memo(() => (
             <span>DOWNLOAD APP</span><ArrowDown className="w-6 h-6 group-hover:translate-y-1 transition-transform" aria-hidden="true" />
           </button>
         </div>
-        <p className="mt-12 text-[9px] text-zinc-600 font-mono uppercase">Multimodal AI • One-Tap Checkout • 100% Autonomous</p>
+        <p className="mt-12 text-[9px] text-zinc-600 font-mono uppercase">Multimodal AI • One-Tap Checkout • Secured</p>
       </motion.div>
     </div>
   </section>

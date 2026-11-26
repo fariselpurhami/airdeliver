@@ -1,12 +1,12 @@
 {
   "frontend/web/src/app/(main)/_components/LandingClient.tsx": {
     "baseline_sha256": "7bbea471bbb98cd2413dc3e1cd9b505c96ecb3077ebc66a6c3719079459a42b9",
-    "current_sha256": "f1b53817743148649264641d7159625d5680fd38e7a9f852f1d8652e1c4ffd30",
+    "current_sha256": "d86bbd3a030cfd316fbdcf43e6182a147c934dc0ed97e953d8b5e2aad2cc7134",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/app/(main)/login/page.tsx": {
     "baseline_sha256": "434e55fce6252d03c963108066b9d232855d7a7027555ad565268cd82ad83f95",
-    "current_sha256": "0f9741da6c49b3fb2fe5a54a5371161218631b97d4b85e1f72fa0b00f6a4564f",
+    "current_sha256": "140ea69d4e5bd99828852a4bbd553918fcaa8af37a1b06f7d8b6b2a785ebae13",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/app/(main)/products/page.tsx": {
@@ -36,7 +36,7 @@
   },
   "frontend/web/src/components/home/MobileLandingView.tsx": {
     "baseline_sha256": "1c491183354b0209bf303a500fcc288d6e59c27c619b10fb9ca8a9527ae8cea2",
-    "current_sha256": "8408b8679166de7c78e308b018cd15e74eb3873e475282b54af53195583ef2da",
+    "current_sha256": "401b04726aad63701c772c1e661089e2a371459dbcd9b627e914bf5b6fa5090e",
     "reason": "Reviewed user-requested UI changes (product-card sparkle icon, prompt bars, floating card labels, How it works copy, launcher glass, next/image dev warnings); behavior files unchanged"
   },
   "frontend/web/src/components/layout/Footer.tsx": {
