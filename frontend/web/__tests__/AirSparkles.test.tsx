@@ -18,8 +18,9 @@ test('shopping mark has one large star and two small stars without changing assi
  expect(card.match(/<AirSparkles /g)).toHaveLength(1);
 });
 
-test('no source file uses the old Bot glyph',()=>{
+test('Bot glyph remains only in the Air Assistant chatbot UI and help page',()=>{
  const walk=(d:string):string[]=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?walk(path.join(d,e.name)):/\.tsx$/.test(e.name)?[path.join(d,e.name)]:[]);
- const offenders=walk(path.join(process.cwd(),'src')).filter(f=>/\bBot\b/.test(fs.readFileSync(f,'utf8').replace(/googleBot/g,'')));
+ const assistant=/(components[\\/]ai[\\/](AISupportButton|Chatbot|AIChatOverlay)\.tsx|app[\\/]help[\\/]page\.tsx)$/;
+ const offenders=walk(path.join(process.cwd(),'src')).filter(f=>!assistant.test(f)).filter(f=>/\bBot\b/.test(fs.readFileSync(f,'utf8').replace(/googleBot/g,'')));
  expect(offenders).toEqual([]);
 });
