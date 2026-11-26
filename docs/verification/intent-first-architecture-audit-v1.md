@@ -79,3 +79,16 @@ microphone evidence. Current question, task, strategy and evidence reach both
 stages unchanged; ungrounded urgency, competitor and customer signals are cleared.
 24related tests pass. Controlled router/writer outputs mean propagation proof,
 not real intent-recognition accuracy. No new active intent state was introduced.
+
+## Test-first neutral intent loss
+
+Two new contrast cases failed: _analyze_intent erased advice_goal compare and
+understand whenever customer_signal was absent. That signal is an exact concern/
+hesitation span, so a neutral request to compare or understand should not need one.
+Small fix: preserve compare only with comparison task; preserve understand only
+with specifications/consultation task. Unsupported objection/hesitation, urgency,
+competitor and mismatched neutral goal/task still clear as before. No new fields,
+provider stage, state layer or permission.92focused goal/router/constraint/layout/
+logging checks pass. Source-evolution records exact new hash without rewriting
+the historical layout manifest. Full exact-head CI remains required. This repairs
+lost intent metadata, not semantic recognition or end-to-end answer quality.

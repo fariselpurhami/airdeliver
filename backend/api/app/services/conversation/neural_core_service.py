@@ -379,7 +379,12 @@ class NeuralCoreService:
                     decision.query=None
             if not decision.customer_signal or ' '.join(decision.customer_signal.casefold().split()) not in ' '.join(message.casefold().split()):
                 decision.customer_signal=None
-                decision.advice_goal='browse'
+                # Objection/hesitation need exact concern evidence. Neutral
+                # compare/understand goals instead follow their typed task;
+                # requiring an emotional span erased those goals entirely.
+                neutral_goal=(decision.advice_goal=='compare' and decision.shopping_task=='comparison'
+                    or decision.advice_goal=='understand' and decision.shopping_task in {'specifications','consultation'})
+                if not neutral_goal:decision.advice_goal='browse'
             if not decision.sentiment_evidence or ' '.join(decision.sentiment_evidence.casefold().split()) not in ' '.join(message.casefold().split()):
                 decision.sentiment='NEUTRAL';decision.sentiment_evidence=None
             if decision.competitor_mentioned and ' '.join(decision.competitor_mentioned.casefold().split()) not in ' '.join(message.casefold().split()):

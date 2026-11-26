@@ -25,6 +25,11 @@
       "previous_sha256": "9d6962c29bc3464f005996d21733ecd2863e588b6577f6d4740fdf0fd00c6265",
       "current_sha256": "d59fce2b04615a35e43dcb243b0410e2491c6c0e2703051de07ba703fddfec20",
       "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674"
+    },
+    "backend/api/app/services/conversation/neural_core_service.py": {
+      "previous_sha256": "19e79bdf0ee7487ad5a6342cc988b7ebfaf73f74110cba1a7469a1d598901c0c",
+      "current_sha256": "d410b9124433b0f1643b376cb25f6e7dc2763406a76916871da66f5a3d62f3cf",
+      "previous_commit": "b2874748691431206f6de6dcd0e62ec96a1b0674"
     }
   }
 }

@@ -53,3 +53,22 @@ async def test_current_question_is_not_replaced_by_a_prior_price_goal():
  assert d.sentiment=='NEUTRAL' and d.sentiment_evidence is None
  assert d.competitor_mentioned is None and d.customer_signal is None
  assert d.advice_goal=='browse'
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('goal,task,question',[
+ ('compare','comparison','Compare Atlas headphones with the listed alternative.'),
+ ('understand','specifications','Help me understand the listed material for Atlas headphones.'),
+])
+async def test_nonemotional_goal_does_not_require_an_objection_signal(goal,task,question):
+ svc=NeuralCoreService(object(),object());svc.is_healthy=True
+ svc._execute_llm_inference=AsyncMock(return_value=json.dumps({'intent':'PRODUCT_SEARCH','query':'Atlas headphones','search_subject':'Atlas headphones','targets':[{'product_name':'Atlas headphones'}],'shopping_task':task,'advice_goal':goal,'customer_signal':None}))
+ d=await svc._analyze_intent(question,SessionMemory(user_name='test'))
+ assert d.advice_goal==goal
+ assert d.customer_signal is None and d.shopping_task==task
+
+@pytest.mark.asyncio
+async def test_neutral_goal_with_conflicting_task_is_not_retained_without_signal():
+ svc=NeuralCoreService(object(),object());svc.is_healthy=True
+ svc._execute_llm_inference=AsyncMock(return_value=json.dumps({'intent':'PRODUCT_SEARCH','query':'Atlas headphones','search_subject':'Atlas headphones','shopping_task':'price_inquiry','advice_goal':'compare','customer_signal':None}))
+ d=await svc._analyze_intent('What is the listed price for Atlas headphones?',SessionMemory(user_name='test'))
+ assert d.advice_goal=='browse'
