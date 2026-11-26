@@ -1,4 +1,5 @@
 /** Guards the two next/image dev warnings: logo aspect attributes and fill sizes. */
+import { test, expect } from '@jest/globals'
 import fs from 'fs'
 import path from 'path'
 
