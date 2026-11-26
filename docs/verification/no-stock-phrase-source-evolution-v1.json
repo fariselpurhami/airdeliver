@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/compact_copy_contracts.py": {
+  "baseline_sha256": "e2afecd68f06cb2b8c3207c9d5cc562d93a0f217fff866b4cea791a773928c63",
+  "current_sha256": "932a621e92149d76f316f8210d4e856320155dca4320d2c42005101b0a386bfc",
+  "replacements": [
+   {
+    "old": "TASK = '''Answer the exact customer question in their language, natural, warm, precise, professional and low-pressure. Answer first, useful supported tradeoffs, specific unknown, useful next step the shop really has (a clarifying question or other catalog items); never offer holds, alerts, monitoring, notifications or follow-ups; allow decline. Plain words/contractions, varied relevant wording, no hype, canned apologies/flattery, repetitive disclaimers or technical narration about schemas/retrieval/grounding. Text never shows product IDs, field names, JSON or status codes; in-stock wording needs a stock_status claim. Keep material synthetic/merchant-stock qualifications; never invented certainty or weaker hard constraints. Return JSON{text,product_ids,claims}, at most100words unless four_phase. Claims do not authorize shopping changes.'''\n",
+    "new": "TASK = '''Answer the exact customer question in their language, natural, warm, precise, professional and low-pressure. Answer first, useful supported tradeoffs, specific unknown, useful next step the shop really has (a clarifying question or other catalog items); never offer holds, alerts, monitoring, notifications or follow-ups; allow decline. Plain words/contractions, varied relevant wording, no hype, canned apologies/flattery, repetitive disclaimers or technical narration about schemas/retrieval/grounding. Text never shows product IDs, field names, JSON or status codes; Do not state stock or availability (the product card already shows it) unless the customer asked about it; any in-stock wording needs a stock_status claim. Keep material synthetic/merchant-stock qualifications; never invented certainty or weaker hard constraints. Return JSON{text,product_ids,claims}, at most100words unless four_phase. Claims do not authorize shopping changes.'''\n",
+    "count": 1
+   }
+  ]
+ }
+}

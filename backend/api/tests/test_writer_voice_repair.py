@@ -13,7 +13,7 @@ from app.services.shopping_copy import write_shopping_copy, voice_tells
 
 OK={'supported':True,'all_product_mentions_declared':True,'no_unsupported_commercial_claims':True,'fulfills_discovery_task':True}
 ROBOTIC="Studio Headphones are in stock locally, but the catalog does not list battery life. I can't confirm sleep tracking either."
-FRIEND="Studio Headphones are in stock locally. I don't have the battery life for this pair, so I won't guess."
+FRIEND="I don't have the battery life for Studio Headphones, so I won't guess."
 
 def draft(text):
     return {'text':text,'product_ids':[1],'claims':[{'product_id':1,'field':'name','value':'Studio Headphones'},{'product_id':1,'field':'stock_status','value':'local_in_stock'}]}
@@ -73,7 +73,7 @@ def test_opening_copy_is_never_rewritten():
 
 FOUR_ROBOTIC=("Studio Headphones are in stock locally, but the catalog does not list battery life.\n\n- Battery: not specified in the data.\n- Stock: local.\n\n"
     "Since I can't confirm battery life, I can't say it fits an all-day need.\n\nWant me to look at other headphones?")
-FOUR_FRIEND=("Studio Headphones are in stock locally, but I don't have their battery life.\n\nThat is the one gap: stock is local and nothing else is missing.\n\n"
+FOUR_FRIEND=("I don't have the battery life for Studio Headphones.\n\nThat is the one gap I can see.\n\n"
     "So I can't say if it lasts you all day.\n\nWant me to look at other headphones?")
 
 def test_four_phase_answers_are_repaired_keeping_four_sections():
@@ -121,9 +121,9 @@ def test_product_name_containing_a_tell_word_is_not_a_tell():
 
 LONG_ROBOTIC=("The Smart Watch is in stock locally.\n- Battery life: not listed in the catalog.\n- Sleep tracking: not mentioned in the specifications.\n"
     "Given the lack of these details, we can't confirm either feature for this watch. Would you like to look at other wearables?")
-LONG_FLAT=("I have the Smart Watch in stock locally. I don't have the battery life for this one. I don't have sleep tracking details either. "
+LONG_FLAT=("I have the Smart Watch you asked about. I don't have the battery life for this one. I don't have sleep tracking details either. "
     "If those matter, we could look at another wearable that lists them. Would you like to explore alternatives?")
-LONG_SPACED=("I have the Smart Watch in stock locally.\n\nI don't have its battery life, and I have nothing on sleep tracking either, so I won't guess on those.\n\n"
+LONG_SPACED=("I have the Smart Watch you asked about.\n\nI don't have its battery life, and I have nothing on sleep tracking either, so I won't guess on those.\n\n"
     "If they matter to you, we could look at another wearable that lists them.")
 
 def test_long_answer_rewritten_into_one_flat_block_keeps_original():
@@ -140,7 +140,7 @@ def test_cannot_confirm_forms_are_tells_and_rules_ban_them():
     assert 'blank line' in seen[1][0]['content'] and 'bullet' in seen[1][0]['content'] and 'unable to confirm' in seen[1][0]['content']
 
 
-LONG_BULLETED=("I have the Smart Watch in stock locally, but two things are missing.\n\n- Battery life: I don't have it\n- Sleep tracking: I have nothing on it\n\n"
+LONG_BULLETED=("I have the Smart Watch you asked about, but two things are missing.\n\n- Battery life: I don't have it\n- Sleep tracking: I have nothing on it\n\n"
     "If those matter, we could look at another wearable that lists them.")
 
 def test_rewrite_with_tidy_bullets_is_accepted_and_bullets_alone_do_not_trigger_repair():
@@ -151,7 +151,7 @@ def test_rewrite_with_tidy_bullets_is_accepted_and_bullets_alone_do_not_trigger_
 
 
 def test_rewrite_with_greeting_or_exclamation_keeps_original():
-    chatty="Hey there! I have the Smart Watch in stock locally.\n\n- Battery life: I don't have it\n- Sleep tracking: I have nothing on it\n\nIf those matter, we could look at another wearable that lists them."
+    chatty="Hey there! I have the Smart Watch you asked about.\n\n- Battery life: I don't have it\n- Sleep tracking: I have nothing on it\n\nIf those matter, we could look at another wearable that lists them."
     text,seen=run([draft(LONG_ROBOTIC),draft(chatty),OK])
     assert text==LONG_ROBOTIC and len(seen)==3
     assert 'no greeting' in seen[1][0]['content'] and 'no exclamation' in seen[1][0]['content']
@@ -160,3 +160,28 @@ def test_rewrite_with_greeting_or_exclamation_keeps_original():
 def test_rules_ask_for_warm_voiced_bullets_and_closing():
     text,seen=run([draft(ROBOTIC),draft(FRIEND),OK])
     assert 'never bare fragments' in seen[1][0]['content'] and 'thoughtful friend' in seen[1][0]['content']
+
+
+STOCKY="Studio Headphones are in stock locally and wired. Nothing else is missing for your question."
+
+def test_stock_and_place_phrase_is_a_tell_unless_the_customer_asked_about_availability():
+    seen=[]
+    def go(msg,replies):
+        calls=[]
+        async def infer(m):
+            calls.append(m);return json.dumps(replies[len(calls)-1])
+        text=asyncio.run(write_shopping_copy(infer,msg,[catalog_result(row())],{},'catalog_results',20))
+        return text,calls
+    text,calls=go('is it wired?',[draft(STOCKY),draft("Studio Headphones are wired. Nothing else is missing for your question."),OK])
+    assert text.startswith('Studio Headphones are wired') and len(calls)==3
+    text,calls=go('is it in stock?',[draft(STOCKY),OK])
+    assert text==STOCKY and len(calls)==2
+
+def test_writer_contract_says_not_to_state_stock_unless_asked():
+    text,seen=run([draft(FRIEND),OK])
+    assert 'Do not state stock or availability' in seen[0][0]['content']
+
+
+def test_rules_ask_for_one_connected_thread_without_outside_facts():
+    text,seen=run([draft(ROBOTIC),draft(FRIEND),OK])
+    assert 'one connected thread' in seen[1][0]['content'] and 'Add no outside facts' in seen[1][0]['content']

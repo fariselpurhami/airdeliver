@@ -61,6 +61,17 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
    edited=edited.replace(edit['new'],edit['old'])
   assert hashlib.sha256(edited.encode()).hexdigest()==cf[row['path']]['baseline_sha256']==expected
   expected=cf[row['path']]['current_sha256']
+ ns=json.loads((ROOT/'docs/verification/no-stock-phrase-source-evolution-v1.json').read_text())
+ assert set(ns)=={'backend/api/app/services/conversation/compact_copy_contracts.py'}
+ if row['path'] in ns:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==ns[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in ns[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==ns[row['path']]['baseline_sha256']
+  source=edited.encode()
  ni=json.loads((ROOT/'docs/verification/no-internal-ids-source-evolution-v1.json').read_text())
  assert set(ni)=={'backend/api/app/services/conversation/compact_copy_contracts.py'}
  if row['path'] in ni:
