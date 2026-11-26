@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/compact_copy_contracts.py": {
+  "baseline_sha256": "e2afecd68f06cb2b8c3207c9d5cc562d93a0f217fff866b4cea791a773928c63",
+  "current_sha256": "c5467a136cc2f35fc3c4115d3dc70fd9c298d54065fe546c738772133a58ca12",
+  "replacements": [
+   {
+    "old": "Plain words/contractions, varied relevant wording, no hype, canned apologies/flattery, repetitive disclaimers or technical narration about schemas/retrieval/grounding.",
+    "new": "Sound like a sharp, friendly shop expert talking to one person: first person, short plain sentences, one flowing reply, varied relevant wording, no bullets or 'Label: value' lines unless comparing 3+ products (four_phase keeps its sections). Say what you lack your own way (\"I don't have the battery life for this one\"), never 'catalog', 'specifications', 'data', \"we can't confirm\" or 'the information provided'. At most one question. No hype, canned apologies, flattery, repeated disclaimers or schema/retrieval/grounding talk.",
+    "count": 1
+   }
+  ]
+ }
+}

@@ -59,4 +59,4 @@ async def test_actual_writer_review_pair_reduction_without_data_or_call_loss():
  assert len(seen)==2 and 'Independently review' in seen[1][0]['content']
  assert json.loads(seen[1][1]['content'])['input']==json.loads(seen[0][1]['content'])
  pair=estimated_tokens(seen[0],response_format('openai/gpt-oss-120b',ShoppingDraft))+640+estimated_tokens(seen[1],response_format('openai/gpt-oss-120b',GroundingReview))+256
- assert pair<4740  # Previous same-fixture pair5952; was 4700 (measured 4695), raised by the measured 36-token no-internal-IDs clause, not a full rolling-quota promise.
+ assert pair<4860  # Previous same-fixture pair5952; 4700 (4695), then 4740 (4731, no-internal-IDs clause); now 4860 (measured 4853) for the human-voice clause, +122 tokens per writer+review pair, not a full rolling-quota promise.
