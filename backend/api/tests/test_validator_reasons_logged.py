@@ -16,6 +16,10 @@ NAME={'product_id':1,'field':'name','value':'Studio Headphones'}
 ])
 def test_specific_validator_reason_is_reported_not_generic_valueerror(text,reason):
     card=catalog_result(row())
+    if reason=='unclaimed_stock_claim':
+        # In-stock cards now get their stock claim completed from the card (PR complete-stock-claims);
+        # the rejection survives for a card that is not in stock.
+        card=card.model_copy(update={'stock_status':'unverified'})
     async def infer(messages):
         return json.dumps({'text':text,'product_ids':[1],'claims':[NAME]})
     with pytest.raises(ShoppingCopyError) as caught:

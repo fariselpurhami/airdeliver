@@ -337,6 +337,21 @@ def exact_totals(cards,brief):
     return result
 
 
+_IN_STOCK_WORDS=re.compile(r"\b(?:in stock|available now|ready to ship)\b",re.I)
+def complete_stock_claims(draft,cards):
+    """Add the exact stock_status claim when the text says "in stock" and every declared product really is in stock.
+
+    The value comes from the card, never from the model. A draft that declares any product that is not
+    in stock, or an unknown id, is left alone and is still rejected by validation."""
+    if any(c.field=='stock_status' for c in draft.claims) or not _IN_STOCK_WORDS.search(draft.text):
+        return draft
+    by_id={card.id:card for card in cards}
+    if not draft.product_ids or any(pid not in by_id or by_id[pid].stock_status not in {'local_in_stock','fixture_in_stock'} for pid in draft.product_ids):
+        return draft
+    add=[Claim(product_id=pid,field='stock_status',value=by_id[pid].stock_status) for pid in draft.product_ids]
+    return draft.model_copy(update={'claims':[*draft.claims,*add]})
+
+
 def complete_name_claims(draft,cards):
     """Add the exact card-name claim for a listed product the text really names.
 
@@ -384,7 +399,7 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
             raw=await infer_schema(infer,[{'role':'system','content':writer_rules},
                              {'role':'user','content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))}],ShoppingDraft)
             stage='writer_schema'
-            draft=complete_name_claims(ShoppingDraft.model_validate_json(raw),cards)
+            draft=complete_stock_claims(complete_name_claims(ShoppingDraft.model_validate_json(raw),cards),cards)
             stage='writer_evidence'
             try:
                 validate_draft(draft,cards,context,brief,message)
