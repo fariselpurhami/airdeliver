@@ -1,0 +1,74 @@
+{
+  "observed_on": "2026-11-26",
+  "purpose": "Read-only research, not production metadata or verified product-status inputs",
+  "sources": [
+    {
+      "url": "https://www.apple.com/newsroom/2026/03/apple-introduces-the-new-macbook-air-with-m5/",
+      "final_url": "https://www.apple.com/newsroom/2026/03/apple-introduces-the-new-macbook-air-with-m5/",
+      "sha256": "777753b2ecf2936f7656316212da351951089d4687c822b8ddcf24b07cd49948",
+      "canonical": [
+        "https://www.apple.com/newsroom/2026/03/apple-introduces-the-new-macbook-air-with-m5/"
+      ],
+      "date_meta": [],
+      "article_dates": [
+        {
+          "@type": "NewsArticle",
+          "datePublished": "2026-03-03Z",
+          "dateModified": "2026-08-19T18:05:04Z"
+        }
+      ]
+    },
+    {
+      "url": "https://www.apple.com/newsroom/2026/03/macbook-neo-iphone-17e-ipad-air-with-m4-and-more-are-now-available/",
+      "final_url": "https://www.apple.com/newsroom/2026/03/macbook-neo-iphone-17e-ipad-air-with-m4-and-more-are-now-available/",
+      "sha256": "22e9e6a1140ae57df99d683055372e577c5de8c2f39912ef78541a53965c36c8",
+      "canonical": [
+        "https://www.apple.com/newsroom/2026/03/macbook-neo-iphone-17e-ipad-air-with-m4-and-more-are-now-available/"
+      ],
+      "date_meta": [],
+      "article_dates": [
+        {
+          "@type": "NewsArticle",
+          "datePublished": "2026-03-11Z",
+          "dateModified": "2026-08-19T18:04:26Z"
+        }
+      ]
+    },
+    {
+      "url": "https://news.samsung.com/global/samsung-galaxy-s26-series-and-galaxy-buds4-series-now-available-worldwide",
+      "final_url": "https://news.samsung.com/global/samsung-galaxy-s26-series-and-galaxy-buds4-series-now-available-worldwide",
+      "sha256": "61fcc818282c2f496daa9bca4b3712631abeb0a0959416a01414deac1bf206b4",
+      "canonical": [
+        "https://news.samsung.com/global/samsung-galaxy-s26-series-and-galaxy-buds4-series-now-available-worldwide"
+      ],
+      "date_meta": [
+        {
+          "name": "date",
+          "content": "2026-03-11T08:00:00+09:00"
+        }
+      ],
+      "article_dates": [
+        {
+          "@type": "NewsArticle",
+          "datePublished": "2026-03-11T08:00:00+09:00",
+          "dateModified": "2026-03-10T18:07:15+09:00"
+        }
+      ]
+    },
+    {
+      "url": "https://news.samsung.com/jp/galaxy-s26-launch",
+      "final_url": "https://news.samsung.com/jp/galaxy-s26-launch",
+      "sha256": "ae3381c41b268797f358d81aaea58fea26e9eff4d5886b43d9a9cfabfd588a06",
+      "canonical": [
+        "https://news.samsung.com/jp/galaxy-s26-launch"
+      ],
+      "date_meta": [
+        {
+          "name": "date",
+          "content": "2026-02-26"
+        }
+      ],
+      "article_dates": []
+    }
+  ]
+}

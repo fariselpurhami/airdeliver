@@ -15,10 +15,12 @@ pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='migrate
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('task',['comparison','specifications','consultation'])
-@pytest.mark.parametrize('mode',['ok','wrong_ram','changed','identity_change','source_success'])
+@pytest.mark.parametrize('mode',['ok','wrong_ram','changed','identity_change','source_success','source_bad_url','source_numeric_host','source_empty_userinfo','source_forged_quote','source_review_reject'])
 async def test_research_catalog_fallback_retains_scope_after_empty_sources(real_cache,monkeypatch,task,mode):
     from app.services import product_knowledge_service
-    lookup=AsyncMock(return_value=[{'url':'https://maker.example/specs','text':'Atlas laptop has a wired connection.'}] if mode=='source_success' else [])
+    source_mode=mode in {'source_success','source_forged_quote','source_review_reject','source_bad_url'}
+    source_url={'source_bad_url':'https://maker.example/\nrelease','source_numeric_host':'https://127.1/release','source_empty_userinfo':'https://@maker.example/release'}.get(mode,'https://maker.example/specs')
+    lookup=AsyncMock(return_value=[{'url':source_url,'text':'Atlas laptop has a wired connection.'}] if source_mode else [])
     monkeypatch.setattr(product_knowledge_service,'lookup_product_sources',lookup)
     cache,_=real_cache;native=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(native,expire_on_commit=False);ids=[];seen=[]
     try:
@@ -39,9 +41,12 @@ async def test_research_catalog_fallback_retains_scope_after_empty_sources(real_
                 return json.dumps(dict(intent='PRODUCT_SEARCH',query=names[0],search_subject=names[0],shopping_task=task,targets=[{'product_name':n} for n in names]))
             data=json.loads(messages[1]['content'])
             if 'Extract source-backed' in policy:
-                return json.dumps({'covered_targets':['Atlas laptop'],'facts':[{'label':'Connection','quote':'Atlas laptop has a wired connection.','source':0}]})
+                return json.dumps({'covered_targets':['Atlas laptop'],'facts':[{'label':'Connection','quote':'Atlas laptop has a forged feature.' if mode=='source_forged_quote' else 'Atlas laptop has a wired connection.','source':0}]})
             if 'untrusted_sources' in data.get('input',data) or 'product_information_only' in policy:
-                return json.dumps({'supported':True,'exact_model':True,'product_information_only':True})
+                assert data['input']['customer_only_recent_context']
+                assert 'Atlas laptop at least 16GB RAM and Atlas chair without red' in data['input']['customer_only_recent_context']
+                assert data['input']['saved_preferences_scope'].startswith('Optional shopping hints only.')
+                return json.dumps({'supported':mode!='source_review_reject','exact_model':True,'product_information_only':True})
             if 'Assign existing hard features' in policy:return '{"assignments":[]}'
             if 'Review exact target/feature scope' in policy:return '{"explicit_scope":true}'
             if 'catalog_evidence' in data:
@@ -71,12 +76,21 @@ async def test_research_catalog_fallback_retains_scope_after_empty_sources(real_
                 assert 'wired connection' in result['text']
                 assert 'not verified for: Atlas chair' in result['text']
                 svc.ai_engine.perform_hybrid_search_pure.assert_not_awaited()
+            elif mode in {'source_forged_quote','source_review_reject'}:
+                assert result['products']==[] and result['confidence']==0
+                assert 'wired connection' not in result['text'] and 'forged feature' not in result['text']
+                assert 'Source 1:' not in result['text']
+                svc.ai_engine.perform_hybrid_search_pure.assert_not_awaited()
+                assert not seen
             elif mode=='identity_change':
                 assert result['response_kind']=='clarification' and result['products']==[] and not seen
                 svc.ai_engine.perform_hybrid_search_pure.assert_not_awaited()
             elif mode=='changed':assert result['response_kind']=='system_notice' and result['products']==[]
             else:
                 assert [p['id'] for p in result['products']]==(ids[1:] if mode=='wrong_ram' else ids)
+                if mode in {'source_bad_url','source_numeric_host','source_empty_userinfo'}:
+                    assert 'Source 1:' not in result['text'] and 'does not exist' not in result['text']
+                    assert source_url not in str(seen)
                 context=seen[0]['request_evidence']
                 assert context['shopping_task']==task
                 assert context['target_searches'][0]['required_features']==['at least 16GB RAM']

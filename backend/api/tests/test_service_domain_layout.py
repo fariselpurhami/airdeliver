@@ -43,6 +43,10 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
  if row['path'] in gw:
   assert gw[row['path']]['baseline_sha256']==expected
   expected=gw[row['path']]['current_sha256']
+ truth=json.loads((ROOT/'docs/verification/product-truth-source-evolution-v1.json').read_text())['modules']
+ if row['path'] in truth:
+  assert truth[row['path']]['previous_sha256']==expected
+  expected=truth[row['path']]['current_sha256']
  assert hashlib.sha256(source).hexdigest()==expected
 
 

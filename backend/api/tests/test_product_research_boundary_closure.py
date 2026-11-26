@@ -31,3 +31,48 @@ async def test_all_bad_sources_use_fallback_once_without_writer():
 async def test_cancel_during_independent_review_does_not_publish_partial_facts():
     infer=AsyncMock(side_effect=[json.dumps({'covered_targets':['Alpha'],'facts':[{'label':'Material','quote':'Alpha uses wood.','source':0}]}),asyncio.CancelledError()])
     with pytest.raises(asyncio.CancelledError):await answer_product_question(infer,'Alpha',targets=('Alpha',),lookup=AsyncMock(return_value=[{'url':'https://maker.example/a','text':'Alpha uses wood.'}]))
+
+@pytest.mark.parametrize('url',[
+ 'https://maker.example/\nrelease',
+ 'https://maker.example/\trelease',
+ 'https://maker.example/ release',
+ 'https://maker.example/\\release',
+ 'https://maker.example/%0arelease',
+ 'https://maker.example/%0Drelease',
+ 'https://maker.example/%5crelease',
+ 'https://maker..example/release',
+ 'https://-maker.example/release',
+ 'https://maker.example./release',
+])
+def test_research_url_rejects_ambiguous_control_and_host_forms(url):
+ assert allowed_url(url) is False
+
+@pytest.mark.asyncio
+async def test_control_character_source_url_is_dropped_before_product_inference():
+ infer=AsyncMock()
+ result=await answer_product_question(infer,'Atlas',targets=('Atlas',),lookup=AsyncMock(return_value=[{'url':'https://maker.example/\nrelease','text':'Atlas released.'}]))
+ assert result.confidence==0 and result.products==[]
+ assert '\nrelease' not in result.text and 'Source 1:' not in result.text
+ infer.assert_not_awaited()
+
+@pytest.mark.parametrize('url',[
+ 'https://maker.example/products/model-x?color=blue&region=US',
+ 'https://maker.example/news/release%20notes',
+ 'https://xn--bcher-kva.example/product',
+ 'https://maker.example:443/release#details',
+])
+def test_unambiguous_https_source_forms_remain_allowed(url):
+ assert allowed_url(url) is True
+
+@pytest.mark.asyncio
+async def test_independent_source_review_receives_same_customer_constraints_as_writer():
+ calls=[]
+ async def infer(messages):
+  calls.append(json.loads(messages[1]['content']))
+  if len(calls)==1:return json.dumps({'covered_targets':['Alpha'],'facts':[{'label':'Material','quote':'Alpha uses wood.','source':0}]})
+  assert calls[1]['input']==calls[0]
+  return json.dumps(V)
+ result=await answer_product_question(infer,'Does Alpha suit that use?',targets=('Alpha',),lookup=AsyncMock(return_value=[{'url':'https://maker.example/a','text':'Alpha uses wood.'}]),customer_context=('I need a desk for outdoor use.','Tell me about Alpha'),saved_preferences=({'category':'material','value':'wood'},))
+ assert result.confidence>0 and len(calls)==2
+ assert calls[1]['input']['customer_only_recent_context'][0]=='I need a desk for outdoor use.'
+ assert calls[1]['input']['saved_preferences_scope']==calls[0]['saved_preferences_scope']
