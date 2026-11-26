@@ -1323,6 +1323,14 @@ class GlobalCommerceIntentEngine:
             for field in ('detected_occasion','competitor_mentioned'):
                 value=getattr(result,field)
                 if value and ' '.join(value.casefold().split()) not in current:setattr(result,field,None)
+            # A budget with no matching amount in the customer's current words is
+            # model invention, not a constraint. Amounts accept commas and a k suffix.
+            if result.budget_max is not None:
+                stated=set()
+                for raw,suffix in re.findall(r'(\d+(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)\s*(k\b)?',current):
+                    value=float(raw.replace(',',''))
+                    stated.add(value*1000 if suffix else value)
+                if result.budget_max<=0 or float(result.budget_max) not in stated:result.budget_max=None
             # A heuristic/model cart category is not an executable action. The
             # downstream exact current command review still owns all mutations.
             return result

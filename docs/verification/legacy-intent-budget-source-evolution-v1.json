@@ -1,0 +1,7 @@
+{
+  "backend/api/app/services/conversation/ai_nlu_service.py": {
+    "baseline_sha256": "fc3401ffacd646cddcdc762dc9bdb5fb7c88a7a41dcd2dde27609114c935bfd2",
+    "current_sha256": "f993a67ccbabe3972565f5e557ff72abbee410728428124939f0769ee8be1632",
+    "reason": "Legacy intent payload drops a budget not stated in the customer's current words"
+  }
+}
