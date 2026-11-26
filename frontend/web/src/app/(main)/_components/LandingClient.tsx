@@ -861,7 +861,7 @@ const HowItWorksSection = memo(() => {
             aria-hidden="true"
           >
             <Activity size={16} className={`${prefersReducedMotion ? '' : 'animate-pulse'} text-cyan-400`} />
-            <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">VERIFIED BEFORE YOU ORDER</span>
+            <span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">END-TO-END ECOSYSTEM</span>
           </motion.div>
 
           <motion.h2
