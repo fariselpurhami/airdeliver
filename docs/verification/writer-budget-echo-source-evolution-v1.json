@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "190a1ec2be2f0c84562819ceaca79f151639507005a89e6a685be9a46a8db829",
+  "current_sha256": "b8144cc68532b73a735bfce023f0d1a5e582f9faa13fd3e8df7cbc0fe556d0fc",
+  "replacements": [
+   {
+    "old": "    numbers=re.findall(r'\\d+(?:[.,]\\d+)*',numeric_text)\n",
+    "new": "        # \"for a gift under $100\": the customer's own cap may be echoed with under/within/up to.\n        # Safe only when the sentence names a product and every named product has a known price\n        # within the cap, so the echo can never become a false price or catalog claim.\n        echo=re.compile(r\"\\b(?:under|within|up to|below|less than|no more than|at most)\\s+(?:USD\\s*|\\$\\s*)?\"+amount+r\"(?![\\d.])(?:\\s*(?:[- ]?(?:US\\s*)?dollars?|USD))?\",re.I)\n        def _echo_sentence(sentence):\n            from decimal import Decimal\n            if not echo.search(sentence):return sentence\n            named=[card for card in by_id.values() if card['name'].casefold() in sentence.casefold()]\n            if not named:return sentence\n            for card in named:\n                try:\n                    if Decimal(str(card.get('price')))>Decimal(cap):return sentence\n                except Exception:return sentence\n            return echo.sub('customer budget',sentence)\n        numeric_text=' '.join(_echo_sentence(part) for part in re.split(r'(?<=[.!?])\\s+',numeric_text))\n    numbers=re.findall(r'\\d+(?:[.,]\\d+)*',numeric_text)\n",
+    "count": 1
+   }
+  ]
+ }
+}
