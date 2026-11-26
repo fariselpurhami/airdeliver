@@ -8,6 +8,7 @@ test('closed chatbot launcher keeps the Bot icon and sits on a barely visible gl
   expect(glass).not.toBeNull();
   expect(glass![1]).toContain('backdrop-blur');
   expect(glass![1]).toContain('rounded-full');
+  expect(glass![1]).toContain('w-11 h-11');
   expect(glass![1]).not.toContain('bg-transparent');
   expect(src).toContain('<Bot size={28} strokeWidth={1.6} aria-hidden="true" />');
 });
