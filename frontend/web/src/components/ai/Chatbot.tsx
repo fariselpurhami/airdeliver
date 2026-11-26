@@ -235,9 +235,9 @@ export default function Chatbot() {
             <X size={22} />
           </div>
         ) : (
-          <div className="w-14 h-14 bg-transparent flex items-center justify-center text-cyan-100 transition-colors group-hover:text-violet-200 drop-shadow-[0_2px_10px_rgba(103,232,249,0.25)]">
+          <div className="w-14 h-14 flex items-center justify-center"><div data-testid="chatbot-launcher-glass" className="w-11 h-11 rounded-full bg-white/[0.04] backdrop-blur-md border border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] flex items-center justify-center text-cyan-100 transition-colors group-hover:text-violet-200 drop-shadow-[0_2px_10px_rgba(103,232,249,0.25)]">
             <Bot size={28} strokeWidth={1.6} aria-hidden="true" />
-          </div>
+          </div></div>
         )}
       </motion.button>
 
