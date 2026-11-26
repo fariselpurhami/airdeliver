@@ -7,7 +7,7 @@ import { Camera, Mic } from 'lucide-react';
  */
 export function PromptMediaIcons() {
   return (
-    <span className="mr-2 flex shrink-0 items-center gap-1 sm:mr-3" aria-hidden="true" data-testid="prompt-media-icons">
+    <span className="mr-2 flex shrink-0 items-center gap-2 sm:mr-3" aria-hidden="true" data-testid="prompt-media-icons">
       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.08] text-white/75 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] sm:h-9 sm:w-9">
         <Camera size={17} strokeWidth={1.8} />
       </span>
