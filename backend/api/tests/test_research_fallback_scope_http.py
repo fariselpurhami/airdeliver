@@ -15,11 +15,11 @@ pytestmark=pytest.mark.skipif(not os.getenv('TEST_POSTGRES_DSN'),reason='migrate
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('task',['comparison','specifications','consultation'])
-@pytest.mark.parametrize('mode',['ok','wrong_ram','changed','identity_change','source_success','source_bad_url','source_forged_quote','source_review_reject'])
+@pytest.mark.parametrize('mode',['ok','wrong_ram','changed','identity_change','source_success','source_bad_url','source_numeric_host','source_empty_userinfo','source_forged_quote','source_review_reject'])
 async def test_research_catalog_fallback_retains_scope_after_empty_sources(real_cache,monkeypatch,task,mode):
     from app.services import product_knowledge_service
     source_mode=mode in {'source_success','source_forged_quote','source_review_reject','source_bad_url'}
-    source_url='https://maker.example/\nrelease' if mode=='source_bad_url' else 'https://maker.example/specs'
+    source_url={'source_bad_url':'https://maker.example/\nrelease','source_numeric_host':'https://127.1/release','source_empty_userinfo':'https://@maker.example/release'}.get(mode,'https://maker.example/specs')
     lookup=AsyncMock(return_value=[{'url':source_url,'text':'Atlas laptop has a wired connection.'}] if source_mode else [])
     monkeypatch.setattr(product_knowledge_service,'lookup_product_sources',lookup)
     cache,_=real_cache;native=create_async_engine(os.environ['TEST_POSTGRES_DSN']);sessions=async_sessionmaker(native,expire_on_commit=False);ids=[];seen=[]
@@ -88,7 +88,7 @@ async def test_research_catalog_fallback_retains_scope_after_empty_sources(real_
             elif mode=='changed':assert result['response_kind']=='system_notice' and result['products']==[]
             else:
                 assert [p['id'] for p in result['products']]==(ids[1:] if mode=='wrong_ram' else ids)
-                if mode=='source_bad_url':
+                if mode in {'source_bad_url','source_numeric_host','source_empty_userinfo'}:
                     assert 'Source 1:' not in result['text'] and 'does not exist' not in result['text']
                     assert source_url not in str(seen)
                 context=seen[0]['request_evidence']

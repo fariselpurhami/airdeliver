@@ -76,10 +76,11 @@ def allowed_url(url,domains=None):
     try:
         parsed=urlsplit(url)
         host=parsed.hostname or ''
-        if parsed.scheme!='https' or parsed.username or parsed.password or parsed.port not in {None,443}:return False
+        if parsed.scheme!='https' or parsed.username is not None or parsed.password is not None or parsed.port not in {None,443}:return False
         if not host or '.' not in host or host.endswith(('.localhost','.local','.internal')):return False
         if not re.fullmatch(r'[a-z0-9.-]+',host) or len(host)>253:return False
         if any(not label or len(label)>63 or label.startswith('-') or label.endswith('-') for label in host.split('.')):return False
+        if re.fullmatch(r'(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*',host,re.I):return False
         try:ipaddress.ip_address(host);return False
         except ValueError:pass
         return domains is None or host in domains

@@ -155,3 +155,19 @@ cases total,334combinedfocusedpass. All4captured official HTML replays retain
 expected publication values. A deterministic10000malformed-attribute sample had
 no uncaught parser errors; this is not a fuzzing or security certification.
 Full local backend2470pass/536skip, with unavailable-service skips, not CI parity.
+
+## Active source-link numeric-host and empty-userinfo correction
+
+A source URL audit reproduced12failing cases: abbreviated/octal/hex browser-style
+IPv4 spellings passed as DNS names, and explicit empty userinfo passed the active
+URL check. The smallest correction rejects all-numeric address-token host labels
+and any supplied username/password component, including empty ones. The inactive
+publisher host boundary applies the same numeric-host rejection. Ordinary DNS,
+numeric sublabels and punycode controls still pass.19newunit cases pass.
+
+The mounted comparison/specification/consultation fallback matrix adds both
+numeric-host and empty-userinfo cases across all3tasks. Locally353focusedpass and
+30DB/service cases skip; those30require actual disposable PostgreSQL/Redis CI.
+Immutable historical manifests are unchanged; the source-evolution receipt records
+the active URL maintenance hash. This is a link-identity shape check, not DNS
+resolution, redirect validation, SSRF certification or real-provider execution.

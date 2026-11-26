@@ -15,6 +15,7 @@ def valid_host(host):
     if not re.fullmatch(r'[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?',host) or '.' not in host:return False
     if host.endswith(('.localhost','.local','.internal')):return False
     if any(not label or len(label)>63 or label.startswith('-') or label.endswith('-') for label in host.split('.')):return False
+    if re.fullmatch(r'(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*',host,re.I):return False
     try:ipaddress.ip_address(host);return False
     except ValueError:return True
 
