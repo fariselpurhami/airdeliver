@@ -311,7 +311,7 @@ def test_compose_builds_facts_from_cards_and_model_supplies_only_opening_and_que
     gap = ok(compose_text('Okay.', 'Which?', cs, 'What is the weight of each?'), cs=cs, message='What is the weight of each?')
     assert 'Steel Bottle has no separate weight entry.' in gap.text and 'no separate capacity' not in gap.text
     assert 'no listed' not in gap.text and 'Check each description for anything beyond these entries.' in gap.text
-    assert d.text.rstrip().endswith('Which matters more, carrying gear or drinks?')
+    assert d.text.rstrip().endswith('These do different jobs, so which one are you actually after: Trail Backpack or Steel Bottle?')  # code-built question for different kinds (15:17)
     leaked = ok(compose_text('The pack holds 30 L.', 'Which?', cs), cs=cs)
     assert 'holds 30 L' not in leaked.text
 
@@ -423,7 +423,7 @@ def test_compose_question_cannot_ask_about_a_field_no_card_lists():
     cs = enrich_cards(cards())
     with pytest.raises(SlotError):
         compose_text('Okay.', 'Which matters more, the price or the weight?', cs, 'Compare these.')
-    assert 'price' in compose_text('Okay.', 'Which matters more, the price or the connectivity?', cs, 'Compare these.')
+    assert 'actually after' in compose_text('Okay.', 'Which matters more, the price or the connectivity?', cs, 'Compare these.')  # listed-field question passes the guard; different kinds then use the code-built question
     heavy = enrich_cards([catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}))])
     assert 'weight' in compose_text('Okay.', 'Is the weight important?', heavy, 'Compare these.')
 
@@ -446,3 +446,20 @@ def test_compose_customer_experience_review_points():
     assert 'ask which of them the customer actually needs' in COMPOSE_RULES.casefold() and 'only factor' in COMPOSE_RULES.casefold()  # (5)
     same = enrich_cards([catalog_result(row(id=1, name='Mug A', price=Decimal('8.00'), attributes={'capacity': '300 ml'})), catalog_result(row(id=2, name='Mug B', price=Decimal('9.00'), attributes={'capacity': '350 ml'}))])
     assert 'different kinds of item' not in compose_text('Okay.', 'Which?', same, 'Compare these mugs.')
+
+
+def test_compose_different_kinds_get_a_code_built_which_do_you_need_question():
+    """User (15:17): yes to a code-built question when the products are different kinds of item, so the reply does not depend on the model noticing. Built from card names only; the model's question is still policy-checked but replaced."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    pack = catalog_result(row(id=2, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, tags=['hiking']))
+    bottle = catalog_result(row(id=5, name='Steel Bottle', price=Decimal('18.00'), attributes={'capacity': '750 ml'}, tags=['hydration']))
+    cs = enrich_cards([pack, bottle])
+    msg = 'Which is the cheapest for a weekend hike?'
+    d = ok(compose_text('You want the cheapest option.', 'How important is the weight of the gear?', cs, msg), cs=cs, message=msg)
+    assert d.text.rstrip().endswith('These do different jobs, so which one are you actually after: Trail Backpack or Steel Bottle?')
+    assert 'How important is the weight' not in d.text
+    with pytest.raises(SlotError):
+        compose_text('Okay.', 'Do you want free delivery?', cs, msg)
+    same = enrich_cards([catalog_result(row(id=1, name='Mug A', price=Decimal('8.00'), attributes={'capacity': '300 ml'})), catalog_result(row(id=2, name='Mug B', price=Decimal('9.00'), attributes={'capacity': '350 ml'}))])
+    t = compose_text('Okay.', 'Which capacity matters more?', same, 'Compare these mugs.')
+    assert t.rstrip().endswith('Which capacity matters more?')

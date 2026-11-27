@@ -410,9 +410,11 @@ def compose_text(opening, question, cards, message=None):
     low = (message or '').casefold()
     cardkey = 'cardnp' if any(n.startswith('On price') for n in needs) else 'card'
     parts = [opening.strip()] + ([' '.join(needs)] if needs else [])
+    different = False
     keysets = [{k for k in listed[c['id']] if k not in ('price', 'description', 'rating', 'tags')} for c in cs]
     if len(cs) == 2 and all(keysets) and not (keysets[0] & keysets[1]):
         names = [f"[[name:{c['id']}]]" for c in cs]
+        different = True
         parts.append(f"{names[0]} is listed with a {_join([_label(k) for k in sorted(keysets[0])])} and {names[1]} with a {_join([_label(k) for k in sorted(keysets[1])])}, so they look like two different kinds of item, not substitutes.")
     parts += [heading, '\n'.join(f"- [[{cardkey}:{c['id']}]]" for c in cs)]
     asked = lambda label: label in low or (label == 'weight' and re.search(r'light|weigh|heavy', low)) or (label == 'rating' and re.search(r'rated|review', low))
@@ -447,5 +449,5 @@ def compose_text(opening, question, cards, message=None):
             parts.append(f'For "{word}": ' + '; '.join(seg) + '.')
         else:
             parts.append(' '.join(f'[[name:{c["id"]}]] is tagged {h[0]}, which matches your question.' if h[1] == h[0].casefold() else f'For "{h[1]}": [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits))
-    parts.append(question.strip())
+    parts.append(f"These do different jobs, so which one are you actually after: [[name:{cs[0]['id']}]] or [[name:{cs[1]['id']}]]?" if different else question.strip())
     return '\n\n'.join(p for p in parts if p)
