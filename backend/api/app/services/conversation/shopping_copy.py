@@ -262,7 +262,8 @@ def validate_draft(draft, cards, context=None, brief=None, message=None):
             raise ValueError('undeclared_product_mention')
     # Deterministic backstop for affirmative commercial promises that have no
     # claimable field. Additive: the model review still runs separately.
-    lowered=draft.text.casefold()
+    # Typographic hyphens must not hide a promise ("free‑shipping", "next‑day").
+    lowered=draft.text.casefold().translate({c:'-' for c in range(0x2010,0x2016)})
     _policy=r"\b(?:free shipping|ships?(?: today| fast| free)?|shipping|next[- ]day|same[- ]day|fast delivery|warranty|guarantee[ds]?|money[- ]back|easy returns?|refunds?)\b"
     _policy_terms={m.group(0) for m in re.finditer(_policy,lowered)}
     _asked_policy=bool(_policy_terms) and all(_asked_and_absent_sentences(t,lowered,message) for t in _policy_terms)

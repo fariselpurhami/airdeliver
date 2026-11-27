@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "247f890ed3cb06ada54cf7ca994b63451c0710db6a7ff52b0099df2ee0002af4",
+  "current_sha256": "853db4e3ae2aa44924c0c2ecaf5a11e0b20f5bdf64144644206b667149324827",
+  "replacements": [
+   {
+    "old": "    lowered=draft.text.casefold()\n",
+    "new": "    # Typographic hyphens must not hide a promise (\"free‑shipping\", \"next‑day\").\n    lowered=draft.text.casefold().translate({c:'-' for c in range(0x2010,0x2016)})\n",
+    "count": 1
+   }
+  ]
+ }
+}

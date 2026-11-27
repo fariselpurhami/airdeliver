@@ -122,3 +122,9 @@ def test_slot_writer_rules_forbid_unsupported_ranking_and_praise():
     from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
     low = R.casefold()
     assert 'do not rank or praise' in low and 'lightweight' in low and 'ask what matters most' in low
+
+
+def test_slot_writer_rules_keep_delivery_talk_to_one_plain_refusal():
+    """Real Groq (n=1, grd-01, 4:21 AM): "confirm the merchant's shipping schedule" tripped the deterministic policy backstop."""
+    from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
+    assert 'cannot promise or verify it' in R and 'shipping schedules' in R
