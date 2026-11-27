@@ -392,7 +392,7 @@ def compose_text(opening, question, cards, message=None):
         allowed |= {w[:5] for w in re.findall(r'[a-z]{5,}', str(c.get('name', '')).casefold())}
     strip = lambda t: re.sub(r'\[\[name:\d+\]\]', ' ', t).casefold()
     stripped = strip(f'{opening} {question}')
-    if re.search(r'\b(?:free|deliver\w*|ship\w*|warrant\w*|guarant\w*|return\w*|refund\w*|reserv\w*|discount\w*|offer\w*|stock|available|availability)\b', stripped):
+    if re.search(r'\b(?:free|deliver\w*|ship\w*|warrant\w*|guarant\w*|return\w*|refund\w*|reserv\w*|discount\w*|special offers?|promo\w*|coupon\w*|deals?|stock|available|availability)\b', stripped):
         raise SlotError('compose_policy_wording')
     words = lambda t: {w[:5] for w in re.findall(r'[a-z]{5,}', t)}
     if words(strip(opening)) & (_card_words(cs) - allowed) or words(strip(question)) & (_card_words(cs, tags=False) - allowed):

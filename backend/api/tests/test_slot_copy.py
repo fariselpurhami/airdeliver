@@ -396,3 +396,13 @@ def test_compose_puts_the_answer_before_the_fact_blocks_and_varies_the_heading()
     assert len(seen) >= 2
     assert compose_text('Okay.', 'Which?', cs, 'one') == compose_text('Okay.', 'Which?', cs, 'one')
     ok(text, cs=cs, message='Which is the cheapest?')
+
+
+def test_compose_policy_wording_guard_does_not_trip_on_the_verb_offer():
+    """Real n=1 (12:24, cmp-02 commute): "each offering a different way to enjoy the ride" was rejected by the offer* word guard and the reply was withheld. Only promotional wording is blocked."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    cs = enrich_cards(cards())
+    assert 'offering a different way' in compose_text('Both fit a commute, each offering a different way to enjoy the ride.', 'Which matters more?', cs, 'Compare these for a commute.')
+    for bad in ('Want a special offer?', 'Any promo code or coupon?', 'Want a deal on both?'):
+        with pytest.raises(SlotError):
+            compose_text('Okay.', bad, cs, 'Compare these for a commute.')
