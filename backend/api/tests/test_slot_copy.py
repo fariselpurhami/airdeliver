@@ -699,3 +699,31 @@ def test_opening_may_not_answer_an_ask_the_cards_do_not_cover():
     # a card that does list the topic may be echoed
     both = enrich_cards([catalog_result(row(id=33, name='Calm Cream', price=Decimal('21.00'), attributes={'skin': 'sensitive skin tested'}))])
     assert compose_text('Sensitive skin, got it.', 'Anything else?', both, msg)
+
+
+def test_quantity_total_is_computed_by_code_and_passes_the_number_check():
+    """Open gap from the broad set: "4 of these" got no total because the model may not type numbers. Code now reads the quantity from the customer's message, multiplies the card price in Decimal and renders it through a validated slot."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    from app.services.conversation.compose_facts import quantity_of
+    assert [quantity_of(m) for m in ('I need 4 of these', 'can I get three of them', 'what is the price for 12 pieces', 'buy 2', 'x5 please', 'I have 4 kids', 'is it 3 hours?', 'a dozen of these', 'one of them')] == [4, 3, 12, 2, 5, None, None, 12, None]
+    cs = enrich_cards(cards())
+    msg = 'How much for 4 of the Studio Headphones?'
+    text = compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs[:1], msg)
+    d = ok(text, cs=cs[:1], message=msg)
+    assert '4 x $79.00 = $316.00' in d.text
+    two = ok(compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs, msg), cs=cs, message=msg)
+    assert '4 x $79.00 = $316.00' in two.text and '4 x $18.00 = $72.00' in two.text
+    none = compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs[:1], 'How much is it?')
+    assert ' x ' not in none
+
+
+def test_quantity_changes_the_budget_check_to_the_whole_order():
+    """Offline b022: 'I have 100 dollars. Can I buy two of these?' said 'Within your budget' for single prices while two units cost more."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    cs = enrich_cards(cards())
+    msg = 'I have 50 dollars. Can I buy two of these?'
+    d = ok(compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs, msg), cs=cs, message=msg)
+    assert 'At your quantity, Steel Bottle stays within your budget and Studio Headphones goes over it.' in d.text
+    assert 'Within your budget:' not in d.text

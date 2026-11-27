@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "9120d34fb259a6974ffaa51cacdb66bf1f85748a6321226d144b5fd2108b43c2",
+  "current_sha256": "f8f21d2c14720febc852b648cfcb9054351c51dbdc538dba4de92255a4fffe98",
+  "replacements": [
+   {
+    "old": "    allowed_values={_number_value(n) for n in allowed}",
+    "new": "    from app.services.conversation.compose_facts import quantity_numbers\n    allowed|=quantity_numbers(message,cards)\n    allowed_values={_number_value(n) for n in allowed}",
+    "count": 1
+   }
+  ]
+ }
+}

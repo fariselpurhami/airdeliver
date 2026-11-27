@@ -316,6 +316,8 @@ def validate_draft(draft, cards, context=None, brief=None, message=None):
     allowed={n for claim in draft.claims for n in re.findall(r'\d+(?:[.,]\d+)*',claim.value)}
     totals=exact_totals(cards,brief)
     if totals:allowed|={n for v in totals.values() for n in re.findall(r'\d+(?:[.,]\d+)*',v)}
+    from app.services.conversation.compose_facts import quantity_numbers
+    allowed|=quantity_numbers(message,cards)
     allowed_values={_number_value(n) for n in allowed}
     if any(n not in allowed and _number_value(n) not in allowed_values for n in numbers) or re.search(r'https?://|www\.',draft.text,re.I):
         raise ValueError('unsupported_numeric_or_link_claim')

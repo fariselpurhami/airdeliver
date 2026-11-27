@@ -245,6 +245,16 @@ def render_slots(raw, cards, brief=None, message=None):
                 raise SlotError('slot_spec_unavailable')
             claim(pid, key, str(value))
             return str(value)
+        if key == 'qty':
+            from app.services.conversation.compose_facts import quantity_of
+            n = quantity_of(message)
+            if not n:
+                raise SlotError('slot_quantity_not_asked')
+            shown, exact = _money(card)
+            claim(pid, 'price', exact)
+            total = (Decimal(exact) * n).quantize(Decimal('0.01'))
+            cur = card.get('currency')
+            return f"{n} x {shown} = " + ((_SYMBOL[cur] + str(total)) if cur in _SYMBOL else f'{total} {cur}')
         if key == 'stock':
             if not re.search(r'stock|availab|in store|pick ?up', message or '', re.I):
                 raise SlotError('slot_stock_not_asked')

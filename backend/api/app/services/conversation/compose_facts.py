@@ -79,7 +79,13 @@ def _need_lines(message, cs):
             except Exception:
                 pass
         priced.sort()
-        if limit is not None and len(priced) >= 2:
+        mult = quantity_of(message) or 1
+        if limit is not None and mult > 1 and priced:
+            fit = [i for v, i in priced if v * mult <= limit]
+            over = [i for v, i in priced if v * mult > limit]
+            nm = lambda ids: _join([f'[[name:{i}]]' for i in ids])
+            out.append((f'At your quantity, {nm(fit)} stays within your budget' + (f' and {nm(over)} goes over it.' if over else '.')) if fit else f'At your quantity, {nm(over)} ' + ('goes' if len(over) == 1 else 'go') + ' over your budget.')
+        elif limit is not None and len(priced) >= 2:
             fit = [i for v, i in priced if v <= limit]
             over = [i for v, i in priced if v > limit]
             if fit:
@@ -89,6 +95,9 @@ def _need_lines(message, cs):
                 out.append(text)
             else:
                 out.append(f'None of these is within your budget; the lowest listed is [[name:{priced[0][1]}]] at [[price:{priced[0][1]}]].')
+    qty = quantity_of(message)
+    if qty and 1 <= len(cs) <= 3 and all(c.get('price') not in (None, '') for c in cs):
+        out.append(('Worked out for you: ', 'The totals: ', 'For that many: ')[__import__('zlib').crc32(f'qty|{message or ""}'.encode('utf-8')) % 3] + '; '.join(f"[[name:{c['id']}]] comes to [[qty:{c['id']}]]" for c in cs) + '.')
     if re.search(r'rating|rated|reviews?\b|top.?rated', low):
         vals = []
         for c in cs:
@@ -108,4 +117,36 @@ def _need_lines(message, cs):
             out.append(f'On weight, {_names(tie[0])} are tied at [[spec.weight:{tie[0][-1]}]].')
         if r:
             out.append(f'On weight, [[name:{r[0][1]}]] lists the lowest: [[spec.weight:{r[0][1]}]]. [[name:{r[1][1]}]] lists [[spec.weight:{r[1][1]}]].')
+    return out
+
+
+_NUMWORDS = {'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10, 'twelve': 12, 'dozen': 12}
+
+
+def quantity_of(message):
+    """How many units the customer says they want ("4 of these", "buy 3", "x5", "a dozen of them"), 2 to 99, else None. Plain counts of other things ("4 kids", "3 hours") do not match."""
+    low = (message or '').casefold()
+    num = r'(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten|twelve|a dozen)'
+    m = (re.search(r'\b' + num + r'\s+(?:of\s+(?:these|them|those|it|the|this)\b|units?\b|pieces?\b|pcs\b|pairs?\b|sets?\b|copies\b)', low)
+         or re.search(r'\b(?:buy|order|get|need|want|take)\s+' + num + r'\b(?!\s*(?:hours?|days?|years?|kids?|people|months?|weeks?|minutes?))', low)
+         or re.search(r'\bx\s?(\d{1,2})\b|\b(\d{1,2})\s?x\b', low))
+    if not m:
+        return None
+    raw = next(g for g in m.groups() if g)
+    n = int(raw) if raw.isdigit() else _NUMWORDS.get(raw.replace('a ', ''))
+    return n if n and 2 <= n <= 99 else None
+
+
+def quantity_numbers(message, cards):
+    """Number tokens a quantity line may print for these cards: the count and each card total. Used by the number check."""
+    n = quantity_of(message)
+    out = set()
+    if not n:
+        return out
+    for c in cards:
+        try:
+            price = Decimal(str(c['price'] if isinstance(c, dict) else c.price))
+        except Exception:
+            continue
+        out |= {str(n), str((price * n).quantize(Decimal('0.01')))}
     return out
