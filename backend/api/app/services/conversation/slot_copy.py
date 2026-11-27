@@ -277,7 +277,10 @@ def render_slots(raw, cards, brief=None, message=None):
         if pid not in ids and str(card['name']).casefold() in low:
             ids.append(pid)
             claims.append(Claim(product_id=pid, field='name', value=str(card['name'])))
+    names = sorted({str(c['name']) for c in by_id.values() if str(c.get('name', '')).strip()}, key=len, reverse=True)
     for line in rendered.split('\n'):
+        for nm in names:
+            line = re.sub(re.escape(nm), ' ', line, flags=re.I)  # a product name is the card's own name, not a typed fact
         for card in by_id.values():
             for value in (card.get('catalog_specs') or {}).values():
                 value = str(value).strip()
@@ -517,7 +520,12 @@ def compose_text(opening, question, cards, message=None):
     if len(cs) == 2 and all(keysets) and not (keysets[0] & keysets[1]):
         names = [f"[[name:{c['id']}]]" for c in cs]
         different = True
-        parts.append(f"{names[0]} is listed with a {_join([_label(k) for k in sorted(keysets[0])])} and {names[1]} with a {_join([_label(k) for k in sorted(keysets[1])])}, so they look like two different kinds of item, not substitutes.")
+        parts.append(f"{names[0]} is listed with {_join([_label(k) for k in sorted(keysets[0])])} and {names[1]} with {_join([_label(k) for k in sorted(keysets[1])])}, so they look like two different kinds of item, not substitutes.")
+    elif len(cs) == 2:
+        cats = [str(c.get('category') or '').strip() for c in cs]
+        if all(cats) and not any(x.casefold() == 'uncategorized' for x in cats) and cats[0].casefold() != cats[1].casefold():
+            different = True
+            parts.append(f"[[name:{cs[0]['id']}]] is listed under {cats[0]} and [[name:{cs[1]['id']}]] under {cats[1]}, so they look like two different kinds of item, not substitutes.")
     parts += [heading, '\n'.join(f"- [[{cardkey}:{c['id']}]]" for c in cs)]
     asked = lambda label: label in low or (label == 'weight' and re.search(r'light|weigh|heavy', low)) or (label == 'rating' and re.search(r'rated|review', low))
     gaps = []

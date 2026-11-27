@@ -440,7 +440,7 @@ def test_compose_customer_experience_review_points():
     assert 'On price, Steel Bottle is the lowest listed at $18.00' in text
     assert text.count('$18.00') == 1 and text.count('$59.00') == 1  # (1) the asked field is not repeated in the blocks
     assert 'no separate' not in text and 'cannot be compared directly' not in text  # (2)
-    assert 'Trail Backpack is listed with a weight and Steel Bottle with a capacity, so they look like two different kinds of item, not substitutes.' in text  # (3)
+    assert 'Trail Backpack is listed with weight and Steel Bottle with capacity, so they look like two different kinds of item, not substitutes.' in text  # (3)
     assert 'You mentioned' not in text  # (4)
     assert 'For "hike":\n- Trail Backpack is tagged hiking.\n- Steel Bottle has no matching tag (its tags: hydration, insulated, outdoor).' in text
     assert 'ask which of them the customer actually needs' in COMPOSE_RULES.casefold() and 'only factor' in COMPOSE_RULES.casefold()  # (5)
@@ -581,3 +581,34 @@ def test_compose_question_may_repeat_a_field_the_customer_named_even_when_no_car
     assert 'doesn\'t mention waterproofing or colour options' in d.text
     with pytest.raises(SlotError):
         compose_text('Here is the jacket.', 'Which weight do you prefer?', cs, 'Is it waterproof?')
+
+
+def test_compose_flags_different_kinds_by_category_when_spec_keys_overlap():
+    """Broad offline stress (88 SYNTHETIC questions): Studio Headphones (Headphones) vs Smart Watch (Wearables), and Laptop Sleeve vs Scented Candle style pairs, share a spec key such as connectivity or material, so the spec-key test never said they are different kinds and the reply still ended on the generic question. When two cards sit in different catalog categories the reply now says so, using the categories as listed."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    a = catalog_result(row(id=1, name='Studio Headphones', price=Decimal('79.00'), category='Headphones', attributes={'connectivity': 'Bluetooth'}))
+    b = catalog_result(row(id=2, name='Smart Watch', price=Decimal('150.00'), category='Wearables', attributes={'connectivity': 'Bluetooth'}))
+    cs = enrich_cards([a, b])
+    msg = 'Compare these for someone who commutes by train'
+    d = ok(compose_text('You are comparing two things for the train.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
+    assert 'Studio Headphones is listed under Headphones and Smart Watch under Wearables, so they look like two different kinds of item, not substitutes.' in d.text
+    assert 'which one are you actually after: Studio Headphones or Smart Watch?' in d.text
+    same = enrich_cards([catalog_result(row(id=1, name='Studio Headphones', price=Decimal('79.00'), category='Headphones', attributes={'connectivity': 'Bluetooth'})), catalog_result(row(id=3, name='Earbuds Mini', price=Decimal('49.00'), category='Headphones', attributes={'connectivity': 'Bluetooth'}))])
+    d = ok(compose_text('You are comparing two things for the train.', 'What matters most to you?', same, msg), cs=same, message=msg)
+    assert 'different kinds' not in d.text
+    plain = enrich_cards([catalog_result(row(id=1, name='A Thing', price=Decimal('5.00'), attributes={'x': 'y'})), catalog_result(row(id=2, name='B Thing', price=Decimal('6.00'), attributes={'x': 'z'}))])
+    d = ok(compose_text('Two things.', 'What matters most to you?', plain, msg), cs=plain, message=msg)
+    assert 'different kinds' not in d.text
+
+
+def test_two_names_that_share_a_material_word_do_not_trip_the_duplicate_value_check():
+    """Broad offline stress (b039, b067): Wool Scarf and Wool Sweater both list material wool, so any one line naming both ("... which one are you actually after: Wool Scarf or Wool Sweater?") showed the value "wool" twice and render_slots raised slot_duplicate_value, throwing away the whole compose reply. Product names are the cards' own names, not typed facts, so they no longer count toward the duplicate check. A typed value outside the names still does."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    scarf = catalog_result(row(id=15, name='Wool Scarf', price=Decimal('30.00'), category='Accessories', attributes={'material': 'wool'}))
+    sweater = catalog_result(row(id=20, name='Wool Sweater', price=Decimal('70.00'), category='Outerwear', attributes={'material': 'wool'}))
+    cs = enrich_cards([scarf, sweater])
+    msg = 'what about the second one?'
+    d = ok(compose_text('You are looking at two warm things.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
+    assert 'which one are you actually after: Wool Scarf or Wool Sweater?' in d.text
+    with pytest.raises(SlotError):
+        render_slots({'text': 'It is wool, really wool.'}, cs, None, msg)
