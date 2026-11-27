@@ -502,7 +502,7 @@ def compose_text(opening, question, cards, message=None):
     listed = {c['id']: _listed(c) for c in cs}
     have = {_label(k) for ks in listed.values() for k in ks} | {'rating' for c in cs if (c.get('catalog_specs') or {}).get('rating')}
     for field in ('weight', 'capacity', 'rating', 'battery', 'material', 'size', 'color', 'colour', 'dimensions', 'warranty', 'price'):
-        if re.search(r'\b' + field + r'\b', question.casefold()) and field not in have:
+        if re.search(r'\b' + field + r'\b', question.casefold()) and field not in have and not re.search(r'\b' + field + r'\b', (message or '').casefold()):
             raise SlotError('compose_unlisted_field')
     union = []
     for c in cs:

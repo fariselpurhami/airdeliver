@@ -569,3 +569,15 @@ def test_compose_no_matching_tag_line_survives_a_card_whose_name_repeats_its_own
     msg = 'Need a shirt for a summer wedding'
     d = ok(compose_text('You are dressing for a wedding.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
     assert 'Cotton Shirt has no matching tag.' in d.text
+
+
+def test_compose_question_may_repeat_a_field_the_customer_named_even_when_no_card_lists_it():
+    """Real Groq n=1 (11:03 PM, broad set b038, "Is the rain jacket waterproof and does it come in red?"): the model wrote the question "Which matters more to you, the waterproof feature or the red color?". compose_unlisted_field rejected it because no card lists a color, the compose reply fell back to the normal writer, and that draft was rejected for an unsupported stock claim (a deterministic validation failure, not a quota or reviewer failure). The customer used the word "color" first, so restating it is not an offer of a field the cards lack."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    jacket = catalog_result(row(id=19, name='Rain Jacket', price=Decimal('89.00'), attributes={'material': 'nylon'}, description='Hooded jacket with taped seams.', tags=['jacket']))
+    cs = enrich_cards([jacket])
+    msg = 'Is the rain jacket waterproof and does it come in red? Any color?'
+    d = ok(compose_text('Sounds like you want to know if [[name:19]] is waterproof and if it comes in red.', 'Which matters more to you, the waterproof feature or the color?', cs, msg), cs=cs, message=msg)
+    assert 'doesn\'t mention waterproofing or colour options' in d.text
+    with pytest.raises(SlotError):
+        compose_text('Here is the jacket.', 'Which weight do you prefer?', cs, 'Is it waterproof?')
