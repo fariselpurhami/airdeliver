@@ -1,0 +1,28 @@
+{
+ "backend/api/app/services/conversation/neural_core_service.py": {
+  "baseline_sha256": "f27c421d2d41c8fd40c5b7eea0a81d628756496a139f5a0e0cc90b5f5f962968",
+  "current_sha256": "196e0fd058c3b9ea08fdaef1c693f46ebbf228a5c03dd1b717d52959838104d9",
+  "replacements": [
+   {
+    "old": "    history: List[ChatMessage] = Field(default_factory=list, max_length=10)\n",
+    "new": "    history: List[ChatMessage] = Field(default_factory=list, max_length=10)\n    last_card_ids: List[int] = Field(default_factory=list, max_length=5)\n    last_card_names: List[Annotated[str,Field(max_length=256)]] = Field(default_factory=list, max_length=5)\n",
+    "count": 1
+   },
+   {
+    "old": "            if memory.shopping_brief.budget and memory.shopping_brief.budget_max is None:\n                response=await self._shopping_response(message,[],memory.shopping_brief,\"clarification\",\"GIFT_DISCOVERY\")",
+    "new": "            if self._is_followup_on_last_cards(memory,decision,message):\n                response=await self._handle_followup_cards(db,memory,message,decision)\n            elif memory.shopping_brief.budget and memory.shopping_brief.budget_max is None:\n                response=await self._shopping_response(message,[],memory.shopping_brief,\"clarification\",\"GIFT_DISCOVERY\")",
+    "count": 1
+   },
+   {
+    "old": "        response.enrich_telemetry(turn=turn_count)\n        memory.append_turn(",
+    "new": "        response.enrich_telemetry(turn=turn_count)\n        if response.response_kind=='catalog_results' and response.products:\n            memory.last_card_ids=[c.id for c in response.products][:5]\n            memory.last_card_names=[str(c.name)[:256] for c in response.products][:5]\n        memory.append_turn(",
+    "count": 1
+   },
+   {
+    "old": "    async def _catalog_response(self, db, products, intent",
+    "new": "    _FOLLOWUP_REF=re.compile(r\"\\b(?:these|those|them|both|either|this one|that one|the (?:first|second|third|last|other|cheaper|cheapest|pricier|lighter|smaller|bigger)(?: one)?|which (?:one|of|has|is|would|do)|between (?:the|them|these))\\b\",re.I)\n\n    @classmethod\n    def _is_followup_on_last_cards(cls,memory,decision,message):\n        \"\"\"A short informational question that points back at the cards just shown (\"which of these has better battery?\"). Fresh searches, named new products and non-informational tasks keep the normal search path.\"\"\"\n        if not memory.last_card_ids or decision.shopping_task not in {'comparison','specifications','consultation'} or decision.requested_name:return False\n        if not cls._FOLLOWUP_REF.search(message or '') or len((message or '').split())>25:return False\n        known={w for n in memory.last_card_names for w in re.findall(r'[a-z0-9]{3,}',n.casefold())}\n        return all(set(re.findall(r'[a-z0-9]{3,}',t.product_name.casefold())) & known for t in decision.targets)\n\n    async def _handle_followup_cards(self,db,memory,message,decision):\n        from types import SimpleNamespace\n        try:\n            products=[SimpleNamespace(id=i) for i in memory.last_card_ids]\n            response=await self._catalog_response(db,products,\"PRODUCT_SEARCH\",message,memory.shopping_brief,message,decision)\n            await self._recheck_catalog_response(db,response,memory.shopping_brief)\n            return response\n        except Exception as exc:\n            logger.warning(\"neural_core.followup_cards.failed\",extra={\"error_type\":type(exc).__name__})\n            return NeuralCoreResponse(text=\"System notice: current catalog evidence could not be checked. No product recommendation was published.\",response_kind=\"system_notice\",confidence=0.0,explain=\"Catalog revalidation unavailable\",telemetry={\"intent\":\"PRODUCT_SEARCH\",\"entities\":[],\"turn\":0})\n\n    async def _catalog_response(self, db, products, intent",
+    "count": 1
+   }
+  ]
+ }
+}

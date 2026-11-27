@@ -70,6 +70,8 @@ class SessionMemory(BaseModel):
     target_requirements: dict[Annotated[str,Field(min_length=1,max_length=256)],ScopedFeatures] = Field(default_factory=dict,max_length=3)
     target_exclusions: dict[Annotated[str,Field(min_length=1,max_length=256)],ScopedFeatures] = Field(default_factory=dict,max_length=3)
     history: List[ChatMessage] = Field(default_factory=list, max_length=10)
+    last_card_ids: List[int] = Field(default_factory=list, max_length=5)
+    last_card_names: List[Annotated[str,Field(max_length=256)]] = Field(default_factory=list, max_length=5)
 
     def append_turn(self, user_msg: str, ai_msg: str, max_turns: int = 5) -> None:
         """Appends a conversation turn and securely truncates to maintain context limits."""
@@ -687,6 +689,27 @@ class NeuralCoreService:
             if now is None or now.model_dump(exclude={'relation'})!=card.model_dump(exclude={'relation'}) or not constraints.permits(now):
                 raise ValueError('Catalog changed during copy')
 
+    _FOLLOWUP_REF=re.compile(r"\b(?:these|those|them|both|either|this one|that one|the (?:first|second|third|last|other|cheaper|cheapest|pricier|lighter|smaller|bigger)(?: one)?|which (?:one|of|has|is|would|do)|between (?:the|them|these))\b",re.I)
+
+    @classmethod
+    def _is_followup_on_last_cards(cls,memory,decision,message):
+        """A short informational question that points back at the cards just shown ("which of these has better battery?"). Fresh searches, named new products and non-informational tasks keep the normal search path."""
+        if not memory.last_card_ids or decision.shopping_task not in {'comparison','specifications','consultation'} or decision.requested_name:return False
+        if not cls._FOLLOWUP_REF.search(message or '') or len((message or '').split())>25:return False
+        known={w for n in memory.last_card_names for w in re.findall(r'[a-z0-9]{3,}',n.casefold())}
+        return all(set(re.findall(r'[a-z0-9]{3,}',t.product_name.casefold())) & known for t in decision.targets)
+
+    async def _handle_followup_cards(self,db,memory,message,decision):
+        from types import SimpleNamespace
+        try:
+            products=[SimpleNamespace(id=i) for i in memory.last_card_ids]
+            response=await self._catalog_response(db,products,"PRODUCT_SEARCH",message,memory.shopping_brief,message,decision)
+            await self._recheck_catalog_response(db,response,memory.shopping_brief)
+            return response
+        except Exception as exc:
+            logger.warning("neural_core.followup_cards.failed",extra={"error_type":type(exc).__name__})
+            return NeuralCoreResponse(text="System notice: current catalog evidence could not be checked. No product recommendation was published.",response_kind="system_notice",confidence=0.0,explain="Catalog revalidation unavailable",telemetry={"intent":"PRODUCT_SEARCH","entities":[],"turn":0})
+
     async def _catalog_response(self, db, products, intent, query="", brief=None, customer_message=None, decision=None, search_evidence=None):
         brief=brief or ShoppingBrief()
         # Re-read every indexed/cached candidate before exposing a card or claim.
@@ -1001,7 +1024,9 @@ class NeuralCoreService:
         elif decision.intent == "GIFT_DISCOVERY":
             response=await self._handle_gift_browse(db,message,memory.shopping_brief)
         elif decision.intent == "PRODUCT_SEARCH":
-            if memory.shopping_brief.budget and memory.shopping_brief.budget_max is None:
+            if self._is_followup_on_last_cards(memory,decision,message):
+                response=await self._handle_followup_cards(db,memory,message,decision)
+            elif memory.shopping_brief.budget and memory.shopping_brief.budget_max is None:
                 response=await self._shopping_response(message,[],memory.shopping_brief,"clarification","GIFT_DISCOVERY")
             else:
                 query = decision.query or decision.search_subject or message
@@ -1034,6 +1059,9 @@ class NeuralCoreService:
         turn_count = len(memory.history) // 2
 
         response.enrich_telemetry(turn=turn_count)
+        if response.response_kind=='catalog_results' and response.products:
+            memory.last_card_ids=[c.id for c in response.products][:5]
+            memory.last_card_names=[str(c.name)[:256] for c in response.products][:5]
         memory.append_turn(message, response.text, max_turns=NeuralCoreConfig.MAX_CONTEXT_TURNS)
 
         # Async persistence off critical path could be done here via BackgroundTasks,

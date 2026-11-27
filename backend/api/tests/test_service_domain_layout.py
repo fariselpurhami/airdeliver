@@ -94,6 +94,17 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
    edited=edited.replace(edit['new'],edit['old'])
   assert hashlib.sha256(edited.encode()).hexdigest()==kf[row['path']]['baseline_sha256']
   source=edited.encode()
+ fc=json.loads((ROOT/'docs/verification/followup-cards-source-evolution-v1.json').read_text())
+ assert set(fc)=={'backend/api/app/services/conversation/neural_core_service.py'}
+ if row['path'] in fc:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==fc[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in fc[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==fc[row['path']]['baseline_sha256']
+  source=edited.encode()
  qt=json.loads((ROOT/'docs/verification/compose-quantity-total-source-evolution-v1.json').read_text())
  assert set(qt)=={'backend/api/app/services/conversation/shopping_copy.py'}
  if row['path'] in qt:
