@@ -443,6 +443,12 @@ async def write_shopping_copy(infer, message, cards, brief, mode, timeout, conte
     if not no_match:
         from app.services.compact_copy_contracts import contracts
         writer_rules,review_rules=contracts(mode,context)
+    import os
+    if not no_match and cards and os.environ.get('AIRDELIVER_SLOT_COPY')=='1' and (context or {}).get('sales_intent')!='OPENING_INSIGHT':
+        # Slot path only: the source description, tags and rating join the cards (writer, validator and review see the same evidence).
+        from app.services.conversation.slot_copy import enrich_cards
+        cards=enrich_cards(cards)
+        payload['catalog_evidence']=[c.model_dump(mode='json',exclude={'image','sku','attributes'}) for c in cards]
     # One total budget covers writer, review and all inference retry backoff.
     stage='writer_provider'
     try:

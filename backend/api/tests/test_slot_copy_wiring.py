@@ -48,3 +48,22 @@ def test_opening_insight_never_uses_slots(monkeypatch):
         calls.append(messages);return json.dumps([NORMAL,OK][len(calls)-1])
     asyncio.run(write_shopping_copy(infer,'hi',[catalog_result(row())],{},'catalog_results',20,{'sales_intent':'OPENING_INSIGHT'}))
     assert len(calls)==2 and 'Never type a number' not in calls[0][0]['content']
+
+
+def test_source_description_and_rating_reach_writer_and_review_only_with_the_flag(monkeypatch):
+    """Simulated (scripted, not Groq). The Product row's real description, tags and rating are visible to the slot writer and the review when the flag is on, rendered from slots, and never when it is off."""
+    rich=lambda:[catalog_result(row(description='Over-ear and Bluetooth. Comes in black.',tags=['music'],rating=4.4))]
+    slot={'text':'The [[name:1]] is described by its source as: [[spec.description:1]] Its rating is [[spec.rating:1]].\n\nWhat will you use it for?'}
+    for flag in (True,False):
+        if flag:monkeypatch.setenv('AIRDELIVER_SLOT_COPY','1')
+        else:monkeypatch.delenv('AIRDELIVER_SLOT_COPY',raising=False)
+        seen=[]
+        async def infer(messages,seen=seen):
+            seen.append(messages);return json.dumps([slot,OK][len(seen)-1] if flag else [NORMAL,OK][len(seen)-1])
+        text=asyncio.run(write_shopping_copy(infer,'tell me about it',rich(),{},'catalog_results',20,{'sales_intent':'CATALOG_CONSULTATION'}))
+        blob=json.dumps(seen)
+        if flag:
+            assert 'Over-ear and Bluetooth.' in blob and '4.4 out of 5' in seen[1][1]['content']
+            assert 'described by its source as: Over-ear and Bluetooth. Its rating is 4.4 out of 5.' in text
+        else:
+            assert 'Over-ear' not in blob and '4.4' not in blob

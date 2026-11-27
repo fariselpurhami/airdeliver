@@ -1,0 +1,34 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "853db4e3ae2aa44924c0c2ecaf5a11e0b20f5bdf64144644206b667149324827",
+  "current_sha256": "d1d750fd21eb4966365f66762817688a0f386db495e10670f5c9a7a1787ee4c5",
+  "replacements": [
+   {
+    "old": "        from app.services.compact_copy_contracts import contracts\n        writer_rules,review_rules=contracts(mode,context)\n    # One total budget covers writer, review and all inference retry backoff.\n    stage='writer_provider'\n",
+    "new": "        from app.services.compact_copy_contracts import contracts\n        writer_rules,review_rules=contracts(mode,context)\n    import os\n    if not no_match and cards and os.environ.get('AIRDELIVER_SLOT_COPY')=='1' and (context or {}).get('sales_intent')!='OPENING_INSIGHT':\n        # Slot path only: the source description, tags and rating join the cards (writer, validator and review see the same evidence).\n        from app.services.conversation.slot_copy import enrich_cards\n        cards=enrich_cards(cards)\n        payload['catalog_evidence']=[c.model_dump(mode='json',exclude={'image','sku','attributes'}) for c in cards]\n    # One total budget covers writer, review and all inference retry backoff.\n    stage='writer_provider'\n",
+    "count": 1
+   }
+  ]
+ },
+ "backend/api/app/services/conversation/shopping_discovery.py": {
+  "baseline_sha256": "87c798c0a0aaf21dc5dbd8ea0f09639055006a4d0f5047a71681ba48e3d58177",
+  "current_sha256": "dee9ac86a25c91bb39dbd57f8ec1cfde82b5b95cb4d07da7d431c2741bdbf0a3",
+  "replacements": [
+   {
+    "old": "No inference output supplies price, stock, product identity or seller evidence.\n\"\"\"\nfrom decimal import Decimal, InvalidOperation\nfrom typing import Literal\n",
+    "new": "No inference output supplies price, stock, product identity or seller evidence.\n\"\"\"\nimport re\nfrom decimal import Decimal, InvalidOperation\nfrom typing import Literal\n",
+    "count": 1
+   },
+   {
+    "old": "\n\ndef catalog_result(product) -> CatalogResult | None:\n    pid=getattr(product,'id',None)\n",
+    "new": "\n\ndef _source_fields(product):\n    \"\"\"Real description, tags and rating from the authorised source row (never generated): first sentence of the description, up to 8 short tags, rating as text.\"\"\"\n    out={}\n    desc=getattr(product,'description',None)\n    if isinstance(desc,str) and desc.strip():\n        text=' '.join(desc.split())\n        cut=re.search(r'[.!?](?:\\s|$)',text)\n        first=(text[:cut.end()] if cut else text).strip()\n        out['source_description']=first[:240]\n    tags=getattr(product,'tags',None)\n    if isinstance(tags,(list,tuple)):\n        out['source_tags']=[t.strip()[:48] for t in tags if isinstance(t,str) and t.strip()][:8]\n    rating=getattr(product,'rating',None)\n    if type(rating) in (int,float) and 0<rating<=5:\n        out['source_rating']=f'{rating:.1f} out of 5'\n    return out\n\n\ndef catalog_result(product) -> CatalogResult | None:\n    pid=getattr(product,'id',None)\n",
+    "count": 1
+   },
+   {
+    "old": "            'Local catalog lists stock. Merchant availability, reservation and delivery are not verified.' if stock=='local_in_stock' else\n            'Local catalog lists no stock. Merchant availability is not verified.' if stock=='local_out_of_stock' else\n            'Stock and merchant availability are not verified.'))\n",
+    "new": "            'Local catalog lists stock. Merchant availability, reservation and delivery are not verified.' if stock=='local_in_stock' else\n            'Local catalog lists no stock. Merchant availability is not verified.' if stock=='local_out_of_stock' else\n            'Stock and merchant availability are not verified.'),\n        **_source_fields(product))\n",
+    "count": 1
+   }
+  ]
+ }
+}

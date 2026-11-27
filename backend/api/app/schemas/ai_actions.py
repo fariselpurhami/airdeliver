@@ -268,6 +268,10 @@ class CatalogResult(SchemaBaseModel):
     evidence_kind: Literal['seeded_demo','local_catalog','dev_fixture']
     stock_status: Literal['demo','local_in_stock','local_out_of_stock','unverified','fixture_in_stock','fixture_out_of_stock']
     availability_note: StrictStr
+    # Server-side only (excluded from every dump and API response): source facts the Product row already holds, read by the slot copy path.
+    source_description: Optional[StrictStr] = Field(default=None, exclude=True, max_length=240)
+    source_tags: List[StrictStr] = Field(default_factory=list, exclude=True, max_length=8)
+    source_rating: Optional[StrictStr] = Field(default=None, exclude=True, max_length=32)
 
 
 class NeuralCoreResponse(SchemaBaseModel):

@@ -2,6 +2,7 @@
 
 No inference output supplies price, stock, product identity or seller evidence.
 """
+import re
 from decimal import Decimal, InvalidOperation
 from typing import Literal
 from pydantic import BaseModel, Field
@@ -77,6 +78,24 @@ class ShoppingBrief(BaseModel):
 
 
 
+def _source_fields(product):
+    """Real description, tags and rating from the authorised source row (never generated): first sentence of the description, up to 8 short tags, rating as text."""
+    out={}
+    desc=getattr(product,'description',None)
+    if isinstance(desc,str) and desc.strip():
+        text=' '.join(desc.split())
+        cut=re.search(r'[.!?](?:\s|$)',text)
+        first=(text[:cut.end()] if cut else text).strip()
+        out['source_description']=first[:240]
+    tags=getattr(product,'tags',None)
+    if isinstance(tags,(list,tuple)):
+        out['source_tags']=[t.strip()[:48] for t in tags if isinstance(t,str) and t.strip()][:8]
+    rating=getattr(product,'rating',None)
+    if type(rating) in (int,float) and 0<rating<=5:
+        out['source_rating']=f'{rating:.1f} out of 5'
+    return out
+
+
 def catalog_result(product) -> CatalogResult | None:
     pid=getattr(product,'id',None)
     name=getattr(product,'name',None)
@@ -105,4 +124,5 @@ def catalog_result(product) -> CatalogResult | None:
         availability_note=('Local development fixture. All product attributes, price and stock are synthetic test values, not real offers or supplier evidence.' if fixture else 'Demo catalog. Price and stock are synthetic, not a merchant offer.' if demo else
             'Local catalog lists stock. Merchant availability, reservation and delivery are not verified.' if stock=='local_in_stock' else
             'Local catalog lists no stock. Merchant availability is not verified.' if stock=='local_out_of_stock' else
-            'Stock and merchant availability are not verified.'))
+            'Stock and merchant availability are not verified.'),
+        **_source_fields(product))

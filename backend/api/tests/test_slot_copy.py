@@ -200,3 +200,24 @@ def test_slot_writer_rules_ban_guessed_implications_and_valueless_bullets():
     from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
     low = R.casefold()
     assert 'do not guess what a value implies' in low and 'every bullet must carry at least one slot value' in low
+
+
+def _rich(pid=7, **kw):
+    return catalog_result(row(id=pid, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, **kw))
+
+
+def test_source_description_tags_and_rating_reach_slot_cards_only_when_real():
+    """Audit (7:43 AM): the importer and the Product table keep description, tags and rating from the authorised source, but CatalogResult dropped them, so the writer saw name, category, price and attributes only."""
+    from app.services.conversation.slot_copy import enrich_cards
+    rich = _rich(description='Padded 30 L daypack for day hikes. Ships in a box.', tags=['hiking', 'outdoor'], rating=4.6)
+    plain = _rich(9)
+    assert 'description' not in rich.model_dump() and 'rating' not in rich.model_dump()  # API and old writer payloads are unchanged
+    e = enrich_cards([rich, plain])
+    assert e[0].catalog_specs['description'] == 'Padded 30 L daypack for day hikes.'
+    assert e[0].catalog_specs['rating'] == '4.6 out of 5' and e[0].catalog_specs['tags'] == 'hiking, outdoor'
+    assert e[0].catalog_specs['weight'] == '650 g'
+    assert e[1].catalog_specs == {'weight': '650 g'}
+    clash = enrich_cards([catalog_result(row(id=8, name='Lamp', attributes={'rating': 'house brand'}, rating=3.0))])[0]
+    assert clash.catalog_specs['rating'] == 'house brand'
+    d = ok("The [[name:7]] is described as: [[spec.description:7]] Rated [[spec.rating:7]].", cs=e)
+    assert 'Padded 30 L daypack for day hikes.' in d.text and '4.6 out of 5' in d.text
