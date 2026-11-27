@@ -523,3 +523,17 @@ def test_compose_opening_cannot_claim_suitability_or_generalise():
     with pytest.raises(SlotError):
         compose_text('Okay.', 'Which one fits you better?', cs, 'Which is the cheapest for a weekend hike?')
     ok(compose_text('You want the lowest price for a hike.', 'Which do you need?', cs, 'Which is the cheapest for a weekend hike?'), cs=cs, message='Which is the cheapest for a weekend hike?')
+
+
+def test_compose_rejects_praise_words_that_slipped_the_suitability_list():
+    """Real run 26 (9:51 PM, published and review-approved): the opening said "Both are solid picks for the trail." That is praise plus a suitability claim the cards do not support, and it passed the PR349 word list. Praise adjectives and "pick/choice" wording are rejected in the model pieces."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    pack = catalog_result(row(id=2, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, tags=['hiking']))
+    bottle = catalog_result(row(id=5, name='Steel Bottle', price=Decimal('18.00'), attributes={'capacity': '750 ml'}, tags=['hydration']))
+    cs = enrich_cards([pack, bottle])
+    for bad in ('Both are solid picks for the trail.', 'Two reliable options here.', 'Both are strong choices.', 'An excellent pair.', 'Nice combo, both sturdy.', 'Both are popular with hikers.', 'Great gear.', 'Both are well made.'):
+        with pytest.raises(SlotError):
+            compose_text(bad, 'Which do you need?', cs, 'Which is the cheapest for a weekend hike?')
+    with pytest.raises(SlotError):
+        compose_text('Okay.', 'Which is the smart pick for you?', cs, 'Which is the cheapest for a weekend hike?')
+    ok(compose_text('You want the lowest spend for a trek.', 'Is price the main thing for this hike?', cs, 'Which is the cheapest for a weekend hike?'), cs=cs, message='Which is the cheapest for a weekend hike?')

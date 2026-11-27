@@ -441,6 +441,8 @@ def compose_text(opening, question, cards, message=None):
         raise SlotError('compose_policy_wording')
     if re.search(r'\b(?:work|works|working|worked|suit|suits|suited|suitable|fit|fits|fitting|good|ideal|perfect|great|handy|useful|right)\s+(?:for|well|you)\b|\b(?:would|could|will|can)\s+(?:suit|work|fit)\b|\b(?:generally|usually|typically|often|tends?|normally|mostly)\b|\bsuit\w*\b|\bfits?\b', stripped):
         raise SlotError('compose_suitability_claim')
+    if re.search(r'\b(?:solid|strong|excellent|nice|awesome|fantastic|amazing|reliable|quality|decent|sturdy|durable|popular|favou?rites?|trusted|top|winners?|smart|wise|well[- ]made|great|good|picks?|choices?|combo|pair|worthy|superb|brilliant|lovely|cool)\b', stripped):
+        raise SlotError('compose_praise_wording')
     words = lambda t: {w[:5] for w in re.findall(r'[a-z]{5,}', t)}
     if words(strip(opening)) & (_card_words(cs) - allowed) or words(strip(question)) & (_card_words(cs, tags=False) - allowed):
         raise SlotError('compose_card_wording')
