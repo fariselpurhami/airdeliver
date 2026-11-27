@@ -247,3 +247,19 @@ def test_slot_writer_rules_forbid_paraphrasing_descriptions_and_praising_ratings
     from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
     low = R.casefold()
     assert 'never restate a description in your own words' in low and 'do not call ratings solid' in low
+
+
+def test_card_slot_prints_every_listed_fact_exactly_and_declares_claims():
+    """Real Groq (n=1, rich synthetic cards, 9:11 AM): the model restated the description in its own words next to the description slot, and the draft was rejected. [[card:ID]] prints the product's name, price, specs, rating, tags and description from the card, so there is nothing left to paraphrase."""
+    from app.services.conversation.slot_copy import enrich_cards
+    rich = catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, description='Padded daypack with a rain cover. Ships in a box.', tags=['hiking', 'outdoor'], rating=4.5))
+    cs = enrich_cards([rich, cards()[1]])
+    d = ok("The pack looks right for a day on the trail.\n\n- [[card:7]]\n- [[card:2]]\n\nWhich matters more to you?", cs=cs)
+    line = d.text.split('\n')[2]
+    assert line == "- Trail Backpack, $59.00. Weight 650 g. Rated 4.5 out of 5. Tags: hiking, outdoor. Padded daypack with a rain cover."
+    assert "- Steel Bottle, $18.00. Capacity 750 ml." in d.text
+    assert {(c.product_id, c.field) for c in d.claims} >= {(7, 'name'), (7, 'price'), (7, 'spec.weight'), (7, 'spec.rating'), (7, 'spec.description'), (2, 'spec.capacity')}
+    with pytest.raises(SlotError):
+        ok("- [[card:99]]", cs=cs)
+    with pytest.raises(SlotError):
+        ok("- [[card]]", cs=cs)

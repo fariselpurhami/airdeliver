@@ -23,7 +23,7 @@ _STOCK_WORDS = {'local_in_stock': 'in stock', 'fixture_in_stock': 'in stock', 'l
 SLOT_WRITER_RULES = (
     "Write the reply as JSON {text}. Never type a number, price, measurement, product ID or link yourself. Every fact comes from a slot that the shop fills in: "
     "[[name:ID]] for a product name, [[price:ID]] for its price, [[spec.KEY:ID]] for a listed spec value, [[no_promise]] for the refusal to promise stock or delivery, [[total]] and [[left]] for the combined price and the budget left when they are provided. "
-    "Use only IDs and spec keys that appear in the supplied cards. A fact with no slot is unknown: say plainly that you do not have it, in your own words, without slots. "
+    "[[card:ID]] prints one product's name, price and every listed fact (specs, rating, tags, description) exactly: when you compare products, put one [[card:ID]] on its own line starting with \"- \" for each, and do not restate any of those facts anywhere else. Use only IDs and spec keys that appear in the supplied cards. A fact with no slot is unknown: say plainly that you do not have it, in your own words, without slots. "
     "Voice: you are a warm, sharp human sales engineer talking to one person, not a catalog and not a form. Length follows the data: 120 to 220 words in three or four short paragraphs when the cards carry several slot facts per product, but only 60 to 110 words in two short paragraphs when a product has one or two slot facts, and never restate a missing fact twice. Plus a short bullet block (lines starting with \"- \") only when you compare two or more products. Answer their actual question first and take a position the slot facts support (for example, start with one product and say which slot fact is the reason). Then walk through their situation (their trip, desk, budget, routine): connect each slot fact to what it means for them in plain words, name a real trade-off between the options, and say what you cannot see, listing the specific missing facts. Talk like a person: contractions, varied sentence length, a light touch of wit, speak to \"you\". Consequences and trade-offs must follow from slot facts only, and never add a fact, number or feature, and never use general knowledge about product types (for example, that a lighter pack means less strain). Finish with one specific question that moves the decision forward. Do not guess what a value implies (a number being the only one listed does not make a product light, strong or good); state the slot value and let the customer weigh it. Every bullet must carry at least one slot value; never write a bullet that only says a product has a spec. "
     "A card may list description, tags and rating among its catalog_specs: these are the source\'s own words and numbers. Use them only through [[spec.description:ID]], [[spec.tags:ID]] and [[spec.rating:ID]], and add no meaning to them. Never restate a description in your own words: any feature, size, number or material from it appears only through its slot, and a feature the description does not state is unknown. Do not call ratings solid, strong or great; show the rating slot as it is. "
     "Stay consistent: never say you lack details on a product and then state facts about it; name the specific thing you lack instead (for example, no volume or battery figure). When the customer asks what you do not know, list those specific missing things. Use no adjective that a slot fact does not show (lightweight, durable, sturdy, compact, premium). "
@@ -189,6 +189,28 @@ def render_slots(raw, cards, brief=None, message=None):
         card = by_id.get(pid)
         if card is None:
             raise SlotError('slot_unknown_product')
+        if key == 'card':
+            specs = dict(card.get('catalog_specs') or {})
+            shown, exact = _money(card)
+            claim(pid, 'name', card['name'])
+            claim(pid, 'price', exact)
+            parts = [f"{card['name']}, {shown}."]
+            for k, v in specs.items():
+                if k in ('description', 'rating', 'tags') or not str(v).strip():
+                    continue
+                claim(pid, 'spec.' + k, str(v))
+                parts.append(f"{k.replace('_', ' ').capitalize()} {v}.")
+            if specs.get('rating'):
+                claim(pid, 'spec.rating', specs['rating'])
+                parts.append(f"Rated {specs['rating']}.")
+            if specs.get('tags'):
+                claim(pid, 'spec.tags', specs['tags'])
+                parts.append(f"Tags: {specs['tags']}.")
+            if specs.get('description'):
+                claim(pid, 'spec.description', specs['description'])
+                d = str(specs['description']).strip()
+                parts.append(d if d[-1] in '.!?' else d + '.')
+            return ' '.join(parts)
         if key == 'name':
             claim(pid, 'name', card['name'])
             return str(card['name'])
