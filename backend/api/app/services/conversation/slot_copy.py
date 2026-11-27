@@ -452,6 +452,12 @@ _UNLISTED_ASKS = (
 )
 
 
+def _pick(message, salt, options):
+    """Deterministic variant by the customer's own message: the same message always gets the same wording, different messages spread over the options."""
+    import zlib
+    return options[zlib.crc32(f'{salt}|{message or ""}'.encode('utf-8')) % len(options)]
+
+
 def _unlisted_lines(message, cs):
     """Say plainly what the customer asked about that no card text covers. Only the lexicon above, only when no card's own text or spec names it."""
     low = (message or '').casefold()
@@ -470,8 +476,9 @@ def _unlisted_lines(message, cs):
         return []
     named = missing[0] if len(missing) == 1 else ', '.join(missing[:-1]) + ' or ' + missing[-1]
     if len(cs) == 1:
-        return [f"The entry for [[name:{cs[0]['id']}]] doesn't mention {named}."]
-    return [f'None of these entries mention {named}.']
+        n = f"[[name:{cs[0]['id']}]]"
+        return [_pick(message, 'unl1', (f"The entry for {n} doesn't mention {named}.", f"The entry for {n} says nothing about {named}.", f"Nothing in the catalog entry for {n} covers {named}."))]
+    return [_pick(message, 'unln', (f'None of these entries mention {named}.', f'Nothing in these entries covers {named}.', f'These entries say nothing about {named}.'))]
 
 
 
@@ -520,12 +527,12 @@ def compose_text(opening, question, cards, message=None):
     if len(cs) == 2 and all(keysets) and not (keysets[0] & keysets[1]):
         names = [f"[[name:{c['id']}]]" for c in cs]
         different = True
-        parts.append(f"{names[0]} is listed with {_join([_label(k) for k in sorted(keysets[0])])} and {names[1]} with {_join([_label(k) for k in sorted(keysets[1])])}, so they look like two different kinds of item, not substitutes.")
+        parts.append(f"{names[0]} is listed with {_join([_label(k) for k in sorted(keysets[0])])} and {names[1]} with {_join([_label(k) for k in sorted(keysets[1])])}, {_pick(message, "kind", ("so they look like two different kinds of item, not substitutes.", "so they are not interchangeable.", "so they are not really alternatives to each other."))}")
     elif len(cs) == 2:
         cats = [str(c.get('category') or '').strip() for c in cs]
         if all(cats) and not any(x.casefold() == 'uncategorized' for x in cats) and cats[0].casefold() != cats[1].casefold():
             different = True
-            parts.append(f"[[name:{cs[0]['id']}]] is listed under {cats[0]} and [[name:{cs[1]['id']}]] under {cats[1]}, so they look like two different kinds of item, not substitutes.")
+            parts.append(f"[[name:{cs[0]['id']}]] is listed under {cats[0]} and [[name:{cs[1]['id']}]] under {cats[1]}, {_pick(message, "kind", ("so they look like two different kinds of item, not substitutes.", "so they are not interchangeable.", "so they are not really alternatives to each other."))}")
     parts += [heading, '\n'.join(f"- [[{cardkey}:{c['id']}]]" for c in cs)]
     asked = lambda label: label in low or (label == 'weight' and re.search(r'light|weigh|heavy', low)) or (label == 'rating' and re.search(r'rated|review', low))
     gaps = []
@@ -562,5 +569,6 @@ def compose_text(opening, question, cards, message=None):
             parts.append(f'For "{word}":\n' + '\n'.join(seg))
         else:
             parts.append(' '.join(f'[[name:{c["id"]}]] is tagged {h[0]}, which matches your question.' if h[1] == h[0].casefold() else f'For "{h[1]}": [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits))
-    parts.append(f"These do different jobs, so which one are you actually after: [[name:{cs[0]['id']}]] or [[name:{cs[1]['id']}]]?" if different else question.strip())
+    pair = f"[[name:{cs[0]['id']}]] or [[name:{cs[1]['id']}]]" if len(cs) >= 2 else ''
+    parts.append(_pick(message, 'closer', (f'These do different jobs, so which one are you actually after: {pair}?', f'Since they do different jobs, which one do you actually want: {pair}?', f'They cover different needs, so which are you after: {pair}?')) if different else question.strip())
     return '\n\n'.join(p for p in parts if p)
