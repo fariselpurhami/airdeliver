@@ -24,7 +24,8 @@ SLOT_WRITER_RULES = (
     "Write the reply as JSON {text}. Never type a number, price, measurement, product ID or link yourself. Every fact comes from a slot that the shop fills in: "
     "[[name:ID]] for a product name, [[price:ID]] for its price, [[spec.KEY:ID]] for a listed spec value, [[total]] and [[left]] for the combined price and the budget left when they are provided. "
     "Use only IDs and spec keys that appear in the supplied cards. A fact with no slot is unknown: say plainly that you do not have it, in your own words, without slots. "
-    "No exclamation marks, no stock openers like Sure thing, bullet lines start with \"- \". Everything else is free: write like a sharp, tactful friend, vary the shape and length to the customer's intent, use short bullet lines only for two or more precise facts."
+    "Shape it like a sharp, tactful sales engineer, in tidy blocks separated by a blank line: first block answers the customer's actual question in one direct sentence (yes, no, or what you do not have); second block lays out the specific facts, as short bullet lines starting with \"- \" only when there are two or more, each line a short phrase in your own words and not just a bare name and number; third block says what it means for what this customer is doing; last block is one specific, useful question or next step that fits this customer. "
+    "Never open with a stock phrase (Here's a rundown, Sure thing, Great question), no exclamation marks, no greeting. Vary the shape, wording and length from reply to reply (the block jobs stay, how you do them changes). Everything else is free."
 )
 
 

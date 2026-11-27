@@ -106,3 +106,12 @@ def test_plainly_typed_product_name_is_declared_not_withheld():
     d = render_slots({'text': "Yes, the Studio Headphones fit your plan at [[price:1]]."}, [card], None, 'Do the Studio Headphones fit?')
     assert d.product_ids == [1] and any(c.field == 'name' for c in d.claims)
     validate_draft(d, [card], {}, {}, 'Do the Studio Headphones fit?')
+
+
+def test_slot_writer_rules_ask_for_sales_engineer_blocks_and_ban_stock_openers():
+    """Real Groq (n=1, cmp-03, 2:38 AM): the published slot reply was a bare list opened with a stock phrase, no direct answer, no closing question."""
+    from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
+    low = R.casefold()
+    assert 'answers the customer' in low and 'one specific, useful question' in low
+    assert "here's a rundown" in low and 'sure thing' in low and 'no exclamation' in low
+    assert 'never type a number' in low and '[[total]]' in R
