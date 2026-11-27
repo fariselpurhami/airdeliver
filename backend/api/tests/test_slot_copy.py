@@ -678,3 +678,24 @@ def test_rejected_model_wording_falls_back_to_code_built_neutral_text_not_the_fr
     assert 'says nothing about induction' in text
     ok(text, cs=cs, message=msg)
     assert compose_text_safe('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg) == compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg)
+
+
+def test_opening_may_not_answer_an_ask_the_cards_do_not_cover():
+    """Real run b054 (Groq, beauty, one card, 'Is it ok for sensitive skin?'): the model opening said 'formulated to be gentle, so it should be fine for sensitive skin'. The card has no skin details. Only the reviewer stopped it (reviewer-only rejection); the code checks passed it."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text, compose_text_safe
+    cream = catalog_result(row(id=32, name='Face Moisturiser', price=Decimal('21.00'), attributes={'volume': '50 ml'}, description='Daily face cream.'))
+    cs = enrich_cards([cream])
+    msg = 'Is it ok for sensitive skin?'
+    bad = 'I would say [[name:32]] is formulated to be gentle, so it should be fine for sensitive skin.'
+    with pytest.raises(SlotError):
+        compose_text(bad, 'Do you have any other skin concerns?', cs, msg)
+    text = compose_text_safe(bad, 'Do you have any other skin concerns?', cs, msg)
+    assert 'formulated' not in text and 'should be fine' not in text
+    assert "doesn't mention skin or allergy" in text
+    ok(text, cs=cs, message=msg)
+    other = compose_text('Let us take this one piece at a time.', 'What else should I check for you?', cs, 'What is in the box?')
+    assert other
+    # a card that does list the topic may be echoed
+    both = enrich_cards([catalog_result(row(id=33, name='Calm Cream', price=Decimal('21.00'), attributes={'skin': 'sensitive skin tested'}))])
+    assert compose_text('Sensitive skin, got it.', 'Anything else?', both, msg)

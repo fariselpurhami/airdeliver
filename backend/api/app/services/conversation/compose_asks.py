@@ -29,6 +29,14 @@ def _pick(message, salt, options):
     return options[zlib.crc32(f'{salt}|{message or ""}'.encode('utf-8')) % len(options)]
 
 
+def _unlisted_asks_in(message, cs):
+    """The asks in the customer's message that no card text covers (regex of the customer's words). The model's own opening and question may not touch these topics."""
+    low = (message or '').casefold()
+    covered = ' '.join(
+        ' '.join([str(c.get('name', ''))] + [f'{k} {v}' for k, v in (c.get('catalog_specs') or {}).items()]).casefold() for c in cs)
+    return [ask for _, ask, have in _UNLISTED_ASKS if low and re.search(ask, low) and not re.search(have, covered)]
+
+
 def _unlisted_lines(message, cs):
     """Say plainly what the customer asked about that no card text covers. Only the lexicon above, only when no card's own text or spec names it."""
     low = (message or '').casefold()
