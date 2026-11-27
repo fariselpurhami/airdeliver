@@ -191,7 +191,7 @@ def test_slot_writer_rules_ask_for_depth_personality_and_a_trade_off_without_new
     """User (7:26 AM): replies were too short, too generic and not AI-native; he wants a human sales engineer with a voice and a deeper narrative. Prompt-level only: whether the free model delivers it is measured with real runs, not by this test."""
     from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
     low = R.casefold()
-    assert '120 to 220 words' in low and 'trade-off' in low and 'contractions' in low and 'situation' in low
+    assert '120 to 220 words' in low and 'length follows the data' in low and 'trade-off' in low and 'contractions' in low and 'situation' in low
     assert 'never add a fact, number or feature' in low and 'do not reuse a fixed template' in low
 
 
@@ -221,3 +221,10 @@ def test_source_description_tags_and_rating_reach_slot_cards_only_when_real():
     assert clash.catalog_specs['rating'] == 'house brand'
     d = ok("The [[name:7]] is described as: [[spec.description:7]] Rated [[spec.rating:7]].", cs=e)
     assert 'Padded 30 L daypack for day hikes.' in d.text and '4.6 out of 5' in d.text
+
+
+def test_slot_writer_rules_scale_length_to_data_and_ban_general_knowledge():
+    """Real Groq (n=1, cmp-01, 7:49 AM): with one spec per product the 120 to 220 word target produced a padded draft that restated the same unknowns three times and claimed "a lighter pack means less strain"; the real review rejected it."""
+    from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
+    low = R.casefold()
+    assert '60 to 110 words' in low and 'never restate a missing fact twice' in low and 'general knowledge' in low
