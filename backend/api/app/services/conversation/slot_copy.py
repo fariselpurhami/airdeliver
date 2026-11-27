@@ -213,12 +213,12 @@ def render_slots(raw, cards, brief=None, message=None):
         card = by_id.get(pid)
         if card is None:
             raise SlotError('slot_unknown_product')
-        if key == 'card':
+        if key in ('card', 'cardnp'):
             specs = dict(card.get('catalog_specs') or {})
             shown, exact = _money(card)
             claim(pid, 'name', card['name'])
             claim(pid, 'price', exact)
-            parts = [str(card['name']), f'  - Price: {shown}']
+            parts = [str(card['name'])] + ([f'  - Price: {shown}'] if key == 'card' else [])
             for k, v in specs.items():
                 if k in ('description', 'rating', 'tags') or not str(v).strip():
                     continue
@@ -316,7 +316,7 @@ class ComposeDraft(BaseModel):
 
 
 COMPOSE_RULES = (
-    "You write only two short pieces for a shopping reply; code adds every fact. opening: one or two sentences (at most 35 words) that answer the customer's situation in plain, warm words, like a sharp friend. question: one specific question (at most 25 words) about what matters most to the customer, only about topics the customer wrote or the listed fields (price, weight, rating, tags); never name a use or feature the customer did not mention. "
+    "You write only two short pieces for a shopping reply; code adds every fact. opening: one or two sentences (at most 35 words) that answer the customer's situation in plain, warm words, like a sharp friend. question: one specific question (at most 25 words) about what matters most to the customer, only about topics the customer wrote or the listed fields (price, weight, rating, tags); never name a use or feature the customer did not mention. When the cards look like two different kinds of item, ask which of them the customer actually needs; never ask whether price is the only factor. "
     "Both pieces must contain no digits, no prices, no measurements, no product features, no praise or ranking (best, better, ideal, perfect, lightweight, great) and no promises about stock, delivery, warranty or returns. You may name a product only as [[name:ID]] with an ID from the supplied cards. Return JSON with keys opening and question only."
 )
 
@@ -407,28 +407,45 @@ def compose_text(opening, question, cards, message=None):
         union += [k for k in listed[c['id']] if k not in union]
     heading = ('What the catalog lists for each:', 'Here is what each one lists:', 'The listed details, side by side:')[sum(map(ord, message or '')) % 3]
     needs = _need_lines(message, cs)
-    parts = [opening.strip()] + ([' '.join(needs)] if needs else []) + [heading, '\n'.join(f"- [[card:{c['id']}]]" for c in cs)]
+    low = (message or '').casefold()
+    cardkey = 'cardnp' if any(n.startswith('On price') for n in needs) else 'card'
+    parts = [opening.strip()] + ([' '.join(needs)] if needs else [])
+    keysets = [{k for k in listed[c['id']] if k not in ('price', 'description', 'rating', 'tags')} for c in cs]
+    if len(cs) == 2 and all(keysets) and not (keysets[0] & keysets[1]):
+        names = [f"[[name:{c['id']}]]" for c in cs]
+        parts.append(f"{names[0]} is listed with a {_join([_label(k) for k in sorted(keysets[0])])} and {names[1]} with a {_join([_label(k) for k in sorted(keysets[1])])}, so they look like two different kinds of item, not substitutes.")
+    parts += [heading, '\n'.join(f"- [[{cardkey}:{c['id']}]]" for c in cs)]
+    asked = lambda label: label in low or (label == 'weight' and re.search(r'light|weigh|heavy', low)) or (label == 'rating' and re.search(r'rated|review', low))
     gaps = []
     for c in cs:
-        missing = [_label(k) for k in union if k not in listed[c['id']]]
+        missing = [_label(k) for k in union if k not in listed[c['id']] and asked(_label(k))]
         if missing:
             gaps.append(f"[[name:{c['id']}]] has no separate {_join(missing)} entry.")
-    if len(cs) >= 2:
-        if sum(1 for c in cs if any(k not in listed[c['id']] for k in union)) >= 2:
-            gaps.append('So the two cannot be compared directly on those points.' if len(cs) == 2 else 'So they cannot be compared directly on those points.')
-            if any((c.get('catalog_specs') or {}).get('description') for c in cs):
-                gaps.append('Check each description for anything beyond these entries.')
+    if gaps and len(cs) >= 2:
+        gaps.append('So the two cannot be compared directly on those points.' if len(cs) == 2 else 'So they cannot be compared directly on those points.')
+        if any((c.get('catalog_specs') or {}).get('description') for c in cs):
+            gaps.append('Check each description for anything beyond these entries.')
     if gaps:
         parts.append(' '.join(gaps))
+    qwords = {w for w in re.findall(r'[a-z]{4,}', low)}
     fits = []
-    words = {w for w in re.findall(r'[a-z]{4,}', (message or '').casefold())}
     for c in cs:
-        for tag in [x.strip() for x in str((c.get('catalog_specs') or {}).get('tags', '')).split(',') if len(x.strip()) >= 4]:
-            word = next((w for w in sorted(words) if w[:3] == tag.casefold()[:3]), None)
+        tags = [x.strip() for x in str((c.get('catalog_specs') or {}).get('tags', '')).split(',') if len(x.strip()) >= 4]
+        hit = None
+        for tag in tags:
+            word = next((w for w in sorted(qwords) if w[:3] == tag.casefold()[:3]), None)
             if word and tag.casefold() not in str(c.get('name', '')).casefold():
-                fits.append(f'[[name:{c["id"]}]] is tagged {tag}, which matches your question.' if word == tag.casefold() else f'You mentioned "{word}": [[name:{c["id"]}]] is tagged {tag}.')
+                hit = (tag, word)
                 break
-    if fits:
-        parts.append(' '.join(fits))
+        fits.append((c, tags, hit))
+    hits = [f for f in fits if f[2]]
+    if hits:
+        word = hits[0][2][1]
+        others = [f for f in fits if not f[2] and f[1] and not any(g[:3] == word[:3] for g in (x.casefold() for x in f[1]))]
+        if others:
+            seg = [f'[[name:{c["id"]}]] is tagged {h[0]}' for c, _, h in hits] + [f'[[name:{c["id"]}]] has no matching tag (its tags: {", ".join(tags)})' for c, tags, _ in others]
+            parts.append(f'For "{word}": ' + '; '.join(seg) + '.')
+        else:
+            parts.append(' '.join(f'[[name:{c["id"]}]] is tagged {h[0]}, which matches your question.' if h[1] == h[0].casefold() else f'For "{h[1]}": [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits))
     parts.append(question.strip())
     return '\n\n'.join(p for p in parts if p)

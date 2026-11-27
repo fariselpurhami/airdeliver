@@ -306,10 +306,11 @@ def test_compose_builds_facts_from_cards_and_model_supplies_only_opening_and_que
     d = ok(text, cs=cs)
     assert d.text.startswith('Two different jobs')
     assert '- Trail Backpack\n  - Price: $59.00\n  - Weight: 650 g' in d.text
-    assert 'Steel Bottle has no separate weight, description, tags and rating entry.' in d.text
-    assert 'Trail Backpack has no separate capacity entry.' in d.text and 'cannot be compared directly on those points' in d.text
-    # Real n=1: "no listed capacity" sat next to a description that states a size; the wording must only claim the missing field entry.
-    assert 'no listed' not in d.text and 'Check each description for anything beyond these entries.' in d.text
+    # User review (14:58): nobody asked about weight or capacity, so the gap paragraph is not shown.
+    assert 'no separate' not in d.text and 'cannot be compared directly' not in d.text
+    gap = ok(compose_text('Okay.', 'Which?', cs, 'What is the weight of each?'), cs=cs, message='What is the weight of each?')
+    assert 'Steel Bottle has no separate weight entry.' in gap.text and 'no separate capacity' not in gap.text
+    assert 'no listed' not in gap.text and 'Check each description for anything beyond these entries.' in gap.text
     assert d.text.rstrip().endswith('Which matters more, carrying gear or drinks?')
     leaked = ok(compose_text('The pack holds 30 L.', 'Which?', cs), cs=cs)
     assert 'holds 30 L' not in leaked.text
@@ -334,7 +335,8 @@ def test_compose_adds_a_fit_line_only_where_a_card_tag_matches_the_customers_own
     rich = catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, description='Padded daypack.', tags=['hiking', 'daypack'], rating=4.5))
     cs = enrich_cards([rich, cards()[1]])
     d = ok(compose_text('Both can work.', 'Which matters more?', cs, 'Which is better for a weekend hike?'), cs=cs, message='Which is better for a weekend hike?')
-    assert 'You mentioned "hike": Trail Backpack is tagged hiking.' in d.text
+    assert 'For "hike": Trail Backpack is tagged hiking.' in d.text  # the other card lists no tags, so no claim about it
+    assert 'You mentioned' not in d.text
     quiet = ok(compose_text('Both can work.', 'Which matters more?', cs, 'Which is better for a commute?'), cs=cs, message='Which is better for a commute?')
     assert 'is tagged' not in quiet.text
 
@@ -346,7 +348,7 @@ def test_compose_fit_line_and_model_pieces_survive_wider_stress():
     cs = enrich_cards([lamp])
     msg = 'Which one for my home office?'
     d = ok(compose_text('It could suit that.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
-    assert 'Desk Lamp is tagged office' in d.text
+    assert 'Desk Lamp is tagged office' in d.text and 'which matches your question' in d.text
     for bad in ('Do you want free delivery?', 'Does it need a warranty or easy returns?', 'Should I reserve one for you?'):
         with pytest.raises(SlotError):
             compose_text('Okay.', bad, cs, msg)
@@ -391,7 +393,7 @@ def test_compose_puts_the_answer_before_the_fact_blocks_and_varies_the_heading()
     b = catalog_result(row(id=2, name='Day Pack', price=Decimal('45.00'), attributes={'weight': '1.2 kg'}))
     cs = enrich_cards([a, b])
     text = compose_text('Okay.', 'What matters most to you?', cs, 'Which is the cheapest?')
-    assert text.index('On price') < text.index('[[card:1]]')
+    assert text.index('On price') < text.index('[[cardnp:1]]')
     seen = {compose_text('Okay.', 'Which?', cs, m).split('\n\n')[1] for m in ('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight')}
     assert len(seen) >= 2
     assert compose_text('Okay.', 'Which?', cs, 'one') == compose_text('Okay.', 'Which?', cs, 'one')
@@ -424,3 +426,23 @@ def test_compose_question_cannot_ask_about_a_field_no_card_lists():
     assert 'price' in compose_text('Okay.', 'Which matters more, the price or the connectivity?', cs, 'Compare these.')
     heavy = enrich_cards([catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}))])
     assert 'weight' in compose_text('Okay.', 'Is the weight important?', heavy, 'Compare these.')
+
+
+def test_compose_customer_experience_review_points():
+    """User review of the real 14:51 reply (cheapest for a weekend hike): too long (price said twice), a confusing capacity/weight gap paragraph nobody asked for, a backpack and a bottle presented as competitors, a mechanical "You mentioned hike" line that left the bottle unexplained, and a generic closing question."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text, COMPOSE_RULES
+    pack = catalog_result(row(id=2, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, description='Padded 30 L daypack.', tags=['hiking', 'daypack', 'outdoor'], rating=4.5))
+    bottle = catalog_result(row(id=5, name='Steel Bottle', price=Decimal('18.00'), attributes={'capacity': '750 ml'}, description='Double-wall vacuum bottle.', tags=['hydration', 'insulated', 'outdoor'], rating=4.7))
+    cs = enrich_cards([pack, bottle])
+    msg = 'Which is the cheapest for a weekend hike, the Trail Backpack or the Steel Bottle?'
+    d = ok(compose_text('You want the cheapest option for a hike.', 'Which do you need?', cs, msg), cs=cs, message=msg)
+    text = d.text
+    assert 'On price, Steel Bottle is the lowest listed at $18.00' in text
+    assert text.count('$18.00') == 1 and text.count('$59.00') == 1  # (1) the asked field is not repeated in the blocks
+    assert 'no separate' not in text and 'cannot be compared directly' not in text  # (2)
+    assert 'Trail Backpack is listed with a weight and Steel Bottle with a capacity, so they look like two different kinds of item, not substitutes.' in text  # (3)
+    assert 'You mentioned' not in text  # (4)
+    assert 'For "hike": Trail Backpack is tagged hiking; Steel Bottle has no matching tag (its tags: hydration, insulated, outdoor).' in text
+    assert 'ask which of them the customer actually needs' in COMPOSE_RULES.casefold() and 'only factor' in COMPOSE_RULES.casefold()  # (5)
+    same = enrich_cards([catalog_result(row(id=1, name='Mug A', price=Decimal('8.00'), attributes={'capacity': '300 ml'})), catalog_result(row(id=2, name='Mug B', price=Decimal('9.00'), attributes={'capacity': '350 ml'}))])
+    assert 'different kinds of item' not in compose_text('Okay.', 'Which?', same, 'Compare these mugs.')
