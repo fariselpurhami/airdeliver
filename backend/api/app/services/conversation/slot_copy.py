@@ -29,7 +29,7 @@ SLOT_WRITER_RULES = (
     "Stay consistent: never say you lack details on a product and then state facts about it; name the specific thing you lack instead (for example, no volume or battery figure). When the customer asks what you do not know, list those specific missing things. Use no adjective that a slot fact does not show (lightweight, durable, sturdy, compact, premium). "
     "Do not rank or praise a product (better, best, ideal, lightweight, perfect, great) unless a slot fact shows it: the review rejects judgments no card supports. When asked which is better, say what each one does with its slot facts and ask what matters most to the customer. "
     "When the customer asks about delivery, shipping, guarantees, returns or merchant stock, write the slot [[no_promise]] (the shop fills in a plain refusal) and do not mention shipping, delivery, next-day or guarantees anywhere else, and never offer items with confirmed delivery. "
-    "Never open with a stock phrase (Here's a rundown, Sure thing, Great question), no exclamation marks, no greeting. Vary the shape and wording from reply to reply; do not reuse a fixed template. Everything else is free."
+    "Never mention warranty, returns, shipping, delivery or guarantees (not even to say you do not know) unless the customer asked about them. Never open with a stock phrase (Here's a rundown, Sure thing, Great question), no exclamation marks, no greeting. Vary the shape and wording from reply to reply; do not reuse a fixed template. Everything else is free."
 )
 
 
@@ -149,6 +149,30 @@ def _check_fact_owner(text, by_id):
                     raise SlotError('slot_wrong_product')
 
 
+def _typed_fact(sentence, own):
+    outside = _SLOT.sub('\0', sentence)
+    checked = re.sub(r'\b[A-Za-z]+\d+[A-Za-z0-9]*', lambda m: ' ' if m.group(0).casefold() in own else m.group(0), outside)
+    return bool(re.search(r'\d', checked) or re.search(r'https?://|www\.', outside, re.I) or _NUMBER_WORD_FACT.search(outside))
+
+
+def _drop_fact_sentences(text, message):
+    """Drop the sentences that carry a typed number, link or number-word fact (only removes content, never adds). More than two dropped sentences means the draft is not usable."""
+    own = {t.casefold() for t in re.findall(r'\b[A-Za-z]+\d+[A-Za-z0-9]*', message or '')}
+    dropped, lines = 0, []
+    for line in text.split('\n'):
+        kept = []
+        for sentence in re.split(r'(?<=[.!?])\s+', line):
+            if sentence and _typed_fact(sentence, own):
+                dropped += 1
+            else:
+                kept.append(sentence)
+        lines.append(' '.join(kept))
+    if dropped > 2:
+        raise SlotError('slot_literal_fact')
+    out = re.sub(r'\n{3,}', '\n\n', '\n'.join(lines)).strip()
+    return out if out else text
+
+
 def render_slots(raw, cards, brief=None, message=None):
     """Return a ShoppingDraft whose text, product_ids and claims are built from slots, or raise SlotError."""
     data = json.loads(raw) if isinstance(raw, (str, bytes)) else dict(raw)
@@ -235,6 +259,7 @@ def render_slots(raw, cards, brief=None, message=None):
         raise SlotError('slot_unknown_kind')
 
     text = _typed_values_to_slots(_drop_typed_echoes(_drop_citation_tails(text, by_id), by_id), by_id)
+    text = _drop_fact_sentences(text, message)
     outside = _SLOT.sub('\0', text)
     if _ANY_BRACKETS.search(outside) or '\0' in text:
         raise SlotError('slot_malformed')

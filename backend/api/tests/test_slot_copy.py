@@ -263,3 +263,20 @@ def test_card_slot_prints_every_listed_fact_exactly_and_declares_claims():
         ok("- [[card:99]]", cs=cs)
     with pytest.raises(SlotError):
         ok("- [[card]]", cs=cs)
+
+
+def test_sentences_with_typed_facts_are_dropped_not_the_whole_draft():
+    """Real Groq (n=1, rich synthetic cards, 9:24 AM): a sound draft with the [[card]] bullets was rejected as a whole because one sentence said "the backpack's 30 L volume (from its description)". Only that sentence goes (content is removed, never added); more than two dropped sentences still rejects the draft."""
+    cs = cards()
+    d = ok("The [[name:1]] suits a commute.\nIts 30 hour battery lasts a week. It is quiet on the train.\n\n- [[card:1]]\n\nWhich matters more to you?", cs=cs)
+    assert 'battery' not in d.text and 'quiet on the train' in d.text and 'Which matters more to you?' in d.text and '\n\n\n' not in d.text
+    with pytest.raises(SlotError):
+        ok("The [[name:1]] is 5 inches wide. It weighs 3 kg. It lasts 9 hours. Do you like it?", cs=cs)
+    with pytest.raises(SlotError):
+        ok("Visit www.example.com for the [[name:1]].", cs=cs)
+
+
+def test_slot_writer_rules_do_not_mention_warranty_or_returns_unprompted():
+    """Real Groq (n=1, rich synthetic cards, 9:24 AM): "I do not know about any warranty or return options" tripped the policy backstop and withheld an otherwise sound draft."""
+    from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
+    assert 'never mention warranty, returns, shipping, delivery or guarantees' in R.casefold()
