@@ -177,3 +177,12 @@ def test_typed_card_value_in_a_one_product_line_becomes_its_slot():
         ok("- Steel Bottle holds 900 ml and costs [[price:2]].")
     with pytest.raises(SlotError):
         ok("- Studio Headphones hold 750 ml.")
+
+
+def test_value_typed_then_cited_with_name_and_spec_slots_renders_once():
+    """Real Groq (n=1, hard-01, 7:21 AM, published and review-approved): "weighs about 650 g [[name:2]] [[spec.weight:2]]" rendered as "weighs about 650 g Trail Backpack 650 g". The tail pair is a citation of a value already typed; it is removed so the value shows once. A line that still repeats a value is rejected."""
+    d = ok("- Steel Bottle holds about 750 ml of liquid [[name:2]] [[spec.capacity:2]]\n- The [[name:1]] connects by Bluetooth [[name:1]] [[spec.connectivity:1]]")
+    assert d.text == "- Steel Bottle holds about 750 ml of liquid\n- The Studio Headphones connects by Bluetooth"
+    assert {(c.product_id, c.field) for c in d.claims} >= {(2, 'spec.capacity'), (1, 'spec.connectivity')}
+    with pytest.raises(SlotError):
+        ok("The [[name:1]] connects by [[spec.connectivity:1]] and again [[spec.connectivity:1]].")

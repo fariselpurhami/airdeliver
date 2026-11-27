@@ -52,6 +52,24 @@ def _money(card):
     return (_SYMBOL[cur] + str(amount)) if cur in _SYMBOL else f'{amount} {cur}', str(amount)
 
 
+_TAIL = re.compile(r"\s*\[\[name:(\d+)\]\]\s*\[\[spec\.([a-z_.]+?):(\d+)\]\]\s*$")
+
+
+def _drop_citation_tails(text, by_id):
+    """A line that types a card value and then ends with "[[name:P]] [[spec.K:P]]" cites a value it already wrote: drop the tail so the value shows once."""
+    out = []
+    for line in text.split('\n'):
+        m = _TAIL.search(line)
+        card = by_id.get(int(m.group(3))) if m and m.group(1) == m.group(3) else None
+        if card is not None:
+            value = str((card.get('catalog_specs') or {}).get(m.group(2)) or '').strip()
+            head = line[:m.start()]
+            if value and re.search(r'(?<![\w])' + r'\s+'.join(re.escape(w) for w in value.split()) + r'(?![\w])', _SLOT.sub(' ', head), re.I):
+                line = head
+        out.append(line)
+    return '\n'.join(out)
+
+
 def _drop_typed_echoes(text, by_id):
     """A value typed directly before its own spec slot ("650 g [[spec.weight:2]]") is a redundant echo of the card value: drop it. Any other typed value stays and is rejected later."""
     for m in reversed(list(_SLOT.finditer(text))):
@@ -155,7 +173,7 @@ def render_slots(raw, cards, brief=None, message=None):
             return words
         raise SlotError('slot_unknown_kind')
 
-    text = _typed_values_to_slots(_drop_typed_echoes(text, by_id), by_id)
+    text = _typed_values_to_slots(_drop_typed_echoes(_drop_citation_tails(text, by_id), by_id), by_id)
     outside = _SLOT.sub('\0', text)
     if _ANY_BRACKETS.search(outside) or '\0' in text:
         raise SlotError('slot_malformed')
@@ -173,4 +191,10 @@ def render_slots(raw, cards, brief=None, message=None):
         if pid not in ids and str(card['name']).casefold() in low:
             ids.append(pid)
             claims.append(Claim(product_id=pid, field='name', value=str(card['name'])))
+    for line in rendered.split('\n'):
+        for card in by_id.values():
+            for value in (card.get('catalog_specs') or {}).values():
+                value = str(value).strip()
+                if value and len(re.findall(r'(?<![\w])' + re.escape(value) + r'(?![\w])', line, re.I)) > 1:
+                    raise SlotError('slot_duplicate_value')
     return ShoppingDraft(text=rendered, product_ids=ids, claims=claims)
