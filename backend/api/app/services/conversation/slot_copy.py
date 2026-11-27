@@ -335,9 +335,27 @@ def _join(items):
     return items[0] if len(items) == 1 else ', '.join(items[:-1]) + ' and ' + items[-1]
 
 
-def compose_text(opening, question, cards):
+def _card_words(cs):
+    out = set()
+    for c in cs:
+        specs = c.get('catalog_specs') or {}
+        for k in ('description', 'tags'):
+            out |= {w[:5] for w in re.findall(r'[a-z]{5,}', str(specs.get(k, '')).casefold())}
+        for k, v in specs.items():
+            if k not in ('description', 'tags', 'rating'):
+                out |= {w[:5] for w in re.findall(r'[a-z]{5,}', str(v).casefold())}
+    return out
+
+
+def compose_text(opening, question, cards, message=None):
     """Compose mode (AIRDELIVER_SLOT_COMPOSE=1): code builds everything between the model's opening and question from the cards alone: one fact block per product and what each card does not list. Only name slots and the card block carry values."""
     cs = [c.model_dump() if hasattr(c, 'model_dump') else dict(c) for c in cards]
+    allowed = {w[:5] for w in re.findall(r'[a-z]{5,}', (message or '').casefold())}
+    for c in cs:
+        allowed |= {w[:5] for w in re.findall(r'[a-z]{5,}', str(c.get('name', '')).casefold())}
+    stripped = re.sub(r'\[\[name:\d+\]\]', ' ', f'{opening} {question}').casefold()
+    if {w[:5] for w in re.findall(r'[a-z]{5,}', stripped)} & (_card_words(cs) - allowed):
+        raise SlotError('compose_card_wording')
     listed = {c['id']: _listed(c) for c in cs}
     union = []
     for c in cs:

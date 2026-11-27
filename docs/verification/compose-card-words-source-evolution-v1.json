@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "cc2e3a8f9203396f8a111460fc347f6a9c74a1835562a90ede975a6e6a377273",
+  "current_sha256": "b1232fa3d09ebe117d1baaa2b73a4566847a3e44ca24e9d9cf304027664309b7",
+  "replacements": [
+   {
+    "old": "compose_text(cd.opening,cd.question,cards)",
+    "new": "compose_text(cd.opening,cd.question,cards,message)",
+    "count": 1
+   }
+  ]
+ }
+}
