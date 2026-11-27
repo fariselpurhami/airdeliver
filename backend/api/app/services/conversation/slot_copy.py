@@ -354,6 +354,8 @@ def compose_text(opening, question, cards, message=None):
     for c in cs:
         allowed |= {w[:5] for w in re.findall(r'[a-z]{5,}', str(c.get('name', '')).casefold())}
     stripped = re.sub(r'\[\[name:\d+\]\]', ' ', f'{opening} {question}').casefold()
+    if re.search(r'\b(?:free|deliver\w*|ship\w*|warrant\w*|guarant\w*|return\w*|refund\w*|reserv\w*|discount\w*|offer\w*|stock|available|availability)\b', stripped):
+        raise SlotError('compose_policy_wording')
     if {w[:5] for w in re.findall(r'[a-z]{5,}', stripped)} & (_card_words(cs) - allowed):
         raise SlotError('compose_card_wording')
     listed = {c['id']: _listed(c) for c in cs}
@@ -378,8 +380,8 @@ def compose_text(opening, question, cards, message=None):
     for c in cs:
         for tag in [x.strip() for x in str((c.get('catalog_specs') or {}).get('tags', '')).split(',') if len(x.strip()) >= 4]:
             word = next((w for w in sorted(words) if w[:3] == tag.casefold()[:3]), None)
-            if word:
-                fits.append(f'You mentioned "{word}": [[name:{c["id"]}]] is tagged {tag}.')
+            if word and tag.casefold() not in str(c.get('name', '')).casefold():
+                fits.append(f'[[name:{c["id"]}]] is tagged {tag}, which matches your question.' if word == tag.casefold() else f'You mentioned "{word}": [[name:{c["id"]}]] is tagged {tag}.')
                 break
     if fits:
         parts.append(' '.join(fits))

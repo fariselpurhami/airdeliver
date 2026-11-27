@@ -337,3 +337,20 @@ def test_compose_adds_a_fit_line_only_where_a_card_tag_matches_the_customers_own
     assert 'You mentioned "hike": Trail Backpack is tagged hiking.' in d.text
     quiet = ok(compose_text('Both can work.', 'Which matters more?', cs, 'Which is better for a commute?'), cs=cs, message='Which is better for a commute?')
     assert 'is tagged' not in quiet.text
+
+
+def test_compose_fit_line_and_model_pieces_survive_wider_stress():
+    """Offline stress (mocked pieces, 4 card sets x 3 questions): a tag equal to the customer's word repeated the value in one line (slot_duplicate_value), and a model question that offers free delivery or asks about warranty must be rejected in code."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    lamp = catalog_result(row(id=1, name='Desk Lamp', price=Decimal('35.00'), attributes={'material': 'aluminium'}, description='Adjustable arm lamp.', tags=['office'], rating=4.2))
+    cs = enrich_cards([lamp])
+    msg = 'Which one for my home office?'
+    d = ok(compose_text('It could suit that.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
+    assert 'Desk Lamp is tagged office' in d.text
+    for bad in ('Do you want free delivery?', 'Does it need a warranty or easy returns?', 'Should I reserve one for you?'):
+        with pytest.raises(SlotError):
+            compose_text('Okay.', bad, cs, msg)
+
+    chair = catalog_result(row(id=2, name='Office Chair', price=Decimal('120.00'), attributes={'weight': '9 kg'}, tags=['office']))
+    both = enrich_cards([lamp, chair])
+    ok(compose_text('Okay.', 'What matters most to you?', both, msg), cs=both, message=msg)
