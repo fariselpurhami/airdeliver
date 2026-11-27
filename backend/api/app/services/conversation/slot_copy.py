@@ -284,3 +284,25 @@ def render_slots(raw, cards, brief=None, message=None):
                 if value and len(re.findall(r'(?<![\w])' + re.escape(value) + r'(?![\w])', line, re.I)) > 1:
                     raise SlotError('slot_duplicate_value')
     return ShoppingDraft(text=rendered, product_ids=ids, claims=claims)
+
+
+MASKED_RULES = (
+    "Fact values are hidden from you on purpose: every price and spec shows as its own slot token (for example [[spec.weight:2]]). Write the token where the fact belongs and reason only about which facts exist and which are missing, never about how big, light or long a value is. "
+)
+
+
+def mask_payload(payload):
+    """Optional slot mode (AIRDELIVER_SLOT_MASK=1): a copy of the writer payload whose card prices and spec values are replaced by their own slot tokens, so the model has no digits or description words to copy. Code still renders the values from the real cards."""
+    out = dict(payload)
+    cards = []
+    for card in payload.get('catalog_evidence') or []:
+        card = dict(card)
+        pid = card.get('id')
+        if card.get('price') is not None:
+            card['price'] = f'[[price:{pid}]]'
+        card['catalog_specs'] = {k: f'[[spec.{k}:{pid}]]' for k in (card.get('catalog_specs') or {})}
+        cards.append(card)
+    out['catalog_evidence'] = cards
+    if 'exact_totals' in out:
+        out['exact_totals'] = {'total': '[[total]]', 'budget_remaining': '[[left]]'}
+    return out

@@ -279,3 +279,19 @@ def test_slot_writer_rules_do_not_mention_warranty_or_returns_unprompted():
     """Real Groq (n=1, rich synthetic cards, 9:24 AM): "I do not know about any warranty or return options" tripped the policy backstop and withheld an otherwise sound draft."""
     from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
     assert 'never mention warranty, returns, shipping, delivery or guarantees' in R.casefold()
+
+
+def test_mask_payload_hides_values_and_leaves_tokens_original_untouched():
+    """Masked slot mode: the model must have no digits or description words to copy; the real payload is not mutated and the tokens render back to the exact card values."""
+    from app.services.conversation.slot_copy import enrich_cards, mask_payload
+    rich = catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, description='Padded 30 L daypack.', tags=['hiking'], rating=4.5))
+    cs = enrich_cards([rich])
+    payload = {'task': 'catalog_results', 'catalog_evidence': [c.model_dump(mode='json', exclude={'image', 'sku', 'attributes'}) for c in cs], 'exact_totals': {'total': '59.00'}}
+    masked = mask_payload(payload)
+    dumped = json.dumps(masked)
+    for leaked in ('59.00', '650', '30 L', 'Padded', '4.5', 'hiking'):
+        assert leaked not in dumped
+    assert '[[price:7]]' in dumped and '[[spec.weight:7]]' in dumped and '[[spec.description:7]]' in dumped
+    assert payload['catalog_evidence'][0]['price'] == '59.00'
+    d = ok('The pack [[name:7]] is [[price:7]] and [[spec.weight:7]].\n\nWhich matters more?', cs=cs)
+    assert '$59.00' in d.text and '650 g' in d.text
