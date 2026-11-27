@@ -94,6 +94,17 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
    edited=edited.replace(edit['new'],edit['old'])
   assert hashlib.sha256(edited.encode()).hexdigest()==kf[row['path']]['baseline_sha256']
   source=edited.encode()
+ sc=json.loads((ROOT/'docs/verification/slot-compose-source-evolution-v1.json').read_text())
+ assert set(sc)=={'backend/api/app/services/conversation/shopping_copy.py'}
+ if row['path'] in sc:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==sc[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in sc[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==sc[row['path']]['baseline_sha256']
+  source=edited.encode()
  sm=json.loads((ROOT/'docs/verification/slot-masked-facts-source-evolution-v1.json').read_text())
  assert set(sm)=={'backend/api/app/services/conversation/shopping_copy.py'}
  if row['path'] in sm:

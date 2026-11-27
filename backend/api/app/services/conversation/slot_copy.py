@@ -306,3 +306,52 @@ def mask_payload(payload):
     if 'exact_totals' in out:
         out['exact_totals'] = {'total': '[[total]]', 'budget_remaining': '[[left]]'}
     return out
+
+
+class ComposeDraft(BaseModel):
+    """Compose mode: the model writes only a short opening and one closing question."""
+    model_config = ConfigDict(extra='forbid')
+    opening: StrictStr = Field(min_length=1, max_length=300)
+    question: StrictStr = Field(min_length=1, max_length=240)
+
+
+COMPOSE_RULES = (
+    "You write only two short pieces for a shopping reply; code adds every fact. opening: one or two sentences (at most 35 words) that answer the customer's situation in plain, warm words, like a sharp friend. question: one specific question (at most 25 words) about what matters most to the customer's use. "
+    "Both pieces must contain no digits, no prices, no measurements, no product features, no praise or ranking (best, better, ideal, perfect, lightweight, great) and no promises about stock, delivery, warranty or returns. You may name a product only as [[name:ID]] with an ID from the supplied cards. Return JSON with keys opening and question only."
+)
+
+
+def _listed(card):
+    keys = ['price'] if card.get('price') is not None else []
+    keys += [k for k, v in (card.get('catalog_specs') or {}).items() if str(v).strip()]
+    return keys
+
+
+def _label(key):
+    return key.replace('_', ' ')
+
+
+def _join(items):
+    return items[0] if len(items) == 1 else ', '.join(items[:-1]) + ' and ' + items[-1]
+
+
+def compose_text(opening, question, cards):
+    """Compose mode (AIRDELIVER_SLOT_COMPOSE=1): code builds everything between the model's opening and question from the cards alone: one fact block per product and what each card does not list. Only name slots and the card block carry values."""
+    cs = [c.model_dump() if hasattr(c, 'model_dump') else dict(c) for c in cards]
+    listed = {c['id']: _listed(c) for c in cs}
+    union = []
+    for c in cs:
+        union += [k for k in listed[c['id']] if k not in union]
+    parts = [opening.strip(), 'What the catalog lists for each:', '\n'.join(f"- [[card:{c['id']}]]" for c in cs)]
+    gaps = []
+    for c in cs:
+        missing = [_label(k) for k in union if k not in listed[c['id']]]
+        if missing:
+            gaps.append(f"[[name:{c['id']}]] has no listed {_join(missing)}.")
+    if len(cs) >= 2:
+        if sum(1 for c in cs if any(k not in listed[c['id']] for k in union)) >= 2:
+            gaps.append('So the two cannot be compared directly on those points.' if len(cs) == 2 else 'So they cannot be compared directly on those points.')
+    if gaps:
+        parts.append(' '.join(gaps))
+    parts.append(question.strip())
+    return '\n\n'.join(p for p in parts if p)

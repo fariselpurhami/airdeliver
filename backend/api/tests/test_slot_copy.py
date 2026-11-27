@@ -295,3 +295,19 @@ def test_mask_payload_hides_values_and_leaves_tokens_original_untouched():
     assert payload['catalog_evidence'][0]['price'] == '59.00'
     d = ok('The pack [[name:7]] is [[price:7]] and [[spec.weight:7]].\n\nWhich matters more?', cs=cs)
     assert '$59.00' in d.text and '650 g' in d.text
+
+
+def test_compose_builds_facts_from_cards_and_model_supplies_only_opening_and_question():
+    """Compose mode: four real drafts (n=4, rich synthetic cards) leaked card values or went generic. Code writes every fact, gap and one-sided comparison; the model's two pieces must carry no digits."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    rich = catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, description='Padded daypack with a rain cover.', tags=['hiking'], rating=4.5))
+    cs = enrich_cards([rich, cards()[1]])
+    text = compose_text('Two different jobs on a hike, so it depends what you need to carry.', 'Which matters more, carrying gear or drinks?', cs)
+    d = ok(text, cs=cs)
+    assert d.text.startswith('Two different jobs')
+    assert '- Trail Backpack\n  - Price: $59.00\n  - Weight: 650 g' in d.text
+    assert 'Steel Bottle has no listed weight, description, tags and rating.' in d.text
+    assert 'Trail Backpack has no listed capacity.' in d.text and 'cannot be compared directly on those points' in d.text
+    assert d.text.rstrip().endswith('Which matters more, carrying gear or drinks?')
+    leaked = ok(compose_text('The pack holds 30 L.', 'Which?', cs), cs=cs)
+    assert 'holds 30 L' not in leaked.text
