@@ -115,3 +115,10 @@ def test_slot_writer_rules_ask_for_sales_engineer_blocks_and_ban_stock_openers()
     assert 'answers the customer' in low and 'one specific, useful question' in low
     assert "here's a rundown" in low and 'sure thing' in low and 'no exclamation' in low
     assert 'never type a number' in low and '[[total]]' in R
+
+
+def test_slot_writer_rules_forbid_unsupported_ranking_and_praise():
+    """Real Groq (n=1, cmp-01, 3:04 AM): "the better choice" and "lightweight pack" were rejected by the real review (supported=false), the whole reply was withheld."""
+    from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
+    low = R.casefold()
+    assert 'do not rank or praise' in low and 'lightweight' in low and 'ask what matters most' in low
