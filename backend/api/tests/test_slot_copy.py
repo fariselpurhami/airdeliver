@@ -406,3 +406,10 @@ def test_compose_policy_wording_guard_does_not_trip_on_the_verb_offer():
     for bad in ('Want a special offer?', 'Any promo code or coupon?', 'Want a deal on both?'):
         with pytest.raises(SlotError):
             compose_text('Okay.', bad, cs, 'Compare these for a commute.')
+
+
+def test_compose_rules_keep_the_question_to_the_customers_own_topics():
+    """Real n=1 (12:38, cmp-02): the question "listening to music or tracking your activity" named uses (music, activity tracking) that neither the cards nor the message mention; the grounding review answered supported=false and fulfills_discovery_task=false."""
+    from app.services.conversation.slot_copy import COMPOSE_RULES as R
+    low = R.casefold()
+    assert 'only about topics the customer wrote' in low and 'never name a use or feature the customer did not mention' in low
