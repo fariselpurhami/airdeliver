@@ -161,6 +161,19 @@ def test_value_typed_right_before_its_own_slot_is_dropped_not_rejected():
     with pytest.raises(SlotError):
         ok("The [[name:2]] holds 500 ml [[spec.capacity:2]].")
     with pytest.raises(SlotError):
-        ok("The [[name:2]] holds 750 ml of water.")
+        ok("The [[name:2]] holds 750 ml of water [[name:1]].")
     d2 = ok("It is made of Bluetooth [[spec.connectivity:1]], the [[name:1]].")
     assert d2.text.count('Bluetooth') == 1
+
+
+def test_typed_card_value_in_a_one_product_line_becomes_its_slot():
+    """Real Groq (n=1, hard-01, 7:09 AM): "Steel Bottle holds 750 ml and costs [[price:2]]" was rejected as a typed fact and the reply fell to the weaker old writer. When a line is about exactly one product and the typed value equals that product's own card spec, it is rendered from the slot. Other lines and values are still rejected."""
+    d = ok("- Steel Bottle holds 750 ml and costs [[price:2]].\n- The [[name:1]] connects by Bluetooth.")
+    assert "Steel Bottle holds 750 ml and costs $18.00." in d.text and "connects by Bluetooth." in d.text
+    assert {(c.product_id, c.field) for c in d.claims} >= {(2, 'spec.capacity'), (1, 'spec.connectivity')}
+    with pytest.raises(SlotError):
+        ok("The [[name:2]] and the [[name:1]] both hold 750 ml.")
+    with pytest.raises(SlotError):
+        ok("- Steel Bottle holds 900 ml and costs [[price:2]].")
+    with pytest.raises(SlotError):
+        ok("- Studio Headphones hold 750 ml.")

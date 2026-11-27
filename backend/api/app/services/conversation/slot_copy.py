@@ -69,6 +69,29 @@ def _drop_typed_echoes(text, by_id):
     return text
 
 
+def _typed_values_to_slots(text, by_id):
+    """A card spec value typed in a line that is about exactly one product (named in plain words or by slot) is that product's own fact: render it from the slot. Lines about several products, or values not on the card, stay typed and are rejected later."""
+    out = []
+    for line in text.split('\n'):
+        pids = {int(m.group(2)) for m in _SLOT.finditer(line) if m.group(2)}
+        low = _SLOT.sub(' ', line).casefold()
+        pids |= {pid for pid, card in by_id.items() if str(card['name']).casefold() in low}
+        if len(pids) == 1 and next(iter(pids)) in by_id:
+            pid = next(iter(pids))
+            for key, value in sorted(((by_id[pid].get('catalog_specs') or {}).items()), key=lambda kv: -len(str(kv[1]))):
+                value = str(value).strip()
+                if not value:
+                    continue
+                pat = re.compile(r'(?<![\w])' + r'\s+'.join(re.escape(w) for w in value.split()) + r'(?![\w])', re.I)
+                parts, last = [], 0
+                for m in _SLOT.finditer(line):
+                    parts.append(pat.sub('[[spec.%s:%d]]' % (key, pid), line[last:m.start()], count=1)); parts.append(m.group(0)); last = m.end()
+                parts.append(pat.sub('[[spec.%s:%d]]' % (key, pid), line[last:], count=1))
+                line = ''.join(parts)
+        out.append(line)
+    return '\n'.join(out)
+
+
 def render_slots(raw, cards, brief=None, message=None):
     """Return a ShoppingDraft whose text, product_ids and claims are built from slots, or raise SlotError."""
     data = json.loads(raw) if isinstance(raw, (str, bytes)) else dict(raw)
@@ -132,7 +155,7 @@ def render_slots(raw, cards, brief=None, message=None):
             return words
         raise SlotError('slot_unknown_kind')
 
-    text = _drop_typed_echoes(text, by_id)
+    text = _typed_values_to_slots(_drop_typed_echoes(text, by_id), by_id)
     outside = _SLOT.sub('\0', text)
     if _ANY_BRACKETS.search(outside) or '\0' in text:
         raise SlotError('slot_malformed')
