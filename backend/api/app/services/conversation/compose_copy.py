@@ -23,6 +23,9 @@ COMPOSE_RULES = (
 def compose_text(opening, question, cards, message=None):
     """Compose mode (AIRDELIVER_SLOT_COMPOSE=1): code builds everything between the model's opening and question from the cards alone: one fact block per product and what each card does not list. Only name slots and the card block carry values."""
     cs = [c.model_dump() if hasattr(c, 'model_dump') else dict(c) for c in cards]
+    letters = [ch for ch in (message or '') if ch.isalpha()]
+    if letters and sum(1 for ch in letters if ord(ch) > 0x24F) / len(letters) > 0.4:
+        raise SlotError('compose_non_english')  # the scaffolding is English; the normal writer answers in the customer's language
     allowed = {w[:5] for w in re.findall(r'[a-z]{5,}', (message or '').casefold())}
     for c in cs:
         allowed |= {w[:5] for w in re.findall(r'[a-z]{5,}', str(c.get('name', '')).casefold())}
@@ -113,5 +116,7 @@ def compose_text_safe(opening, question, cards, message=None):
     """compose_text, but wording the checks reject (an unlisted claim, a field the card lacks) never sends the reply to the free writer: code swaps in a neutral opening and question and keeps every fact it builds from the cards. Real run b052 published an unsupported induction claim through that fallback."""
     try:
         return compose_text(opening, question, cards, message)
-    except SlotError:
+    except SlotError as exc:
+        if str(exc) == 'compose_non_english':
+            raise
         return compose_text(_pick(message, 'open', _NEUTRAL_OPENINGS), _pick(message, 'ask', _NEUTRAL_QUESTIONS), cards, message)

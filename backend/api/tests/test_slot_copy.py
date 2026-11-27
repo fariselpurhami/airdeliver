@@ -741,3 +741,16 @@ def test_four_or_more_cards_get_price_and_rating_pointers_without_being_asked():
     assert 'On rating, Beta Mat lists the highest' in d.text
     three = ok(compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs[:3], msg), cs=cs[:3], message=msg)
     assert 'On price' not in three.text
+
+
+def test_compose_leaves_non_english_customers_to_the_normal_writer():
+    """Open gap: an Arabic question got English scaffolding ('Here is what the catalog lists:'). The English-only compose path now declines non-Latin-script messages, so the normal writer answers in the customer's language."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text, compose_text_safe
+    cs = enrich_cards(cards())
+    for msg in ('ايه الفرق بين السماعة والزجاجة؟', 'какая лучше для путешествий?', '哪个更适合旅行？'):
+        with pytest.raises(SlotError) as e:
+            compose_text_safe('You want a straight answer, so here it is.', 'What else should I check for you?', cs, msg)
+        assert 'non_english' in str(e.value)
+    assert compose_text_safe('You want a straight answer, so here it is.', 'What else should I check for you?', cs, 'Which one for travel? سفر')
+    assert compose_text_safe('You want a straight answer, so here it is.', 'What else should I check for you?', cs, 'Is the café mug ok?')
