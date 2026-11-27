@@ -401,7 +401,9 @@ def compose_text(opening, question, cards, message=None):
     union = []
     for c in cs:
         union += [k for k in listed[c['id']] if k not in union]
-    parts = [opening.strip(), 'What the catalog lists for each:', '\n'.join(f"- [[card:{c['id']}]]" for c in cs)]
+    heading = ('What the catalog lists for each:', 'Here is what each one lists:', 'The listed details, side by side:')[sum(map(ord, message or '')) % 3]
+    needs = _need_lines(message, cs)
+    parts = [opening.strip()] + ([' '.join(needs)] if needs else []) + [heading, '\n'.join(f"- [[card:{c['id']}]]" for c in cs)]
     gaps = []
     for c in cs:
         missing = [_label(k) for k in union if k not in listed[c['id']]]
@@ -414,9 +416,6 @@ def compose_text(opening, question, cards, message=None):
                 gaps.append('Check each description for anything beyond these entries.')
     if gaps:
         parts.append(' '.join(gaps))
-    needs = _need_lines(message, cs)
-    if needs:
-        parts.append(' '.join(needs))
     fits = []
     words = {w for w in re.findall(r'[a-z]{4,}', (message or '').casefold())}
     for c in cs:

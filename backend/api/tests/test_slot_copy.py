@@ -382,3 +382,17 @@ def test_compose_states_the_fact_that_answers_what_the_customer_asked_for():
     assert 'On weight, Trail Backpack lists the lowest: 650 g. Day Pack lists 1.2 kg.' in go('Which is the lightest?')
     plain = go('Tell me about these')
     assert 'On price' not in plain and 'On rating' not in plain and 'On weight' not in plain
+
+
+def test_compose_puts_the_answer_before_the_fact_blocks_and_varies_the_heading():
+    """Advisor feel: when code has a fact that answers the ask, it comes right after the opening, before the long fact blocks. The block heading varies by message (stable per message), not a fixed template."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    a = catalog_result(row(id=1, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}))
+    b = catalog_result(row(id=2, name='Day Pack', price=Decimal('45.00'), attributes={'weight': '1.2 kg'}))
+    cs = enrich_cards([a, b])
+    text = compose_text('Okay.', 'What matters most to you?', cs, 'Which is the cheapest?')
+    assert text.index('On price') < text.index('[[card:1]]')
+    seen = {compose_text('Okay.', 'Which?', cs, m).split('\n\n')[1] for m in ('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight')}
+    assert len(seen) >= 2
+    assert compose_text('Okay.', 'Which?', cs, 'one') == compose_text('Okay.', 'Which?', cs, 'one')
+    ok(text, cs=cs, message='Which is the cheapest?')
