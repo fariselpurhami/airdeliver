@@ -347,10 +347,12 @@ def compose_text(opening, question, cards):
     for c in cs:
         missing = [_label(k) for k in union if k not in listed[c['id']]]
         if missing:
-            gaps.append(f"[[name:{c['id']}]] has no listed {_join(missing)}.")
+            gaps.append(f"[[name:{c['id']}]] has no separate {_join(missing)} entry.")
     if len(cs) >= 2:
         if sum(1 for c in cs if any(k not in listed[c['id']] for k in union)) >= 2:
             gaps.append('So the two cannot be compared directly on those points.' if len(cs) == 2 else 'So they cannot be compared directly on those points.')
+            if any((c.get('catalog_specs') or {}).get('description') for c in cs):
+                gaps.append('Check each description for anything beyond these entries.')
     if gaps:
         parts.append(' '.join(gaps))
     parts.append(question.strip())

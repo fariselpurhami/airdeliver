@@ -306,8 +306,10 @@ def test_compose_builds_facts_from_cards_and_model_supplies_only_opening_and_que
     d = ok(text, cs=cs)
     assert d.text.startswith('Two different jobs')
     assert '- Trail Backpack\n  - Price: $59.00\n  - Weight: 650 g' in d.text
-    assert 'Steel Bottle has no listed weight, description, tags and rating.' in d.text
-    assert 'Trail Backpack has no listed capacity.' in d.text and 'cannot be compared directly on those points' in d.text
+    assert 'Steel Bottle has no separate weight, description, tags and rating entry.' in d.text
+    assert 'Trail Backpack has no separate capacity entry.' in d.text and 'cannot be compared directly on those points' in d.text
+    # Real n=1: "no listed capacity" sat next to a description that states a size; the wording must only claim the missing field entry.
+    assert 'no listed' not in d.text and 'Check each description for anything beyond these entries.' in d.text
     assert d.text.rstrip().endswith('Which matters more, carrying gear or drinks?')
     leaked = ok(compose_text('The pack holds 30 L.', 'Which?', cs), cs=cs)
     assert 'holds 30 L' not in leaked.text
