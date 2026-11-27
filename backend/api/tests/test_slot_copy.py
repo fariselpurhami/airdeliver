@@ -144,3 +144,10 @@ def test_no_promise_slot_renders_a_fixed_refusal_that_passes_the_policy_backstop
     validate_draft(d, [card], {}, {}, q)
     with pytest.raises(SlotError):
         render_slots({'text': '[[no_promise:1]]'}, [card], None, q)
+
+
+def test_slot_writer_rules_require_consistency_and_specific_unknowns():
+    """Real Groq (n=1, hard-01, 5:39 AM): "I don't have details on the Desk Lamp" next to a bullet stating its material; "durable bottle" had no slot behind it. The real review approved it."""
+    from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
+    low = R.casefold()
+    assert 'never say you lack details' in low and 'list those specific missing things' in low and 'durable' in low
