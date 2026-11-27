@@ -112,7 +112,7 @@ def test_slot_writer_rules_ask_for_sales_engineer_blocks_and_ban_stock_openers()
     """Real Groq (n=1, cmp-03, 2:38 AM): the published slot reply was a bare list opened with a stock phrase, no direct answer, no closing question."""
     from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
     low = R.casefold()
-    assert 'answers the customer' in low and 'one specific, useful question' in low
+    assert 'answer their actual question first' in low and 'one specific question' in low
     assert "here's a rundown" in low and 'sure thing' in low and 'no exclamation' in low
     assert 'never type a number' in low and '[[total]]' in R
 
@@ -186,3 +186,17 @@ def test_value_typed_then_cited_with_name_and_spec_slots_renders_once():
     assert {(c.product_id, c.field) for c in d.claims} >= {(2, 'spec.capacity'), (1, 'spec.connectivity')}
     with pytest.raises(SlotError):
         ok("The [[name:1]] connects by [[spec.connectivity:1]] and again [[spec.connectivity:1]].")
+
+def test_slot_writer_rules_ask_for_depth_personality_and_a_trade_off_without_new_facts():
+    """User (7:26 AM): replies were too short, too generic and not AI-native; he wants a human sales engineer with a voice and a deeper narrative. Prompt-level only: whether the free model delivers it is measured with real runs, not by this test."""
+    from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
+    low = R.casefold()
+    assert '120 to 220 words' in low and 'trade-off' in low and 'contractions' in low and 'situation' in low
+    assert 'never add a fact, number or feature' in low and 'do not reuse a fixed template' in low
+
+
+def test_slot_writer_rules_ban_guessed_implications_and_valueless_bullets():
+    """Real Groq (n=1, cmp-01, 7:31 AM, draft only): "its weight is the only weight spec we have, so you know it's fairly light" and a bullet "provides a weight spec" with no value."""
+    from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
+    low = R.casefold()
+    assert 'do not guess what a value implies' in low and 'every bullet must carry at least one slot value' in low

@@ -87,7 +87,7 @@ from app.services.paid_turn_admission import paid_provider_call
 
 @paid_provider_call
 async def complete(create, *, model, messages, response_format, timeout, stage='inference'):
-    output = {'SpecDraft': 1200, 'SourceReview': 1200,'GroundingReview':256,'ShoppingDraft':640,'SlotDraft':640,'RouterDecision':768}.get(stage, 2048)
+    output = {'SpecDraft': 1200, 'SourceReview': 1200,'GroundingReview':256,'ShoppingDraft':640,'SlotDraft':1000,'RouterDecision':768}.get(stage, 2048)
     estimate = token_upper_bound({'messages': messages, 'response_format': response_format})
     if stage in {'SpecDraft', 'SourceReview'} and estimate + output > 7800:
         logger.warning('provider.input_withheld stage=%s input_token_upper=%d output_cap=%d', stage, estimate, output)
