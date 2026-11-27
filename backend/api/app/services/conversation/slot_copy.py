@@ -52,6 +52,23 @@ def _money(card):
     return (_SYMBOL[cur] + str(amount)) if cur in _SYMBOL else f'{amount} {cur}', str(amount)
 
 
+def _drop_typed_echoes(text, by_id):
+    """A value typed directly before its own spec slot ("650 g [[spec.weight:2]]") is a redundant echo of the card value: drop it. Any other typed value stays and is rejected later."""
+    for m in reversed(list(_SLOT.finditer(text))):
+        key, pid_text = m.group(1), m.group(2)
+        card = by_id.get(int(pid_text)) if pid_text else None
+        if not key.startswith('spec.') or card is None:
+            continue
+        value = str((card.get('catalog_specs') or {}).get(key[5:]) or '').strip()
+        if not value:
+            continue
+        head = text[:m.start()]
+        tail = re.search(r'(?:^|(?<=\s))' + r'\s+'.join(re.escape(w) for w in value.split()) + r'\s*$', head, re.I)
+        if tail:
+            text = head[:tail.start()] + text[m.start():]
+    return text
+
+
 def render_slots(raw, cards, brief=None, message=None):
     """Return a ShoppingDraft whose text, product_ids and claims are built from slots, or raise SlotError."""
     data = json.loads(raw) if isinstance(raw, (str, bytes)) else dict(raw)
@@ -115,6 +132,7 @@ def render_slots(raw, cards, brief=None, message=None):
             return words
         raise SlotError('slot_unknown_kind')
 
+    text = _drop_typed_echoes(text, by_id)
     outside = _SLOT.sub('\0', text)
     if _ANY_BRACKETS.search(outside) or '\0' in text:
         raise SlotError('slot_malformed')

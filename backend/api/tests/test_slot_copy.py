@@ -151,3 +151,16 @@ def test_slot_writer_rules_require_consistency_and_specific_unknowns():
     from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
     low = R.casefold()
     assert 'never say you lack details' in low and 'list those specific missing things' in low and 'durable' in low
+
+
+def test_value_typed_right_before_its_own_slot_is_dropped_not_rejected():
+    """Real Groq (n=1, hard-01, 6:30 AM): "weighs 650 g [[spec.weight:2]]" and "holds 750 ml [[name:5]] [[spec.capacity:5]]" were rejected as typed facts and the reply fell back to the old writer, which was withheld. A typed value equal to the slot's own value is a redundant echo; any other typed value is still rejected."""
+    d = ok("The [[name:2]] holds 750 ml [[spec.capacity:2]] for a day out.")
+    assert d.text == "The Steel Bottle holds 750 ml for a day out."
+    assert d.text.count('750 ml') == 1
+    with pytest.raises(SlotError):
+        ok("The [[name:2]] holds 500 ml [[spec.capacity:2]].")
+    with pytest.raises(SlotError):
+        ok("The [[name:2]] holds 750 ml of water.")
+    d2 = ok("It is made of Bluetooth [[spec.connectivity:1]], the [[name:1]].")
+    assert d2.text.count('Bluetooth') == 1
