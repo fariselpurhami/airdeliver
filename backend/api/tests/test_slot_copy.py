@@ -771,3 +771,17 @@ def test_child_age_in_the_question_gets_the_cards_listed_age_line():
     assert 'lists its age' not in no_age.text
     other = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', enrich_cards([blocks]), 'How long did it take you, 3 hours?'), cs=enrich_cards([blocks]), message='How long did it take you, 3 hours?')
     assert 'lists its age' not in other.text
+
+
+def test_life_stage_words_match_the_tag_for_what_they_are():
+    """Real run b056 (Groq, pets, 'I have a puppy, which of these'): the reviewer rejected the reply for not answering, since nothing connected 'puppy' to the card tagged dog. Code now maps a small set of life-stage words (puppy, kitten, toddler, baby) to the tag word they imply."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    leash = catalog_result(row(id=60, name='Dog Leash', price=Decimal('14.00'), attributes={'length': '1.5 m'}, tags=['dog', 'pet', 'leash']))
+    post = catalog_result(row(id=61, name='Cat Scratcher', price=Decimal('19.00'), attributes={'height': '60 cm'}, tags=['cat', 'pet', 'scratcher']))
+    cs = enrich_cards([leash, post])
+    msg = 'I have a puppy, which of these'
+    d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+    assert 'For "puppy"' in d.text and 'Dog Leash is tagged dog' in d.text and 'Cat Scratcher has no matching tag' in d.text
+    plain = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'which of these is cheaper?'), cs=cs, message='which of these is cheaper?')
+    assert 'tagged' not in plain.text

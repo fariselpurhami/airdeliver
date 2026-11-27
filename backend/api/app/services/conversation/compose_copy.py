@@ -20,6 +20,10 @@ COMPOSE_RULES = (
 )
 
 
+# Life-stage words and the tag word they imply (a puppy is a dog, a toddler is a kid).
+_IMPLIES = {'puppy': 'dog', 'puppies': 'dog', 'kitten': 'cat', 'kittens': 'cat', 'toddler': 'kids', 'toddlers': 'kids', 'baby': 'kids', 'babies': 'kids', 'child': 'kids', 'children': 'kids'}
+
+
 def compose_text(opening, question, cards, message=None):
     """Compose mode (AIRDELIVER_SLOT_COMPOSE=1): code builds everything between the model's opening and question from the cards alone: one fact block per product and what each card does not list. Only name slots and the card block carry values."""
     cs = [c.model_dump() if hasattr(c, 'model_dump') else dict(c) for c in cards]
@@ -86,11 +90,11 @@ def compose_text(opening, question, cards, message=None):
     qwords = {w for w in re.findall(r'[a-z]{4,}', low)}
     fits = []
     for c in cs:
-        tags = [x.strip() for x in str((c.get('catalog_specs') or {}).get('tags', '')).split(',') if len(x.strip()) >= 4]
+        tags = [x.strip() for x in str((c.get('catalog_specs') or {}).get('tags', '')).split(',') if len(x.strip()) >= 4 or x.strip().casefold() in _IMPLIES.values()]
         hit = None
         for tag in tags:
-            word = next((w for w in sorted(qwords) if w[:3] == tag.casefold()[:3]), None)
-            if word and tag.casefold() not in str(c.get('name', '')).casefold():
+            word = next((w for w in sorted(qwords) if w[:3] == tag.casefold()[:3] or _IMPLIES.get(w, '')[:3] == tag.casefold()[:3]), None)
+            if word and (tag.casefold() not in str(c.get('name', '')).casefold() or word in _IMPLIES):
                 hit = (tag, word)
                 break
         fits.append((c, tags, hit))
