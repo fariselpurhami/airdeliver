@@ -325,8 +325,8 @@ def test_compose_rejects_model_text_that_paraphrases_card_descriptions_or_tags()
     with pytest.raises(SlotError):
         compose_text('The pack has a ventilated back panel, so it suits long walks.', 'Which matters more?', cs, msg)
     with pytest.raises(SlotError):
-        compose_text('Both can work.', 'Do you want a padded carry option?', cs, msg)
-    assert 'weekend hike' in compose_text('Both can fit a weekend hike, for different jobs.', 'Which matters more?', cs, msg)
+        compose_text('Two options.', 'Do you want a padded carry option?', cs, msg)
+    assert 'weekend hike' in compose_text('Two options for a weekend hike, for different jobs.', 'Which matters more?', cs, msg)
 
 
 def test_compose_adds_a_fit_line_only_where_a_card_tag_matches_the_customers_own_word():
@@ -334,10 +334,10 @@ def test_compose_adds_a_fit_line_only_where_a_card_tag_matches_the_customers_own
     from app.services.conversation.slot_copy import enrich_cards, compose_text
     rich = catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, description='Padded daypack.', tags=['hiking', 'daypack'], rating=4.5))
     cs = enrich_cards([rich, cards()[1]])
-    d = ok(compose_text('Both can work.', 'Which matters more?', cs, 'Which is better for a weekend hike?'), cs=cs, message='Which is better for a weekend hike?')
+    d = ok(compose_text('Two options here.', 'Which matters more?', cs, 'Which is better for a weekend hike?'), cs=cs, message='Which is better for a weekend hike?')
     assert 'For "hike": Trail Backpack is tagged hiking.' in d.text  # the other card lists no tags, so no claim about it
     assert 'You mentioned' not in d.text
-    quiet = ok(compose_text('Both can work.', 'Which matters more?', cs, 'Which is better for a commute?'), cs=cs, message='Which is better for a commute?')
+    quiet = ok(compose_text('Two options here.', 'Which matters more?', cs, 'Which is better for a commute?'), cs=cs, message='Which is better for a commute?')
     assert 'is tagged' not in quiet.text
 
 
@@ -347,7 +347,7 @@ def test_compose_fit_line_and_model_pieces_survive_wider_stress():
     lamp = catalog_result(row(id=1, name='Desk Lamp', price=Decimal('35.00'), attributes={'material': 'aluminium'}, description='Adjustable arm lamp.', tags=['office'], rating=4.2))
     cs = enrich_cards([lamp])
     msg = 'Which one for my home office?'
-    d = ok(compose_text('It could suit that.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
+    d = ok(compose_text('Here is the lamp.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
     assert 'Desk Lamp is tagged office' in d.text and 'which matches your question' in d.text
     for bad in ('Do you want free delivery?', 'Does it need a warranty or easy returns?', 'Should I reserve one for you?'):
         with pytest.raises(SlotError):
@@ -404,7 +404,7 @@ def test_compose_policy_wording_guard_does_not_trip_on_the_verb_offer():
     """Real n=1 (12:24, cmp-02 commute): "each offering a different way to enjoy the ride" was rejected by the offer* word guard and the reply was withheld. Only promotional wording is blocked."""
     from app.services.conversation.slot_copy import enrich_cards, compose_text
     cs = enrich_cards(cards())
-    assert 'offering a different way' in compose_text('Both fit a commute, each offering a different way to enjoy the ride.', 'Which matters more?', cs, 'Compare these for a commute.')
+    assert 'offering a different way' in compose_text('Both are options, each offering a different way to enjoy the ride.', 'Which matters more?', cs, 'Compare these for a commute.')
     for bad in ('Want a special offer?', 'Any promo code or coupon?', 'Want a deal on both?'):
         with pytest.raises(SlotError):
             compose_text('Okay.', bad, cs, 'Compare these for a commute.')
@@ -511,3 +511,15 @@ def test_compose_states_which_cards_fit_a_budget_the_customer_typed():
     for msg in ('I want a pack for hiking', 'a pack for up to 3 people'):
         d = ok(compose_text('Okay.', 'What matters more to you?', cs, msg), cs=cs, message=msg)
         assert 'budget' not in d.text
+def test_compose_opening_cannot_claim_suitability_or_generalise():
+    """Real run 24 (7:51 PM, published and review-approved): the model opening said "Both the backpack and the bottle work for a weekend hike, and the bottle generally comes out cheaper", while the code's own tag line says the bottle has no hiking tag. Suitability and generalising claims are not card facts, so compose rejects them in the model's two pieces."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    pack = catalog_result(row(id=2, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, tags=['hiking']))
+    bottle = catalog_result(row(id=5, name='Steel Bottle', price=Decimal('18.00'), attributes={'capacity': '750 ml'}, tags=['hydration']))
+    cs = enrich_cards([pack, bottle])
+    for bad in ('Both work for a weekend hike.', 'Both [[name:2]] and [[name:5]] are good for a trek.', 'The bottle generally comes out cheaper.', 'Either one would suit you.', 'This one is handy for trips.', 'It usually costs less.'):
+        with pytest.raises(SlotError):
+            compose_text(bad, 'Which do you need?', cs, 'Which is the cheapest for a weekend hike?')
+    with pytest.raises(SlotError):
+        compose_text('Okay.', 'Which one fits you better?', cs, 'Which is the cheapest for a weekend hike?')
+    ok(compose_text('You want the lowest price for a hike.', 'Which do you need?', cs, 'Which is the cheapest for a weekend hike?'), cs=cs, message='Which is the cheapest for a weekend hike?')
