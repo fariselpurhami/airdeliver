@@ -228,3 +228,15 @@ def test_slot_writer_rules_scale_length_to_data_and_ban_general_knowledge():
     from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
     low = R.casefold()
     assert '60 to 110 words' in low and 'never restate a missing fact twice' in low and 'general knowledge' in low
+
+def test_a_fact_slot_after_another_products_name_in_the_same_sentence_is_rejected():
+    """Offline proof for the sparse-vs-rich comparison (simulated): "The [[name:2]] has a [[spec.rating:5]] rating" and "[[name:5]] is a [[spec.description:2]]" rendered another product's fact under the wrong name. Comparisons that name each product before its own facts still pass."""
+    cs = cards()
+    with pytest.raises(SlotError):
+        ok("The [[name:1]] weighs [[spec.capacity:2]].", cs=cs)
+    with pytest.raises(SlotError):
+        ok("Steel Bottle costs [[price:1]].", cs=cs)
+    d = ok("The [[name:1]] is [[price:1]], while the [[name:2]] holds [[spec.capacity:2]]. Which matters more?", cs=cs)
+    assert 'Studio Headphones is $79.00' in d.text and '750 ml' in d.text
+    d2 = ok("The [[name:1]] is [[price:1]]. The [[name:2]] is [[price:2]].", cs=cs)
+    assert d2.product_ids == [1, 2]

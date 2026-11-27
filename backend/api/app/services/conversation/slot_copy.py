@@ -127,6 +127,28 @@ def enrich_cards(cards):
     return out
 
 
+def _check_fact_owner(text, by_id):
+    """In one sentence, a price or spec slot must belong to the product named most recently before it (slot or plain name). A fact under another product's name is a wrong attribution."""
+    names = {pid: str(card['name']).casefold() for pid, card in by_id.items()}
+    for sentence in re.split(r'(?<=[.!?])\s+|\n', text):
+        refs = []
+        for m in _SLOT.finditer(sentence):
+            if m.group(1) == 'name' and m.group(2):
+                refs.append((m.start(), int(m.group(2))))
+        low = _SLOT.sub(lambda m: ' ' * len(m.group(0)), sentence).casefold()
+        for pid, name in names.items():
+            at = low.find(name)
+            while at != -1:
+                refs.append((at, pid))
+                at = low.find(name, at + 1)
+        refs.sort()
+        for m in _SLOT.finditer(sentence):
+            if (m.group(1) == 'price' or m.group(1).startswith('spec.')) and m.group(2):
+                before = [pid for pos, pid in refs if pos < m.start()]
+                if before and before[-1] != int(m.group(2)):
+                    raise SlotError('slot_wrong_product')
+
+
 def render_slots(raw, cards, brief=None, message=None):
     """Return a ShoppingDraft whose text, product_ids and claims are built from slots, or raise SlotError."""
     data = json.loads(raw) if isinstance(raw, (str, bytes)) else dict(raw)
@@ -201,6 +223,7 @@ def render_slots(raw, cards, brief=None, message=None):
         raise SlotError('slot_literal_fact')
     if _NUMBER_WORD_FACT.search(outside):
         raise SlotError('slot_number_word_fact')
+    _check_fact_owner(text, by_id)
     rendered = _SLOT.sub(fill, text)
     # A product named in plain words (no slot) is still the card's exact name: declare it, as the normal writer path does.
     low = rendered.casefold()
