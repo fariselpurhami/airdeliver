@@ -537,3 +537,14 @@ def test_compose_rejects_praise_words_that_slipped_the_suitability_list():
     with pytest.raises(SlotError):
         compose_text('Okay.', 'Which is the smart pick for you?', cs, 'Which is the cheapest for a weekend hike?')
     ok(compose_text('You want the lowest spend for a trek.', 'Is price the main thing for this hike?', cs, 'Which is the cheapest for a weekend hike?'), cs=cs, message='Which is the cheapest for a weekend hike?')
+
+
+def test_compose_no_matching_tag_line_survives_a_card_whose_name_repeats_its_own_tag():
+    """Broad offline stress (b035, "Need a shirt for a summer wedding"): Cotton Shirt (material cotton, tags shirt, casual, cotton) made the "no matching tag (its tags: ...)" line carry "cotton" twice once the name rendered, so render_slots raised slot_duplicate_value and the whole compose reply fell back. Same class as the shared-tag crash fixed in #346. The tags are already in the card block, so the line drops the parenthetical in that case."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    cotton = catalog_result(row(id=13, name='Cotton Shirt', price=Decimal('24.00'), attributes={'material': 'cotton'}, tags=['shirt', 'casual', 'cotton']))
+    linen = catalog_result(row(id=14, name='Linen Shirt', price=Decimal('38.00'), attributes={'material': 'linen'}, tags=['shirt', 'summer', 'linen']))
+    cs = enrich_cards([cotton, linen])
+    msg = 'Need a shirt for a summer wedding'
+    d = ok(compose_text('You are dressing for a wedding.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
+    assert 'Cotton Shirt has no matching tag.' in d.text

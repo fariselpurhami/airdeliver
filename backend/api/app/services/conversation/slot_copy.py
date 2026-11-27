@@ -429,6 +429,16 @@ def _need_lines(message, cs):
     return out
 
 
+def _tag_echoes_card(card, tags):
+    """True when a listed spec value appears in the card's name and again in its tags, so one line would carry that value twice (slot_duplicate_value)."""
+    name = str(card.get('name', '')).casefold()
+    joined = ' '.join(tags).casefold()
+    for value in (card.get('catalog_specs') or {}).values():
+        v = str(value).strip().casefold()
+        if v and re.search(r'(?<![\w])' + re.escape(v) + r'(?![\w])', name) and re.search(r'(?<![\w])' + re.escape(v) + r'(?![\w])', joined):
+            return True
+    return False
+
 def compose_text(opening, question, cards, message=None):
     """Compose mode (AIRDELIVER_SLOT_COMPOSE=1): code builds everything between the model's opening and question from the cards alone: one fact block per product and what each card does not list. Only name slots and the card block carry values."""
     cs = [c.model_dump() if hasattr(c, 'model_dump') else dict(c) for c in cards]
@@ -494,7 +504,7 @@ def compose_text(opening, question, cards, message=None):
         word = hits[0][2][1]
         others = [f for f in fits if not f[2] and f[1] and not any(g[:3] == word[:3] for g in (x.casefold() for x in f[1]))]
         if others or len(hits) > 1:
-            seg = [f'- [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits] + [f'- [[name:{c["id"]}]] has no matching tag (its tags: {", ".join(tags)}).' for c, tags, _ in others]
+            seg = [f'- [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits] + [f'- [[name:{c["id"]}]] has no matching tag' + ('.' if _tag_echoes_card(c, tags) else f' (its tags: {", ".join(tags)}).') for c, tags, _ in others]
             parts.append(f'For "{word}":\n' + '\n'.join(seg))
         else:
             parts.append(' '.join(f'[[name:{c["id"]}]] is tagged {h[0]}, which matches your question.' if h[1] == h[0].casefold() else f'For "{h[1]}": [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits))
