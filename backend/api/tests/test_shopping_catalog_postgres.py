@@ -86,7 +86,7 @@ async def test_unavailable_requested_item_pivots_only_to_current_non_demo_positi
             product_ids=[ids[1]],claims=[{'product_id':ids[1],'field':'name','value':'Trail Smartwatch'},
                 {'product_id':ids[1],'field':'spec.battery','value':'48 hours'}])
         verdict=json.dumps(dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True))
-        svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(draft),verdict])
+        svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(draft),json.dumps(draft),verdict])  # 2nd reply: the voice-repair rewrite (equal to the draft, so the guards keep the original)
         brief=ShoppingBrief(budget='under USD100',budget_max='100',budget_currency='USD')
         async with sessions() as db:
             result=await svc._handle_product_search(db,'Apple Watch',brief,'Apple Watch for my wife under USD100',
@@ -99,7 +99,7 @@ async def test_unavailable_requested_item_pivots_only_to_current_non_demo_positi
         assert writer_payload['request_evidence']['unavailable_requested'][0]['stock_status']=='local_out_of_stock'
         # A missing named item (no anchor) still gets bounded functional retrieval.
         api.perform_hybrid_search_pure=AsyncMock(side_effect=[[],[rows[1],rows[2]]])
-        svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(draft),verdict])
+        svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(draft),json.dumps(draft),verdict])  # 2nd reply: the voice-repair rewrite (equal to the draft, so the guards keep the original)
         async with sessions() as db:
             result=await svc._handle_product_search(db,'Apple Watch',brief,'Apple Watch for my wife under USD100',
                 RouterDecision(intent='PRODUCT_SEARCH',requested_name='Apple Watch',alternative_query='smartwatch'))
@@ -128,7 +128,7 @@ async def test_owner_jewelry_dollar_followup_keeps_budget_and_eligible_card(rout
         router={'intent':route_intent,'query':'jewelry','search_subject':'jewelry','brief':{'category':'jewelry','occasion':'birthday','budget':'1000 dollar','budget_max':'1000','budget_currency':'USD'}}
         draft={'text':'Within your 1000 dollar budget, compare Silver pendant in the card. Local catalog stock is listed, merchant availability is unverified.', 'product_ids':[ids[0]],'claims':[{'product_id':ids[0],'field':'name','value':'Silver pendant'}]}
         verdict=dict(supported=True,all_product_mentions_declared=True,no_unsupported_commercial_claims=True,fulfills_discovery_task=True)
-        svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(router),json.dumps(draft),json.dumps(verdict)])
+        svc._execute_llm_inference=AsyncMock(side_effect=[json.dumps(router),json.dumps(draft),json.dumps(draft),json.dumps(verdict)])  # 3rd: voice-repair rewrite equal to the draft, original kept
         async with sessions() as db:
             result=await svc.handle_message(db,'Her birthday, and I want jewelry and the budget at range 1000 dollar',None,'owner-gift-regression')
         assert result.response_kind=='catalog_results' and result.text==draft['text']
