@@ -335,11 +335,11 @@ def _join(items):
     return items[0] if len(items) == 1 else ', '.join(items[:-1]) + ' and ' + items[-1]
 
 
-def _card_words(cs):
+def _card_words(cs, tags=True):
     out = set()
     for c in cs:
         specs = c.get('catalog_specs') or {}
-        for k in ('description', 'tags'):
+        for k in (('description', 'tags') if tags else ('description',)):
             out |= {w[:5] for w in re.findall(r'[a-z]{5,}', str(specs.get(k, '')).casefold())}
         for k, v in specs.items():
             if k not in ('description', 'tags', 'rating'):
@@ -353,10 +353,12 @@ def compose_text(opening, question, cards, message=None):
     allowed = {w[:5] for w in re.findall(r'[a-z]{5,}', (message or '').casefold())}
     for c in cs:
         allowed |= {w[:5] for w in re.findall(r'[a-z]{5,}', str(c.get('name', '')).casefold())}
-    stripped = re.sub(r'\[\[name:\d+\]\]', ' ', f'{opening} {question}').casefold()
+    strip = lambda t: re.sub(r'\[\[name:\d+\]\]', ' ', t).casefold()
+    stripped = strip(f'{opening} {question}')
     if re.search(r'\b(?:free|deliver\w*|ship\w*|warrant\w*|guarant\w*|return\w*|refund\w*|reserv\w*|discount\w*|offer\w*|stock|available|availability)\b', stripped):
         raise SlotError('compose_policy_wording')
-    if {w[:5] for w in re.findall(r'[a-z]{5,}', stripped)} & (_card_words(cs) - allowed):
+    words = lambda t: {w[:5] for w in re.findall(r'[a-z]{5,}', t)}
+    if words(strip(opening)) & (_card_words(cs) - allowed) or words(strip(question)) & (_card_words(cs, tags=False) - allowed):
         raise SlotError('compose_card_wording')
     listed = {c['id']: _listed(c) for c in cs}
     union = []

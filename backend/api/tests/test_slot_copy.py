@@ -354,3 +354,16 @@ def test_compose_fit_line_and_model_pieces_survive_wider_stress():
     chair = catalog_result(row(id=2, name='Office Chair', price=Decimal('120.00'), attributes={'weight': '9 kg'}, tags=['office']))
     both = enrich_cards([lamp, chair])
     ok(compose_text('Okay.', 'What matters most to you?', both, msg), cs=both, message=msg)
+
+
+def test_compose_question_may_use_a_tag_word_but_not_description_words():
+    """Real n=1 (11:51): the question "staying hydrated on your weekend hikes" was rejected because a tag says hydration, and the reply fell back to the old writer and was withheld. Tags are category words; features live in the description."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    rich = catalog_result(row(id=7, name='Steel Bottle', price=Decimal('18.00'), attributes={'capacity': '750 ml'}, description='Double-wall vacuum bottle.', tags=['hydration', 'insulated']))
+    cs = enrich_cards([rich])
+    msg = 'Which is better for a weekend hike?'
+    assert 'staying hydrated' in compose_text('Okay.', 'Do you care about staying hydrated on the trail?', cs, msg)
+    with pytest.raises(SlotError):
+        compose_text('The hydration pick helps.', 'Which?', cs, msg)
+    with pytest.raises(SlotError):
+        compose_text('Okay.', 'Do you want the vacuum design?', cs, msg)
