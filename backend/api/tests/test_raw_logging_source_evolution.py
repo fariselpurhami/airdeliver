@@ -33,6 +33,16 @@ def test_raw_logging_evolution_preserves_recorded_non_diagnostic_syntax():
     assert len(data["modules"])==20
     for path,row in data["modules"].items():
         source=(ROOT/path).read_bytes()
+        keep=json.loads((ROOT/"docs/verification/keep-source-fields-source-evolution-v1.json").read_text()).get(path)
+        if keep:
+            # Newest reviewed change: verify the live file, then reverse it so older receipts verify the prior stage.
+            assert hashlib.sha256(source).hexdigest()==keep["current_sha256"],path
+            text=source.decode()
+            for edit in keep["replacements"]:
+                assert text.count(edit["new"])==edit["count"],path
+                text=text.replace(edit["new"],edit["old"])
+            assert hashlib.sha256(text.encode()).hexdigest()==keep["baseline_sha256"],path
+            source=text.encode()
         slot=json.loads((ROOT/"docs/verification/slot-low-reasoning-source-evolution-v1.json").read_text()).get(path)
         if slot:
             # Newest reviewed change: verify the live file, then reverse it so older receipts verify the prior stage.

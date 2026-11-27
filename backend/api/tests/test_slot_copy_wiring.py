@@ -67,3 +67,16 @@ def test_source_description_and_rating_reach_writer_and_review_only_with_the_fla
             assert 'described by its source as: Over-ear and Bluetooth. Its rating is 4.4 out of 5.' in text
         else:
             assert 'Over-ear' not in blob and '4.4' not in blob
+
+
+def test_source_fields_survive_the_consult_catalog_path_to_the_slot_writer(monkeypatch):
+    """Real Groq comparison (n=1, 8:20 AM): the rich run used the same 1184 prompt tokens as the sparse run. consult_catalog rebuilt each card from model_dump(), which drops the server-side source fields, so the slot writer never saw the description, tags or rating. Simulated (scripted infer, not Groq)."""
+    from app.services.conversation.free_llm_service import FreeLLMService
+    monkeypatch.setenv('AIRDELIVER_SLOT_COPY','1')
+    cards=[catalog_result(row(description='Over-ear and Bluetooth. Comes in black.',tags=['music'],rating=4.4))]
+    seen=[]
+    async def infer(messages):
+        seen.append(messages);return json.dumps({'text':'The [[name:1]]: [[spec.description:1]]\n\nWhat will you use it for?'} if len(seen)==1 else OK)
+    res=asyncio.run(FreeLLMService().consult_catalog(cards=cards,question='tell me about it',evidence={'shopping_task':'consultation'},infer=infer))
+    assert 'Over-ear and Bluetooth.' in json.dumps(seen[0]) and '4.4 out of 5' in json.dumps(seen[0])
+    assert 'Over-ear and Bluetooth.' in res.text

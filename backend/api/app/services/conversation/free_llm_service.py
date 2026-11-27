@@ -1356,7 +1356,7 @@ Output ONE line of search keywords only.
         from app.schemas.ai_actions import CatalogResult
         from app.services.sales_response_service import SalesResponseService, SalesResponseRequest
         from app.services.shopping_discovery import ShoppingBrief
-        validated=tuple(CatalogResult.model_validate(c.model_dump() if isinstance(c,CatalogResult) else c) for c in cards)
+        validated=tuple(c.model_copy() if isinstance(c,CatalogResult) else CatalogResult.model_validate(c) for c in cards)
         context=dict(evidence or {})
         context['sales_intent']='CATALOG_CONSULTATION'
         context['external_web_evidence']=False

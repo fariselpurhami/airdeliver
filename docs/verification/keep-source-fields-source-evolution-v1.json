@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/free_llm_service.py": {
+  "baseline_sha256": "98cbd062002265cb2e0de56b5c4cb337d9fce36e98cdd865adc3c4945d771e56",
+  "current_sha256": "20f94566c715ca85f0729cb7c5aa50e2bd72e5da073c7325611ce6c11579736a",
+  "replacements": [
+   {
+    "old": "        from app.services.shopping_discovery import ShoppingBrief\n        validated=tuple(CatalogResult.model_validate(c.model_dump() if isinstance(c,CatalogResult) else c) for c in cards)\n        context=dict(evidence or {})\n",
+    "new": "        from app.services.shopping_discovery import ShoppingBrief\n        validated=tuple(c.model_copy() if isinstance(c,CatalogResult) else CatalogResult.model_validate(c) for c in cards)\n        context=dict(evidence or {})\n",
+    "count": 1
+   }
+  ]
+ }
+}
