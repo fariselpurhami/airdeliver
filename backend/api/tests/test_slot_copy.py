@@ -240,3 +240,10 @@ def test_a_fact_slot_after_another_products_name_in_the_same_sentence_is_rejecte
     assert 'Studio Headphones is $79.00' in d.text and '750 ml' in d.text
     d2 = ok("The [[name:1]] is [[price:1]]. The [[name:2]] is [[price:2]].", cs=cs)
     assert d2.product_ids == [1, 2]
+
+
+def test_slot_writer_rules_forbid_paraphrasing_descriptions_and_praising_ratings():
+    """Real Groq comparison (n=1, rich synthetic cards, 8:34 AM): the draft paraphrased the description ("a padded 30 L compartment and rain cover", "keeps drinks cold for a full day") with typed numbers, so the renderer rejected it (slot_literal_fact), and it called ratings "solid"."""
+    from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
+    low = R.casefold()
+    assert 'never restate a description in your own words' in low and 'do not call ratings solid' in low
