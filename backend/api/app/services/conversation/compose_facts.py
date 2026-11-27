@@ -41,6 +41,8 @@ def _names(ids):
 def _need_lines(message, cs):
     """Facts that answer what the customer asked for (lowest price, highest rating, lowest weight), from listed values only, through slots, only when asked."""
     low = (message or '').casefold()
+    if len(cs) >= 4:
+        low += ' lowest price top rated'  # four or more cards: always give the lowest price and highest rating pointers
     out = []
     def ranked(values, reverse):
         items = sorted(((v, c['id']) for c, v in values if v is not None), reverse=reverse)

@@ -727,3 +727,17 @@ def test_quantity_changes_the_budget_check_to_the_whole_order():
     d = ok(compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs, msg), cs=cs, message=msg)
     assert 'At your quantity, Steel Bottle stays within your budget and Studio Headphones goes over it.' in d.text
     assert 'Within your budget:' not in d.text
+
+
+def test_four_or_more_cards_get_price_and_rating_pointers_without_being_asked():
+    """Open gap: 4 to 5 card replies dumped every card with no choosing aid. Code now adds the lowest listed price and highest listed rating (listed values only, through slots) when there are four or more cards."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    items = [catalog_result(row(id=i, name=n, price=Decimal(p), rating=r)) for i, n, p, r in ((41, 'Alpha Lamp', '30.00', 4.1), (42, 'Beta Mat', '12.00', 4.7), (43, 'Gamma Pan', '45.00', 3.9), (44, 'Delta Mug', '19.00', 4.2))]
+    cs = enrich_cards(items)
+    msg = 'Which of these would you start with?'
+    d = ok(compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs, msg), cs=cs, message=msg)
+    assert 'On price, Beta Mat is the lowest listed at $12.00' in d.text
+    assert 'On rating, Beta Mat lists the highest' in d.text
+    three = ok(compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs[:3], msg), cs=cs[:3], message=msg)
+    assert 'On price' not in three.text
