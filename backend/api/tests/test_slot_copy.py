@@ -478,3 +478,20 @@ def test_compose_three_products_and_shared_tags_do_not_trip_the_duplicate_value_
     msg = 'Which is lighter for hiking?'
     d = ok(compose_text('Both are packs.', 'What matters more to you?', same, msg), cs=same, message=msg)
     assert 'For "hiking":\n- Day Pack is tagged hiking.\n- Trail Backpack is tagged hiking.' in d.text
+
+
+def test_compose_says_when_cards_tie_on_the_asked_criterion():
+    """Offline stress (SIMULATED, SYNTHETIC cards): two cards tied on the asked price, rating or weight printed no answer line and said nothing about the tie. Code now states the tie from the listed values."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    r = lambda **k: catalog_result(row(**k))
+    cs = enrich_cards([r(id=1, name='Pack A', price=Decimal('45.00'), attributes={'weight': '1 kg'}, tags=['hiking'], rating=4.5), r(id=2, name='Pack B', price=Decimal('45.00'), attributes={'weight': '1 kg'}, tags=['hiking'], rating=4.5)])
+    msg = 'Which is cheapest and lightest?'
+    d = ok(compose_text('Both are close.', 'What matters more?', cs, msg), cs=cs, message=msg)
+    assert 'On price, Pack A and Pack B are tied at $45.00.' in d.text
+    assert 'On weight, Pack A and Pack B are tied at 1 kg.' in d.text
+    msg = 'Which is best rated?'
+    d = ok(compose_text('Both are close.', 'What matters more?', cs, msg), cs=cs, message=msg)
+    assert 'On rating, Pack A and Pack B are tied at 4.5 out of 5.' in d.text
+    three = enrich_cards([r(id=1, name='Pack A', price=Decimal('45.00')), r(id=2, name='Pack B', price=Decimal('45.00')), r(id=3, name='Pack C', price=Decimal('50.00'))])
+    d = ok(compose_text('Okay.', 'What matters more?', three, 'Which is cheapest?'), cs=three, message='Which is cheapest?')
+    assert 'On price, Pack A and Pack B are tied at $45.00; next is Pack C at $50.00.' in d.text

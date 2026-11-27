@@ -352,6 +352,10 @@ def _grams(value):
     return Decimal(m.group(1)) * (1000 if m.group(2).lower() == 'kg' else 1) if m else None
 
 
+def _names(ids):
+    return ' and '.join(f'[[name:{i}]]' for i in ids)
+
+
 def _need_lines(message, cs):
     """Facts that answer what the customer asked for (lowest price, highest rating, lowest weight), from listed values only, through slots, only when asked."""
     low = (message or '').casefold()
@@ -359,6 +363,13 @@ def _need_lines(message, cs):
     def ranked(values, reverse):
         items = sorted(((v, c['id']) for c, v in values if v is not None), reverse=reverse)
         return items if len(items) >= 2 and items[0][0] != items[1][0] else []
+    def tied(values, reverse):
+        items = sorted(((v, c['id']) for c, v in values if v is not None), reverse=reverse)
+        top = sorted(i for v, i in items if items and v == items[0][0])
+        if len(items) >= 2 and len(top) >= 2:
+            rest = [i for v, i in items if v != items[0][0]]
+            return top, (rest[0] if rest else None)
+        return None
     if re.search(r'cheap|budget|lowest price|afford|least expensive|inexpensive', low):
         vals = []
         for c in cs:
@@ -367,6 +378,10 @@ def _need_lines(message, cs):
             except Exception:
                 pass
         r = ranked(vals, False)
+        tie = tied(vals, False) if not r else None
+        if tie:
+            top, nxt = tie
+            out.append(f'On price, {_names(top)} are tied at [[price:{top[-1]}]]' + (f'; next is [[name:{nxt}]] at [[price:{nxt}]].' if nxt else '.'))
         if r:
             out.append(f'On price, [[name:{r[0][1]}]] is the lowest listed at [[price:{r[0][1]}]]; next is [[name:{r[1][1]}]] at [[price:{r[1][1]}]].')
     if re.search(r'rating|rated|reviews?\b|top.?rated', low):
@@ -375,10 +390,17 @@ def _need_lines(message, cs):
             m = re.match(r'\s*(\d+(?:\.\d+)?)', str((c.get('catalog_specs') or {}).get('rating', '')))
             vals.append((c, Decimal(m.group(1)) if m else None))
         r = ranked(vals, True)
+        tie = tied(vals, True) if not r else None
+        if tie and not tie[1]:
+            out.append(f'On rating, {_names(tie[0])} are tied at [[spec.rating:{tie[0][-1]}]].')
         if r:
             out.append(f'On rating, [[name:{r[0][1]}]] lists the highest: [[spec.rating:{r[0][1]}]]. [[name:{r[1][1]}]] lists [[spec.rating:{r[1][1]}]].')
     if re.search(r'light|weigh|heavy', low):
-        r = ranked([(c, _grams((c.get('catalog_specs') or {}).get('weight'))) for c in cs], False)
+        wv = [(c, _grams((c.get('catalog_specs') or {}).get('weight'))) for c in cs]
+        r = ranked(wv, False)
+        tie = tied(wv, False) if not r else None
+        if tie and not tie[1]:
+            out.append(f'On weight, {_names(tie[0])} are tied at [[spec.weight:{tie[0][-1]}]].')
         if r:
             out.append(f'On weight, [[name:{r[0][1]}]] lists the lowest: [[spec.weight:{r[0][1]}]]. [[name:{r[1][1]}]] lists [[spec.weight:{r[1][1]}]].')
     return out
