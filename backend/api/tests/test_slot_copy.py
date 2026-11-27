@@ -442,7 +442,7 @@ def test_compose_customer_experience_review_points():
     assert 'no separate' not in text and 'cannot be compared directly' not in text  # (2)
     assert 'Trail Backpack is listed with a weight and Steel Bottle with a capacity, so they look like two different kinds of item, not substitutes.' in text  # (3)
     assert 'You mentioned' not in text  # (4)
-    assert 'For "hike": Trail Backpack is tagged hiking; Steel Bottle has no matching tag (its tags: hydration, insulated, outdoor).' in text
+    assert 'For "hike":\n- Trail Backpack is tagged hiking.\n- Steel Bottle has no matching tag (its tags: hydration, insulated, outdoor).' in text
     assert 'ask which of them the customer actually needs' in COMPOSE_RULES.casefold() and 'only factor' in COMPOSE_RULES.casefold()  # (5)
     same = enrich_cards([catalog_result(row(id=1, name='Mug A', price=Decimal('8.00'), attributes={'capacity': '300 ml'})), catalog_result(row(id=2, name='Mug B', price=Decimal('9.00'), attributes={'capacity': '350 ml'}))])
     assert 'different kinds of item' not in compose_text('Okay.', 'Which?', same, 'Compare these mugs.')
@@ -463,3 +463,18 @@ def test_compose_different_kinds_get_a_code_built_which_do_you_need_question():
     same = enrich_cards([catalog_result(row(id=1, name='Mug A', price=Decimal('8.00'), attributes={'capacity': '300 ml'})), catalog_result(row(id=2, name='Mug B', price=Decimal('9.00'), attributes={'capacity': '350 ml'}))])
     t = compose_text('Okay.', 'Which capacity matters more?', same, 'Compare these mugs.')
     assert t.rstrip().endswith('Which capacity matters more?')
+
+
+def test_compose_three_products_and_shared_tags_do_not_trip_the_duplicate_value_guard():
+    """Offline stress at 18:35 found two crashes on main (SlotError slot_duplicate_value): three products, and two same-kind products sharing the matched tag, because the fit sentences repeated the tag value on one line. Each card gets its own line under one lead-in."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    r = lambda **k: catalog_result(row(**k))
+    three = enrich_cards([r(id=1, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, tags=['hiking']), r(id=2, name='Steel Bottle', price=Decimal('18.00'), attributes={'capacity': '750 ml'}, tags=['hydration']), r(id=3, name='Trail Socks', price=Decimal('12.00'), attributes={'material': 'wool'}, tags=['hiking'])])
+    msg = 'Which is the cheapest for a weekend hike?'
+    d = ok(compose_text('Sounds like you are watching the budget.', 'Which of these do you need?', three, msg), cs=three, message=msg)
+    assert 'For "hike":\n- Trail Backpack is tagged hiking.\n- Trail Socks is tagged hiking.\n- Steel Bottle has no matching tag (its tags: hydration).' in d.text
+    assert 'Price: $59.00' in d.text and 'Price: $18.00' in d.text and 'Price: $12.00' in d.text  # the price answer line names only two of three, so no price may vanish
+    same = enrich_cards([r(id=1, name='Day Pack', price=Decimal('45.00'), attributes={'weight': '1.2 kg'}, tags=['hiking']), r(id=2, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, tags=['hiking'])])
+    msg = 'Which is lighter for hiking?'
+    d = ok(compose_text('Both are packs.', 'What matters more to you?', same, msg), cs=same, message=msg)
+    assert 'For "hiking":\n- Day Pack is tagged hiking.\n- Trail Backpack is tagged hiking.' in d.text

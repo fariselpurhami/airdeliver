@@ -408,7 +408,7 @@ def compose_text(opening, question, cards, message=None):
     heading = ('What the catalog lists for each:', 'Here is what each one lists:', 'The listed details, side by side:')[sum(map(ord, message or '')) % 3]
     needs = _need_lines(message, cs)
     low = (message or '').casefold()
-    cardkey = 'cardnp' if any(n.startswith('On price') for n in needs) else 'card'
+    cardkey = 'cardnp' if len(cs) <= 2 and any(n.startswith('On price') for n in needs) else 'card'  # the answer line names two prices only; with 3+ cards the blocks keep theirs
     parts = [opening.strip()] + ([' '.join(needs)] if needs else [])
     different = False
     keysets = [{k for k in listed[c['id']] if k not in ('price', 'description', 'rating', 'tags')} for c in cs]
@@ -444,9 +444,9 @@ def compose_text(opening, question, cards, message=None):
     if hits:
         word = hits[0][2][1]
         others = [f for f in fits if not f[2] and f[1] and not any(g[:3] == word[:3] for g in (x.casefold() for x in f[1]))]
-        if others:
-            seg = [f'[[name:{c["id"]}]] is tagged {h[0]}' for c, _, h in hits] + [f'[[name:{c["id"]}]] has no matching tag (its tags: {", ".join(tags)})' for c, tags, _ in others]
-            parts.append(f'For "{word}": ' + '; '.join(seg) + '.')
+        if others or len(hits) > 1:
+            seg = [f'- [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits] + [f'- [[name:{c["id"]}]] has no matching tag (its tags: {", ".join(tags)}).' for c, tags, _ in others]
+            parts.append(f'For "{word}":\n' + '\n'.join(seg))
         else:
             parts.append(' '.join(f'[[name:{c["id"]}]] is tagged {h[0]}, which matches your question.' if h[1] == h[0].casefold() else f'For "{h[1]}": [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits))
     parts.append(f"These do different jobs, so which one are you actually after: [[name:{cs[0]['id']}]] or [[name:{cs[1]['id']}]]?" if different else question.strip())
