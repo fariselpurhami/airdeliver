@@ -645,3 +645,19 @@ def test_compose_fixed_sentences_have_variants_and_all_of_them_validate():
         d = ok(compose_text('You are asking about the jacket.', 'What matters most?', jacket, msg), cs=jacket, message=msg)
         forms.add(next(p for p in d.text.split('\n\n') if 'waterproofing' in p))
     assert len(forms) == 3
+
+
+def test_compose_budget_line_understands_bucks_and_i_have_phrasing():
+    """Broad offline stress (b021 "under 20 bucks for a coworker", b022 "I have 100 dollars. Can I buy two of these?", b019 "I can spend 50 dollars max"): the budget line only fired for "under/below/max ... $N" phrasing with a currency word from a short list, so "bucks" and "I have 100 dollars" / "my budget is 200 dollars" got no budget answer at all. Customers state budgets many ways; the line now also fires for "bucks", "I have N dollars", "budget is N", "spend N" and "limit N", still only with a currency word, still from listed prices."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    r = lambda **k: catalog_result(row(**k))
+    cs = enrich_cards([r(id=1, name='Wool Scarf', price=Decimal('30.00'), attributes={'material': 'wool'}), r(id=2, name='Scented Candle', price=Decimal('16.00'), attributes={'burn time': '40 hours'}), r(id=3, name='Notebook A5', price=Decimal('9.00'), attributes={'pages': '160'})])
+    for msg, fit in (('under 20 bucks for a coworker', 'Within your budget: Notebook A5 at $9.00 and Scented Candle at $16.00. Wool Scarf at $30.00 is over it.'),
+                     ('I have 20 dollars', 'Within your budget: Notebook A5 at $9.00 and Scented Candle at $16.00. Wool Scarf at $30.00 is over it.'),
+                     ('my budget is 20 dollars', 'Within your budget: Notebook A5 at $9.00 and Scented Candle at $16.00. Wool Scarf at $30.00 is over it.'),
+                     ('I can spend 20 dollars on a gift', 'Within your budget: Notebook A5 at $9.00 and Scented Candle at $16.00. Wool Scarf at $30.00 is over it.')):
+        d = ok(compose_text('A gift for work.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
+        assert fit in d.text, msg
+    for quiet in ('I have 3 dogs', 'I need 2 of these', 'my budget is tight'):
+        d = ok(compose_text('A gift for work.', 'What matters most to you?', cs, quiet), cs=cs, message=quiet)
+        assert 'budget' not in d.text, quiet
