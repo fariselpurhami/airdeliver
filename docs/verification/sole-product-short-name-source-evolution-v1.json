@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "2725886465aa0c6e645f318d42ae5d11c3c64ba79299c9c7892bc0a47a4a1be0",
+  "current_sha256": "d20955892437e6bc52b56927fabdacca68bfee66155b276380ac60f0717d10b4",
+  "replacements": [
+   {
+    "old": "        names_kept=all(c.name.casefold() in low for c in cards if c.name.casefold() in draft.text.casefold())\n",
+    "new": "        def _named(c):\n            full=c.name.casefold()\n            if full in low:return True\n            # A sole product may be referred to by its last word (\"The Smart Watch\" -> \"the watch\"); several products need the full name.\n            parts=full.split()\n            return len(cards)==1 and len(parts)>1 and len(parts[-1])>=4 and re.search(r'\\b'+re.escape(parts[-1])+r'\\b',low) is not None\n        names_kept=all(_named(c) for c in cards if c.name.casefold() in draft.text.casefold())\n",
+    "count": 1
+   }
+  ]
+ }
+}

@@ -61,6 +61,17 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
    edited=edited.replace(edit['new'],edit['old'])
   assert hashlib.sha256(edited.encode()).hexdigest()==cf[row['path']]['baseline_sha256']==expected
   expected=cf[row['path']]['current_sha256']
+ ns=json.loads((ROOT/'docs/verification/no-stock-phrase-source-evolution-v1.json').read_text())
+ assert set(ns)=={'backend/api/app/services/conversation/compact_copy_contracts.py'}
+ if row['path'] in ns:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==ns[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in ns[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==ns[row['path']]['baseline_sha256']
+  source=edited.encode()
  ni=json.loads((ROOT/'docs/verification/no-internal-ids-source-evolution-v1.json').read_text())
  assert set(ni)=={'backend/api/app/services/conversation/compact_copy_contracts.py'}
  if row['path'] in ni:
@@ -93,6 +104,50 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
    assert edited.count(edit['new'])==edit['count']
    edited=edited.replace(edit['new'],edit['old'])
   assert hashlib.sha256(edited.encode()).hexdigest()==lr[row['path']]['baseline_sha256']
+  source=edited.encode()
+ sn=json.loads((ROOT/'docs/verification/sole-product-short-name-source-evolution-v1.json').read_text())
+ assert set(sn)=={'backend/api/app/services/conversation/shopping_copy.py'}
+ if row['path'] in sn:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==sn[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in sn[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==sn[row['path']]['baseline_sha256']
+  source=edited.encode()
+ su=json.loads((ROOT/'docs/verification/stock-tell-unicode-source-evolution-v1.json').read_text())
+ assert set(su)=={'backend/api/app/services/conversation/shopping_copy.py'}
+ if row['path'] in su:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==su[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in su[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==su[row['path']]['baseline_sha256']
+  source=edited.encode()
+ fx=json.loads((ROOT/'docs/verification/voice-repair-four-phase-source-evolution-v1.json').read_text())
+ assert set(fx)=={'backend/api/app/services/conversation/shopping_copy.py'}
+ if row['path'] in fx:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==fx[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in fx[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==fx[row['path']]['baseline_sha256']
+  source=edited.encode()
+ vx=json.loads((ROOT/'docs/verification/voice-repair-source-evolution-v1.json').read_text())
+ assert set(vx)=={'backend/api/app/services/conversation/shopping_copy.py'}
+ if row['path'] in vx:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==vx[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in vx[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==vx[row['path']]['baseline_sha256']
   source=edited.encode()
  px=json.loads((ROOT/'docs/verification/asked-terms-neutral-policy-source-evolution-v1.json').read_text())
  assert set(px)=={'backend/api/app/services/conversation/shopping_copy.py'}
