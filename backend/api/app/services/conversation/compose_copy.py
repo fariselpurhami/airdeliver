@@ -100,3 +100,15 @@ def compose_text(opening, question, cards, message=None):
     pair = f"[[name:{cs[0]['id']}]] or [[name:{cs[1]['id']}]]" if len(cs) >= 2 else ''
     parts.append(_pick(message, 'closer', (f'These do different jobs, so which one are you actually after: {pair}?', f'Since they do different jobs, which one do you actually want: {pair}?', f'They cover different needs, so which are you after: {pair}?')) if different else question.strip())
     return '\n\n'.join(p for p in parts if p)
+
+
+_NEUTRAL_OPENINGS = ('You want a straight answer, so here it is.', 'Let us take this one piece at a time.', 'Here is how this lines up against what you asked.')
+_NEUTRAL_QUESTIONS = ('What matters most to you here?', 'Is there anything else you want to know?', 'What else should I check for you?')
+
+
+def compose_text_safe(opening, question, cards, message=None):
+    """compose_text, but wording the checks reject (an unlisted claim, a field the card lacks) never sends the reply to the free writer: code swaps in a neutral opening and question and keeps every fact it builds from the cards. Real run b052 published an unsupported induction claim through that fallback."""
+    try:
+        return compose_text(opening, question, cards, message)
+    except SlotError:
+        return compose_text(_pick(message, 'open', _NEUTRAL_OPENINGS), _pick(message, 'ask', _NEUTRAL_QUESTIONS), cards, message)

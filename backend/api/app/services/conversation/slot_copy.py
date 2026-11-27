@@ -312,4 +312,4 @@ def mask_payload(payload):
 # Compose mode lives in compose_copy.py, compose_facts.py and compose_asks.py; every old name stays importable from here.
 from app.services.conversation.compose_facts import _listed, _label, _join, _card_words, _grams, _names, _need_lines  # noqa: E402,F401
 from app.services.conversation.compose_asks import _UNLISTED_ASKS, _pick, _unlisted_lines, _tag_echoes_card  # noqa: E402,F401
-from app.services.conversation.compose_copy import ComposeDraft, COMPOSE_RULES, compose_text  # noqa: E402,F401
+from app.services.conversation.compose_copy import ComposeDraft, COMPOSE_RULES, compose_text, compose_text_safe  # noqa: E402,F401

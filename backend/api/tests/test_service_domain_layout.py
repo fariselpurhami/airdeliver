@@ -94,6 +94,17 @@ def test_legacy_and_domain_imports_share_one_module_and_state(row,monkeypatch):
    edited=edited.replace(edit['new'],edit['old'])
   assert hashlib.sha256(edited.encode()).hexdigest()==kf[row['path']]['baseline_sha256']
   source=edited.encode()
+ nf=json.loads((ROOT/'docs/verification/compose-neutral-fallback-source-evolution-v1.json').read_text())
+ assert set(nf)=={'backend/api/app/services/conversation/shopping_copy.py'}
+ if row['path'] in nf:
+  # Newest receipt: verify the live file, then revert it so older receipts verify the prior stage.
+  assert hashlib.sha256(source).hexdigest()==nf[row['path']]['current_sha256']
+  edited=source.decode()
+  for edit in nf[row['path']]['replacements']:
+   assert edited.count(edit['new'])==edit['count']
+   edited=edited.replace(edit['new'],edit['old'])
+  assert hashlib.sha256(edited.encode()).hexdigest()==nf[row['path']]['baseline_sha256']
+  source=edited.encode()
  cw=json.loads((ROOT/'docs/verification/compose-card-words-source-evolution-v1.json').read_text())
  assert set(cw)=={'backend/api/app/services/conversation/shopping_copy.py'}
  if row['path'] in cw:

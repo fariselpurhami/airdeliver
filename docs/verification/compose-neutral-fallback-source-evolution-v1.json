@@ -1,0 +1,18 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "b1232fa3d09ebe117d1baaa2b73a4566847a3e44ca24e9d9cf304027664309b7",
+  "current_sha256": "9120d34fb259a6974ffaa51cacdb66bf1f85748a6321226d144b5fd2108b43c2",
+  "replacements": [
+   {
+    "old": "import COMPOSE_RULES,ComposeDraft,compose_text,mask_payload",
+    "new": "import COMPOSE_RULES,ComposeDraft,compose_text_safe,mask_payload",
+    "count": 1
+   },
+   {
+    "old": "'text':compose_text(cd.opening",
+    "new": "'text':compose_text_safe(cd.opening",
+    "count": 1
+   }
+  ]
+ }
+}

@@ -661,3 +661,20 @@ def test_compose_budget_line_understands_bucks_and_i_have_phrasing():
     for quiet in ('I have 3 dogs', 'I need 2 of these', 'my budget is tight'):
         d = ok(compose_text('A gift for work.', 'What matters most to you?', cs, quiet), cs=cs, message=quiet)
         assert 'budget' not in d.text, quiet
+
+
+def test_rejected_model_wording_falls_back_to_code_built_neutral_text_not_the_free_writer():
+    """Real run b052 (Groq, home, one card, 'Can I use it on induction?'): the model's opening claimed induction use, compose rejected it, the free writer then published 'confirmed by the material spec' and the reviewer approved. The card says only material: cast iron. Code must publish its own reply instead."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    from app.services.conversation.compose_copy import compose_text_safe
+    pan = catalog_result(row(id=28, name='Cast Iron Pan', price=Decimal('48.00'), attributes={'material': 'cast iron'}, description='Pre-seasoned pan for the stove and the oven.'))
+    cs = enrich_cards([pan])
+    msg = 'Can I use it on induction?'
+    bad_open, bad_q = 'Sure thing, the [[name:28]] works on induction stovetops.', 'Besides induction, are price or any other factor most important for you?'
+    with pytest.raises(SlotError):
+        compose_text(bad_open, bad_q, cs, msg)
+    text = compose_text_safe(bad_open, bad_q, cs, msg)
+    assert 'works on induction' not in text and 'Besides induction' not in text
+    assert 'says nothing about induction' in text
+    ok(text, cs=cs, message=msg)
+    assert compose_text_safe('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg) == compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg)
