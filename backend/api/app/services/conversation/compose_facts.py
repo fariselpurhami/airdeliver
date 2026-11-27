@@ -97,6 +97,10 @@ def _need_lines(message, cs):
                 out.append(text)
             else:
                 out.append(f'None of these is within your budget; the lowest listed is [[name:{priced[0][1]}]] at [[price:{priced[0][1]}]].')
+    if re.search(r'\b\d{1,2}[- ]?(?:years?|yrs?)[- ]?old\b|\bage[sd]?\s+\d{1,2}\b|\b(?:my|our)\s+(?:son|daughter|kid|child|toddler|baby)\b', low):
+        aged = [c for c in cs if str((c.get('catalog_specs') or {}).get('age', '')).strip()]
+        if aged:
+            out.append(' '.join(f"[[name:{c['id']}]] lists its age as [[spec.age:{c['id']}]]." for c in aged))
     qty = quantity_of(message)
     if qty and 1 <= len(cs) <= 3 and all(c.get('price') not in (None, '') for c in cs):
         out.append(('Worked out for you: ', 'The totals: ', 'For that many: ')[__import__('zlib').crc32(f'qty|{message or ""}'.encode('utf-8')) % 3] + '; '.join(f"[[name:{c['id']}]] comes to [[qty:{c['id']}]]" for c in cs) + '.')

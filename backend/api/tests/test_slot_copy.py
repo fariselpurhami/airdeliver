@@ -754,3 +754,20 @@ def test_compose_leaves_non_english_customers_to_the_normal_writer():
         assert 'non_english' in str(e.value)
     assert compose_text_safe('You want a straight answer, so here it is.', 'What else should I check for you?', cs, 'Which one for travel? سفر')
     assert compose_text_safe('You want a straight answer, so here it is.', 'What else should I check for you?', cs, 'Is the café mug ok?')
+
+
+def test_child_age_in_the_question_gets_the_cards_listed_age_line():
+    """Real run b057 (Groq, kids, 'Is it safe for a 3 year old?'): the published reply never said the card lists Age 6+. Code now states the listed age next to an age in the question, without judging safety."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    blocks = catalog_result(row(id=50, name='Building Blocks Set', price=Decimal('34.00'), attributes={'age': '6+', 'pieces': '500'}))
+    plain = catalog_result(row(id=51, name='Wooden Spoon', price=Decimal('5.00'), attributes={'material': 'beech'}))
+    msg = 'Is it safe for a 3 year old?'
+    for cs in (enrich_cards([blocks]), enrich_cards([blocks, plain])):
+        d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+        assert 'Building Blocks Set lists its age as 6+' in d.text
+        assert 'Wooden Spoon lists its age' not in d.text
+    no_age = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', enrich_cards([plain]), msg), cs=enrich_cards([plain]), message=msg)
+    assert 'lists its age' not in no_age.text
+    other = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', enrich_cards([blocks]), 'How long did it take you, 3 hours?'), cs=enrich_cards([blocks]), message='How long did it take you, 3 hours?')
+    assert 'lists its age' not in other.text
