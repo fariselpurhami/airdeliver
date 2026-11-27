@@ -429,6 +429,49 @@ def _need_lines(message, cs):
     return out
 
 
+# Common asks a card may not cover: (label, words in the customer's message, words that mean the card text covers it).
+_UNLISTED_ASKS = (
+    ('waterproofing', r'water.?proof|water.?resistan|swim', r'water.?proof|water.?resistan'),
+    ('colour options', r'colou?rs?\b|\b(?:red|blue|green|black|white|pink|gr[ae]y|yellow|brown|purple|orange|beige|navy)\b', r'colou?r'),
+    ('compatibility details', r'compatib|work with|works with|fit my|fits my|will (?:this|it) fit|\bandroid\b|\biphone\b|\bsamsung\b|\bmacbook\b|\bps5\b|\bmonitors?\b', r'compatib|works with|\bfits\b'),
+    ('noise cancelling', r'noise|cancel', r'noise|cancel'),
+    ('a microphone', r'\bmic\b|microphone', r'\bmic\b|microphone'),
+    ('bulb or dimming details', r'dimm|bulb', r'dimm|bulb'),
+    ('induction use', r'induction', r'induction'),
+    ('microwave use', r'microwave', r'microwave'),
+    ('care instructions', r'washab|machine.?wash|dishwasher', r'wash|dishwasher|care'),
+    ('safety or certification details', r'safe for|safety|standards?\b|certif', r'safe|certif|standard'),
+    ('skin or allergy details', r'sensitive skin|allerg|itch|irritat', r'sensitive|allerg|hypoaller|itch|irritat'),
+    ('sizing guidance', r'true to size|runs (?:small|large)', r'true to size|runs (?:small|large)'),
+    ('warranty or return terms', r'warrant|return polic|refund|exchange', r'warrant|return|refund'),
+    ('delivery times or stock', r'deliver|arrive|shipping|in stock|\bstock\b', r'deliver|ship'),
+    ('battery life', r'battery|how long (?:does|will) it last|runtime', r'battery'),
+)
+
+
+def _unlisted_lines(message, cs):
+    """Say plainly what the customer asked about that no card text covers. Only the lexicon above, only when no card's own text or spec names it."""
+    low = (message or '').casefold()
+    if not low:
+        return []
+    covered = ' '.join(
+        ' '.join([str(c.get('name', ''))] + [f'{k} {v}' for k, v in (c.get('catalog_specs') or {}).items()]).casefold() for c in cs)
+    missing = []
+    for label, ask, have in _UNLISTED_ASKS:
+        if re.search(ask, low) and not re.search(have, covered):
+            word = re.search(ask, low).group(0)
+            if label == 'colour options' and word in covered:
+                continue
+            missing.append(label)
+    if not missing:
+        return []
+    named = missing[0] if len(missing) == 1 else ', '.join(missing[:-1]) + ' or ' + missing[-1]
+    if len(cs) == 1:
+        return [f"The entry for [[name:{cs[0]['id']}]] doesn't mention {named}."]
+    return [f'None of these entries mention {named}.']
+
+
+
 def _tag_echoes_card(card, tags):
     """True when a listed spec value appears in the card's name and again in its tags, so one line would carry that value twice (slot_duplicate_value)."""
     name = str(card.get('name', '')).casefold()
@@ -464,7 +507,7 @@ def compose_text(opening, question, cards, message=None):
     union = []
     for c in cs:
         union += [k for k in listed[c['id']] if k not in union]
-    heading = ('What the catalog lists for each:', 'Here is what each one lists:', 'The listed details, side by side:')[sum(map(ord, message or '')) % 3]
+    heading = 'Here is what the catalog lists:' if len(cs) == 1 else ('What the catalog lists for each:', 'Here is what each one lists:', 'The listed details, side by side:')[sum(map(ord, message or '')) % 3]
     needs = _need_lines(message, cs)
     low = (message or '').casefold()
     cardkey = 'cardnp' if len(cs) <= 2 and any(n.startswith('On price') for n in needs) else 'card'  # the answer line names two prices only; with 3+ cards the blocks keep theirs
@@ -488,6 +531,9 @@ def compose_text(opening, question, cards, message=None):
             gaps.append('Check each description for anything beyond these entries.')
     if gaps:
         parts.append(' '.join(gaps))
+    unlisted = _unlisted_lines(message, cs)
+    if unlisted:
+        parts.append(' '.join(unlisted))
     qwords = {w for w in re.findall(r'[a-z]{4,}', low)}
     fits = []
     for c in cs:

@@ -539,6 +539,27 @@ def test_compose_rejects_praise_words_that_slipped_the_suitability_list():
     ok(compose_text('You want the lowest spend for a trek.', 'Is price the main thing for this hike?', cs, 'Which is the cheapest for a weekend hike?'), cs=cs, message='Which is the cheapest for a weekend hike?')
 
 
+def test_compose_says_when_the_customer_asked_about_something_no_card_lists():
+    """Broad offline stress (88 SYNTHETIC questions, scripted writer, 10:58 PM): "Is the rain jacket waterproof and does it come in red?" and "does it work with android and is it waterproof?" got the card block and a question, with no word on the two things asked. Code now says plainly that the entries do not mention them, from a lexicon of common asks, and only when no card text covers the ask. Offline, not a model run."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    jacket = catalog_result(row(id=1, name='Rain Jacket', price=Decimal('89.00'), attributes={'material': 'nylon'}, description='Hooded jacket with taped seams.', tags=['jacket', 'rain']))
+    cs = enrich_cards([jacket])
+    msg = 'Is the rain jacket waterproof and does it come in red?'
+    d = ok(compose_text('You want to know about the jacket.', 'What matters most to you?', cs, msg), cs=cs, message=msg)
+    assert "The entry for Rain Jacket doesn't mention waterproofing or colour options." in d.text
+    assert 'each one' not in d.text and 'Here is what the catalog lists:' in d.text
+    covered = catalog_result(row(id=1, name='Rain Jacket', price=Decimal('89.00'), attributes={'material': 'nylon'}, description='Fully waterproof hooded jacket.', tags=['jacket']))
+    cs2 = enrich_cards([covered])
+    d = ok(compose_text('You want to know about the jacket.', 'What matters most to you?', cs2, msg), cs=cs2, message=msg)
+    assert 'waterproofing' not in d.text and 'colour options' in d.text
+    quiet = ok(compose_text('You want to know about the jacket.', 'What matters most to you?', cs, 'Tell me about this jacket'), cs=cs, message='Tell me about this jacket')
+    assert 'mention' not in quiet.text
+    pair = enrich_cards([catalog_result(row(id=1, name='Smart Watch', price=Decimal('150.00'), attributes={'battery': '2 days'})), catalog_result(row(id=2, name='Fitness Band', price=Decimal('45.00'), attributes={'weight': '25 g'}))])
+    msg = 'does either work with android?'
+    d = ok(compose_text('Let me check both.', 'What matters most to you?', pair, msg), cs=pair, message=msg)
+    assert 'None of these entries mention compatibility details.' in d.text
+
+
 def test_compose_no_matching_tag_line_survives_a_card_whose_name_repeats_its_own_tag():
     """Broad offline stress (b035, "Need a shirt for a summer wedding"): Cotton Shirt (material cotton, tags shirt, casual, cotton) made the "no matching tag (its tags: ...)" line carry "cotton" twice once the name rendered, so render_slots raised slot_duplicate_value and the whole compose reply fell back. Same class as the shared-tag crash fixed in #346. The tags are already in the card block, so the line drops the parenthetical in that case."""
     from app.services.conversation.slot_copy import enrich_cards, compose_text
