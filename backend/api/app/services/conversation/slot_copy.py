@@ -22,11 +22,11 @@ _STOCK_WORDS = {'local_in_stock': 'in stock', 'fixture_in_stock': 'in stock', 'l
 
 SLOT_WRITER_RULES = (
     "Write the reply as JSON {text}. Never type a number, price, measurement, product ID or link yourself. Every fact comes from a slot that the shop fills in: "
-    "[[name:ID]] for a product name, [[price:ID]] for its price, [[spec.KEY:ID]] for a listed spec value, [[total]] and [[left]] for the combined price and the budget left when they are provided. "
+    "[[name:ID]] for a product name, [[price:ID]] for its price, [[spec.KEY:ID]] for a listed spec value, [[no_promise]] for the refusal to promise stock or delivery, [[total]] and [[left]] for the combined price and the budget left when they are provided. "
     "Use only IDs and spec keys that appear in the supplied cards. A fact with no slot is unknown: say plainly that you do not have it, in your own words, without slots. "
     "Shape it like a sharp, tactful sales engineer, in tidy blocks separated by a blank line: first block answers the customer's actual question in one direct sentence (yes, no, or what you do not have); second block lays out the specific facts, as short bullet lines starting with \"- \" only when there are two or more, each line a short phrase in your own words and not just a bare name and number; third block says what it means for what this customer is doing; last block is one specific, useful question or next step that fits this customer. "
     "Do not rank or praise a product (better, best, ideal, lightweight, perfect, great) unless a slot fact shows it: the review rejects judgments no card supports. When asked which is better, say what each one does with its slot facts and ask what matters most to the customer. "
-    "When the customer asks about delivery, shipping, guarantees, returns or merchant stock, say in one plain sentence that you cannot promise or verify it, and do not mention shipping schedules or delivery methods anywhere else. "
+    "When the customer asks about delivery, shipping, guarantees, returns or merchant stock, write the slot [[no_promise]] (the shop fills in a plain refusal) and do not mention shipping, delivery, next-day or guarantees anywhere else, and never offer items with confirmed delivery. "
     "Never open with a stock phrase (Here's a rundown, Sure thing, Great question), no exclamation marks, no greeting. Vary the shape, wording and length from reply to reply (the block jobs stay, how you do them changes). Everything else is free."
 )
 
@@ -70,6 +70,10 @@ def render_slots(raw, cards, brief=None, message=None):
 
     def fill(match):
         key, pid_text = match.group(1), match.group(2)
+        if key == 'no_promise':
+            if pid_text:
+                raise SlotError('slot_unknown_kind')
+            return "I can't promise merchant stock or delivery timing."
         if key in ('total', 'left'):
             if pid_text or not totals:
                 raise SlotError('slot_total_unavailable')

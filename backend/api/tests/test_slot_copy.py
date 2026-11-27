@@ -127,4 +127,20 @@ def test_slot_writer_rules_forbid_unsupported_ranking_and_praise():
 def test_slot_writer_rules_keep_delivery_talk_to_one_plain_refusal():
     """Real Groq (n=1, grd-01, 4:21 AM): "confirm the merchant's shipping schedule" tripped the deterministic policy backstop."""
     from app.services.conversation.slot_copy import SLOT_WRITER_RULES as R
-    assert 'cannot promise or verify it' in R and 'shipping schedules' in R
+    assert '[[no_promise]]' in R and 'next-day' in R
+
+
+def test_no_promise_slot_renders_a_fixed_refusal_that_passes_the_policy_backstop():
+    """Real Groq (n=1, grd-01, 4:33 AM): the model offered "items with confirmed next-day delivery", which the backstop rightly rejects. The refusal is now code-written."""
+    import pytest
+    from tests.test_shopping_discovery_contract import row
+    from app.services.shopping_discovery import catalog_result
+    from app.services.conversation.slot_copy import render_slots, SlotError
+    from app.services.conversation.shopping_copy import validate_draft
+    card = catalog_result(row())
+    q = 'Can you guarantee the Studio Headphones arrive tomorrow?'
+    d = render_slots({'text': "[[no_promise]]\n\nThe [[name:1]] is [[price:1]]. Do you need it for a specific date?"}, [card], None, q)
+    assert "I can't promise merchant stock or delivery timing." in d.text
+    validate_draft(d, [card], {}, {}, q)
+    with pytest.raises(SlotError):
+        render_slots({'text': '[[no_promise:1]]'}, [card], None, q)
