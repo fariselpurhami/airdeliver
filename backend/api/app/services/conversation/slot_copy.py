@@ -384,6 +384,29 @@ def _need_lines(message, cs):
             out.append(f'On price, {_names(top)} are tied at [[price:{top[-1]}]]' + (f'; next is [[name:{nxt}]] at [[price:{nxt}]].' if nxt else '.'))
         if r:
             out.append(f'On price, [[name:{r[0][1]}]] is the lowest listed at [[price:{r[0][1]}]]; next is [[name:{r[1][1]}]] at [[price:{r[1][1]}]].')
+    cap = re.search(r'(?:under|below|less than|max(?:imum)?|within|up to|at most|no more than)\s*(?:\$|usd|€|£)?\s*(\d+(?:[.,]\d+)?)|(?:\$|€|£)\s*(\d+(?:[.,]\d+)?)\s*(?:or less|max|tops)?', low)
+    if cap and re.search(r'[$€£]|usd|dollars?|euros?|pounds?|budget', low) and re.search(r'under|below|less than|max|within|up to|at most|no more than|or less|tops', low):
+        try:
+            limit = Decimal((cap.group(1) or cap.group(2)).replace(',', '.'))
+        except Exception:
+            limit = None
+        priced = []
+        for c in cs:
+            try:
+                priced.append((Decimal(str(c['price'])), c['id']))
+            except Exception:
+                pass
+        priced.sort()
+        if limit is not None and len(priced) >= 2:
+            fit = [i for v, i in priced if v <= limit]
+            over = [i for v, i in priced if v > limit]
+            if fit:
+                text = 'Within your budget: ' + ' and '.join(f'[[name:{i}]] at [[price:{i}]]' for i in fit) + '.'
+                if over:
+                    text += ' ' + ' and '.join(f'[[name:{i}]] at [[price:{i}]]' for i in over) + (' is' if len(over) == 1 else ' are') + ' over it.'
+                out.append(text)
+            else:
+                out.append(f'None of these is within your budget; the lowest listed is [[name:{priced[0][1]}]] at [[price:{priced[0][1]}]].')
     if re.search(r'rating|rated|reviews?\b|top.?rated', low):
         vals = []
         for c in cs:

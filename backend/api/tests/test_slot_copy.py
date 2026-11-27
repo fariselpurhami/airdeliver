@@ -495,3 +495,19 @@ def test_compose_says_when_cards_tie_on_the_asked_criterion():
     three = enrich_cards([r(id=1, name='Pack A', price=Decimal('45.00')), r(id=2, name='Pack B', price=Decimal('45.00')), r(id=3, name='Pack C', price=Decimal('50.00'))])
     d = ok(compose_text('Okay.', 'What matters more?', three, 'Which is cheapest?'), cs=three, message='Which is cheapest?')
     assert 'On price, Pack A and Pack B are tied at $45.00; next is Pack C at $50.00.' in d.text
+
+
+def test_compose_states_which_cards_fit_a_budget_the_customer_typed():
+    """A customer budget ("under $50") is a hard constraint. Code compares it to the listed prices and says which cards fit; the customer's own number is not repeated (it never enters the text), so no digit is typed outside a slot."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    r = lambda **k: catalog_result(row(**k))
+    cs = enrich_cards([r(id=1, name='Day Pack', price=Decimal('45.00'), attributes={'weight': '1.2 kg'}), r(id=2, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}), r(id=3, name='Mini Pack', price=Decimal('30.00'), attributes={'weight': '400 g'})])
+    msg = 'I need a pack under $50 for hiking'
+    d = ok(compose_text('Let me narrow it down.', 'What matters more to you?', cs, msg), cs=cs, message=msg)
+    assert 'Within your budget: Mini Pack at $30.00 and Day Pack at $45.00. Trail Backpack at $59.00 is over it.' in d.text
+    msg = 'anything below 20 dollars?'
+    d = ok(compose_text('Let me check.', 'What matters more to you?', cs, msg), cs=cs, message=msg)
+    assert 'None of these is within your budget; the lowest listed is Mini Pack at $30.00.' in d.text
+    for msg in ('I want a pack for hiking', 'a pack for up to 3 people'):
+        d = ok(compose_text('Okay.', 'What matters more to you?', cs, msg), cs=cs, message=msg)
+        assert 'budget' not in d.text
