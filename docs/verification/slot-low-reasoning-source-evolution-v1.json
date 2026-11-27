@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/free_llm_service.py": {
+  "baseline_sha256": "a2f1314c4e0d216c90f3a2a92c194385cbecdba1b8ceafa9b6f33f374f44200e",
+  "current_sha256": "98cbd062002265cb2e0de56b5c4cb337d9fce36e98cdd865adc3c4945d771e56",
+  "replacements": [
+   {
+    "old": "            **({'reasoning_effort':'low'} if self.models.brain_model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and response_schema and response_schema.__name__ in {'OpeningBatch','GroundingReview','ShoppingDraft'} else {}),\n",
+    "new": "            **({'reasoning_effort':'low'} if self.models.brain_model in {'openai/gpt-oss-120b','openai/gpt-oss-20b'} and response_schema and response_schema.__name__ in {'OpeningBatch','GroundingReview','ShoppingDraft','SlotDraft'} else {}),\n",
+    "count": 1
+   }
+  ]
+ }
+}
