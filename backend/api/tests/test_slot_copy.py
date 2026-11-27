@@ -255,9 +255,8 @@ def test_card_slot_prints_every_listed_fact_exactly_and_declares_claims():
     rich = catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, description='Padded daypack with a rain cover. Ships in a box.', tags=['hiking', 'outdoor'], rating=4.5))
     cs = enrich_cards([rich, cards()[1]])
     d = ok("The pack looks right for a day on the trail.\n\n- [[card:7]]\n- [[card:2]]\n\nWhich matters more to you?", cs=cs)
-    line = d.text.split('\n')[2]
-    assert line == "- Trail Backpack, $59.00. Weight 650 g. Rated 4.5 out of 5. Tags: hiking, outdoor. Padded daypack with a rain cover."
-    assert "- Steel Bottle, $18.00. Capacity 750 ml." in d.text
+    assert "- Trail Backpack\n  - Price: $59.00\n  - Weight: 650 g\n  - Rating: 4.5 out of 5\n  - Tags: hiking, outdoor\n  - Description: Padded daypack with a rain cover.\n" in d.text
+    assert "- Steel Bottle\n  - Price: $18.00\n  - Capacity: 750 ml\n" in d.text
     assert {(c.product_id, c.field) for c in d.claims} >= {(7, 'name'), (7, 'price'), (7, 'spec.weight'), (7, 'spec.rating'), (7, 'spec.description'), (2, 'spec.capacity')}
     with pytest.raises(SlotError):
         ok("- [[card:99]]", cs=cs)

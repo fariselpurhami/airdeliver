@@ -218,23 +218,22 @@ def render_slots(raw, cards, brief=None, message=None):
             shown, exact = _money(card)
             claim(pid, 'name', card['name'])
             claim(pid, 'price', exact)
-            parts = [f"{card['name']}, {shown}."]
+            parts = [str(card['name']), f'  - Price: {shown}']
             for k, v in specs.items():
                 if k in ('description', 'rating', 'tags') or not str(v).strip():
                     continue
                 claim(pid, 'spec.' + k, str(v))
-                parts.append(f"{k.replace('_', ' ').capitalize()} {v}.")
+                parts.append(f"  - {k.replace('_', ' ').capitalize()}: {v}")
             if specs.get('rating'):
                 claim(pid, 'spec.rating', specs['rating'])
-                parts.append(f"Rated {specs['rating']}.")
+                parts.append(f"  - Rating: {specs['rating']}")
             if specs.get('tags'):
                 claim(pid, 'spec.tags', specs['tags'])
-                parts.append(f"Tags: {specs['tags']}.")
+                parts.append(f"  - Tags: {specs['tags']}")
             if specs.get('description'):
                 claim(pid, 'spec.description', specs['description'])
-                d = str(specs['description']).strip()
-                parts.append(d if d[-1] in '.!?' else d + '.')
-            return ' '.join(parts)
+                parts.append(f"  - Description: {str(specs['description']).strip()}")
+            return '\n'.join(parts)
         if key == 'name':
             claim(pid, 'name', card['name'])
             return str(card['name'])
