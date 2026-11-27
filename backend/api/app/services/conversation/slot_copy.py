@@ -347,6 +347,43 @@ def _card_words(cs, tags=True):
     return out
 
 
+def _grams(value):
+    m = re.match(r'\s*(\d+(?:\.\d+)?)\s*(kg|g)\b', str(value), re.I)
+    return Decimal(m.group(1)) * (1000 if m.group(2).lower() == 'kg' else 1) if m else None
+
+
+def _need_lines(message, cs):
+    """Facts that answer what the customer asked for (lowest price, highest rating, lowest weight), from listed values only, through slots, only when asked."""
+    low = (message or '').casefold()
+    out = []
+    def ranked(values, reverse):
+        items = sorted(((v, c['id']) for c, v in values if v is not None), reverse=reverse)
+        return items if len(items) >= 2 and items[0][0] != items[1][0] else []
+    if re.search(r'cheap|budget|lowest price|afford|least expensive|inexpensive', low):
+        vals = []
+        for c in cs:
+            try:
+                vals.append((c, Decimal(str(c['price']))))
+            except Exception:
+                pass
+        r = ranked(vals, False)
+        if r:
+            out.append(f'On price, [[name:{r[0][1]}]] is the lowest listed at [[price:{r[0][1]}]]; next is [[name:{r[1][1]}]] at [[price:{r[1][1]}]].')
+    if re.search(r'rating|rated|reviews?\b|top.?rated', low):
+        vals = []
+        for c in cs:
+            m = re.match(r'\s*(\d+(?:\.\d+)?)', str((c.get('catalog_specs') or {}).get('rating', '')))
+            vals.append((c, Decimal(m.group(1)) if m else None))
+        r = ranked(vals, True)
+        if r:
+            out.append(f'On rating, [[name:{r[0][1]}]] lists the highest: [[spec.rating:{r[0][1]}]]. [[name:{r[1][1]}]] lists [[spec.rating:{r[1][1]}]].')
+    if re.search(r'light|weigh|heavy', low):
+        r = ranked([(c, _grams((c.get('catalog_specs') or {}).get('weight'))) for c in cs], False)
+        if r:
+            out.append(f'On weight, [[name:{r[0][1]}]] lists the lowest: [[spec.weight:{r[0][1]}]]. [[name:{r[1][1]}]] lists [[spec.weight:{r[1][1]}]].')
+    return out
+
+
 def compose_text(opening, question, cards, message=None):
     """Compose mode (AIRDELIVER_SLOT_COMPOSE=1): code builds everything between the model's opening and question from the cards alone: one fact block per product and what each card does not list. Only name slots and the card block carry values."""
     cs = [c.model_dump() if hasattr(c, 'model_dump') else dict(c) for c in cards]
@@ -377,6 +414,9 @@ def compose_text(opening, question, cards, message=None):
                 gaps.append('Check each description for anything beyond these entries.')
     if gaps:
         parts.append(' '.join(gaps))
+    needs = _need_lines(message, cs)
+    if needs:
+        parts.append(' '.join(needs))
     fits = []
     words = {w for w in re.findall(r'[a-z]{4,}', (message or '').casefold())}
     for c in cs:

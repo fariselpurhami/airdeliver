@@ -367,3 +367,18 @@ def test_compose_question_may_use_a_tag_word_but_not_description_words():
         compose_text('The hydration pick helps.', 'Which?', cs, msg)
     with pytest.raises(SlotError):
         compose_text('Okay.', 'Do you want the vacuum design?', cs, msg)
+
+
+def test_compose_states_the_fact_that_answers_what_the_customer_asked_for():
+    """Compose needed a clearer recommendation. Code may say which card lists the lowest price, highest rating or lowest weight, but only when the customer asked for that, only from listed values, and only through slots."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    a = catalog_result(row(id=1, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, description='Padded daypack.', tags=['hiking'], rating=4.5))
+    b = catalog_result(row(id=2, name='Day Pack', price=Decimal('45.00'), attributes={'weight': '1.2 kg'}, description='Simple pack.', tags=['city'], rating=4.7))
+    cs = enrich_cards([a, b])
+    def go(msg):
+        return ok(compose_text('Okay.', 'What matters most to you?', cs, msg), cs=cs, message=msg).text
+    assert 'On price, Day Pack is the lowest listed at $45.00; next is Trail Backpack at $59.00.' in go('Which is the cheapest?')
+    assert 'On rating, Day Pack lists the highest: 4.7 out of 5. Trail Backpack lists 4.5 out of 5.' in go('Which has the best rating?')
+    assert 'On weight, Trail Backpack lists the lowest: 650 g. Day Pack lists 1.2 kg.' in go('Which is the lightest?')
+    plain = go('Tell me about these')
+    assert 'On price' not in plain and 'On rating' not in plain and 'On weight' not in plain
