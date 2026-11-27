@@ -413,3 +413,14 @@ def test_compose_rules_keep_the_question_to_the_customers_own_topics():
     from app.services.conversation.slot_copy import COMPOSE_RULES as R
     low = R.casefold()
     assert 'only about topics the customer wrote' in low and 'never name a use or feature the customer did not mention' in low
+
+
+def test_compose_question_cannot_ask_about_a_field_no_card_lists():
+    """Real n=1 (13:51, cmp-02): the question asked about "the weight of the device" while neither card lists a weight."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    cs = enrich_cards(cards())
+    with pytest.raises(SlotError):
+        compose_text('Okay.', 'Which matters more, the price or the weight?', cs, 'Compare these.')
+    assert 'price' in compose_text('Okay.', 'Which matters more, the price or the connectivity?', cs, 'Compare these.')
+    heavy = enrich_cards([catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}))])
+    assert 'weight' in compose_text('Okay.', 'Is the weight important?', heavy, 'Compare these.')

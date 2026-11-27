@@ -398,6 +398,10 @@ def compose_text(opening, question, cards, message=None):
     if words(strip(opening)) & (_card_words(cs) - allowed) or words(strip(question)) & (_card_words(cs, tags=False) - allowed):
         raise SlotError('compose_card_wording')
     listed = {c['id']: _listed(c) for c in cs}
+    have = {_label(k) for ks in listed.values() for k in ks} | {'rating' for c in cs if (c.get('catalog_specs') or {}).get('rating')}
+    for field in ('weight', 'capacity', 'rating', 'battery', 'material', 'size', 'color', 'colour', 'dimensions', 'warranty', 'price'):
+        if re.search(r'\b' + field + r'\b', question.casefold()) and field not in have:
+            raise SlotError('compose_unlisted_field')
     union = []
     for c in cs:
         union += [k for k in listed[c['id']] if k not in union]
