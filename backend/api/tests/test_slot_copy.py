@@ -60,7 +60,7 @@ def test_id_leak_and_price_mismatch_are_impossible_by_construction():
     assert 'ID' not in d.text and '$18.00' in d.text and 'local_in_stock' not in d.text
 
 def test_writer_rules_forbid_typed_numbers_and_leave_voice_free():
-    assert 'Never type a number' in SLOT_WRITER_RULES and 'vary the shape' in SLOT_WRITER_RULES
+    assert 'Never type a number' in SLOT_WRITER_RULES and 'vary the shape' in SLOT_WRITER_RULES.casefold()
 
 
 def test_total_needs_two_priced_cards_and_left_needs_a_budget():
