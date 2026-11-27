@@ -373,5 +373,15 @@ def compose_text(opening, question, cards, message=None):
                 gaps.append('Check each description for anything beyond these entries.')
     if gaps:
         parts.append(' '.join(gaps))
+    fits = []
+    words = {w for w in re.findall(r'[a-z]{4,}', (message or '').casefold())}
+    for c in cs:
+        for tag in [x.strip() for x in str((c.get('catalog_specs') or {}).get('tags', '')).split(',') if len(x.strip()) >= 4]:
+            word = next((w for w in sorted(words) if w[:3] == tag.casefold()[:3]), None)
+            if word:
+                fits.append(f'You mentioned "{word}": [[name:{c["id"]}]] is tagged {tag}.')
+                break
+    if fits:
+        parts.append(' '.join(fits))
     parts.append(question.strip())
     return '\n\n'.join(p for p in parts if p)

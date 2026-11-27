@@ -326,3 +326,14 @@ def test_compose_rejects_model_text_that_paraphrases_card_descriptions_or_tags()
     with pytest.raises(SlotError):
         compose_text('Both can work.', 'Do you want a padded carry option?', cs, msg)
     assert 'weekend hike' in compose_text('Both can fit a weekend hike, for different jobs.', 'Which matters more?', cs, msg)
+
+
+def test_compose_adds_a_fit_line_only_where_a_card_tag_matches_the_customers_own_word():
+    """Thin advice in compose mode: code may say which product is tagged for what the customer asked (a card fact matched to the customer's own word), and nothing else."""
+    from app.services.conversation.slot_copy import enrich_cards, compose_text
+    rich = catalog_result(row(id=7, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, description='Padded daypack.', tags=['hiking', 'daypack'], rating=4.5))
+    cs = enrich_cards([rich, cards()[1]])
+    d = ok(compose_text('Both can work.', 'Which matters more?', cs, 'Which is better for a weekend hike?'), cs=cs, message='Which is better for a weekend hike?')
+    assert 'You mentioned "hike": Trail Backpack is tagged hiking.' in d.text
+    quiet = ok(compose_text('Both can work.', 'Which matters more?', cs, 'Which is better for a commute?'), cs=cs, message='Which is better for a commute?')
+    assert 'is tagged' not in quiet.text
