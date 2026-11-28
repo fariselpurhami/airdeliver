@@ -739,7 +739,8 @@ def test_four_or_more_cards_get_price_and_rating_pointers_without_being_asked():
     d = ok(compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs, msg), cs=cs, message=msg)
     assert 'On price, Beta Mat is the lowest listed at $12.00' in d.text
     assert 'On rating, Beta Mat lists the highest' in d.text
-    three = ok(compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs[:3], msg), cs=cs[:3], message=msg)
+    msg3 = 'Tell me about these'  # no open which-one ask, so no pointers for three cards
+    three = ok(compose_text('You want a straight answer, so here it is.', 'What else should I check for you?', cs[:3], msg3), cs=cs[:3], message=msg3)
     assert 'On price' not in three.text
 
 
@@ -818,3 +819,19 @@ def test_more_everyday_asks_are_named_as_not_listed_when_no_card_covers_them():
     plain = enrich_cards(cards()[:1])
     d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', listed, 'How many litres is it?'), cs=listed, message='How many litres is it?')
     assert 'capacity in litres' not in d.text
+
+
+def test_open_which_one_asks_get_price_and_rating_pointers_when_nothing_else_answers_them():
+    """Real run b061 (Groq, vague, 'Which one should I take?', shirt vs scarf): reviewer-only rejection, the reply gave no choosing aid. Open 'which one' asks with two or more cards now get the lowest listed price and highest listed rating, only when no other need line already answers."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    a = catalog_result(row(id=90, name='Cotton Shirt', price=Decimal('24.00'), rating=4.1))
+    b = catalog_result(row(id=91, name='Wool Scarf', price=Decimal('30.00'), rating=4.6))
+    cs = enrich_cards([a, b])
+    for msg in ('Which one should I take?', 'so which would you pick', 'worth it?'):
+        d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+        assert 'On price, Cotton Shirt is the lowest listed at $24.00' in d.text and 'On rating, Wool Scarf lists the highest' in d.text, msg
+    d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'Which of these is the cheapest?'), cs=cs, message='Which of these is the cheapest?')
+    assert d.text.count('On price') == 1 and 'On rating' not in d.text
+    one = enrich_cards([a])
+    assert 'On price' not in ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', one, 'Which one should I take?'), cs=one, message='Which one should I take?').text

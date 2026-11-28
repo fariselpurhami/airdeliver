@@ -38,7 +38,7 @@ def _names(ids):
     return ' and '.join(f'[[name:{i}]]' for i in ids)
 
 
-def _need_lines(message, cs):
+def _need_lines(message, cs, _again=False):
     """Facts that answer what the customer asked for (lowest price, highest rating, lowest weight), from listed values only, through slots, only when asked."""
     low = (message or '').casefold()
     if len(cs) >= 4:
@@ -123,6 +123,8 @@ def _need_lines(message, cs):
             out.append(f'On weight, {_names(tie[0])} are tied at [[spec.weight:{tie[0][-1]}]].')
         if r:
             out.append(f'On weight, [[name:{r[0][1]}]] lists the lowest: [[spec.weight:{r[0][1]}]]. [[name:{r[1][1]}]] lists [[spec.weight:{r[1][1]}]].')
+    if not out and not _again and len(cs) >= 2 and not re.search(r'light|weigh|heav|review|rating|rated|cheap|price|cost|battery|size|colou?r|fit|long|small|big', low) and re.search(r'\bwhich (?:one|of)\b|\bshould i (?:take|get|buy|pick|choose)\b|\bwhich would you\b|\bpick\b|\bworth it\b|\brecommend|\bthoughts\b', low):
+        return _need_lines((message or '') + ' lowest price top rated', cs, True)
     return out
 
 
