@@ -103,7 +103,9 @@ def compose_text(opening, question, cards, message=None):
     if hits:
         word = hits[0][2][1]
         others = [f for f in fits if not f[2] and f[1] and not any(g[:3] == word[:3] for g in (x.casefold() for x in f[1]))]
-        if others or len(hits) > 1:
+        if len(hits) == len(cs) >= 2 and not others and len({h[2][0].casefold() for h in hits}) == 1:  # one line, not one per card
+            extras.append(f'{"Both are" if len(cs) == 2 else "All of them are"} tagged {hits[0][2][0]}.')
+        elif others or len(hits) > 1:
             seg = [f'- [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits] + [f'- [[name:{c["id"]}]] has no matching tag' + ('.' if _tag_echoes_card(c, tags) else f' (its tags: {", ".join(tags)}).') for c, tags, _ in others]
             extras.append(f'For "{word}":\n' + '\n'.join(seg))
         else:

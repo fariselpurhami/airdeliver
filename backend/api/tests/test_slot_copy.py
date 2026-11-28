@@ -487,7 +487,7 @@ def test_compose_three_products_and_shared_tags_do_not_trip_the_duplicate_value_
     same = enrich_cards([r(id=1, name='Day Pack', price=Decimal('45.00'), attributes={'weight': '1.2 kg'}, tags=['hiking']), r(id=2, name='Trail Backpack', price=Decimal('59.00'), attributes={'weight': '650 g'}, tags=['hiking'])])
     msg = 'Which is lighter for hiking?'
     d = ok(compose_text('Both are packs.', 'What matters more to you?', same, msg), cs=same, message=msg)
-    assert 'For "hiking":\n- Day Pack is tagged hiking.\n- Trail Backpack is tagged hiking.' in d.text
+    assert 'Both are tagged hiking.' in d.text
 
 
 def test_compose_says_when_cards_tie_on_the_asked_criterion():
@@ -860,3 +860,17 @@ def test_code_built_reply_has_exactly_four_sections_however_many_notes_apply():
         assert len([p for p in t.split('\n\n') if p.strip()]) == 4, (msg, t)
     t = compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'Which is cheaper')
     assert len([p for p in t.split('\n\n') if p.strip()]) == 4  # no notes apply: the heading stands as its own section, nothing is invented
+
+
+def test_tag_fit_lines_are_skipped_when_every_card_carries_the_tag():
+    """Real Groq b029 (gifts): 'For "gift": A is tagged gift. B is tagged gift. C is tagged gift.' separates nothing, so it is one line, not one per card. It stays per card when it tells the cards apart."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    def tagged(*tags):
+        return [c.model_copy(update={'catalog_specs': {**c.catalog_specs, 'tags': t}}) for c, t in zip(cards(), tags)]
+    cs = tagged('gift, home', 'gift, kitchen')
+    t = compose_text('Let us take this one piece at a time.', 'What matters most?', cs, 'A gift for my mum')
+    assert 'Both are tagged gift.' in t and 'Wool' not in t and t.count('tagged gift') == 1
+    cs = tagged('office, desk', 'gift, kitchen')
+    t2 = compose_text('Let us take this one piece at a time.', 'What matters most?', cs, 'A gift for my mum')
+    assert 'tagged gift' in t2
