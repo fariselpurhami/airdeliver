@@ -928,3 +928,23 @@ def test_asked_size_that_differs_from_the_listed_size_is_stated_without_typing_d
     assert 'no other size' not in same.text
     other = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', enrich_cards([base]), msg), cs=enrich_cards([base]), message=msg)
     assert 'no other size' not in other.text
+
+
+def test_same_category_cards_with_different_product_types_are_called_different_kinds():
+    """Faris approved product_type as an additive field (phonemsg-01M8GGEPJZFYXMNT5YPMTZX0MC). It rides in the existing attributes map, so no schema or data change. Two cards in one category whose product_type differs are said to be different kinds; equal types, or a missing type on either, say nothing."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    def typed(card, t):
+        specs = {**card.catalog_specs, 'capacity': '1 l'}
+        if t:
+            specs['product_type'] = t
+        return card.model_copy(update={'category': 'Kitchen', 'catalog_specs': specs})
+    a, b = cards()
+    msg = 'which one should I get for cooking'
+    def run(ta, tb):
+        cs = enrich_cards([typed(a, ta), typed(b, tb)])
+        return ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg).text
+    diff = run('chef knife', 'frying pan')
+    assert 'chef knife' in diff and 'frying pan' in diff and 'different kinds' in diff
+    assert 'different kinds' not in run('frying pan', 'Frying Pan')
+    assert 'different kinds' not in run('chef knife', None)

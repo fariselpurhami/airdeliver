@@ -65,7 +65,11 @@ def compose_text(opening, question, cards, message=None):
     extras = []
     different = False
     keysets = [{k for k in listed[c['id']] if k not in ('price', 'description', 'rating', 'tags')} for c in cs]
-    if len(cs) == 2 and all(keysets) and not (keysets[0] & keysets[1]):
+    ptypes = [str((c.get('catalog_specs') or {}).get('product_type', '')).strip() for c in cs]
+    if len(cs) == 2 and all(ptypes) and ptypes[0].casefold() != ptypes[1].casefold():
+        different = True
+        parts.append(f"[[name:{cs[0]['id']}]] is listed as [[spec.product_type:{cs[0]['id']}]] and [[name:{cs[1]['id']}]] as [[spec.product_type:{cs[1]['id']}]], {_pick(message, "kind", ("so they are different kinds of item, not substitutes.", "so they are different kinds of product and do not replace each other.", "so they are different kinds of thing, not alternatives to each other."))}")
+    elif len(cs) == 2 and all(keysets) and not (keysets[0] & keysets[1]):
         names = [f"[[name:{c['id']}]]" for c in cs]
         different = True
         extras.append(f"{names[0]} is listed with {_join([_label(k) for k in sorted(keysets[0])])} and {names[1]} with {_join([_label(k) for k in sorted(keysets[1])])}, {_pick(message, "kind", ("so they look like two different kinds of item, not substitutes.", "so they are not interchangeable.", "so they are not really alternatives to each other."))}")
