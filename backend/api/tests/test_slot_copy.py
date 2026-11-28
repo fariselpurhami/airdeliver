@@ -958,3 +958,18 @@ def test_internal_status_tokens_never_reach_the_customer_in_any_language():
 def ShoppingDraftForTest(text):
     from app.services.shopping_copy import ShoppingDraft
     return ShoppingDraft(text=text, product_ids=[], claims=[])
+
+
+def test_safety_standard_asks_are_not_answered_by_a_tag_match():
+    """Real Groq b058 (sports, 'Does it meet EU safety standards?'): the reply said the helmet is 'tagged safety, which matches your question', which reads as a yes. The reviewer rejected it as an unsupported claim. Code says the entry lists no safety standards or certifications and drops the tag-match line for that word."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    base = cards()[1]
+    helmet = base.model_copy(update={'name': 'Bike Helmet', 'catalog_specs': {**base.catalog_specs, 'tags': 'helmet, safety, cycling'}})
+    cs = enrich_cards([helmet])
+    msg = 'Does it meet EU safety standards?'
+    d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+    assert 'safety standards or certifications' in d.text
+    assert 'tagged safety' not in d.text
+    d2 = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'Is it good for cycling?'), cs=cs, message='Is it good for cycling?')
+    assert 'tagged cycling' in d2.text

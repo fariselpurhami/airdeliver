@@ -95,6 +95,8 @@ def compose_text(opening, question, cards, message=None):
     if unlisted:
         extras.append(' '.join(unlisted))
     qwords = {w for w in re.findall(r'[a-z]{4,}', low)}
+    if unlisted and any('safety standards or certifications' in u for u in unlisted):
+        qwords -= {'safety', 'safe', 'standard', 'standards', 'certified', 'certification', 'approved', 'compliant'}  # a tag match must not read as a yes to a standards question
     fits = []
     for c in cs:
         tags = [x.strip() for x in str((c.get('catalog_specs') or {}).get('tags', '')).split(',') if len(x.strip()) >= 4 or x.strip().casefold() in _IMPLIES.values()]

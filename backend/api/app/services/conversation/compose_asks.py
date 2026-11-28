@@ -18,6 +18,7 @@ _UNLISTED_ASKS = (
     ('capacity in litres', r'\blit(?:re|er)s?\b|how much (?:does it )?hold', r'\blit(?:re|er)|\bcapacity\b|\bml\b|\bvolume\b'),
     ('fit for your height or body size', r"\blong back\b|\bi am \d{3}\s?cm\b|\bi'?m (?:tall|short)\b|\bi am (?:tall|short)\b|\bmy height\b|\bfor (?:a )?tall (?:person|people)\b", r'\bheight\b|\bdimension|\bsize\b|\bcm\b'),
     ('a verdict on value for money', r'\bworth (?:it|the|buying|getting|paying|my)\b|\bgood value\b|\bvalue for money\b|\bbang for (?:my|the) buck\b|\bworth a buy\b', r'\bvalue\b|\bworth\b'),
+    ('safety standards or certifications', r'\b(?:safety|quality) (?:standards?|certif\w*|rating|approval)\b|\bmeets? (?:the )?(?:eu|ce|ul|astm|iso|en|din|fda|ece|dot)\b|\bcertified\b|\bcertification\b|\b(?:ce|ul|astm|iso|fda|ece|dot)[- ](?:approved|marked|certified|rated|compliant)\b|\bcomplies with\b|\bcompliant\b', r'\bstandard|\bcertif|\bapproved\b|\bcompl(?:y|iant)'),
     ('space or size fit', r'\balcove\b|\bwide enough\b|\bfit (?:in|into|on|under|through)\b|\bhow (?:wide|tall|big)\b', r'\bwidth|\bwide\b|\bheight|\bdimension|\b\d+\s?cm\b|\bsize\b'),
     ('occasion or dress-code fit', r'\bwedding\b|\bformal\b|\binterview\b|\bfuneral\b|\bblack tie\b|\bdress code\b', r'\bwedding|\bformal|\binterview|\bfuneral|\bblack tie|\bdress code'),
     ('material safety details', r'\bbpa\b|\bnon-?toxic\b|\btoxic\b|\bchemicals?\b|\bphthalates?\b|\blead.?free\b|\bfood.?safe\b|\bfood grade\b', r'\bbpa\b|toxic|chemical|phthalate|lead.?free|food.?safe|food grade'),
