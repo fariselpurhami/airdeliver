@@ -68,6 +68,13 @@ def _need_lines(message, cs, _again=False):
             out.append(f'On price, {_names(top)} are tied at [[price:{top[-1]}]]' + (f'; next is [[name:{nxt}]] at [[price:{nxt}]].' if nxt else '.'))
         if r:
             out.append(f'On price, [[name:{r[0][1]}]] is the lowest listed at [[price:{r[0][1]}]]; next is [[name:{r[1][1]}]] at [[price:{r[1][1]}]].')
+        if r and len(cs) == 2 and re.search(r'\b(?:the )?(?:cheaper|cheapest|less expensive|lower[- ]priced)(?: one)?\b', low):
+            cheap = next(c for c in cs if c['id'] == r[0][1])
+            for k in (cheap.get('catalog_specs') or {}):
+                lab = k.replace('_', ' ')
+                if k not in ('description', 'tags', 'rating') and str(cheap['catalog_specs'][k]).strip() and re.search(r'\b' + re.escape(lab) + r'\b', low):
+                    out.append(f"[[name:{cheap['id']}]] is the cheaper one and lists its {lab} as [[spec.{k}:{cheap['id']}]].")
+                    break
     cap = re.search(r'(?:under|below|less than|max(?:imum)?|within|up to|at most|no more than)\s*(?:\$|usd|€|£)?\s*(\d+(?:[.,]\d+)?)|(?:\$|€|£)\s*(\d+(?:[.,]\d+)?)\s*(?:or less|max|tops)?|(?:i have|i[\u2019\']ve got|budget(?: is| of)?|spend|limit(?: is| of)?)\s*(?:of\s*)?(?:\$|usd|€|£)?\s*(\d+(?:[.,]\d+)?)', low)
     if cap and re.search(r'[$€£]|usd|dollars?|euros?|pounds?|bucks?|budget', low) and re.search(r'under|below|less than|max|within|up to|at most|no more than|or less|tops|i have|i[\u2019\']ve got|budget|spend|limit', low):
         try:

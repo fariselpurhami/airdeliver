@@ -1004,3 +1004,20 @@ def test_a_usual_size_stated_as_i_am_a_43_is_compared_with_the_listed_size():
         assert 'no other size' not in o.text, other
     nosize = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', enrich_cards([base]), 'I am a 43'), cs=enrich_cards([base]), message='I am a 43')
     assert 'no other size' not in nosize.text
+
+
+def test_asking_about_the_cheaper_one_gets_that_products_own_value_in_one_line():
+    """Real Groq b066 (follow-up, 'ok and the cheaper one, how long does the battery last?'): the reply listed both batteries and never said which belongs to the cheaper one. Code resolves 'the cheaper one' from the two listed prices and states its listed value through a slot. No tie, no guess."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    a, b = cards()
+    a = a.model_copy(update={'catalog_specs': {**a.catalog_specs, 'battery': '30 hours'}})
+    b = b.model_copy(update={'catalog_specs': {**b.catalog_specs, 'battery': '6 hours'}})
+    cs = enrich_cards([a, b])
+    msg = 'ok and the cheaper one, how long does the battery last?'
+    d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+    assert 'Steel Bottle is the cheaper one and lists its battery as 6 hours' in d.text
+    assert 'cheaper one and lists' not in ok(compose_text('x.', 'What matters?', cs, 'which is cheaper?'), cs=cs, message='which is cheaper?').text
+    tie = [a, b.model_copy(update={'price': a.price})]
+    d2 = ok(compose_text('x.', 'What matters?', enrich_cards(tie), msg), cs=enrich_cards(tie), message=msg)
+    assert 'cheaper one and lists' not in d2.text
