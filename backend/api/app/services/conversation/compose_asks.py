@@ -16,6 +16,7 @@ _UNLISTED_ASKS = (
     ('folding or portability details', r'\bfold(?:s|able|ing)?\b|\bportable\b|\bcollaps', r'\bfold|\bportable|\bcollaps|\bpackable|\bcompact'),
     ('airline or carry-on rules', r'\bplanes?\b|\bairlines?\b|carry-on|carry on (?:bag|luggage|baggage|allowance)|hand luggage|\bflight (?:rules|allowed)|allowed (?:on|in) (?:a |the )?(?:plane|flight|cabin)', r'\bairline|carry.?on|\bplane|\bfaa\b|\biata\b'),
     ('capacity in litres', r'\blit(?:re|er)s?\b|how much (?:does it )?hold', r'\blit(?:re|er)|\bcapacity\b|\bml\b|\bvolume\b'),
+    ('fit for your height or body size', r"\blong back\b|\bi am \d{3}\s?cm\b|\bi'?m (?:tall|short)\b|\bi am (?:tall|short)\b|\bmy height\b|\bfor (?:a )?tall (?:person|people)\b", r'\bheight\b|\bdimension|\bsize\b|\bcm\b'),
     ('space or size fit', r'\balcove\b|\bwide enough\b|\bfit (?:in|into|on|under|through)\b|\bhow (?:wide|tall|big)\b', r'\bwidth|\bwide\b|\bheight|\bdimension|\b\d+\s?cm\b|\bsize\b'),
     ('occasion or dress-code fit', r'\bwedding\b|\bformal\b|\binterview\b|\bfuneral\b|\bblack tie\b|\bdress code\b', r'\bwedding|\bformal|\binterview|\bfuneral|\bblack tie|\bdress code'),
     ('material safety details', r'\bbpa\b|\bnon-?toxic\b|\btoxic\b|\bchemicals?\b|\bphthalates?\b|\blead.?free\b|\bfood.?safe\b|\bfood grade\b', r'\bbpa\b|toxic|chemical|phthalate|lead.?free|food.?safe|food grade'),

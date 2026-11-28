@@ -874,3 +874,15 @@ def test_tag_fit_lines_are_skipped_when_every_card_carries_the_tag():
     cs = tagged('office, desk', 'gift, kitchen')
     t2 = compose_text('Let us take this one piece at a time.', 'What matters most?', cs, 'A gift for my mum')
     assert 'tagged gift' in t2
+
+
+def test_customer_height_or_long_back_is_named_as_not_listed_even_when_a_tag_says_ergonomic():
+    """Real Groq b049 (home): 'Is the chair good for a long back? I am 190 cm' - the reviewer said the reply never answered fit for a tall person. The card says ergonomic but lists no height or size, so code says the entry has nothing on fit for the customer's height."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    cs = enrich_cards(cards()[1:])
+    for msg in ('Is the chair good for a long back? I am 190 cm', "I'm tall, will it work?", 'My height is 1.9 m, does it suit me?'):
+        d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+        assert 'fit for your height or body size' in d.text, msg
+    plain = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'It is 190 cm wide, will it fit?'), cs=cs, message='It is 190 cm wide, will it fit?')
+    assert 'fit for your height or body size' not in plain.text
