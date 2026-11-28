@@ -11,6 +11,7 @@ _UNLISTED_ASKS = (
     ('noise cancelling', r'noise|cancel', r'noise|cancel'),
     ('a microphone', r'\bmic\b|microphone', r'\bmic\b|microphone'),
     ('bulb or dimming details', r'dimm|bulb', r'dimm|bulb'),
+    ('joint, back or body-fit details', r'\bknees?\b|\bjoints?\b|\bback pain\b|\bbad back\b|\binjur|\barthrit|\bposture\b|\bspine\b|\bankles?\b', r'\bknees?\b|\bjoints?\b|\bback\b|\binjur|\barthrit|\bposture\b|\bspine\b|\bankles?\b|\bsupport\b|\bergonomic'),
     ('induction use', r'induction', r'induction'),
     ('microwave use', r'microwave', r'microwave'),
     ('care instructions', r'washab|machine.?wash|dishwasher', r'wash|dishwasher|care'),

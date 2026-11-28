@@ -785,3 +785,16 @@ def test_life_stage_words_match_the_tag_for_what_they_are():
     assert 'For "puppy"' in d.text and 'Dog Leash is tagged dog' in d.text and 'Cat Scratcher has no matching tag' in d.text
     plain = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'which of these is cheaper?'), cs=cs, message='which of these is cheaper?')
     assert 'tagged' not in plain.text
+
+
+def test_body_and_health_fit_asks_are_named_as_not_listed():
+    """Real run b059 (Groq, sports, 'Which is better for knees?', mat vs dumbbells): reviewer-only rejection. Nothing in the reply said the cards carry no knee or joint information. The not-listed lexicon now covers joints, back, injury and similar body-fit asks."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    cs = enrich_cards(cards())
+    for msg in ('Which is better for knees?', 'Is it ok for my bad back?', 'good for joint pain or an injury?'):
+        d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+        assert 'joint, back or body-fit details' in d.text
+    cs2 = enrich_cards([catalog_result(row(id=70, name='Knee Brace', price=Decimal('20.00'), attributes={'support': 'knee'}))])
+    d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs2, 'Which is better for knees?'), cs=cs2, message='Which is better for knees?')
+    assert 'body-fit' not in d.text
