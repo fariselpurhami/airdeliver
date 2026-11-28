@@ -859,7 +859,7 @@ def test_code_built_reply_has_exactly_four_sections_however_many_notes_apply():
         t = compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg)
         assert len([p for p in t.split('\n\n') if p.strip()]) == 4, (msg, t)
     t = compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'Which is cheaper')
-    assert len([p for p in t.split('\n\n') if p.strip()]) == 4  # no notes apply: the heading stands as its own section, nothing is invented
+    assert len([p for p in t.split('\n\n') if p.strip()]) == 4  # no notes apply: a scope sentence is the synthesis, nothing is invented
 
 
 def test_tag_fit_lines_are_skipped_when_every_card_carries_the_tag():
@@ -973,3 +973,15 @@ def test_safety_standard_asks_are_not_answered_by_a_tag_match():
     assert 'tagged safety' not in d.text
     d2 = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'Is it good for cycling?'), cs=cs, message='Is it good for cycling?')
     assert 'tagged cycling' in d2.text
+
+
+def test_reply_with_no_notes_ends_with_a_scope_sentence_so_it_keeps_four_sections():
+    """Real Groq b063 (vague, 'thoughts?', one card): the reviewer counted three sections (opening, cards, question) and rejected it. With no note to make, the synthesis section says what the catalog does and does not hold."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    for cs in (enrich_cards(cards()[1:]), enrich_cards(cards())):
+        t = compose_text('Sure thing.', 'What matters most to you here?', cs, 'thoughts?')
+        sections = [p for p in t.split('\n\n') if p.strip()]
+        assert len(sections) == 4, t
+        assert sections[0].startswith('Sure thing.') and sections[-1].endswith('?')
+        assert sections[2].count('\n') == 0 and 'lists' in sections[2] or 'listed' in sections[2] or 'nothing more' in sections[2].casefold()

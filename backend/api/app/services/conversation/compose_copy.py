@@ -121,8 +121,8 @@ def compose_text(opening, question, cards, message=None):
     synthesis = _join_synthesis(extras)
     if synthesis:
         parts.append(synthesis)
-    else:  # no notes apply: keep four sections by giving the heading its own paragraph
-        parts[1:2] = parts[1].split('\n', 1)
+    else:  # no notes apply: the fourth section states the scope honestly instead of padding
+        parts.append(_pick(message, 'scope', (f"That is everything the catalog lists for [[name:{cs[0]['id']}]].", f"The catalog has nothing more on [[name:{cs[0]['id']}]] than that.", f"Nothing else is listed for [[name:{cs[0]['id']}]].")) if len(cs) == 1 else _pick(message, 'scopes', ('That is everything the catalog lists for them.', 'The catalog has nothing more on them than that.', 'Nothing else is listed for them.')))
     pair = f"[[name:{cs[0]['id']}]] or [[name:{cs[1]['id']}]]" if len(cs) >= 2 else ''
     parts.append(_pick(message, 'closer', (f'These do different jobs, so which one are you actually after: {pair}?', f'Since they do different jobs, which one do you actually want: {pair}?', f'They cover different needs, so which are you after: {pair}?')) if different else question.strip())
     return '\n\n'.join(p for p in parts if p)
