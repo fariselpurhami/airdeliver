@@ -1,0 +1,13 @@
+{
+ "backend/api/app/services/conversation/shopping_copy.py": {
+  "baseline_sha256": "f8f21d2c14720febc852b648cfcb9054351c51dbdc538dba4de92255a4fffe98",
+  "current_sha256": "b023d5807574e24b050b68dfd61742f85b079ccadfb5a97760d5c36c4dd0b299",
+  "replacements": [
+   {
+    "old": "    for term in ('waterproof','water resistant','noise cancel','wireless','bluetooth','organic','handmade','leather'):\n",
+    "new": "    if any(t not in evidence_text and t not in (message or '').casefold() for t in re.findall(r'\\b[a-z]{2,}(?:_[a-z]{2,})+\\b',lowered)):\n        raise ValueError('internal_token_leak')\n    for term in ('waterproof','water resistant','noise cancel','wireless','bluetooth','organic','handmade','leather'):\n",
+    "count": 1
+   }
+  ]
+ }
+}

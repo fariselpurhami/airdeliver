@@ -274,6 +274,8 @@ def validate_draft(draft, cards, context=None, brief=None, message=None):
     if re.search(r"\b(?:in stock|available now|ready to ship)\b",lowered) and not any(c.field=='stock_status' for c in draft.claims):
         raise ValueError('unclaimed_stock_claim')
     evidence_text=' '.join(str(v) for card in by_id.values() for v in [card.get('name'),card.get('category'),*(card.get('catalog_specs') or {}).values()]).casefold()
+    if any(t not in evidence_text and t not in (message or '').casefold() for t in re.findall(r'\b[a-z]{2,}(?:_[a-z]{2,})+\b',lowered)):
+        raise ValueError('internal_token_leak')
     for term in ('waterproof','water resistant','noise cancel','wireless','bluetooth','organic','handmade','leather'):
         if term in lowered and term not in evidence_text and not _asked_and_absent_sentences(term,lowered,message) and _unnegated(re.escape(term),lowered):
             raise ValueError('unclaimed_spec_claim')

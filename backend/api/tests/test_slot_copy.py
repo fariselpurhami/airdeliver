@@ -948,3 +948,13 @@ def test_same_category_cards_with_different_product_types_are_called_different_k
     assert 'chef knife' in diff and 'frying pan' in diff and 'different kinds' in diff
     assert 'different kinds' not in run('frying pan', 'Frying Pan')
     assert 'different kinds' not in run('chef knife', None)
+def test_internal_status_tokens_never_reach_the_customer_in_any_language():
+    """Real Groq b073 (Arabic): the published reply showed 'local_in_stock' as visible text. An identifier-style token that is not in the card or the customer's message is rejected, whatever the language."""
+    leaky = 'الحالة المخزنية: متوفر محليًا (local_in_stock).'
+    with pytest.raises(ValueError, match='internal_token_leak'):
+        validate_draft(ShoppingDraftForTest(leaky), cards()[:1], {}, {}, 'hello')
+
+
+def ShoppingDraftForTest(text):
+    from app.services.shopping_copy import ShoppingDraft
+    return ShoppingDraft(text=text, product_ids=[], claims=[])
