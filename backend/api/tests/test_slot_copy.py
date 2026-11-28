@@ -798,3 +798,23 @@ def test_body_and_health_fit_asks_are_named_as_not_listed():
     cs2 = enrich_cards([catalog_result(row(id=70, name='Knee Brace', price=Decimal('20.00'), attributes={'support': 'knee'}))])
     d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs2, 'Which is better for knees?'), cs=cs2, message='Which is better for knees?')
     assert 'body-fit' not in d.text
+
+
+def test_more_everyday_asks_are_named_as_not_listed_when_no_card_covers_them():
+    """Offline audit of 88 broad questions (SYNTHETIC catalog): replies never mentioned noise level, folding, airline rules, capacity in litres, space fit or occasion fit. The lexicon now names them when no card text covers the ask."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    cs = enrich_cards(cards()[:1])
+    cases = (('is it loud and does it fold for travel', ('noise level', 'folding or portability')), ('Is it allowed on planes?', ('airline or carry-on rules',)),
+             ('How many litres is it?', ('capacity in litres',)), ('Will the desk fit in a 100 cm wide alcove?', ('space or size fit',)),
+             ('Need a shirt for a summer wedding', ('occasion or dress-code fit',)))
+    for msg, labels in cases:
+        d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+        for label in labels:
+            assert label in d.text, (msg, label)
+    hike = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'Which is lighter to carry on a long hike?'), cs=cs, message='Which is lighter to carry on a long hike?')
+    assert 'carry-on' not in hike.text
+    listed = enrich_cards([catalog_result(row(id=80, name='Water Flask', price=Decimal('15.00'), attributes={'capacity': '750 ml'}))])
+    plain = enrich_cards(cards()[:1])
+    d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', listed, 'How many litres is it?'), cs=listed, message='How many litres is it?')
+    assert 'capacity in litres' not in d.text

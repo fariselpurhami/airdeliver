@@ -42,7 +42,7 @@ def compose_text(opening, question, cards, message=None):
     if re.search(r'\b(?:solid|strong|excellent|nice|awesome|fantastic|amazing|reliable|quality|decent|sturdy|durable|popular|favou?rites?|trusted|top|winners?|smart|wise|well[- ]made|great|good|picks?|choices?|combo|pair|worthy|superb|brilliant|lovely|cool)\b', stripped):
         raise SlotError('compose_praise_wording')
     topics = [m for ask in _unlisted_asks_in(message, cs) for m in [re.search(ask, opening.casefold())] if m]
-    if (topics and not re.search(r'\b(?:want to know|wants to know|asking|wondering|curious|whether|looking (?:for|to)|checking|need to know|\bif\b)', opening.casefold())) or re.search(r'\bshould\s+(?:be|work|fit|suit)\b', stripped):
+    if (topics and not re.search(r'\b(?:want to know|wants to know|asking|wondering|curious|whether|looking (?:for|to)|checking|need to know|\byou(?:[\x27’]re| are| want| need| have| mentioned| said| asked| were)|\bif\b)', opening.casefold())) or re.search(r'\bshould\s+(?:be|work|fit|suit)\b', stripped):
         raise SlotError('compose_unlisted_claim')
     words = lambda t: {w[:5] for w in re.findall(r'[a-z]{5,}', t)}
     if words(strip(opening)) & (_card_words(cs) - allowed) or words(strip(question)) & (_card_words(cs, tags=False) - allowed):
