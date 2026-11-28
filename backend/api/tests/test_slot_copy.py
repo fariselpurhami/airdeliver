@@ -901,3 +901,14 @@ def test_opening_or_question_offering_to_check_or_look_into_something_is_swapped
         assert 'check' not in t.split('\n\n')[0].casefold() and 'look into' not in t and 'find out' not in t
     assert 'should I check' not in compose_text_safe('Bad.', 'Bad question?', cs, 'zzz')
     compose_text('Here is the bottle you asked about.', 'What matters most to you here?', cs, 'Is it loud?')
+
+
+def test_worth_it_asks_are_named_as_a_verdict_the_catalog_does_not_give():
+    """Real Groq b062 (vague, 'worth it?', one card): the reviewer rejected the reply because it never addressed the value question. Code says the entry carries no value-for-money verdict, so the question is visibly answered."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    cs = enrich_cards(cards()[1:])
+    for msg in ('worth it?', 'Is it worth the money?', 'is this good value for money', 'is it worth buying'):
+        d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+        assert 'a verdict on value for money' in d.text, msg
+    d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'What is it worth in grams?'), cs=cs, message='x')
