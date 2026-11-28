@@ -886,3 +886,18 @@ def test_customer_height_or_long_back_is_named_as_not_listed_even_when_a_tag_say
         assert 'fit for your height or body size' in d.text, msg
     plain = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'It is 190 cm wide, will it fit?'), cs=cs, message='It is 190 cm wide, will it fit?')
     assert 'fit for your height or body size' not in plain.text
+
+
+def test_opening_or_question_offering_to_check_or_look_into_something_is_swapped_for_neutral_wording():
+    """Real Groq b055 (beauty) published 'I'm not sure how loud it runs or if it folds, but I can check for you.' The shop cannot check anything beyond the card; an offer to do so is an unbacked promise. Code swaps in neutral wording."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text, compose_text_safe
+    from app.services.conversation.slot_errors import SlotError
+    cs = enrich_cards(cards()[1:])
+    for bad in ("I am not sure, but I can check for you.", "Let me look into that for you.", "I'll find out and get back to you.", "I will confirm that shortly."):
+        with pytest.raises(SlotError):
+            compose_text(bad, 'What matters most to you here?', cs, 'Is it loud?')
+        t = compose_text_safe(bad, 'What matters most to you here?', cs, 'Is it loud?')
+        assert 'check' not in t.split('\n\n')[0].casefold() and 'look into' not in t and 'find out' not in t
+    assert 'should I check' not in compose_text_safe('Bad.', 'Bad question?', cs, 'zzz')
+    compose_text('Here is the bottle you asked about.', 'What matters most to you here?', cs, 'Is it loud?')

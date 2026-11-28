@@ -37,6 +37,8 @@ def compose_text(opening, question, cards, message=None):
     stripped = strip(f'{opening} {question}')
     if re.search(r'\b(?:free|deliver\w*|ship\w*|warrant\w*|guarant\w*|return\w*|refund\w*|reserv\w*|discount\w*|special offers?|promo\w*|coupon\w*|deals?|stock|available|availability)\b', stripped):
         raise SlotError('compose_policy_wording')
+    if re.search(r"\b(?:i|we)(?:\s+(?:can|could|will|shall|would|am going to|may|might)|[\x27’](?:ll|d))\s+(?:also\s+)?(?:check|look|find|verify|confirm|research|dig|get back|follow|search|see|ask|investigate|track|chase|reach|contact)\w*\b|\blet me\s+(?:look into|find out|get back|verify|confirm|dig)\b", stripped):
+        raise SlotError('compose_action_offer')
     if re.search(r'\b(?:work|works|working|worked|suit|suits|suited|suitable|fit|fits|fitting|good|ideal|perfect|great|handy|useful|right)\s+(?:for|well|you)\b|\b(?:would|could|will|can)\s+(?:suit|work|fit)\b|\b(?:generally|usually|typically|often|tends?|normally|mostly)\b|\bsuit\w*\b|\bfits?\b', stripped):
         raise SlotError('compose_suitability_claim')
     if re.search(r'\b(?:solid|strong|excellent|nice|awesome|fantastic|amazing|reliable|quality|decent|sturdy|durable|popular|favou?rites?|trusted|top|winners?|smart|wise|well[- ]made|great|good|picks?|choices?|combo|pair|worthy|superb|brilliant|lovely|cool)\b', stripped):
@@ -129,7 +131,7 @@ def _join_synthesis(pieces):
 
 
 _NEUTRAL_OPENINGS = ('You want a straight answer, so here it is.', 'Let us take this one piece at a time.', 'Here is how this lines up against what you asked.')
-_NEUTRAL_QUESTIONS = ('What matters most to you here?', 'Is there anything else you want to know?', 'What else should I check for you?')
+_NEUTRAL_QUESTIONS = ('What matters most to you here?', 'Is there anything else you want to know?', 'What else would you like to know?')
 
 
 def compose_text_safe(opening, question, cards, message=None):
