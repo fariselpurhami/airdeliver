@@ -59,19 +59,20 @@ def compose_text(opening, question, cards, message=None):
     needs = _need_lines(message, cs)
     low = (message or '').casefold()
     cardkey = 'cardnp' if len(cs) <= 2 and any(n.startswith('On price') for n in needs) else 'card'  # the answer line names two prices only; with 3+ cards the blocks keep theirs
-    parts = [opening.strip()] + ([' '.join(needs)] if needs else [])
+    parts = [' '.join([opening.strip()] + needs)]
+    extras = []
     different = False
     keysets = [{k for k in listed[c['id']] if k not in ('price', 'description', 'rating', 'tags')} for c in cs]
     if len(cs) == 2 and all(keysets) and not (keysets[0] & keysets[1]):
         names = [f"[[name:{c['id']}]]" for c in cs]
         different = True
-        parts.append(f"{names[0]} is listed with {_join([_label(k) for k in sorted(keysets[0])])} and {names[1]} with {_join([_label(k) for k in sorted(keysets[1])])}, {_pick(message, "kind", ("so they look like two different kinds of item, not substitutes.", "so they are not interchangeable.", "so they are not really alternatives to each other."))}")
+        extras.append(f"{names[0]} is listed with {_join([_label(k) for k in sorted(keysets[0])])} and {names[1]} with {_join([_label(k) for k in sorted(keysets[1])])}, {_pick(message, "kind", ("so they look like two different kinds of item, not substitutes.", "so they are not interchangeable.", "so they are not really alternatives to each other."))}")
     elif len(cs) == 2:
         cats = [str(c.get('category') or '').strip() for c in cs]
         if all(cats) and not any(x.casefold() == 'uncategorized' for x in cats) and cats[0].casefold() != cats[1].casefold():
             different = True
-            parts.append(f"[[name:{cs[0]['id']}]] is listed under {cats[0]} and [[name:{cs[1]['id']}]] under {cats[1]}, {_pick(message, "kind", ("so they look like two different kinds of item, not substitutes.", "so they are not interchangeable.", "so they are not really alternatives to each other."))}")
-    parts += [heading, '\n'.join(f"- [[{cardkey}:{c['id']}]]" for c in cs)]
+            extras.append(f"[[name:{cs[0]['id']}]] is listed under {cats[0]} and [[name:{cs[1]['id']}]] under {cats[1]}, {_pick(message, "kind", ("so they look like two different kinds of item, not substitutes.", "so they are not interchangeable.", "so they are not really alternatives to each other."))}")
+    parts.append(heading + '\n' + '\n'.join(f"- [[{cardkey}:{c['id']}]]" for c in cs))
     asked = lambda label: label in low or (label == 'weight' and re.search(r'light|weigh|heavy', low)) or (label == 'rating' and re.search(r'rated|review', low))
     gaps = []
     for c in cs:
@@ -83,10 +84,10 @@ def compose_text(opening, question, cards, message=None):
         if any((c.get('catalog_specs') or {}).get('description') for c in cs):
             gaps.append('Check each description for anything beyond these entries.')
     if gaps:
-        parts.append(' '.join(gaps))
+        extras.append(' '.join(gaps))
     unlisted = _unlisted_lines(message, cs)
     if unlisted:
-        parts.append(' '.join(unlisted))
+        extras.append(' '.join(unlisted))
     qwords = {w for w in re.findall(r'[a-z]{4,}', low)}
     fits = []
     for c in cs:
@@ -104,12 +105,25 @@ def compose_text(opening, question, cards, message=None):
         others = [f for f in fits if not f[2] and f[1] and not any(g[:3] == word[:3] for g in (x.casefold() for x in f[1]))]
         if others or len(hits) > 1:
             seg = [f'- [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits] + [f'- [[name:{c["id"]}]] has no matching tag' + ('.' if _tag_echoes_card(c, tags) else f' (its tags: {", ".join(tags)}).') for c, tags, _ in others]
-            parts.append(f'For "{word}":\n' + '\n'.join(seg))
+            extras.append(f'For "{word}":\n' + '\n'.join(seg))
         else:
-            parts.append(' '.join(f'[[name:{c["id"]}]] is tagged {h[0]}, which matches your question.' if h[1] == h[0].casefold() else f'For "{h[1]}": [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits))
+            extras.append(' '.join(f'[[name:{c["id"]}]] is tagged {h[0]}, which matches your question.' if h[1] == h[0].casefold() else f'For "{h[1]}": [[name:{c["id"]}]] is tagged {h[0]}.' for c, _, h in hits))
+    synthesis = _join_synthesis(extras)
+    if synthesis:
+        parts.append(synthesis)
+    else:  # no notes apply: keep four sections by giving the heading its own paragraph
+        parts[1:2] = parts[1].split('\n', 1)
     pair = f"[[name:{cs[0]['id']}]] or [[name:{cs[1]['id']}]]" if len(cs) >= 2 else ''
     parts.append(_pick(message, 'closer', (f'These do different jobs, so which one are you actually after: {pair}?', f'Since they do different jobs, which one do you actually want: {pair}?', f'They cover different needs, so which are you after: {pair}?')) if different else question.strip())
     return '\n\n'.join(p for p in parts if p)
+
+
+def _join_synthesis(pieces):
+    # the reply has four sections: opening, the cards, one synthesis paragraph, the closing question
+    out = ''
+    for p in (x for x in pieces if x):
+        out = p if not out else out + ('\n' if '\n' in out or '\n' in p else ' ') + p
+    return out
 
 
 _NEUTRAL_OPENINGS = ('You want a straight answer, so here it is.', 'Let us take this one piece at a time.', 'Here is how this lines up against what you asked.')

@@ -848,3 +848,15 @@ def test_discount_and_material_safety_asks_are_named_as_not_listed():
         assert label in d.text, msg
     plain = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'What is the code name of the product line?'), cs=cs, message='What is the code name of the product line?')
     assert 'discounts or promo codes' not in plain.text
+
+
+def test_code_built_reply_has_exactly_four_sections_however_many_notes_apply():
+    """Real Groq b035 (fashion): the reviewer rejected a five-section reply for the four-section contract. Opening, cards, one synthesis paragraph, closing question."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    cs = enrich_cards(cards()[1:])
+    for msg in ('Need a shirt for a summer wedding, size L', 'Is it BPA free and is there a discount code? Which is lighter?'):
+        t = compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg)
+        assert len([p for p in t.split('\n\n') if p.strip()]) == 4, (msg, t)
+    t = compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'Which is cheaper')
+    assert len([p for p in t.split('\n\n') if p.strip()]) == 4  # no notes apply: the heading stands as its own section, nothing is invented
