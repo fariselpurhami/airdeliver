@@ -102,6 +102,7 @@ def _need_lines(message, cs, _again=False):
         if aged:
             out.append(' '.join(f"[[name:{c['id']}]] lists its age as [[spec.age:{c['id']}]]." for c in aged))
     asked_size = re.findall(r'\bsize\s+(\d{1,3}(?:\.\d)?)\b|\b(\d{1,3}(?:\.\d)?)\s+size\b', low)
+    asked_size += [(m, '') for m in re.findall(r"\b(?:i am|i'm|i wear|i normally wear|i usually wear|normally|usually)\s+(?:usually\s+|normally\s+)?(?:a\s+|an\s+)?(?:size\s+)?(\d{2}(?:\.\d)?)\b(?!\s*(?:years?|yrs?|yo\b|y/o|cm\b|kg\b|lbs?\b|old\b|%|percent))", low)]
     if asked_size:
         want = {a or b for a, b in asked_size}
         sized = [c for c in cs if str((c.get('catalog_specs') or {}).get('size', '')).strip() and str(c['catalog_specs']['size']).strip().casefold() not in want]

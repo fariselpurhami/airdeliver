@@ -985,3 +985,22 @@ def test_reply_with_no_notes_ends_with_a_scope_sentence_so_it_keeps_four_section
         assert len(sections) == 4, t
         assert sections[0].startswith('Sure thing.') and sections[-1].endswith('?')
         assert sections[2].count('\n') == 0 and 'lists' in sections[2] or 'listed' in sections[2] or 'nothing more' in sections[2].casefold()
+
+
+def test_a_usual_size_stated_as_i_am_a_43_is_compared_with_the_listed_size():
+    """Real Groq b040 (fashion, 'Are these true to size? I am usually a 43'): the card lists size 42 and the reply said nothing about the gap, because only 'size N' phrasing was read. 'I am a 43', 'I usually wear 43', 'normally a 43' now count, only against a card that lists a size."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    base = cards()[1]
+    shoe = base.model_copy(update={'catalog_specs': {**base.catalog_specs, 'size': '42'}})
+    cs = enrich_cards([shoe])
+    for msg in ('Are these true to size? I am usually a 43', 'I wear 43 normally, will these do?', "I'm a 43, ok?"):
+        d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+        assert 'lists size 42 and no other size' in d.text, msg
+    same = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'I am usually a 42'), cs=cs, message='I am usually a 42')
+    assert 'no other size' not in same.text
+    for other in ('I am 25 years old', 'I am 180 cm tall', 'I am 80 kg'):
+        o = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, other), cs=cs, message=other)
+        assert 'no other size' not in o.text, other
+    nosize = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', enrich_cards([base]), 'I am a 43'), cs=enrich_cards([base]), message='I am a 43')
+    assert 'no other size' not in nosize.text
