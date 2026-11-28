@@ -101,6 +101,12 @@ def _need_lines(message, cs, _again=False):
         aged = [c for c in cs if str((c.get('catalog_specs') or {}).get('age', '')).strip()]
         if aged:
             out.append(' '.join(f"[[name:{c['id']}]] lists its age as [[spec.age:{c['id']}]]." for c in aged))
+    asked_size = re.findall(r'\bsize\s+(\d{1,3}(?:\.\d)?)\b|\b(\d{1,3}(?:\.\d)?)\s+size\b', low)
+    if asked_size:
+        want = {a or b for a, b in asked_size}
+        sized = [c for c in cs if str((c.get('catalog_specs') or {}).get('size', '')).strip() and str(c['catalog_specs']['size']).strip().casefold() not in want]
+        if sized and len(sized) == len(cs):  # every card lists a different size than the one asked
+            out.append(' '.join(f"[[name:{c['id']}]] lists size [[spec.size:{c['id']}]] and no other size." for c in sized))
     qty = quantity_of(message)
     if qty and 1 <= len(cs) <= 3 and all(c.get('price') not in (None, '') for c in cs):
         out.append(('Worked out for you: ', 'The totals: ', 'For that many: ')[__import__('zlib').crc32(f'qty|{message or ""}'.encode('utf-8')) % 3] + '; '.join(f"[[name:{c['id']}]] comes to [[qty:{c['id']}]]" for c in cs) + '.')

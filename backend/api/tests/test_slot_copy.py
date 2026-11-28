@@ -912,3 +912,19 @@ def test_worth_it_asks_are_named_as_a_verdict_the_catalog_does_not_give():
         d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
         assert 'a verdict on value for money' in d.text, msg
     d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'What is it worth in grams?'), cs=cs, message='x')
+
+
+def test_asked_size_that_differs_from_the_listed_size_is_stated_without_typing_digits():
+    """Real Groq b037 (fashion, 'do these come in white and size 44?'): the card lists size 42. The reply showed it in the block but never said the listed size is a different one. Code names the listed size through its slot and says no other size is listed; it never types the asked number."""
+    from app.services.conversation.slot_copy import enrich_cards
+    from app.services.conversation.compose_copy import compose_text
+    base = cards()[1]
+    shoe = base.model_copy(update={'catalog_specs': {**base.catalog_specs, 'size': '42'}})
+    cs = enrich_cards([shoe])
+    msg = 'do these come in white and size 44?'
+    d = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, msg), cs=cs, message=msg)
+    assert 'lists size 42' in d.text and 'no other size' in d.text and '44' not in d.text
+    same = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', cs, 'do these come in size 42?'), cs=cs, message='do these come in size 42?')
+    assert 'no other size' not in same.text
+    other = ok(compose_text('Let us take this one piece at a time.', 'What matters most to you here?', enrich_cards([base]), msg), cs=enrich_cards([base]), message=msg)
+    assert 'no other size' not in other.text
